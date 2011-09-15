@@ -1,0 +1,74 @@
+
+The source code for UnixCW version 2.3 comes with a 'configure' file.  Its job
+is to try and decide which features your system offers, and then configure
+UnixCW the best way it can for these features.
+
+At minimum, you will need a set of sound card definitions (usually in the file
+soundcard.h) and perhaps also a KIOCSOUND console sound ioctl available on your
+system; these are used to build the CW library.  Note that it's not necessary
+for the system doing the build to actually have a sound card, nor for that
+matter, a working console speaker, but you will need the definitions from
+various header files.  Of course, you will need a sound card or console speaker
+if you want to run any of the programs once they are built.
+
+If you have a Curses library, UnixCW will build 'cwcp'.  And if you have a Qt
+library, version 3.1 or later, and a C++ compiler, it will also build 'xcwcp'.
+You need to set the environment variable
+
+    QTDIR
+
+to indicate the Qt library directory on your system, for example
+
+    export QTDIR=/usr/lib/qt-3.1
+
+if QTDIR is not already set.  The configure script will look for the Qt 'moc'
+utility on either your current $PATH or in $QTDIR/bin.
+
+UnixCW may port to other platforms, but the primary target systems on which it
+should "just build", perhaps with a bit of tweaking as shown above with
+environment variables, are:
+
+    o Linux
+    o FreeBSD
+
+
+To build the CW library and the UnixCW applications, you should be able to type
+the following commands in the directory where you unpacked the source code:
+
+    ./configure
+    make all
+
+'configure' will tell you of any problems with missing features on your system.
+If you lack a Qt library, it will omit building 'xcwcp'.  If you lack a Curses
+library, it will omit building 'cwcp'.  The other components should still
+build, however.
+
+
+Assuming the 'make all' succeeded, you can now install the programs with
+
+    make install
+
+By default, this will install everything under /usr/local.  You would probably
+want to be 'root' to do this, otherwise you may not have the permissions to
+write files to the installation directory.
+
+Note that it is not necessary to install the programs in order to run them.
+You should be able to run any of them in the directories in which they built
+themselves.
+
+
+To uninstall the programs, use
+
+    make uninstall
+
+with the same user/permissions as you used for installing.  To clean out the
+directory for a rebuild, use
+
+    make distclean
+
+If you have autoconf and the other auto* tools installed on your system, you
+can regenerate the configure file, if you like, from configure.in, with
+
+    make maintainer-clean
+    sh autogen.sh
+

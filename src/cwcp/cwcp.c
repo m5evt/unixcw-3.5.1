@@ -1,0 +1,1689 @@
+/* vi: set ts=2 shiftwidth=2 expandtab:
+ *
+ * Copyright (C) 2001-2006  Simon Baldwin (simon_baldwin@yahoo.com)
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ */
+
+#include "../config.h"
+
+#include <sys/time.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include <limits.h>
+#include <ctype.h>
+#include <curses.h>
+#include <errno.h>
+
+#if defined(HAVE_STRING_H)
+# include <string.h>
+#endif
+
+#if defined(HAVE_STRINGS_H)
+# include <strings.h>
+#endif
+
+#include "cwlib.h"
+
+#include "i18n.h"
+#include "cmdline.h"
+#include "copyright.h"
+#include "dictionary.h"
+#include "memory.h"
+
+
+/*---------------------------------------------------------------------*/
+/*  Module variables, miscellaneous other stuff                        */
+/*---------------------------------------------------------------------*/
+
+/* Flag set if colors are requested on the user interface. */
+static int do_colors = TRUE;
+
+/* Curses windows used globally. */
+static WINDOW *text_box, *text_display, *timer_display;
+
+
+/*---------------------------------------------------------------------*/
+/*  Circular character queue                                           */
+/*---------------------------------------------------------------------*/
+
+/*
+ * Characters awaiting send are stored in a circular buffer, implemented as
+ * an array with tail and head indexes that wrap.
+ */
+enum { QUEUE_CAPACITY = 256 };
+static volatile char queue_data[QUEUE_CAPACITY];
+static volatile int queue_tail = 0,
+                    queue_head = 0;
+
+/*
+ * There are times where we have no data to send.  For these cases, record
+ * as idle, so that we know when to wake the sender.
+ */
+static volatile int is_queue_idle = TRUE;
+
+
+/*
+ * queue_get_length()
+ * queue_next_index()
+ * queue_prior_index()
+ *
+ * Return the count of characters currently held in the circular buffer, and
+ * advance/regress a tone queue index, including circular wrapping.
+ */
+static int
+queue_get_length (void)
+{
+  return queue_tail >= queue_head
+         ? queue_tail - queue_head : queue_tail - queue_head + QUEUE_CAPACITY;
+}
+
+static int
+queue_next_index (int index)
+{
+  return (index + 1) % QUEUE_CAPACITY;
+}
+
+static int
+queue_prior_index (int index)
+{
+  return index == 0 ? QUEUE_CAPACITY - 1 : index - 1;
+}
+
+
+/*
+ * queue_display_add_character()
+ * queue_display_delete_character()
+ * queue_display_highlight_character()
+ *
+ * Add and delete a character to the text display when queueing, and
+ * highlight or un-highlight, a character in the text display when dequeueing.
+ */
+static void
+queue_display_add_character (void)
+{
+  /* Append the last queued character to the text display. */
+  if (queue_get_length () > 0)
+    {
+      waddch (text_display, toupper (queue_data[queue_tail]));
+      wrefresh (text_display);
+    }
+}
+
+static void
+queue_display_delete_character (void)
+{
+  int y, x, max_y, max_x;
+
+  /* Get the text display dimensions and current coordinates. */
+  getmaxyx (text_display, max_y, max_x);
+  getyx (text_display, y, x);
+
+  /* Back the cursor up one position. */
+  x--;
+  if (x < 0)
+    {
+      x += max_x;
+      y--;
+    }
+
+  /* If these coordinates are on screen, write a space and back up. */
+  if (y >= 0)
+    {
+      wmove (text_display, y, x);
+      waddch (text_display, ' ');
+      wmove (text_display, y, x);
+      wrefresh (text_display);
+    }
+}
+
+static void
+queue_display_highlight_character (int is_highlight)
+{
+  int y, x, max_y, max_x;
+
+  /* Get the text display dimensions and current coordinates. */
+  getmaxyx (text_display, max_y, max_x);
+  getyx (text_display, y, x);
+
+  /* Find the coordinates for the queue head character. */
+  x -= queue_get_length () + 1;
+  while (x < 0)
+    {
+      x += max_x;
+      y--;
+    }
+
+  /*
+   * If these coordinates are on screen, highlight or unhighlight, and then
+   * restore the cursor position so that it remains unchanged.
+   */
+  if (y >= 0)
+    {
+      int saved_y, saved_x;
+
+      getyx (text_display, saved_y, saved_x);
+      wmove (text_display, y, x);
+      waddch (text_display,
+              is_highlight ? winch (text_display) | A_REVERSE
+                           : winch (text_display) & ~A_REVERSE);
+      wmove (text_display, saved_y, saved_x);
+      wrefresh (text_display);
+    }
+}
+
+
+/*
+ * queue_discard_contents()
+ *
+ * Forcibly empty the queue, if not already idle.
+ */
+static void
+queue_discard_contents (void)
+{
+  if (!is_queue_idle)
+    {
+      queue_display_highlight_character (FALSE);
+      queue_head = queue_tail;
+      is_queue_idle = TRUE;
+    }
+}
+
+
+/*
+ * queue_dequeue_character()
+ *
+ * Called when the CW send buffer is empty.  If the queue is not idle, take
+ * the next character from the queue and send it.  If there are no more queued
+ * characters, set the queue to idle.
+ */
+static void
+queue_dequeue_character (void)
+{
+  if (!is_queue_idle)
+    {
+      /* Unhighlight any previous highlighting, and see if we can dequeue. */
+      queue_display_highlight_character (FALSE);
+      if (queue_get_length () > 0)
+        {
+          char c;
+
+          /*
+           * Take the next character off the queue, highlight, and send it.
+           * We don't expect sending to fail because only sendable characters
+           * are queued.
+           */
+          queue_head = queue_next_index (queue_head);
+          c = queue_data[queue_head];
+          queue_display_highlight_character (TRUE);
+
+          if (!cw_send_character (c))
+            {
+              perror ("cw_send_character");
+              abort ();
+            }
+        }
+      else
+        is_queue_idle = TRUE;
+    }
+}
+
+
+/*
+ * queue_enqueue_string()
+ * queue_enqueue_character()
+ *
+ * Queues a string or character for sending by the CW sender.  Rejects any
+ * unsendable character, and also any characters passed in where the character
+ * queue is already full.  Rejection is silent.
+ */
+static void
+queue_enqueue_string (const char *word)
+{
+  int is_queue_notify, index;
+
+  is_queue_notify = FALSE;
+  for (index = 0; word[index] != '\0'; index++)
+    {
+      char c;
+
+      c = toupper (word[index]);
+      if (cw_check_character (c))
+        {
+          /*
+           * Calculate the new character queue tail.  If the new value will
+           * not hit the current queue head, add the character to the queue.
+           */
+          if (queue_next_index (queue_tail) != queue_head)
+            {
+              queue_tail = queue_next_index (queue_tail);
+              queue_data[queue_tail] = c;
+              queue_display_add_character ();
+
+              if (is_queue_idle)
+                is_queue_notify = TRUE;
+            }
+        }
+    }
+
+  /* If we queued any character, mark the queue as not idle. */
+  if (is_queue_notify)
+    is_queue_idle = FALSE;
+}
+
+static void
+queue_enqueue_character (char c)
+{
+  char buffer[2];
+
+  buffer[0] = c;
+  buffer[1] = '\0';
+  queue_enqueue_string (buffer);
+}
+
+
+/*
+ * queue_delete_character()
+ *
+ * Remove the most recently added character from the queue, provided that
+ * the dequeue hasn't yet reached it.  If there's nothing available to
+ * delete, fail silently.
+ */
+static void
+queue_delete_character (void)
+{
+  /* If data is queued, regress tail and delete one display character. */
+  if (queue_get_length () > 0)
+    {
+      queue_tail = queue_prior_index (queue_tail);
+      queue_display_delete_character ();
+    }
+}
+
+
+/*---------------------------------------------------------------------*/
+/*  Practice timer                                                     */
+/*---------------------------------------------------------------------*/
+
+/* Practice timer limits, timer, and time() value on practice start. */
+static const int TIMER_MIN_TIME = 1, TIMER_MAX_TIME = 99;
+static int timer_practice_time = 15,
+           timer_practice_start = 0;
+
+
+/*
+ * timer_get_practice_time()
+ * timer_set_practice_time()
+ * timer_get_practice_time_limits()
+ *
+ * Accessor, mutator, and limit function for mode practice timer.
+ */
+static int
+timer_get_practice_time (void)
+{
+  return timer_practice_time;
+}
+
+static int
+timer_set_practice_time (int practice_time)
+{
+  if (practice_time >= TIMER_MIN_TIME && practice_time <= TIMER_MAX_TIME)
+    {
+      timer_practice_time = practice_time;
+      return TRUE;
+    }
+
+  return FALSE;
+}
+
+static void
+timer_get_practice_time_limits (int *min_time, int *max_time)
+{
+  *min_time = TIMER_MIN_TIME;
+  *max_time = TIMER_MAX_TIME;
+}
+
+
+/*
+ * timer_start()
+ *
+ * Set the timer practice start time to the current time.
+ */
+static void
+timer_start (void)
+{
+  timer_practice_start = time (NULL);
+}
+
+
+/*
+ * is_timer_expired()
+ *
+ * Update the practice timer, and return TRUE if the timer expires.
+ */
+static int
+is_timer_expired (void)
+{
+  char buffer[16];
+  int minutes;
+
+  /* Update the display of minutes practiced. */
+  minutes = (time (NULL) - timer_practice_start) / 60;
+  sprintf (buffer, "%2d", minutes);
+  mvwaddstr (timer_display, 0, 2, buffer);
+  wrefresh (timer_display);
+
+  /* Check the time, requesting stop if over practice time. */
+  return minutes >= timer_practice_time;
+}
+
+
+/*---------------------------------------------------------------------*/
+/*  General program state and mode control                             */
+/*---------------------------------------------------------------------*/
+
+/*
+ * Definition of an interface operating mode; its description, related
+ * dictionary, and data on how to send for the mode.
+ */
+typedef enum { M_DICTIONARY, M_KEYBOARD, M_EXIT } mode_type_t;
+struct mode_s
+{
+  const char *description;  /* Text mode description */
+  mode_type_t type;         /* Mode type; dictionary, keyboard... */
+  const dictionary *dict;   /* Dictionary, if type is dictionary */
+};
+typedef struct mode_s *moderef_t;
+
+/*
+ * Modes table, current program mode, and count of modes in the table.
+ * The program is always in one of these modes, indicated by current_mode.
+ */
+static moderef_t modes = NULL,
+                 current_mode = NULL;
+static int modes_count = 0;
+
+/* Current sending state, active or idle. */
+static int is_sending_active = FALSE;
+
+
+/*
+ * mode_initialize()
+ *
+ * Build up the modes from the known dictionaries, then add non-dictionary
+ * modes.
+ */
+static void
+mode_initialize (void)
+{
+  int count;
+  const dictionary *dict;
+
+  /* Dispose of any pre-existing modes -- unlikely. */
+  free (modes);
+  modes = NULL;
+
+  /* Start the modes with the known dictionaries. */
+  count = 0;
+  for (dict = dictionary_iterate (NULL); dict; dict = dictionary_iterate (dict))
+    {
+      modes = safe_realloc (modes, sizeof (*modes) * (count + 1));
+      modes[count].description = get_dictionary_description (dict);
+      modes[count].type = M_DICTIONARY;
+      modes[count++].dict = dict;
+    }
+
+  /* Add keyboard, exit, and null sentinel. */
+  modes = safe_realloc (modes, sizeof (*modes) * (count + 3));
+  modes[count].description = _("Keyboard");
+  modes[count].type = M_KEYBOARD;
+  modes[count++].dict = NULL;
+
+  modes[count].description = _("Exit (F12)");
+  modes[count].type = M_EXIT;
+  modes[count++].dict = NULL;
+
+  memset (modes + count, 0, sizeof (*modes));
+
+  /* Initialize the current mode to be the first listed, and set count. */
+  current_mode = modes;
+  modes_count = count;
+}
+
+
+/*
+ * mode_get_count()
+ * mode_get_current()
+ * mode_get_description()
+ * mode_current_is_type()
+ *
+ * Get the count of modes, the index of the current mode, a description of the
+ * mode at a given index, and a type comparison for the current mode.
+ */
+static int
+mode_get_count (void)
+{
+  return modes_count;
+}
+
+static int
+mode_get_current (void)
+{
+  return current_mode - modes;
+}
+
+static const char *
+mode_get_description (int index)
+{
+  return modes[index].description;
+}
+
+static int
+mode_current_is_type (mode_type_t type)
+{
+  return current_mode->type == type;
+}
+
+
+/*
+ * mode_advance_current()
+ * mode_regress_current()
+ *
+ * Advance and regress the current node, returning FALSE if at the limits.
+ */
+static int
+mode_advance_current (void)
+{
+  current_mode++;
+  if (!current_mode->description)
+    {
+      current_mode--;
+      return FALSE;
+    }
+  else
+    return TRUE;
+}
+
+static int
+mode_regress_current (void)
+{
+  if (current_mode > modes)
+    {
+      current_mode--;
+      return TRUE;
+    }
+  else
+    return FALSE;
+}
+
+
+/*
+ * change_state_to_active()
+ *
+ * Change the state of the program from idle to actively sending.
+ */
+static void
+change_state_to_active (void)
+{
+  static moderef_t last_mode = NULL;  /* Detect changes of mode */
+
+  if (!is_sending_active)
+    {
+      cw_flush_tone_queue ();
+      cw_queue_tone (20000, 500);
+      cw_queue_tone (20000, 1000);
+      cw_wait_for_tone_queue ();
+
+      /* Don't set sending_state until after the above warning has completed. */
+      is_sending_active = TRUE;
+
+      mvwaddstr (text_box, 0, 1, _("Sending(F9 or Esc to exit)"));
+      wnoutrefresh (text_box);
+      doupdate ();
+
+      if (current_mode != last_mode)
+        {
+          /* If the mode changed, clear the display window. */
+          werase (text_display);
+          wmove (text_display, 0, 0);
+          wrefresh (text_display);
+
+          /* And if we are starting something new, start the timer. */
+          timer_start ();
+
+          last_mode = current_mode;
+        }
+   }
+}
+
+
+/*
+ * change_state_to_idle()
+ *
+ * Change the state of the program from actively sending to idle.
+ */
+static void
+change_state_to_idle (void)
+{
+  if (is_sending_active)
+    {
+      is_sending_active = FALSE;
+
+      box (text_box, 0, 0);
+      mvwaddstr (text_box, 0, 1, _("Start(F9)"));
+      wnoutrefresh (text_box);
+      touchwin (text_display);
+      wnoutrefresh (text_display);
+      doupdate ();
+
+      /* Remove everything in the outgoing character queue. */
+      queue_discard_contents ();
+
+      cw_flush_tone_queue ();
+      cw_queue_tone (20000, 500);
+      cw_queue_tone (20000, 1000);
+      cw_queue_tone (20000, 500);
+      cw_queue_tone (20000, 1000);
+      cw_wait_for_tone_queue ();
+    }
+}
+
+
+/*
+ * mode_buffer_random_text()
+ *
+ * Add a group of elements, based on the given mode, to the character queue.
+ */
+static void
+mode_buffer_random_text (moderef_t mode)
+{
+  const dictionary *dict;
+  int group, group_size;
+
+  dict = mode->dict;
+  group_size = get_dictionary_group_size (dict);
+
+  /* Select and buffer groupsize random wordlist elements. */
+  queue_enqueue_character (' ');
+  for (group = 0; group < group_size; group++)
+    queue_enqueue_string (get_dictionary_random_word (dict));
+}
+
+
+/*
+ * mode_cwlib_poll_sender()
+ *
+ * Poll the CW library tone queue, and if it is getting low, arrange for
+ * more data to be passed in to the sender.
+ */
+static void
+mode_cwlib_poll_sender (void)
+{
+  if (cw_get_tone_queue_length () <= 1)
+    {
+      /*
+       * If sending is active, arrange more data for cwlib.  The source for
+       * this data is dependent on the mode.  If in dictionary modes, update
+       * and check the timer, then add more random data if the queue is empty.
+       * If in keyboard mode, just dequeue anything currently on the character
+       * queue.
+       */
+      if (is_sending_active)
+        {
+          if (current_mode->type == M_DICTIONARY)
+            {
+              if (is_timer_expired ())
+                {
+                  change_state_to_idle ();
+                  return;
+                }
+
+              if (queue_get_length () == 0)
+                mode_buffer_random_text (current_mode);
+            }
+
+          if (current_mode->type == M_DICTIONARY
+              || current_mode->type == M_KEYBOARD)
+            {
+              queue_dequeue_character ();
+            }
+        }
+    }
+}
+
+
+/*
+ * mode_is_sending_active()
+ *
+ * Return TRUE if currently sending, false otherwise.
+ */
+static int
+mode_is_sending_active (void)
+{
+  return is_sending_active;
+}
+
+
+/*---------------------------------------------------------------------*/
+/*  User interface initialization and event handling                   */
+/*---------------------------------------------------------------------*/
+
+/*
+ * User interface introduction strings, split in two to avoid the 509
+ * character limit imposed by ISO C89 on string literal lengths.
+ */
+static const char *const INTRODUCTION = N_("\n"
+  "UNIX/Linux Morse Tutor v2.3, (C) 1997-2006 Simon Baldwin\n"
+  "--------------------------------------------------------\n\n"
+  "Cwcp is an interactive Morse code tutor program, designed\n"
+  "both for learning Morse code for the first time, and for\n"
+  "experienced Morse users who want, or need, to improve\n"
+  "their receiving speed.\n\n");
+static const char *const INTRODUCTION_CONTINUED = N_("\n"
+  "To use the program, select a mode from those listed on\n"
+  "the left, and begin sending by pressing Return or F9.\n\n"
+  "You can vary the speed, tone, volume, and spacing of the\n"
+  "Morse code at any time using the appropriate keys.\n\n"
+  "To stop sending, press F9.  To stop the program, select\n"
+  "Exit from the Mode menu, or use F12 or ^C.\n");
+
+/* Alternative F-keys for folks without (some, or all) F-keys. */
+enum
+{ CTRL_OFFSET = 0100,                   /* Ctrl keys are 'X' - 0100 */
+  PSEUDO_KEYF1 = 'Q' - CTRL_OFFSET,     /* Alternative FKEY1 */
+  PSEUDO_KEYF2 = 'W' - CTRL_OFFSET,     /* Alternative FKEY2 */
+  PSEUDO_KEYF3 = 'E' - CTRL_OFFSET,     /* Alternative FKEY3 */
+  PSEUDO_KEYF4 = 'R' - CTRL_OFFSET,     /* Alternative FKEY4 */
+  PSEUDO_KEYF5 = 'T' - CTRL_OFFSET,     /* Alternative FKEY5 */
+  PSEUDO_KEYF6 = 'Y' - CTRL_OFFSET,     /* Alternative FKEY6 */
+  PSEUDO_KEYF7 = 'U' - CTRL_OFFSET,     /* Alternative FKEY7 */
+  PSEUDO_KEYF8 = 'I' - CTRL_OFFSET,     /* Alternative FKEY8 */
+  PSEUDO_KEYF9 = 'A' - CTRL_OFFSET,     /* Alternative FKEY9 */
+  PSEUDO_KEYF10 = 'S' - CTRL_OFFSET,    /* Alternative FKEY10 */
+  PSEUDO_KEYF11 = 'D' - CTRL_OFFSET,    /* Alternative FKEY11 */
+  PSEUDO_KEYF12 = 'F' - CTRL_OFFSET,    /* Alternative FKEY12 */
+  PSEUDO_KEYNPAGE = 'O' - CTRL_OFFSET,  /* Alternative PageDown */
+  PSEUDO_KEYPPAGE = 'P' - CTRL_OFFSET   /* Alternative PageUp */
+};
+
+/* User interface event loop running flag. */
+static int is_running = TRUE;
+
+/* Step values for the UI control of the CW parameters. */
+static const int STEP_WPM = 1, STEP_HZ = 100,
+                 STEP_VOL = 5, STEP_GAP = 1, STEP_TIME = 1;
+
+/* Color definitions. */
+static const short color_array[] = {
+  COLOR_BLACK, COLOR_RED, COLOR_GREEN, COLOR_YELLOW,
+  COLOR_BLUE, COLOR_MAGENTA, COLOR_CYAN, COLOR_WHITE
+};
+enum { COLORS_COUNT = sizeof (color_array) / sizeof (color_array[0]) };
+
+enum
+{ BOX_COLORS = 1,          /* Normal color pair */
+  DISPLAY_COLORS = 2,      /* Blue color pair */
+  DISPLAY_FOREGROUND = 7,  /* White foreground */
+  DISPLAY_BACKGROUND = 4,  /* Blue background */
+  BOX_FOREGROUND = 7,      /* White foreground */
+  BOX_BACKGROUND = 0       /* Black background */
+};
+
+/* Color values as arrays into color_array. */
+static int display_foreground = DISPLAY_FOREGROUND,  /* White foreground */
+           display_background = DISPLAY_BACKGROUND,  /* Blue background */
+           box_foreground = BOX_FOREGROUND,          /* White foreground */
+           box_background = BOX_BACKGROUND;          /* Black background */
+
+/* Curses windows used by interface functions only. */
+static WINDOW *screen = NULL,
+              *mode_display = NULL, *speed_display = NULL,
+              *tone_display = NULL, *volume_display = NULL,
+              *gap_display = NULL;
+
+/*
+ * interface_init_screen()
+ * interface_init_box()
+ * interface_init_display()
+ * interface_init_panel()
+ *
+ * Helper functions for interface_init(), to build boxes and displays.
+ */
+static WINDOW*
+interface_init_screen (void)
+{
+  WINDOW *window;
+
+  /* Create the main window for the complete screen. */
+  window = initscr ();
+  wrefresh (window);
+
+  /* If using colors, set up a base color for the screen. */
+  if (do_colors && has_colors ())
+    {
+      int max_y, max_x;
+      WINDOW *base;
+
+      start_color ();
+      init_pair (BOX_COLORS,
+                 color_array[box_foreground],
+                 color_array[box_background]);
+      init_pair (DISPLAY_COLORS,
+                 color_array[display_foreground],
+                 color_array[display_background]);
+      getmaxyx (screen, max_y, max_x);
+      base = newwin (max_y + 1, max_x + 1, 0, 0);
+      wbkgdset (base, COLOR_PAIR (BOX_COLORS) | ' ');
+      werase (base);
+      wrefresh (base);
+    }
+
+  return window;
+}
+
+static WINDOW*
+interface_init_box (int lines, int columns, int begin_y, int begin_x,
+                    const char *legend)
+{
+  WINDOW *window;
+
+  /* Create the window, and set up colors if possible and requested. */
+  window = newwin (lines, columns, begin_y, begin_x);
+
+  if (do_colors && has_colors ())
+    {
+      wbkgdset (window, COLOR_PAIR (BOX_COLORS) | ' ');
+      werase (window);
+      wattron (window, COLOR_PAIR (BOX_COLORS));
+    }
+  else
+    wattron (window, A_REVERSE);
+  box (window, 0, 0);
+
+  /* Add any initial legend to the box. */
+  if (legend)
+    mvwaddstr (window, 0, 1, legend);
+
+  wrefresh (window);
+  return window;
+}
+
+static WINDOW*
+interface_init_display (int lines, int columns, int begin_y, int begin_x,
+                        int indent, const char *text)
+{
+  WINDOW *window;
+
+  /* Create the window, and set up colors if possible and requested. */
+  window = newwin (lines, columns, begin_y, begin_x);
+
+  if (do_colors && has_colors ())
+    {
+      wbkgdset (window, COLOR_PAIR (DISPLAY_COLORS) | ' ');
+      wattron (window, COLOR_PAIR (DISPLAY_COLORS));
+      werase (window);
+    }
+
+  /* Add any initial text to the box. */
+  if (text)
+    mvwaddstr (window, 0, indent, text);
+
+  wrefresh (window);
+  return window;
+}
+
+static void
+interface_init_panel (int lines, int columns, int begin_y, int begin_x,
+                      const char *box_legend,
+                      int indent, const char *display_text,
+                      WINDOW **box, WINDOW **display)
+{
+  WINDOW *window;
+
+  /* Create and return, if required, a box for the control. */
+  window = interface_init_box (lines, columns, begin_y, begin_x, box_legend);
+  if (box)
+    *box = window;
+
+  /* Add a display within the frame of the box. */
+  *display = interface_init_display (lines - 2, columns - 2,
+                                     begin_y + 1, begin_x + 1,
+                                     indent, display_text);
+}
+
+
+/*
+ * interface_initialize()
+ *
+ * Initialize the user interface, boxes and windows.
+ */
+static void
+interface_initialize (void)
+{
+  static int is_initialized = FALSE;
+
+  char buffer[16];
+  int max_y, max_x, index, value;
+
+  /* Create the over-arching screen window. */
+  screen = interface_init_screen ();
+  getmaxyx (screen, max_y, max_x);
+
+  /* Create and box in the mode window. */
+  interface_init_panel (max_y - 3, 20, 0, 0, _("Mode(F10v,F11^)"),
+                        0, NULL, NULL, &mode_display);
+  for (index = 0; index < mode_get_count (); index++)
+    {
+      if (index == mode_get_current ())
+        wattron (mode_display, A_REVERSE);
+      else
+        wattroff (mode_display, A_REVERSE);
+      mvwaddstr (mode_display, index, 0, mode_get_description (index));
+    }
+  wrefresh (mode_display);
+
+  /* Create the text display window; do the introduction only once. */
+  interface_init_panel (max_y - 3, max_x - 20, 0, 20, _("Start(F9)"),
+                        0, NULL, &text_box, &text_display);
+  wmove (text_display, 0, 0);
+  if (!is_initialized)
+    {
+      waddstr (text_display, _(INTRODUCTION));
+      waddstr (text_display, _(INTRODUCTION_CONTINUED));
+      is_initialized = TRUE;
+    }
+  wrefresh (text_display);
+  idlok (text_display, TRUE);
+  immedok (text_display, TRUE);
+  scrollok (text_display, TRUE);
+
+  /* Create the control feedback boxes. */
+  sprintf (buffer, _("%2d WPM"), cw_get_send_speed ());
+  interface_init_panel (3, 16, max_y - 3, 0, _("Speed(F1-,F2+)"),
+                        4, buffer, NULL, &speed_display);
+
+  sprintf (buffer, _("%4d Hz"), cw_get_frequency ());
+  interface_init_panel (3, 16, max_y - 3, 16, _("Tone(F3-,F4+)"),
+                        3, buffer, NULL, &tone_display);
+
+  sprintf (buffer, _("%3d %%"), cw_get_volume ());
+  interface_init_panel (3, 16, max_y - 3, 32, _("Vol(F5-,F6+)"),
+                        4, buffer, NULL, &volume_display);
+
+  value = cw_get_gap ();
+  sprintf (buffer, value == 1 ? _("%2d dot ") : _("%2d dots"), value);
+  interface_init_panel (3, 16, max_y - 3, 48, _("Gap(F7-,F8+)"),
+                        3, buffer, NULL, &gap_display);
+
+  value = timer_get_practice_time ();
+  sprintf (buffer, value == 1 ? _(" 0/%2d min ") : _(" 0/%2d mins"), value);
+  interface_init_panel (3, 16, max_y - 3, 64, _("Time(Dn-,Up+)"),
+                        2, buffer, NULL, &timer_display);
+
+  /* Set up curses input mode. */
+  keypad (screen, TRUE);
+  noecho ();
+  cbreak ();
+  curs_set (0);
+  raw ();
+  nodelay (screen, FALSE);
+
+  wrefresh (curscr);
+}
+
+
+/*
+ * interface_destroy()
+ *
+ * Dismantle the user interface, boxes and windows.
+ */
+static void
+interface_destroy (void)
+{
+  /* Clear the screen for neatness. */
+  werase (screen);
+  wrefresh (screen);
+
+  /* End curses processing. */
+  endwin ();
+
+  /* Reset user interface windows to initial values. */
+  screen = NULL;
+  mode_display = NULL;
+  speed_display = NULL;
+  tone_display = NULL;
+  volume_display = NULL;
+  gap_display = NULL;
+}
+
+
+/*
+ * interface_interpret()
+ *
+ * Assess a user command, and action it if valid.  If the command turned out
+ * to be a valid user interface command, return TRUE, otherwise return FALSE.
+ */
+static int
+interface_interpret (int c)
+{
+  char buffer[16];
+  int previous_mode, value;
+
+  /* Interpret the command passed in */
+  switch (c)
+    {
+    default:
+      return FALSE;
+
+    case ']':
+      display_background = (display_background + 1) % COLORS_COUNT;
+      goto color_update;
+
+    case '[':
+      display_foreground = (display_foreground + 1) % COLORS_COUNT;
+      goto color_update;
+
+    case '{':
+      box_background = (box_background + 1) % COLORS_COUNT;
+      goto color_update;
+
+    case '}':
+      box_foreground = (box_foreground + 1) % COLORS_COUNT;
+      goto color_update;
+
+    color_update:
+      if (do_colors && has_colors ())
+        {
+          init_pair (BOX_COLORS,
+                     color_array[box_foreground],
+                     color_array[box_background]);
+          init_pair (DISPLAY_COLORS,
+                     color_array[display_foreground],
+                     color_array[display_background]);
+          wrefresh (curscr);
+        }
+      break;
+
+
+    case 'L' - CTRL_OFFSET:
+      wrefresh (curscr);
+      break;
+
+
+    case KEY_F (1):
+    case PSEUDO_KEYF1:
+    case KEY_LEFT:
+      if (cw_set_send_speed (cw_get_send_speed () - STEP_WPM))
+        goto speed_update;
+      break;
+
+    case KEY_F (2):
+    case PSEUDO_KEYF2:
+    case KEY_RIGHT:
+      if (cw_set_send_speed (cw_get_send_speed () + STEP_WPM))
+        goto speed_update;
+      break;
+
+    speed_update:
+      sprintf (buffer, _("%2d WPM"), cw_get_send_speed ());
+      mvwaddstr (speed_display, 0, 4, buffer);
+      wrefresh (speed_display);
+      break;
+
+
+    case KEY_F (3):
+    case PSEUDO_KEYF3:
+    case KEY_END:
+      if (cw_set_frequency (cw_get_frequency () - STEP_HZ))
+        goto frequency_update;
+      break;
+
+    case KEY_F (4):
+    case PSEUDO_KEYF4:
+    case KEY_HOME:
+      if (cw_set_frequency (cw_get_frequency () + STEP_HZ))
+        goto frequency_update;
+      break;
+
+    frequency_update:
+      sprintf (buffer, _("%4d Hz"), cw_get_frequency ());
+      mvwaddstr (tone_display, 0, 3, buffer);
+      wrefresh (tone_display);
+      break;
+
+
+    case KEY_F (5):
+    case PSEUDO_KEYF5:
+      if (cw_set_volume (cw_get_volume () - STEP_VOL))
+        goto volume_update;
+      break;
+
+    case KEY_F (6):
+    case PSEUDO_KEYF6:
+      if (cw_set_volume (cw_get_volume () + STEP_VOL))
+        goto volume_update;
+      break;
+
+    volume_update:
+      sprintf (buffer, _("%3d %%"), cw_get_volume ());
+      mvwaddstr (volume_display, 0, 4, buffer);
+      wrefresh (volume_display);
+      break;
+
+
+    case KEY_F (7):
+    case PSEUDO_KEYF7:
+      if (cw_set_gap (cw_get_gap () - STEP_GAP))
+        goto gap_update;
+      break;
+
+    case KEY_F (8):
+    case PSEUDO_KEYF8:
+      if (cw_set_gap (cw_get_gap () + STEP_GAP))
+        goto gap_update;
+      break;
+
+    gap_update:
+      value = cw_get_gap ();
+      sprintf (buffer, value == 1 ? _("%2d dot ") : _("%2d dots"), value);
+      mvwaddstr (gap_display, 0, 3, buffer);
+      wrefresh (gap_display);
+      break;
+
+
+    case KEY_NPAGE:
+    case PSEUDO_KEYNPAGE:
+      if (timer_set_practice_time (timer_get_practice_time () - STEP_TIME))
+        goto time_update;
+      break;
+
+    case KEY_PPAGE:
+    case PSEUDO_KEYPPAGE:
+      if (timer_set_practice_time (timer_get_practice_time () + STEP_TIME))
+        goto time_update;
+      break;
+
+    time_update:
+      value = cw_get_gap ();
+      sprintf (buffer, value == 1 ? _("%2d min ") : _("%2d mins"), value);
+      mvwaddstr (timer_display, 0, 5, buffer);
+      wrefresh (timer_display);
+      break;
+
+
+    case KEY_F (11):
+    case PSEUDO_KEYF11:
+    case KEY_UP:
+      change_state_to_idle ();
+      previous_mode = mode_get_current ();
+      if (mode_regress_current ())
+        goto mode_update;
+      break;
+
+    case KEY_F (10):
+    case PSEUDO_KEYF10:
+    case KEY_DOWN:
+      change_state_to_idle ();
+      previous_mode = mode_get_current ();
+      if (mode_advance_current ())
+        goto mode_update;
+      break;
+
+    mode_update:
+      wattroff (mode_display, A_REVERSE);
+      mvwaddstr (mode_display,
+                 previous_mode, 0, mode_get_description (previous_mode));
+      wattron (mode_display, A_REVERSE);
+      mvwaddstr (mode_display,
+                 mode_get_current (), 0,
+                 mode_get_description (mode_get_current ()));
+      wrefresh (mode_display);
+      break;
+
+
+    case KEY_F (9):
+    case PSEUDO_KEYF9:
+    case '\n':
+      if (mode_current_is_type (M_EXIT))
+        is_running = FALSE;
+      else
+        {
+          if (!mode_is_sending_active ())
+            change_state_to_active ();
+          else
+            if (c != '\n')
+              change_state_to_idle ();
+        }
+      break;
+
+    case KEY_CLEAR:
+    case 'V' - CTRL_OFFSET:
+      if (!mode_is_sending_active ())
+        {
+          werase (text_display);
+          wmove (text_display, 0, 0);
+          wrefresh (text_display);
+        }
+      break;
+
+    case '[' - CTRL_OFFSET:
+    case 'Z' - CTRL_OFFSET:
+      change_state_to_idle ();
+      break;
+
+    case KEY_F (12):
+    case PSEUDO_KEYF12:
+    case 'C' - CTRL_OFFSET:
+      queue_discard_contents ();
+      cw_flush_tone_queue ();
+      is_running = FALSE;
+      break;
+
+    case KEY_RESIZE:
+      change_state_to_idle ();
+      interface_destroy ();
+      interface_initialize ();
+      break;
+    }
+
+  /* The command was a recognized interface key. */
+  return TRUE;
+}
+
+
+/*
+ * interface_handle_event()
+ *
+ * Handle an interface 'event', in this case simply a character from the
+ * keyboard via curses.
+ */
+static void
+interface_handle_event (int c)
+{
+  /* See if this character is a valid user interface command. */
+  if (interface_interpret (c))
+    return;
+
+  /*
+   * If the character is standard 8-bit ASCII or backspace, and the current
+   * sending mode is from the keyboard, then make an effort to either queue
+   * the character for sending, or delete the most recently queued.
+   */
+  if (mode_is_sending_active () && mode_current_is_type (M_KEYBOARD))
+    {
+      if (c == KEY_BACKSPACE || c == KEY_DC)
+        {
+          queue_delete_character ();
+          return;
+        }
+      else if (c <= UCHAR_MAX)
+        {
+          queue_enqueue_character ((char) c);
+          return;
+        }
+    }
+
+  /* The 'event' is nothing at all of interest; drop it. */
+}
+
+
+/*---------------------------------------------------------------------*/
+/*  Command line mechanics                                             */
+/*---------------------------------------------------------------------*/
+
+/*
+ * print_usage()
+ *
+ * Print out a brief message directing the user to the help function.
+ */
+static void
+print_usage (const char *argv0)
+{
+  const char *format;
+
+  format = has_longopts ()
+    ? _("Try '%s --help' for more information.\n")
+    : _("Try '%s -h' for more information.\n");
+
+  fprintf (stderr, format, argv0);
+  exit (EXIT_FAILURE);
+}
+
+/*
+ * print_help()
+ *
+ * Print out a brief page of help information.
+ */
+static void
+print_help (const char *argv0)
+{
+  const char *format;
+  int min_speed, max_speed, min_frequency, max_frequency, min_volume,
+      max_volume, min_gap, max_gap, min_time, max_time;
+
+  cw_reset_send_receive_parameters ();
+  cw_get_speed_limits (&min_speed, &max_speed);
+  cw_get_frequency_limits (&min_frequency, &max_frequency);
+  cw_get_volume_limits (&min_volume, &max_volume);
+  cw_get_gap_limits (&min_gap, &max_gap);
+  timer_get_practice_time_limits (&min_time, &max_time);
+
+  format = has_longopts ()
+    ? _("Usage: %s [options...]\n\n"
+      "  -s, --sound=SOURCE     generate sound on SOURCE"
+      " [default 'soundcard']\n"
+      "                         one of 's[oundcard]', 'c[onsole]',"
+      " or 'b[oth]'\n"
+      "  -x, --sdevice=SDEVICE  use SDEVICE for soundcard [default %s]\n"
+      "  -y, --mdevice=MDEVICE  use MDEVICE for sound mixer [default %s]\n"
+      "  -d, --cdevice=CDEVICE  use CDEVICE for sound ioctl [default %s]\n")
+    : _("Usage: %s [options...]\n\n"
+      "  -s SOURCE   generate sound on SOURCE [default 'soundcard']\n"
+      "              one of 's[oundcard]', 'c[onsole]', or 'b[oth]'\n"
+      "  -x SDEVICE  use SDEVICE for soundcard [default %s]\n"
+      "  -y MDEVICE  use MDEVICE for sound mixer [default %s]\n"
+      "  -d CDEVICE  use CDEVICE for sound ioctl [default %s]\n");
+
+  printf (format, argv0,
+          cw_get_soundcard_file (),
+          cw_get_soundmixer_file (),
+          cw_get_console_file ());
+
+  format = has_longopts ()
+    ? _("  -i, --inifile=INIFILE  load practice words from INIFILE\n"
+      "  -w, --wpm=WPM          set initial words per minute [default %d]\n"
+      "                         valid WPM values are between %d and %d\n"
+      "  -t, --hz,--tone=HZ     set initial tone to HZ [default %d]\n"
+      "                         valid HZ values are between %d and %d\n"
+      "  -v, --volume=PERCENT   set initial volume to PERCENT [default %d]\n"
+      "                         valid PERCENT values are between %d and %d\n")
+    :
+      _("  -i INIFILE  load practice words from INIFILE\n"
+      "  -w WPM      set initial words per minute [default %d]\n"
+      "              valid WPM values are between %d and %d\n"
+      "  -t HZ       set initial tone to HZ [default %d]\n"
+      "              valid HZ values are between %d and %d\n"
+      "  -v PERCENT  set initial volume to PERCENT [default %d]\n"
+      "              valid PERCENT values are between %d and %d\n");
+
+  printf (format,
+          cw_get_send_speed (), min_speed, max_speed,
+          cw_get_frequency (), min_frequency, max_frequency,
+          cw_get_volume (), min_volume, max_volume);
+
+  format = has_longopts ()
+    ? _("  -g, --gap=GAP          set extra gap between letters [default %d]\n"
+      "                         valid GAP values are between %d and %d\n"
+      "  -p, --time=TIME        set initial practice time [default %d mins]\n"
+      "                         valid TIME values are between %d and %d\n"
+      "  -c, --colo[u]rs=CSET   set initial display colors where available\n"
+      "                         [default %d,%d,%d,%d]\n")
+    : _("  -g GAP      set extra gap between letters [default %d]\n"
+      "              valid GAP values are between %d and %d\n"
+      "  -p TIME     set initial practice time [default %d mins]\n"
+      "              valid TIME values are between %d and %d\n"
+      "  -c CSET     set initial display colors where available\n"
+      "              [default %d,%d,%d,%d]\n");
+
+  printf (format,
+          cw_get_gap (), min_gap, max_gap,
+          timer_get_practice_time (), min_time, max_time,
+          DISPLAY_FOREGROUND, DISPLAY_BACKGROUND,
+          BOX_FOREGROUND, BOX_BACKGROUND);
+
+  format = has_longopts ()
+    ? _("  -m, --mono             specify no colors [default colors]\n"
+      "  -h, --help             print this message\n"
+      "  -V, --version          output version information and exit\n\n")
+    : _("  -m          specify no colors [default colors]\n"
+      "  -h          print this message\n"
+      "  -V          output version information and exit\n\n");
+
+  printf (format);
+  exit (EXIT_SUCCESS);
+}
+
+
+/*
+ * parse_command_line()
+ *
+ * Parse the command line options for initial values for the various
+ * global and flag definitions.
+ */
+static void
+parse_command_line (int argc, char **argv)
+{
+  const char *argv0;
+  int is_console = FALSE, is_soundcard = TRUE;
+  const char *console_device = NULL,
+             *soundcard_device = NULL, *mixer_device = NULL;
+  int option;
+  char *argument;
+
+  argv0 = program_basename (argv[0]);
+  while (get_option (argc, argv,
+                     _("s:|sound,d:|cdevice,x:|sdevice,y:|mdevice,i:|inifile,"
+                     "t:|tone,t:|hz,v:|volume,w:|wpm,g:|gap,p:|time,c:|colours,"
+                     "c:|colors,m|mono,h|help,V|version,#:|#"),
+                     &option, &argument))
+    {
+      int intarg;
+
+      switch (option)
+        {
+        case 's':
+          if (strcoll (argument, _("console")) == 0
+              || strcoll (argument, _("c")) == 0)
+            {
+              is_console = TRUE;
+              is_soundcard = FALSE;
+            }
+          else if (strcoll (argument, _("soundcard")) == 0
+                   || strcoll (argument, _("s")) == 0)
+            {
+              is_console = FALSE;
+              is_soundcard = TRUE;
+            }
+          else if (strcoll (argument, _("both")) == 0
+                   || strcoll (argument, _("b")) == 0)
+            {
+              is_console = TRUE;
+              is_soundcard = TRUE;
+            }
+          else
+            {
+              fprintf (stderr, _("%s: invalid sound source\n"), argv0);
+              exit (EXIT_FAILURE);
+            }
+          break;
+
+        case 'd':
+          console_device = argument;
+          break;
+
+        case 'x':
+          soundcard_device = argument;
+          break;
+
+        case 'y':
+          mixer_device = argument;
+          break;
+
+        case 'i':
+          if (!dictionary_load (argument))
+            {
+              fprintf (stderr, _("%s: error loading practice words\n"), argv0);
+              exit (EXIT_FAILURE);
+            }
+          break;
+
+        case '#':
+          if (!dictionary_write (argument))
+            {
+              fprintf (stderr, _("%s: error writing practice words\n"), argv0);
+              exit (EXIT_FAILURE);
+            }
+          break;
+
+        case 't':
+          if (sscanf (argument, "%d", &intarg) != 1
+              || !cw_set_frequency (intarg))
+            {
+              fprintf (stderr, _("%s: invalid tone value\n"), argv0);
+              exit (EXIT_FAILURE);
+            }
+          break;
+
+        case 'v':
+          if (sscanf (argument, "%d", &intarg) != 1
+              || !cw_set_volume (intarg))
+            {
+              fprintf (stderr, _("%s: invalid volume value\n"), argv0);
+              exit (EXIT_FAILURE);
+            }
+          break;
+
+        case 'w':
+          if (sscanf (argument, "%d", &intarg) != 1
+              || !cw_set_send_speed (intarg))
+            {
+              fprintf (stderr, _("%s: invalid wpm value\n"), argv0);
+              exit (EXIT_FAILURE);
+            }
+          break;
+
+        case 'g':
+          if (sscanf (argument, "%d", &intarg) != 1
+              || !cw_set_gap (intarg))
+            {
+              fprintf (stderr, _("%s: invalid gap value\n"), argv0);
+              exit (EXIT_FAILURE);
+            }
+          break;
+
+        case 'p':
+          if (sscanf (argument, "%d", &intarg) != 1
+              || !timer_set_practice_time (intarg))
+            {
+              fprintf (stderr, _("%s: invalid time value\n"), argv0);
+              exit (EXIT_FAILURE);
+            }
+          break;
+
+        case 'c':
+          if (sscanf (argument, "%d,%d,%d,%d",
+                      &display_foreground, &display_background,
+                      &box_foreground, &box_background) != 4
+              || display_foreground < 0 || display_foreground >= COLORS_COUNT
+              || display_background < 0 || display_background >= COLORS_COUNT
+              || box_foreground < 0 || box_foreground >= COLORS_COUNT
+              || box_background < 0 || box_background >= COLORS_COUNT)
+            {
+              fprintf (stderr, _("%s: invalid colors value\n"), argv0);
+              exit (EXIT_FAILURE);
+            }
+          break;
+
+        case 'm':
+          do_colors = FALSE;
+          break;
+
+        case 'h':
+          print_help (argv0);
+
+        case 'V':
+          printf (_("%s version %s, %s\n"),
+                  argv0, PACKAGE_VERSION, _(CW_COPYRIGHT));
+          exit (EXIT_SUCCESS);
+
+        case '?':
+          print_usage (argv0);
+
+        default:
+          fprintf (stderr, _("%s: getopts returned %c\n"), argv0, option);
+          exit (EXIT_FAILURE);
+        }
+
+    }
+  if (get_optind () != argc)
+    print_usage (argv0);
+
+  /* Deal with odd argument combinations. */
+  if (!is_console && console_device)
+    {
+      fprintf (stderr, _("%s: no console sound: -d invalid\n"), argv0);
+      print_usage (argv0);
+    }
+  if (!is_soundcard && soundcard_device)
+    {
+      fprintf (stderr, _("%s: no soundcard sound: -x invalid\n"), argv0);
+      print_usage (argv0);
+    }
+  if (!is_soundcard && mixer_device)
+    {
+      fprintf (stderr, _("%s: no soundcard sound: -y invalid\n"), argv0);
+      print_usage (argv0);
+    }
+
+  /* First set up soundcard sound if required. */
+  if (is_soundcard)
+    {
+      if (soundcard_device)
+        cw_set_soundcard_file (soundcard_device);
+      if (!cw_is_soundcard_possible ())
+        {
+          fprintf (stderr, _("%s: cannot set up soundcard sound\n"), argv0);
+          perror (cw_get_soundcard_file ());
+          exit (EXIT_FAILURE);
+        }
+      if (mixer_device)
+        cw_set_soundmixer_file (mixer_device);
+    }
+  cw_set_soundcard_sound (is_soundcard);
+
+  /* Now set up console sound, again if required. */
+  if (is_console)
+    {
+      if (console_device)
+        cw_set_console_file (console_device);
+      if (!cw_is_console_possible ())
+        {
+          fprintf (stderr, _("%s: cannot set up console sound\n"), argv0);
+          perror (cw_get_console_file ());
+          exit (EXIT_FAILURE);
+        }
+    }
+  cw_set_console_sound (is_console);
+}
+
+
+/*
+ * poll_until_keypress_ready()
+ *
+ * Calls our sender polling function at regular intervals, and returns only
+ * when data is available to getch(), so that it will not block.
+ */
+static void
+poll_until_keypress_ready (int fd, int usecs)
+{
+  int fd_count;
+
+  /* Poll until the select indicates data on the file descriptor. */
+  do
+    {
+      fd_set read_set;
+      struct timeval timeout;
+
+      /* Set up a the file descriptor set and timeout information. */
+      FD_ZERO (&read_set);
+      FD_SET (fd, &read_set);
+      timeout.tv_sec = usecs / 1000000;
+      timeout.tv_usec = usecs % 1000000;
+
+      /*
+       * Wait until timeout, data, or a signal.  If a signal interrupts
+       * select, we can just treat it as another timeout.
+       */
+      fd_count = select (fd + 1, &read_set, NULL, NULL, &timeout);
+      if (fd_count == -1 && errno != EINTR)
+        {
+          perror ("select");
+          abort ();
+        }
+
+      /* Poll the sender on timeouts and on reads; it's just easier. */
+      mode_cwlib_poll_sender ();
+    }
+  while (fd_count != 1);
+}
+
+
+/*
+ * signal_handler()
+ *
+ * Signal handler for signals, to clear up on kill.
+ */
+static void
+signal_handler (int signal_number)
+{
+  /* Attempt to wrestle the screen back from curses. */
+  interface_destroy ();
+
+  /* Show the signal caught, and exit. */
+  fprintf (stderr, _("\nCaught signal %d, exiting...\n"), signal_number);
+  exit (EXIT_SUCCESS);
+}
+
+
+/*
+ * main()
+ *
+ * Parse the command line, initialize a few things, then enter the main
+ * program event loop, from which there is no return.
+ */
+int
+main (int argc, char **argv)
+{
+  static const int SIGNALS[] = { SIGHUP, SIGINT, SIGQUIT, SIGPIPE, SIGTERM, 0 };
+
+  int combined_argc, index;
+  char **combined_argv;
+
+  /* Set locale and message catalogs. */
+  i18n_initialize ();
+
+  /* Parse combined environment and command line arguments. */
+  combine_arguments (_("CWCP_OPTIONS"),
+                     argc, argv, &combined_argc, &combined_argv);
+  parse_command_line (combined_argc, combined_argv);
+
+  /* Set up signal handlers to clear up and exit on a range of signals. */
+  for (index = 0; SIGNALS[index] != 0; index++)
+    {
+      if (!cw_register_signal_handler (SIGNALS[index], signal_handler))
+        {
+          perror ("cw_register_signal_handler");
+          abort ();
+        }
+    }
+
+  /*
+   * Build our table of modes from dictionaries, augmented with keyboard
+   * and any other local modes.
+   */
+  mode_initialize ();
+
+  /*
+   * Initialize the curses user interface, then catch and action every
+   * keypress we see.  Before calling getch, wait until data is available on
+   * stdin, polling the cwlib sender.  At 60WPM, a dot is 20ms, so polling
+   * for the maximum library speed needs a 10ms (10,000usec) timeout.
+   */
+  interface_initialize ();
+  while (is_running)
+    {
+      poll_until_keypress_ready (fileno (stdin), 10000);
+      interface_handle_event (getch ());
+    }
+
+  /* Clean up and return. */
+  interface_destroy ();
+  cw_wait_for_tone_queue ();
+  return EXIT_SUCCESS;
+}

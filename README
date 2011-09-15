@@ -1,0 +1,142 @@
+
+The original UnixCW package, version 1, grew out of a desire to have a program
+available under Linux that was very similar to the one I was used to under DOS.
+While several Linux Morse Tutors were, in fact, still are, available, I never
+quite found one that did the stuff I wanted.
+
+From the original UnixCW package came version 2.  This was almost a total
+rewrite, although it included the same basic binaries as were in version 1.
+The two major changes for this version were the addition of an extensive,
+general purpose CW library, and also an Xwindows-based CW tutor program.
+
+With version 2.1, finally, came full sound card support, built into the CW
+library itself.  All three main user level programs that use the library were
+enhanced to allow control over the sound card tone volume.  Console speaker
+sound is still there, if needed, but sound card tones became the default mode.
+
+Version 2.2 was a bug-fixed version of 2.1.  It seems that some sound card
+drivers (some later OSS drivers) couldn't handle the volume control ioctls that
+the CW library uses, and this meant sound card tones would not work for these
+systems.  To solve this, version 2.2 uses the /dev/mixer device to control
+volumes if it finds that it cannot do this with the main sound card device.
+
+Version 2.3 is a thorough overhaul, cleanup, and refactoring of version 2.2.
+All the code has been reformatted for correct Gnu style, and programs now take
+a lot more care over what they do, and don't do, in signal handler context.
+Cwcp and xcwcp now offer fully configurable modes and dictionaries through a
+configuration file option, and xcwcp has been rewritten in proper C++ style.
+
+
+The heart of the package is 'libcw'.  This is a library which, when built,
+offers the following basic CW services to a caller program:
+
+  o Morse code character translation tables, and lookup functions
+  o Morse code low-level timing calculations
+  o A 'sidetone' generation and queueing system, using either the system sound
+    card, the console speaker, or both
+  o Optional keying control for an external device, say a transmitter, or an
+    oscillator
+  o CW character and string send routines, tied in with the character lookup
+  o CW receive routines, also tied in to the character lookup
+  o Adaptive speed tracking of received CW
+  o An iambic keyer, with both Curtis 8044 types A and B timing
+  o Straight key emulation
+
+The library uses signals extensively to create a background task in which to do
+the majority of its work, leaving the main program free to handle other tasks.
+For example, the simplest CW sending program that uses the library looks like:
+
+    #include <cwlib.h>
+    int main ()
+    {
+      /* Start the string sending in the background. */
+      cw_send_string ("Hello, world");
+    
+      /* Wait for the string send to complete. */
+      cw_wait_for_tone_queue ();
+    }
+
+Instead of the cw_tone_queue_wait() call, this program could instead handle any
+other work it has to do, asynchronously from the CW library's sending.
+
+As well as the handful of applications included in UnixCW 2.3, the following
+sorts of programs might also use 'libcw' as their core:
+
+  o A fully graphical CW send and receive station
+  o A 'CWbiff' that announces incoming email sender in CW
+  o An offline CW reader program, capable of decoding CW from MP3 or other
+    audio file formats
+  o A simple Iambic keyer for an external transmitter, using the mouse buttons
+    as the keyer paddles
+  o A more comprehensive CW tutor program
+  o An automated Morse Code testing application
+
+'cwlib' is written in C for easy portability and use.
+
+
+The package comes with four basic applications:
+
+  o cw     A CW sending 'engine' that reads characters from stdin, sounds them
+           on either the sound card, the console speaker, or both, and echoes
+           them to stdout.
+
+  o cwgen  A simple random character generator that can be used as a feed for
+           cw.  For example:
+
+               cwgen | cw
+
+  o cwcp   A curses-based program that generates groups of characters from
+           selected sets, words, and CW abbreviations randomly, and sounds
+           them using 'cwlib'.  It owes much to CP222.EXE, by VU2ZAP.
+
+  o xcwcp  An X-based CW tutor program.  It offers the same random and keyboard
+           sending as 'cwcp', and in addition can read CW that sent to it
+           using the keyboard or mouse as a keyer, making it useful for sending
+           as well as receiving practice.
+
+'cwlib', 'cw', and 'cwgen' require a C compiler.  'cwcp' requires a C compiler
+and a Curses library.  'xcwcp' requires a C++ compiler and a copy of the
+Trolltech Qt library.  This library is fairly standard on Linux systems, as it
+is the basis of KDE, so relying on this should not be too much of a problem.
+
+
+See INSTALLING for details on how to build UnixCW version 2.3 from the
+distributed sources.
+
+UnixCW is distributed under the GNU GPL.  See COPYING for details.
+
+
+Thanks to...
+
+Kamal Mostafa, KA6MAL, for reviewing the cwlib API, showing me the errors of my
+ways with 64-bit integers, and hounding me to add the adaptive receive speed
+tracking...
+
+Joop Stakenborg, PG4I, for being a willing "guinea pig" with various snapshots
+of unfinished versions of the package, for help in isolating various sound card
+problems, and for his continued enthusiasm and interest in maintaining UnixCW
+as a Debian Linux package...
+
+Paolo Cravero, IK1ZYW, for very kindly making the first sound card patch
+available for UnixCW 2.  His tone generation code is now fully embedded inside
+the CW library, and it's no exaggeration to say that without his help, there
+would still be no sound card support in UnixCW...
+
+Michael D. Ivey, for identifying a problem with CW sending rhythm when sending
+in 'Farnsworth' mode, and for taking the time and trouble to test the patches
+I sent him...
+
+Wolf-Ruediger Juergens, for ideas on implementing CW weighting...
+
+Diane Bruce and Jason L. Wright, for adding support for assorted BSD flavors...
+
+Dan Jacobson, for making improvement suggestions above and beyond the call of
+duty...
+
+And finally, everyone else who has sent feedback about UnixCW.  If not for your
+interest, and fairly frequent requests for a version that works with a sound
+card, the package would not have progressed at all.
+
+
+Simon Baldwin, G0FRD <simon_baldwin@yahoo.com>
+
