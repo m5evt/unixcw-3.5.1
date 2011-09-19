@@ -388,6 +388,8 @@ main (int argc, char **argv)
 {
   static const int SIGNALS[] = { SIGHUP, SIGINT, SIGQUIT, SIGPIPE, SIGTERM, 0 };
 
+  cw_generator_new(CW_AUDIO_OSS);
+  cw_generator_start();
   try
     {
       struct sigaction action;
@@ -426,7 +428,11 @@ main (int argc, char **argv)
                              &q_application, SLOT (quit ()));
 
       // Enter the application event loop.
-      return q_application.exec ();
+      int rv = q_application.exec ();
+
+      cw_generator_stop();
+      cw_generator_delete();
+      return rv;
     }
 
   // Handle any exceptions thrown by the above.
