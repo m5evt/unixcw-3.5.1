@@ -902,6 +902,8 @@ main (int argc, char *const argv[])
   /* Set locale and message catalogs. */
   i18n_initialize ();
 
+  cw_generator_new(CW_AUDIO_OSS);
+  cw_generator_start();
   /* Parse combined environment and command line arguments. */
   combine_arguments (_("CW_OPTIONS"),
                      argc, argv, &combined_argc, &combined_argv);
@@ -922,5 +924,9 @@ main (int argc, char *const argv[])
 
   /* Await final tone completion before exiting. */
   cw_wait_for_tone_queue ();
+
+  cw_generator_stop();
+  cw_generator_delete();
+
   return EXIT_SUCCESS;
 }
