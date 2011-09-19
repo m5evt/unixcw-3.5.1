@@ -25,7 +25,8 @@ extern "C" {
 #endif
 
 static const char *const CW_COPYRIGHT =
-  N_("Copyright (C) 2001-2006  Simon Baldwin\n\n"
+  N_("Copyright (C) 2001-2006  Simon Baldwin\n"
+  "Copyright (C) 2011 Kamil Ignacak\n\n"
   "This program comes with ABSOLUTELY NO WARRANTY; for details please see\n"
   "the file 'COPYING' supplied with the source code.  This is free software,\n"
   "and you are welcome to redistribute it under certain conditions; again,\n"
