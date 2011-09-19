@@ -34,7 +34,7 @@ cwcp.o: cwcp.c ../cwlib/cwlib.h
 
 cwcp: cwcp.o
 	$(CC) $(LDFLAGS) -o $@ cwcp.o ../cwutils/i18n.o ../cwutils/cmdline.o \
-	../cwutils/dictionary.o ../cwutils/memory.o $(LIBS) -lm
+	../cwutils/dictionary.o ../cwutils/memory.o $(LIBS) -lm -lpthread
 
 # Install targets.
 install: all
