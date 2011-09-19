@@ -1540,7 +1540,7 @@ parse_command_line (int argc, char **argv)
       fprintf (stderr, _("%s: no soundcard sound: -y invalid\n"), argv0);
       print_usage (argv0);
     }
-
+#if 0
   /* First set up soundcard sound if required. */
   if (is_soundcard)
     {
@@ -1556,7 +1556,7 @@ parse_command_line (int argc, char **argv)
         cw_set_soundmixer_file (mixer_device);
     }
   cw_set_soundcard_sound (is_soundcard);
-
+#endif
   /* Now set up console sound, again if required. */
   if (is_console)
     {
@@ -1647,6 +1647,11 @@ main (int argc, char **argv)
 
   /* Set locale and message catalogs. */
   i18n_initialize ();
+  int rv = cw_generator_new(CW_AUDIO_OSS);
+  if (rv != 1) {
+	  fprintf(stderr, "cw: failed to create generator\n");
+	  exit(-1);
+  }
 
   /* Parse combined environment and command line arguments. */
   combine_arguments (_("CWCP_OPTIONS"),
@@ -1676,6 +1681,7 @@ main (int argc, char **argv)
    * for the maximum library speed needs a 10ms (10,000usec) timeout.
    */
   interface_initialize ();
+  cw_generator_start();
   while (is_running)
     {
       poll_until_keypress_ready (fileno (stdin), 10000);
@@ -1685,5 +1691,10 @@ main (int argc, char **argv)
   /* Clean up and return. */
   interface_destroy ();
   cw_wait_for_tone_queue ();
+  cw_generator_stop();
+  /* Reset to ensure that the mixer volume gets restored. */
+  cw_complete_reset();
+  cw_generator_delete();
+
   return EXIT_SUCCESS;
 }

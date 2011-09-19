@@ -1700,6 +1700,11 @@ main (int argc, const char *argv[])
         }
     }
 
+  cw_generator_new(CW_AUDIO_OSS);
+  cw_generator_start();
   /* Run each requested test. */
-  return cw_self_test (testset) == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
+  int rv = cw_self_test (testset);
+  cw_generator_stop();
+  cw_generator_delete();
+  return rv == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }
