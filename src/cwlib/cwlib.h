@@ -27,6 +27,56 @@ extern "C"
 {
 #endif
 
+/* supported audio sound systems */
+enum {
+	CW_AUDIO_NONE = 0,
+	CW_AUDIO_OSS = 1
+};
+
+
+typedef struct {
+	int sound_system;
+
+	int volume; /* this is the level of sound that you want to have */
+	int frequency;   /* this is the frequency of sound that you want to generate */
+
+	int sample_rate; /* set to the same value of sample rate as
+			    you have used when configuring sound card */
+	int audio_sink; /* output file for audio data (OSS) */
+	int debug_sink; /* output file for debug data */
+
+	int slope; /* used to control initial and final phase of
+		      non-zero-amplitude sine wave; slope/attack
+		      makes it possible to start or end a wave
+		      without clicks;
+		      this field provides a very convenient way to
+		      turn on/off a sound, just assign:
+		      +CW_OSS_GENERATOR_SLOPE to turn sound on,
+		      -CW_OSS_GENERATOR_SLOPE to turn sound off */
+
+	/* start/stop flag;
+	   set to 1 before creating generator;
+	   set to 0 to stop generator; generator gets "destroyed"
+	   handling the flag is wrapped in cw_oss_start_generator()
+	   and cw_oss_stop_generator() */
+	int generate;
+
+	/* these are generator's internal state variables; */
+	int amplitude; /* current amplitude of generated sine wave
+			  (as in x(t) = A * sin(t)); in fixed/steady state
+			  the amplitude is either zero or .volume */
+
+	double phase_offset;
+	double phase;
+
+	pthread_t thread;
+
+} cw_gen_t;
+
+
+
+
+
 /*
  * Representation characters for Dot and Dash.  Only the following
  * characters are permitted in Morse representation strings.
@@ -51,6 +101,11 @@ enum
 /* CW library function prototypes. */
 extern int cw_version (void);
 extern void cw_license (void);
+extern int cw_generator_new(int audio_system);
+extern void cw_generator_delete(void);
+extern int  cw_generator_start(void);
+extern void cw_generator_stop(void);
+
 extern void cw_set_debug_flags (unsigned int new_value);
 extern unsigned int cw_get_debug_flags (void);
 extern int cw_get_character_count (void);
