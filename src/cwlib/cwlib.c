@@ -1,6 +1,7 @@
 /* vi: set ts=2 shiftwidth=2 expandtab:
  *
  * Copyright (C) 2001-2006  Simon Baldwin (simon_baldwin@yahoo.com)
+ * Copyright (C) 2011 Kamil Ignacak (acerion@wp.pl)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -24,6 +25,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/param.h>
+#include <pthread.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -70,6 +72,34 @@
 #include "cwlib.h"
 
 
+/* #define CWLIB_MAIN */
+
+
+
+/* Fixed general soundcard parameters. */
+static const int CW_OSS_SETFRAGMENT = 7;       /* Sound fragment size, 2^N */
+static const int CW_OSS_FORMAT = AFMT_S16_NE;  /* Sound format AFMT_S16_NE = signed 16 bit, native endianess; LE = Little endian */
+static const int CW_OSS_CHANNELS = 1;          /* Sound in mono only */
+static const int CW_SAMPLE_RATE = 44100;       /* Sound sampling rate */
+
+static const int CW_OSS_GENERATOR_SLOPE = 100; /* 100 for 48000 Hz sample rate */
+#define CW_OSS_GENERATOR_BUF_SIZE 128
+#define CW_OSS_SET_FRAGMENT 1
+#define CW_OSS_SET_POLICY   0
+
+
+
+/* main data container; this is a library file, so in future
+   the variable must be moved from the file to client code;
+   this is a global variable that should be converted into
+   a function argument; this pointer should exist only in
+   client's code, should initially be returned by new(), and
+   deleted by delete();
+   TODO: perform the conversion later, when you figure out
+   ins and outs of the library */
+static cw_gen_t *generator = NULL;
+
+
 /*---------------------------------------------------------------------*/
 /*  Module variables, copyright, miscellaneous other stuff             */
 /*---------------------------------------------------------------------*/
@@ -79,12 +109,13 @@ enum { FALSE = 0, TRUE = !FALSE };
 enum { RC_SUCCESS = TRUE, RC_ERROR = FALSE };
 
 static const char *const CW_COPYRIGHT =
-  "Copyright (C) 2001-2006  Simon Baldwin\n\n"
-  "This program comes with ABSOLUTELY NO WARRANTY; for details please see\n"
-  "the file 'COPYING' supplied with the source code.  This is free software,\n"
-  "and you are welcome to redistribute it under certain conditions; again,\n"
-  "see 'COPYING' for details. This program is released under the GNU General\n"
-  "Public License.\n";
+	"Copyright (C) 2001-2006  Simon Baldwin\n"
+	"Copyright (C) 2011 Kamil Ignacak\n\n"
+	"This program comes with ABSOLUTELY NO WARRANTY; for details please see\n"
+	"the file 'COPYING' supplied with the source code.  This is free software,\n"
+	"and you are welcome to redistribute it under certain conditions; again,\n"
+	"see 'COPYING' for details. This program is released under the GNU General\n"
+	"Public License.\n";
 
 
 /**
@@ -965,8 +996,6 @@ enum
  * level timing values held and set below.
  */
 static int cw_send_speed = INITIAL_SEND_SPEED,
-           cw_frequency = INITIAL_FREQUENCY,
-           cw_volume = INITIAL_VOLUME,
            cw_gap = INITIAL_GAP,
            cw_receive_speed = INITIAL_RECEIVE_SPEED,
            cw_tolerance = INITIAL_TOLERANCE,
@@ -1263,8 +1292,8 @@ void
 cw_reset_send_receive_parameters (void)
 {
   cw_send_speed = INITIAL_SEND_SPEED;
-  cw_frequency = INITIAL_FREQUENCY;
-  cw_volume = INITIAL_VOLUME;
+  generator->frequency = INITIAL_FREQUENCY;
+  generator->volume = INITIAL_VOLUME;
   cw_gap = INITIAL_GAP;
   cw_receive_speed = INITIAL_RECEIVE_SPEED;
   cw_tolerance = INITIAL_TOLERANCE;
@@ -1352,7 +1381,7 @@ cw_set_frequency (int new_value)
       errno = EINVAL;
       return RC_ERROR;
     }
-  cw_frequency = new_value;
+  generator->frequency = new_value;
   return RC_SUCCESS;
 }
 
@@ -1364,7 +1393,7 @@ cw_set_volume (int new_value)
       errno = EINVAL;
       return RC_ERROR;
     }
-  cw_volume = new_value;
+  generator->volume = new_value;
   return RC_SUCCESS;
 }
 
@@ -1443,13 +1472,13 @@ cw_get_receive_speed (void)
 int
 cw_get_frequency (void)
 {
-  return cw_frequency;
+  return generator->frequency;
 }
 
 int
 cw_get_volume (void)
 {
-  return cw_volume;
+  return generator->volume;
 }
 
 int
@@ -1925,8 +1954,8 @@ static const char *cw_console_device = "/dev/console",
                   *cw_mixer_device = "/dev/mixer";
 
 /* Console and soundcard file descriptors, and flags noting if opened. */
-static int cw_console_descriptor = -1,
-           cw_sound_descriptor = -1;
+static int cw_console_descriptor = -1;
+//cw_sound_descriptor = -1;
 static int cw_is_console_open = FALSE,
            cw_is_sound_open = FALSE;
 
@@ -1934,8 +1963,8 @@ static int cw_is_console_open = FALSE,
 static int cw_sound_generate_frequency = TONE_SILENT;
 
 /* DSP device sample rate, and saved mixer PCM volume setting. */
-static int cw_sound_sample_rate = 0,
-           cw_sound_saved_vol = 0;
+static int cw_sound_sample_rate = 0;
+//           cw_sound_saved_vol = 0;
 
 /*
  * Sound output control flags, to enable soundcard, console, or both.  By
@@ -2123,7 +2152,7 @@ cw_is_console_possible (void)
  */
 static const int KIOCSOUND_CLOCK_TICK_RATE = 1193180;
 
-
+#if 0
 /**
  * cw_get_sound_pcm_volume_internal()
  *
@@ -2201,7 +2230,7 @@ cw_get_sound_pcm_volume_internal (int *volume)
   close (mixer);
   return RC_ERROR;
 }
-
+#endif
 
 /**
  * cw_set_sound_pcm_volume_internal()
@@ -2214,10 +2243,35 @@ cw_get_sound_pcm_volume_internal (int *volume)
 static int
 cw_set_sound_pcm_volume_internal (int volume)
 {
+	if (volume == 0) {
+		/* With this new scheme of producing a sound
+		   the sound is a bit longer than a dot (or a
+		   dash) by a time needed to decrease amplitude
+		   of sine wave from 'volume' to zero. When a
+		   timer signals that it's time to stop
+		   generating a sound, the library proceeds to
+		   gradually decrease amplitude of sine wave
+		   producing a falling slope. Length of the
+		   slope is inversely proportional to
+		   CW_OSS_GENERATOR_SLOPE.
+
+		   This additional time used to generate falling
+		   slope is rather small but cannot be tolerated.
+		   Thus I need to come up with better way of
+		   ending a sound. Somehow the slope must appear
+		   (i.e. the amplitude needs to start decreasing)
+		   *before* expected end of sound. */
+		generator->slope = -CW_OSS_GENERATOR_SLOPE;
+	} else {
+		generator->slope = CW_OSS_GENERATOR_SLOPE;
+	}
+
+	return RC_SUCCESS;
+
   int mixer, device_mask;
 
   /* Try to use the main /dev/audio device for ioctls first. */
-  if (ioctl (cw_sound_descriptor,
+  if (ioctl (generator->audio_sink,
              MIXER_WRITE (SOUND_MIXER_PCM), &volume) == 0)
     return RC_SUCCESS;
 
@@ -2276,6 +2330,7 @@ cw_set_sound_pcm_volume_internal (int volume)
 }
 
 
+#if 0
 /**
  * cw_open_sound_soundcard_internal()
  *
@@ -2299,7 +2354,7 @@ cw_open_sound_soundcard_internal (void)
           perror (cw_sound_device);
           return RC_ERROR;
         }
-    
+
       /*
        * Live a little dangerously, by trying to set the fragment size of the
        * card.  We'll try for a relatively short fragment of 128 bytes.  This
@@ -2317,7 +2372,7 @@ cw_open_sound_soundcard_internal (void)
           close (soundcard);
           return RC_ERROR;
         }
-    
+
       /* Set the audio format to 8-bit unsigned. */
       parameter = DSP_FORMAT;
       if (ioctl (soundcard, SNDCTL_DSP_SETFMT, &parameter) == -1)
@@ -2333,7 +2388,7 @@ cw_open_sound_soundcard_internal (void)
           close (soundcard);
           return RC_ERROR;
         }
-    
+
       /* Set up mono mode - a single audio channel. */
       parameter = DSP_CHANNELS;
       if (ioctl (soundcard, SNDCTL_DSP_CHANNELS, &parameter) == -1)
@@ -2349,7 +2404,7 @@ cw_open_sound_soundcard_internal (void)
           close (soundcard);
           return RC_ERROR;
         }
-    
+
       /*
        * Set up a standard sampling rate based on the notional correct value,
        * and retain the one we actually get in the library variable.
@@ -2367,7 +2422,7 @@ cw_open_sound_soundcard_internal (void)
             fprintf (stderr,
                      "cw: dsp sample_rate -> %d\n", cw_sound_sample_rate);
         }
-    
+
       /* Query fragment size just to get the driver buffers set. */
       if (ioctl (soundcard, SNDCTL_DSP_GETBLKSIZE, &parameter) == -1)
         {
@@ -2380,13 +2435,13 @@ cw_open_sound_soundcard_internal (void)
           if (cw_is_debugging_internal (CW_DEBUG_SOUND))
             fprintf (stderr, "cw: dsp fragment size not set, %d\n", parameter);
         }
-    
+
       /*
        * Save the opened file descriptor in a library variable.  Do it now
        * rather than later since the volume setting functions try to use it.
        */
       cw_sound_descriptor = soundcard;
-    
+
       /* Save the current volume setting of the sound device. */
       if (!cw_get_sound_pcm_volume_internal (&cw_sound_saved_vol))
         {
@@ -2394,7 +2449,7 @@ cw_open_sound_soundcard_internal (void)
           cw_sound_descriptor = -1;
           return RC_ERROR;
         }
-    
+
       /* Set the mixer volume to zero, so the card is silent initially. */
       if (!cw_set_sound_pcm_volume_internal (0))
         {
@@ -2402,10 +2457,10 @@ cw_open_sound_soundcard_internal (void)
           cw_sound_descriptor = -1;
           return RC_ERROR;
         }
-    
+
       if (cw_is_debugging_internal (CW_DEBUG_SOUND))
         fprintf (stderr, "cw: dsp opened\n");
-    
+
       /* Note sound as now open for business. */
       cw_is_sound_open = TRUE;
     }
@@ -2447,7 +2502,7 @@ cw_close_sound_soundcard_internal (void)
 
   return RC_SUCCESS;
 }
-
+#endif
 
 /**
  * cw_generate_sound_internal()
@@ -2473,6 +2528,8 @@ cw_close_sound_soundcard_internal (void)
 static int
 cw_generate_sound_internal (void)
 {
+	return RC_SUCCESS;
+#if 0
   static const int AMPLITUDE = 100;            /* Wave amplitude multiplier */
   static double phase_offset = 0.0;            /* Wave shape phase offset */
   static int current_frequency = TONE_SILENT;  /* Note of freq on last call */
@@ -2616,6 +2673,7 @@ cw_generate_sound_internal (void)
     }
 
   return RC_SUCCESS;
+#endif
 }
 
 
@@ -2641,7 +2699,7 @@ cw_sound_soundcard_internal (int frequency)
   if (cw_is_debugging_internal (CW_DEBUG_SOUND))
     fprintf (stderr, "cw: dsp request %d Hz, current %d Hz, "
              "volume %d %%, current %d %%\n",
-             frequency, current_frequency, cw_volume, current_volume);
+             frequency, current_frequency, generator->volume, current_volume);
 
   /* Look first for a change to the current sound frequency. */
   if (frequency != current_frequency)
@@ -2668,7 +2726,7 @@ cw_sound_soundcard_internal (int frequency)
            * held as a percentage, and supplied to the card as two values,
            * one per channel, in the lower two bytes of the volume argument.
            */
-          volume = cw_volume << 8 | cw_volume;
+          volume = generator->volume; /* cw_volume << 8 | cw_volume; */
         }
 
       /*
@@ -2681,11 +2739,11 @@ cw_sound_soundcard_internal (int frequency)
 
       /* Set this new frequency and volume as our current one. */
       current_frequency = frequency;
-      current_volume = cw_volume;
+      current_volume = generator->volume;
     }
 
   /* Look for changes to the main volume, but the same frequency. */
-  else if (cw_volume != current_volume)
+  else if (generator->volume != current_volume)
     {
       /* Keep background tone data generation going. */
       cw_generate_sound_internal ();
@@ -2699,7 +2757,7 @@ cw_sound_soundcard_internal (int frequency)
            * Reset only the volume for the soundcard, using the same setting
            * trick as we used above.
            */
-          volume = cw_volume << 8 | cw_volume;
+          volume = generator->volume; /* cw_volume << 8 | cw_volume; */
 
           /*
            * Set this mixer volume on the sound device, providing the sound
@@ -2710,7 +2768,7 @@ cw_sound_soundcard_internal (int frequency)
             return RC_ERROR;
 
           /* Set this new volume as our current one. */
-          current_volume = cw_volume;
+          current_volume = generator->volume;
         }
     }
 
@@ -2752,20 +2810,20 @@ cw_open_sound_console_internal (void)
           perror (cw_console_device);
           return RC_ERROR;
         }
-    
+
       /* Check to see if the file can do console tones. */
       if (ioctl (console, KIOCSOUND, 0) == -1)
         {
           close (console);
           return RC_ERROR;
         }
-    
+
       if (cw_is_debugging_internal (CW_DEBUG_SOUND))
         fprintf (stderr, "cw: console opened\n");
-    
+
       /* Save the opened file descriptor in a library variable. */
       cw_console_descriptor = console;
-    
+
       /* Note console as now open for business. */
       cw_is_console_open = TRUE;
     }
@@ -2818,15 +2876,15 @@ cw_sound_console_internal (int frequency)
   if (cw_is_debugging_internal (CW_DEBUG_SOUND))
     fprintf (stderr, "cw: console request %d Hz, current %d Hz, "
              "volume %d %%, current %d %%\n",
-             frequency, current_frequency, cw_volume, current_volume);
+             frequency, current_frequency, generator->volume, current_volume);
 
   /*
    * Look for changes to the current sound frequency, or changes to the main
    * volume where the volume goes either to, or from, zero.
    */
   if (frequency != current_frequency
-      || (cw_volume != current_volume
-          && (cw_volume == 0 || current_volume == 0)))
+      || (generator->volume != current_volume
+          && (generator->volume == 0 || current_volume == 0)))
     {
       int argument;
 
@@ -2836,7 +2894,7 @@ cw_sound_console_internal (int frequency)
        * zero, the one thing we can do is to just turn off tones.  A bit
        * crude, but perhaps just slightly better than doing nothing.
        */
-      if (cw_volume > 0)
+      if (generator->volume > 0)
         argument = frequency != TONE_SILENT
                    ? KIOCSOUND_CLOCK_TICK_RATE / frequency : 0;
       else
@@ -2858,7 +2916,7 @@ cw_sound_console_internal (int frequency)
 
       /* Set this new frequency and volume as our current one. */
       current_frequency = frequency;
-      current_volume = cw_volume;
+      current_volume = generator->volume;
     }
 
   return RC_SUCCESS;
@@ -3887,9 +3945,9 @@ cw_send_element_internal (char element)
 
   /* Send either a dot or a dash element, depending on representation. */
   if (element == CW_DOT_REPRESENTATION)
-    status = cw_enqueue_tone_internal (cw_send_dot_length, cw_frequency);
+    status = cw_enqueue_tone_internal (cw_send_dot_length, generator->frequency);
   else if (element == CW_DASH_REPRESENTATION)
-    status = cw_enqueue_tone_internal (cw_send_dash_length, cw_frequency);
+    status = cw_enqueue_tone_internal (cw_send_dash_length, generator->frequency);
   else
     {
       errno = EINVAL;
@@ -5459,14 +5517,14 @@ cw_keyer_clock_internal (void)
         cw_ik_dot_latch = FALSE;
       if (cw_keyer_state == KS_AFTER_DOT_B)
         {
-          cw_sound_internal (cw_frequency);
+          cw_sound_internal (generator->frequency);
           cw_key_control_internal (TRUE);
           cw_request_timeout_internal (cw_send_dash_length, NULL);
           cw_keyer_state = KS_IN_DASH_A;
         }
       else if (cw_ik_dash_latch)
         {
-          cw_sound_internal (cw_frequency);
+          cw_sound_internal (generator->frequency);
           cw_key_control_internal (TRUE);
           cw_request_timeout_internal (cw_send_dash_length, NULL);
           if (cw_ik_curtis_b_latch)
@@ -5479,7 +5537,7 @@ cw_keyer_clock_internal (void)
         }
       else if (cw_ik_dot_latch)
         {
-          cw_sound_internal (cw_frequency);
+          cw_sound_internal (generator->frequency);
           cw_key_control_internal (TRUE);
           cw_request_timeout_internal (cw_send_dot_length, NULL);
           cw_keyer_state = KS_IN_DOT_A;
@@ -5500,14 +5558,14 @@ cw_keyer_clock_internal (void)
         cw_ik_dash_latch = FALSE;
       if (cw_keyer_state == KS_AFTER_DASH_B)
         {
-          cw_sound_internal (cw_frequency);
+          cw_sound_internal (generator->frequency);
           cw_key_control_internal (TRUE);
           cw_request_timeout_internal (cw_send_dot_length, NULL);
           cw_keyer_state = KS_IN_DOT_A;
         }
       else if (cw_ik_dot_latch)
         {
-          cw_sound_internal (cw_frequency);
+          cw_sound_internal (generator->frequency);
           cw_key_control_internal (TRUE);
           cw_request_timeout_internal (cw_send_dot_length, NULL);
           if (cw_ik_curtis_b_latch)
@@ -5520,7 +5578,7 @@ cw_keyer_clock_internal (void)
         }
       else if (cw_ik_dash_latch)
         {
-          cw_sound_internal (cw_frequency);
+          cw_sound_internal (generator->frequency);
           cw_key_control_internal (TRUE);
           cw_request_timeout_internal (cw_send_dash_length, NULL);
           cw_keyer_state = KS_IN_DASH_A;
@@ -5872,7 +5930,7 @@ cw_notify_straight_key_event (int key_state)
        */
       if (cw_sk_key_down)
         {
-          cw_sound_internal (cw_frequency);
+          cw_sound_internal (generator->frequency);
           cw_key_control_internal (TRUE);
 
           /* Start timeouts to keep soundcard tones running. */
@@ -5943,3 +6001,420 @@ cw_reset_straight_key (void)
   if (cw_is_debugging_internal (CW_DEBUG_STRAIGHT_KEY))
     fprintf (stderr, "cw: straight key state ->%s (reset)\n", "UP");
 }
+
+
+
+
+
+static int cw_oss_open_device(void);
+static int cw_oss_close_device(void);
+
+static void *cw_oss_generator_write_sinewave(void *arg);
+static int cw_oss_generator_calculate_amplitude(cw_gen_t *gen);
+
+
+#ifdef CWLIB_MAIN
+
+/* for stand-alone testing */
+int main(void)
+{
+	cw_generator_new(CW_AUDIO_OSS);
+	cw_generator_start();
+
+
+	cw_reset_send_receive_parameters();
+	cw_set_send_speed(22);
+
+	cw_send_string("h h h h h h ");
+	cw_wait_for_tone_queue();
+
+	/* cw_send_string("sos for testing this code");
+	   cw_wait_for_tone_queue(); */
+
+	cw_generator_stop();
+	cw_generator_delete();
+
+	return 0;
+}
+
+#endif
+
+
+
+
+int cw_oss_open_device(void)
+{
+	int parameter = 0;
+	/* Open the given soundcard device file, for write only. */
+	int soundcard = open(cw_sound_device, O_WRONLY);
+	if (soundcard == -1) {
+		fprintf(stderr, "cw: open ");
+		perror(cw_sound_device);
+		return RC_ERROR;
+        }
+
+	parameter = 0; /* ignored */
+	if (ioctl(soundcard, SNDCTL_DSP_SYNC, &parameter) == -1) {
+		perror("cw: ioctl SNDCTL_DSP_SYNC");
+		close(soundcard);
+		return RC_ERROR;
+        }
+
+	parameter = 0; /* ignored */
+	if (ioctl(soundcard, SNDCTL_DSP_POST, &parameter) == -1) {
+		perror("cw: ioctl SNDCTL_DSP_POST");
+		close(soundcard);
+		return RC_ERROR;
+        }
+
+	/* Set the audio format to 8-bit unsigned. */
+	parameter = CW_OSS_FORMAT;
+	if (ioctl(soundcard, SNDCTL_DSP_SETFMT, &parameter) == -1) {
+		perror("cw: ioctl SNDCTL_DSP_SETFMT");
+		close(soundcard);
+		return RC_ERROR;
+        }
+
+	if (parameter != CW_OSS_FORMAT) {
+		errno = ERR_NO_SUPPORT;
+		perror("cw: sound AFMT_U8 not supported");
+		close(soundcard);
+		return RC_ERROR;
+        }
+
+	/* Set up mono mode - a single audio channel. */
+	parameter = CW_OSS_CHANNELS;
+	if (ioctl(soundcard, SNDCTL_DSP_CHANNELS, &parameter) == -1) {
+		perror("cw: ioctl SNDCTL_DSP_CHANNELS");
+		close(soundcard);
+		return RC_ERROR;
+        }
+	if (parameter != CW_OSS_CHANNELS) {
+		errno = ERR_NO_SUPPORT;
+		perror("cw: sound mono not supported");
+		close(soundcard);
+		return RC_ERROR;
+        }
+
+	/*
+	 * Set up a standard sampling rate based on the notional correct value,
+	 * and retain the one we actually get in the library variable.
+	 */
+	cw_sound_sample_rate = CW_SAMPLE_RATE;
+	if (ioctl(soundcard, SNDCTL_DSP_SPEED, &cw_sound_sample_rate) == -1) {
+		perror("cw: ioctl SNDCTL_DSP_SPEED");
+		close(soundcard);
+		return RC_ERROR;
+        }
+	if (cw_sound_sample_rate != CW_SAMPLE_RATE) {
+		fprintf(stderr, "cw: dsp sample_rate -> %d\n", cw_sound_sample_rate);
+        }
+
+
+
+	audio_buf_info bufff;
+	if (ioctl(soundcard, SNDCTL_DSP_GETOSPACE, &bufff) == -1) {
+		perror("cw: ioctl SNDCTL_DSP_SYNC");
+		close(soundcard);
+		return RC_ERROR;
+        } else {
+		/*
+		fprintf(stderr, "before:\n");
+		fprintf(stderr, "buff.fragments = %d\n", bufff.fragments);
+		fprintf(stderr, "buff.fragsize = %d\n", bufff.fragsize);
+		fprintf(stderr, "buff.bytes = %d\n", bufff.bytes);
+		fprintf(stderr, "buff.fragstotal = %d\n", bufff.fragstotal);
+		*/
+	}
+
+
+#if CW_OSS_SET_FRAGMENT
+	/*
+	 * Live a little dangerously, by trying to set the fragment size of the
+	 * card.  We'll try for a relatively short fragment of 128 bytes.  This
+	 * gives us a little better granularity over the amounts of audio data
+	 * we write periodically to the soundcard output buffer.  We may not get
+	 * the requested fragment size, and may be stuck with the default.  The
+	 * argument has the format 0xMMMMSSSS - fragment size is 2^SSSS, and
+	 * setting 0x7fff for MMMM allows as many fragments as the driver can
+	 * support.
+	 */
+	/* parameter = 0x7fff << 16 | CW_OSS_SETFRAGMENT; */
+	parameter = 0x0032 << 16 | CW_OSS_SETFRAGMENT;
+	/* parameter = 0x00230006; */
+	if (ioctl(soundcard, SNDCTL_DSP_SETFRAGMENT, &parameter) == -1) {
+		perror("cw: ioctl SNDCTL_DSP_SETFRAGMENT");
+		close(soundcard);
+		return RC_ERROR;
+        }
+	if (cw_is_debugging_internal(CW_DEBUG_SOUND)) {
+		fprintf(stderr, "fragment size is %d\n", parameter & 0x0000ffff);
+	}
+
+	/* Query fragment size just to get the driver buffers set. */
+	if (ioctl(soundcard, SNDCTL_DSP_GETBLKSIZE, &parameter) == -1) {
+		perror("cw: ioctl SNDCTL_DSP_GETBLKSIZE");
+		close(soundcard);
+		return RC_ERROR;
+        }
+
+	if (parameter != (1 << CW_OSS_SETFRAGMENT)) {
+		fprintf(stderr, "cw: OSS fragment size not set, %d\n", parameter);
+        }
+
+#endif
+#if CW_OSS_SET_POLICY
+	parameter = 5;
+	if (ioctl(soundcard, SNDCTL_DSP_POLICY, &parameter) == -1) {
+		perror("cw: ioctl SNDCTL_DSP_POLICY");
+		close(soundcard);
+		return RC_ERROR;
+        }
+#endif
+
+
+
+	if (ioctl(soundcard, SNDCTL_DSP_GETOSPACE, &bufff) == -1) {
+		perror("cw: ioctl SNDCTL_DSP_SYNC");
+		close(soundcard);
+		return RC_ERROR;
+        } else {
+		/*
+		fprintf(stderr, "after:\n");
+		fprintf(stderr, "buff.fragments = %d\n", bufff.fragments);
+		fprintf(stderr, "buff.fragsize = %d\n", bufff.fragsize);
+		fprintf(stderr, "buff.bytes = %d\n", bufff.bytes);
+		fprintf(stderr, "buff.fragstotal = %d\n", bufff.fragstotal);
+		*/
+	}
+
+	/*
+	 * Save the opened file descriptor in a library variable.  Do it now
+	 * rather than later since the volume setting functions try to use it.
+	 */
+	generator->audio_sink = soundcard;
+#if 0
+	/* Set the mixer volume to zero, so the card is silent initially. */
+	if (!cw_set_sound_pcm_volume_internal(0)) {
+		close(generator->audio_sink);
+		generator->audio_sink = -1;
+		return RC_ERROR;
+        }
+#endif
+	if (cw_is_debugging_internal(CW_DEBUG_SOUND)) {
+		fprintf(stderr, "cw: dsp opened\n");
+	}
+
+	/* Note sound as now open for business. */
+	cw_is_sound_open = TRUE;
+
+	generator->debug_sink = open("/tmp/cw_file.raw", O_WRONLY | O_NONBLOCK);
+
+	return RC_SUCCESS;
+}
+
+
+
+
+
+int cw_oss_close_device(void)
+{
+	/* Only attempt to close the sound device if it is already open. */
+	if (cw_is_sound_open) {
+		/* Close the file descriptor, and note as closed. */
+		close(generator->audio_sink);
+		generator->audio_sink = -1;
+		cw_is_sound_open = FALSE;
+	}
+
+	if (generator->debug_sink != -1) {
+		close(generator->debug_sink);
+		generator->debug_sink = -1;
+	}
+
+	return RC_SUCCESS;
+}
+
+
+
+
+
+int cw_generator_new(int sound_system)
+{
+	generator = (cw_gen_t *) malloc(sizeof (cw_gen_t));
+	if (generator == NULL) {
+		fprintf(stderr, "cw: malloc\n");
+		return RC_ERROR;
+	}
+
+	if (sound_system == CW_AUDIO_OSS) {
+		cw_oss_open_device();
+		generator->sound_system = sound_system;
+		return RC_SUCCESS;
+	} else {
+		cw_generator_delete();
+		fprintf(stderr, "cw: unsupported sound system\n");
+		return RC_ERROR;
+	}
+}
+
+
+
+
+
+void cw_generator_delete(void)
+{
+	if (generator != NULL) {
+		if (generator->sound_system == CW_AUDIO_OSS) {
+			cw_oss_close_device();
+			generator->sound_system = CW_AUDIO_OSS;
+		}
+		free(generator);
+		generator = NULL;
+	}
+	return;
+}
+
+
+
+
+
+int cw_generator_start(void)
+{
+	generator->frequency = INITIAL_FREQUENCY;
+	generator->volume = INITIAL_VOLUME;
+	generator->phase_offset = 0.0;
+	generator->phase = 0.0;
+	generator->sample_rate = CW_SAMPLE_RATE;
+	/* both values being zero here means that generator
+	   has started working, but its output is silence;
+	   set .slope to a positive value to start generating
+	   a sound with non-zero amplitude */
+	generator->slope = 0;
+	generator->amplitude = 0;
+
+	generator->generate = 1;
+
+	int rv = pthread_create(&(generator->thread), NULL,
+				cw_oss_generator_write_sinewave,
+				(void *) generator);
+	if (rv != 0) {
+		fprintf(stderr, "ERROR: failed to create generator thread\n");
+		return RC_ERROR;
+	} else {
+		/* for some yet unknown reason you have to
+		   put usleep() here, otherwise a generator
+		   may work incorrectly */
+		usleep(100000);
+		return RC_SUCCESS;
+	}
+}
+
+
+
+
+
+void cw_generator_stop(void)
+{
+	generator->slope = -CW_OSS_GENERATOR_SLOPE;
+
+	/* time needed between initiating stop sequence and
+	   ending write() to device and closing the device */
+	int usleep_time = CW_SAMPLE_RATE / (2 * CW_OSS_GENERATOR_BUF_SIZE);
+	usleep_time /= 1000000;
+	usleep(usleep_time * 1.2);
+
+	generator->generate = 0;
+
+	return;
+}
+
+
+
+
+
+void *cw_oss_generator_write_sinewave(void *arg)
+{
+	cw_gen_t *gen = (cw_gen_t *) arg;
+	short buf[CW_OSS_GENERATOR_BUF_SIZE];
+
+	while (gen->generate) {
+
+		int i = 0;
+		double phase = 0.0;
+		/* Create a fragment's worth of shaped wave data. */
+		for (i = 0; i < CW_OSS_GENERATOR_BUF_SIZE; i++) {
+			phase = (2.0 * M_PI
+				 * (double) gen->frequency * (double) i / (double) gen->sample_rate)
+				+ gen->phase_offset;
+			int amplitude = cw_oss_generator_calculate_amplitude(gen);
+
+			buf[i] = amplitude * sin(phase);
+		}
+
+		/* Compute the phase of the last generated sample
+		   (or is it phase of first sample in next series?). */
+		phase = (2.0 * M_PI * (double) gen->frequency * (double) i / (double) gen->sample_rate) + gen->phase_offset;
+
+		/* Extract the normalized phase offset. */
+		int n_periods = floor(phase / (2.0 * M_PI));
+		gen->phase_offset = phase - n_periods * 2.0 * M_PI;
+
+		if (write(gen->audio_sink, buf, sizeof (buf)) != sizeof (buf)) {
+			perror("Audio write");
+			exit(-1);
+		}
+		write(gen->debug_sink, buf, sizeof (buf));
+	} /* while() */
+
+	return NULL;
+}
+
+
+
+
+
+static const long int VOLUME_RANGE = (1 << 15); /* 2^15 = 32768 */
+
+
+int cw_oss_generator_calculate_amplitude(cw_gen_t *gen)
+{
+	int volume = (gen->volume * VOLUME_RANGE) / 100;
+	if (gen->slope == 0) {
+		;
+	} else if (gen->slope < 0) {
+		if (gen->amplitude > 0) {
+			gen->amplitude += gen->slope; /* yes, += */
+		} else if (gen->amplitude < 0) {
+			gen->amplitude = 0;
+			gen->slope = 0;
+		} else { /* gen->amplitude == 0 */
+			gen->slope = 0;
+		}
+	} else { /* gen->slope > 0 */
+		if (gen->amplitude < volume) {
+			gen->amplitude += gen->slope;
+		} else if (gen->amplitude > volume) {
+			gen->amplitude = volume;
+			gen->slope = 0;
+		} else { /* gen->amplitude == volume; */
+			gen->slope = 0;
+		}
+	}
+
+	/* because VOLUME_RANGE may not be exact multiple
+	   of gen->slope, gen->amplitude may be sometimes out
+	   of range; this may produce audible clicks;
+	   remove values out of range */
+	if (gen->amplitude > VOLUME_RANGE) {
+		gen->amplitude = VOLUME_RANGE;
+	} else if (gen->amplitude < 0) {
+		gen->amplitude = 0;
+	} else {
+		;
+	}
+
+	return gen->amplitude;
+}
+
+
