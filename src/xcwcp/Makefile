@@ -21,7 +21,7 @@ include ../../Makefile.inc
 QTDIR	= $(AC_QTDIR)
 QTMOC	= $(AC_QTMOC)
 CXX	= $(AC_CXX)
-CXXFLAGS= $(AC_CXXFLAGS) $(AC_DEFS) -I../cwlib -I../cwutils -I$(QTDIR)/include -I$(AC_QT3DIR_HEADERS)
+CXXFLAGS= $(AC_CXXFLAGS) $(AC_DEFS) -I../cwlib -I../cwutils -I$(QTDIR)/include
 GZIP	= $(AC_GZIP)
 
 SHELL	= /bin/sh
@@ -31,7 +31,7 @@ OBJECTS = main.o modeset.o display.o sender.o receiver.o application.o \
           moc_application.o
 
 # Link to the shared libcw.
-LIBS	= -L$(QTDIR)/lib -L$(AC_QT3DIR_LIB) -lqt-mt -L../cwlib -lcw
+LIBS	= -L$(QTDIR)/lib -lqt-mt -L../cwlib -lcw
 
 default: all
 
@@ -59,7 +59,7 @@ application.o: application.cc sender.h receiver.h application.h \
 moc_application.o: moc_application.cc
 
 moc_application.cc: application.h
-	$(QTMOC) -i $< -o $@
+	$(QTMOC) $< -o $@
 
 # Install targets.
 install: all
