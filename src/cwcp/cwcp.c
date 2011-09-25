@@ -79,6 +79,16 @@ static volatile int queue_tail = 0,
 static volatile int is_queue_idle = TRUE;
 
 
+/* variables storing values of some command line arguments */
+static const char *argv0 = NULL;
+static int is_console = FALSE;
+static int is_soundcard = TRUE;
+static char *console_device = NULL;
+static char *soundcard_device = NULL;
+//static char *mixer_device = NULL;
+
+
+
 /*
  * queue_get_length()
  * queue_next_index()
@@ -1286,24 +1296,20 @@ print_help (const char *argv0)
 
   format = has_longopts ()
     ? _("Usage: %s [options...]\n\n"
-      "  -s, --sound=SOURCE     generate sound on SOURCE"
+      "  -s, --sound=SYSTEM     generate sound using SYSTEM sound system"
       " [default 'soundcard']\n"
-      "                         one of 's[oundcard]', 'c[onsole]',"
-      " or 'b[oth]'\n"
+      "                         one of 's[oundcard]', 'c[onsole]'\n"
       "  -x, --sdevice=SDEVICE  use SDEVICE for soundcard [default %s]\n"
-      "  -y, --mdevice=MDEVICE  use MDEVICE for sound mixer [default %s]\n"
-      "  -d, --cdevice=CDEVICE  use CDEVICE for sound ioctl [default %s]\n")
+      "  -d, --cdevice=CDEVICE  use CDEVICE for console sound [default %s]\n")
     : _("Usage: %s [options...]\n\n"
-      "  -s SOURCE   generate sound on SOURCE [default 'soundcard']\n"
-      "              one of 's[oundcard]', 'c[onsole]', or 'b[oth]'\n"
-      "  -x SDEVICE  use SDEVICE for soundcard [default %s]\n"
-      "  -y MDEVICE  use MDEVICE for sound mixer [default %s]\n"
-      "  -d CDEVICE  use CDEVICE for sound ioctl [default %s]\n");
+      "  -s SYSTEM   generate sound using SYSTEM sound system [default 'soundcard']\n"
+      "              one of 's[oundcard]', 'c[onsole]'\n"
+      "  -x SDEVICE  use SDEVICE for soundcard sound [default %s]\n"
+      "  -d CDEVICE  use CDEVICE for console sound [default %s]\n");
 
   printf (format, argv0,
-          cw_get_soundcard_file (),
-          cw_get_soundmixer_file (),
-          cw_get_console_file ());
+	  CW_DEFAULT_OSS_DEVICE,
+	  CW_DEFAULT_CONSOLE_DEVICE);
 
   format = has_longopts ()
     ? _("  -i, --inifile=INIFILE  load practice words from INIFILE\n"
@@ -1369,10 +1375,6 @@ print_help (const char *argv0)
 static void
 parse_command_line (int argc, char **argv)
 {
-  const char *argv0;
-  int is_console = FALSE, is_soundcard = TRUE;
-  const char *console_device = NULL,
-             *soundcard_device = NULL, *mixer_device = NULL;
   int option;
   char *argument;
 
@@ -1400,12 +1402,14 @@ parse_command_line (int argc, char **argv)
               is_console = FALSE;
               is_soundcard = TRUE;
             }
+#if 0
           else if (strcoll (argument, _("both")) == 0
                    || strcoll (argument, _("b")) == 0)
             {
               is_console = TRUE;
               is_soundcard = TRUE;
             }
+#endif
           else
             {
               fprintf (stderr, _("%s: invalid sound source\n"), argv0);
@@ -1420,11 +1424,11 @@ parse_command_line (int argc, char **argv)
         case 'x':
           soundcard_device = argument;
           break;
-
+#if 0
         case 'y':
           mixer_device = argument;
           break;
-
+#endif
         case 'i':
           if (!dictionary_load (argument))
             {
@@ -1535,11 +1539,13 @@ parse_command_line (int argc, char **argv)
       fprintf (stderr, _("%s: no soundcard sound: -x invalid\n"), argv0);
       print_usage (argv0);
     }
+#if 0
   if (!is_soundcard && mixer_device)
     {
       fprintf (stderr, _("%s: no soundcard sound: -y invalid\n"), argv0);
       print_usage (argv0);
     }
+#endif
 #if 0
   /* First set up soundcard sound if required. */
   if (is_soundcard)
@@ -1549,14 +1555,14 @@ parse_command_line (int argc, char **argv)
       if (!cw_is_soundcard_possible ())
         {
           fprintf (stderr, _("%s: cannot set up soundcard sound\n"), argv0);
-          perror (cw_get_soundcard_file ());
+          perror (cw_get_soundcard_device());
           exit (EXIT_FAILURE);
         }
       if (mixer_device)
         cw_set_soundmixer_file (mixer_device);
     }
   cw_set_soundcard_sound (is_soundcard);
-#endif
+
   /* Now set up console sound, again if required. */
   if (is_console)
     {
@@ -1564,12 +1570,13 @@ parse_command_line (int argc, char **argv)
         cw_set_console_file (console_device);
       if (!cw_is_console_possible ())
         {
-          fprintf (stderr, _("%s: cannot set up console sound\n"), argv0);
-          perror (cw_get_console_file ());
+	  fprintf (stderr, _("%s: cannot set up console sound with \"%s\"\n"), argv0, console_device);
+          perror (cw_get_console_device());
           exit (EXIT_FAILURE);
         }
     }
   cw_set_console_sound (is_console);
+#endif
 }
 
 
@@ -1647,16 +1654,41 @@ main (int argc, char **argv)
 
   /* Set locale and message catalogs. */
   i18n_initialize ();
-  int rv = cw_generator_new(CW_AUDIO_OSS);
-  if (rv != 1) {
-	  fprintf(stderr, "cw: failed to create generator\n");
-	  exit(-1);
-  }
 
   /* Parse combined environment and command line arguments. */
   combine_arguments (_("CWCP_OPTIONS"),
                      argc, argv, &combined_argc, &combined_argv);
   parse_command_line (combined_argc, combined_argv);
+
+  int rv = 0;
+  if (is_console) {
+	  if (!cw_is_console_possible(console_device)) {
+		  fprintf(stderr, _("%s: cannot set up console sound\n"), argv0);
+		  exit(EXIT_FAILURE);
+	  }
+
+	  rv = cw_generator_new(CW_AUDIO_CONSOLE, console_device);
+	  if (rv != 1) {
+		  fprintf(stderr,
+			  "%s: failed to open console output with device \"%s\"\n",
+			  argv0, cw_get_console_device());
+	  }
+  } else if (is_soundcard) {
+	  rv = cw_generator_new(CW_AUDIO_OSS, soundcard_device);
+	  if (rv != 1) {
+		  fprintf(stderr,
+			  "%s: failed to open OSS output with device \"%s\"\n",
+			  argv0, cw_get_soundcard_device());
+	  }
+  } else {
+	  fprintf(stderr, "%s: both console and soundcard outputs disabled\n", argv0);
+	  rv = 0;
+  }
+
+  if (rv != 1) {
+	  fprintf(stderr, "%s: failed to create generator\n", argv0);
+	  exit(EXIT_FAILURE);
+  }
 
   /* Set up signal handlers to clear up and exit on a range of signals. */
   for (index = 0; SIGNALS[index] != 0; index++)
