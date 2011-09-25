@@ -73,6 +73,14 @@ static int do_echo = TRUE,          /* Echo characters */
            do_comments = TRUE;      /* Allow {...} as comments */
 
 
+
+const char *argv0 = NULL;
+int is_console = FALSE, is_soundcard = TRUE;
+const char *console_device = NULL,
+	*soundcard_device = NULL;//, *mixer_device = NULL;
+
+
+
 /*---------------------------------------------------------------------*/
 /*  Convenience functions                                              */
 /*---------------------------------------------------------------------*/
@@ -597,26 +605,22 @@ print_help (const char *argv0)
 
   format = has_longopts ()
     ? _("Usage: %s [options...]\n\n"
-      "  -s, --sound=SOURCE     generate sound on SOURCE"
+      "  -s, --sound=SYSTEM     generate sound using SYSTEM sound system"
       " [default 'soundcard']\n"
-      "                         one of 's[oundcard]', 'c[onsole]',"
-      " or 'b[oth]'\n"
-      "  -x, --sdevice=SDEVICE  use SDEVICE for soundcard [default %s]\n"
-      "  -y, --mdevice=MDEVICE  use MDEVICE for sound mixer [default %s]\n"
-      "  -d, --cdevice=CDEVICE  use CDEVICE for sound ioctl [default %s]\n"
+      "                         one of 's[oundcard]', 'c[onsole]'\n"
+      "  -x, --sdevice=SDEVICE  use SDEVICE for soundcard sound [default %s]\n"
+      "  -d, --cdevice=CDEVICE  use CDEVICE for console sound [default %s]\n"
       "  -f, --file=FILE        read from FILE [default stdin]\n")
     : _("Usage: %s [options...]\n\n"
-      "  -s SOURCE   generate sound on SOURCE [default 'console']\n"
-      "              one of 'c[onsole]', 's[oundcard]', or 'b[oth]'\n"
-      "  -x SDEVICE  use SDEVICE for soundcard [default %s]\n"
-      "  -y MDEVICE  use MDEVICE for sound mixer [default %s]\n"
-      "  -d CDEVICE  use CDEVICE for sound ioctl [default %s]\n"
+      "  -s SYSTEM   generate sound using SYSTEM sound system [default 'console']\n"
+      "              one of 'c[onsole]', 's[oundcard]'\n"
+      "  -x SDEVICE  use SDEVICE for soundcard sound [default %s]\n"
+      "  -d CDEVICE  use CDEVICE for console sound [default %s]\n"
       "  -f FILE     read from FILE [default stdin]\n");
 
   printf (format, argv0,
-          cw_get_soundcard_file (),
-          cw_get_soundmixer_file (),
-          cw_get_console_file ());
+	  CW_DEFAULT_OSS_DEVICE,
+	  CW_DEFAULT_CONSOLE_DEVICE);
 
   format = has_longopts ()
     ? _("  -w, --wpm=WPM          set initial words per minute [default %d]\n"
@@ -684,10 +688,7 @@ print_help (const char *argv0)
 static void
 parse_command_line (int argc, char *const argv[])
 {
-  const char *argv0;
-  int is_console = FALSE, is_soundcard = TRUE;
-  const char *console_device = NULL,
-             *soundcard_device = NULL, *mixer_device = NULL;
+
   int option;
   char *argument;
 
@@ -736,11 +737,11 @@ parse_command_line (int argc, char *const argv[])
         case 'x':
           soundcard_device = argument;
           break;
-
+#if 0
         case 'y':
           mixer_device = argument;
           break;
-
+#endif
         case 'f':
           if (!freopen (argument, "r", stdin))
             {
@@ -847,42 +848,15 @@ parse_command_line (int argc, char *const argv[])
           fprintf (stderr, _("%s: no soundcard sound: -x invalid\n"), argv0);
           print_usage (argv0);
         }
+#if 0
       else if (mixer_device)
         {
           fprintf (stderr, _("%s: no soundcard sound: -y invalid\n"), argv0);
           print_usage (argv0);
         }
+#endif
     }
 
-  /* First set up soundcard sound if required. */
-  if (is_soundcard)
-    {
-      if (soundcard_device)
-        cw_set_soundcard_file (soundcard_device);
-      if (!cw_is_soundcard_possible ())
-        {
-          fprintf (stderr, _("%s: cannot set up soundcard sound\n"), argv0);
-          perror (cw_get_soundcard_file ());
-          exit (EXIT_FAILURE);
-        }
-      if (mixer_device)
-        cw_set_soundmixer_file (mixer_device);
-    }
-  cw_set_soundcard_sound (is_soundcard);
-
-  /* Now set up console sound, if required. */
-  if (is_console)
-    {
-      if (console_device)
-        cw_set_console_file (console_device);
-      if (!cw_is_console_possible ())
-        {
-          fprintf (stderr, _("%s: cannot set up console sound\n"), argv0);
-          perror (cw_get_console_file ());
-          exit (EXIT_FAILURE);
-        }
-    }
-  cw_set_console_sound (is_console);
 }
 
 
@@ -902,12 +876,42 @@ main (int argc, char *const argv[])
   /* Set locale and message catalogs. */
   i18n_initialize ();
 
-  cw_generator_new(CW_AUDIO_OSS);
-  cw_generator_start();
   /* Parse combined environment and command line arguments. */
   combine_arguments (_("CW_OPTIONS"),
                      argc, argv, &combined_argc, &combined_argv);
   parse_command_line (combined_argc, combined_argv);
+
+  int rv = 0;
+  if (is_console) {
+	  if (!cw_is_console_possible(console_device)) {
+		  fprintf(stderr, _("%s: cannot set up console sound\n"), argv0);
+		  exit(EXIT_FAILURE);
+	  }
+
+	  rv = cw_generator_new(CW_AUDIO_CONSOLE, console_device);
+	  if (rv != 1) {
+		  fprintf(stderr,
+			  "%s: failed to open console output with device \"%s\"\n",
+			  argv0, cw_get_console_device());
+	  }
+  } else if (is_soundcard) {
+	  rv = cw_generator_new(CW_AUDIO_OSS, soundcard_device);
+	  if (rv != 1) {
+		  fprintf(stderr,
+			  "%s: failed to open OSS output with device \"%s\"\n",
+			  argv0, cw_get_soundcard_device());
+	  }
+  } else {
+	  fprintf(stderr, "%s: both console and soundcard outputs disabled\n", argv0);
+	  rv = 0;
+  }
+
+  if (rv != 1) {
+	  fprintf(stderr, "%s: failed to create generator\n", argv0);
+	  exit(EXIT_FAILURE);
+  }
+
+  cw_generator_start();
 
   /* Set up signal handlers to exit on a range of signals. */
   for (index = 0; SIGNALS[index] != 0; index++)
