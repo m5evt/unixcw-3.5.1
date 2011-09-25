@@ -35,6 +35,8 @@
 #include <math.h>
 #include <stdio.h>
 #include <errno.h>
+#include <assert.h>
+
 #if (defined(__unix__) || defined(unix)) && !defined(USG)
 # include <sys/param.h>
 #endif
@@ -71,14 +73,29 @@
 
 #include "cwlib.h"
 
-
+/* for stand-alone compilation and tests */
 /* #define CWLIB_MAIN */
+
+
+
+static int   cw_oss_open_device(const char *device);
+static int   cw_oss_close_device(void);
+static void *cw_oss_generator_write_sinewave(void *arg);
+static int   cw_oss_generator_calculate_amplitude(cw_gen_t *gen);
+
+static int cw_console_open_device(const char *device);
+static int cw_console_close_device(void);
+static int cw_set_soundcard_device(const char *device);
+static int cw_set_console_device(const char *device);
+
+
+
 
 
 
 /* Fixed general soundcard parameters. */
 static const int CW_OSS_SETFRAGMENT = 7;       /* Sound fragment size, 2^N */
-static const int CW_OSS_FORMAT = AFMT_S16_NE;  /* Sound format AFMT_S16_NE = signed 16 bit, native endianess; LE = Little endian */
+static const int CW_OSS_FORMAT = AFMT_S16_NE;  /* Sound format AFMT_S16_NE = signed 16 bit, native endianess; LE = Little endianess */
 static const int CW_OSS_CHANNELS = 1;          /* Sound in mono only */
 static const int CW_SAMPLE_RATE = 44100;       /* Sound sampling rate */
 
@@ -1946,18 +1963,12 @@ static const int DSP_SETFRAGMENT = 7,   /* Sound fragment size, 128 (2^7) */
                  DSP_RATE = 8192;       /* Sound sampling rate (~=2xMaxFreq) */
 
 /*
- * Paths to the assorted console and soundcard devices used by the library.
+ * Paths to console and soundcard devices used by the library.
  * These can be reset by the user.
  */
-static const char *cw_console_device = "/dev/console",
-                  *cw_sound_device = "/dev/audio",
-                  *cw_mixer_device = "/dev/mixer";
+static char *cw_console_device = NULL;
+static char *cw_oss_device = NULL;
 
-/* Console and soundcard file descriptors, and flags noting if opened. */
-static int cw_console_descriptor = -1;
-//cw_sound_descriptor = -1;
-static int cw_is_console_open = FALSE,
-           cw_is_sound_open = FALSE;
 
 /* Current background tone generation frequency. */
 static int cw_sound_generate_frequency = TONE_SILENT;
@@ -1986,22 +1997,30 @@ static int cw_sound_soundcard_on = TRUE,
  * The default console file is /dev/console.  The call is ingored on platforms
  * that do no support the KIOCSOUND ioctl.
  */
-void
-cw_set_console_file (const char *new_value)
+int cw_set_console_device(const char *device)
 {
-  static char *allocated = NULL;
+	assert (!cw_console_device); /* this should be NULL, either
+					because it has been initialized
+					statically as NULL, or set to
+					NULL by generator destructor */
 
-  free (allocated);
-  allocated = new_value ? malloc (strlen (new_value) + 1) : NULL;
-  if (allocated)
-    strcpy (allocated, new_value);
-  cw_console_device = allocated;
+	if (device) {
+		cw_console_device = strdup(device);
+	} else {
+		cw_console_device = strdup(CW_DEFAULT_CONSOLE_DEVICE);
+	}
+
+	if (cw_console_device) {
+		return RC_SUCCESS;
+	} else {
+		fprintf(stderr, "cw: malloc\n");
+		return RC_ERROR;
+	}
 }
 
-const char *
-cw_get_console_file (void)
+const char *cw_get_console_device(void)
 {
-  return cw_console_device;
+	return cw_console_device;
 }
 
 
@@ -2016,25 +2035,32 @@ cw_get_console_file (void)
  *
  * The default soundcard file is /dev/audio.
  */
-void
-cw_set_soundcard_file (const char *new_value)
+int cw_set_soundcard_device(const char *device)
 {
-  static char *allocated = NULL;
+	assert (!cw_oss_device); /* this should be NULL, either
+				    because it has been initialized
+				    statically as NULL, or set to
+				    NULL by generator destructor */
+	if (device) {
+		cw_oss_device = strdup(device);
+	} else {
+		cw_oss_device = strdup(CW_DEFAULT_OSS_DEVICE);
+	}
 
-  free (allocated);
-  allocated = new_value ? malloc (strlen (new_value) + 1) : NULL;
-  if (allocated)
-    strcpy (allocated, new_value);
-  cw_sound_device = allocated;
+	if (cw_oss_device) {
+		return RC_SUCCESS;
+	} else {
+		fprintf(stderr, "cw: malloc\n");
+		return RC_ERROR;
+	}
 }
 
-const char *
-cw_get_soundcard_file (void)
+const char *cw_get_soundcard_device(void)
 {
-  return cw_sound_device;
+  return cw_oss_device;
 }
 
-
+#if 0
 /**
  * cw_[gs]et_soundmixer_file()
  *
@@ -2064,7 +2090,7 @@ cw_get_soundmixer_file (void)
 {
   return cw_mixer_device;
 }
-
+#endif
 
 /**
  * cw_is_soundcard_possible()
@@ -2079,16 +2105,16 @@ cw_get_soundmixer_file (void)
 int
 cw_is_soundcard_possible (void)
 {
-  if (cw_is_sound_open)
+  if (generator->sound_system == CW_AUDIO_OSS)
     return RC_SUCCESS;
 
-  if (!cw_sound_device)
+  if (!cw_oss_device)
     {
       errno = EINVAL;
       return RC_ERROR;
     }
 
-  if (access (cw_sound_device, W_OK) == -1)
+  if (access (cw_oss_device, W_OK) == -1)
     {
       return RC_ERROR;
     }
@@ -2107,37 +2133,30 @@ cw_is_soundcard_possible (void)
  * The function tests that the given console file exists, and that it will
  * accept the KIOCSOUND ioctl.  It unconditionally returns FALSE on platforms
  * that do no support the KIOCSOUND ioctl.
+ *
+ * Call to ioctl will fail if calling code doesn't have root privileges.
  */
-int
-cw_is_console_possible (void)
+int cw_is_console_possible(const char *device)
 {
 #if defined(KIOCSOUND)
-  int file_descriptor;
+	/* no need to allocate space for device path, just a
+	   pointer (to a memory allocated somewhere else by
+	   someone else) will be sufficient in local scope */
+	const char *device_path = device ? device : CW_DEFAULT_CONSOLE_DEVICE;
 
-  if (cw_is_console_open)
-    return RC_SUCCESS;
-
-  if (!cw_console_device)
-    {
-      errno = EINVAL;
-      return RC_ERROR;
-    }
-
-  file_descriptor = open (cw_console_device, O_WRONLY);
-  if (file_descriptor == -1)
-    {
-      return RC_ERROR;
-    }
-  if (ioctl (file_descriptor, KIOCSOUND, 0) == -1)
-    {
-      close (file_descriptor);
-      return RC_ERROR;
-    }
-  close (file_descriptor);
-
-  return RC_SUCCESS;
+	int fd = open(device_path, O_WRONLY);
+	if (fd == -1) {
+		return RC_ERROR;
+	}
+	if (ioctl(fd, KIOCSOUND, 0) == -1) {
+		close(fd);
+		return RC_ERROR;
+	} else {
+		close(fd);
+		return RC_SUCCESS;
+	}
 #else
-  return RC_ERROR;
+	return RC_ERROR;
 #endif
 }
 
@@ -2267,7 +2286,7 @@ cw_set_sound_pcm_volume_internal (int volume)
 	}
 
 	return RC_SUCCESS;
-
+#if 0
   int mixer, device_mask;
 
   /* Try to use the main /dev/audio device for ioctls first. */
@@ -2327,6 +2346,7 @@ cw_set_sound_pcm_volume_internal (int volume)
   perror ("cw: mixer DEVMASK lacks volume controls");
   close (mixer);
   return RC_ERROR;
+#endif
 }
 
 
@@ -2342,7 +2362,7 @@ static int
 cw_open_sound_soundcard_internal (void)
 {
   /* Ignore the call if the sound device is already open. */
-  if (!cw_is_sound_open)
+  if (!(generator->sound_system == CW_AUDIO_OSS))
     {
       int soundcard, parameter;
 
@@ -2733,7 +2753,7 @@ cw_sound_soundcard_internal (int frequency)
        * Set this mixer volume on the sound device, unless there was some
        * problem or another opening the soundcard file in the first place.
        */
-      if (cw_is_sound_open
+      if (generator->sound_system == CW_AUDIO_OSS
           && !cw_set_sound_pcm_volume_internal (volume))
         return RC_ERROR;
 
@@ -2763,7 +2783,7 @@ cw_sound_soundcard_internal (int frequency)
            * Set this mixer volume on the sound device, providing the sound
            * card opened okay.
            */
-          if (cw_is_sound_open
+          if (generator->sound_system == CW_AUDIO_OSS
               && !cw_set_sound_pcm_volume_internal (volume))
             return RC_ERROR;
 
@@ -2789,46 +2809,42 @@ cw_sound_soundcard_internal (int frequency)
 
 
 /**
- * cw_open_sound_console_internal()
+ * cw_console_open_device()
  *
  * Open the console device for Morse code tones.  Verify that the given
  * device can do KIOCSOUND ioctls before returning.
  */
-static int
-cw_open_sound_console_internal (void)
+static int cw_console_open_device(const char *device)
 {
-  /* Ignore the call if the console device is already open. */
-  if (!cw_is_console_open)
-    {
-      int console;
+	if (generator->sound_system == CW_AUDIO_CONSOLE) {
+		/* Ignore the call if the console device is already open. */
+		return RC_SUCCESS;
+	}
 
-      /* Open the console device file, for write only. */
-      console = open (cw_console_device, O_WRONLY);
-      if (console == -1)
-        {
-          fprintf (stderr, "cw: open ");
-          perror (cw_console_device);
-          return RC_ERROR;
+	int console = open(device, O_WRONLY);
+	if (console == -1) {
+		fprintf(stderr, "cw: open ");
+		perror(cw_console_device);
+		return RC_ERROR;
         }
 
-      /* Check to see if the file can do console tones. */
-      if (ioctl (console, KIOCSOUND, 0) == -1)
-        {
-          close (console);
-          return RC_ERROR;
+	/* Check to see if the file can do console tones. */
+	if (ioctl(console, KIOCSOUND, 0) == -1) {
+		close (console);
+		return RC_ERROR;
         }
 
-      if (cw_is_debugging_internal (CW_DEBUG_SOUND))
-        fprintf (stderr, "cw: console opened\n");
+	if (cw_is_debugging_internal (CW_DEBUG_SOUND)) {
+		fprintf (stderr, "cw: console opened and operational\n");
+	}
 
-      /* Save the opened file descriptor in a library variable. */
-      cw_console_descriptor = console;
+	/* Save the opened file descriptor in a library variable. */
+	generator->audio_sink = console;
 
-      /* Note console as now open for business. */
-      cw_is_console_open = TRUE;
-    }
+	/* Note console as now open for business. */
+	generator->sound_system = CW_AUDIO_CONSOLE;
 
-  return RC_SUCCESS;
+	return RC_SUCCESS;
 }
 
 
@@ -2836,26 +2852,20 @@ cw_open_sound_console_internal (void)
 
 
 /**
- * cw_close_sound_console_internal()
+ * cw_console_close_device()
  *
  * Close the console device file.
  */
-static int
-cw_close_sound_console_internal (void)
+static int cw_console_close_device(void)
 {
-  /* Only attempt to close the console device if it is already open. */
-  if (cw_is_console_open)
-    {
-      /* Close the file descriptor, and note as closed. */
-      close (cw_console_descriptor);
-      cw_console_descriptor = -1;
-      cw_is_console_open = FALSE;
+	close(generator->audio_sink);
+	generator->audio_sink = -1;
 
-      if (cw_is_debugging_internal (CW_DEBUG_SOUND))
-        fprintf (stderr, "cw: console closed\n");
-    }
+	if (cw_is_debugging_internal(CW_DEBUG_SOUND)) {
+		fprintf (stderr, "cw: console closed\n");
+	}
 
-  return RC_SUCCESS;
+	return RC_SUCCESS;
 }
 
 
@@ -2866,62 +2876,40 @@ cw_close_sound_console_internal (void)
  * ioctl to start a particular tone generating in the kernel.  Once started,
  * the console tone generation needs no maintenance.
  */
-static int
-cw_sound_console_internal (int frequency)
+static int cw_sound_console_internal(int frequency)
 {
+	/* TODO: do we have to re-check this here? */
 #if defined(KIOCSOUND)
-  static int current_frequency = TONE_SILENT;  /* Note of freq on last call */
-  static int current_volume = 0;               /* Note of volume last call */
 
-  if (cw_is_debugging_internal (CW_DEBUG_SOUND))
-    fprintf (stderr, "cw: console request %d Hz, current %d Hz, "
-             "volume %d %%, current %d %%\n",
-             frequency, current_frequency, generator->volume, current_volume);
+	/*
+	 * Calculate the correct argument for KIOCSOUND.  There's nothing we
+	 * can do to control the volume, but if we find the volume is set to
+	 * zero, the one thing we can do is to just turn off tones.  A bit
+	 * crude, but perhaps just slightly better than doing nothing.
+	 */
+	int argument = 0;
+	if (generator->volume > 0 && frequency > 0) {
+		argument = KIOCSOUND_CLOCK_TICK_RATE / frequency;
+	}
 
-  /*
-   * Look for changes to the current sound frequency, or changes to the main
-   * volume where the volume goes either to, or from, zero.
-   */
-  if (frequency != current_frequency
-      || (generator->volume != current_volume
-          && (generator->volume == 0 || current_volume == 0)))
-    {
-      int argument;
+	if (cw_is_debugging_internal(CW_DEBUG_SOUND)) {
+		fprintf (stderr, "cw: KIOCSOUND arg = %d (%d Hz, %d %%)\n", argument, frequency, generator->volume);
+	}
 
-      /*
-       * Calculate the correct argument for KIOCSOUND.  There's nothing we
-       * can do to control the volume, but if we find the volume is set to
-       * zero, the one thing we can do is to just turn off tones.  A bit
-       * crude, but perhaps just slightly better than doing nothing.
-       */
-      if (generator->volume > 0)
-        argument = frequency != TONE_SILENT
-                   ? KIOCSOUND_CLOCK_TICK_RATE / frequency : 0;
-      else
-        argument = 0;
+	/* If the console file is not open, open it now. */
+	if (generator->sound_system == CW_AUDIO_NONE) {
+		cw_console_open_device(cw_console_device);
+	}
 
-      if (cw_is_debugging_internal (CW_DEBUG_SOUND))
-        fprintf (stderr, "cw: kiocsound %d Hz, %d\n", frequency, argument);
+	/* Call the ioctl, and return any error status. */
+	if (ioctl(generator->audio_sink, KIOCSOUND, argument) == -1) {
+		perror("cw: ioctl KIOCSOUND");
+		return RC_ERROR;
+	}
 
-      /* If the console file is not open, open it now. */
-      if (!cw_is_console_open)
-        cw_open_sound_console_internal ();
-
-      /* Call the ioctl, and return any error status. */
-      if (ioctl (cw_console_descriptor, KIOCSOUND, argument) == -1)
-        {
-          perror ("cw: ioctl KIOCSOUND");
-          return RC_ERROR;
-        }
-
-      /* Set this new frequency and volume as our current one. */
-      current_frequency = frequency;
-      current_volume = generator->volume;
-    }
-
-  return RC_SUCCESS;
+	return RC_SUCCESS;
 #else
-  return RC_ERROR;
+	return RC_ERROR;
 #endif
 }
 
@@ -2936,22 +2924,24 @@ cw_sound_console_internal (int frequency)
  * soundcard device remains closed until it is needed again.
  */
 static int
-cw_release_sound_internal (void)
+cw_release_sound_internal(void)
 {
-  /* Close the console if it is open. */
-  if (cw_is_console_open)
-    cw_close_sound_console_internal ();
+#if 0
+	/* Close the console if it is open. */
+	if (generator->sound_system == CW_AUDIO_CONSOLE) {
+		cw_close_sound_console_internal();
+	}
 
-  /* Silence the soundcard if there is current soundcard activity. */
-  if (cw_sound_generate_frequency != TONE_SILENT)
-    {
-      /* Tell the background tone generation to go idle. */
-      cw_sound_generate_frequency = TONE_SILENT;
-      cw_generate_sound_internal ();
-    }
-
-  return RC_SUCCESS;
+	/* Silence the soundcard if there is current soundcard activity. */
+	if (cw_sound_generate_frequency != TONE_SILENT) {
+		/* Tell the background tone generation to go idle. */
+		cw_sound_generate_frequency = TONE_SILENT;
+		cw_generate_sound_internal();
+	}
+#endif
+	return RC_SUCCESS;
 }
+
 
 
 /**
@@ -2962,27 +2952,22 @@ cw_release_sound_internal (void)
  * routines running inside signal handlers are free to ignore this.  The
  * function does nothing if silence is requested in the library flags.
  */
-static int
-cw_sound_internal (int frequency)
+static int cw_sound_internal(int frequency)
 {
-  /* If silence requested, then ignore the call. */
-  if (!(cw_is_debugging_internal (CW_DEBUG_SILENT)))
-    {
-      int soundcard_status, console_status;
+	int status = RC_SUCCESS;
+	/* If silence requested, then ignore the call. */
+	if (!(cw_is_debugging_internal(CW_DEBUG_SILENT))) {
 
-      /* Call the appropriate main tone generating functions. */
-      soundcard_status = cw_sound_soundcard_on
-                         ? cw_sound_soundcard_internal (frequency) : RC_SUCCESS;
+		if (generator->sound_system == CW_AUDIO_OSS) {
+			status = cw_sound_soundcard_internal(frequency);
+		} else if (generator->sound_system == CW_AUDIO_CONSOLE) {
+			status = cw_sound_console_internal(frequency);
+		} else {
+			;
+		}
+	}
 
-      console_status = cw_sound_console_on
-                       ? cw_sound_console_internal (frequency) : RC_SUCCESS;
-
-      /* Return an error status if either of the above failed. */
-      if (!soundcard_status || !console_status)
-        return RC_ERROR;
-    }
-
-  return RC_SUCCESS;
+	return status;
 }
 
 
@@ -6006,30 +5991,36 @@ cw_reset_straight_key (void)
 
 
 
-static int cw_oss_open_device(void);
-static int cw_oss_close_device(void);
-
-static void *cw_oss_generator_write_sinewave(void *arg);
-static int cw_oss_generator_calculate_amplitude(cw_gen_t *gen);
-
-
 #ifdef CWLIB_MAIN
 
 /* for stand-alone testing */
 int main(void)
 {
-	cw_generator_new(CW_AUDIO_OSS);
-	cw_generator_start();
-
-
+	fprintf(stderr, "console:\n");
+	cw_generator_new(CW_AUDIO_CONSOLE, NULL);
 	cw_reset_send_receive_parameters();
 	cw_set_send_speed(22);
+	cw_generator_start();
 
-	cw_send_string("h h h h h h ");
+	cw_send_string("morse");
 	cw_wait_for_tone_queue();
 
-	/* cw_send_string("sos for testing this code");
-	   cw_wait_for_tone_queue(); */
+	cw_generator_stop();
+	cw_generator_delete();
+
+
+
+
+
+
+	fprintf(stderr, "OSS:\n");
+	cw_generator_new(CW_AUDIO_OSS, NULL);
+	cw_reset_send_receive_parameters();
+	cw_set_send_speed(22);
+	cw_generator_start();
+
+	cw_send_string("morse");
+	cw_wait_for_tone_queue();
 
 	cw_generator_stop();
 	cw_generator_delete();
@@ -6042,14 +6033,14 @@ int main(void)
 
 
 
-int cw_oss_open_device(void)
+int cw_oss_open_device(const char *device)
 {
 	int parameter = 0;
 	/* Open the given soundcard device file, for write only. */
-	int soundcard = open(cw_sound_device, O_WRONLY);
+	int soundcard = open(device, O_WRONLY);
 	if (soundcard == -1) {
 		fprintf(stderr, "cw: open ");
-		perror(cw_sound_device);
+		perror(device);
 		return RC_ERROR;
         }
 
@@ -6206,7 +6197,7 @@ int cw_oss_open_device(void)
 	}
 
 	/* Note sound as now open for business. */
-	cw_is_sound_open = TRUE;
+	generator->sound_system = CW_AUDIO_OSS;
 
 	generator->debug_sink = open("/tmp/cw_file.raw", O_WRONLY | O_NONBLOCK);
 
@@ -6219,13 +6210,8 @@ int cw_oss_open_device(void)
 
 int cw_oss_close_device(void)
 {
-	/* Only attempt to close the sound device if it is already open. */
-	if (cw_is_sound_open) {
-		/* Close the file descriptor, and note as closed. */
-		close(generator->audio_sink);
-		generator->audio_sink = -1;
-		cw_is_sound_open = FALSE;
-	}
+	close(generator->audio_sink);
+	generator->audio_sink = -1;
 
 	if (generator->debug_sink != -1) {
 		close(generator->debug_sink);
@@ -6239,7 +6225,7 @@ int cw_oss_close_device(void)
 
 
 
-int cw_generator_new(int sound_system)
+int cw_generator_new(int sound_system, const char *device)
 {
 	generator = (cw_gen_t *) malloc(sizeof (cw_gen_t));
 	if (generator == NULL) {
@@ -6247,8 +6233,16 @@ int cw_generator_new(int sound_system)
 		return RC_ERROR;
 	}
 
-	if (sound_system == CW_AUDIO_OSS) {
-		cw_oss_open_device();
+	if (sound_system == CW_AUDIO_CONSOLE) {
+		/* TODO: check return values */
+		cw_set_console_device(device);
+		cw_console_open_device(cw_console_device);
+		generator->sound_system = sound_system;
+		return RC_SUCCESS;
+	} else if (sound_system == CW_AUDIO_OSS) {
+		/* TODO: check return values */
+		cw_set_soundcard_device(device);
+		cw_oss_open_device(cw_oss_device);
 		generator->sound_system = sound_system;
 		return RC_SUCCESS;
 	} else {
@@ -6265,10 +6259,18 @@ int cw_generator_new(int sound_system)
 void cw_generator_delete(void)
 {
 	if (generator != NULL) {
-		if (generator->sound_system == CW_AUDIO_OSS) {
+		if (generator->sound_system == CW_AUDIO_CONSOLE) {
+			cw_console_close_device();
+			free(cw_console_device);
+			cw_console_device = NULL;
+		} else if (generator->sound_system == CW_AUDIO_OSS) {
 			cw_oss_close_device();
-			generator->sound_system = CW_AUDIO_OSS;
+			free(cw_oss_device);
+			cw_oss_device = NULL;
+		} else {
+			fprintf(stderr, "cw: missed sound system %d\n", generator->sound_system);
 		}
+		generator->sound_system = CW_AUDIO_NONE;
 		free(generator);
 		generator = NULL;
 	}
@@ -6295,36 +6297,51 @@ int cw_generator_start(void)
 
 	generator->generate = 1;
 
-	int rv = pthread_create(&(generator->thread), NULL,
-				cw_oss_generator_write_sinewave,
-				(void *) generator);
-	if (rv != 0) {
-		fprintf(stderr, "ERROR: failed to create generator thread\n");
-		return RC_ERROR;
+	if (generator->sound_system == CW_AUDIO_CONSOLE) {
+		;
+	} else if (generator->sound_system == CW_AUDIO_OSS) {
+		int rv = pthread_create(&(generator->thread), NULL,
+					cw_oss_generator_write_sinewave,
+					(void *) generator);
+		if (rv != 0) {
+			fprintf(stderr, "ERROR: failed to create generator thread\n");
+			return RC_ERROR;
+		} else {
+			/* for some yet unknown reason you have to
+			   put usleep() here, otherwise a generator
+			   may work incorrectly */
+			usleep(100000);
+			return RC_SUCCESS;
+		}
 	} else {
-		/* for some yet unknown reason you have to
-		   put usleep() here, otherwise a generator
-		   may work incorrectly */
-		usleep(100000);
-		return RC_SUCCESS;
+		fprintf(stderr, "cw: unsupported sound system %d\n", generator->sound_system);
 	}
+
+	return RC_SUCCESS;
 }
-
-
 
 
 
 void cw_generator_stop(void)
 {
-	generator->slope = -CW_OSS_GENERATOR_SLOPE;
+	if (generator->sound_system == CW_AUDIO_CONSOLE) {
+		/* sine wave generation should have been stopped
+		   by a code generating dots/dashes, but
+		   just in case... */
+		ioctl(generator->audio_sink, KIOCSOUND, 0);
+	} else if (generator->sound_system == CW_AUDIO_OSS) {
+		generator->slope = -CW_OSS_GENERATOR_SLOPE;
 
-	/* time needed between initiating stop sequence and
-	   ending write() to device and closing the device */
-	int usleep_time = CW_SAMPLE_RATE / (2 * CW_OSS_GENERATOR_BUF_SIZE);
-	usleep_time /= 1000000;
-	usleep(usleep_time * 1.2);
+		/* time needed between initiating stop sequence and
+		   ending write() to device and closing the device */
+		int usleep_time = CW_SAMPLE_RATE / (2 * CW_OSS_GENERATOR_BUF_SIZE);
+		usleep_time /= 1000000;
+		usleep(usleep_time * 1.2);
 
-	generator->generate = 0;
+		generator->generate = 0;
+	} else {
+		;
+	}
 
 	return;
 }
