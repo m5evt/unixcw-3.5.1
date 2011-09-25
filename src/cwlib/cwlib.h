@@ -30,7 +30,8 @@ extern "C"
 /* supported audio sound systems */
 enum {
 	CW_AUDIO_NONE = 0,
-	CW_AUDIO_OSS = 1
+	CW_AUDIO_CONSOLE,
+	CW_AUDIO_OSS
 };
 
 
@@ -74,6 +75,8 @@ typedef struct {
 } cw_gen_t;
 
 
+#define CW_DEFAULT_CONSOLE_DEVICE   "/dev/console"
+#define CW_DEFAULT_OSS_DEVICE       "/dev/audio"
 
 
 
@@ -101,7 +104,7 @@ enum
 /* CW library function prototypes. */
 extern int cw_version (void);
 extern void cw_license (void);
-extern int cw_generator_new(int audio_system);
+extern int cw_generator_new(int audio_system, const char *device);
 extern void cw_generator_delete(void);
 extern int  cw_generator_start(void);
 extern void cw_generator_stop(void);
@@ -161,14 +164,16 @@ extern void cw_get_receive_parameters (int *dot_usecs, int *dash_usecs,
 extern int cw_set_noise_spike_threshold (int threshold);
 extern int cw_get_noise_spike_threshold (void);
 extern void cw_block_callback (int is_block);
-extern void cw_set_console_file (const char *new_value);
-extern const char *cw_get_console_file (void);
-extern void cw_set_soundcard_file (const char *new_value);
-extern const char *cw_get_soundcard_file (void);
+
+extern int cw_is_console_possible(const char *device);
+
+extern const char *cw_get_console_device(void);
+const char *cw_get_soundcard_device(void);
+
 extern void cw_set_soundmixer_file (const char *new_value);
 extern const char *cw_get_soundmixer_file (void);
 extern int cw_is_soundcard_possible (void);
-extern int cw_is_console_possible (void);
+
 extern void cw_set_console_sound (int sound_state);
 extern int cw_get_console_sound (void);
 extern void cw_set_soundcard_sound (int sound_state);
