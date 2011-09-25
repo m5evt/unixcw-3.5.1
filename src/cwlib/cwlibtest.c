@@ -85,10 +85,10 @@ cw_self_test_admin (void)
   /*
    * Test setting sound output selections.
    */
-  if (!cw_is_console_possible ())
+  if (!cw_is_console_possible(NULL))
     {
       printf ("cwlib: console device cannot do sound\n");
-      perror (cw_get_console_file ());
+      perror (cw_get_console_device());
       cw_set_console_sound (FALSE);
     }
   else
@@ -96,7 +96,7 @@ cw_self_test_admin (void)
   if (!cw_is_soundcard_possible ())
     {
       printf ("cwlib: soundcard device unavailable\n");
-      perror (cw_get_console_file ());
+      perror (cw_get_soundcard_device());
       cw_set_soundcard_sound (FALSE);
     }
   else
@@ -1605,10 +1605,10 @@ cw_self_test (unsigned int testset)
    */
   if (testset && !(testset & 1))
     {
-      if (!cw_is_console_possible ())
+      if (!cw_is_console_possible(NULL))
         {
           printf ("cwlib: console device cannot do sound, %s\n",
-            cw_get_console_file ());
+            cw_get_console_device());
           cw_set_console_sound (FALSE);
         }
       else
@@ -1616,7 +1616,7 @@ cw_self_test (unsigned int testset)
       if (!cw_is_soundcard_possible ())
         {
           printf ("cwlib: sound device unavailable, %s\n",
-            cw_get_soundcard_file ());
+            cw_get_soundcard_device());
           cw_set_soundcard_sound (FALSE);
         }
       else
@@ -1700,7 +1700,7 @@ main (int argc, const char *argv[])
         }
     }
 
-  cw_generator_new(CW_AUDIO_OSS);
+  cw_generator_new(CW_AUDIO_OSS, NULL);
   cw_generator_start();
   /* Run each requested test. */
   int rv = cw_self_test (testset);
