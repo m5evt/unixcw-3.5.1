@@ -20,7 +20,7 @@
 #ifndef _XCWCP_APPLICATION_H
 #define _XCWCP_APPLICATION_H
 
-#include <qmainwindow.h>
+#include <qt3/qmainwindow.h>
 
 #include <string>
 #include <deque>
