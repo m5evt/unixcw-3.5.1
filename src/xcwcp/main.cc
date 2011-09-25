@@ -51,6 +51,10 @@
 
 namespace {
 
+bool is_console = false, is_soundcard = true;
+std::string console_device, soundcard_device;
+std::string argv0;
+
 // print_usage()
 //
 // Print out a brief message directing the user to the help function.
@@ -129,20 +133,16 @@ print_help (const std::string &argv0)
 
   std::ostream &outs = std::cout;
   outs << _("Usage: ") << argv0 << _(" [options...]") << std::endl << std::endl;
-  print_option_lhs (outs, _("s"), _("sound"), _("SOURCE"));
-  print_option_rhs (outs, _("generate sound on SOURCE"), _("'soundcard'"));
+  print_option_lhs (outs, _("s"), _("sound"), _("SYSTEM"));
+  print_option_rhs (outs, _("generate sound using SYSTEM"), _("'soundcard'"));
   outs << std::setw (print_option_get_indent ()) << ""
-            << _("one of 's[oundcard]', 'c[onsole]', or 'b[oth]'") << std::endl;
+            << _("one of 's[oundcard]', 'c[onsole]'") << std::endl;
   print_option_lhs (outs, _("x"), _("sdevice"), _("SDEVICE"));
   print_option_rhs (outs,
-                    _("use SDEVICE for soundcard"), cw_get_soundcard_file ());
-  print_option_lhs (outs, _("y"), _("mdevice"), _("MDEVICE"));
-  print_option_rhs (outs,
-                    _("use MDEVICE for sound mixer"),
-                    cw_get_soundmixer_file ());
+                    _("use SDEVICE for soundcard sound"), CW_DEFAULT_OSS_DEVICE);
   print_option_lhs (outs, _("d"), _("cdevice"), _("CDEVICE"));
   print_option_rhs (outs,
-                    _("use CDEVICE for sound ioctl"), cw_get_console_file ());
+                    _("use CDEVICE for console sound"), CW_DEFAULT_CONSOLE_DEVICE);
   print_option_lhs (outs, _("i"), _("inifile"), _("INIFILE"));
   print_option_rhs (outs, _("load practice words from INIFILE"));
 
@@ -186,12 +186,10 @@ print_help (const std::string &argv0)
 void
 parse_command_line (int argc, char **argv)
 {
-  bool is_console = false, is_soundcard = true;
-  std::string console_device, soundcard_device, mixer_device;
   int option;
   char *argument;
 
-  std::string argv0 = program_basename (argv[0]);
+  argv0 = program_basename (argv[0]);
   while (get_option (argc, argv,
                      _("s:|sound,d:|cdevice,x:|sdevice,y:|mdevice,i:|inifile,"
                      "t:|tone,t:|hz,v:|volume,w:|wpm,g:|gap,h|help,V|version,"
@@ -234,11 +232,11 @@ parse_command_line (int argc, char **argv)
         case 'x':
           soundcard_device = argument;
           break;
-
+#if 0
         case 'y':
           mixer_device = argument;
           break;
-
+#endif
         case 'i':
           if (!dictionary_load (argument))
             {
@@ -324,43 +322,14 @@ parse_command_line (int argc, char **argv)
       std::clog << argv0 << _(": no soundcard sound: -x invalid") << std::endl;
       print_usage (argv0);
     }
+#if 0
   if (!is_soundcard && !mixer_device.empty ())
     {
       std::clog << argv0 << _(": no soundcard sound: -y invalid") << std::endl;
       print_usage (argv0);
     }
-
-  // First set up soundcard sound if required.
-  if (is_soundcard)
-    {
-      if (!soundcard_device.empty ())
-        cw_set_soundcard_file (soundcard_device.c_str ());
-      if (!cw_is_soundcard_possible ())
-        {
-          std::clog << argv0
-                    << _(": cannot set up soundcard sound") << std::endl;
-          perror (cw_get_soundcard_file ());
-          exit (EXIT_FAILURE);
-        }
-      if (!mixer_device.empty ())
-        cw_set_soundmixer_file (mixer_device.c_str ());
-    }
-  cw_set_soundcard_sound (is_soundcard);
-
-  // Now set up console sound, again if required.
-  if (is_console)
-    {
-      if (!console_device.empty ())
-        cw_set_console_file (console_device.c_str ());
-      if (!cw_is_console_possible ())
-        {
-          std::clog << argv0
-                    << _(": cannot set up console sound") << std::endl;
-          perror (cw_get_console_file ());
-          exit (EXIT_FAILURE);
-        }
-    }
-  cw_set_console_sound (is_console);
+#endif
+  return;
 }
 
 
@@ -388,8 +357,6 @@ main (int argc, char **argv)
 {
   static const int SIGNALS[] = { SIGHUP, SIGINT, SIGQUIT, SIGPIPE, SIGTERM, 0 };
 
-  cw_generator_new(CW_AUDIO_OSS);
-  cw_generator_start();
   try
     {
       struct sigaction action;
@@ -406,6 +373,29 @@ main (int argc, char **argv)
                          argc, argv, &combined_argc, &combined_argv);
       QApplication q_application (combined_argc, combined_argv);
       parse_command_line (combined_argc, combined_argv);
+
+      if (is_soundcard) {
+	      int rv = cw_generator_new(CW_AUDIO_OSS, soundcard_device.empty() ? NULL : soundcard_device.c_str());
+	      if (rv != 1) {
+		      std::clog << argv0
+				<< _(": cannot set up soundcard sound") << std::endl;
+		      exit(EXIT_FAILURE);
+	      }
+      } else if (is_console) {
+	      int rv = cw_generator_new(CW_AUDIO_CONSOLE, console_device.empty() ? NULL : console_device.c_str());
+	      if (rv != 1) {
+		      std::clog << argv0
+				<< _(": cannot set up console sound") << std::endl;
+		      exit(EXIT_FAILURE);
+	      }
+      } else {
+	      std::clog << argv0
+			<< "both console and soundcard outputs disabled"
+			<< std::endl;
+	      exit(EXIT_FAILURE);
+      }
+
+      cw_generator_start();
 
       /* Set up signal handlers to clean up and exit on a range of signals. */
       action.sa_handler = signal_handler;
