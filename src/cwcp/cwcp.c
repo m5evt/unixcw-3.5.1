@@ -83,6 +83,7 @@ static volatile int is_queue_idle = TRUE;
 static const char *argv0 = NULL;
 static int is_console = FALSE;
 static int is_soundcard = TRUE;
+static int is_alsa = FALSE;
 static char *console_device = NULL;
 static char *soundcard_device = NULL;
 //static char *mixer_device = NULL;
@@ -1678,6 +1679,13 @@ main (int argc, char **argv)
 	  if (rv != 1) {
 		  fprintf(stderr,
 			  "%s: failed to open OSS output with device \"%s\"\n",
+			  argv0, cw_get_soundcard_device());
+	  }
+  } else if (is_alsa) {
+	  rv = cw_generator_new(CW_AUDIO_ALSA, soundcard_device);
+	  if (rv != 1) {
+		  fprintf(stderr,
+			  "%s: failed to open ALSA output with device \"%s\"\n",
 			  argv0, cw_get_soundcard_device());
 	  }
   } else {

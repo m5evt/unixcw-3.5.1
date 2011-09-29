@@ -51,7 +51,7 @@
 
 namespace {
 
-bool is_console = false, is_soundcard = true;
+bool is_console = false, is_soundcard = true, is_alsa = false;
 std::string console_device, soundcard_device;
 std::string argv0;
 
@@ -213,11 +213,13 @@ parse_command_line (int argc, char **argv)
               is_console = false;
               is_soundcard = true;
             }
+#if 0
           else if (value == _("both") || value == _("b"))
             {
               is_console = true;
               is_soundcard = true;
             }
+#endif
           else
             {
               std::clog << argv0 << _(": invalid sound source") << std::endl;
@@ -386,6 +388,15 @@ main (int argc, char **argv)
 	      if (rv != 1) {
 		      std::clog << argv0
 				<< _(": cannot set up console sound") << std::endl;
+		      exit(EXIT_FAILURE);
+	      }
+
+      } else if (is_alsa) {
+	      int rv = cw_generator_new(CW_AUDIO_ALSA, soundcard_device.empty() ? NULL : soundcard_device.c_str());
+	      if (rv != 1) {
+		      std::clog << argv0
+				<< _(": failed to open ALSA output")
+				<< std::endl;
 		      exit(EXIT_FAILURE);
 	      }
       } else {

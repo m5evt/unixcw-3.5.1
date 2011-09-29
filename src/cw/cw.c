@@ -75,7 +75,7 @@ static int do_echo = TRUE,          /* Echo characters */
 
 
 const char *argv0 = NULL;
-int is_console = FALSE, is_soundcard = TRUE;
+int is_console = FALSE, is_soundcard = TRUE, is_alsa = FALSE;
 const char *console_device = NULL,
 	*soundcard_device = NULL;//, *mixer_device = NULL;
 
@@ -717,12 +717,14 @@ parse_command_line (int argc, char *const argv[])
               is_console = FALSE;
               is_soundcard = TRUE;
             }
+#if 0
           else if (strcoll (argument, _("both")) == 0
                    || strcoll (argument, _("b")) == 0)
             {
               is_console = TRUE;
               is_soundcard = TRUE;
             }
+#endif
           else
             {
               fprintf (stderr, _("%s: invalid sound source\n"), argv0);
@@ -899,6 +901,13 @@ main (int argc, char *const argv[])
 	  if (rv != 1) {
 		  fprintf(stderr,
 			  "%s: failed to open OSS output with device \"%s\"\n",
+			  argv0, cw_get_soundcard_device());
+	  }
+  } else if (is_alsa) {
+	  rv = cw_generator_new(CW_AUDIO_ALSA, soundcard_device);
+	  if (rv != 1) {
+		  fprintf(stderr,
+			  "%s: failed to open ALSA output with device \"%s\"\n",
 			  argv0, cw_get_soundcard_device());
 	  }
   } else {
