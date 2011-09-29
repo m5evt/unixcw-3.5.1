@@ -66,7 +66,7 @@ cwlib.3: cwlib.3.m4 cwlib.c
 
 # Build the unit test.
 cwlibtest: cwlibtest.o
-	$(CC) -o cwlibtest cwlibtest.o -L. -lcw -lm -lpthread
+	$(CC) -o cwlibtest cwlibtest.o -L. -lcw -lm -lpthread -lasound
 
 # Build the pkgconfig metadata file.
 libcw.pc:
