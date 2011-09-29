@@ -26,7 +26,7 @@ SHELL	= /bin/sh
 
 default: all
 
-LIBS	= -L../cwlib -lcw -lpthread
+LIBS	= -L../cwlib -lcw -lpthread -lasound
 
 # Build the cw binary.
 all: cw
