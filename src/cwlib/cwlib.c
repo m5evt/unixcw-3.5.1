@@ -96,7 +96,7 @@ static int   cw_generator_calculate_amplitude(cw_gen_t *gen);
 
 
 /* Conditional compilation flags */
-#define CWLIB_MAIN                   1  /* for stand-alone compilation and tests of this file */
+#define CWLIB_MAIN                   0  /* for stand-alone compilation and tests of this file */
 #define CWLIB_OSS_SET_FRAGMENT       1  /* ioctl(fd, SNDCTL_DSP_SETFRAGMENT, &param) */
 #define CWLIB_OSS_SET_POLICY         0  /* ioctl(fd, SNDCTL_DSP_POLICY, &param) */
 #define CWLIB_ALSA_HW_BUFFER_CONFIG  0  /* set up hw buffer parameters, doesn't work correctly (yet) */
