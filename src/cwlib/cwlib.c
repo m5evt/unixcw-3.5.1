@@ -73,41 +73,64 @@
 
 #include "cwlib.h"
 
-/* for stand-alone compilation and tests */
-/* #define CWLIB_MAIN */
 
 
 
-static int   cw_oss_open_device(const char *device);
-static int   cw_oss_close_device(void);
-static void *cw_oss_generator_write_sinewave(void *arg);
-static int   cw_oss_generator_calculate_amplitude(cw_gen_t *gen);
+static int cw_open_device_oss(const char *device);
+static int cw_close_device_oss(void);
 
-static int cw_console_open_device(const char *device);
-static int cw_console_close_device(void);
-static int cw_set_soundcard_device(const char *device);
-static int cw_set_console_device(const char *device);
+static int cw_open_device_console(const char *device);
+static int cw_close_device_console(void);
 
+static int cw_open_device_alsa(const char *device);
+static int cw_close_device_alsa(void);
+static int cw_set_alsa_hw_params(snd_pcm_t *handle, snd_pcm_hw_params_t *params);
+static int cw_print_alsa_params(snd_pcm_hw_params_t *params);
 
+static int cw_set_audio_device(const char *device);
 
-
-
-
-/* Fixed general soundcard parameters. */
-static const int CW_OSS_SETFRAGMENT = 7;       /* Sound fragment size, 2^N */
-static const int CW_OSS_FORMAT = AFMT_S16_NE;  /* Sound format AFMT_S16_NE = signed 16 bit, native endianess; LE = Little endianess */
-static const int CW_OSS_CHANNELS = 1;          /* Sound in mono only */
-static const int CW_SAMPLE_RATE = 44100;       /* Sound sampling rate */
-
-static const int CW_OSS_GENERATOR_SLOPE = 100; /* 100 for 48000 Hz sample rate */
-#define CW_OSS_GENERATOR_BUF_SIZE 128
-#define CW_OSS_SET_FRAGMENT 1
-#define CW_OSS_SET_POLICY   0
+static void *cw_generator_write_sine_wave_oss(void *arg);
+static void *cw_generator_write_sine_wave_alsa(void *arg);
+static int   cw_generator_calculate_sine_wave(cw_gen_t *gen, short *buf);
+static int   cw_generator_calculate_amplitude(cw_gen_t *gen);
 
 
+/* Conditional compilation flags */
+#define CWLIB_MAIN                   1  /* for stand-alone compilation and tests of this file */
+#define CWLIB_OSS_SET_FRAGMENT       1  /* ioctl(fd, SNDCTL_DSP_SETFRAGMENT, &param) */
+#define CWLIB_OSS_SET_POLICY         0  /* ioctl(fd, SNDCTL_DSP_POLICY, &param) */
+#define CWLIB_ALSA_HW_BUFFER_CONFIG  0  /* set up hw buffer parameters, doesn't work correctly (yet) */
 
-/* main data container; this is a library file, so in future
-   the variable must be moved from the file to client code;
+
+/* Generic constants - common for all sound systems (or not used in some of systems) */
+static const unsigned int CW_AUDIO_SAMPLE_RATE_A = 44100;       /* Primary sound sample rate */
+static const unsigned int CW_AUDIO_SAMPLE_RATE_B = 48000;       /* Secondary sound sample rate */
+static const int      CW_AUDIO_CHANNELS = 1;                /* Sound in mono */
+static const long int CW_AUDIO_VOLUME_RANGE = (1 << 15);    /* 2^15 = 32768 */
+#define               CW_AUDIO_GENERATOR_BUF_SIZE 128       /* Size of buffer storing samples, the value works well for both OSS and ALSA */
+static const int      CW_AUDIO_GENERATOR_SLOPE = 100;       /* ~100 for 44.1/48 kHz sample rate */
+
+
+/* Constants specific to OSS sound system configuration */
+static const int CW_OSS_SETFRAGMENT = 7;              /* Sound fragment size, 2^7 */
+static const int CW_OSS_SAMPLE_FORMAT = AFMT_S16_NE;  /* Sound format AFMT_S16_NE = signed 16 bit, native endianess; LE = Little endianess */
+
+
+/* Constants specific to ALSA sound system configuration */
+static const snd_pcm_format_t CW_ALSA_SAMPLE_FORMAT = SND_PCM_FORMAT_S16; /* "Signed 16 bit CPU endian"; I'm guessing that "CPU endian" == "native endianess" */
+
+
+/* indexed by values of 'enum cw_audio_systems' */
+static const char *default_audio_devices[] = {
+	(char *) NULL,
+	CW_DEFAULT_CONSOLE_DEVICE,
+	CW_DEFAULT_OSS_DEVICE,
+	CW_DEFAULT_ALSA_DEVICE };
+
+
+/* main data container; this is a global variable in library file,
+   so in future the variable must be moved from the file to client code;
+
    this is a global variable that should be converted into
    a function argument; this pointer should exist only in
    client's code, should initially be returned by new(), and
@@ -117,9 +140,6 @@ static const int CW_OSS_GENERATOR_SLOPE = 100; /* 100 for 48000 Hz sample rate *
 static cw_gen_t *generator = NULL;
 
 
-/*---------------------------------------------------------------------*/
-/*  Module variables, copyright, miscellaneous other stuff             */
-/*---------------------------------------------------------------------*/
 
 /* False, true, and library return codes. */
 enum { FALSE = 0, TRUE = !FALSE };
@@ -1966,15 +1986,15 @@ static const int DSP_SETFRAGMENT = 7,   /* Sound fragment size, 128 (2^7) */
  * Paths to console and soundcard devices used by the library.
  * These can be reset by the user.
  */
-static char *cw_console_device = NULL;
-static char *cw_oss_device = NULL;
-
+//static char *cw_console_device = NULL;
+//static char *cw_oss_device = NULL;
+static char *cw_audio_device = NULL;
 
 /* Current background tone generation frequency. */
 static int cw_sound_generate_frequency = TONE_SILENT;
 
 /* DSP device sample rate, and saved mixer PCM volume setting. */
-static int cw_sound_sample_rate = 0;
+// static int cw_sound_sample_rate = 0;
 //           cw_sound_saved_vol = 0;
 
 /*
@@ -1984,7 +2004,7 @@ static int cw_sound_sample_rate = 0;
 static int cw_sound_soundcard_on = TRUE,
            cw_sound_console_on = FALSE;
 
-
+#if 0
 /**
  * cw_[gs]et_console_file()
  *
@@ -2017,10 +2037,11 @@ int cw_set_console_device(const char *device)
 		return RC_ERROR;
 	}
 }
+#endif
 
 const char *cw_get_console_device(void)
 {
-	return cw_console_device;
+	return cw_audio_device;
 }
 
 
@@ -2035,29 +2056,37 @@ const char *cw_get_console_device(void)
  *
  * The default soundcard file is /dev/audio.
  */
-int cw_set_soundcard_device(const char *device)
+int cw_set_audio_device(const char *device)
 {
-	assert (!cw_oss_device); /* this should be NULL, either
-				    because it has been initialized
-				    statically as NULL, or set to
-				    NULL by generator destructor */
-	if (device) {
-		cw_oss_device = strdup(device);
-	} else {
-		cw_oss_device = strdup(CW_DEFAULT_OSS_DEVICE);
+	/* this should be NULL, either because it has been
+	   initialized statically as NULL, or set to
+	   NULL by generator destructor */
+	assert (!cw_audio_device);
+	assert (generator->sound_system != CW_AUDIO_NONE);
+
+	if (generator->sound_system == CW_AUDIO_NONE) {
+		cw_audio_device = (char *) NULL;
+		fprintf(stderr, "cw: no audio system specified\n");
+		return RC_ERROR;
 	}
 
-	if (cw_oss_device) {
-		return RC_SUCCESS;
+	if (device) {
+		cw_audio_device = strdup(device);
 	} else {
-		fprintf(stderr, "cw: malloc\n");
+		cw_audio_device = strdup(default_audio_devices[generator->sound_system]);
+	}
+
+	if (!cw_audio_device) {
+		fprintf(stderr, "cw: malloc error\n");
 		return RC_ERROR;
+	} else {
+		return RC_SUCCESS;
 	}
 }
 
 const char *cw_get_soundcard_device(void)
 {
-  return cw_oss_device;
+	return cw_audio_device;
 }
 
 #if 0
@@ -2105,16 +2134,17 @@ cw_get_soundmixer_file (void)
 int
 cw_is_soundcard_possible (void)
 {
-  if (generator->sound_system == CW_AUDIO_OSS)
+  if (generator->sound_system == CW_AUDIO_OSS
+      || generator->sound_system == CW_AUDIO_ALSA)
     return RC_SUCCESS;
 
-  if (!cw_oss_device)
+  if (!cw_audio_device)
     {
       errno = EINVAL;
       return RC_ERROR;
     }
 
-  if (access (cw_oss_device, W_OK) == -1)
+  if (access (cw_audio_device, W_OK) == -1)
     {
       return RC_ERROR;
     }
@@ -2272,7 +2302,7 @@ cw_set_sound_pcm_volume_internal (int volume)
 		   gradually decrease amplitude of sine wave
 		   producing a falling slope. Length of the
 		   slope is inversely proportional to
-		   CW_OSS_GENERATOR_SLOPE.
+		   CW_AUDIO_GENERATOR_SLOPE.
 
 		   This additional time used to generate falling
 		   slope is rather small but cannot be tolerated.
@@ -2280,9 +2310,9 @@ cw_set_sound_pcm_volume_internal (int volume)
 		   ending a sound. Somehow the slope must appear
 		   (i.e. the amplitude needs to start decreasing)
 		   *before* expected end of sound. */
-		generator->slope = -CW_OSS_GENERATOR_SLOPE;
+		generator->slope = -CW_AUDIO_GENERATOR_SLOPE;
 	} else {
-		generator->slope = CW_OSS_GENERATOR_SLOPE;
+		generator->slope = CW_AUDIO_GENERATOR_SLOPE;
 	}
 
 	return RC_SUCCESS;
@@ -2754,8 +2784,13 @@ cw_sound_soundcard_internal (int frequency)
        * problem or another opening the soundcard file in the first place.
        */
       if (generator->sound_system == CW_AUDIO_OSS
-          && !cw_set_sound_pcm_volume_internal (volume))
-        return RC_ERROR;
+	  || generator->sound_system == CW_AUDIO_ALSA) {
+
+	      //fprintf(stderr, "calling volume control, volume = %d\n", volume);
+	      if (!cw_set_sound_pcm_volume_internal(volume)) {
+		      return RC_ERROR;
+	      }
+      }
 
       /* Set this new frequency and volume as our current one. */
       current_frequency = frequency;
@@ -2783,9 +2818,14 @@ cw_sound_soundcard_internal (int frequency)
            * Set this mixer volume on the sound device, providing the sound
            * card opened okay.
            */
-          if (generator->sound_system == CW_AUDIO_OSS
-              && !cw_set_sound_pcm_volume_internal (volume))
-            return RC_ERROR;
+	  if (generator->sound_system == CW_AUDIO_OSS
+	      || generator->sound_system == CW_AUDIO_ALSA) {
+
+		  //fprintf(stderr, "calling volume control, volume = %d\n", volume);
+		  if (!cw_set_sound_pcm_volume_internal(volume)) {
+			  return RC_ERROR;
+		  }
+	  }
 
           /* Set this new volume as our current one. */
           current_volume = generator->volume;
@@ -2809,40 +2849,40 @@ cw_sound_soundcard_internal (int frequency)
 
 
 /**
- * cw_console_open_device()
+ * cw_open_device_console()
  *
  * Open the console device for Morse code tones.  Verify that the given
  * device can do KIOCSOUND ioctls before returning.
  */
-static int cw_console_open_device(const char *device)
+static int cw_open_device_console(const char *device)
 {
-	if (generator->sound_system == CW_AUDIO_CONSOLE) {
+	if (generator->audio_device_open) {
 		/* Ignore the call if the console device is already open. */
 		return RC_SUCCESS;
 	}
 
 	int console = open(device, O_WRONLY);
 	if (console == -1) {
-		fprintf(stderr, "cw: open ");
-		perror(cw_console_device);
+		fprintf(stderr, "cw: open1 ");
+		perror(device);
 		return RC_ERROR;
         }
 
 	/* Check to see if the file can do console tones. */
 	if (ioctl(console, KIOCSOUND, 0) == -1) {
-		close (console);
+		close(console);
 		return RC_ERROR;
         }
 
-	if (cw_is_debugging_internal (CW_DEBUG_SOUND)) {
-		fprintf (stderr, "cw: console opened and operational\n");
+	if (cw_is_debugging_internal(CW_DEBUG_SOUND)) {
+		fprintf(stderr, "cw: console opened and operational\n");
 	}
 
 	/* Save the opened file descriptor in a library variable. */
 	generator->audio_sink = console;
 
 	/* Note console as now open for business. */
-	generator->sound_system = CW_AUDIO_CONSOLE;
+	generator->audio_device_open = 1;
 
 	return RC_SUCCESS;
 }
@@ -2852,17 +2892,18 @@ static int cw_console_open_device(const char *device)
 
 
 /**
- * cw_console_close_device()
+ * cw_close_device_console()
  *
  * Close the console device file.
  */
-static int cw_console_close_device(void)
+static int cw_close_device_console(void)
 {
 	close(generator->audio_sink);
 	generator->audio_sink = -1;
+	generator->audio_device_open = 0;
 
 	if (cw_is_debugging_internal(CW_DEBUG_SOUND)) {
-		fprintf (stderr, "cw: console closed\n");
+		fprintf(stderr, "cw: console closed\n");
 	}
 
 	return RC_SUCCESS;
@@ -2895,12 +2936,12 @@ static int cw_sound_console_internal(int frequency)
 	if (cw_is_debugging_internal(CW_DEBUG_SOUND)) {
 		fprintf (stderr, "cw: KIOCSOUND arg = %d (%d Hz, %d %%)\n", argument, frequency, generator->volume);
 	}
-
+#if 0
 	/* If the console file is not open, open it now. */
 	if (generator->sound_system == CW_AUDIO_NONE) {
 		cw_console_open_device(cw_console_device);
 	}
-
+#endif
 	/* Call the ioctl, and return any error status. */
 	if (ioctl(generator->audio_sink, KIOCSOUND, argument) == -1) {
 		perror("cw: ioctl KIOCSOUND");
@@ -2958,7 +2999,9 @@ static int cw_sound_internal(int frequency)
 	/* If silence requested, then ignore the call. */
 	if (!(cw_is_debugging_internal(CW_DEBUG_SILENT))) {
 
-		if (generator->sound_system == CW_AUDIO_OSS) {
+		if (generator->sound_system == CW_AUDIO_OSS
+		    || generator->sound_system == CW_AUDIO_ALSA) {
+
 			status = cw_sound_soundcard_internal(frequency);
 		} else if (generator->sound_system == CW_AUDIO_CONSOLE) {
 			status = cw_sound_console_internal(frequency);
@@ -5990,12 +6033,30 @@ cw_reset_straight_key (void)
 
 
 
-
-#ifdef CWLIB_MAIN
+#if CWLIB_MAIN
 
 /* for stand-alone testing */
 int main(void)
 {
+
+	/* ************ */
+
+	fprintf(stderr, "ALSA:\n");
+	cw_generator_new(CW_AUDIO_ALSA, NULL);
+	cw_reset_send_receive_parameters();
+	cw_set_send_speed(22);
+	cw_generator_start();
+
+	cw_send_string("morse");
+	cw_wait_for_tone_queue();
+
+	cw_generator_stop();
+	cw_generator_delete();
+
+
+	/* ************** */
+
+
 	fprintf(stderr, "console:\n");
 	cw_generator_new(CW_AUDIO_CONSOLE, NULL);
 	cw_reset_send_receive_parameters();
@@ -6008,10 +6069,7 @@ int main(void)
 	cw_generator_stop();
 	cw_generator_delete();
 
-
-
-
-
+	/* ************ */
 
 	fprintf(stderr, "OSS:\n");
 	cw_generator_new(CW_AUDIO_OSS, NULL);
@@ -6033,7 +6091,7 @@ int main(void)
 
 
 
-int cw_oss_open_device(const char *device)
+int cw_open_device_oss(const char *device)
 {
 	int parameter = 0;
 	/* Open the given soundcard device file, for write only. */
@@ -6059,14 +6117,14 @@ int cw_oss_open_device(const char *device)
         }
 
 	/* Set the audio format to 8-bit unsigned. */
-	parameter = CW_OSS_FORMAT;
+	parameter = CW_OSS_SAMPLE_FORMAT;
 	if (ioctl(soundcard, SNDCTL_DSP_SETFMT, &parameter) == -1) {
 		perror("cw: ioctl SNDCTL_DSP_SETFMT");
 		close(soundcard);
 		return RC_ERROR;
         }
 
-	if (parameter != CW_OSS_FORMAT) {
+	if (parameter != CW_OSS_SAMPLE_FORMAT) {
 		errno = ERR_NO_SUPPORT;
 		perror("cw: sound AFMT_U8 not supported");
 		close(soundcard);
@@ -6074,13 +6132,13 @@ int cw_oss_open_device(const char *device)
         }
 
 	/* Set up mono mode - a single audio channel. */
-	parameter = CW_OSS_CHANNELS;
+	parameter = CW_AUDIO_CHANNELS;
 	if (ioctl(soundcard, SNDCTL_DSP_CHANNELS, &parameter) == -1) {
 		perror("cw: ioctl SNDCTL_DSP_CHANNELS");
 		close(soundcard);
 		return RC_ERROR;
         }
-	if (parameter != CW_OSS_CHANNELS) {
+	if (parameter != CW_AUDIO_CHANNELS) {
 		errno = ERR_NO_SUPPORT;
 		perror("cw: sound mono not supported");
 		close(soundcard);
@@ -6091,15 +6149,19 @@ int cw_oss_open_device(const char *device)
 	 * Set up a standard sampling rate based on the notional correct value,
 	 * and retain the one we actually get in the library variable.
 	 */
-	cw_sound_sample_rate = CW_SAMPLE_RATE;
-	if (ioctl(soundcard, SNDCTL_DSP_SPEED, &cw_sound_sample_rate) == -1) {
-		perror("cw: ioctl SNDCTL_DSP_SPEED");
-		close(soundcard);
-		return RC_ERROR;
+	unsigned int sample_rate = CW_AUDIO_SAMPLE_RATE_A;
+	if (ioctl(soundcard, SNDCTL_DSP_SPEED, &sample_rate) == -1) {
+		sample_rate = CW_AUDIO_SAMPLE_RATE_B;
+		if (ioctl(soundcard, SNDCTL_DSP_SPEED, &sample_rate) == -1) {
+			perror("cw: ioctl SNDCTL_DSP_SPEED");
+			close(soundcard);
+			return RC_ERROR;
+		}
         }
-	if (cw_sound_sample_rate != CW_SAMPLE_RATE) {
-		fprintf(stderr, "cw: dsp sample_rate -> %d\n", cw_sound_sample_rate);
-        }
+	if (sample_rate != CW_AUDIO_SAMPLE_RATE_A && sample_rate != CW_AUDIO_SAMPLE_RATE_B) {
+		fprintf(stderr, "cw: warning: imprecise sample rate: %d\n", sample_rate);
+	}
+	generator->sample_rate = sample_rate;
 
 
 
@@ -6119,7 +6181,7 @@ int cw_oss_open_device(const char *device)
 	}
 
 
-#if CW_OSS_SET_FRAGMENT
+#if CWLIB_OSS_SET_FRAGMENT
 	/*
 	 * Live a little dangerously, by trying to set the fragment size of the
 	 * card.  We'll try for a relatively short fragment of 128 bytes.  This
@@ -6154,7 +6216,7 @@ int cw_oss_open_device(const char *device)
         }
 
 #endif
-#if CW_OSS_SET_POLICY
+#if CWLIB_OSS_SET_POLICY
 	parameter = 5;
 	if (ioctl(soundcard, SNDCTL_DSP_POLICY, &parameter) == -1) {
 		perror("cw: ioctl SNDCTL_DSP_POLICY");
@@ -6197,7 +6259,7 @@ int cw_oss_open_device(const char *device)
 	}
 
 	/* Note sound as now open for business. */
-	generator->sound_system = CW_AUDIO_OSS;
+	generator->audio_device_open = 1;
 
 	generator->debug_sink = open("/tmp/cw_file.raw", O_WRONLY | O_NONBLOCK);
 
@@ -6208,10 +6270,11 @@ int cw_oss_open_device(const char *device)
 
 
 
-int cw_oss_close_device(void)
+int cw_close_device_oss(void)
 {
 	close(generator->audio_sink);
 	generator->audio_sink = -1;
+	generator->audio_device_open = 0;
 
 	if (generator->debug_sink != -1) {
 		close(generator->debug_sink);
@@ -6233,17 +6296,23 @@ int cw_generator_new(int sound_system, const char *device)
 		return RC_ERROR;
 	}
 
+	generator->sound_system = sound_system;
+	generator->audio_device_open = 0;
+	cw_set_audio_device(device);
+
 	if (sound_system == CW_AUDIO_CONSOLE) {
 		/* TODO: check return values */
-		cw_set_console_device(device);
-		cw_console_open_device(cw_console_device);
-		generator->sound_system = sound_system;
+		cw_open_device_console(cw_audio_device);
 		return RC_SUCCESS;
 	} else if (sound_system == CW_AUDIO_OSS) {
 		/* TODO: check return values */
-		cw_set_soundcard_device(device);
-		cw_oss_open_device(cw_oss_device);
-		generator->sound_system = sound_system;
+		cw_open_device_oss(cw_audio_device);
+		return RC_SUCCESS;
+	} else if (sound_system == CW_AUDIO_ALSA) {
+		/* TODO: check return values */
+		cw_open_device_alsa(cw_audio_device);
+		//cw_close_device_alsa();
+		//exit(0);
 		return RC_SUCCESS;
 	} else {
 		cw_generator_delete();
@@ -6259,17 +6328,21 @@ int cw_generator_new(int sound_system, const char *device)
 void cw_generator_delete(void)
 {
 	if (generator != NULL) {
+		if (cw_audio_device) {
+			free(cw_audio_device);
+			cw_audio_device = NULL;
+		}
+
 		if (generator->sound_system == CW_AUDIO_CONSOLE) {
-			cw_console_close_device();
-			free(cw_console_device);
-			cw_console_device = NULL;
+			cw_close_device_console();
 		} else if (generator->sound_system == CW_AUDIO_OSS) {
-			cw_oss_close_device();
-			free(cw_oss_device);
-			cw_oss_device = NULL;
+			cw_close_device_oss();
+		} else if (generator->sound_system == CW_AUDIO_ALSA) {
+			cw_close_device_alsa();
 		} else {
 			fprintf(stderr, "cw: missed sound system %d\n", generator->sound_system);
 		}
+
 		generator->sound_system = CW_AUDIO_NONE;
 		free(generator);
 		generator = NULL;
@@ -6287,7 +6360,7 @@ int cw_generator_start(void)
 	generator->volume = INITIAL_VOLUME;
 	generator->phase_offset = 0.0;
 	generator->phase = 0.0;
-	generator->sample_rate = CW_SAMPLE_RATE;
+
 	/* both values being zero here means that generator
 	   has started working, but its output is silence;
 	   set .slope to a positive value to start generating
@@ -6298,13 +6371,27 @@ int cw_generator_start(void)
 	generator->generate = 1;
 
 	if (generator->sound_system == CW_AUDIO_CONSOLE) {
-		;
+		; /* no thread needed for generating sound on console */
 	} else if (generator->sound_system == CW_AUDIO_OSS) {
 		int rv = pthread_create(&(generator->thread), NULL,
-					cw_oss_generator_write_sinewave,
+					cw_generator_write_sine_wave_oss,
 					(void *) generator);
 		if (rv != 0) {
-			fprintf(stderr, "ERROR: failed to create generator thread\n");
+			fprintf(stderr, "cwlib: failed to create OSS generator thread\n");
+			return RC_ERROR;
+		} else {
+			/* for some yet unknown reason you have to
+			   put usleep() here, otherwise a generator
+			   may work incorrectly */
+			usleep(100000);
+			return RC_SUCCESS;
+		}
+	} else if (generator->sound_system == CW_AUDIO_ALSA) {
+		int rv = pthread_create(&(generator->thread), NULL,
+					cw_generator_write_sine_wave_alsa,
+					(void *) generator);
+		if (rv != 0) {
+			fprintf(stderr, "cwlib: failed to create ALSA generator thread\n");
 			return RC_ERROR;
 		} else {
 			/* for some yet unknown reason you have to
@@ -6314,7 +6401,7 @@ int cw_generator_start(void)
 			return RC_SUCCESS;
 		}
 	} else {
-		fprintf(stderr, "cw: unsupported sound system %d\n", generator->sound_system);
+		fprintf(stderr, "cwlib: unsupported sound system %d\n", generator->sound_system);
 	}
 
 	return RC_SUCCESS;
@@ -6329,12 +6416,14 @@ void cw_generator_stop(void)
 		   by a code generating dots/dashes, but
 		   just in case... */
 		ioctl(generator->audio_sink, KIOCSOUND, 0);
-	} else if (generator->sound_system == CW_AUDIO_OSS) {
-		generator->slope = -CW_OSS_GENERATOR_SLOPE;
+	} else if (generator->sound_system == CW_AUDIO_OSS
+		   || generator->sound_system == CW_AUDIO_ALSA) {
+
+		generator->slope = -CW_AUDIO_GENERATOR_SLOPE;
 
 		/* time needed between initiating stop sequence and
 		   ending write() to device and closing the device */
-		int usleep_time = CW_SAMPLE_RATE / (2 * CW_OSS_GENERATOR_BUF_SIZE);
+		int usleep_time = generator->sample_rate / (2 * CW_AUDIO_GENERATOR_BUF_SIZE);
 		usleep_time /= 1000000;
 		usleep(usleep_time * 1.2);
 
@@ -6350,35 +6439,15 @@ void cw_generator_stop(void)
 
 
 
-void *cw_oss_generator_write_sinewave(void *arg)
+void *cw_generator_write_sine_wave_oss(void *arg)
 {
 	cw_gen_t *gen = (cw_gen_t *) arg;
-	short buf[CW_OSS_GENERATOR_BUF_SIZE];
+	short buf[CW_AUDIO_GENERATOR_BUF_SIZE];
 
 	while (gen->generate) {
-
-		int i = 0;
-		double phase = 0.0;
-		/* Create a fragment's worth of shaped wave data. */
-		for (i = 0; i < CW_OSS_GENERATOR_BUF_SIZE; i++) {
-			phase = (2.0 * M_PI
-				 * (double) gen->frequency * (double) i / (double) gen->sample_rate)
-				+ gen->phase_offset;
-			int amplitude = cw_oss_generator_calculate_amplitude(gen);
-
-			buf[i] = amplitude * sin(phase);
-		}
-
-		/* Compute the phase of the last generated sample
-		   (or is it phase of first sample in next series?). */
-		phase = (2.0 * M_PI * (double) gen->frequency * (double) i / (double) gen->sample_rate) + gen->phase_offset;
-
-		/* Extract the normalized phase offset. */
-		int n_periods = floor(phase / (2.0 * M_PI));
-		gen->phase_offset = phase - n_periods * 2.0 * M_PI;
-
+		cw_generator_calculate_sine_wave(gen, buf);
 		if (write(gen->audio_sink, buf, sizeof (buf)) != sizeof (buf)) {
-			perror("Audio write");
+			perror("Audio write (OSS)");
 			exit(-1);
 		}
 		write(gen->debug_sink, buf, sizeof (buf));
@@ -6390,13 +6459,40 @@ void *cw_oss_generator_write_sinewave(void *arg)
 
 
 
-
-static const long int VOLUME_RANGE = (1 << 15); /* 2^15 = 32768 */
-
-
-int cw_oss_generator_calculate_amplitude(cw_gen_t *gen)
+/* TODO: buffer size currently is constant, but in future
+   may be dependent on sound system */
+int cw_generator_calculate_sine_wave(cw_gen_t *gen, short *buf)
 {
-	int volume = (gen->volume * VOLUME_RANGE) / 100;
+	int i = 0;
+	double phase = 0.0;
+	/* Create a fragment's worth of shaped wave data. */
+	for (i = 0; i < CW_AUDIO_GENERATOR_BUF_SIZE; i++) {
+		phase = (2.0 * M_PI
+			 * (double) gen->frequency * (double) i / (double) gen->sample_rate)
+			+ gen->phase_offset;
+		int amplitude = cw_generator_calculate_amplitude(gen);
+
+		buf[i] = amplitude * sin(phase);
+	}
+
+	/* Compute the phase of the last generated sample
+	   (or is it phase of first sample in next series?). */
+	phase = (2.0 * M_PI * (double) gen->frequency * (double) i / (double) gen->sample_rate) + gen->phase_offset;
+
+	/* Extract the normalized phase offset. */
+	int n_periods = floor(phase / (2.0 * M_PI));
+	gen->phase_offset = phase - n_periods * 2.0 * M_PI;
+
+	return RC_SUCCESS;
+}
+
+
+
+
+
+int cw_generator_calculate_amplitude(cw_gen_t *gen)
+{
+	int volume = (gen->volume * CW_AUDIO_VOLUME_RANGE) / 100;
 	if (gen->slope == 0) {
 		;
 	} else if (gen->slope < 0) {
@@ -6419,12 +6515,12 @@ int cw_oss_generator_calculate_amplitude(cw_gen_t *gen)
 		}
 	}
 
-	/* because VOLUME_RANGE may not be exact multiple
+	/* because CW_AUDIO_VOLUME_RANGE may not be exact multiple
 	   of gen->slope, gen->amplitude may be sometimes out
 	   of range; this may produce audible clicks;
 	   remove values out of range */
-	if (gen->amplitude > VOLUME_RANGE) {
-		gen->amplitude = VOLUME_RANGE;
+	if (gen->amplitude > CW_AUDIO_VOLUME_RANGE) {
+		gen->amplitude = CW_AUDIO_VOLUME_RANGE;
 	} else if (gen->amplitude < 0) {
 		gen->amplitude = 0;
 	} else {
@@ -6434,4 +6530,303 @@ int cw_oss_generator_calculate_amplitude(cw_gen_t *gen)
 	return gen->amplitude;
 }
 
+
+
+
+
+int cw_open_device_alsa(const char *device)
+{
+	int rv = snd_pcm_open(&(generator->alsa_handle),
+			      device,                  /* name */
+			      SND_PCM_STREAM_PLAYBACK, /* stream (playback/capture) */
+			      0);                      /* mode, 0 | SND_PCM_NONBLOCK | SND_PCM_ASYNC */
+	if (rv < 0) {
+		fprintf(stderr, "cwlib: can't open ALSA device \"%s\"\n", device);
+		return RC_ERROR;
+	}
+
+	snd_pcm_hw_params_t *hw_params = NULL;
+	rv = snd_pcm_hw_params_malloc(&hw_params);
+	if (rv < 0) {
+		fprintf(stderr, "cwlib: can't allocate memory for ALSA hw params\n");
+		return RC_ERROR;
+	}
+
+	rv = cw_set_alsa_hw_params(generator->alsa_handle, hw_params);
+	if (rv != RC_SUCCESS) {
+		fprintf(stderr, "cwlib: can't set ALSA hw params\n");
+		return RC_ERROR;
+	}
+
+	rv = snd_pcm_prepare(generator->alsa_handle);
+	if (rv < 0) {
+		fprintf(stderr, "cwlib: can't prepare ALSA handler\n");
+		return RC_ERROR;
+	}
+
+	return RC_SUCCESS;
+}
+
+
+
+
+
+void *cw_generator_write_sine_wave_alsa(void *arg)
+{
+	cw_gen_t *gen = (cw_gen_t *) arg;
+	short buf[CW_AUDIO_GENERATOR_BUF_SIZE];
+
+	while (gen->generate) {
+		cw_generator_calculate_sine_wave(gen, buf);
+
+		int rv = snd_pcm_writei(gen->alsa_handle, buf, CW_AUDIO_GENERATOR_BUF_SIZE);
+		if (rv == -EPIPE) {
+			/* EPIPE means underrun */
+			fprintf(stderr, "cwlib: underrun occurred\n");
+			snd_pcm_prepare(gen->alsa_handle);
+		} else if (rv < 0) {
+			fprintf(stderr, "cwlib: error from writei: %s\n", snd_strerror(rv));
+		}  else if (rv != (int) CW_AUDIO_GENERATOR_BUF_SIZE) {
+			fprintf(stderr, "cwlib: short write, write %d frames\n", rv);
+		} else {
+			;
+		}
+
+		//write(gen->debug_sink, buf, sizeof (buf));
+	} /* while() */
+
+	return NULL;
+}
+
+
+
+
+
+int cw_close_device_alsa(void)
+{
+	snd_pcm_drain(generator->alsa_handle);
+	snd_pcm_close(generator->alsa_handle);
+
+	generator->audio_device_open = 0;
+
+	if (generator->debug_sink != -1) {
+		close(generator->debug_sink);
+		generator->debug_sink = -1;
+	}
+
+	return RC_SUCCESS;
+}
+
+
+/*
+
+  http://www.alsa-project.org/main/index.php/FramesPeriods
+
+  "
+  "frame" represents the unit, 1 frame = # channels x sample_bytes.
+  In case of stereo, 2 bytes per sample, 1 frame corresponds to 2 channels x 2 bytes = 4 bytes.
+
+  "periods" is the number of periods in a ring-buffer.  In OSS, called "fragments".
+
+  So,
+  - buffer_size = period_size * periods
+  - period_bytes = period_size * bytes_per_frame
+  - bytes_per_frame = channels * bytes_per_sample
+
+  The "period" defines the frequency to update the status, usually via
+  the invocation of interrupts.  The "period_size" defines the frame
+  sizes corresponding to the "period time".  This term corresponds to
+  the "fragment size" on OSS.  On major sound hardwares, a ring-buffer
+  is divided to several parts and an irq is issued on each boundary.
+  The period_size defines the size of this chunk.
+  "
+*/
+
+
+int cw_set_alsa_hw_params(snd_pcm_t *handle, snd_pcm_hw_params_t *params)
+{
+	/* Get current hw configuration. */
+	int rv = snd_pcm_hw_params_any(handle, params);
+	if (rv < 0) {
+		fprintf(stderr, "cwlib: can't get current hw params: %s\n", snd_strerror(rv));
+		return RC_ERROR;
+	}
+
+
+	/* Set the sample format */
+	rv = snd_pcm_hw_params_set_format(handle, params, CW_ALSA_SAMPLE_FORMAT);
+	if (rv < 0) {
+		fprintf(stderr, "cwlib: can't set sample format: %s\n", snd_strerror(rv));
+		return RC_ERROR;
+	}
+
+
+	int dir = 0;
+	unsigned int val = 0;
+
+
+	/* Set the sample rate (may set/influence/modify 'period size') */
+	val = CW_AUDIO_SAMPLE_RATE_A;
+	rv = snd_pcm_hw_params_set_rate(handle, params, CW_AUDIO_SAMPLE_RATE_A, dir);
+	if (rv < 0) {
+		val = CW_AUDIO_SAMPLE_RATE_B;
+		rv = snd_pcm_hw_params_set_rate(handle, params, val, dir);
+		if (rv < 0) {
+			fprintf(stderr, "cwlib: can't set sample rate: %s\n", snd_strerror(rv));
+			return RC_ERROR;
+		}
+	}
+
+	generator->sample_rate = val;
+
+
+	/* Set PCM access type */
+	rv = snd_pcm_hw_params_set_access(handle, params, SND_PCM_ACCESS_RW_INTERLEAVED);
+	if (rv < 0) {
+		fprintf(stderr, "cwlib: can't set access type: %s\n", snd_strerror(rv));
+		return RC_ERROR;
+	}
+
+	/* Set number of channels */
+	rv = snd_pcm_hw_params_set_channels(handle, params, CW_AUDIO_CHANNELS);
+	if (rv < 0) {
+		fprintf(stderr, "cwlib: can't set number of channels: %s\n", snd_strerror(rv));
+		return RC_ERROR;
+	}
+
+
+#if CWLIB_ALSA_HW_BUFFER_CONFIG
+	/* This doesn't quite work, this is just a test
+	   area for code configuring hardware buffer.
+	   Hopefully someday I will master ALSA API... */
+
+	fprintf(stderr, "cwlib: ALSA params before hw buffer configuration:\n");
+	cw_print_alsa_params(params);
+
+	/* Set period size */
+	snd_pcm_uframes_t period_size = 32;
+	dir = -1;
+	rv = snd_pcm_hw_params_set_period_size_near(handle, params, &period_size, &dir);
+	if (rv < 0) {
+		fprintf(stderr, "cwlib: can't set period size %d: %s\n", val, snd_strerror(rv));
+	}
+
+	/* Set number of periods */
+	val = 2;
+	dir = 0;
+	rv = snd_pcm_hw_params_set_periods_near(handle, params, &val, &dir);
+	if (rv < 0) {
+		fprintf(stderr, "cwlib: can't set number of periods: %s\n", snd_strerror(rv));
+		return RC_ERROR;
+	} else {
+		rv = snd_pcm_hw_params_get_periods(params, &val, &dir);
+		if (rv < 0) {
+			fprintf(stderr, "cwlib: can't get 'periods' after setting them: %s\n", snd_strerror(rv));
+		} else {
+			fprintf(stderr, "cwlib: 'periods' = %u\n", val);
+		}
+	}
+
+#if 0
+	unsigned int time = 300;
+	rv = snd_pcm_hw_params_set_buffer_time_near(handle, params, &time, &dir);
+	if (rv < 0) {
+		fprintf(stderr, "cwlib: can't set minimum buffer size %u: %s\n", (unsigned int) time, snd_strerror(rv));
+		return RC_ERROR;
+	}
+
+	snd_pcm_uframes_t size = 1000;
+	rv = snd_pcm_hw_params_set_buffer_time_min(handle, params, &size);
+	if (rv < 0) {
+		fprintf(stderr, "cwlib: can't set minimum buffer size %u: %s\n", snd_strerror(rv));
+		return RC_ERROR;
+	}
+	size = 4000;
+	rv = snd_pcm_hw_params_set_buffer_time_max(handle, params, &size);
+	if (rv < 0) {
+		fprintf(stderr, "cwlib: can't set maximum buffer size %u: %s\n", snd_strerror(rv));
+		return RC_ERROR;
+	}
+
+
+	val = 3000;
+	rv = snd_pcm_hw_params_set_period_time_near(handle, params, &val, &dir);
+	if (rv < 0) {
+		fprintf(stderr, "cwlib: can't set 'period time' %u\n", val, snd_strerror(rv));
+		return RC_ERROR;
+	}
+
+
+	/* set the period time (in microseconds) */
+	unsigned int period_time = 2000;
+	rv = snd_pcm_hw_params_set_period_time_near(handle, params, &period_time, &dir);
+	if (rv < 0) {
+		fprintf(stderr, "cwlib: can't set period time %d: %s\n", period_time, snd_strerror(rv));
+		return rv;
+	}
+
+	/* test period size */
+	dir = 0;
+	int j = 0;
+	for (j = 0; j < 10; j++) {
+		val = 1 << j;
+		rv = snd_pcm_hw_params_test_period_size(handle, params, val, dir);
+		if (rv < 0) {
+			fprintf(stderr, "cwlib: period size %d is not available: %s\n", val, snd_strerror(rv));
+		} else {
+			fprintf(stderr, "cwlib: period size %d accepted\n", val);
+		}
+	}
+#endif
+
+	fprintf(stderr, "cwlib: ALSA params after hw buffer configuration:\n");
+	cw_print_alsa_params(params);
+
+#endif
+
+	/* Save hw parameters to device */
+	rv = snd_pcm_hw_params(handle, params);
+	if (rv < 0) {
+		fprintf(stderr, "cwlib: can't save hw parameters: %s\n", snd_strerror(rv));
+		return RC_ERROR;
+	} else {
+		return RC_SUCCESS;
+	}
+}
+
+
+
+
+
+/* debug function */
+static int cw_print_alsa_params(snd_pcm_hw_params_t *params)
+{
+	unsigned int val = 0;
+	int dir = 0;
+
+	int rv = snd_pcm_hw_params_get_periods(params, &val, &dir);
+	if (rv < 0) {
+		fprintf(stderr, "cwlib: can't get 'periods': %s\n", snd_strerror(rv));
+	} else {
+		fprintf(stderr, "cwlib: 'periods' = %u\n", val);
+	}
+
+	snd_pcm_uframes_t period_size = 0;
+	rv = snd_pcm_hw_params_get_period_size(params, &period_size, &dir);
+	if (rv < 0) {
+		fprintf(stderr, "cwlib: can't get 'period size': %s\n", snd_strerror(rv));
+	} else {
+		fprintf(stderr, "cwlib: 'period size' = %u\n", (unsigned int) period_size);
+	}
+
+	snd_pcm_uframes_t buffer_size;
+	rv = snd_pcm_hw_params_get_buffer_size(params, &buffer_size);
+	if (rv < 0) {
+		fprintf(stderr, "cwlib: can't get buffer size: %s\n", snd_strerror(rv));
+	} else {
+		fprintf(stderr, "cwlib: 'buffer size' = %u\n", (unsigned int) buffer_size);
+	}
+
+	return RC_SUCCESS;
+}
 
