@@ -31,7 +31,7 @@ OBJECTS = main.o modeset.o display.o sender.o receiver.o application.o \
           moc_application.o
 
 # Link to the shared libcw.
-LIBS	= -L$(QTDIR)/lib -lqt-mt -L../cwlib -lcw
+LIBS	= -L$(QTDIR)/lib -lqt-mt -L../cwlib -lcw -lpthread -lasound
 
 default: all
 
@@ -56,7 +56,7 @@ receiver.o: receiver.cc receiver.h display.h modeset.h
 application.o: application.cc sender.h receiver.h application.h \
                modeset.h display.h
 
-moc_application.o: moc_application.cc
+mod_application.o: moc_application.cc
 
 moc_application.cc: application.h
 	$(QTMOC) $< -o $@
