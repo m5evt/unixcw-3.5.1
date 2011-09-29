@@ -21,6 +21,8 @@
 #define _CWLIB_H
 
 #include <sys/time.h>  /* For struct timeval */
+#include <alsa/asoundlib.h>
+
 
 #if defined(__cplusplus)
 extern "C"
@@ -28,15 +30,17 @@ extern "C"
 #endif
 
 /* supported audio sound systems */
-enum {
+enum cw_audio_systems {
 	CW_AUDIO_NONE = 0,
 	CW_AUDIO_CONSOLE,
-	CW_AUDIO_OSS
+	CW_AUDIO_OSS,
+	CW_AUDIO_ALSA
 };
 
 
 typedef struct {
 	int sound_system;
+	int audio_device_open;
 
 	int volume; /* this is the level of sound that you want to have */
 	int frequency;   /* this is the frequency of sound that you want to generate */
@@ -70,14 +74,18 @@ typedef struct {
 	double phase_offset;
 	double phase;
 
-	pthread_t thread;
 
+	/* ALSA specific variables */
+	snd_pcm_t *alsa_handle;
+	snd_pcm_uframes_t alsa_frames;
+
+	pthread_t thread;
 } cw_gen_t;
 
 
 #define CW_DEFAULT_CONSOLE_DEVICE   "/dev/console"
 #define CW_DEFAULT_OSS_DEVICE       "/dev/audio"
-
+#define CW_DEFAULT_ALSA_DEVICE      "default"
 
 
 /*
@@ -168,7 +176,7 @@ extern void cw_block_callback (int is_block);
 extern int cw_is_console_possible(const char *device);
 
 extern const char *cw_get_console_device(void);
-const char *cw_get_soundcard_device(void);
+extern const char *cw_get_soundcard_device(void);
 
 extern void cw_set_soundmixer_file (const char *new_value);
 extern const char *cw_get_soundmixer_file (void);
