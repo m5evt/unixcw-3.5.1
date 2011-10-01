@@ -39,16 +39,26 @@ enum cw_audio_systems {
 
 
 typedef struct {
-	int sound_system;
+	/* none/console/OSS/ALSA */
+	int audio_system;
+	/* true/false */
 	int audio_device_open;
+	/* Path to console file, or path to OSS soundcard file,
+	   or ALSA sound device name. */
+	char *audio_device;
+	/* output file descriptor for audio data (console, OSS) */
+	int audio_sink;
+	/* output handle for audio data (ALSA) */
+	snd_pcm_t *alsa_handle;
+	/* output file descriptor for debug data (console, OSS) */
+	int debug_sink;
+
 
 	int volume; /* this is the level of sound that you want to have */
 	int frequency;   /* this is the frequency of sound that you want to generate */
 
 	int sample_rate; /* set to the same value of sample rate as
 			    you have used when configuring sound card */
-	int audio_sink; /* output file for audio data (OSS) */
-	int debug_sink; /* output file for debug data */
 
 	int slope; /* used to control initial and final phase of
 		      non-zero-amplitude sine wave; slope/attack
@@ -76,8 +86,7 @@ typedef struct {
 
 
 	/* ALSA specific variables */
-	snd_pcm_t *alsa_handle;
-	snd_pcm_uframes_t alsa_frames;
+
 
 	pthread_t thread;
 } cw_gen_t;

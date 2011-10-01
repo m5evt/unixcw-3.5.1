@@ -1,6 +1,7 @@
 /* vi: set ts=2 shiftwidth=2 expandtab:
  *
  * Copyright (C) 2001-2006  Simon Baldwin (simon_baldwin@yahoo.com)
+ * Copyright (C) 2011       Kamil Ignacak (acerion@wp.pl)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -20,13 +21,15 @@
 #ifndef _CWCOPYRIGHT_H
 #define _CWCOPYRIGHT_H
 
+#include "i18n.h"
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
 static const char *const CW_COPYRIGHT =
   N_("Copyright (C) 2001-2006  Simon Baldwin\n"
-  "Copyright (C) 2011 Kamil Ignacak\n\n"
+  "Copyright (C) 2011       Kamil Ignacak\n\n"
   "This program comes with ABSOLUTELY NO WARRANTY; for details please see\n"
   "the file 'COPYING' supplied with the source code.  This is free software,\n"
   "and you are welcome to redistribute it under certain conditions; again,\n"

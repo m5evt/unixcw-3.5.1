@@ -1,7 +1,7 @@
 /* vi: set ts=2 shiftwidth=2 expandtab:
  *
  * Copyright (C) 2001-2006  Simon Baldwin (simon_baldwin@yahoo.com)
- * Copyright (C) 2011 Kamil Ignacak (acerion@wp.pl)
+ * Copyright (C) 2011       Kamil Ignacak (acerion@wp.pl)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -72,7 +72,7 @@
 #endif
 
 #include "cwlib.h"
-
+#include "../cwutils/copyright.h" /* I will get rid of this access path once I will update build system, promise ;) */
 
 
 
@@ -94,29 +94,30 @@ static void *cw_generator_write_sine_wave_alsa(void *arg);
 static int   cw_generator_calculate_sine_wave(cw_gen_t *gen, short *buf);
 static int   cw_generator_calculate_amplitude(cw_gen_t *gen);
 
+static int   cw_sound_soundcard_internal(int frequency);
 
 /* Conditional compilation flags */
-#define CWLIB_MAIN                   0  /* for stand-alone compilation and tests of this file */
-#define CWLIB_OSS_SET_FRAGMENT       1  /* ioctl(fd, SNDCTL_DSP_SETFRAGMENT, &param) */
-#define CWLIB_OSS_SET_POLICY         0  /* ioctl(fd, SNDCTL_DSP_POLICY, &param) */
-#define CWLIB_ALSA_HW_BUFFER_CONFIG  0  /* set up hw buffer parameters, doesn't work correctly (yet) */
+#define CW_MAIN                   0  /* for stand-alone compilation and tests of this file */
+#define CW_OSS_SET_FRAGMENT       1  /* ioctl(fd, SNDCTL_DSP_SETFRAGMENT, &param) */
+#define CW_OSS_SET_POLICY         0  /* ioctl(fd, SNDCTL_DSP_POLICY, &param) */
+#define CW_ALSA_HW_BUFFER_CONFIG  0  /* set up hw buffer parameters, doesn't work correctly (yet) */
 
 
-/* Generic constants - common for all sound systems (or not used in some of systems) */
+/* Generic constants - common for all audio systems (or not used in some of systems) */
 static const unsigned int CW_AUDIO_SAMPLE_RATE_A = 44100;       /* Primary sound sample rate */
 static const unsigned int CW_AUDIO_SAMPLE_RATE_B = 48000;       /* Secondary sound sample rate */
-static const int      CW_AUDIO_CHANNELS = 1;                /* Sound in mono */
-static const long int CW_AUDIO_VOLUME_RANGE = (1 << 15);    /* 2^15 = 32768 */
-#define               CW_AUDIO_GENERATOR_BUF_SIZE 128       /* Size of buffer storing samples, the value works well for both OSS and ALSA */
-static const int      CW_AUDIO_GENERATOR_SLOPE = 100;       /* ~100 for 44.1/48 kHz sample rate */
+static const int          CW_AUDIO_CHANNELS = 1;                /* Sound in mono */
+static const long int     CW_AUDIO_VOLUME_RANGE = (1 << 15);    /* 2^15 = 32768 */
+enum                    { CW_AUDIO_GENERATOR_BUF_SIZE = 128 };  /* Size of buffer storing samples, the value works well for both OSS and ALSA */
+static const int          CW_AUDIO_GENERATOR_SLOPE = 100;       /* ~100 for 44.1/48 kHz sample rate */
 
 
-/* Constants specific to OSS sound system configuration */
+/* Constants specific to OSS audio system configuration */
 static const int CW_OSS_SETFRAGMENT = 7;              /* Sound fragment size, 2^7 */
 static const int CW_OSS_SAMPLE_FORMAT = AFMT_S16_NE;  /* Sound format AFMT_S16_NE = signed 16 bit, native endianess; LE = Little endianess */
 
 
-/* Constants specific to ALSA sound system configuration */
+/* Constants specific to ALSA audio system configuration */
 static const snd_pcm_format_t CW_ALSA_SAMPLE_FORMAT = SND_PCM_FORMAT_S16; /* "Signed 16 bit CPU endian"; I'm guessing that "CPU endian" == "native endianess" */
 
 
@@ -145,6 +146,7 @@ static cw_gen_t *generator = NULL;
 enum { FALSE = 0, TRUE = !FALSE };
 enum { RC_SUCCESS = TRUE, RC_ERROR = FALSE };
 
+#if 0 /* disabling, this text will be included from cwutils/copyright.h */
 static const char *const CW_COPYRIGHT =
 	"Copyright (C) 2001-2006  Simon Baldwin\n"
 	"Copyright (C) 2011 Kamil Ignacak\n\n"
@@ -153,7 +155,7 @@ static const char *const CW_COPYRIGHT =
 	"and you are welcome to redistribute it under certain conditions; again,\n"
 	"see 'COPYING' for details. This program is released under the GNU General\n"
 	"Public License.\n";
-
+#endif
 
 /**
  * cw_version()
@@ -176,10 +178,12 @@ cw_version (void)
  *
  * Prints a short library licensing message to stdout.
  */
-void
-cw_license (void)
+void cw_license(void)
 {
-  printf ("cwlib version %s, %s\n", PACKAGE_VERSION, CW_COPYRIGHT);
+	printf("cwlib version %s\n", PACKAGE_VERSION);
+	printf("%s\n", CW_COPYRIGHT);
+
+	return;
 }
 
 
@@ -1410,29 +1414,39 @@ cw_set_receive_speed (int new_value)
   return RC_SUCCESS;
 }
 
-int
-cw_set_frequency (int new_value)
+
+
+
+
+int cw_set_frequency(int new_value)
 {
-  if (new_value < CW_MIN_FREQUENCY || new_value > CW_MAX_FREQUENCY)
-    {
-      errno = EINVAL;
-      return RC_ERROR;
-    }
-  generator->frequency = new_value;
-  return RC_SUCCESS;
+	if (new_value < CW_MIN_FREQUENCY || new_value > CW_MAX_FREQUENCY) {
+		errno = EINVAL;
+		return RC_ERROR;
+	} else {
+		generator->frequency = new_value;
+		return RC_SUCCESS;
+	}
 }
 
-int
-cw_set_volume (int new_value)
+
+
+
+
+int cw_set_volume(int new_value)
 {
-  if (new_value < CW_MIN_VOLUME || new_value > CW_MAX_VOLUME)
-    {
-      errno = EINVAL;
-      return RC_ERROR;
-    }
-  generator->volume = new_value;
-  return RC_SUCCESS;
+	if (new_value < CW_MIN_VOLUME || new_value > CW_MAX_VOLUME) {
+		errno = EINVAL;
+		return RC_ERROR;
+	} else {
+		generator->volume = new_value;
+		return RC_SUCCESS;
+	}
 }
+
+
+
+
 
 int
 cw_set_gap (int new_value)
@@ -1506,17 +1520,27 @@ cw_get_receive_speed (void)
   return cw_receive_speed;
 }
 
-int
-cw_get_frequency (void)
+
+
+
+
+int cw_get_frequency(void)
 {
-  return generator->frequency;
+	return generator->frequency;
 }
 
-int
-cw_get_volume (void)
+
+
+
+
+int cw_get_volume(void)
 {
-  return generator->volume;
+	return generator->volume;
 }
+
+
+
+
 
 int
 cw_get_gap (void)
@@ -1974,28 +1998,23 @@ cw_wait_for_signal_internal (void)
 /*---------------------------------------------------------------------*/
 
 /* 0Hz = silent 'tone'. */
-enum { TONE_SILENT = 0 };
+static const int TONE_SILENT = 0;
 
+#if 0
 /* Fixed general soundcard parameters. */
 static const int DSP_SETFRAGMENT = 7,   /* Sound fragment size, 128 (2^7) */
                  DSP_FORMAT = AFMT_U8,  /* Sound format */
                  DSP_CHANNELS = 1,      /* Sound in mono only */
                  DSP_RATE = 8192;       /* Sound sampling rate (~=2xMaxFreq) */
 
-/*
- * Paths to console and soundcard devices used by the library.
- * These can be reset by the user.
- */
-//static char *cw_console_device = NULL;
-//static char *cw_oss_device = NULL;
-static char *cw_audio_device = NULL;
 
 /* Current background tone generation frequency. */
-static int cw_sound_generate_frequency = TONE_SILENT;
+// static int cw_sound_generate_frequency = TONE_SILENT;
 
 /* DSP device sample rate, and saved mixer PCM volume setting. */
-// static int cw_sound_sample_rate = 0;
-//           cw_sound_saved_vol = 0;
+static int cw_sound_sample_rate = 0;
+           cw_sound_saved_vol = 0;
+#endif
 
 /*
  * Sound output control flags, to enable soundcard, console, or both.  By
@@ -2041,7 +2060,7 @@ int cw_set_console_device(const char *device)
 
 const char *cw_get_console_device(void)
 {
-	return cw_audio_device;
+	return generator->audio_device;
 }
 
 
@@ -2061,22 +2080,22 @@ int cw_set_audio_device(const char *device)
 	/* this should be NULL, either because it has been
 	   initialized statically as NULL, or set to
 	   NULL by generator destructor */
-	assert (!cw_audio_device);
-	assert (generator->sound_system != CW_AUDIO_NONE);
+	assert (!generator->audio_device);
+	assert (generator->audio_system != CW_AUDIO_NONE);
 
-	if (generator->sound_system == CW_AUDIO_NONE) {
-		cw_audio_device = (char *) NULL;
+	if (generator->audio_system == CW_AUDIO_NONE) {
+		generator->audio_device = (char *) NULL;
 		fprintf(stderr, "cw: no audio system specified\n");
 		return RC_ERROR;
 	}
 
 	if (device) {
-		cw_audio_device = strdup(device);
+		generator->audio_device = strdup(device);
 	} else {
-		cw_audio_device = strdup(default_audio_devices[generator->sound_system]);
+		generator->audio_device = strdup(default_audio_devices[generator->audio_system]);
 	}
 
-	if (!cw_audio_device) {
+	if (!generator->audio_device) {
 		fprintf(stderr, "cw: malloc error\n");
 		return RC_ERROR;
 	} else {
@@ -2086,7 +2105,7 @@ int cw_set_audio_device(const char *device)
 
 const char *cw_get_soundcard_device(void)
 {
-	return cw_audio_device;
+	return generator->audio_device;
 }
 
 #if 0
@@ -2134,17 +2153,18 @@ cw_get_soundmixer_file (void)
 int
 cw_is_soundcard_possible (void)
 {
-  if (generator->sound_system == CW_AUDIO_OSS
-      || generator->sound_system == CW_AUDIO_ALSA)
+	/* FIXME: you have messed up this function, fix this */
+  if (generator->audio_system == CW_AUDIO_OSS
+      || generator->audio_system == CW_AUDIO_ALSA)
     return RC_SUCCESS;
 
-  if (!cw_audio_device)
+  if (!generator->audio_device)
     {
       errno = EINVAL;
       return RC_ERROR;
     }
 
-  if (access (cw_audio_device, W_OK) == -1)
+  if (access (generator->audio_device, W_OK) == -1)
     {
       return RC_ERROR;
     }
@@ -2178,11 +2198,15 @@ int cw_is_console_possible(const char *device)
 	if (fd == -1) {
 		return RC_ERROR;
 	}
-	if (ioctl(fd, KIOCSOUND, 0) == -1) {
-		close(fd);
+
+	int rv = ioctl(fd, KIOCSOUND, 0);
+	close(fd);
+	if (rv == -1) {
+		/* console device can be opened, even with WRONLY perms, but,
+		   if you aren't root user, you can't call ioctl()s on it,
+		   and - as a result - can't generate sound on the device */
 		return RC_ERROR;
 	} else {
-		close(fd);
 		return RC_SUCCESS;
 	}
 #else
@@ -2280,7 +2304,7 @@ cw_get_sound_pcm_volume_internal (int *volume)
   return RC_ERROR;
 }
 #endif
-
+#if 0
 /**
  * cw_set_sound_pcm_volume_internal()
  *
@@ -2292,31 +2316,6 @@ cw_get_sound_pcm_volume_internal (int *volume)
 static int
 cw_set_sound_pcm_volume_internal (int volume)
 {
-	if (volume == 0) {
-		/* With this new scheme of producing a sound
-		   the sound is a bit longer than a dot (or a
-		   dash) by a time needed to decrease amplitude
-		   of sine wave from 'volume' to zero. When a
-		   timer signals that it's time to stop
-		   generating a sound, the library proceeds to
-		   gradually decrease amplitude of sine wave
-		   producing a falling slope. Length of the
-		   slope is inversely proportional to
-		   CW_AUDIO_GENERATOR_SLOPE.
-
-		   This additional time used to generate falling
-		   slope is rather small but cannot be tolerated.
-		   Thus I need to come up with better way of
-		   ending a sound. Somehow the slope must appear
-		   (i.e. the amplitude needs to start decreasing)
-		   *before* expected end of sound. */
-		generator->slope = -CW_AUDIO_GENERATOR_SLOPE;
-	} else {
-		generator->slope = CW_AUDIO_GENERATOR_SLOPE;
-	}
-
-	return RC_SUCCESS;
-#if 0
   int mixer, device_mask;
 
   /* Try to use the main /dev/audio device for ioctls first. */
@@ -2376,9 +2375,9 @@ cw_set_sound_pcm_volume_internal (int volume)
   perror ("cw: mixer DEVMASK lacks volume controls");
   close (mixer);
   return RC_ERROR;
-#endif
-}
 
+}
+#endif
 
 #if 0
 /**
@@ -2553,7 +2552,7 @@ cw_close_sound_soundcard_internal (void)
   return RC_SUCCESS;
 }
 #endif
-
+#if 0
 /**
  * cw_generate_sound_internal()
  *
@@ -2578,8 +2577,6 @@ cw_close_sound_soundcard_internal (void)
 static int
 cw_generate_sound_internal (void)
 {
-	return RC_SUCCESS;
-#if 0
   static const int AMPLITUDE = 100;            /* Wave amplitude multiplier */
   static double phase_offset = 0.0;            /* Wave shape phase offset */
   static int current_frequency = TONE_SILENT;  /* Note of freq on last call */
@@ -2723,12 +2720,11 @@ cw_generate_sound_internal (void)
     }
 
   return RC_SUCCESS;
-#endif
 }
-
-
+#endif
+#if 0
 /**
- * cw_sound_soundcard_internal()
+ * cw_sound_soundcard_internal_old()
  *
  * Set up a tone on the soundcard.  The function starts the generation of
  * any non-silent tone, and tries to keep that tone going on subsequent calls.
@@ -2741,7 +2737,7 @@ cw_generate_sound_internal (void)
  * lengthy process.
  */
 static int
-cw_sound_soundcard_internal (int frequency)
+cw_sound_soundcard_internal_old (int frequency)
 {
   static int current_frequency = TONE_SILENT;  /* Note of freq on last call */
   static int current_volume = 0;               /* Note of volume last call */
@@ -2760,7 +2756,7 @@ cw_sound_soundcard_internal (int frequency)
       if (frequency == TONE_SILENT)
         {
           /* Keep background tone data generation going. */
-          cw_generate_sound_internal ();
+          /* cw_generate_sound_internal (); */
 
           /* Suppress sound by setting the volume to zero. */
           volume = 0;
@@ -2769,7 +2765,7 @@ cw_sound_soundcard_internal (int frequency)
         {
           /* Reset generated tone, then prod data generation. */
           cw_sound_generate_frequency = frequency;
-          cw_generate_sound_internal ();
+          /* cw_generate_sound_internal (); */
 
           /*
            * Set the volume according to the library variable.  Volume is
@@ -2786,7 +2782,6 @@ cw_sound_soundcard_internal (int frequency)
       if (generator->sound_system == CW_AUDIO_OSS
 	  || generator->sound_system == CW_AUDIO_ALSA) {
 
-	      //fprintf(stderr, "calling volume control, volume = %d\n", volume);
 	      if (!cw_set_sound_pcm_volume_internal(volume)) {
 		      return RC_ERROR;
 	      }
@@ -2801,7 +2796,7 @@ cw_sound_soundcard_internal (int frequency)
   else if (generator->volume != current_volume)
     {
       /* Keep background tone data generation going. */
-      cw_generate_sound_internal ();
+      /* cw_generate_sound_internal (); */
 
       /* Do nothing more if current frequency is silent. */
       if (frequency != TONE_SILENT)
@@ -2821,7 +2816,6 @@ cw_sound_soundcard_internal (int frequency)
 	  if (generator->sound_system == CW_AUDIO_OSS
 	      || generator->sound_system == CW_AUDIO_ALSA) {
 
-		  //fprintf(stderr, "calling volume control, volume = %d\n", volume);
 		  if (!cw_set_sound_pcm_volume_internal(volume)) {
 			  return RC_ERROR;
 		  }
@@ -2838,11 +2832,70 @@ cw_sound_soundcard_internal (int frequency)
        * No change in sound frequency or volume, but keep the data generation
        * going to keep soundcard buffers from underrunning.
        */
-      cw_generate_sound_internal ();
+      /* cw_generate_sound_internal (); */
     }
 
   return RC_SUCCESS;
 }
+#endif
+
+
+
+
+/*
+  Turn on/off audio produced using soundcard.
+
+  Since the sine wave generator is always running, the function only
+  toggles amplitude of generated sine wave between zero and some
+  maximum value. The toggling is indirect: function sets generator->slope
+  to achieve less abrupt beginning/end of sine wave. */
+int cw_sound_soundcard_internal(int state)
+{
+	if (generator->audio_system != CW_AUDIO_OSS
+	    && generator->audio_system != CW_AUDIO_ALSA) {
+
+		fprintf(stderr, "cwlib: called the function for output other than sound card (%d)\n",
+			generator->audio_system);
+
+		/* Strictly speaking this should be RC_ERROR, but this
+		   is not a place and time to do anything more. The above
+		   message printed to stderr should be enough to catch
+		   problems during development phase */
+		return RC_SUCCESS;
+	}
+
+	/* TODO:
+	   With this new scheme of producing a sound the sound is
+	   a bit longer than a dot (or a dash) by a time needed to
+	   decrease amplitude of sine wave from 'volume' to zero.
+	   When a timer signals that it's time to stop generating
+	   a sound, the library proceeds to gradually decrease
+	   amplitude of sine wave producing a falling slope. Length
+	   of the slope is inversely proportional to
+	   CW_AUDIO_GENERATOR_SLOPE.
+
+	   This additional time used to generate falling slope is rather
+	   small but cannot be tolerated. Thus I need to come up with
+	   better way of ending a sound. Somehow the slope must appear
+	   (i.e. the amplitude needs to start decreasing) *before*
+	   expected end of sound. */
+
+	/* use 'slope' to control amplitude of sine wave generator:
+	   negative slope decreases amplitude to zero, positive slope
+	   increases amplitude to current volume level */
+	if (state == TONE_SILENT) { /* TONE_SILENT == 0, silence the sound */
+		fprintf(stderr, "cwlib: toggling sound level to 0\n");
+		generator->slope = -CW_AUDIO_GENERATOR_SLOPE;
+	} else {
+		fprintf(stderr, "cwlib: toggling sound level to 1\n");
+		generator->slope = CW_AUDIO_GENERATOR_SLOPE;
+	}
+
+	return RC_SUCCESS;
+}
+
+
+
 
 
 #if defined(KIOCSOUND)
@@ -2863,7 +2916,6 @@ static int cw_open_device_console(const char *device)
 
 	int console = open(device, O_WRONLY);
 	if (console == -1) {
-		fprintf(stderr, "cw: open1 ");
 		perror(device);
 		return RC_ERROR;
         }
@@ -2917,7 +2969,7 @@ static int cw_close_device_console(void)
  * ioctl to start a particular tone generating in the kernel.  Once started,
  * the console tone generation needs no maintenance.
  */
-static int cw_sound_console_internal(int frequency)
+static int cw_sound_console_internal(int state)
 {
 	/* TODO: do we have to re-check this here? */
 #if defined(KIOCSOUND)
@@ -2929,12 +2981,14 @@ static int cw_sound_console_internal(int frequency)
 	 * crude, but perhaps just slightly better than doing nothing.
 	 */
 	int argument = 0;
-	if (generator->volume > 0 && frequency > 0) {
-		argument = KIOCSOUND_CLOCK_TICK_RATE / frequency;
+	if (generator->volume > 0 && state) {
+		argument = KIOCSOUND_CLOCK_TICK_RATE / generator->frequency;
 	}
 
 	if (cw_is_debugging_internal(CW_DEBUG_SOUND)) {
-		fprintf (stderr, "cw: KIOCSOUND arg = %d (%d Hz, %d %%)\n", argument, frequency, generator->volume);
+		fprintf (stderr,
+			 "cwlib: KIOCSOUND arg = %d (switch: %d, frequency: %d Hz, volume: %d %%)\n",
+			 argument, state, generator->frequency, generator->volume);
 	}
 #if 0
 	/* If the console file is not open, open it now. */
@@ -2964,22 +3018,11 @@ static int cw_sound_console_internal(int frequency)
  * until the next tone is requested.  This also ensures that the DSP
  * soundcard device remains closed until it is needed again.
  */
-static int
-cw_release_sound_internal(void)
+int cw_release_sound_internal(void)
 {
-#if 0
-	/* Close the console if it is open. */
-	if (generator->sound_system == CW_AUDIO_CONSOLE) {
-		cw_close_sound_console_internal();
-	}
+	cw_generator_stop();
+	cw_generator_delete();
 
-	/* Silence the soundcard if there is current soundcard activity. */
-	if (cw_sound_generate_frequency != TONE_SILENT) {
-		/* Tell the background tone generation to go idle. */
-		cw_sound_generate_frequency = TONE_SILENT;
-		cw_generate_sound_internal();
-	}
-#endif
 	return RC_SUCCESS;
 }
 
@@ -2993,21 +3036,24 @@ cw_release_sound_internal(void)
  * routines running inside signal handlers are free to ignore this.  The
  * function does nothing if silence is requested in the library flags.
  */
-static int cw_sound_internal(int frequency)
+int cw_sound_internal(int frequency)
 {
-	int status = RC_SUCCESS;
 	/* If silence requested, then ignore the call. */
-	if (!(cw_is_debugging_internal(CW_DEBUG_SILENT))) {
+	if (cw_is_debugging_internal(CW_DEBUG_SILENT)) {
+		return RC_SUCCESS;
+	}
 
-		if (generator->sound_system == CW_AUDIO_OSS
-		    || generator->sound_system == CW_AUDIO_ALSA) {
+	int state = frequency == 0 ? 0 : 1;
+	int status = RC_SUCCESS;
 
-			status = cw_sound_soundcard_internal(frequency);
-		} else if (generator->sound_system == CW_AUDIO_CONSOLE) {
-			status = cw_sound_console_internal(frequency);
-		} else {
-			;
-		}
+	if (generator->audio_system == CW_AUDIO_OSS
+	    || generator->audio_system == CW_AUDIO_ALSA) {
+
+		status = cw_sound_soundcard_internal(frequency);
+	} else if (generator->audio_system == CW_AUDIO_CONSOLE) {
+		status = cw_sound_console_internal(frequency);
+	} else {
+		;
 	}
 
 	return status;
@@ -5914,7 +5960,7 @@ cw_straight_key_clock_internal (void)
   if (cw_sk_key_down)
     {
       /* Generate a quantum of tone data, and request another timeout. */
-      cw_generate_sound_internal ();
+      /* cw_generate_sound_internal (); */
       cw_request_timeout_internal (STRAIGHT_KEY_TIMEOUT, NULL);
     }
 }
@@ -6033,7 +6079,7 @@ cw_reset_straight_key (void)
 
 
 
-#if CWLIB_MAIN
+#if CW_MAIN
 
 /* for stand-alone testing */
 int main(void)
@@ -6083,6 +6129,8 @@ int main(void)
 	cw_generator_stop();
 	cw_generator_delete();
 
+
+
 	return 0;
 }
 
@@ -6097,7 +6145,6 @@ int cw_open_device_oss(const char *device)
 	/* Open the given soundcard device file, for write only. */
 	int soundcard = open(device, O_WRONLY);
 	if (soundcard == -1) {
-		fprintf(stderr, "cw: open ");
 		perror(device);
 		return RC_ERROR;
         }
@@ -6181,7 +6228,7 @@ int cw_open_device_oss(const char *device)
 	}
 
 
-#if CWLIB_OSS_SET_FRAGMENT
+#if CW_OSS_SET_FRAGMENT
 	/*
 	 * Live a little dangerously, by trying to set the fragment size of the
 	 * card.  We'll try for a relatively short fragment of 128 bytes.  This
@@ -6216,7 +6263,7 @@ int cw_open_device_oss(const char *device)
         }
 
 #endif
-#if CWLIB_OSS_SET_POLICY
+#if CW_OSS_SET_POLICY
 	parameter = 5;
 	if (ioctl(soundcard, SNDCTL_DSP_POLICY, &parameter) == -1) {
 		perror("cw: ioctl SNDCTL_DSP_POLICY");
@@ -6288,7 +6335,7 @@ int cw_close_device_oss(void)
 
 
 
-int cw_generator_new(int sound_system, const char *device)
+int cw_generator_new(int audio_system, const char *device)
 {
 	generator = (cw_gen_t *) malloc(sizeof (cw_gen_t));
 	if (generator == NULL) {
@@ -6296,27 +6343,30 @@ int cw_generator_new(int sound_system, const char *device)
 		return RC_ERROR;
 	}
 
-	generator->sound_system = sound_system;
+	generator->audio_device = NULL;
+	generator->audio_system = audio_system;
 	generator->audio_device_open = 0;
 	cw_set_audio_device(device);
 
-	if (sound_system == CW_AUDIO_CONSOLE) {
+	if (audio_system == CW_AUDIO_CONSOLE) {
 		/* TODO: check return values */
-		cw_open_device_console(cw_audio_device);
+		cw_open_device_console(generator->audio_device);
 		return RC_SUCCESS;
-	} else if (sound_system == CW_AUDIO_OSS) {
+	} else if (audio_system == CW_AUDIO_OSS) {
 		/* TODO: check return values */
-		cw_open_device_oss(cw_audio_device);
+		cw_open_device_oss(generator->audio_device);
 		return RC_SUCCESS;
-	} else if (sound_system == CW_AUDIO_ALSA) {
+	} else if (audio_system == CW_AUDIO_ALSA) {
 		/* TODO: check return values */
-		cw_open_device_alsa(cw_audio_device);
-		//cw_close_device_alsa();
-		//exit(0);
+		cw_open_device_alsa(generator->audio_device);
+		/*
+		  cw_close_device_alsa();
+		  exit(0);
+		*/
 		return RC_SUCCESS;
 	} else {
 		cw_generator_delete();
-		fprintf(stderr, "cw: unsupported sound system\n");
+		fprintf(stderr, "cwlib: unsupported audio system\n");
 		return RC_ERROR;
 	}
 }
@@ -6328,22 +6378,22 @@ int cw_generator_new(int sound_system, const char *device)
 void cw_generator_delete(void)
 {
 	if (generator != NULL) {
-		if (cw_audio_device) {
-			free(cw_audio_device);
-			cw_audio_device = NULL;
+		if (generator->audio_device) {
+			free(generator->audio_device);
+			generator->audio_device = NULL;
 		}
 
-		if (generator->sound_system == CW_AUDIO_CONSOLE) {
+		if (generator->audio_system == CW_AUDIO_CONSOLE) {
 			cw_close_device_console();
-		} else if (generator->sound_system == CW_AUDIO_OSS) {
+		} else if (generator->audio_system == CW_AUDIO_OSS) {
 			cw_close_device_oss();
-		} else if (generator->sound_system == CW_AUDIO_ALSA) {
+		} else if (generator->audio_system == CW_AUDIO_ALSA) {
 			cw_close_device_alsa();
 		} else {
-			fprintf(stderr, "cw: missed sound system %d\n", generator->sound_system);
+			fprintf(stderr, "cwlib: missed audio system %d\n", generator->audio_system);
 		}
 
-		generator->sound_system = CW_AUDIO_NONE;
+		generator->audio_system = CW_AUDIO_NONE;
 		free(generator);
 		generator = NULL;
 	}
@@ -6370,14 +6420,14 @@ int cw_generator_start(void)
 
 	generator->generate = 1;
 
-	if (generator->sound_system == CW_AUDIO_CONSOLE) {
+	if (generator->audio_system == CW_AUDIO_CONSOLE) {
 		; /* no thread needed for generating sound on console */
-	} else if (generator->sound_system == CW_AUDIO_OSS) {
+	} else if (generator->audio_system == CW_AUDIO_OSS) {
 		int rv = pthread_create(&(generator->thread), NULL,
 					cw_generator_write_sine_wave_oss,
 					(void *) generator);
 		if (rv != 0) {
-			fprintf(stderr, "cwlib: failed to create OSS generator thread\n");
+			fprintf(stderr, "ERROR: failed to create OSS generator thread\n");
 			return RC_ERROR;
 		} else {
 			/* for some yet unknown reason you have to
@@ -6386,12 +6436,12 @@ int cw_generator_start(void)
 			usleep(100000);
 			return RC_SUCCESS;
 		}
-	} else if (generator->sound_system == CW_AUDIO_ALSA) {
+	} else if (generator->audio_system == CW_AUDIO_ALSA) {
 		int rv = pthread_create(&(generator->thread), NULL,
 					cw_generator_write_sine_wave_alsa,
 					(void *) generator);
 		if (rv != 0) {
-			fprintf(stderr, "cwlib: failed to create ALSA generator thread\n");
+			fprintf(stderr, "ERROR: failed to create ALSA generator thread\n");
 			return RC_ERROR;
 		} else {
 			/* for some yet unknown reason you have to
@@ -6401,7 +6451,7 @@ int cw_generator_start(void)
 			return RC_SUCCESS;
 		}
 	} else {
-		fprintf(stderr, "cwlib: unsupported sound system %d\n", generator->sound_system);
+		fprintf(stderr, "cwlib: unsupported audio system %d\n", generator->audio_system);
 	}
 
 	return RC_SUCCESS;
@@ -6411,13 +6461,13 @@ int cw_generator_start(void)
 
 void cw_generator_stop(void)
 {
-	if (generator->sound_system == CW_AUDIO_CONSOLE) {
+	if (generator->audio_system == CW_AUDIO_CONSOLE) {
 		/* sine wave generation should have been stopped
 		   by a code generating dots/dashes, but
 		   just in case... */
 		ioctl(generator->audio_sink, KIOCSOUND, 0);
-	} else if (generator->sound_system == CW_AUDIO_OSS
-		   || generator->sound_system == CW_AUDIO_ALSA) {
+	} else if (generator->audio_system == CW_AUDIO_OSS
+		   || generator->audio_system == CW_AUDIO_ALSA) {
 
 		generator->slope = -CW_AUDIO_GENERATOR_SLOPE;
 
@@ -6460,7 +6510,7 @@ void *cw_generator_write_sine_wave_oss(void *arg)
 
 
 /* TODO: buffer size currently is constant, but in future
-   may be dependent on sound system */
+   may be dependent on audio system */
 int cw_generator_calculate_sine_wave(cw_gen_t *gen, short *buf)
 {
 	int i = 0;
@@ -6695,7 +6745,7 @@ int cw_set_alsa_hw_params(snd_pcm_t *handle, snd_pcm_hw_params_t *params)
 	}
 
 
-#if CWLIB_ALSA_HW_BUFFER_CONFIG
+#if CW_ALSA_HW_BUFFER_CONFIG
 	/* This doesn't quite work, this is just a test
 	   area for code configuring hardware buffer.
 	   Hopefully someday I will master ALSA API... */
