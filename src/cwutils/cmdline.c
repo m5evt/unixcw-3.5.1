@@ -36,8 +36,15 @@
 #endif
 
 #include "cmdline.h"
-
+#include "i18n.h"
 #include "memory.h"
+#include "cwlib.h"
+#include "copyright.h"
+
+
+static int cw_process_option(int opt, const char *optarg, cw_config_t *config, const char *argv0);
+static void cw_print_usage(const char *argv0);
+static void cw_generator_apply_config(cw_config_t *config);
 
 
 /*---------------------------------------------------------------------*/
@@ -265,3 +272,287 @@ get_optind (void)
 {
   return optind;
 }
+
+
+
+void cw_print_help(const char *argv0, cw_config_t *config)
+{
+	/* TODO: make use of this */
+	/* int format = has_longopts() */
+	fprintf(stderr, _("Usage: %s [options...]\n\n"), argv0);
+
+	fprintf(stderr, _("Audio system options:\n"));
+	fprintf(stderr, _("  -s, --system=SYSTEM\n"));
+	fprintf(stderr, _("        generate sound using SYSTEM audio system\n"));
+	fprintf(stderr, _("        SYSTEM: {console|oss|alsa|soundcard}\n"));
+	fprintf(stderr, _("        'console': use system console/buzzer\n"));
+	fprintf(stderr, _("               this output may require root privileges\n"));
+	fprintf(stderr, _("        'oss': use OSS output\n"));
+	fprintf(stderr, _("        'alsa' use ALSA output\n"));
+	fprintf(stderr, _("        'soundcard': use either OSS or ALSA\n"));
+	fprintf(stderr, _("        default sound system: 'oss'\n\n"));
+	fprintf(stderr, _("  -d, --device=DEVICE\n"));
+	fprintf(stderr, _("        use DEVICE as output device instead of default one\n"));
+	fprintf(stderr, _("        optional for {console|alsa|oss}\n"));
+	fprintf(stderr, _("        specify a device to be used \n"));
+	fprintf(stderr, _("        default devices are:\n"));
+	fprintf(stderr, _("        'console': %s\n"), CW_DEFAULT_CONSOLE_DEVICE);
+	fprintf(stderr, _("        'oss': %s\n"), CW_DEFAULT_OSS_DEVICE);
+	fprintf(stderr, _("        'alsa': %s\n\n"), CW_DEFAULT_ALSA_DEVICE);
+
+	fprintf(stderr, _("Sending options:\n"));
+
+	fprintf(stderr, _("  -w, --wpm=WPM          set initial words per minute\n"));
+	fprintf(stderr, _("                         valid values: %d - %d\n"), CW_MIN_SPEED, CW_MAX_SPEED);
+	fprintf(stderr, _("                         default value: %d\n"), CW_INITIAL_SEND_SPEED);
+	fprintf(stderr, _("  -t, --tone=HZ          set initial tone to HZ\n"));
+	fprintf(stderr, _("                         valid values: %d - %d\n"), CW_MIN_FREQUENCY, CW_MAX_FREQUENCY);
+	fprintf(stderr, _("                         default value: %d\n"), CW_INITIAL_FREQUENCY);
+	fprintf(stderr, _("  -v, --volume=PERCENT   set initial volume to PERCENT\n"));
+	fprintf(stderr, _("                         valid values: %d - %d\n"), CW_MIN_VOLUME, CW_MAX_VOLUME);
+	fprintf(stderr, _("                         default value: %d\n"), CW_INITIAL_VOLUME);
+
+	fprintf(stderr, _("Dot/dash options:\n"));
+	fprintf(stderr, _("  -g, --gap=GAP          set extra gap between letters\n"));
+	fprintf(stderr, _("                         valid values: %d - %d\n"), CW_MIN_GAP, CW_MAX_GAP);
+	fprintf(stderr, _("                         default value: %d\n"), CW_INITIAL_GAP);
+	fprintf(stderr, _("  -k, --weighting=WEIGHT set weighting to WEIGHT\n"));
+	fprintf(stderr, _("                         valid values: %d - %d\n"), CW_MIN_WEIGHTING, CW_MAX_WEIGHTING);
+	fprintf(stderr, _("                         default value: %d\n"), CW_INITIAL_WEIGHTING);
+
+	fprintf(stderr, _("Other options:\n"));
+	if (config->is_cw) {
+		fprintf(stderr, _("  -e, --noecho           disable sending echo to stdout\n"));
+		fprintf(stderr, _("  -m, --nomessages       disable writing messages to stderr\n"));
+		fprintf(stderr, _("  -c, --nocommands       disable executing embedded commands\n"));
+		fprintf(stderr, _("  -o, --nocombinations   disallow [...] combinations\n"));
+		fprintf(stderr, _("  -p, --nocomments       disallow {...} comments\n"));
+	}
+	if (config->has_practice_time) {
+		fprintf(stderr, _("  -T, --time=TIME    set initial practice time\n"));
+		fprintf(stderr, _("                     default value: %d\n"), CW_PRACTICE_TIME_INITIAL);
+	}
+	fprintf(stderr, _("  -f, --infile=FILE        read practice words from FILE\n"));
+	if (config->has_outfile) {
+		fprintf(stderr, _("  -F, --outfile=FILE        write current configuration to FILE\n"));
+	}
+	if (config->is_cw) {
+		fprintf(stderr, _("                         default file: stdin\n"));
+	}
+	fprintf(stderr, "\n");
+	fprintf(stderr, _("  -h, --help             print this message\n"));
+	fprintf(stderr, _("  -V, --version          print version information\n\n"));
+
+	return;
+}
+
+
+
+
+
+int cw_process_argv(int argc, char *const argv[], const char *options, cw_config_t *config)
+{
+	const char *argv0 = program_basename(argv[0]);
+
+	int option;
+	char *argument;
+
+	while (get_option(argc, argv, options, &option, &argument)) {
+		int rv = cw_process_option(option, argument, config, argv0);
+		if (rv != 0) {
+			return -1;
+		}
+	}
+
+	if (get_optind() != argc) {
+		fprintf(stderr, "cwlib: expected argument after options\n");
+		cw_print_usage(argv0);
+		return -1;
+	} else {
+		return 0;
+	}
+}
+
+
+
+
+
+int cw_process_option(int opt, const char *optarg, cw_config_t *config, const char *argv0)
+{
+	switch (opt) {
+	case 's':
+		if (!strcmp(optarg, "alsa")
+		    || !strcmp(optarg, "a")) {
+
+			config->audio_system = CW_AUDIO_ALSA;
+		} else if (!strcmp(optarg, "oss")
+			   || !strcmp(optarg, "o")) {
+
+			config->audio_system = CW_AUDIO_OSS;
+		} else if (!strcmp(optarg, "console")
+			   || !strcmp(optarg, "c")) {
+
+			config->audio_system = CW_AUDIO_CONSOLE;
+
+		} else if (!strcmp(optarg, "soundcard")
+			   || !strcmp(optarg, "s")) {
+
+			config->audio_system = CW_AUDIO_SOUNDCARD;
+		} else {
+			fprintf(stderr, "cwlib: invalid audio system (option 's'): %s\n", optarg);
+			return -1;
+		}
+		break;
+
+	case 'd':
+		fprintf(stderr, "cwlib: d:%s\n", optarg);
+		if (optarg && strlen(optarg)) {
+			config->audio_device = strdup(optarg);
+		} else {
+			fprintf(stderr, "cwlib: no device specified for option -d\n");
+			return -1;
+		}
+		break;
+
+	case 'w':
+		{
+			fprintf(stderr, "cwlib: w:%s\n", optarg);
+			int speed = atoi(optarg);
+			if (speed < CW_MIN_SPEED || speed > CW_MAX_SPEED) {
+				fprintf(stderr, "cwlib: speed out of range: %d\n", speed);
+				return -1;
+			} else {
+				config->send_speed = speed;
+			}
+			break;
+		}
+
+	case 't':
+		{
+			fprintf(stderr, "cwlib: t:%s\n", optarg);
+			int frequency = atoi(optarg);
+			if (frequency < CW_MIN_FREQUENCY || frequency > CW_MAX_FREQUENCY) {
+				fprintf(stderr, "cwlib: frequency out of range: %d\n", frequency);
+				return -1;
+			} else {
+				config->frequency = frequency;
+			}
+			break;
+		}
+
+	case 'v':
+		{
+			fprintf(stderr, "cwlib: v:%s\n", optarg);
+			int volume = atoi(optarg);
+			if (volume < CW_MIN_FREQUENCY || volume > CW_MAX_FREQUENCY) {
+				fprintf(stderr, "cwlib: volume level out of range: %d\n", volume);
+				return -1;
+			} else {
+				config->volume = volume;
+			}
+			break;
+		}
+
+	case 'g':
+		{
+			fprintf(stderr, "cwlib: g:%s\n", optarg);
+			int gap = atoi(optarg);
+			if (gap < CW_MIN_GAP || gap > CW_MAX_GAP) {
+				fprintf(stderr, "cwlib: gap out of range: %d\n", gap);
+				return -1;
+			} else {
+				config->gap = gap;
+			}
+			break;
+		}
+
+	case 'k':
+		{
+			fprintf(stderr, "cwlib: k:%s\n", optarg);
+			int weighting = atoi(optarg);
+			if (weighting < CW_MIN_WEIGHTING || weighting > CW_MAX_WEIGHTING) {
+				fprintf(stderr, "cwlib: weighting out of range: %d\n", weighting);
+				return -1;
+			} else {
+				config->weighting = weighting;
+			}
+			break;
+		}
+
+	case 'T':
+		{
+			fprintf(stderr, "cwlib: T:%s\n", optarg);
+			int time = atoi(optarg);
+			if (time < 0) {
+				fprintf(stderr, "cwlib: practice time is negative\n");
+				return -1;
+			} else {
+				config->practice_time = time;
+			}
+			break;
+		}
+
+	case 'f':
+		if (optarg && strlen(optarg)) {
+			config->input_file = strdup(optarg);
+		} else {
+			fprintf(stderr, "cwlib: no input file specified for option -i\n");
+			return -1;
+		}
+		/* TODO: access() */
+		break;
+
+        case 'e':
+		config->do_echo = FALSE;
+		break;
+
+        case 'm':
+		config->do_errors = FALSE;
+		break;
+
+        case 'c':
+		config->do_commands = FALSE;
+		break;
+
+        case 'o':
+		config->do_combinations = FALSE;
+		break;
+
+        case 'p':
+		config->do_comments = FALSE;
+		break;
+
+	case 'h':
+		cw_print_help(argv0, config);
+		return 0;
+
+	case 'V':
+		fprintf(stderr, _("%s version %s\n"), argv0, PACKAGE_VERSION);
+		fprintf(stderr, "%s\n", CW_COPYRIGHT);
+
+	case '?':
+		cw_print_usage(argv0);
+		return -1;
+
+	default: /* '?' */
+		cw_print_usage(argv0);
+		return -1;
+	}
+
+	return 0;
+}
+
+
+
+
+void cw_print_usage(const char *argv0)
+{
+	const char *format = has_longopts()
+		? _("Try '%s --help' for more information.\n")
+		: _("Try '%s -h' for more information.\n");
+
+	fprintf(stderr, format, argv0);
+	return;
+}
+
+
