@@ -93,7 +93,7 @@ cw_self_test_admin (void)
     }
   else
     cw_set_console_sound (TRUE);
-  if (!cw_is_soundcard_possible ())
+  if (!cw_is_oss_possible (NULL))
     {
       printf ("cwlib: soundcard device unavailable\n");
       perror (cw_get_soundcard_device());
@@ -1613,7 +1613,7 @@ cw_self_test (unsigned int testset)
         }
       else
         cw_set_console_sound (TRUE);
-      if (!cw_is_soundcard_possible ())
+      if (!cw_is_oss_possible (NULL))
         {
           printf ("cwlib: sound device unavailable, %s\n",
             cw_get_soundcard_device());
