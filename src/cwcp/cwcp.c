@@ -58,6 +58,14 @@ static int do_colors = TRUE;
 /* Curses windows used globally. */
 static WINDOW *text_box, *text_display, *timer_display;
 
+static const char *all_options = "s:|system,d:|device,"
+	"w:|wpm,t:|tone,v:|volume,"
+	"g:|gap,k:|weighting,"
+	"f:|infile,F:|outfile,"
+	"p:|time,"
+	/* "c:|colours,c:|colors,m|mono," */
+	"h|help,V|version";
+static cw_config_t *config;
 
 /*---------------------------------------------------------------------*/
 /*  Circular character queue                                           */
@@ -81,13 +89,19 @@ static volatile int is_queue_idle = TRUE;
 
 /* variables storing values of some command line arguments */
 static const char *argv0 = NULL;
+
+
+static int timer_get_practice_time(void);
+static int timer_set_practice_time(int practice_time);
+
+/*
 static int is_console = FALSE;
 static int is_soundcard = TRUE;
 static int is_alsa = FALSE;
 static char *console_device = NULL;
 static char *soundcard_device = NULL;
-//static char *mixer_device = NULL;
-
+static char *mixer_device = NULL;
+*/
 
 
 /*
@@ -1257,7 +1271,7 @@ interface_handle_event (int c)
 /*---------------------------------------------------------------------*/
 /*  Command line mechanics                                             */
 /*---------------------------------------------------------------------*/
-
+#if 0
 /*
  * print_usage()
  *
@@ -1579,7 +1593,7 @@ parse_command_line (int argc, char **argv)
   cw_set_console_sound (is_console);
 #endif
 }
-
+#endif
 
 /*
  * poll_until_keypress_ready()
@@ -1645,96 +1659,97 @@ signal_handler (int signal_number)
  * Parse the command line, initialize a few things, then enter the main
  * program event loop, from which there is no return.
  */
-int
-main (int argc, char **argv)
+int main(int argc, char **argv)
 {
-  static const int SIGNALS[] = { SIGHUP, SIGINT, SIGQUIT, SIGPIPE, SIGTERM, 0 };
+	argv0 = program_basename(argv[0]);
 
-  int combined_argc, index;
-  char **combined_argv;
+	/* Set locale and message catalogs. */
+	i18n_initialize();
 
-  /* Set locale and message catalogs. */
-  i18n_initialize ();
+	/* Parse combined environment and command line arguments. */
+	int combined_argc;
+	char **combined_argv;
 
-  /* Parse combined environment and command line arguments. */
-  combine_arguments (_("CWCP_OPTIONS"),
-                     argc, argv, &combined_argc, &combined_argv);
-  parse_command_line (combined_argc, combined_argv);
+	/* Parse combined environment and command line arguments. */
+	combine_arguments(_("CWCP_OPTIONS"), argc, argv, &combined_argc, &combined_argv);
 
-  int rv = 0;
-  if (is_console) {
-	  if (!cw_is_console_possible(console_device)) {
-		  fprintf(stderr, _("%s: cannot set up console sound\n"), argv0);
-		  exit(EXIT_FAILURE);
-	  }
+	config = cw_config_new();
+	if (!config) {
+		return -1;
+	}
+	config->has_practice_time = 1;
+	config->has_outfile = 1;
 
-	  rv = cw_generator_new(CW_AUDIO_CONSOLE, console_device);
-	  if (rv != 1) {
-		  fprintf(stderr,
-			  "%s: failed to open console output with device \"%s\"\n",
-			  argv0, cw_get_console_device());
-	  }
-  } else if (is_soundcard) {
-	  rv = cw_generator_new(CW_AUDIO_OSS, soundcard_device);
-	  if (rv != 1) {
-		  fprintf(stderr,
-			  "%s: failed to open OSS output with device \"%s\"\n",
-			  argv0, cw_get_soundcard_device());
-	  }
-  } else if (is_alsa) {
-	  rv = cw_generator_new(CW_AUDIO_ALSA, soundcard_device);
-	  if (rv != 1) {
-		  fprintf(stderr,
-			  "%s: failed to open ALSA output with device \"%s\"\n",
-			  argv0, cw_get_soundcard_device());
-	  }
-  } else {
-	  fprintf(stderr, "%s: both console and soundcard outputs disabled\n", argv0);
-	  rv = 0;
-  }
+	int rv = cw_process_argv(argc, argv, all_options, config);
+	if (rv != 0) {
+		fprintf(stderr, _("%s: failed to parse command line args\n"), argv0);
+		return -1;
+	}
+	if (!cw_config_is_valid(config)) {
+		fprintf(stderr, _("%s: inconsistent arguments\n"), argv0);
+		return -1;
+	}
 
-  if (rv != 1) {
-	  fprintf(stderr, "%s: failed to create generator\n", argv0);
-	  exit(EXIT_FAILURE);
-  }
+	if (config->input_file) {
+		if (!dictionary_load(config->input_file)) {
+			fprintf(stderr, _("%s: %s\n"), argv0, strerror(errno));
+			fprintf(stderr, _("%s: can't load dictionary from input file %s\n"), argv0, config->input_file);
+			return -1;
+		}
+	}
 
-  /* Set up signal handlers to clear up and exit on a range of signals. */
-  for (index = 0; SIGNALS[index] != 0; index++)
-    {
-      if (!cw_register_signal_handler (SIGNALS[index], signal_handler))
-        {
-          perror ("cw_register_signal_handler");
-          abort ();
-        }
-    }
+	if (config->output_file) {
+		if (!dictionary_write(config->output_file)) {
+			fprintf(stderr, _("%s: %s\n"), argv0, strerror(errno));
+			fprintf(stderr, _("%s: can't save dictionary to output file  %s\n"), argv0, config->input_file);
+			return -1;
+		}
+	}
 
-  /*
-   * Build our table of modes from dictionaries, augmented with keyboard
-   * and any other local modes.
-   */
-  mode_initialize ();
+	rv = cw_generator_new_from_config(config, argv0);
+	if (rv != 1) {
+		fprintf(stderr, "%s: failed to create generator\n", argv0);
+		exit(EXIT_FAILURE);
+	}
 
-  /*
-   * Initialize the curses user interface, then catch and action every
-   * keypress we see.  Before calling getch, wait until data is available on
-   * stdin, polling the cwlib sender.  At 60WPM, a dot is 20ms, so polling
-   * for the maximum library speed needs a 10ms (10,000usec) timeout.
-   */
-  interface_initialize ();
-  cw_generator_start();
-  while (is_running)
-    {
-      poll_until_keypress_ready (fileno (stdin), 10000);
-      interface_handle_event (getch ());
-    }
 
-  /* Clean up and return. */
-  interface_destroy ();
-  cw_wait_for_tone_queue ();
-  cw_generator_stop();
-  /* Reset to ensure that the mixer volume gets restored. */
-  cw_complete_reset();
-  cw_generator_delete();
+	int index;
+	static const int SIGNALS[] = { SIGHUP, SIGINT, SIGQUIT, SIGPIPE, SIGTERM, 0 };
+	/* Set up signal handlers to clear up and exit on a range of signals. */
+	for (index = 0; SIGNALS[index] != 0; index++) {
+		if (!cw_register_signal_handler(SIGNALS[index], signal_handler)) {
+			fprintf(stderr, _("%s: can't register signal: %s\n"), argv0, strerror(errno));
+			exit(EXIT_FAILURE);
+		}
+	}
 
-  return EXIT_SUCCESS;
+	/*
+	 * Build our table of modes from dictionaries, augmented with keyboard
+	 * and any other local modes.
+	 */
+	mode_initialize ();
+
+	/*
+	 * Initialize the curses user interface, then catch and action every
+	 * keypress we see.  Before calling getch, wait until data is available on
+	 * stdin, polling the cwlib sender.  At 60WPM, a dot is 20ms, so polling
+	 * for the maximum library speed needs a 10ms (10,000usec) timeout.
+	 */
+	interface_initialize ();
+	cw_generator_start();
+	while (is_running) {
+		poll_until_keypress_ready(fileno(stdin), 10000);
+		interface_handle_event(getch());
+	}
+
+	/* Clean up and return. */
+	interface_destroy();
+	cw_wait_for_tone_queue();
+	cw_generator_stop();
+	/* Reset to ensure that the mixer volume gets restored. */
+	cw_complete_reset();
+	cw_generator_delete();
+	cw_config_delete(&config);
+
+	exit(EXIT_SUCCESS);
 }
