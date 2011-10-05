@@ -34,7 +34,8 @@ enum cw_audio_systems {
 	CW_AUDIO_NONE = 0,
 	CW_AUDIO_CONSOLE,
 	CW_AUDIO_OSS,
-	CW_AUDIO_ALSA
+	CW_AUDIO_ALSA,
+	CW_AUDIO_SOUNDCARD /* ALSA or OSS */
 };
 
 
@@ -85,8 +86,6 @@ typedef struct {
 	double phase;
 
 
-	/* ALSA specific variables */
-
 
 	pthread_t thread;
 } cw_gen_t;
@@ -96,6 +95,28 @@ typedef struct {
 #define CW_DEFAULT_OSS_DEVICE       "/dev/audio"
 #define CW_DEFAULT_ALSA_DEVICE      "default"
 
+
+/* Limits on values of CW send and timing parameters */
+#define CW_MIN_SPEED         4     /* Lowest WPM allowed */
+#define CW_MAX_SPEED        60     /* Highest WPM allowed */
+#define CW_MIN_FREQUENCY     0     /* Lowest tone allowed (0=silent) */
+#define CW_MAX_FREQUENCY  4000     /* Highest tone allowed */
+#define CW_MIN_VOLUME        0     /* Quietest volume allowed (0=silent) */
+#define CW_MAX_VOLUME      100     /* Loudest volume allowed */
+#define CW_MIN_GAP           0     /* Lowest extra gap allowed */
+#define CW_MAX_GAP          60     /* Highest extra gap allowed */
+#define CW_MIN_WEIGHTING    20     /* Lowest weighting allowed */
+#define CW_MAX_WEIGHTING    80     /* Highest weighting allowed */
+#define CW_MIN_TOLERANCE     0     /* Lowest receive tolerance allowed */
+#define CW_MAX_TOLERANCE    90     /* Highest receive tolerance allowed */
+
+#define CW_INITIAL_SEND_SPEED     12   /* Initial send speed in WPM */
+#define CW_INITIAL_RECEIVE_SPEED  12   /* Initial receive speed in WPM */
+#define CW_INITIAL_FREQUENCY     800   /* Initial tone in Hz */
+#define CW_INITIAL_VOLUME         70   /* Initial volume percent */
+#define CW_INITIAL_GAP             0   /* Initial gap setting */
+#define CW_INITIAL_TOLERANCE      50   /* Initial tolerance setting */
+#define CW_INITIAL_WEIGHTING      50   /* Initial weighting setting */
 
 /*
  * Representation characters for Dot and Dash.  Only the following
@@ -183,13 +204,14 @@ extern int cw_get_noise_spike_threshold (void);
 extern void cw_block_callback (int is_block);
 
 extern int cw_is_console_possible(const char *device);
+extern int cw_is_oss_possible(const char *device);
+extern int cw_is_alsa_possible(const char *device);
 
 extern const char *cw_get_console_device(void);
 extern const char *cw_get_soundcard_device(void);
 
 extern void cw_set_soundmixer_file (const char *new_value);
 extern const char *cw_get_soundmixer_file (void);
-extern int cw_is_soundcard_possible (void);
 
 extern void cw_set_console_sound (int sound_state);
 extern int cw_get_console_sound (void);
