@@ -50,11 +50,20 @@
 //-----------------------------------------------------------------------
 
 namespace {
-
+/*
 bool is_console = false, is_soundcard = true, is_alsa = false;
 std::string console_device, soundcard_device;
+*/
+cw_config_t *config = NULL;
 std::string argv0;
+std::string all_options = "s:|sound,d:|device,"
+	"w:|wpm,t:|tone,v:|volume,"
+	"g:|gap,k:|weighting,"
+	"i:|inifile,F:|outfile,"
+	"p:|time,"
+	"h|help,V|version";
 
+#if 0
 // print_usage()
 //
 // Print out a brief message directing the user to the help function.
@@ -333,7 +342,7 @@ parse_command_line (int argc, char **argv)
 #endif
   return;
 }
-
+#endif
 
 // signal_handler()
 //
@@ -354,97 +363,102 @@ signal_handler (int signal_number)
 //
 // Parse the command line, initialize a few things, then instantiate the
 // Application and wait.
-int
-main (int argc, char **argv)
+int main(int argc, char **argv)
 {
-  static const int SIGNALS[] = { SIGHUP, SIGINT, SIGQUIT, SIGPIPE, SIGTERM, 0 };
+	try {
+	    	argv0 = program_basename(argv[0]);
 
-  try
-    {
-      struct sigaction action;
-      int combined_argc;
-      char **combined_argv;
+		/* Set locale and message catalogs. */
+		i18n_initialize();
 
-      // Set locale and message catalogs.
-      i18n_initialize ();
+		/* Parse combined environment and command line arguments. */
+		int combined_argc;
+		char **combined_argv;
 
-      // Parse combined environment and command line arguments.  Arguments
-      // are passed to QApplication() first to allow it to extract any Qt
-      // or X11 options.
-      combine_arguments (_("XCWCP_OPTIONS"),
-                         argc, argv, &combined_argc, &combined_argv);
-      QApplication q_application (combined_argc, combined_argv);
-      parse_command_line (combined_argc, combined_argv);
 
-      if (is_soundcard) {
-	      int rv = cw_generator_new(CW_AUDIO_OSS, soundcard_device.empty() ? NULL : soundcard_device.c_str());
-	      if (rv != 1) {
-		      std::clog << argv0
-				<< _(": cannot set up soundcard sound") << std::endl;
-		      exit(EXIT_FAILURE);
-	      }
-      } else if (is_console) {
-	      int rv = cw_generator_new(CW_AUDIO_CONSOLE, console_device.empty() ? NULL : console_device.c_str());
-	      if (rv != 1) {
-		      std::clog << argv0
-				<< _(": cannot set up console sound") << std::endl;
-		      exit(EXIT_FAILURE);
-	      }
+		// Parse combined environment and command line arguments.  Arguments
+		// are passed to QApplication() first to allow it to extract any Qt
+		// or X11 options.
+		combine_arguments(_("XCWCP_OPTIONS"), argc, argv, &combined_argc, &combined_argv);
 
-      } else if (is_alsa) {
-	      int rv = cw_generator_new(CW_AUDIO_ALSA, soundcard_device.empty() ? NULL : soundcard_device.c_str());
-	      if (rv != 1) {
-		      std::clog << argv0
-				<< _(": failed to open ALSA output")
-				<< std::endl;
-		      exit(EXIT_FAILURE);
-	      }
-      } else {
-	      std::clog << argv0
-			<< "both console and soundcard outputs disabled"
-			<< std::endl;
-	      exit(EXIT_FAILURE);
-      }
+		QApplication q_application (combined_argc, combined_argv);
 
-      cw_generator_start();
+		config = cw_config_new();
+		if (!config) {
+			return -1;
+		}
+		config->has_practice_time = 1;
+		// config->has_outfile = 1;
 
-      /* Set up signal handlers to clean up and exit on a range of signals. */
-      action.sa_handler = signal_handler;
-      action.sa_flags = 0;
-      sigemptyset (&action.sa_mask);
-      for (int index = 0; SIGNALS[index] != 0; index++)
-        {
-          if (!cw_register_signal_handler (SIGNALS[index], signal_handler))
-            {
-              perror ("cw_register_signal_handler");
-              abort ();
-            }
-        }
+		int rv = cw_process_argv(argc, argv, all_options.c_str(), config);
+		if (rv != 0) {
+			fprintf(stderr, _("%s: failed to parse command line args\n"), argv0.c_str());
+			return -1;
+		}
+		if (!cw_config_is_valid(config)) {
+			fprintf(stderr, _("%s: inconsistent arguments\n"), argv0.c_str());
+			return -1;
+		}
 
-      // Display the application's windows.
-      cw::Application *application = new cw::Application ();
-      application->setCaption (_("Xcwcp"));
-      application->show ();
-      q_application.connect (&q_application, SIGNAL (lastWindowClosed ()),
-                             &q_application, SLOT (quit ()));
+		if (config->input_file) {
+			if (!dictionary_load(config->input_file)) {
+				fprintf(stderr, _("%s: %s\n"), argv0.c_str(), strerror(errno));
+				fprintf(stderr, _("%s: can't load dictionary from input file %s\n"), argv0.c_str(), config->input_file);
+				return -1;
+			}
+		}
 
-      // Enter the application event loop.
-      int rv = q_application.exec ();
+		if (config->output_file) {
+			if (!dictionary_write(config->output_file)) {
+				fprintf(stderr, _("%s: %s\n"), argv0.c_str(), strerror(errno));
+				fprintf(stderr, _("%s: can't save dictionary to output file  %s\n"), argv0.c_str(), config->input_file);
+				return -1;
+			}
+		}
 
-      cw_generator_stop();
-      cw_generator_delete();
-      return rv;
-    }
+		rv = cw_generator_new_from_config(config, argv0.c_str());
+		if (rv != 1) {
+			fprintf(stderr, "%s: failed to create generator\n", argv0.c_str());
+			exit(EXIT_FAILURE);
+		}
 
-  // Handle any exceptions thrown by the above.
-  catch (std::bad_alloc)
-    {
-      std::clog << "Internal error: heap memory exhausted" << std::endl;
-      return EXIT_FAILURE;
-    }
-  catch (...)
-    {
-      std::clog << "Internal error: unknown problem" << std::endl;
-      return EXIT_FAILURE;
-    }
+		cw_generator_start();
+
+		/* Set up signal handlers to clean up and exit on a range of signals. */
+		struct sigaction action;
+		action.sa_handler = signal_handler;
+		action.sa_flags = 0;
+		sigemptyset (&action.sa_mask);
+		static const int SIGNALS[] = { SIGHUP, SIGINT, SIGQUIT, SIGPIPE, SIGTERM, 0 };
+		for (int index = 0; SIGNALS[index] != 0; index++) {
+			if (!cw_register_signal_handler(SIGNALS[index], signal_handler)) {
+				perror("cw_register_signal_handler");
+				abort();
+			}
+		}
+
+		// Display the application's windows.
+		cw::Application *application = new cw::Application ();
+		application->setCaption(_("Xcwcp"));
+		application->show();
+		q_application.connect(&q_application, SIGNAL (lastWindowClosed ()),
+				      &q_application, SLOT (quit ()));
+
+		// Enter the application event loop.
+		rv = q_application.exec();
+
+		cw_generator_stop();
+		cw_generator_delete();
+		return rv;
+	}
+
+	// Handle any exceptions thrown by the above.
+	catch (std::bad_alloc) {
+			std::clog << "Internal error: heap memory exhausted" << std::endl;
+			return EXIT_FAILURE;
+	}
+	catch (...) {
+		std::clog << "Internal error: unknown problem" << std::endl;
+		return EXIT_FAILURE;
+	}
 }
