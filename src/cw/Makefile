@@ -34,8 +34,8 @@ all: cw
 cw.o: cw.c ../cwlib/cwlib.h
 
 cw: cw.o
-	$(CC) -o $@ cw.o ../cwutils/i18n.o ../cwutils/cmdline.o	\
-	../cwutils/memory.o $(LIBS) -lm
+	$(CC) -o $@ cw.o ../cwutils/i18n.o ../cwutils/cw_common.o ../cwutils/cmdline.o	\
+	../cwutils/memory.o $(LIBS) -lm -g -O0
 
 # Install targets.
 install: all

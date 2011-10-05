@@ -33,7 +33,7 @@ all: cwcp
 cwcp.o: cwcp.c ../cwlib/cwlib.h
 
 cwcp: cwcp.o
-	$(CC) $(LDFLAGS) -o $@ cwcp.o ../cwutils/i18n.o ../cwutils/cmdline.o \
+	$(CC) $(LDFLAGS) -o $@ cwcp.o ../cwutils/i18n.o ../cwutils/cw_common.o ../cwutils/cmdline.o \
 	../cwutils/dictionary.o ../cwutils/memory.o $(LIBS) -lm -lpthread -lasound
 
 # Install targets.

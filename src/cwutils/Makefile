@@ -26,7 +26,9 @@ SHELL	= /bin/sh
 default: all
 
 # Build everything.
-all: cmdline.o dictionary.o i18n.o memory.o
+all: cmdline.o dictionary.o i18n.o memory.o cw_common.o
+
+cw_common.o: cw_common.c cw_common.h
 
 cmdline.o: cmdline.c cmdline.h
 

@@ -39,7 +39,7 @@ default: all
 all: xcwcp
 
 xcwcp: $(OBJECTS)
-	$(CXX) $(LDFLAGS) -o xcwcp $(OBJECTS) ../cwutils/i18n.o \
+	$(CXX) $(LDFLAGS) -o xcwcp $(OBJECTS) ../cwutils/i18n.o ../cwutils/cw_common.o \
 	../cwutils/cmdline.o ../cwutils/dictionary.o ../cwutils/memory.o \
 	$(LIBS) -lm
 
