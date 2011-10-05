@@ -73,11 +73,14 @@ static int do_echo = TRUE,          /* Echo characters */
            do_comments = TRUE;      /* Allow {...} as comments */
 
 
-
-const char *argv0 = NULL;
-int is_console = FALSE, is_soundcard = TRUE, is_alsa = FALSE;
-const char *console_device = NULL,
-	*soundcard_device = NULL;//, *mixer_device = NULL;
+static cw_config_t *config = NULL;
+static const char *all_options = "s:|system,d:|device,"
+	"w:|wpm,t:|tone,v:|volume,"
+	"g:|gap,k:|weighting,"
+	"f:|infile,"
+	"e|noecho,m|nomessages,c|nocommands,o|nocombinations,p|nocomments,"
+	"h|help,V|version";
+static const char *argv0 = NULL;
 
 
 
@@ -95,7 +98,7 @@ const char *console_device = NULL,
 static void
 write_to_echo_stream (const char *format, ...)
 {
-  if (do_echo)
+  if (config->do_echo)
     {
       va_list ap;
 
@@ -109,7 +112,7 @@ write_to_echo_stream (const char *format, ...)
 static void
 write_to_message_stream (const char *format, ...)
 {
-  if (do_errors)
+  if (config->do_errors)
     {
       va_list ap;
 
@@ -196,19 +199,19 @@ parse_stream_query (FILE *stream)
       value = cw_get_weighting ();
       break;
     case CW_CMDV_ECHO:
-      value = do_echo;
+      value = config->do_echo;
       break;
     case CW_CMDV_ERRORS:
-      value = do_errors;
+      value = config->do_errors;
       break;
     case CW_CMDV_COMMANDS:
-      value = do_commands;
+      value = config->do_commands;
       break;
     case CW_CMDV_COMBINATIONS:
-      value = do_combinations;
+      value = config->do_combinations;
       break;
     case CW_CMDV_COMMENTS:
-      value = do_comments;
+      value = config->do_comments;
       break;
     }
 
@@ -258,23 +261,23 @@ parse_stream_cwquery (FILE *stream)
       format = _("%d PERCENT ");
       break;
     case CW_CMDV_ECHO:
-      value = do_echo;
+      value = config->do_echo;
       format = _("ECHO %s ");
       break;
     case CW_CMDV_ERRORS:
-      value = do_errors;
+      value = config->do_errors;
       format = _("ERRORS %s ");
       break;
     case CW_CMDV_COMMANDS:
-      value = do_commands;
+      value = config->do_commands;
       format = _("COMMANDS %s ");
       break;
     case CW_CMDV_COMBINATIONS:
-      value = do_combinations;
+      value = config->do_combinations;
       format = _("COMBINATIONS %s ");
       break;
     case CW_CMDV_COMMENTS:
-      value = do_comments;
+      value = config->do_comments;
       format = _("COMMENTS %s ");
       break;
     }
@@ -342,19 +345,19 @@ parse_stream_parameter (int c, FILE *stream)
       value_handler = cw_set_weighting;
       break;
     case CW_CMDV_ECHO:
-      do_echo = value;
+      config->do_echo = value;
       break;
     case CW_CMDV_ERRORS:
-      do_errors = value;
+      config->do_errors = value;
       break;
     case CW_CMDV_COMMANDS:
-      do_commands = value;
+      config->do_commands = value;
       break;
     case CW_CMDV_COMBINATIONS:
-      do_combinations = value;
+      config->do_combinations = value;
       break;
     case CW_CMDV_COMMENTS:
-      do_comments = value;
+      config->do_comments = value;
       break;
     }
 
@@ -497,17 +500,17 @@ parse_stream (FILE *stream)
            * Start a comment or combination, handle a command escape, or send
            * the character if none of these checks apply.
            */
-          if (do_comments && c == CW_COMMENT_START)
+          if (config->do_comments && c == CW_COMMENT_START)
             {
               state = COMMENT;
               write_to_echo_stream ("%c", c);
             }
-          else if (do_combinations && c == CW_COMBINATION_START)
+          else if (config->do_combinations && c == CW_COMBINATION_START)
             {
               state = COMBINATION;
               write_to_echo_stream ("%c", c);
             }
-          else if (do_commands && c == CW_CMD_ESCAPE)
+          else if (config->do_commands && c == CW_CMD_ESCAPE)
             parse_stream_command (stream);
           else
             send_cw_character (c, FALSE);
@@ -519,7 +522,7 @@ parse_stream (FILE *stream)
            * handle a command escape, or send the character if none of these
            * checks apply.
            */
-          if (do_comments && c == CW_COMMENT_START)
+          if (config->do_comments && c == CW_COMMENT_START)
             {
               state = NESTED_COMMENT;
               write_to_echo_stream ("%c", c);
@@ -529,7 +532,7 @@ parse_stream (FILE *stream)
               state = NONE;
               write_to_echo_stream ("%c", c);
             }
-          else if (do_commands && c == CW_CMD_ESCAPE)
+          else if (config->do_commands && c == CW_CMD_ESCAPE)
             parse_stream_command (stream);
           else
             {
@@ -565,7 +568,7 @@ parse_stream (FILE *stream)
 /*---------------------------------------------------------------------*/
 /*  Command line mechanics                                             */
 /*---------------------------------------------------------------------*/
-
+#if 0
 /*
  * print_usage()
  *
@@ -860,86 +863,79 @@ parse_command_line (int argc, char *const argv[])
     }
 
 }
-
+#endif
 
 /*
  * main()
  *
  * Parse command line args, then produce CW output until end of file.
  */
-int
-main (int argc, char *const argv[])
+int main (int argc, char *const argv[])
 {
-  static const int SIGNALS[] = { SIGHUP, SIGINT, SIGQUIT, SIGPIPE, SIGTERM, 0 };
+	argv0 = program_basename(argv[0]);
 
-  int combined_argc, index;
-  char **combined_argv;
+	/* Set locale and message catalogs. */
+	i18n_initialize();
 
-  /* Set locale and message catalogs. */
-  i18n_initialize ();
+	/* Parse combined environment and command line arguments. */
+	int combined_argc;
+	char **combined_argv;
+	combine_arguments("CW_OPTIONS", argc, argv, &combined_argc, &combined_argv);
 
-  /* Parse combined environment and command line arguments. */
-  combine_arguments (_("CW_OPTIONS"),
-                     argc, argv, &combined_argc, &combined_argv);
-  parse_command_line (combined_argc, combined_argv);
+	config = cw_config_new();
+	if (!config) {
+		return -1;
+	}
+	config->is_cw = 1;
 
-  int rv = 0;
-  if (is_console) {
-	  if (!cw_is_console_possible(console_device)) {
-		  fprintf(stderr, _("%s: cannot set up console sound\n"), argv0);
-		  exit(EXIT_FAILURE);
-	  }
+	int rv = cw_process_argv(argc, argv, all_options, config);
+	if (rv != 0) {
+		fprintf(stderr, _("%s: failed to parse command line args\n"), argv0);
+		return -1;
+	}
+	if (!cw_config_is_valid(config)) {
+		fprintf(stderr, _("%s: inconsistent arguments\n"), argv0);
+		return -1;
+	}
 
-	  rv = cw_generator_new(CW_AUDIO_CONSOLE, console_device);
-	  if (rv != 1) {
-		  fprintf(stderr,
-			  "%s: failed to open console output with device \"%s\"\n",
-			  argv0, cw_get_console_device());
-	  }
-  } else if (is_soundcard) {
-	  rv = cw_generator_new(CW_AUDIO_OSS, soundcard_device);
-	  if (rv != 1) {
-		  fprintf(stderr,
-			  "%s: failed to open OSS output with device \"%s\"\n",
-			  argv0, cw_get_soundcard_device());
-	  }
-  } else if (is_alsa) {
-	  rv = cw_generator_new(CW_AUDIO_ALSA, soundcard_device);
-	  if (rv != 1) {
-		  fprintf(stderr,
-			  "%s: failed to open ALSA output with device \"%s\"\n",
-			  argv0, cw_get_soundcard_device());
-	  }
-  } else {
-	  fprintf(stderr, "%s: both console and soundcard outputs disabled\n", argv0);
-	  rv = 0;
-  }
+	if (config->input_file) {
+		if (!freopen(config->input_file, "r", stdin)) {
+			fprintf(stderr, _("%s: %s\n"), argv0, strerror(errno));
+			fprintf(stderr, _("%s: error opening input file %s\n"), argv0, config->input_file);
+		}
+		return -1;
+	}
 
-  if (rv != 1) {
-	  fprintf(stderr, "%s: failed to create generator\n", argv0);
-	  exit(EXIT_FAILURE);
-  }
+	rv = cw_generator_new_from_config(config, argv0);
+	if (rv != 1) {
+		fprintf(stderr, "%s: failed to create generator\n", argv0);
+		exit(EXIT_FAILURE);
+	}
 
-  cw_generator_start();
+	/* Set up signal handlers to exit on a range of signals. */
+	int index;
+	static const int SIGNALS[] = { SIGHUP, SIGINT, SIGQUIT, SIGPIPE, SIGTERM, 0 };
+	for (index = 0; SIGNALS[index] != 0; index++) {
+		if (!cw_register_signal_handler(SIGNALS[index], SIG_DFL)) {
+			fprintf(stderr, _("%s: can't register signal: %s\n"), argv0, strerror(errno));
+			exit(EXIT_FAILURE);
+		}
+	}
 
-  /* Set up signal handlers to exit on a range of signals. */
-  for (index = 0; SIGNALS[index] != 0; index++)
-    {
-      if (!cw_register_signal_handler (SIGNALS[index], SIG_DFL))
-        {
-          perror ("cw_register_signal_handler");
-          abort ();
-        }
-    }
+	/* Start producing sine wave (amplitude of the wave will be
+	   zero as long as there are no characters to process). */
+	cw_generator_start();
 
-  /* Send stdin stream to CW parsing. */
-  parse_stream (stdin);
+	/* Send stdin stream to CW parsing. */
+	parse_stream(stdin);
 
-  /* Await final tone completion before exiting. */
-  cw_wait_for_tone_queue ();
+	/* Await final tone completion before exiting. */
+	cw_wait_for_tone_queue();
 
-  cw_generator_stop();
-  cw_generator_delete();
+	cw_generator_stop();
+	cw_generator_delete();
+
+	cw_config_delete(&config);
 
   return EXIT_SUCCESS;
 }
