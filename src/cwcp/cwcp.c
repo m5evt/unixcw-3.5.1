@@ -750,10 +750,6 @@ enum
 /* User interface event loop running flag. */
 static int is_running = TRUE;
 
-/* Step values for the UI control of the CW parameters. */
-static const int STEP_WPM = 1, STEP_HZ = 100,
-                 STEP_VOL = 5, STEP_GAP = 1, STEP_TIME = 1;
-
 /* Color definitions. */
 static const short color_array[] = {
   COLOR_BLACK, COLOR_RED, COLOR_GREEN, COLOR_YELLOW,
@@ -1054,14 +1050,14 @@ interface_interpret (int c)
     case KEY_F (1):
     case PSEUDO_KEYF1:
     case KEY_LEFT:
-      if (cw_set_send_speed (cw_get_send_speed () - STEP_WPM))
+      if (cw_set_send_speed (cw_get_send_speed () - CW_SPEED_STEP))
         goto speed_update;
       break;
 
     case KEY_F (2):
     case PSEUDO_KEYF2:
     case KEY_RIGHT:
-      if (cw_set_send_speed (cw_get_send_speed () + STEP_WPM))
+      if (cw_set_send_speed (cw_get_send_speed () + CW_SPEED_STEP))
         goto speed_update;
       break;
 
@@ -1075,14 +1071,14 @@ interface_interpret (int c)
     case KEY_F (3):
     case PSEUDO_KEYF3:
     case KEY_END:
-      if (cw_set_frequency (cw_get_frequency () - STEP_HZ))
+      if (cw_set_frequency (cw_get_frequency () - CW_FREQUENCY_STEP))
         goto frequency_update;
       break;
 
     case KEY_F (4):
     case PSEUDO_KEYF4:
     case KEY_HOME:
-      if (cw_set_frequency (cw_get_frequency () + STEP_HZ))
+      if (cw_set_frequency (cw_get_frequency () + CW_FREQUENCY_STEP))
         goto frequency_update;
       break;
 
@@ -1095,13 +1091,13 @@ interface_interpret (int c)
 
     case KEY_F (5):
     case PSEUDO_KEYF5:
-      if (cw_set_volume (cw_get_volume () - STEP_VOL))
+      if (cw_set_volume (cw_get_volume () - CW_VOLUME_STEP))
         goto volume_update;
       break;
 
     case KEY_F (6):
     case PSEUDO_KEYF6:
-      if (cw_set_volume (cw_get_volume () + STEP_VOL))
+      if (cw_set_volume (cw_get_volume () + CW_VOLUME_STEP))
         goto volume_update;
       break;
 
@@ -1114,13 +1110,13 @@ interface_interpret (int c)
 
     case KEY_F (7):
     case PSEUDO_KEYF7:
-      if (cw_set_gap (cw_get_gap () - STEP_GAP))
+      if (cw_set_gap (cw_get_gap () - CW_GAP_STEP))
         goto gap_update;
       break;
 
     case KEY_F (8):
     case PSEUDO_KEYF8:
-      if (cw_set_gap (cw_get_gap () + STEP_GAP))
+      if (cw_set_gap (cw_get_gap () + CW_GAP_STEP))
         goto gap_update;
       break;
 
@@ -1134,13 +1130,13 @@ interface_interpret (int c)
 
     case KEY_NPAGE:
     case PSEUDO_KEYNPAGE:
-      if (timer_set_practice_time (timer_get_practice_time () - STEP_TIME))
+      if (timer_set_practice_time (timer_get_practice_time () - CW_PRACTICE_TIME_STEP))
         goto time_update;
       break;
 
     case KEY_PPAGE:
     case PSEUDO_KEYPPAGE:
-      if (timer_set_practice_time (timer_get_practice_time () + STEP_TIME))
+      if (timer_set_practice_time (timer_get_practice_time () + CW_PRACTICE_TIME_STEP))
         goto time_update;
       break;
 
