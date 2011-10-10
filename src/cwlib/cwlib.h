@@ -22,6 +22,7 @@
 
 #include <sys/time.h>  /* For struct timeval */
 #include <alsa/asoundlib.h>
+#include <stdint.h>    /* int16_t */
 
 
 #if defined(__cplusplus)
@@ -39,7 +40,11 @@ enum cw_audio_systems {
 };
 
 
+typedef int16_t cw_sample_t;
+
 typedef struct {
+	cw_sample_t *buffer;
+	int buffer_n_samples;
 	/* none/console/OSS/ALSA */
 	int audio_system;
 	/* true/false */
@@ -97,26 +102,29 @@ typedef struct {
 
 
 /* Limits on values of CW send and timing parameters */
-#define CW_MIN_SPEED         4     /* Lowest WPM allowed */
-#define CW_MAX_SPEED        60     /* Highest WPM allowed */
-#define CW_MIN_FREQUENCY     0     /* Lowest tone allowed (0=silent) */
-#define CW_MAX_FREQUENCY  4000     /* Highest tone allowed */
-#define CW_MIN_VOLUME        0     /* Quietest volume allowed (0=silent) */
-#define CW_MAX_VOLUME      100     /* Loudest volume allowed */
-#define CW_MIN_GAP           0     /* Lowest extra gap allowed */
-#define CW_MAX_GAP          60     /* Highest extra gap allowed */
-#define CW_MIN_WEIGHTING    20     /* Lowest weighting allowed */
-#define CW_MAX_WEIGHTING    80     /* Highest weighting allowed */
-#define CW_MIN_TOLERANCE     0     /* Lowest receive tolerance allowed */
-#define CW_MAX_TOLERANCE    90     /* Highest receive tolerance allowed */
+#define CW_SPEED_MIN             4   /* Lowest WPM allowed */
+#define CW_SPEED_MAX            60   /* Highest WPM allowed */
+#define CW_SPEED_STEP            1
+#define CW_SPEED_INITIAL        12   /* Initial send speed in WPM */
+#define CW_FREQUENCY_MIN         0   /* Lowest tone allowed (0=silent) */
+#define CW_FREQUENCY_MAX      4000   /* Highest tone allowed */
+#define CW_FREQUENCY_INITIAL   800   /* Initial tone in Hz */
+#define CW_FREQUENCY_STEP      100
+#define CW_VOLUME_MIN            0   /* Quietest volume allowed (0=silent) */
+#define CW_VOLUME_MAX          100   /* Loudest volume allowed */
+#define CW_VOLUME_INITIAL       70   /* Initial volume percent */
+#define CW_VOLUME_STEP           5
+#define CW_GAP_MIN               0   /* Lowest extra gap allowed */
+#define CW_GAP_MAX              60   /* Highest extra gap allowed */
+#define CW_GAP_INITIAL           0   /* Initial gap setting */
+#define CW_GAP_STEP              1
+#define CW_WEIGHTING_MIN        20   /* Lowest weighting allowed */
+#define CW_WEIGHTING_MAX        80   /* Highest weighting allowed */
+#define CW_WEIGHTING_INITIAL    50   /* Initial weighting setting */
+#define CW_TOLERANCE_MIN         0   /* Lowest receive tolerance allowed */
+#define CW_TOLERANCE_MAX        90   /* Highest receive tolerance allowed */
+#define CW_TOLERANCE_INITIAL    50   /* Initial tolerance setting */
 
-#define CW_INITIAL_SEND_SPEED     12   /* Initial send speed in WPM */
-#define CW_INITIAL_RECEIVE_SPEED  12   /* Initial receive speed in WPM */
-#define CW_INITIAL_FREQUENCY     800   /* Initial tone in Hz */
-#define CW_INITIAL_VOLUME         70   /* Initial volume percent */
-#define CW_INITIAL_GAP             0   /* Initial gap setting */
-#define CW_INITIAL_TOLERANCE      50   /* Initial tolerance setting */
-#define CW_INITIAL_WEIGHTING      50   /* Initial weighting setting */
 
 /*
  * Representation characters for Dot and Dash.  Only the following
