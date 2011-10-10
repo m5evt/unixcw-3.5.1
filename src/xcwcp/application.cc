@@ -187,12 +187,12 @@ Application::Application ()
   // Add the speed, frequency, volume, and gap spin boxes.  Connect each to a
   // value change function, so that we can immediately pass on changes in
   // these values to the CW library.
-  int cwlib_min, cwlib_max;
+
+  // QSpinBox ( int minValue, int maxValue, int step = 1, QWidget * parent = 0, const char * name = 0 )
 
   toolbar->addSeparator ();
   new QLabel (_("Speed:"), toolbar, _("Speed Label"));
-  cw_get_speed_limits (&cwlib_min, &cwlib_max);
-  speed_spin_ = new QSpinBox (cwlib_min, cwlib_max, 1, toolbar, _("Speed"));
+  speed_spin_ = new QSpinBox (CW_SPEED_MIN, CW_SPEED_MAX, CW_SPEED_STEP, toolbar, _("Speed"));
   QToolTip::add (speed_spin_, _("Speed"));
   speed_spin_->setSuffix (_(" WPM"));
   speed_spin_->setValue (cw_get_send_speed ());
@@ -200,9 +200,8 @@ Application::Application ()
 
   toolbar->addSeparator ();
   new QLabel (_("Tone:"), toolbar, _("Frequency Label"));
-  cw_get_frequency_limits (&cwlib_min, &cwlib_max);
-  frequency_spin_ = new QSpinBox (cwlib_min, cwlib_max,
-                                  100, toolbar, _("Frequency"));
+  frequency_spin_ = new QSpinBox (CW_FREQUENCY_MIN, CW_FREQUENCY_MAX,
+                                  CW_FREQUENCY_STEP, toolbar, _("Frequency"));
   QToolTip::add (frequency_spin_, _("Frequency"));
   frequency_spin_->setSuffix (_(" Hz"));
   frequency_spin_->setValue (cw_get_frequency ());
@@ -211,8 +210,7 @@ Application::Application ()
 
   toolbar->addSeparator ();
   new QLabel (_("Volume:"), toolbar, _("Volume Label"));
-  cw_get_volume_limits (&cwlib_min, &cwlib_max);
-  volume_spin_ = new QSpinBox (cwlib_min, cwlib_max, 5, toolbar, _("Volume"));
+  volume_spin_ = new QSpinBox (CW_VOLUME_MIN, CW_VOLUME_MAX, CW_VOLUME_STEP, toolbar, _("Volume"));
   QToolTip::add (volume_spin_, _("Volume"));
   volume_spin_->setSuffix (_(" %"));
   volume_spin_->setValue (cw_get_volume ());
@@ -220,8 +218,7 @@ Application::Application ()
 
   toolbar->addSeparator ();
   new QLabel (_("Gap:"), toolbar, _("Gap Label"));
-  cw_get_gap_limits (&cwlib_min, &cwlib_max);
-  gap_spin_ = new QSpinBox (cwlib_min, cwlib_max, 1, toolbar, _("Gap"));
+  gap_spin_ = new QSpinBox (CW_GAP_MIN, CW_GAP_MAX, CW_GAP_STEP, toolbar, _("Gap"));
   QToolTip::add (gap_spin_, _("Farnsworth gap"));
   gap_spin_->setSuffix (_(" dot(s)"));
   gap_spin_->setValue (cw_get_gap ());
