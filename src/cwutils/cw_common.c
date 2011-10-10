@@ -45,11 +45,11 @@ cw_config_t *cw_config_new(void)
 
 	config->audio_system = CW_AUDIO_NONE;
 	config->audio_device = NULL;
-	config->send_speed = CW_INITIAL_SEND_SPEED;
-	config->frequency = CW_INITIAL_FREQUENCY;
-	config->volume = CW_INITIAL_VOLUME;
-	config->gap = CW_INITIAL_GAP;
-	config->weighting = CW_INITIAL_WEIGHTING;
+	config->send_speed = CW_SPEED_INITIAL;
+	config->frequency = CW_FREQUENCY_INITIAL;
+	config->volume = CW_VOLUME_INITIAL;
+	config->gap = CW_GAP_INITIAL;
+	config->weighting = CW_WEIGHTING_INITIAL;
 	config->practice_time = CW_PRACTICE_TIME_INITIAL;
 	config->input_file = NULL;
 	config->output_file = NULL;
