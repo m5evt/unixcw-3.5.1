@@ -91,7 +91,7 @@ static int cw_set_audio_device(const char *device);
 
 static void *cw_generator_write_sine_wave_oss(void *arg);
 static void *cw_generator_write_sine_wave_alsa(void *arg);
-static int   cw_generator_calculate_sine_wave(cw_gen_t *gen, short *buf);
+static int   cw_generator_calculate_sine_wave(cw_gen_t *gen);
 static int   cw_generator_calculate_amplitude(cw_gen_t *gen);
 
 static int   cw_sound_soundcard_internal(int frequency);
@@ -1008,9 +1008,9 @@ enum { DOT_CALIBRATION = 1200000 };
 enum
 {
   CW_INITIAL_ADAPTIVE = FALSE,    /* Initial adaptive receive setting */
-  CW_INITIAL_THRESHOLD = (DOT_CALIBRATION / CW_INITIAL_RECEIVE_SPEED) * 2,
+  CW_INITIAL_THRESHOLD = (DOT_CALIBRATION / CW_SPEED_INITIAL) * 2,
                                /* Initial adaptive speed threshold */
-  CW_INITIAL_NOISE_THRESHOLD = (DOT_CALIBRATION / CW_MAX_SPEED) / 2
+  CW_INITIAL_NOISE_THRESHOLD = (DOT_CALIBRATION / CW_SPEED_MAX) / 2
                                /* Initial noise filter threshold */
 };
 
@@ -1020,11 +1020,11 @@ enum
  * set by client code; setting them may trigger a recalculation of the low
  * level timing values held and set below.
  */
-static int cw_send_speed = CW_INITIAL_SEND_SPEED,
-           cw_gap = CW_INITIAL_GAP,
-           cw_receive_speed = CW_INITIAL_RECEIVE_SPEED,
-           cw_tolerance = CW_INITIAL_TOLERANCE,
-           cw_weighting = CW_INITIAL_WEIGHTING,
+static int cw_send_speed = CW_SPEED_INITIAL,
+           cw_gap = CW_GAP_INITIAL,
+           cw_receive_speed = CW_SPEED_INITIAL,
+           cw_tolerance = CW_TOLERANCE_INITIAL,
+           cw_weighting = CW_WEIGHTING_INITIAL,
            cw_is_adaptive_receive_enabled = CW_INITIAL_ADAPTIVE,
            cw_noise_spike_threshold = CW_INITIAL_NOISE_THRESHOLD;
 
@@ -1083,54 +1083,54 @@ void
 cw_get_speed_limits (int *min_speed, int *max_speed)
 {
   if (min_speed)
-    *min_speed = CW_MIN_SPEED;
+    *min_speed = CW_SPEED_MIN;
   if (max_speed)
-    *max_speed = CW_MAX_SPEED;
+    *max_speed = CW_SPEED_MAX;
 }
 
 void
 cw_get_frequency_limits (int *min_frequency, int *max_frequency)
 {
   if (min_frequency)
-    *min_frequency = CW_MIN_FREQUENCY;
+    *min_frequency = CW_FREQUENCY_MIN;
   if (max_frequency)
-    *max_frequency = CW_MAX_FREQUENCY;
+    *max_frequency = CW_FREQUENCY_MAX;
 }
 
 void
 cw_get_volume_limits (int *min_volume, int *max_volume)
 {
   if (min_volume)
-    *min_volume = CW_MIN_VOLUME;
+    *min_volume = CW_VOLUME_MIN;
   if (max_volume)
-    *max_volume = CW_MAX_VOLUME;
+    *max_volume = CW_VOLUME_MAX;
 }
 
 void
 cw_get_gap_limits (int *min_gap, int *max_gap)
 {
   if (min_gap)
-    *min_gap = CW_MIN_GAP;
+    *min_gap = CW_GAP_MIN;
   if (max_gap)
-    *max_gap = CW_MAX_GAP;
+    *max_gap = CW_GAP_MAX;
 }
 
 void
 cw_get_tolerance_limits (int *min_tolerance, int *max_tolerance)
 {
   if (min_tolerance)
-    *min_tolerance = CW_MIN_TOLERANCE;
+    *min_tolerance = CW_TOLERANCE_MIN;
   if (max_tolerance)
-    *max_tolerance = CW_MAX_TOLERANCE;
+    *max_tolerance = CW_TOLERANCE_MAX;
 }
 
 void
 cw_get_weighting_limits (int *min_weighting, int *max_weighting)
 {
   if (min_weighting)
-    *min_weighting = CW_MIN_WEIGHTING;
+    *min_weighting = CW_WEIGHTING_MIN;
   if (max_weighting)
-    *max_weighting = CW_MAX_WEIGHTING;
+    *max_weighting = CW_WEIGHTING_MAX;
 }
 
 
@@ -1316,13 +1316,13 @@ cw_sync_parameters_internal (void)
 void
 cw_reset_send_receive_parameters (void)
 {
-  cw_send_speed = CW_INITIAL_SEND_SPEED;
-  generator->frequency = CW_INITIAL_FREQUENCY;
-  generator->volume = CW_INITIAL_VOLUME;
-  cw_gap = CW_INITIAL_GAP;
-  cw_receive_speed = CW_INITIAL_RECEIVE_SPEED;
-  cw_tolerance = CW_INITIAL_TOLERANCE;
-  cw_weighting = CW_INITIAL_WEIGHTING;
+  cw_send_speed = CW_SPEED_INITIAL;
+  generator->frequency = CW_FREQUENCY_INITIAL;
+  generator->volume = CW_VOLUME_INITIAL;
+  cw_gap = CW_GAP_INITIAL;
+  cw_receive_speed = CW_SPEED_INITIAL;
+  cw_tolerance = CW_TOLERANCE_INITIAL;
+  cw_weighting = CW_WEIGHTING_INITIAL;
   cw_is_adaptive_receive_enabled = CW_INITIAL_ADAPTIVE;
   cw_noise_spike_threshold = CW_INITIAL_NOISE_THRESHOLD;
 
@@ -1353,7 +1353,7 @@ cw_reset_send_receive_parameters (void)
 int
 cw_set_send_speed (int new_value)
 {
-  if (new_value < CW_MIN_SPEED || new_value > CW_MAX_SPEED)
+  if (new_value < CW_SPEED_MIN || new_value > CW_SPEED_MAX)
     {
       errno = EINVAL;
       return RC_ERROR;
@@ -1380,7 +1380,7 @@ cw_set_receive_speed (int new_value)
     }
   else
     {
-      if (new_value < CW_MIN_SPEED || new_value > CW_MAX_SPEED)
+      if (new_value < CW_SPEED_MIN || new_value > CW_SPEED_MAX)
         {
           errno = EINVAL;
           return RC_ERROR;
@@ -1404,7 +1404,7 @@ cw_set_receive_speed (int new_value)
 
 int cw_set_frequency(int new_value)
 {
-	if (new_value < CW_MIN_FREQUENCY || new_value > CW_MAX_FREQUENCY) {
+	if (new_value < CW_FREQUENCY_MIN || new_value > CW_FREQUENCY_MAX) {
 		errno = EINVAL;
 		return RC_ERROR;
 	} else {
@@ -1419,7 +1419,7 @@ int cw_set_frequency(int new_value)
 
 int cw_set_volume(int new_value)
 {
-	if (new_value < CW_MIN_VOLUME || new_value > CW_MAX_VOLUME) {
+	if (new_value < CW_VOLUME_MIN || new_value > CW_VOLUME_MAX) {
 		errno = EINVAL;
 		return RC_ERROR;
 	} else {
@@ -1435,7 +1435,7 @@ int cw_set_volume(int new_value)
 int
 cw_set_gap (int new_value)
 {
-  if (new_value < CW_MIN_GAP || new_value > CW_MAX_GAP)
+  if (new_value < CW_GAP_MIN || new_value > CW_GAP_MAX)
     {
       errno = EINVAL;
       return RC_ERROR;
@@ -1455,7 +1455,7 @@ cw_set_gap (int new_value)
 int
 cw_set_tolerance (int new_value)
 {
-  if (new_value < CW_MIN_TOLERANCE || new_value > CW_MAX_TOLERANCE)
+  if (new_value < CW_TOLERANCE_MIN || new_value > CW_TOLERANCE_MAX)
     {
       errno = EINVAL;
       return RC_ERROR;
@@ -1475,7 +1475,7 @@ cw_set_tolerance (int new_value)
 int
 cw_set_weighting (int new_value)
 {
-  if (new_value < CW_MIN_WEIGHTING || new_value > CW_MAX_WEIGHTING)
+  if (new_value < CW_WEIGHTING_MIN || new_value > CW_WEIGHTING_MAX)
     {
       errno = EINVAL;
       return RC_ERROR;
@@ -3093,6 +3093,14 @@ int cw_sound_internal(int frequency)
 		return RC_SUCCESS;
 	}
 
+	if (!generator) {
+		/* this may happen because the process of finalizing
+		   usage of cwlib is rather complicated; this should
+		   be somehow resolved */
+		fprintf(stderr, "cwlib: called the function for NULL generator\n");
+		return RC_SUCCESS;
+	}
+
 	int state = frequency == 0 ? 0 : 1;
 	int status = RC_SUCCESS;
 
@@ -4011,7 +4019,7 @@ cw_queue_tone (int usecs, int frequency)
    * if that's what they want to do.
    */
   if (usecs < 0 || frequency < 0
-      || frequency < CW_MIN_FREQUENCY || frequency > CW_MAX_FREQUENCY)
+      || frequency < CW_FREQUENCY_MIN || frequency > CW_FREQUENCY_MAX)
     {
       errno = EINVAL;
       return RC_ERROR;
@@ -4987,10 +4995,10 @@ cw_update_adaptive_tracking_internal (int element_usec, char element)
    */
   cw_is_in_sync = FALSE;
   cw_sync_parameters_internal ();
-  if (cw_receive_speed < CW_MIN_SPEED || cw_receive_speed > CW_MAX_SPEED)
+  if (cw_receive_speed < CW_SPEED_MIN || cw_receive_speed > CW_SPEED_MAX)
     {
-      cw_receive_speed = cw_receive_speed < CW_MIN_SPEED
-                         ? CW_MIN_SPEED : CW_MAX_SPEED;
+      cw_receive_speed = cw_receive_speed < CW_SPEED_MIN
+                         ? CW_SPEED_MIN : CW_SPEED_MAX;
       cw_is_adaptive_receive_enabled = FALSE;
       cw_is_in_sync = FALSE;
       cw_sync_parameters_internal ();
@@ -6202,6 +6210,26 @@ int cw_open_device_oss(const char *device)
 		return RC_ERROR;
 	}
 
+	int size = 0;
+	/* Get fragment size in bytes, may be different than requested
+	   with ioctl(..., SNDCTL_DSP_SETFRAGMENT), and, in particular,
+	   can be different than 2^N. */
+	if ((rv = ioctl(soundcard, SNDCTL_DSP_GETBLKSIZE, &size)) == -1) {
+		fprintf(stderr, "cwlib: ioctl(SNDCTL_DSP_GETBLKSIZE): \"%s\"\n", strerror(errno));
+		close(soundcard);
+		return RC_ERROR;
+        }
+
+	if ((size & 0x0000ffff) != (1 << CW_OSS_SETFRAGMENT)) {
+		fprintf(stderr, "cwlib: OSS fragment size not set, %d\n", size);
+		close(soundcard);
+		return RC_ERROR;
+        } else {
+		fprintf(stderr, "cwlib: OSS fragment size = %d\n", size);
+	}
+	generator->buffer_n_samples = size;
+
+
 	/* Note sound as now open for business. */
 	generator->audio_device_open = 1;
 	generator->audio_sink = soundcard;
@@ -6298,7 +6326,7 @@ int cw_open_device_oss_ioctls(int *fd, int *sample_rate)
 	 */
 	/* parameter = 0x7fff << 16 | CW_OSS_SETFRAGMENT; */
 	parameter = 0x0032 << 16 | CW_OSS_SETFRAGMENT;
-	/* parameter = 0x00230006; */
+
 	if (ioctl(*fd, SNDCTL_DSP_SETFRAGMENT, &parameter) == -1) {
 		fprintf(stderr, "cwlib: ioctl(SNDCTL_DSP_SETFRAGMENT): \"%s\"\n", strerror(errno));
 		return RC_ERROR;
@@ -6369,7 +6397,7 @@ int cw_close_device_oss(void)
 int cw_generator_new(int audio_system, const char *device)
 {
 	generator = (cw_gen_t *) malloc(sizeof (cw_gen_t));
-	if (generator == NULL) {
+	if (!generator) {
 		fprintf(stderr, "cw: malloc\n");
 		return RC_ERROR;
 	}
@@ -6378,40 +6406,33 @@ int cw_generator_new(int audio_system, const char *device)
 	generator->audio_system = audio_system;
 	generator->audio_device_open = 0;
 	generator->debug_sink = -1;
-	generator->frequency = CW_INITIAL_FREQUENCY;
-	generator->volume = CW_INITIAL_VOLUME;
+	generator->frequency = CW_FREQUENCY_INITIAL;
+	generator->volume = CW_VOLUME_INITIAL;
+	generator->buffer = NULL;
+	generator->buffer_n_samples = -1;
 
 	cw_set_audio_device(device);
 
+	int rv = RC_ERROR;
 	if (audio_system == CW_AUDIO_CONSOLE) {
-		/* TODO: check return values */
-		int rv = cw_open_device_console(generator->audio_device);
-		if (rv == RC_SUCCESS) {
-			return RC_SUCCESS;
-		} else {
-			return RC_ERROR;
-		}
+		rv = cw_open_device_console(generator->audio_device);
 	} else if (audio_system == CW_AUDIO_OSS) {
-		/* TODO: check return values */
-		int rv = cw_open_device_oss(generator->audio_device);
-		if (rv == RC_SUCCESS) {
-			return RC_SUCCESS;
-		} else {
-			return RC_ERROR;
-		}
+		rv = cw_open_device_oss(generator->audio_device);
 	} else if (audio_system == CW_AUDIO_ALSA) {
-		/* TODO: check return values */
-		int rv = cw_open_device_alsa(generator->audio_device);
-		if (rv == RC_SUCCESS) {
-			return RC_SUCCESS;
-		} else {
-			return RC_ERROR;
-		}
+		rv = cw_open_device_alsa(generator->audio_device);
 	} else {
-		cw_generator_delete();
 		fprintf(stderr, "cwlib: unsupported audio system\n");
-		return RC_ERROR;
+		rv = RC_ERROR;
 	}
+
+	if (rv == RC_SUCCESS) {
+		generator->buffer = (cw_sample_t *) malloc(generator->buffer_n_samples * sizeof (cw_sample_t));
+		if (generator->buffer != NULL) {
+			return RC_SUCCESS;
+		}
+	}
+
+	return RC_ERROR;
 }
 
 
@@ -6424,6 +6445,10 @@ void cw_generator_delete(void)
 		if (generator->audio_device) {
 			free(generator->audio_device);
 			generator->audio_device = NULL;
+		}
+		if (generator->buffer) {
+			free(generator->buffer);
+			generator->buffer = NULL;
 		}
 
 		if (generator->audio_system == CW_AUDIO_CONSOLE) {
@@ -6525,7 +6550,7 @@ void cw_generator_stop(void)
 
 		/* time needed between initiating stop sequence and
 		   ending write() to device and closing the device */
-		int usleep_time = generator->sample_rate / (2 * CW_AUDIO_GENERATOR_BUF_SIZE);
+		int usleep_time = generator->sample_rate / (2 * generator->buffer_n_samples);
 		usleep_time /= 1000000;
 		usleep(usleep_time * 1.2);
 
@@ -6544,16 +6569,16 @@ void cw_generator_stop(void)
 void *cw_generator_write_sine_wave_oss(void *arg)
 {
 	cw_gen_t *gen = (cw_gen_t *) arg;
-	short buf[CW_AUDIO_GENERATOR_BUF_SIZE];
 
+	int n_bytes = sizeof (gen->buffer[0]) * gen->buffer_n_samples;
 	while (gen->generate) {
-		cw_generator_calculate_sine_wave(gen, buf);
-		if (write(gen->audio_sink, buf, sizeof (buf)) != sizeof (buf)) {
+		cw_generator_calculate_sine_wave(gen);
+		if (write(gen->audio_sink, gen->buffer, n_bytes) != n_bytes) {
 			fprintf(stderr, "cwlib: audio write (OSS): %s\n", strerror(errno));
 			exit(-1); /* FIXME: convert to return */
 		}
 		if (gen->debug_sink != -1) {
-			write(gen->debug_sink, buf, sizeof (buf));
+			write(gen->debug_sink, gen->buffer, n_bytes);
 		}
 	} /* while() */
 
@@ -6565,19 +6590,19 @@ void *cw_generator_write_sine_wave_oss(void *arg)
 
 /* TODO: buffer size currently is constant, but in future
    it may be dependent on audio system */
-int cw_generator_calculate_sine_wave(cw_gen_t *gen, short *buf)
+int cw_generator_calculate_sine_wave(cw_gen_t *gen)
 {
 	int i = 0;
 	double phase = 0.0;
 	/* Create a fragment's worth of shaped wave data. */
-	for (i = 0; i < CW_AUDIO_GENERATOR_BUF_SIZE; i++) {
+	for (i = 0; i < gen->buffer_n_samples; i++) {
 		double phase = (2.0 * M_PI
 				* (double) gen->frequency * (double) i
 				/ (double) gen->sample_rate)
 			+ gen->phase_offset;
 		int amplitude = cw_generator_calculate_amplitude(gen);
 
-		buf[i] = amplitude * sin(phase);
+		gen->buffer[i] = amplitude * sin(phase);
 	}
 
 	/* Compute the phase of the last generated sample
@@ -6672,6 +6697,10 @@ int cw_open_device_alsa(const char *device)
 		return RC_ERROR;
 	}
 
+	/* TODO: this is just temporary; do we need to get
+	   a *real* size of ALSA buffer? */
+	generator->buffer_n_samples = CW_AUDIO_GENERATOR_BUF_SIZE;
+
 	return RC_SUCCESS;
 }
 
@@ -6682,26 +6711,26 @@ int cw_open_device_alsa(const char *device)
 void *cw_generator_write_sine_wave_alsa(void *arg)
 {
 	cw_gen_t *gen = (cw_gen_t *) arg;
-	short buf[CW_AUDIO_GENERATOR_BUF_SIZE];
 
+	int n_bytes = sizeof (gen->buffer[0]) * gen->buffer_n_samples;
 	while (gen->generate) {
-		cw_generator_calculate_sine_wave(gen, buf);
+		cw_generator_calculate_sine_wave(gen);
 
-		int rv = snd_pcm_writei(gen->alsa_handle, buf, CW_AUDIO_GENERATOR_BUF_SIZE);
+		int rv = snd_pcm_writei(gen->alsa_handle, gen->buffer, gen->buffer_n_samples);
 		if (rv == -EPIPE) {
 			/* EPIPE means underrun */
 			fprintf(stderr, "cwlib: underrun occurred\n");
 			snd_pcm_prepare(gen->alsa_handle);
 		} else if (rv < 0) {
 			fprintf(stderr, "cwlib: error from writei: %s\n", snd_strerror(rv));
-		}  else if (rv != (int) CW_AUDIO_GENERATOR_BUF_SIZE) {
+		}  else if (rv != gen->buffer_n_samples) {
 			fprintf(stderr, "cwlib: short write, write %d frames\n", rv);
 		} else {
 			;
 		}
 
 		if (gen->debug_sink != -1) {
-			write(gen->debug_sink, buf, sizeof (buf));
+			write(gen->debug_sink, gen->buffer, n_bytes);
 		}
 	} /* while() */
 
