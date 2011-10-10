@@ -303,22 +303,22 @@ void cw_print_help(const char *argv0, cw_config_t *config)
 	fprintf(stderr, _("Sending options:\n"));
 
 	fprintf(stderr, _("  -w, --wpm=WPM          set initial words per minute\n"));
-	fprintf(stderr, _("                         valid values: %d - %d\n"), CW_MIN_SPEED, CW_MAX_SPEED);
-	fprintf(stderr, _("                         default value: %d\n"), CW_INITIAL_SEND_SPEED);
+	fprintf(stderr, _("                         valid values: %d - %d\n"), CW_SPEED_MIN, CW_SPEED_MAX);
+	fprintf(stderr, _("                         default value: %d\n"), CW_SPEED_INITIAL);
 	fprintf(stderr, _("  -t, --tone=HZ          set initial tone to HZ\n"));
-	fprintf(stderr, _("                         valid values: %d - %d\n"), CW_MIN_FREQUENCY, CW_MAX_FREQUENCY);
-	fprintf(stderr, _("                         default value: %d\n"), CW_INITIAL_FREQUENCY);
+	fprintf(stderr, _("                         valid values: %d - %d\n"), CW_FREQUENCY_MIN, CW_FREQUENCY_MAX);
+	fprintf(stderr, _("                         default value: %d\n"), CW_FREQUENCY_INITIAL);
 	fprintf(stderr, _("  -v, --volume=PERCENT   set initial volume to PERCENT\n"));
-	fprintf(stderr, _("                         valid values: %d - %d\n"), CW_MIN_VOLUME, CW_MAX_VOLUME);
-	fprintf(stderr, _("                         default value: %d\n"), CW_INITIAL_VOLUME);
+	fprintf(stderr, _("                         valid values: %d - %d\n"), CW_VOLUME_MIN, CW_VOLUME_MAX);
+	fprintf(stderr, _("                         default value: %d\n"), CW_VOLUME_INITIAL);
 
 	fprintf(stderr, _("Dot/dash options:\n"));
 	fprintf(stderr, _("  -g, --gap=GAP          set extra gap between letters\n"));
-	fprintf(stderr, _("                         valid values: %d - %d\n"), CW_MIN_GAP, CW_MAX_GAP);
-	fprintf(stderr, _("                         default value: %d\n"), CW_INITIAL_GAP);
+	fprintf(stderr, _("                         valid values: %d - %d\n"), CW_GAP_MIN, CW_GAP_MAX);
+	fprintf(stderr, _("                         default value: %d\n"), CW_GAP_INITIAL);
 	fprintf(stderr, _("  -k, --weighting=WEIGHT set weighting to WEIGHT\n"));
-	fprintf(stderr, _("                         valid values: %d - %d\n"), CW_MIN_WEIGHTING, CW_MAX_WEIGHTING);
-	fprintf(stderr, _("                         default value: %d\n"), CW_INITIAL_WEIGHTING);
+	fprintf(stderr, _("                         valid values: %d - %d\n"), CW_WEIGHTING_MIN, CW_WEIGHTING_MAX);
+	fprintf(stderr, _("                         default value: %d\n"), CW_WEIGHTING_INITIAL);
 
 	fprintf(stderr, _("Other options:\n"));
 	if (config->is_cw) {
@@ -418,7 +418,7 @@ int cw_process_option(int opt, const char *optarg, cw_config_t *config, const ch
 		{
 			fprintf(stderr, "cwlib: w:%s\n", optarg);
 			int speed = atoi(optarg);
-			if (speed < CW_MIN_SPEED || speed > CW_MAX_SPEED) {
+			if (speed < CW_SPEED_MIN || speed > CW_SPEED_MAX) {
 				fprintf(stderr, "cwlib: speed out of range: %d\n", speed);
 				return -1;
 			} else {
@@ -431,7 +431,7 @@ int cw_process_option(int opt, const char *optarg, cw_config_t *config, const ch
 		{
 			fprintf(stderr, "cwlib: t:%s\n", optarg);
 			int frequency = atoi(optarg);
-			if (frequency < CW_MIN_FREQUENCY || frequency > CW_MAX_FREQUENCY) {
+			if (frequency < CW_FREQUENCY_MIN || frequency > CW_FREQUENCY_MAX) {
 				fprintf(stderr, "cwlib: frequency out of range: %d\n", frequency);
 				return -1;
 			} else {
@@ -444,7 +444,7 @@ int cw_process_option(int opt, const char *optarg, cw_config_t *config, const ch
 		{
 			fprintf(stderr, "cwlib: v:%s\n", optarg);
 			int volume = atoi(optarg);
-			if (volume < CW_MIN_FREQUENCY || volume > CW_MAX_FREQUENCY) {
+			if (volume < CW_FREQUENCY_MIN || volume > CW_FREQUENCY_MAX) {
 				fprintf(stderr, "cwlib: volume level out of range: %d\n", volume);
 				return -1;
 			} else {
@@ -457,7 +457,7 @@ int cw_process_option(int opt, const char *optarg, cw_config_t *config, const ch
 		{
 			fprintf(stderr, "cwlib: g:%s\n", optarg);
 			int gap = atoi(optarg);
-			if (gap < CW_MIN_GAP || gap > CW_MAX_GAP) {
+			if (gap < CW_GAP_MIN || gap > CW_GAP_MAX) {
 				fprintf(stderr, "cwlib: gap out of range: %d\n", gap);
 				return -1;
 			} else {
@@ -470,7 +470,7 @@ int cw_process_option(int opt, const char *optarg, cw_config_t *config, const ch
 		{
 			fprintf(stderr, "cwlib: k:%s\n", optarg);
 			int weighting = atoi(optarg);
-			if (weighting < CW_MIN_WEIGHTING || weighting > CW_MAX_WEIGHTING) {
+			if (weighting < CW_WEIGHTING_MIN || weighting > CW_WEIGHTING_MAX) {
 				fprintf(stderr, "cwlib: weighting out of range: %d\n", weighting);
 				return -1;
 			} else {
