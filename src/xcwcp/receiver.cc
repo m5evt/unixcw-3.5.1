@@ -24,7 +24,7 @@
 #include <string>
 #include <sstream>
 
-#include <qevent.h>
+#include <QtCore/QEvent>
 
 #include "receiver.h"
 #include "display.h"
@@ -99,11 +99,11 @@ Receiver::handle_key_event (QKeyEvent *event, const Mode *current_mode,
           // If this is the Space, UpArrow, DownArrow, Enter, or Return key,
           // use as a straight key.  If one wears out, there's always the
           // other ones.
-          if (event->key () == QEvent::Key_Space
-              || event->key () == QEvent::Key_Up
-              || event->key () == QEvent::Key_Down
-              || event->key () == QEvent::Key_Enter
-              || event->key () == QEvent::Key_Return)
+          if (event->key () == Qt::Key_Space
+              || event->key () == Qt::Key_Up
+              || event->key () == Qt::Key_Down
+              || event->key () == Qt::Key_Enter
+              || event->key () == Qt::Key_Return)
             {
               cw_notify_straight_key_event (is_down);
               event->accept ();
@@ -111,7 +111,7 @@ Receiver::handle_key_event (QKeyEvent *event, const Mode *current_mode,
 
           // If this is the LeftArrow key, use as one of the paddles.  Which
           // paddle depends on the reverse_paddles state.
-          else if (event->key () == QEvent::Key_Left)
+          else if (event->key () == Qt::Key_Left)
             {
               is_reverse_paddles ? cw_notify_keyer_dash_paddle_event (is_down)
                                  : cw_notify_keyer_dot_paddle_event (is_down);
@@ -119,7 +119,7 @@ Receiver::handle_key_event (QKeyEvent *event, const Mode *current_mode,
             }
 
           // If this is the RightArrow key, use as the other one of the paddles.
-          else if (event->key () == QEvent::Key_Right)
+          else if (event->key () == Qt::Key_Right)
             {
               is_reverse_paddles ? cw_notify_keyer_dot_paddle_event (is_down)
                                  : cw_notify_keyer_dash_paddle_event (is_down);
@@ -148,7 +148,7 @@ Receiver::handle_mouse_event (QMouseEvent *event, const Mode *current_mode,
                               || event->type () == QEvent::MouseButtonDblClick;
 
           // If this is the Middle button, use as a straight key.
-          if (event->button () == QEvent::MidButton)
+          if (event->button () == Qt::MidButton)
             {
               cw_notify_straight_key_event (is_down);
               event->accept ();
@@ -156,7 +156,7 @@ Receiver::handle_mouse_event (QMouseEvent *event, const Mode *current_mode,
 
           // If this is the Left button, use as one of the paddles.  Which
           // paddle depends on the reverse_paddles state.
-          else if (event->button () == QEvent::LeftButton)
+          else if (event->button () == Qt::LeftButton)
             {
               is_reverse_paddles ? cw_notify_keyer_dash_paddle_event (is_down)
                                  : cw_notify_keyer_dot_paddle_event (is_down);
@@ -164,7 +164,7 @@ Receiver::handle_mouse_event (QMouseEvent *event, const Mode *current_mode,
             }
 
           // If this is the Right button, use as the other one of the paddles.
-          else if (event->button () == QEvent::RightButton)
+          else if (event->button () == Qt::RightButton)
             {
               is_reverse_paddles ? cw_notify_keyer_dot_paddle_event (is_down)
                                  : cw_notify_keyer_dash_paddle_event (is_down);
@@ -285,10 +285,11 @@ Receiver::poll_receive_character ()
       is_pending_space_ = true;
 
       // Update the status bar to show the character received.
-      std::ostringstream outs;
-      outs << _("Received '")
-           << c << _("' at ") << cw_get_receive_speed () << _(" WPM");
-      display_->show_status (outs.str ());
+      // std::ostringstream outs;
+      // outs << _("Received '")
+      //      << c << _("' at ") << cw_get_receive_speed () << _(" WPM");
+      QString status = "This is a temp. status";
+      display_->show_status(status);
     }
   else
     {
@@ -304,10 +305,11 @@ Receiver::poll_receive_character ()
             cw_clear_receive_buffer ();
             display_->append ('?');
 
-            std::ostringstream outs;
-            outs << _("Unknown character received at ")
-                 << cw_get_receive_speed () << _(" WPM");
-            display_->show_status (outs.str ());
+            //std::ostringstream outs;
+            //outs << _("Unknown character received at ")
+            //     << cw_get_receive_speed () << _(" WPM");
+	    QString status = "This is a status";
+            display_->show_status(status);
           }  // Close internal compiler error scope
           break;
 
