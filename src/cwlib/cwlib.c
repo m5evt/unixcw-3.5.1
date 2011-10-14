@@ -103,7 +103,7 @@ static int cw_open_device_oss_ioctls(int *fd, int *sample_rate);
 #define CW_MAIN                   0  /* for stand-alone compilation and tests of this file */
 #define CW_OSS_SET_FRAGMENT       1  /* ioctl(fd, SNDCTL_DSP_SETFRAGMENT, &param) */
 #define CW_OSS_SET_POLICY         0  /* ioctl(fd, SNDCTL_DSP_POLICY, &param) */
-#define CW_ALSA_HW_BUFFER_CONFIG  0  /* set up hw buffer parameters, doesn't work correctly (yet) */
+#define CW_ALSA_HW_BUFFER_CONFIG  1  /* set up hw buffer parameters, doesn't work correctly (yet) */
 
 
 /* Generic constants - common for all audio systems (or not used in some of systems) */
@@ -3101,15 +3101,15 @@ int cw_sound_internal(int frequency)
 		return RC_SUCCESS;
 	}
 
-	int state = frequency == 0 ? 0 : 1;
+	int state = frequency == TONE_SILENT ? 0 : 1;
 	int status = RC_SUCCESS;
 
 	if (generator->audio_system == CW_AUDIO_OSS
 	    || generator->audio_system == CW_AUDIO_ALSA) {
 
-		status = cw_sound_soundcard_internal(frequency);
+		status = cw_sound_soundcard_internal(state);
 	} else if (generator->audio_system == CW_AUDIO_CONSOLE) {
-		status = cw_sound_console_internal(frequency);
+		status = cw_sound_console_internal(state);
 	} else {
 		;
 	}
@@ -6555,6 +6555,18 @@ void cw_generator_stop(void)
 		usleep(usleep_time * 1.2);
 
 		generator->generate = 0;
+
+		/* Sleep some more to postpone closing a device.
+		   This way we can avoid a situation when 'generate' is set
+		   to zero and device is being closed while a new buffer is
+		   being prepared, and while write() tries to write this
+		   new buffer to already closed device.
+
+		   Without this usleep(), writei() from ALSA library may
+		   return "File descriptor in bad state" error - this
+		   happened when writei() tried to write to closed ALSA
+		   handle. */
+		usleep(10000);
 	} else {
 		fprintf(stderr, "cwlib: called stop() function for generator without audio system specified\n");
 	}
@@ -6697,6 +6709,13 @@ int cw_open_device_alsa(const char *device)
 		return RC_ERROR;
 	}
 
+	/* Get size for data buffer */
+	snd_pcm_uframes_t frames; /* period size in frames */
+	int dir = 1;
+	rv = snd_pcm_hw_params_get_period_size(hw_params, &frames, &dir);
+	fprintf(stderr, "cwlib: rv = %d, ALSA buffer size would be %d frames\n", rv, frames);
+	generator->buffer_n_samples = frames;
+
 	/* TODO: this is just temporary; do we need to get
 	   a *real* size of ALSA buffer? */
 	generator->buffer_n_samples = CW_AUDIO_GENERATOR_BUF_SIZE;
@@ -6757,29 +6776,7 @@ int cw_close_device_alsa(void)
 }
 
 
-/*
 
-  http://www.alsa-project.org/main/index.php/FramesPeriods
-
-  "
-  "frame" represents the unit, 1 frame = # channels x sample_bytes.
-  In case of stereo, 2 bytes per sample, 1 frame corresponds to 2 channels x 2 bytes = 4 bytes.
-
-  "periods" is the number of periods in a ring-buffer.  In OSS, called "fragments".
-
-  So,
-  - buffer_size = period_size * periods
-  - period_bytes = period_size * bytes_per_frame
-  - bytes_per_frame = channels * bytes_per_sample
-
-  The "period" defines the frequency to update the status, usually via
-  the invocation of interrupts.  The "period_size" defines the frame
-  sizes corresponding to the "period time".  This term corresponds to
-  the "fragment size" on OSS.  On major sound hardwares, a ring-buffer
-  is divided to several parts and an irq is issued on each boundary.
-  The period_size defines the size of this chunk.
-  "
-*/
 
 
 int cw_set_alsa_hw_params(snd_pcm_t *handle, snd_pcm_hw_params_t *params)
@@ -6801,23 +6798,34 @@ int cw_set_alsa_hw_params(snd_pcm_t *handle, snd_pcm_hw_params_t *params)
 
 
 	int dir = 0;
-	unsigned int val = 0;
 
+	unsigned int sample_rates[] = {
+		CW_AUDIO_SAMPLE_RATE_A,
+		CW_AUDIO_SAMPLE_RATE_B,
+		-1 /* guard */
+	};
 
 	/* Set the sample rate (may set/influence/modify 'period size') */
-	val = CW_AUDIO_SAMPLE_RATE_A;
-	rv = snd_pcm_hw_params_set_rate(handle, params, CW_AUDIO_SAMPLE_RATE_A, dir);
-	if (rv < 0) {
-		val = CW_AUDIO_SAMPLE_RATE_B;
-		rv = snd_pcm_hw_params_set_rate(handle, params, val, dir);
-		if (rv < 0) {
-			fprintf(stderr, "cwlib: can't set sample rate: %s\n", snd_strerror(rv));
-			return RC_ERROR;
+	int success = 0;
+	int i = 0;
+	while (sample_rates[i] != -1) {
+		rv = snd_pcm_hw_params_test_rate(handle, params, sample_rates[i], dir);
+		if (rv == 0) {
+			rv = snd_pcm_hw_params_set_rate(handle, params, sample_rates[i], dir);
+			if (rv == 0) {
+				success = 1;
+				break;
+			}
 		}
+		i++;
 	}
 
-	generator->sample_rate = val;
-
+	if (!success) {
+		fprintf(stderr, "cwlib: can't set sample rate\n");
+		return RC_ERROR;
+	} else {
+		generator->sample_rate = sample_rates[i];
+	}
 
 	/* Set PCM access type */
 	rv = snd_pcm_hw_params_set_access(handle, params, SND_PCM_ACCESS_RW_INTERLEAVED);
@@ -6835,91 +6843,124 @@ int cw_set_alsa_hw_params(snd_pcm_t *handle, snd_pcm_hw_params_t *params)
 
 
 #if CW_ALSA_HW_BUFFER_CONFIG
-	/* This doesn't quite work, this is just a test
-	   area for code configuring hardware buffer.
-	   Hopefully someday I will master ALSA API... */
 
-	fprintf(stderr, "cwlib: ALSA params before hw buffer configuration:\n");
-	cw_print_alsa_params(params);
+	/*
+	  http://equalarea.com/paul/alsa-audio.html:
 
-	/* Set period size */
-	snd_pcm_uframes_t period_size = 32;
-	dir = -1;
-	rv = snd_pcm_hw_params_set_period_size_near(handle, params, &period_size, &dir);
-	if (rv < 0) {
-		fprintf(stderr, "cwlib: can't set period size %d: %s\n", val, snd_strerror(rv));
-	}
+	  Buffer size:
+	  This determines how large the hardware buffer is.
+	  It can be specified in units of time or frames.
 
-	/* Set number of periods */
-	val = 2;
-	dir = 0;
-	rv = snd_pcm_hw_params_set_periods_near(handle, params, &val, &dir);
-	if (rv < 0) {
-		fprintf(stderr, "cwlib: can't set number of periods: %s\n", snd_strerror(rv));
-		return RC_ERROR;
-	} else {
-		rv = snd_pcm_hw_params_get_periods(params, &val, &dir);
-		if (rv < 0) {
-			fprintf(stderr, "cwlib: can't get 'periods' after setting them: %s\n", snd_strerror(rv));
+	  Interrupt interval:
+	  This determines how many interrupts the interface will generate
+	  per complete traversal of its hardware buffer. It can be set
+	  either by specifying a number of periods, or the size of a
+	  period. Since this determines the number of frames of space/data
+	  that have to accumulate before the interface will interrupt
+	  the computer. It is central in controlling latency.
+
+	  http://www.alsa-project.org/main/index.php/FramesPeriods
+
+	  "
+	  "frame" represents the unit, 1 frame = # channels x sample_bytes.
+	  In case of stereo, 2 bytes per sample, 1 frame corresponds to 2 channels x 2 bytes = 4 bytes.
+
+	  "periods" is the number of periods in a ring-buffer.
+	  In OSS, called "fragments".
+
+	  So,
+	  - buffer_size = period_size * periods
+	  - period_bytes = period_size * bytes_per_frame
+	  - bytes_per_frame = channels * bytes_per_sample
+
+	  The "period" defines the frequency to update the status,
+	  usually via the invocation of interrupts.  The "period_size"
+	  defines the frame sizes corresponding to the "period time".
+	  This term corresponds to the "fragment size" on OSS.  On major
+	  sound hardwares, a ring-buffer is divided to several parts and
+	  an irq is issued on each boundary. The period_size defines the
+	  size of this chunk."
+
+	  OSS            ALSA           definition
+	  fragment       period         basic chunk of data sent to hw buffer
+
+	*/
+
+	{
+		/* Test and attempt to set buffer size */
+
+		snd_pcm_uframes_t val = 0, accepted = 0; /* buffer size in frames  */
+		dir = 0;
+		for (val = 0; val < 10000; val++) {
+			rv = snd_pcm_hw_params_test_buffer_size(handle, params, val);
+			if (rv == 0) {
+				accepted = val;
+				fprintf(stderr, "cwlib: accepted buffer size: %d\n", accepted);
+			}
+		}
+
+		if (accepted > 0) {
+			rv = snd_pcm_hw_params_set_buffer_size(handle, params, accepted);
+			if (rv < 0) {
+				fprintf(stderr, "cwlib: can't set accepted buffer size %d: %s\n", accepted, snd_strerror(rv));
+			}
 		} else {
-			fprintf(stderr, "cwlib: 'periods' = %u\n", val);
+			fprintf(stderr, "cwlib: no accepted buffer size\n");
 		}
 	}
 
-#if 0
-	unsigned int time = 300;
-	rv = snd_pcm_hw_params_set_buffer_time_near(handle, params, &time, &dir);
-	if (rv < 0) {
-		fprintf(stderr, "cwlib: can't set minimum buffer size %u: %s\n", (unsigned int) time, snd_strerror(rv));
-		return RC_ERROR;
-	}
+	{
+		/* Test and attempt to set number of periods */
 
-	snd_pcm_uframes_t size = 1000;
-	rv = snd_pcm_hw_params_set_buffer_time_min(handle, params, &size);
-	if (rv < 0) {
-		fprintf(stderr, "cwlib: can't set minimum buffer size %u: %s\n", snd_strerror(rv));
-		return RC_ERROR;
-	}
-	size = 4000;
-	rv = snd_pcm_hw_params_set_buffer_time_max(handle, params, &size);
-	if (rv < 0) {
-		fprintf(stderr, "cwlib: can't set maximum buffer size %u: %s\n", snd_strerror(rv));
-		return RC_ERROR;
-	}
+		/* We (hopefully) have set up a buffer with some maximal
+		   size, let's split it into maximum number of periods */
 
-
-	val = 3000;
-	rv = snd_pcm_hw_params_set_period_time_near(handle, params, &val, &dir);
-	if (rv < 0) {
-		fprintf(stderr, "cwlib: can't set 'period time' %u\n", val, snd_strerror(rv));
-		return RC_ERROR;
-	}
-
-
-	/* set the period time (in microseconds) */
-	unsigned int period_time = 2000;
-	rv = snd_pcm_hw_params_set_period_time_near(handle, params, &period_time, &dir);
-	if (rv < 0) {
-		fprintf(stderr, "cwlib: can't set period time %d: %s\n", period_time, snd_strerror(rv));
-		return rv;
-	}
-
-	/* test period size */
-	dir = 0;
-	int j = 0;
-	for (j = 0; j < 10; j++) {
-		val = 1 << j;
-		rv = snd_pcm_hw_params_test_period_size(handle, params, val, dir);
-		if (rv < 0) {
-			fprintf(stderr, "cwlib: period size %d is not available: %s\n", val, snd_strerror(rv));
+		dir = 0;
+		unsigned int val = 0, accepted; /* number of periods per buffer */
+		/* this limit should be enough, 'accepted' on my machine is 8 */
+		const unsigned int n_periods_max = 30;
+		for (val = 1; val < n_periods_max; val++) {
+			rv = snd_pcm_hw_params_test_periods(handle, params, val, dir);
+			if (rv == 0) {
+				accepted = val;
+				fprintf(stderr, "cwlib: accepted number of periods: %d\n", accepted);
+			}
+		}
+		if (accepted > 0) {
+			rv = snd_pcm_hw_params_set_periods(handle, params, accepted, dir);
+			if (rv < 0) {
+				fprintf(stderr, "cwlib: can't set accepted number of periods %d: %s\n", accepted, snd_strerror(rv));
+			}
 		} else {
-			fprintf(stderr, "cwlib: period size %d accepted\n", val);
+			fprintf(stderr, "cwlib: no accepted number of periods\n");
+		}
+	}
+#if 0
+	{
+		/* Test period size */
+		snd_pcm_uframes_t val; /* approximate period size in frames */
+		dir = 0;
+		for (val = 0; val < 100000; val++) {
+			rv = snd_pcm_hw_params_test_period_size(handle, params, val, dir);
+			if (rv == 0) {
+				fprintf(stderr, "cwlib: accepted period size: %d\n", val);
+				// break;
+			}
+		}
+	}
+	{
+		/* Test buffer time */
+		unsigned int val; /* approximate buffer duration in us */
+		dir = 0;
+		for (val = 0; val < 100000; val++) {
+			rv = snd_pcm_hw_params_test_buffer_time(handle, params, val, dir);
+			if (rv == 0) {
+				fprintf(stderr, "cwlib: accepted buffer time: %d\n", val);
+				// break;
+			}
 		}
 	}
 #endif
-
-	fprintf(stderr, "cwlib: ALSA params after hw buffer configuration:\n");
-	cw_print_alsa_params(params);
 
 #endif
 
@@ -6929,6 +6970,12 @@ int cw_set_alsa_hw_params(snd_pcm_t *handle, snd_pcm_hw_params_t *params)
 		fprintf(stderr, "cwlib: can't save hw parameters: %s\n", snd_strerror(rv));
 		return RC_ERROR;
 	} else {
+		showstat(handle);
+		/* Get size for data buffer */
+		snd_pcm_uframes_t frames; /* period size in frames */
+		int dir = 0;
+		snd_pcm_hw_params_get_period_size(params, &frames, &dir);
+		fprintf(stderr, "cwlib: %d, ALSA buffer size would be %d frames\n", rv, frames);
 		return RC_SUCCESS;
 	}
 }
@@ -6936,9 +6983,32 @@ int cw_set_alsa_hw_params(snd_pcm_t *handle, snd_pcm_hw_params_t *params)
 
 
 
+void showstat(snd_pcm_t *handle)
+{
+	int err;
+        snd_pcm_status_t *status;
+
+	snd_pcm_status_alloca(&status);
+        if ((err = snd_pcm_status(handle, status)) < 0) {
+		printf("Stream status error: %s\n", snd_strerror(err));
+		exit(0);
+        }
+	snd_output_t *output = NULL;
+	err = snd_output_stdio_attach(&output, stderr, 0);
+	if (err < 0) {
+		printf("Output failed: %s\n", snd_strerror(err));
+		return 0;
+	}
+
+	snd_pcm_dump(handle, output);
+	fprintf(stderr, "-------------\n");
+	snd_pcm_status_dump(status, output);
+}
+
+
 
 /* debug function */
-static int cw_print_alsa_params(snd_pcm_hw_params_t *params)
+int cw_print_alsa_params(snd_pcm_hw_params_t *params)
 {
 	unsigned int val = 0;
 	int dir = 0;
