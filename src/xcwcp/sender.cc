@@ -24,7 +24,7 @@
 #include <deque>
 #include <sstream>
 
-#include <qevent.h>
+#include <Qt/qevent.h>
 
 #include "sender.h"
 #include "display.h"
@@ -81,7 +81,7 @@ Sender::handle_key_event (QKeyEvent *event, const Mode *current_mode)
         {
           // If the key was backspace, remove the last queued character, or at
           // least try, and we are done.
-          if (event->key () == QEvent::Key_Backspace)
+          if (event->key () == Qt::Key_Backspace)
             {
               delete_character ();
               event->accept ();
@@ -90,13 +90,13 @@ Sender::handle_key_event (QKeyEvent *event, const Mode *current_mode)
             {
               // Extract the ASCII keycode from the key event, and queue the
               // character for sending, converted to uppercase.
-              const char c = event->ascii ();
-              enqueue_string (std::string (1, c));
+		    const char *c = event->text().toAscii().data();
+		    enqueue_string(c);
 
               // Accept the event if the character was sendable.  If not, it
               // won't have queued, and so by ignoring it we can let
               // characters such as Tab pass up to the parent.
-              if (cw_check_character (toupper (c)))
+              if (cw_check_character (toupper (c[0])))
                 event->accept ();
             }
         }
@@ -139,10 +139,11 @@ Sender::dequeue_character ()
             }
 
           // Update the status bar with the character being sent.
-          std::ostringstream outs;
-          outs << _("Sending '")
-               << c << _("' at ") << cw_get_send_speed () << _(" WPM");
-          display_->show_status (outs.str ());
+	  QString status = "this is a placeholder status";
+          //std::ostringstream outs;
+          //outs << _("Sending '")
+          //     << c << _("' at ") << cw_get_send_speed () << _(" WPM");
+          display_->show_status (status);
         }
       else
         {
