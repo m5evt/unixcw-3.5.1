@@ -20,8 +20,7 @@
 #ifndef _XCWCP_APPLICATION_H
 #define _XCWCP_APPLICATION_H
 
-#include <qt3/qmainwindow.h>
-
+#include <Qt/qmainwindow.h>
 #include <string>
 #include <deque>
 
@@ -65,7 +64,7 @@ class Application : public QMainWindow
  private slots:
   // Qt widget library callback functions.
   void about ();
-  void startstop ();
+  void startstop(bool checked);
   void start ();
   void stop ();
   void new_instance ();
@@ -88,17 +87,25 @@ class Application : public QMainWindow
   static Application *cwlib_user_application_instance;
 
   // GUI elements used throughout the class.
+  QToolBar *toolbar; // main toolbar
+
   QComboBox *mode_combo_;
   QSpinBox *speed_spin_;
   QSpinBox *frequency_spin_;
   QSpinBox *volume_spin_;
   QSpinBox *gap_spin_;
   QToolButton *startstop_button_;
-  QCheckBox *reverse_paddles_;
-  QCheckBox *curtis_mode_b_;
-  QCheckBox *adaptive_receive_;
+  QAction *reverse_paddles_;
+  QAction *curtis_mode_b_;
+  QAction *adaptive_receive_;
+  QAction *color_settings_;
+  QAction *font_settings_;
+  QAction *start_;
+  QAction *stop_;
+  QAction *sync_speed_;
+  QAction *about_;
   Display *display_;
-  QPopupMenu *file_menu_;
+  QMenu *file_menu_;
   int file_synchronize_speed_id_;
   int file_start_id_;
   int file_stop_id_;
