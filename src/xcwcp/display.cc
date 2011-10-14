@@ -19,13 +19,13 @@
 
 #include "../config.h"
 
-#include <qwidget.h>
-#include <qstatusbar.h>
-#include <qstring.h>
-#include <qtextedit.h>
-#include <qevent.h>
-#include <qpopupmenu.h>
-#include <qpoint.h>
+#include <Qt/qwidget.h>
+#include <Qt/qstatusbar.h>
+#include <Qt/qstring.h>
+#include <Qt/qtextedit.h>
+#include <Qt/qevent.h>
+#include <Qt/qmenu.h>
+#include <Qt/qpoint.h>
 
 #include <string>
 
@@ -48,7 +48,7 @@ namespace cw {
 
 class DisplayImpl : public QTextEdit {
  public:
-  DisplayImpl (Application *application);
+	DisplayImpl (Application *application, QWidget *parent);
 
  protected:
   // Functions overridden to catch events from the parent class.
@@ -59,8 +59,8 @@ class DisplayImpl : public QTextEdit {
   void contentsMouseDoubleClickEvent (QMouseEvent *event);
   void contentsMouseReleaseEvent (QMouseEvent *event);
 
-  virtual QPopupMenu *createPopupMenu (const QPoint &);
-  virtual QPopupMenu *createPopupMenu ();
+  virtual QMenu *createPopupMenu (const QPoint &);
+  virtual QMenu *createPopupMenu ();
 
  private:
   // Application to forward key and mouse events to.
@@ -76,13 +76,13 @@ class DisplayImpl : public QTextEdit {
 //
 // Call the superclass constructor, and save the application for sending on
 // key and mouse events.
-DisplayImpl::DisplayImpl (Application *application)
-  : QTextEdit (application, _("Display")), application_ (application)
+	DisplayImpl::DisplayImpl (Application *application, QWidget *parent)
+  : QTextEdit (parent), application_ (application)
 {
-  setTextFormat (PlainText);
-  setWordWrap (WidgetWidth);
-  setWrapPolicy (Anywhere);
-  setBold (true);
+	setPlainText("");
+	//setWordWrap (WidgetWidth);
+	//setWrapPolicy (Anywhere);
+	//setBold (true);
 }
 
 
@@ -134,13 +134,13 @@ DisplayImpl::contentsMouseReleaseEvent (QMouseEvent *event)
 //
 // Override and suppress popup menus, so we can use the right mouse button
 // as a keyer paddle.
-QPopupMenu *
+QMenu *
 DisplayImpl::createPopupMenu (const QPoint &)
 {
   return NULL;
 }
 
-QPopupMenu *
+QMenu *
 DisplayImpl::createPopupMenu ()
 {
   return NULL;
@@ -151,12 +151,12 @@ DisplayImpl::createPopupMenu ()
 //  Class Display
 //-----------------------------------------------------------------------
 
-// Display()  
+// Display()
 //
 // Create a display implementation, passing the application to be informed
 // when the display widget receives key or mouse events.
-Display::Display (Application *application)
-  : application_ (application), implementation_ (new DisplayImpl (application))
+	Display::Display (Application *application, QWidget *parent)
+		: application_ (application), implementation_ (new DisplayImpl (application, parent))
 {
 }
 
@@ -179,7 +179,7 @@ Display::get_widget () const
 void
 Display::append (char c)
 {
-  implementation_->insert (QString (QChar (c)));
+  implementation_->insertPlainText (QString (QChar (c)));
 }
 
 
@@ -190,7 +190,7 @@ Display::append (char c)
 void
 Display::backspace ()
 {
-  implementation_->doKeyboardAction (QTextEdit::ActionBackspace);
+	// implementation_->doKeyboardAction (QTextEdit::ActionBackspace);
 }
 
 
@@ -208,9 +208,9 @@ Display::clear ()
 //
 // Display the given string on the status line.
 void
-Display::show_status (const std::string &status)
+Display::show_status (const QString &status)
 {
-  application_->statusBar ()->message (status);
+  application_->statusBar ()->showMessage(status);
 }
 
 
@@ -220,7 +220,7 @@ Display::show_status (const std::string &status)
 void
 Display::clear_status ()
 {
-  application_->statusBar ()->clear ();
+  application_->statusBar ()->clearMessage();
 }
 
 }  // cw namespace
