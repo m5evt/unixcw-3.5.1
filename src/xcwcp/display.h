@@ -16,12 +16,12 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //
- 
+
 
 #ifndef _XCWCP_DISPLAY_H
 #define _XCWCP_DISPLAY_H
 
-#include <string>
+#include <Qt/qstring.h>
 
 class QWidget;
 
@@ -41,7 +41,7 @@ class DisplayImpl;
 
 class Display {
  public:
-  Display (Application *application);
+	Display (Application *application, QWidget *parent);
   QWidget *get_widget() const;
 
   // Minimal text display interface; add a character, remove a character,
@@ -51,7 +51,7 @@ class Display {
   void clear ();
 
   // Minimal pass-through status bar interface.
-  void show_status (const std::string &status);
+  void show_status (const QString &status);
   void clear_status ();
 
  private:

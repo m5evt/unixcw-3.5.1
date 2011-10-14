@@ -20,6 +20,9 @@
 #ifndef _XCWCP_RECEIVER_H
 #define _XCWCP_RECEIVER_H
 
+#include <QtGui/QMouseEvent>
+#include <QtGui/QKeyEvent>
+
 class QKeyEvent;
 class QMouseEvent;
 
@@ -44,7 +47,7 @@ class Receiver
   Receiver (Display *display)
     : display_ (display),
       is_pending_space_ (false), cwlib_receive_errno_ (0),
-      tracked_key_state_ (FALSE) { }
+      tracked_key_state_ (false) { }
 
   // Poll timeout handler, and keypress and mouse event handlers.
   void poll (const Mode *current_mode);
