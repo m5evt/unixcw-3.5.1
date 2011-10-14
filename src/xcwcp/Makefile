@@ -21,7 +21,7 @@ include ../../Makefile.inc
 QTDIR	= $(AC_QTDIR)
 QTMOC	= $(AC_QTMOC)
 CXX	= $(AC_CXX)
-CXXFLAGS= $(AC_CXXFLAGS) $(AC_DEFS) -I../cwlib -I../cwutils -I$(QTDIR)/include
+CXXFLAGS= $(AC_CXXFLAGS) $(AC_DEFS) -I../cwlib -I../cwutils -I$(QTDIR)/include -I/usr/include/qt4/
 GZIP	= $(AC_GZIP)
 
 SHELL	= /bin/sh
@@ -31,7 +31,7 @@ OBJECTS = main.o modeset.o display.o sender.o receiver.o application.o \
           moc_application.o
 
 # Link to the shared libcw.
-LIBS	= -L$(QTDIR)/lib -lqt-mt -L../cwlib -lcw -lpthread -lasound
+LIBS	= -L$(QTDIR)/lib -L../cwlib -lcw -lpthread -lasound -lQtGui -lQtCore
 
 default: all
 
