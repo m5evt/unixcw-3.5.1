@@ -33,7 +33,7 @@
 #include <string>
 #include <new>
 
-#include <qapplication.h>
+#include <Qt/qapplication.h>
 
 #include "application.h"
 
@@ -439,7 +439,7 @@ int main(int argc, char **argv)
 
 		// Display the application's windows.
 		cw::Application *application = new cw::Application ();
-		application->setCaption(_("Xcwcp"));
+		application->setWindowTitle(_("Xcwcp"));
 		application->show();
 		q_application.connect(&q_application, SIGNAL (lastWindowClosed ()),
 				      &q_application, SLOT (quit ()));
