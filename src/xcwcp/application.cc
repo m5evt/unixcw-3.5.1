@@ -124,14 +124,6 @@ const QString GAP_WHATSTHIS =
   _("This sets the \"Farnsworth\" gap used in sending CW.  This gap is an "
   "extra number of dit-length silences between CW characters.");
 
-const QString DISPLAY_WHATSTHIS =
-  _("This is the main display for Xcwcp.  The random CW characters that "
-  "Xcwcp generates, any keyboard input you type, and the CW that you "
-  "key into Xcwcp all appear here.<br><br>"
-  "You can clear the display contents from the File menu.<br><br>"
-  "The status bar shows the current character being sent, any character "
-  "received, and other general error and Xcwcp status information.");
-
 
 //-----------------------------------------------------------------------
 //  Static variables, constructor
