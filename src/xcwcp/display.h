@@ -21,7 +21,7 @@
 #ifndef _XCWCP_DISPLAY_H
 #define _XCWCP_DISPLAY_H
 
-#include <Qt/qstring.h>
+#include <QString>
 
 class QWidget;
 

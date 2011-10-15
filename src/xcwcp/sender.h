@@ -22,6 +22,7 @@
 
 #include <string>
 #include <deque>
+#include <QKeyEvent>
 
 class QKeyEvent;
 

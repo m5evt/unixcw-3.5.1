@@ -20,8 +20,8 @@
 #ifndef _XCWCP_RECEIVER_H
 #define _XCWCP_RECEIVER_H
 
-#include <QtGui/QMouseEvent>
-#include <QtGui/QKeyEvent>
+#include <QMouseEvent>
+#include <QKeyEvent>
 
 class QKeyEvent;
 class QMouseEvent;
