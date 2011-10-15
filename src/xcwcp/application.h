@@ -20,7 +20,8 @@
 #ifndef _XCWCP_APPLICATION_H
 #define _XCWCP_APPLICATION_H
 
-#include <Qt/qmainwindow.h>
+#include <QMainWindow>
+#include <QHideEvent>
 #include <string>
 #include <deque>
 
@@ -79,6 +80,7 @@ class Application : public QMainWindow
   void adaptive_receive_change ();
   void fonts ();
   void colors ();
+  void toggle_toolbar(void);
   void poll_timer_event ();
 
  private:
@@ -95,17 +97,26 @@ class Application : public QMainWindow
   QSpinBox *volume_spin_;
   QSpinBox *gap_spin_;
   QToolButton *startstop_button_;
+
+  QMenu *file_menu_;
+  QAction *new_window_;
+  QAction *clear_display_;
+  QAction *sync_speed_;
+  QAction *quit_;
+
+  QMenu *settings_;
   QAction *reverse_paddles_;
   QAction *curtis_mode_b_;
   QAction *adaptive_receive_;
-  QAction *color_settings_;
   QAction *font_settings_;
-  QAction *start_;
-  QAction *stop_;
-  QAction *sync_speed_;
+  QAction *color_settings_;
+  QAction *toolbar_visibility_;
+
+  QMenu *help_;
   QAction *about_;
+
   Display *display_;
-  QMenu *file_menu_;
+
   int file_synchronize_speed_id_;
   int file_start_id_;
   int file_stop_id_;
@@ -135,6 +146,12 @@ class Application : public QMainWindow
   // the current registered cwlib user.
   static void cwlib_keying_event_static (void *, int key_state);
   void cwlib_keying_event (int key_state);
+
+  void make_toolbar(void);
+  void make_mode_combo(void);
+  void make_file_menu(void);
+  void make_settings_menu(void);
+  void make_help_menu(void);
 
   // Prevent unwanted operations.
   Application (const Application &);
