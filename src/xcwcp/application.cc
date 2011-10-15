@@ -19,44 +19,40 @@
 
 #include "../config.h"
 
-#include <cstdlib>
-#include <ctime>
-#include <cstdio>
-#include <cctype>
+//#include <cstdlib>
+//#include <ctime>
+//#include <cstdio>
+//#include <cctype>
 #include <cerrno>
 
-#include <sstream>
-#include <iostream>
+// #include <sstream>
+// #include <iostream>
+// #include <string>
 
+#include <QIconSet>
+#include <QToolBar>
+#include <QToolButton>
+#include <QComboBox>
+#include <QSpinBox>
+#include <QLabel>
+#include <QStatusBar>
+#include <QMenu>
+#include <QCheckBox>
+#include <QMenuBar>
+#include <QMessageBox>
+#include <QApplication>
+#include <QTimer>
+#include <QToolTip>
+#include <QWhatsThis>
+#include <QFontDialog>
+#include <QColorDialog>
+#include <QColor>
+#include <QPalette>
+#include <QCloseEvent>
+#include <QPixmap>
+#include <QDebug>
+#include <QHideEvent>
 
-#include <Qt/qiconset.h>
-#include <QtGui/qtoolbar.h>
-#include <Qt/qtoolbutton.h>
-#include <Qt/qcombobox.h>
-#include <Qt/qspinbox.h>
-#include <Qt/qlabel.h>
-#include <QtGui/qstatusbar.h>
-#include <QtGui/QMenu>
-#include <Qt/qcheckbox.h>
-#include <Qt/qmenubar.h>
-// #include <Qt/qkeycode.h>
-#include <Qt/qmessagebox.h>
-#include <Qt/qapplication.h>
-// #include <Qt/qaccel.h>
-#include <Qt/qtimer.h>
-#include <QtGui/QToolTip>
-#include <Qt/qwhatsthis.h>
-#include <Qt/qfontdialog.h>
-#include <Qt/qcolordialog.h>
-#include <Qt/qcolor.h>
-#include <Qt/qpalette.h>
-#include <QtGui/QCloseEvent>
-#include <QtGui/QPixmap>
-#include <QtGui/QCloseEvent>
-#include <QtGui/QPixmap>
-
-
-#include <string>
 
 #include "start.xpm"
 #include "stop.xpm"
@@ -70,9 +66,9 @@
 #include "cwlib.h"
 
 #include "i18n.h"
-#include "cmdline.h"
+// #include "cmdline.h"
 #include "copyright.h"
-#include "memory.h"
+// #include "memory.h"
 
 
 namespace cw {
@@ -86,7 +82,7 @@ const QString ABOUT_CAPTION = QString(_("Xcwcp version "))
                                   + PACKAGE_VERSION;
 
 const QString ABOUT_TEXT = QString(_("Xcwcp version "))
-                               + PACKAGE_VERSION + "  " + _(CW_COPYRIGHT);
+                               + PACKAGE_VERSION + "\n" + CW_COPYRIGHT;
 
 // Strings for whats-this dialogs.
 const QString STARTSTOP_WHATSTHIS =
@@ -160,242 +156,19 @@ Application::Application()
 	this->setAttribute(Qt::WA_DeleteOnClose, true);
 	this->setWindowTitle(_("Xcwcp"));
 
-	QPixmap start_pixmap = QPixmap (start_xpm);
-	QPixmap stop_pixmap = QPixmap (stop_xpm);
-
-	QIcon start_stop_icon_set;
-	start_stop_icon_set.addPixmap(start_pixmap,
-				      QIcon::Normal, QIcon::Off);
-	start_stop_icon_set.addPixmap(stop_pixmap,
-				      QIcon::Normal, QIcon::On);
-
-	// QToolButton (QString & textLabel, const QString & grouptext, QObject * receiver, const char * slot, QToolBar * parent, const char * name = 0 )
-
-	// startstop_button_ = new QToolButton (start_stop_icon_set, ,
-	//                                     QString::null, this, SLOT (startstop ()),
-	//                                     toolbar, _("Start/Stop"));
-
-	toolbar = QMainWindow::addToolBar(_("Xcwcp Operations"));
-
-	startstop_button_ = new QToolButton(toolbar);
-	startstop_button_->setIcon(start_stop_icon_set);
-	startstop_button_->setText(_("Start/Stop"));
-	startstop_button_->setToolTip(_("Start/stop"));
-	startstop_button_->setCheckable(true);
-	startstop_button_->setWhatsThis(STARTSTOP_WHATSTHIS);
-	// Give the button two pixmaps, one for start, one for stop.
-	startstop_button_->setIcon(start_stop_icon_set);
-	connect(startstop_button_, SIGNAL (toggled(bool)), this, SLOT (startstop(bool)));
-	toolbar->addWidget(startstop_button_);
-
-
-	toolbar->addSeparator();
-
-
-	mode_combo_ = new QComboBox(0); //, _("Mode"));
-	mode_combo_->setToolTip(_("Mode"));
-	mode_combo_->setWhatsThis(MODE_WHATSTHIS);
-	connect(mode_combo_, SIGNAL (activated (int)), SLOT (mode_change ()));
-
-	// Append each mode represented in the modes set to the combo box's
-	// contents, then synchronize the current mode.
-	for (int index = 0; index < modeset_.get_count(); index++) {
-		const QVariant data(index);
-		const Mode *mode = modeset_.get(index);
-		const QString string = QString::fromUtf8(mode->get_description().c_str());
-		mode_combo_->addItem(string, data);
-	}
-	modeset_.set_current(mode_combo_->currentIndex());
-
-	toolbar->addWidget(mode_combo_);
-
-	// Add the speed, frequency, volume, and gap spin boxes.
-	// Connect each to a value change function, so that we can
-	// immediately pass on changes in these values to the CW library.
-
-
-	toolbar->addSeparator ();
-
-
-	QLabel *speed_label_ = new QLabel(_("Speed:"), 0, 0);
-	toolbar->addWidget(speed_label_);
-	speed_spin_ = new QSpinBox();
-	speed_spin_->setMinimum(CW_SPEED_MIN);
-	speed_spin_->setMaximum(CW_SPEED_MAX);
-	speed_spin_->setSingleStep(CW_SPEED_STEP);
-	speed_spin_->setToolTip(_("Speed"));
-	speed_spin_->setWhatsThis(SPEED_WHATSTHIS);
-	speed_spin_->setSuffix(_(" WPM"));
-	speed_spin_->setValue(cw_get_send_speed());
-	connect(speed_spin_, SIGNAL (valueChanged(int)), SLOT (speed_change()));
-	toolbar->addWidget(speed_spin_);
-
-
-	toolbar->addSeparator();
-
-
-	QLabel *tone_label = new QLabel(_("Tone:"));
-	toolbar->addWidget(tone_label);
-	frequency_spin_ = new QSpinBox(0);
-	frequency_spin_->setMinimum(CW_FREQUENCY_MIN);
-	frequency_spin_->setMaximum(CW_FREQUENCY_MAX);
-	frequency_spin_->setSingleStep(CW_FREQUENCY_STEP);
-	frequency_spin_->setToolTip(_("Frequency"));
-	frequency_spin_->setSuffix(_(" Hz"));
-	frequency_spin_->setWhatsThis(FREQUENCY_WHATSTHIS);
-	frequency_spin_->setValue(cw_get_frequency());
-	connect(frequency_spin_, SIGNAL (valueChanged(int)), SLOT (frequency_change()));
-	toolbar->addWidget(frequency_spin_);
-
-
-	toolbar->addSeparator ();
-
-
-	QLabel *volume_label = new QLabel(_("Volume:"), 0, 0);
-	toolbar->addWidget(volume_label);
-	volume_spin_ = new QSpinBox(0);
-	volume_spin_->setMinimum(CW_VOLUME_MIN);
-	volume_spin_->setMaximum(CW_VOLUME_MAX);
-	volume_spin_->setSingleStep(CW_VOLUME_STEP);
-	volume_spin_->setToolTip(_("Volume"));
-	volume_spin_->setSuffix(_(" %"));
-	volume_spin_->setWhatsThis(VOLUME_WHATSTHIS);
-	volume_spin_->setValue(cw_get_volume());
-	connect(volume_spin_, SIGNAL (valueChanged(int)), SLOT (volume_change()));
-	toolbar->addWidget(volume_spin_);
-
-
-	toolbar->addSeparator ();
-
-
-	QLabel *gap_label = new QLabel(_("Gap:"), 0, 0);
-	toolbar->addWidget(gap_label);
-	gap_spin_ = new QSpinBox(0);
-	toolbar->addWidget(gap_spin_);
-	gap_spin_->setMinimum(CW_GAP_MIN);
-	gap_spin_->setMaximum(CW_GAP_MAX);
-	gap_spin_->setSingleStep(CW_GAP_STEP);
-	gap_spin_->setToolTip(_("Gap"));
-	gap_spin_->setSuffix(_(" dot(s)"));
-	gap_spin_->setWhatsThis(GAP_WHATSTHIS);
-	gap_spin_->setValue(cw_get_gap());
-	connect(gap_spin_, SIGNAL (valueChanged(int)), SLOT (gap_change()));
-
-
-	// Finally for the toolbar, add whatsthis.
-	//QWhatsThis::whatsThisButton (toolbar);
 	// QMimeSourceFactory::defaultFactory ()->setPixmap (_("start"), start_pixmap);
 	// QMimeSourceFactory::defaultFactory ()->setPixmap (_("stop"), stop_pixmap);
 
+	make_toolbar();
 
-	// Create the file popup menu.
-	file_menu_ = new QMenu (_("File"), this);
-	QMainWindow::menuBar()->addMenu(file_menu_);
+	make_file_menu();
+	make_settings_menu();
+	make_help_menu();
 
-	QAction *new_window_ = new QAction(_("&New Window"), this);
-	connect(new_window_, SIGNAL (triggered()), SLOT (new_instance()));
-	new_window_->setShortcut(Qt::CTRL + Qt::Key_N);
-	file_menu_->addAction(new_window_);
-
-
-	file_menu_->addSeparator ();
-
-
-	QAction *clear_display_ = new QAction(_("Clear &Display"), this);
-	connect(clear_display_, SIGNAL (triggered()), SLOT (clear()));
-	clear_display_->setShortcut(Qt::CTRL + Qt::Key_C);
-	file_menu_->addAction(clear_display_);
-
-
-	sync_speed_ = new QAction(_("Synchronize S&peed"), this);
-	connect(sync_speed_, SIGNAL (triggered()), SLOT (sync_speed()));
-	sync_speed_->setShortcut(Qt::CTRL + Qt::Key_P);
-	file_menu_->addAction(sync_speed_);
-
-
-	file_menu_->addSeparator();
-
-#if 0
-	start_ = new QAction(_("&Start"), this); // start_pixmap
-	connect(start_, SIGNAL (triggered()), SLOT (start()));
-	start_->setShortcut(Qt::CTRL + Qt::Key_S);
-	file_menu_->addAction(start_);
-
-
-	stop_ = new QAction(_("Stop"), this); // stop_pixmap
-	connect(stop_, SIGNAL (triggered()), SLOT (stop()));
-	stop_->setShortcut(Qt::CTRL + Qt::Key_T);
-	file_menu_->addAction(stop_);
-#endif
-
-	file_menu_->addSeparator();
-
-
-	QAction *quit_ = new QAction(_("Quit"), qApp);
-	connect(quit_, SIGNAL (triggered()), SLOT (close()));
-	quit_->setShortcut(Qt::CTRL + Qt::Key_Q);
-	file_menu_->addAction(quit_);
-
-
-	// Set initial file menu item enabled states.
-	sync_speed_->setEnabled(modeset_.is_receive());
-	//start_->setEnabled(true);
-	//stop_->setEnabled(false);
-
-
-	// Create the settings popup menu.
-	QMenu *settings = new QMenu(_("Settings"), this);
-	QMainWindow::menuBar()->addMenu(settings);
-
-
-	reverse_paddles_ = new QAction(_("Reverse Paddles"), this);
-	connect(reverse_paddles_, SIGNAL (toggled(bool)), SLOT (reverse_paddles_change()));
-	settings->addAction(reverse_paddles_);
-
-
-	curtis_mode_b_ = new QAction(_("Curtis Mode B Timing"), this);
-	connect(curtis_mode_b_, SIGNAL (toggled(bool)), SLOT (curtis_mode_b_change()));
-	settings->addAction(curtis_mode_b_);
-
-
-	adaptive_receive_ = new QAction(_("Adaptive CW Receive Speed"), this);
-	adaptive_receive_->setCheckable(true);
-	adaptive_receive_->setChecked(true);
-	connect(adaptive_receive_, SIGNAL (toggled(bool)), SLOT (adaptive_receive_change()));
-	settings->addAction(adaptive_receive_);
-
-
-	settings->addSeparator();
-
-
-	font_settings_ = new QAction(_("&Font Settings..."), this);
-	connect(font_settings_, SIGNAL (toggled(bool)), SLOT (fonts()));
-	settings->addAction(font_settings_);
-
-
-	color_settings_ = new QAction(_("&Color Settings..."), this);
-	connect(color_settings_, SIGNAL (toggled(bool)), SLOT (colors()));
-	settings->addAction(color_settings_);
-
-
-	// Create the help popup menu.
-	QMenu *help = new QMenu(_("Help"), this);
-	QMainWindow::menuBar()->addSeparator();
-	QMainWindow::menuBar()->addMenu(help);
-
-
-	about_ = new QAction(_("&About"), this);
-	connect(about_, SIGNAL(toggled(bool)), SLOT(about()));
-	help->addAction(about_);
-
-	// Add the CW display widget, and complete the GUI initializations.
+	// the constructor calls setCentralWidget()
 	display_ = new Display(this, this->parentWidget());
-	QWidget *display_widget = display_->get_widget();
-	display_widget->setFocus();
-	display_widget->setWhatsThis(DISPLAY_WHATSTHIS);
-	setCentralWidget(display_widget);
-	display_->show_status(_("Ready"));
-	QMainWindow::resize(800, 600);
+
+	QMainWindow::resize(800, 400);
 
 	// Register class handler as the CW library keying event callback. It's
 	// important here that we register the static handler, since once we have
@@ -409,8 +182,8 @@ Application::Application()
 	connect(poll_timer_, SIGNAL (timeout()), SLOT (poll_timer_event()));
 
 	// Create a sender and a receiver.
-	sender_ = new Sender (display_);
-	receiver_ = new Receiver (display_);
+	sender_ = new Sender(display_);
+	receiver_ = new Receiver(display_);
 
 	QLabel *sound_system = new QLabel("Output: ");
 	statusBar()->addPermanentWidget(sound_system);
@@ -454,7 +227,7 @@ Application::cwlib_keying_event_static (void *, int key_state)
 // about()
 //
 // Pop up a brief dialog about the application.
-void Application::about ()
+void Application::about()
 {
 	QMessageBox::about(0, ABOUT_CAPTION, ABOUT_TEXT);
 }
@@ -550,9 +323,6 @@ Application::start ()
       startstop_button_->setDown(true);
       display_->clear_status ();
 
-      //start_->setEnabled(false);
-      //stop_->setEnabled(true);
-
       // Start the poll timer.  At 60WPM, a dot is 20ms, so polling for the
       // maximum library speed needs a 10ms timeout.
       poll_timer_->setSingleShot(false);
@@ -589,8 +359,6 @@ Application::stop ()
 
       // Done with the CW library sender for now.
       cwlib_user_application_instance = NULL;
-
-      //start_->setEnabled(true);
       //stop_->setEnabled(false);
 
       startstop_button_->setDown(false);
@@ -808,32 +576,33 @@ Application::adaptive_receive_change ()
 // fonts()
 //
 // Use a font dialog to allow selection of display font.
-void
-Application::fonts ()
+void Application::fonts()
 {
-  bool status;
+	bool status;
 
-  QFont font = QFontDialog::getFont (&status, this);
-  if (status)
-    {
-	    QWidget *display_widget = display_->get_widget ();
-	    display_widget->setFont (font);
-    }
+	QFont font = QFontDialog::getFont(&status, this);
+	if (status) {
+		QWidget *display_widget = display_->get_widget();
+		display_widget->setFont(font);
+	}
 }
 
 
 // colors()
 //
 // Use a color dialog to allow selection of display color.
-void
-Application::colors ()
+void Application::colors()
 {
-  QColor color = QColorDialog::getColor ();
-  if (color.isValid ())
-    {
-	    QWidget *display_widget = display_->get_widget ();
-	    //display_widget->setPaletteForegroundColor (color);
-    }
+	QColor color = QColorDialog::getColor();
+	if (color.isValid()) {
+		QWidget *display_widget = display_->get_widget();
+
+		QPalette palette;
+		palette.setColor(QPalette::Text, color);
+		// display_widget->setAutoFillForeground(true);
+
+		display_widget->setPalette(palette);
+	}
 }
 
 
@@ -881,6 +650,7 @@ Application::key_event (QKeyEvent *event)
       sender_->handle_key_event (event, modeset_.get_current ());
       receiver_->handle_key_event (event, modeset_.get_current (),
                                    reverse_paddles_->isChecked ());
+
     }
 }
 
@@ -901,6 +671,274 @@ Application::mouse_event (QMouseEvent *event)
     }
 }
 
+
+
+
+
+void Application::toggle_toolbar(void)
+{
+
+	if (toolbar->isVisible()) {
+		toolbar->hide();
+		toolbar_visibility_->setText("Show Toolbar");
+	} else {
+		toolbar->show();
+		toolbar_visibility_->setText("Hide Toolbar");
+	}
+}
+
+
+
+
+
+void Application::make_toolbar(void)
+{
+	QPixmap start_pixmap = QPixmap(start_xpm);
+	QPixmap stop_pixmap = QPixmap(stop_xpm);
+
+	QIcon start_stop_icon_set;
+	start_stop_icon_set.addPixmap(start_pixmap, QIcon::Normal, QIcon::Off);
+	start_stop_icon_set.addPixmap(stop_pixmap, QIcon::Normal, QIcon::On);
+
+
+	toolbar = QMainWindow::addToolBar(_("Xcwcp Operations"));
+
+	startstop_button_ = new QToolButton(toolbar);
+	startstop_button_->setIcon(start_stop_icon_set);
+	startstop_button_->setText(_("Start/Stop"));
+	startstop_button_->setToolTip(_("Start/stop"));
+	startstop_button_->setCheckable(true);
+	startstop_button_->setWhatsThis(STARTSTOP_WHATSTHIS);
+	// Give the button two pixmaps, one for start, one for stop.
+	startstop_button_->setIcon(start_stop_icon_set);
+	connect(startstop_button_, SIGNAL (toggled(bool)), this, SLOT (startstop(bool)));
+	toolbar->addWidget(startstop_button_);
+
+
+	toolbar->addSeparator();
+
+
+	make_mode_combo();
+	toolbar->addWidget(mode_combo_);
+
+
+	toolbar->addSeparator ();
+
+
+	QLabel *speed_label_ = new QLabel(_("Speed:"), 0, 0);
+	toolbar->addWidget(speed_label_);
+	speed_spin_ = new QSpinBox();
+	speed_spin_->setMinimum(CW_SPEED_MIN);
+	speed_spin_->setMaximum(CW_SPEED_MAX);
+	speed_spin_->setSingleStep(CW_SPEED_STEP);
+	speed_spin_->setToolTip(_("Speed"));
+	speed_spin_->setWhatsThis(SPEED_WHATSTHIS);
+	speed_spin_->setSuffix(_(" WPM"));
+	speed_spin_->setValue(cw_get_send_speed());
+	connect(speed_spin_, SIGNAL (valueChanged(int)), SLOT (speed_change()));
+	toolbar->addWidget(speed_spin_);
+
+
+	toolbar->addSeparator();
+
+
+	QLabel *tone_label = new QLabel(_("Tone:"));
+	toolbar->addWidget(tone_label);
+	frequency_spin_ = new QSpinBox(0);
+	frequency_spin_->setMinimum(CW_FREQUENCY_MIN);
+	frequency_spin_->setMaximum(CW_FREQUENCY_MAX);
+	frequency_spin_->setSingleStep(CW_FREQUENCY_STEP);
+	frequency_spin_->setToolTip(_("Frequency"));
+	frequency_spin_->setSuffix(_(" Hz"));
+	frequency_spin_->setWhatsThis(FREQUENCY_WHATSTHIS);
+	frequency_spin_->setValue(cw_get_frequency());
+	connect(frequency_spin_, SIGNAL (valueChanged(int)), SLOT (frequency_change()));
+	toolbar->addWidget(frequency_spin_);
+
+
+	toolbar->addSeparator ();
+
+
+	QLabel *volume_label = new QLabel(_("Volume:"), 0, 0);
+	toolbar->addWidget(volume_label);
+	volume_spin_ = new QSpinBox(0);
+	volume_spin_->setMinimum(CW_VOLUME_MIN);
+	volume_spin_->setMaximum(CW_VOLUME_MAX);
+	volume_spin_->setSingleStep(CW_VOLUME_STEP);
+	volume_spin_->setToolTip(_("Volume"));
+	volume_spin_->setSuffix(_(" %"));
+	volume_spin_->setWhatsThis(VOLUME_WHATSTHIS);
+	volume_spin_->setValue(cw_get_volume());
+	connect(volume_spin_, SIGNAL (valueChanged(int)), SLOT (volume_change()));
+	toolbar->addWidget(volume_spin_);
+
+
+	toolbar->addSeparator ();
+
+
+	QLabel *gap_label = new QLabel(_("Gap:"), 0, 0);
+	toolbar->addWidget(gap_label);
+	gap_spin_ = new QSpinBox(0);
+	toolbar->addWidget(gap_spin_);
+	gap_spin_->setMinimum(CW_GAP_MIN);
+	gap_spin_->setMaximum(CW_GAP_MAX);
+	gap_spin_->setSingleStep(CW_GAP_STEP);
+	gap_spin_->setToolTip(_("Gap"));
+	gap_spin_->setSuffix(_(" dot(s)"));
+	gap_spin_->setWhatsThis(GAP_WHATSTHIS);
+	gap_spin_->setValue(cw_get_gap());
+	connect(gap_spin_, SIGNAL (valueChanged(int)), SLOT (gap_change()));
+
+
+	// Finally for the toolbar, add whatsthis.
+	//QWhatsThis::whatsThisButton (toolbar);
+
+	// This removes context menu for the toolbar. The menu made it
+	// possible to close a toolbar, which complicates 'show/hide'
+	// behavior a bit.
+	// Disabling the menu makes Settings->Hide toolbar the only place
+	// to toggle toolbar visibility. Nice and simple.
+	QAction *a = toolbar->toggleViewAction();
+	a->setVisible(false);
+
+	return;
+}
+
+
+
+
+
+void Application::make_mode_combo()
+{
+	mode_combo_ = new QComboBox(0); //, _("Mode"));
+	mode_combo_->setToolTip(_("Mode"));
+	mode_combo_->setWhatsThis(MODE_WHATSTHIS);
+	connect(mode_combo_, SIGNAL (activated(int)), SLOT (mode_change()));
+
+	// Append each mode represented in the modes set to the combo box's
+	// contents, then synchronize the current mode.
+	for (int index = 0; index < modeset_.get_count(); index++) {
+		const QVariant data(index);
+		const Mode *mode = modeset_.get(index);
+		const QString string = QString::fromUtf8(mode->get_description().c_str());
+		mode_combo_->addItem(string, data);
+	}
+	modeset_.set_current(mode_combo_->currentIndex());
+
+	return;
+}
+
+
+
+
+
+void Application::make_file_menu(void)
+{
+	file_menu_ = new QMenu (_("&File"), this);
+	QMainWindow::menuBar()->addMenu(file_menu_);
+
+	new_window_ = new QAction(_("&New Window"), this);
+	new_window_->setShortcut(Qt::CTRL + Qt::Key_N);
+	connect(new_window_, SIGNAL (triggered()), SLOT (new_instance()));
+	file_menu_->addAction(new_window_);
+
+
+	file_menu_->addSeparator ();
+
+
+	clear_display_ = new QAction(_("&Clear Text"), this);
+	clear_display_->setShortcut(Qt::CTRL + Qt::Key_C);
+	connect(clear_display_, SIGNAL (triggered()), SLOT (clear()));
+	file_menu_->addAction(clear_display_);
+
+
+	sync_speed_ = new QAction(_("Synchronize S&peed"), this);
+	sync_speed_->setShortcut(Qt::CTRL + Qt::Key_P);
+	sync_speed_->setEnabled(modeset_.is_receive());
+	connect(sync_speed_, SIGNAL (triggered()), SLOT (sync_speed()));
+	file_menu_->addAction(sync_speed_);
+
+
+	file_menu_->addSeparator();
+
+
+	quit_ = new QAction(_("&Quit"), qApp);
+	quit_->setShortcut(Qt::CTRL + Qt::Key_Q);
+	connect(quit_, SIGNAL (triggered()), SLOT (close()));
+	file_menu_->addAction(quit_);
+
+	return;
+}
+
+
+
+
+
+void Application::make_settings_menu(void)
+{
+	QMenu *settings_ = new QMenu(_("&Settings"), this);
+	QMainWindow::menuBar()->addMenu(settings_);
+
+
+	reverse_paddles_ = new QAction(_("&Reverse Paddles"), this);
+	reverse_paddles_->setCheckable(true);
+	reverse_paddles_->setChecked(false);
+	settings_->addAction(reverse_paddles_);
+
+
+	curtis_mode_b_ = new QAction(_("&Curtis Mode B Timing"), this);
+	curtis_mode_b_->setCheckable(true);
+	curtis_mode_b_->setChecked(false);
+	connect(curtis_mode_b_, SIGNAL (toggled(bool)), SLOT (curtis_mode_b_change()));
+	settings_->addAction(curtis_mode_b_);
+
+
+	adaptive_receive_ = new QAction(_("&Adaptive CW Receive Speed"), this);
+	adaptive_receive_->setCheckable(true);
+	adaptive_receive_->setChecked(true);
+	connect(adaptive_receive_, SIGNAL (toggled(bool)), SLOT (adaptive_receive_change()));
+	settings_->addAction(adaptive_receive_);
+
+
+	settings_->addSeparator();
+
+
+	font_settings_ = new QAction(_("&Text font..."), this);
+	connect(font_settings_, SIGNAL (triggered(bool)), SLOT (fonts()));
+	settings_->addAction(font_settings_);
+
+
+	color_settings_ = new QAction(_("&Text color..."), this);
+	connect(color_settings_, SIGNAL (triggered(bool)), SLOT (colors()));
+	settings_->addAction(color_settings_);
+
+
+	settings_->addSeparator();
+
+
+	toolbar_visibility_ = new QAction(_("Hide toolbar"), this);
+	connect(toolbar_visibility_, SIGNAL (triggered(bool)), SLOT (toggle_toolbar()));
+	settings_->addAction(toolbar_visibility_);
+
+	return;
+}
+
+
+
+
+
+void Application::make_help_menu(void)
+{
+	help_ = new QMenu(_("&Help"), this);
+	QMainWindow::menuBar()->addSeparator();
+	QMainWindow::menuBar()->addMenu(help_);
+
+
+	about_ = new QAction(_("&About"), this);
+	connect(about_, SIGNAL(triggered(bool)), SLOT(about()));
+	help_->addAction(about_);
+
+}
 
 
 }  // cw namespace
