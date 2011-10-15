@@ -19,13 +19,13 @@
 
 #include "../config.h"
 
-#include <Qt/qwidget.h>
-#include <Qt/qstatusbar.h>
-#include <Qt/qstring.h>
-#include <Qt/qtextedit.h>
-#include <Qt/qevent.h>
-#include <Qt/qmenu.h>
-#include <Qt/qpoint.h>
+#include <QWidget>
+#include <QStatusBar>
+#include <QString>
+#include <QTextEdit>
+#include <QEvent>
+#include <QMenu>
+#include <QPoint>
 
 #include <string>
 
@@ -35,6 +35,15 @@
 #include "i18n.h"
 
 namespace cw {
+
+
+const QString DISPLAY_WHATSTHIS =
+  _("This is the main display for Xcwcp.  The random CW characters that "
+  "Xcwcp generates, any keyboard input you type, and the CW that you "
+  "key into Xcwcp all appear here.<br><br>"
+  "You can clear the display contents from the File menu.<br><br>"
+  "The status bar shows the current character being sent, any character "
+  "received, and other general error and Xcwcp status information.");
 
 
 //-----------------------------------------------------------------------
@@ -55,9 +64,9 @@ class DisplayImpl : public QTextEdit {
   void keyPressEvent (QKeyEvent *event);
   void keyReleaseEvent (QKeyEvent *event);
 
-  void contentsMousePressEvent (QMouseEvent *event);
-  void contentsMouseDoubleClickEvent (QMouseEvent *event);
-  void contentsMouseReleaseEvent (QMouseEvent *event);
+  void mousePressEvent(QMouseEvent *event);
+  void mouseDoubleClickEvent(QMouseEvent *event);
+  void mouseReleaseEvent(QMouseEvent *event);
 
   virtual QMenu *createPopupMenu (const QPoint &);
   virtual QMenu *createPopupMenu ();
@@ -104,29 +113,28 @@ DisplayImpl::keyReleaseEvent (QKeyEvent *event)
 }
 
 
-// contentsMousePressEvent()
-// contentsMouseDoubleClickEvent()
-// contentsMouseReleaseEvent()
+// mousePressEvent()
+// mouseDoubleClickEvent()
+// mouseReleaseEvent()
 //
 // Do the same for mouse button events.  We need to catch both press and
 // double-click, since for keying we don't use or care about double-clicks,
 // just any form of button press, any time.
-void
-DisplayImpl::contentsMousePressEvent (QMouseEvent *event)
+void DisplayImpl::mousePressEvent(QMouseEvent *event)
 {
-  application_->mouse_event (event);
+	application_->mouse_event(event);
 }
 
 void
-DisplayImpl::contentsMouseDoubleClickEvent (QMouseEvent *event)
+DisplayImpl::mouseDoubleClickEvent(QMouseEvent *event)
 {
-  application_->mouse_event (event);
+	application_->mouse_event(event);
 }
 
 void
-DisplayImpl::contentsMouseReleaseEvent (QMouseEvent *event)
+DisplayImpl::mouseReleaseEvent(QMouseEvent *event)
 {
-  application_->mouse_event (event);
+	application_->mouse_event (event);
 }
 
 
@@ -158,6 +166,11 @@ DisplayImpl::createPopupMenu ()
 	Display::Display (Application *application, QWidget *parent)
 		: application_ (application), implementation_ (new DisplayImpl (application, parent))
 {
+	QWidget *display_widget = get_widget();
+	display_widget->setFocus();
+	display_widget->setWhatsThis(DISPLAY_WHATSTHIS);
+	application_->setCentralWidget(display_widget);
+	show_status(_("Ready"));
 }
 
 
