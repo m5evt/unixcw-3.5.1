@@ -24,7 +24,7 @@
 #include <string>
 #include <sstream>
 
-#include <QtCore/QEvent>
+#include <QEvent>
 
 #include "receiver.h"
 #include "display.h"
