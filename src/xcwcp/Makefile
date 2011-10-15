@@ -21,7 +21,7 @@ include ../../Makefile.inc
 QTDIR	= $(AC_QTDIR)
 QTMOC	= $(AC_QTMOC)
 CXX	= $(AC_CXX)
-CXXFLAGS= $(AC_CXXFLAGS) $(AC_DEFS) -I../cwlib -I../cwutils -I$(QTDIR)/include -I/usr/include/qt4/Qt -I/usr/include/qt4/QtCore -I/usr/include/qt4/QtGui
+CXXFLAGS= $(AC_CXXFLAGS) $(AC_DEFS) -I../cwlib -I../cwutils -I$(QTDIR)/include -I/usr/include/qt4 -I/usr/include/qt4/Qt -I/usr/include/qt4/QtCore -I/usr/include/qt4/QtGui
 GZIP	= $(AC_GZIP)
 
 SHELL	= /bin/sh
