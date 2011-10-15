@@ -33,7 +33,7 @@
 #include <string>
 #include <new>
 
-#include <Qt/qapplication.h>
+#include <QApplication>
 
 #include "application.h"
 
