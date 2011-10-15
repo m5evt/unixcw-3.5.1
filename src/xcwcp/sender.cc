@@ -24,7 +24,7 @@
 #include <deque>
 #include <sstream>
 
-#include <Qt/qevent.h>
+#include <QEvent>
 
 #include "sender.h"
 #include "display.h"
