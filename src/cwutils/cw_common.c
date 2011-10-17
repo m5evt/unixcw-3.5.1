@@ -204,3 +204,32 @@ void cw_generator_apply_config(cw_config_t *config)
 	return;
 }
 
+
+
+
+
+void cw_start_beep(void)
+{
+	cw_flush_tone_queue();
+	cw_queue_tone(20000, 500);
+	cw_queue_tone(20000, 1000);
+	cw_wait_for_tone_queue();
+	return;
+}
+
+
+
+
+
+void cw_end_beep(void)
+{
+      cw_flush_tone_queue();
+      cw_queue_tone(20000, 500);
+      cw_queue_tone(20000, 1000);
+      cw_queue_tone(20000, 500);
+      cw_queue_tone(20000, 1000);
+      cw_wait_for_tone_queue();
+      return;
+}
+
+
