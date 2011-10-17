@@ -49,6 +49,10 @@ extern cw_config_t *cw_config_new(void);
 extern void cw_config_delete(cw_config_t **config);
 extern int cw_config_is_valid(cw_config_t *config);
 extern int cw_generator_new_from_config(cw_config_t *config, const char *argv0);
+extern void cw_start_beep(void);
+extern void cw_end_beep(void);
+
+
 
 #if defined(__cplusplus)
 }
