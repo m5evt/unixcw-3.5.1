@@ -271,54 +271,61 @@ Receiver::poll_report_receive_error ()
 }
 
 
+
+
+
 // poll_receive_character()
 //
 // Receive any new character from the CW library.
-void
-Receiver::poll_receive_character ()
+void Receiver::poll_receive_character()
 {
-  char c;
-  if (cw_receive_character (NULL, &c, NULL, NULL))
-    {
-      // Add the character, and note that we may see a space later.
-      display_->append (c);
-      is_pending_space_ = true;
+	char c;
+	if (cw_receive_character(NULL, &c, NULL, NULL)) {
+		// Add the character, and note that we may see a space later.
+		display_->append(c);
+		is_pending_space_ = true;
 
-      // Update the status bar to show the character received.
-      // std::ostringstream outs;
-      // outs << _("Received '")
-      //      << c << _("' at ") << cw_get_receive_speed () << _(" WPM");
-      QString status = "This is a temp. status";
-      display_->show_status(status);
-    }
-  else
-    {
-      // Handle receive error detected on trying to read a character.
-      switch (errno)
-        {
-        case EAGAIN:
-        case ERANGE:
-          break;
+		// Update the status bar to show the character received.
+		// I'm sure there is a way to create QString in one
+		// line, without series of concatenations. For now
+		// I'll use C string.
+		const char *format = _("Received '%c' at %d WPM");
+		char c_status[100]; // TODO: dynamic array size in C99 (strlen(format) + 1 + X)
+		snprintf(c_status, strlen(format) + 1, format, c, cw_get_receive_speed());
+		QString status(c_status);
+		display_->show_status(status);
+	} else {
+		// Handle receive error detected on trying to read a character.
+		switch (errno) {
+		case EAGAIN:
+		case ERANGE:
+			break;
 
-        case ENOENT:
-          {  // New scope to avoid gcc 3.2.2 internal compiler error
-            cw_clear_receive_buffer ();
-            display_->append ('?');
+		case ENOENT:
+			{	// New scope to avoid gcc 3.2.2 internal compiler error
+				cw_clear_receive_buffer();
+				display_->append('?');
 
-            //std::ostringstream outs;
-            //outs << _("Unknown character received at ")
-            //     << cw_get_receive_speed () << _(" WPM");
-	    QString status = "This is a status";
-            display_->show_status(status);
-          }  // Close internal compiler error scope
-          break;
+				// I'm sure there is a way to create QString in one
+				// line, without series of concatenations. For now
+				// I'll use C string.
+				const char *format = _("Unknown character received at %d WPM");
+				char c_status[100]; // TODO: dynamic array size in C99 (strlen(format) + 1 + X)
+				snprintf(c_status, strlen(format) + 1, format, c, cw_get_receive_speed());
+				QString status(c_status);
+				display_->show_status(status);
+			}
+			break;
 
-        default:
-          perror ("cw_receive_character");
-          abort ();
-        }
-    }
+		default:
+			perror("cw_receive_character");
+			abort();
+		}
+	}
 }
+
+
+
 
 
 // poll_receive_space()
