@@ -26,7 +26,7 @@
 #include <cerrno>
 
 // #include <sstream>
-// #include <iostream>
+#include <iostream>
 // #include <string>
 
 #include <QIconSet>
@@ -62,6 +62,7 @@
 #include "receiver.h"
 #include "display.h"
 #include "modeset.h"
+#include "cw_common.h"
 
 #include "cwlib.h"
 
@@ -141,45 +142,24 @@ Application *Application::cwlib_user_application_instance = NULL;
 // Class constructor.  Creates the application main window an GUI frame, and
 // registers everything we need to register to get the application up and
 // running.
-Application::Application()
-	: QMainWindow (0),
-	  is_using_cwlib_(false), saved_receive_speed_(cw_get_receive_speed())
+Application::Application() : QMainWindow (0)
 {
-	this->setAttribute(Qt::WA_DeleteOnClose, true);
-	this->setWindowTitle(_("Xcwcp"));
+	make_auxiliaries_begin();
 
-	// QMimeSourceFactory::defaultFactory ()->setPixmap (_("start"), start_pixmap);
-	// QMimeSourceFactory::defaultFactory ()->setPixmap (_("stop"), stop_pixmap);
+	QMainWindow::setAttribute(Qt::WA_DeleteOnClose, true);
+	QMainWindow::setWindowTitle(_("Xcwcp"));
+	QMainWindow::setWindowIcon(start_icon); // This is just a temporary program icon
+	QMainWindow::resize(800, 400);
 
 	make_toolbar();
 
-	make_file_menu();
+	make_program_menu();
 	make_settings_menu();
 	make_help_menu();
 
-	// the constructor calls setCentralWidget()
-	display_ = new Display(this, this->parentWidget());
+	make_central_widget();
 
-	QMainWindow::resize(800, 400);
-
-	// Register class handler as the CW library keying event callback. It's
-	// important here that we register the static handler, since once we have
-	// been into and out of 'C', all concept of 'this' is lost.  It's the job
-	// of the static handler to work out which class instance is using the CW
-	// library, and call the instance's cwlib_keying_event() function.
-	cw_register_keying_callback(cwlib_keying_event_static, NULL);
-
-	// Create a timer for polling send and receive.
-	poll_timer_ = new QTimer (this);
-	connect(poll_timer_, SIGNAL (timeout()), SLOT (poll_timer_event()));
-
-	// Create a sender and a receiver.
-	sender_ = new Sender(display_);
-	receiver_ = new Receiver(display_);
-
-	QLabel *sound_system = new QLabel("Output: ");
-	statusBar()->addPermanentWidget(sound_system);
-
+	make_auxiliaries_end();
 }
 
 
@@ -248,115 +228,138 @@ Application::closeEvent (QCloseEvent *event)
 }
 
 
+
+
+
 // startstop()
 //
 // Call start or stop depending on the current toggle state of the toolbar
 // button that calls this slot.
-void Application::startstop(bool checked)
+void Application::startstop()
 {
-	checked ? start() : stop();
+	play_ ? stop() : start();
 }
+
+
+
 
 
 // start()
 //
 // Start sending or receiving CW.
-void
-Application::start ()
+void Application::start()
 {
-  if (!is_using_cwlib_)
-    {
-      // If the CW library is in use by another instance, let the user stop
-      // that one and let this one continue.
-      if (cwlib_user_application_instance)
-        {
-          startstop_button_->setDown(false);
-          const bool is_stop = QMessageBox::warning (this, _("Xcwcp"),
-                                  _("Another Xcwcp window is busy."),
-                                  _("&Stop Other"), _("&Cancel"), 0, 0, 1) == 0;
-          if (is_stop)
-            {
-              cwlib_user_application_instance->stop ();
-              startstop_button_->setDown(false);
-            }
-          else
-            return;
-        }
+	if (is_using_cwlib_) {
+		// Already playing, nothing to do.
+		return;
+	}
 
-      is_using_cwlib_ = true;
+	// If the CW library is in use by another instance, let the user stop
+	// that one and let this one continue.
+	if (cwlib_user_application_instance) {
+		const bool is_stop = QMessageBox::warning(this, _("Xcwcp"),
+							  _("Another Xcwcp window is busy."),
+							  _("&Stop Other"), _("&Cancel"), 0, 0, 1) == 0;
+		if (is_stop) {
+			cwlib_user_application_instance->stop();
+		} else {
+			// Restore button's proper visual appearance
+			// after it has been pressed, but user hasn't
+			// confirmed starting playing in this instance.
+			this->startstop_button_->setDown(false);
+			return;
+		}
+	}
 
-      // Acquire the CW library sender.
-      cwlib_user_application_instance = this;
+	is_using_cwlib_ = true;
 
-      // Synchronize the CW sender to our values of speed/tone/gap, and Curtis
-      // mode B.  We need to do this here since updates to the GUI widgets are
-      // ignored if we aren't in fact active; this permits multiple instances
-      // of the class to interoperate with the CW library.  Sort of.  We can
-      // do it by just calling the slots for the GUI widgets directly.
-      speed_change ();
-      frequency_change ();
-      volume_change ();
-      gap_change ();
-      curtis_mode_b_change ();
+	// Acquire the CW library sender.
+	cwlib_user_application_instance = this;
 
-      cw_flush_tone_queue ();
-      cw_queue_tone (20000, 500);
-      cw_queue_tone (20000, 1000);
-      cw_wait_for_tone_queue ();
+	// Synchronize the CW sender to our values of speed/tone/gap, and Curtis
+	// mode B.  We need to do this here since updates to the GUI widgets are
+	// ignored if we aren't in fact active; this permits multiple instances
+	// of the class to interoperate with the CW library.  Sort of.  We can
+	// do it by just calling the slots for the GUI widgets directly.
+	speed_change();
+	frequency_change();
+	volume_change();
+	gap_change();
+	curtis_mode_b_change();
 
-      // Call the adaptive receive change callback to synchronize the CW
-      // library with this instance's idea of receive tracking and speed.
-      adaptive_receive_change ();
+	cw_start_beep();
 
-      // Clear the sender and receiver.
-      sender_->clear ();
-      receiver_->clear ();
+	// Call the adaptive receive change callback to synchronize the CW
+	// library with this instance's idea of receive tracking and speed.
+	adaptive_receive_change();
 
-      startstop_button_->setDown(true);
-      display_->clear_status ();
+	// Clear the sender and receiver.
+	sender_->clear();
+	receiver_->clear();
 
-      // Start the poll timer.  At 60WPM, a dot is 20ms, so polling for the
-      // maximum library speed needs a 10ms timeout.
-      poll_timer_->setSingleShot(false);
-      poll_timer_->start(10);
-    }
+	// Accessing proper action through this->startstop_
+	// should also work.
+	QAction *action = startstop_button_->defaultAction();
+	action->setChecked(true);
+	action->setIcon(stop_icon);
+	action->setText(_("Stop"));
+	action->setToolTip(_("Stop"));
+	startstop_button_->setDown(true);
+	play_ = true;
+
+	display_->clear_status();
+
+	// Start the poll timer.  At 60WPM, a dot is 20ms, so polling for the
+	// maximum library speed needs a 10ms timeout.
+	poll_timer_->setSingleShot(false);
+	poll_timer_->start(10);
 }
+
+
+
 
 
 // stop()
 //
 // Empty the buffer of characters awaiting send, and halt the process of
 // refilling the buffer.
-void
-Application::stop ()
+void Application::stop()
 {
-  if (is_using_cwlib_)
-    {
-      is_using_cwlib_ = false;
+	if (!is_using_cwlib_) {
+		// Not playing at the moment, nothing to do
+		return;
+	}
 
-      // Stop the poll timer, and clear the sender and receiver.
-      poll_timer_->stop ();
-      sender_->clear ();
-      receiver_->clear ();
+	is_using_cwlib_ = false;
 
-      // Save the receive speed, for restore on next start.
-      saved_receive_speed_ = cw_get_receive_speed ();
+	// Stop the poll timer, and clear the sender and receiver.
+	poll_timer_->stop();
+	sender_->clear();
+	receiver_->clear();
 
-      cw_flush_tone_queue ();
-      cw_queue_tone (20000, 500);
-      cw_queue_tone (20000, 1000);
-      cw_queue_tone (20000, 500);
-      cw_queue_tone (20000, 1000);
-      cw_wait_for_tone_queue ();
+	// Save the receive speed, for restore on next start.
+	saved_receive_speed_ = cw_get_receive_speed();
 
-      // Done with the CW library sender for now.
-      cwlib_user_application_instance = NULL;
-      //stop_->setEnabled(false);
+	cw_end_beep();
 
-      startstop_button_->setDown(false);
-      display_->show_status (_("Ready"));
-    }
+	// Done with the CW library sender for now.
+	cwlib_user_application_instance = NULL;
+
+	// Accessing proper action through this->startstop_
+	// should also work.
+	QAction *action = startstop_button_->defaultAction();
+	action->setChecked(false);
+	action->setIcon(start_icon);
+	action->setText(_("Start"));
+	action->setToolTip(_("Start"));
+	startstop_button_->setDown(false);
+	play_ = false;
+
+	display_->show_status(_("Ready"));
 }
+
+
+
 
 
 // new_instance()
@@ -685,25 +688,23 @@ void Application::toggle_toolbar(void)
 
 void Application::make_toolbar(void)
 {
-	QPixmap start_pixmap = QPixmap(start_xpm);
-	QPixmap stop_pixmap = QPixmap(stop_xpm);
-
-	QIcon start_stop_icon_set;
-	start_stop_icon_set.addPixmap(start_pixmap, QIcon::Normal, QIcon::Off);
-	start_stop_icon_set.addPixmap(stop_pixmap, QIcon::Normal, QIcon::On);
-
-
 	toolbar = QMainWindow::addToolBar(_("Xcwcp Operations"));
 
+	startstop_ = new QAction(_("Start/Stop"), this);
+	startstop_->setIcon(start_icon);
+	startstop_->setText(_("Start"));
+	startstop_->setToolTip(_("Start"));
+	startstop_->setWhatsThis(STARTSTOP_WHATSTHIS);
+	connect(startstop_, SIGNAL (triggered(bool)), this, SLOT (startstop()));
+
+
+	// Put a button in the toolbar, not the action.
+	// Button can gain focus through Tab key, whereas
+	// action can't. The focus for button is, for some reason,
+	// invisible, but it's there.
 	startstop_button_ = new QToolButton(toolbar);
-	startstop_button_->setIcon(start_stop_icon_set);
-	startstop_button_->setText(_("Start/Stop"));
-	startstop_button_->setToolTip(_("Start/stop"));
+	startstop_button_->setDefaultAction(startstop_);
 	startstop_button_->setCheckable(true);
-	startstop_button_->setWhatsThis(STARTSTOP_WHATSTHIS);
-	// Give the button two pixmaps, one for start, one for stop.
-	startstop_button_->setIcon(start_stop_icon_set);
-	connect(startstop_button_, SIGNAL (toggled(bool)), this, SLOT (startstop(bool)));
 	toolbar->addWidget(startstop_button_);
 
 
@@ -824,40 +825,50 @@ void Application::make_mode_combo()
 
 
 
-void Application::make_file_menu(void)
+void Application::make_program_menu(void)
 {
-	file_menu_ = new QMenu (_("&File"), this);
-	QMainWindow::menuBar()->addMenu(file_menu_);
+	program_menu_ = new QMenu (_("&Program"), this);
+	QMainWindow::menuBar()->addMenu(program_menu_);
 
 	new_window_ = new QAction(_("&New Window"), this);
 	new_window_->setShortcut(Qt::CTRL + Qt::Key_N);
 	connect(new_window_, SIGNAL (triggered()), SLOT (new_instance()));
-	file_menu_->addAction(new_window_);
+	program_menu_->addAction(new_window_);
 
 
-	file_menu_->addSeparator ();
+	program_menu_->addSeparator ();
+
+
+	program_menu_->addAction(startstop_);
+	// The action is connected in make_toolbar().
 
 
 	clear_display_ = new QAction(_("&Clear Text"), this);
 	clear_display_->setShortcut(Qt::CTRL + Qt::Key_C);
 	connect(clear_display_, SIGNAL (triggered()), SLOT (clear()));
-	file_menu_->addAction(clear_display_);
+	program_menu_->addAction(clear_display_);
 
 
 	sync_speed_ = new QAction(_("Synchronize S&peed"), this);
 	sync_speed_->setShortcut(Qt::CTRL + Qt::Key_P);
 	sync_speed_->setEnabled(modeset_.is_receive());
 	connect(sync_speed_, SIGNAL (triggered()), SLOT (sync_speed()));
-	file_menu_->addAction(sync_speed_);
+	program_menu_->addAction(sync_speed_);
 
 
-	file_menu_->addSeparator();
+	program_menu_->addSeparator();
+
+
+	close_ = new QAction(_("&Close"), this);
+	close_->setShortcut(Qt::CTRL + Qt::Key_W);
+	connect(close_, SIGNAL (triggered()), SLOT (close()));
+	program_menu_->addAction(close_);
 
 
 	quit_ = new QAction(_("&Quit"), qApp);
 	quit_->setShortcut(Qt::CTRL + Qt::Key_Q);
-	connect(quit_, SIGNAL (triggered()), SLOT (close()));
-	file_menu_->addAction(quit_);
+	connect(quit_, SIGNAL (triggered()), qApp, SLOT (closeAllWindows()));
+	program_menu_->addAction(quit_);
 
 	return;
 }
@@ -933,4 +944,57 @@ void Application::make_help_menu(void)
 }
 
 
+
+
+
+void Application::make_central_widget(void)
+{
+	// this constructor calls setCentralWidget()
+	display_ = new Display(this, this->parentWidget());
+}
+
+
+
+
+
+void Application::make_auxiliaries_begin(void)
+{
+	start_icon = QPixmap(start_xpm);
+	stop_icon = QPixmap(stop_xpm);
+
+	is_using_cwlib_ = false;
+	saved_receive_speed_ = cw_get_receive_speed();
+	play_ = false;
+
+	// Register class handler as the CW library keying event callback. It's
+	// important here that we register the static handler, since once we have
+	// been into and out of 'C', all concept of 'this' is lost.  It's the job
+	// of the static handler to work out which class instance is using the CW
+	// library, and call the instance's cwlib_keying_event() function.
+	cw_register_keying_callback(cwlib_keying_event_static, NULL);
+
+	// Create a timer for polling send and receive.
+	poll_timer_ = new QTimer (this);
+	connect(poll_timer_, SIGNAL (timeout()), SLOT (poll_timer_event()));
+
+}
+
+
+
+
+
+void Application::make_auxiliaries_end(void)
+{
+	// Create a sender and a receiver.
+	sender_ = new Sender(display_);
+	receiver_ = new Receiver(display_);
+
+	QString label("Output: ");
+	label += cw_get_current_audio_system_label();
+	QLabel *sound_system = new QLabel(label);
+	statusBar()->addPermanentWidget(sound_system);
+}
+
+
 }  // cw namespace
+
