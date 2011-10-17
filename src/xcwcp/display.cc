@@ -63,11 +63,10 @@ class DisplayImpl : public QTextEdit {
   // Functions overridden to catch events from the parent class.
   void keyPressEvent (QKeyEvent *event);
   void keyReleaseEvent (QKeyEvent *event);
-
   void mousePressEvent(QMouseEvent *event);
   void mouseDoubleClickEvent(QMouseEvent *event);
   void mouseReleaseEvent(QMouseEvent *event);
-
+  // Are these necessary after adding fontPointSize() in constructor?
   virtual QMenu *createPopupMenu (const QPoint &);
   virtual QMenu *createPopupMenu ();
 
@@ -85,13 +84,29 @@ class DisplayImpl : public QTextEdit {
 //
 // Call the superclass constructor, and save the application for sending on
 // key and mouse events.
-	DisplayImpl::DisplayImpl (Application *application, QWidget *parent)
+DisplayImpl::DisplayImpl (Application *application, QWidget *parent)
   : QTextEdit (parent), application_ (application)
 {
+	// Block context menu in text area, this is to make right mouse
+	// button work as correct sending key (paddle).
+	// http://doc.qt.nokia.com/latest/qt.html#ContextMenuPolicy-enum
+	// Qt::PreventContextMenu:
+	// "the widget does not feature a context menu, [...] the handling
+	// is not deferred to the widget's parent. This means that all right
+	// mouse button events are guaranteed to be delivered to the widget
+	// itself through mousePressEvent(), and mouseReleaseEvent()."
+	setContextMenuPolicy(Qt::PreventContextMenu);
+
+	// Clear widget.
 	setPlainText("");
-	//setWordWrap (WidgetWidth);
-	//setWrapPolicy (Anywhere);
-	//setBold (true);
+
+	// These two lines just repeat the default settings.
+	// I'm putting them here just for fun.
+	setLineWrapMode(QTextEdit::WidgetWidth); // Words will be wrapped at the right edge of the text edit. Wrapping occurs at whitespace, keeping whole words intact.
+	setWordWrapMode(QTextOption::WordWrap); // Text is wrapped at word boundaries.
+
+	// This can be changed by user in menu Settings -> Text font
+	setFontWeight(QFont::Bold);
 }
 
 
@@ -163,8 +178,8 @@ DisplayImpl::createPopupMenu ()
 //
 // Create a display implementation, passing the application to be informed
 // when the display widget receives key or mouse events.
-	Display::Display (Application *application, QWidget *parent)
-		: application_ (application), implementation_ (new DisplayImpl (application, parent))
+Display::Display(Application *application, QWidget *parent)
+	: application_(application), implementation_(new DisplayImpl(application, parent))
 {
 	QWidget *display_widget = get_widget();
 	display_widget->setFocus();
