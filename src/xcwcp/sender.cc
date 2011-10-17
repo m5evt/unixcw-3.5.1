@@ -19,6 +19,7 @@
 
 #include "../config.h"
 
+#include <cstdio>
 #include <cstdlib>
 #include <string>
 #include <deque>
@@ -121,37 +122,41 @@ Sender::clear ()
 // Called when the CW send buffer is empty.  If the queue is not idle, take
 // the next character from the queue and send it.  If there are no more queued
 // characters, set the queue to idle.
-void
-Sender::dequeue_character ()
+void Sender::dequeue_character()
 {
-  if (!is_queue_idle_)
-    {
-      if (!send_queue_.empty ())
-        {
-          // Take the next character off the queue and send it.  We don't
-          // expect sending to fail as only sendable characters are queued.
-          const char c = toupper (send_queue_.front ());
-          send_queue_.pop_front ();
-          if (!cw_send_character (c))
-            {
-              perror ("cw_send_character");
-              abort ();
-            }
+	if (is_queue_idle_) {
+		return;
+	}
 
-          // Update the status bar with the character being sent.
-	  QString status = "this is a placeholder status";
-          //std::ostringstream outs;
-          //outs << _("Sending '")
-          //     << c << _("' at ") << cw_get_send_speed () << _(" WPM");
-          display_->show_status (status);
-        }
-      else
-        {
-          is_queue_idle_ = true;
-          display_->clear_status ();
-        }
-    }
+	if (send_queue_.empty()) {
+		is_queue_idle_ = true;
+		display_->clear_status();
+		return;
+	}
+
+	// Take the next character off the queue and send it.  We don't
+	// expect sending to fail as only sendable characters are queued.
+	const char c = toupper(send_queue_.front());
+	send_queue_.pop_front();
+	if (!cw_send_character(c)) {
+		perror("cw_send_character");
+		abort();
+	}
+
+	// Update the status bar with the character being sent.
+	// I'm sure there is a way to create QString in one line,
+	// without series of concatenations. For now I'll use C string.
+	const char *format = _("Sending '%c' at %d WPM");
+	char c_status[100]; // TODO: dynamic array size in C99 (strlen(format) + 1 + X)
+	snprintf(c_status, strlen(format) + 1, format, c, cw_get_send_speed());
+	QString status(c_status);
+	display_->show_status(status);
+
+	return;
 }
+
+
+
 
 
 // enqueue_string()
