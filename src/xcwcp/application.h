@@ -53,19 +53,18 @@ class Application : public QMainWindow
 {
  Q_OBJECT
  public:
-  Application ();
+  Application();
 
   // Handle key press and mouse button press events
   void key_event (QKeyEvent *event);
   void mouse_event (QMouseEvent *event);
-
  protected:
   void closeEvent (QCloseEvent *event);
 
  private slots:
   // Qt widget library callback functions.
   void about ();
-  void startstop(bool checked);
+  void startstop();
   void start ();
   void stop ();
   void new_instance ();
@@ -88,20 +87,26 @@ class Application : public QMainWindow
   // the 'this' of the CW user instance, or NULL if no current user.
   static Application *cwlib_user_application_instance;
 
+  bool play_;
+  QPixmap start_icon;
+  QPixmap stop_icon;
   // GUI elements used throughout the class.
   QToolBar *toolbar; // main toolbar
 
+  QToolButton *startstop_button_;
+  QAction *startstop_; // Shared between toolbar and Progam menu
   QComboBox *mode_combo_;
   QSpinBox *speed_spin_;
   QSpinBox *frequency_spin_;
   QSpinBox *volume_spin_;
   QSpinBox *gap_spin_;
-  QToolButton *startstop_button_;
 
-  QMenu *file_menu_;
+
+  QMenu *program_menu_;
   QAction *new_window_;
   QAction *clear_display_;
   QAction *sync_speed_;
+  QAction *close_;
   QAction *quit_;
 
   QMenu *settings_;
@@ -147,11 +152,17 @@ class Application : public QMainWindow
   static void cwlib_keying_event_static (void *, int key_state);
   void cwlib_keying_event (int key_state);
 
+  // Wrappers for creating UI.
+  void make_central_widget(void);
   void make_toolbar(void);
   void make_mode_combo(void);
-  void make_file_menu(void);
+  void make_program_menu(void);
   void make_settings_menu(void);
   void make_help_menu(void);
+
+  void make_auxiliaries_begin(void);
+  void make_auxiliaries_end(void);
+
 
   // Prevent unwanted operations.
   Application (const Application &);
