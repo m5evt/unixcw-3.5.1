@@ -2954,10 +2954,10 @@ int cw_sound_soundcard_internal(int state)
 	   negative slope decreases amplitude to zero, positive slope
 	   increases amplitude to current volume level */
 	if (state == TONE_SILENT) { /* TONE_SILENT == 0, silence the sound */
-		fprintf(stderr, "cwlib: toggling sound level to 0\n");
+		// fprintf(stderr, "cwlib: toggling sound level to 0\n");
 		generator->slope = -CW_AUDIO_GENERATOR_SLOPE;
 	} else {
-		fprintf(stderr, "cwlib: toggling sound level to 1\n");
+		// fprintf(stderr, "cwlib: toggling sound level to 1\n");
 		generator->slope = CW_AUDIO_GENERATOR_SLOPE;
 	}
 
@@ -6392,6 +6392,12 @@ int cw_close_device_oss(void)
 
 
 
+static const char *cw_audio_system_labels[] = {
+	"None",
+	"Console",
+	"OSS",
+	"ALSA",
+	"Soundcard" };
 
 
 int cw_generator_new(int audio_system, const char *device)
@@ -7037,5 +7043,13 @@ int cw_print_alsa_params(snd_pcm_hw_params_t *params)
 	}
 
 	return RC_SUCCESS;
+}
+
+
+
+
+const char *cw_get_current_audio_system_label(void)
+{
+	return cw_audio_system_labels[generator->audio_system];
 }
 
