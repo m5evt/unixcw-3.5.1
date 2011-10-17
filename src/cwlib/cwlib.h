@@ -154,6 +154,8 @@ extern int cw_generator_new(int audio_system, const char *device);
 extern void cw_generator_delete(void);
 extern int  cw_generator_start(void);
 extern void cw_generator_stop(void);
+extern const char *cw_get_current_audio_system_label(void);
+
 
 extern void cw_set_debug_flags (unsigned int new_value);
 extern unsigned int cw_get_debug_flags (void);
