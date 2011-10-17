@@ -570,10 +570,7 @@ change_state_to_active (void)
 
   if (!is_sending_active)
     {
-      cw_flush_tone_queue ();
-      cw_queue_tone (20000, 500);
-      cw_queue_tone (20000, 1000);
-      cw_wait_for_tone_queue ();
+      cw_start_beep();
 
       /* Don't set sending_state until after the above warning has completed. */
       is_sending_active = TRUE;
@@ -620,12 +617,7 @@ change_state_to_idle (void)
       /* Remove everything in the outgoing character queue. */
       queue_discard_contents ();
 
-      cw_flush_tone_queue ();
-      cw_queue_tone (20000, 500);
-      cw_queue_tone (20000, 1000);
-      cw_queue_tone (20000, 500);
-      cw_queue_tone (20000, 1000);
-      cw_wait_for_tone_queue ();
+      cw_end_beep();
     }
 }
 
