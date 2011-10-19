@@ -990,7 +990,7 @@ void Application::make_auxiliaries_end(void)
 	receiver_ = new Receiver(display_);
 
 	QString label("Output: ");
-	label += cw_get_current_audio_system_label();
+	label += cw_generator_get_audio_system_label();
 	QLabel *sound_system = new QLabel(label);
 	statusBar()->addPermanentWidget(sound_system);
 }
