@@ -23,7 +23,8 @@
 #include <sys/time.h>  /* For struct timeval */
 #include <alsa/asoundlib.h>
 #include <stdint.h>    /* int16_t */
-
+#include <pthread.h>
+#include <stdbool.h>
 
 #if defined(__cplusplus)
 extern "C"
@@ -144,7 +145,9 @@ enum
   CW_DEBUG_STRAIGHT_KEY = 1 << 7,    /* Print out straight key information */
   CW_DEBUG_LOOKUPS = 1 << 8,         /* Print out table lookup results */
   CW_DEBUG_FINALIZATION = 1 << 9,    /* Print out finalization actions */
-  CW_DEBUG_MASK = (1 << 10) - 1      /* Bit mask of used debug bits */
+  CW_DEBUG_SYSTEM = 1 << 10,         /* Print out OS problems (malloc, open,
+					ioctl, etc. Also configuration errors.) */
+  CW_DEBUG_MASK = (1 << 11) - 1      /* Bit mask of used debug bits */
 };
 
 /* CW library function prototypes. */
@@ -154,7 +157,7 @@ extern int cw_generator_new(int audio_system, const char *device);
 extern void cw_generator_delete(void);
 extern int  cw_generator_start(void);
 extern void cw_generator_stop(void);
-extern const char *cw_get_current_audio_system_label(void);
+extern const char *cw_generator_get_audio_system_label(void);
 
 
 extern void cw_set_debug_flags (unsigned int new_value);
@@ -213,9 +216,9 @@ extern int cw_set_noise_spike_threshold (int threshold);
 extern int cw_get_noise_spike_threshold (void);
 extern void cw_block_callback (int is_block);
 
-extern int cw_is_console_possible(const char *device);
-extern int cw_is_oss_possible(const char *device);
-extern int cw_is_alsa_possible(const char *device);
+extern bool cw_is_console_possible(const char *device);
+extern bool cw_is_oss_possible(const char *device);
+extern bool cw_is_alsa_possible(const char *device);
 
 extern const char *cw_get_console_device(void);
 extern const char *cw_get_soundcard_device(void);
@@ -235,11 +238,11 @@ extern void cw_register_keying_callback (void (*callback_func) (void*, int),
                                          void *callback_arg);
 extern int cw_register_tone_queue_low_callback (void (*callback_func) (void*),
                                                 void *callback_arg, int level);
-extern int cw_is_tone_busy (void);
+extern bool cw_is_tone_busy (void);
 extern int cw_wait_for_tone (void);
 extern int cw_wait_for_tone_queue (void);
 extern int cw_wait_for_tone_queue_critical (int level);
-extern int cw_is_tone_queue_full (void);
+extern bool cw_is_tone_queue_full (void);
 extern int cw_get_tone_queue_capacity (void);
 extern int cw_get_tone_queue_length (void);
 extern void cw_flush_tone_queue (void);
@@ -262,16 +265,16 @@ extern void cw_get_receive_statistics (double *dot_sd, double *dash_sd,
 extern void cw_reset_receive_statistics (void);
 extern void cw_enable_adaptive_receive (void);
 extern void cw_disable_adaptive_receive (void);
-extern int cw_get_adaptive_receive_state (void);
+extern bool cw_get_adaptive_receive_state (void);
 extern int cw_start_receive_tone (const struct timeval *timestamp);
 extern int cw_end_receive_tone (const struct timeval *timestamp);
 extern int cw_receive_buffer_dot (const struct timeval *timestamp);
 extern int cw_receive_buffer_dash (const struct timeval *timestamp);
 extern int cw_receive_representation (const struct timeval *timestamp,
                                       char *representation,
-                                      int *is_end_of_word, int *is_error);
+                                      bool *is_end_of_word, bool *is_error);
 extern int cw_receive_character (const struct timeval *timestamp,
-                                 char *c, int *is_end_of_word, int *is_error);
+                                 char *c, bool *is_end_of_word, bool *is_error);
 extern void cw_clear_receive_buffer (void);
 extern int cw_get_receive_buffer_capacity (void);
 extern int cw_get_receive_buffer_length (void);
@@ -287,13 +290,13 @@ extern void cw_get_keyer_paddles (int *dot_paddle_state,
                                   int *dash_paddle_state);
 extern void cw_get_keyer_paddle_latches (int *dot_paddle_latch_state,
                                          int *dash_paddle_latch_state);
-extern int cw_is_keyer_busy (void);
+extern bool cw_is_keyer_busy (void);
 extern int cw_wait_for_keyer_element (void);
 extern int cw_wait_for_keyer (void);
 extern void cw_reset_keyer (void);
 extern int cw_notify_straight_key_event (int key_state);
 extern int cw_get_straight_key_state (void);
-extern int cw_is_straight_key_busy (void);
+extern bool cw_is_straight_key_busy (void);
 extern void cw_reset_straight_key (void);
 
 #if defined(__cplusplus)
