@@ -336,7 +336,7 @@ void
 Receiver::poll_receive_space ()
 {
   // Recheck the receive buffer for end of word.
-  int is_end_of_word;
+  bool is_end_of_word;
   cw_receive_character (NULL, NULL, &is_end_of_word, NULL);
   if (is_end_of_word)
     {
