@@ -16,6 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
+#define _BSD_SOURCE
 
 #include "../config.h"
 
@@ -66,12 +67,13 @@ static void write_to_cw_sender (const char *format, ...)
  * command parser to values other than strictly TRUE or FALSE; all non-zero
  * values are equivalent to TRUE.
  */
+#if 0
 static int do_echo = TRUE,          /* Echo characters */
            do_errors = TRUE,        /* Print error messages to stderr */
            do_commands = TRUE,      /* Execute embedded commands */
            do_combinations = TRUE,  /* Execute [...] combinations */
            do_comments = TRUE;      /* Allow {...} as comments */
-
+#endif
 
 static cw_config_t *config = NULL;
 static const char *all_options = "s:|system,d:|device,"
