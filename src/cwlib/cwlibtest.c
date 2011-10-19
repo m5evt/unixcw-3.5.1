@@ -16,6 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
+#define _XOPEN_SOURCE 600 /* signaction() + SA_RESTART */
 
 #include "../config.h"
 
@@ -1037,7 +1038,8 @@ cw_self_test_fixed_receive (void)
   tv.tv_usec = 0;
   for (index = 0; TEST_DATA[index].representation; index++)
     {
-      int entry, is_word, is_error;
+      int entry;
+      bool is_word, is_error;
       char c, representation[256];
 
       tv.tv_sec++;
@@ -1146,7 +1148,8 @@ cw_self_test_adaptive_receive (void)
   tv.tv_usec = 0;
   for (index = 0; TEST_DATA[index].representation; index++)
     {
-      int entry, is_word, is_error;
+      int entry;
+      bool is_word, is_error;
       char c, representation[256];
 
       tv.tv_sec++;
