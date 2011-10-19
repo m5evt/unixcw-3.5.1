@@ -166,7 +166,7 @@ AC_SUBST(SUBDIRS)
 # to with a few suppressions to icc command flags, then similarly, though less
 # so, for g++ and icpc.
 if test "`basename $CC`" = "gcc" ; then
-  CFLAGS="$CFLAGS -Wall -W -pedantic -Wfloat-equal -Wpointer-arith"
+  CFLAGS="$CFLAGS -Wall -W -pedantic -Wfloat-equal -Wpointer-arith -std=gnu99"
   CFLAGS="$CFLAGS -Wcast-qual -Wwrite-strings -Wmissing-prototypes"
   CFLAGS="$CFLAGS -Wstrict-prototypes -Wmissing-declarations -Wredundant-decls"
 else
