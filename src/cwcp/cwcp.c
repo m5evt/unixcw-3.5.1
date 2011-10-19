@@ -377,13 +377,14 @@ timer_set_practice_time (int practice_time)
   return FALSE;
 }
 
+#if 0
 static void
 timer_get_practice_time_limits (int *min_time, int *max_time)
 {
   *min_time = TIMER_MIN_TIME;
   *max_time = TIMER_MAX_TIME;
 }
-
+#endif
 
 /*
  * timer_start()
