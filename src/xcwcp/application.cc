@@ -31,9 +31,9 @@
 
 #include <QIconSet>
 #include <QToolBar>
-#include <QToolButton>
-#include <QComboBox>
-#include <QSpinBox>
+//#include <QToolButton>
+//#include <QComboBox>
+//#include <QSpinBox>
 #include <QLabel>
 #include <QStatusBar>
 #include <QMenu>
