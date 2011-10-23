@@ -20,11 +20,12 @@
 #ifndef _XCWCP_SENDER_H
 #define _XCWCP_SENDER_H
 
-#include <string>
-#include <deque>
 #include <QKeyEvent>
 
-class QKeyEvent;
+#include <string>
+#include <deque>
+
+
 
 
 //-----------------------------------------------------------------------
