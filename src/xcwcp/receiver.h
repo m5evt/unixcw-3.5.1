@@ -23,8 +23,8 @@
 #include <QMouseEvent>
 #include <QKeyEvent>
 
-class QKeyEvent;
-class QMouseEvent;
+// class QKeyEvent;
+// class QMouseEvent;
 
 
 //-----------------------------------------------------------------------
