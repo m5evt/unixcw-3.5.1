@@ -21,7 +21,7 @@
 
 #include <QWidget>
 #include <QStatusBar>
-#include <QString>
+//#include <QString>
 #include <QTextEdit>
 #include <QEvent>
 #include <QMenu>
