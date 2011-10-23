@@ -6081,6 +6081,8 @@ void cw_generator_delete(void)
 			cw_dev_debug ("missed audio system %d", generator->audio_system);
 		}
 
+		pthread_attr_destroy(&(generator->thread_attr));
+
 		generator->audio_system = CW_AUDIO_NONE;
 		free(generator);
 		generator = NULL;
