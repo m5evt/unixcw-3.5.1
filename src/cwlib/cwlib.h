@@ -1,6 +1,6 @@
-/* vi: set ts=2 shiftwidth=2 expandtab:
- *
+/*
  * Copyright (C) 2001-2006  Simon Baldwin (simon_baldwin@yahoo.com)
+ * Copyright (C) 2011       Kamil Ignacak (acerion@wp.pl)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -31,6 +31,18 @@ extern "C"
 {
 #endif
 
+/* libcw functions will, in most cases return one of the two values.
+   Client code is encouraged to use the symbolic names, but can
+   also use traditional values 0/-1. "Traditional" as in libc tradition,
+   because up until now libcw used 1/0 values. But I'm going to change
+   major version number of the library, so this is a good moment to
+   do such large change.
+   libcw doesn't use the values yet, I will do the change in one of
+   upcoming commits. Remember to always check return vales ;) */
+enum cw_return_values {
+	CW_SUCCESS = 0,
+	CW_FAILURE = -1 };
+
 /* supported audio sound systems */
 enum cw_audio_systems {
 	CW_AUDIO_NONE = 0,
@@ -43,60 +55,12 @@ enum cw_audio_systems {
 
 typedef int16_t cw_sample_t;
 
-typedef struct {
-	cw_sample_t *buffer;
-	int buffer_n_samples;
-	/* none/console/OSS/ALSA */
-	int audio_system;
-	/* true/false */
-	int audio_device_open;
-	/* Path to console file, or path to OSS soundcard file,
-	   or ALSA sound device name. */
-	char *audio_device;
-	/* output file descriptor for audio data (console, OSS) */
-	int audio_sink;
-	/* output handle for audio data (ALSA) */
-	snd_pcm_t *alsa_handle;
-	/* output file descriptor for debug data (console, OSS) */
-	int debug_sink;
+struct cw_gen_struct; /* Forward declaration, struct is defined in cwlib.c. */
+typedef struct cw_gen_struct cw_gen_t;
 
 
-	int volume; /* this is the level of sound that you want to have */
-	int frequency;   /* this is the frequency of sound that you want to generate */
-
-	int sample_rate; /* set to the same value of sample rate as
-			    you have used when configuring sound card */
-
-	int slope; /* used to control initial and final phase of
-		      non-zero-amplitude sine wave; slope/attack
-		      makes it possible to start or end a wave
-		      without clicks;
-		      this field provides a very convenient way to
-		      turn on/off a sound, just assign:
-		      +CW_OSS_GENERATOR_SLOPE to turn sound on,
-		      -CW_OSS_GENERATOR_SLOPE to turn sound off */
-
-	/* start/stop flag;
-	   set to 1 before creating generator;
-	   set to 0 to stop generator; generator gets "destroyed"
-	   handling the flag is wrapped in cw_oss_start_generator()
-	   and cw_oss_stop_generator() */
-	int generate;
-
-	/* these are generator's internal state variables; */
-	int amplitude; /* current amplitude of generated sine wave
-			  (as in x(t) = A * sin(t)); in fixed/steady state
-			  the amplitude is either zero or .volume */
-
-	double phase_offset;
-	double phase;
-
-
-
-	pthread_t thread;
-} cw_gen_t;
-
-
+/* Default outputs for audio systems. Used by cwlib unless
+   client code decides otherwise. */
 #define CW_DEFAULT_CONSOLE_DEVICE   "/dev/console"
 #define CW_DEFAULT_OSS_DEVICE       "/dev/audio"
 #define CW_DEFAULT_ALSA_DEVICE      "default"
@@ -223,13 +187,15 @@ extern bool cw_is_alsa_possible(const char *device);
 extern const char *cw_get_console_device(void);
 extern const char *cw_get_soundcard_device(void);
 
+#if 0
 extern void cw_set_soundmixer_file (const char *new_value);
 extern const char *cw_get_soundmixer_file (void);
-
 extern void cw_set_console_sound (int sound_state);
 extern int cw_get_console_sound (void);
 extern void cw_set_soundcard_sound (int sound_state);
 extern int cw_get_soundcard_sound (void);
+#endif
+
 extern void cw_complete_reset (void);
 extern int cw_register_signal_handler (int signal_number,
                                        void (*callback_func) (int));
