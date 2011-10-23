@@ -1,5 +1,4 @@
-/* vi: set ts=2 shiftwidth=2 expandtab:
- *
+/*
  * Copyright (C) 2001-2006  Simon Baldwin (simon_baldwin@yahoo.com)
  * Copyright (C) 2011       Kamil Ignacak (acerion@wp.pl)
  *
@@ -83,6 +82,64 @@
 
 
 
+struct cw_gen_struct {
+	cw_sample_t *buffer;
+	int buffer_n_samples;
+	/* none/console/OSS/ALSA */
+	int audio_system;
+	/* true/false */
+	int audio_device_open;
+	/* Path to console file, or path to OSS soundcard file,
+	   or ALSA sound device name. */
+	char *audio_device;
+	/* output file descriptor for audio data (console, OSS) */
+	int audio_sink;
+	/* output handle for audio data (ALSA) */
+	snd_pcm_t *alsa_handle;
+	/* output file descriptor for debug data (console, OSS) */
+	int debug_sink;
+
+
+	int volume; /* this is the level of sound that you want to have */
+	int frequency;   /* this is the frequency of sound that you want to generate */
+
+	int sample_rate; /* set to the same value of sample rate as
+			    you have used when configuring sound card */
+
+	int slope; /* used to control initial and final phase of
+		      non-zero-amplitude sine wave; slope/attack
+		      makes it possible to start or end a wave
+		      without clicks;
+		      this field provides a very convenient way to
+		      turn on/off a sound, just assign:
+		      +CW_OSS_GENERATOR_SLOPE to turn sound on,
+		      -CW_OSS_GENERATOR_SLOPE to turn sound off */
+
+	/* start/stop flag;
+	   set to 1 before creating generator;
+	   set to 0 to stop generator; generator gets "destroyed"
+	   handling the flag is wrapped in cw_oss_start_generator()
+	   and cw_oss_stop_generator() */
+	int generate;
+
+	/* these are generator's internal state variables; */
+	int amplitude; /* current amplitude of generated sine wave
+			  (as in x(t) = A * sin(t)); in fixed/steady state
+			  the amplitude is either zero or .volume */
+
+	double phase_offset;
+	double phase;
+
+
+	/* Thread function is used to generate sine wave
+	   and write the wave to audio sink. */
+	pthread_t thread;
+	pthread_attr_t thread_attr;
+	int thread_error; /* 0 when no problems, errno when some error occurred */
+};
+
+
+
 static int cw_open_device_oss(const char *device);
 static int cw_close_device_oss(void);
 
@@ -115,6 +172,7 @@ static int cw_open_device_oss_ioctls(int *fd, int *sample_rate);
 
 /* Conditional compilation flags */
 #define CW_MAIN                   0  /* for stand-alone compilation and tests of this file */
+#define CW_DEV                    1  /* development support */
 #define CW_OSS_SET_FRAGMENT       1  /* ioctl(fd, SNDCTL_DSP_SETFRAGMENT, &param) */
 #define CW_OSS_SET_POLICY         0  /* ioctl(fd, SNDCTL_DSP_POLICY, &param) */
 #define CW_ALSA_HW_BUFFER_CONFIG  1  /* set up hw buffer parameters, doesn't work 100% correctly (yet) */
@@ -125,7 +183,7 @@ static const unsigned int CW_AUDIO_SAMPLE_RATE_A = 44100;       /* Primary sound
 static const unsigned int CW_AUDIO_SAMPLE_RATE_B = 48000;       /* Secondary sound sample rate */
 static const int          CW_AUDIO_CHANNELS = 1;                /* Sound in mono */
 static const long int     CW_AUDIO_VOLUME_RANGE = (1 << 15);    /* 2^15 = 32768 */
-enum                    { CW_AUDIO_GENERATOR_BUF_SIZE = 128 };  /* Size of buffer storing samples, the value works well for both OSS and ALSA */
+// enum                    { CW_AUDIO_GENERATOR_BUF_SIZE = 128 };  /* Size of buffer storing samples, the value works well for both OSS and ALSA */
 static const int          CW_AUDIO_GENERATOR_SLOPE = 100;       /* ~100 for 44.1/48 kHz sample rate */
 
 /* 0Hz = silent 'tone'. */
@@ -133,7 +191,7 @@ static const int CW_TONE_SILENT = 0;
 
 
 /* Constants specific to OSS audio system configuration */
-static const int CW_OSS_SETFRAGMENT = 7;              /* Sound fragment size, 2^7 */
+static const int CW_OSS_SETFRAGMENT = 7;              /* Sound fragment size, 2^7 samples */
 static const int CW_OSS_SAMPLE_FORMAT = AFMT_S16_NE;  /* Sound format AFMT_S16_NE = signed 16 bit, native endianess; LE = Little endianess */
 
 
@@ -299,6 +357,24 @@ bool cw_is_debugging_internal(unsigned int flag)
 			fprintf(stderr, "\n");		\
 		}					\
 	}
+
+
+
+
+
+/* Debugging message for library developer */
+#if CW_DEV
+#define cw_dev_debug(...)						\
+	{								\
+		fprintf(stderr, "cwlib: ");				\
+		fprintf(stderr, "%s: %d: ", __func__, __LINE__);	\
+		fprintf(stderr, __VA_ARGS__);				\
+		fprintf(stderr, "\n");					\
+	}
+#else
+#define cw_dev_debug(...) {}
+#endif
+
 
 
 
@@ -2024,14 +2100,14 @@ static const int DSP_SETFRAGMENT = 7,   /* Sound fragment size, 128 (2^7) */
 static int cw_sound_sample_rate = 0;
            cw_sound_saved_vol = 0;
 #endif
-
+#if 0
 /*
  * Sound output control flags, to enable soundcard, console, or both.  By
  * default, console output is disabled, and soundcard enabled.
  */
 static bool cw_sound_soundcard_on = true,
            cw_sound_console_on = false;
-
+#endif
 #if 0
 /**
  * cw_[gs]et_console_file()
@@ -2061,7 +2137,7 @@ int cw_set_console_device(const char *device)
 	if (cw_console_device) {
 		return RC_SUCCESS;
 	} else {
-		cw_debug (CW_DEBUG_SYSTEM, "error: malloc\n");
+		cw_debug (CW_DEBUG_SYSTEM, "error: malloc");
 		return RC_ERROR;
 	}
 }
@@ -2094,7 +2170,7 @@ int cw_set_audio_device(const char *device)
 
 	if (generator->audio_system == CW_AUDIO_NONE) {
 		generator->audio_device = (char *) NULL;
-		fprintf(stderr, "cw: no audio system specified\n");
+		cw_dev_debug ("no audio system specified");
 		return RC_ERROR;
 	}
 
@@ -2807,7 +2883,7 @@ int cw_sound_soundcard_internal(int state)
 	if (generator->audio_system != CW_AUDIO_OSS
 	    && generator->audio_system != CW_AUDIO_ALSA) {
 
-		fprintf(stderr, "cwlib: called the function for output other than sound card (%d)\n",
+		cw_dev_debug ("called the function for output other than sound card (%d)",
 			generator->audio_system);
 
 		/* Strictly speaking this should be RC_ERROR, but this
@@ -2891,7 +2967,7 @@ int cw_sound_internal(int frequency)
 		/* this may happen because the process of finalizing
 		   usage of cwlib is rather complicated; this should
 		   be somehow resolved */
-		fprintf(stderr, "cwlib: called the function for NULL generator\n");
+		cw_dev_debug ("called the function for NULL generator");
 		return RC_SUCCESS;
 	}
 
@@ -2913,7 +2989,7 @@ int cw_sound_internal(int frequency)
 
 
 
-
+#if 0
 
 /**
  * cw_set_console_sound()
@@ -2969,7 +3045,7 @@ cw_get_soundcard_sound (void)
 {
   return cw_sound_soundcard_on;
 }
-
+#endif
 
 /*---------------------------------------------------------------------*/
 /*  Finalization and cleanup                                           */
@@ -5930,7 +6006,7 @@ int cw_generator_new(int audio_system, const char *device)
 {
 	generator = (cw_gen_t *) malloc(sizeof (cw_gen_t));
 	if (!generator) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: malloc\n");
+		cw_debug (CW_DEBUG_SYSTEM, "error: malloc");
 		return RC_ERROR;
 	}
 
@@ -5943,6 +6019,11 @@ int cw_generator_new(int audio_system, const char *device)
 	generator->buffer = NULL;
 	generator->buffer_n_samples = -1;
 
+
+	pthread_attr_init(&(generator->thread_attr));
+	pthread_attr_setdetachstate(&(generator->thread_attr), PTHREAD_CREATE_DETACHED);
+	generator->thread_error = 0;
+
 	cw_set_audio_device(device);
 
 	int rv = RC_ERROR;
@@ -5953,7 +6034,7 @@ int cw_generator_new(int audio_system, const char *device)
 	} else if (audio_system == CW_AUDIO_ALSA) {
 		rv = cw_open_device_alsa(generator->audio_device);
 	} else {
-		fprintf(stderr, "cwlib: unsupported audio system\n");
+		cw_dev_debug ("unsupported audio system");
 		rv = RC_ERROR;
 	}
 
@@ -5961,6 +6042,8 @@ int cw_generator_new(int audio_system, const char *device)
 		generator->buffer = (cw_sample_t *) malloc(generator->buffer_n_samples * sizeof (cw_sample_t));
 		if (generator->buffer != NULL) {
 			return RC_SUCCESS;
+		} else {
+			cw_debug (CW_DEBUG_SYSTEM, "error: malloc");
 		}
 	}
 
@@ -5974,6 +6057,11 @@ int cw_generator_new(int audio_system, const char *device)
 void cw_generator_delete(void)
 {
 	if (generator) {
+		/* Wait for "write" thread to end accessing output
+		   file descriptor. I have come up with value 500
+		   after doing some experiments. */
+		usleep(500);
+
 		if (generator->audio_device) {
 			free(generator->audio_device);
 			generator->audio_device = NULL;
@@ -5990,7 +6078,7 @@ void cw_generator_delete(void)
 		} else if (generator->audio_system == CW_AUDIO_ALSA) {
 			cw_close_device_alsa();
 		} else {
-			fprintf(stderr, "cwlib: missed audio system %d\n", generator->audio_system);
+			cw_dev_debug ("missed audio system %d", generator->audio_system);
 		}
 
 		generator->audio_system = CW_AUDIO_NONE;
@@ -6021,7 +6109,7 @@ int cw_generator_start(void)
 	if (generator->audio_system == CW_AUDIO_CONSOLE) {
 		; /* no thread needed for generating sound on console */
 	} else if (generator->audio_system == CW_AUDIO_OSS) {
-		int rv = pthread_create(&(generator->thread), NULL,
+		int rv = pthread_create(&(generator->thread), &(generator->thread_attr),
 					cw_generator_write_sine_wave_oss,
 					(void *) generator);
 		if (rv != 0) {
@@ -6035,7 +6123,7 @@ int cw_generator_start(void)
 			return RC_SUCCESS;
 		}
 	} else if (generator->audio_system == CW_AUDIO_ALSA) {
-		int rv = pthread_create(&(generator->thread), NULL,
+		int rv = pthread_create(&(generator->thread), &(generator->thread_attr),
 					cw_generator_write_sine_wave_alsa,
 					(void *) generator);
 		if (rv != 0) {
@@ -6049,7 +6137,7 @@ int cw_generator_start(void)
 			return RC_SUCCESS;
 		}
 	} else {
-		fprintf(stderr, "cwlib: unsupported audio system %d\n", generator->audio_system);
+		cw_dev_debug ("unsupported audio system %d", generator->audio_system);
 	}
 
 	return RC_SUCCESS;
@@ -6066,7 +6154,7 @@ int cw_generator_start(void)
 void cw_generator_stop(void)
 {
 	if (!generator) {
-		fprintf(stderr, "cwlib: called the function for NULL generator\n");
+		cw_dev_debug ("called the function for NULL generator");
 		return;
 	}
 
@@ -6100,7 +6188,7 @@ void cw_generator_stop(void)
 		   handle. */
 		usleep(10000);
 	} else {
-		fprintf(stderr, "cwlib: called stop() function for generator without audio system specified\n");
+		cw_dev_debug ("called stop() function for generator without audio system specified");
 	}
 
 	return;
@@ -6110,13 +6198,11 @@ void cw_generator_stop(void)
 
 
 
-/* TODO: buffer size currently is constant, but in future
-   it may be dependent on audio system */
 int cw_generator_calculate_sine_wave(cw_gen_t *gen)
 {
 	int i = 0;
 	double phase = 0.0;
-	/* Create a fragment's worth of shaped wave data. */
+	/* Create a fragment's worth of sine-shaped data. */
 	for (i = 0; i < gen->buffer_n_samples; i++) {
 		double phase = (2.0 * M_PI
 				* (double) gen->frequency * (double) i
@@ -6280,10 +6366,10 @@ int cw_open_device_console(const char *device)
 
 	int console = open(device, O_WRONLY);
 	if (console == -1) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: open(%s): \"%s\"\n", device, strerror(errno));
+		cw_debug (CW_DEBUG_SYSTEM, "error: open(%s): \"%s\"", device, strerror(errno));
 		return RC_ERROR;
         } else {
-		fprintf(stderr, "cwlib: open successfully, console = %d\n", console);
+		cw_dev_debug ("open successfully, console = %d", console);
 	}
 
 	generator->audio_sink = console;
@@ -6376,7 +6462,7 @@ bool cw_is_oss_possible(const char *device)
 		close(soundcard);
 		return false;
         } else {
-		fprintf(stderr, "cwlib: OSS version %X.%X.%X\n",
+		cw_dev_debug ("OSS version %X.%X.%X",
 			(parameter & 0xFF0000) >> 16,
 			(parameter & 0x00FF00) >> 8,
 			(parameter & 0x0000FF) >> 0);
@@ -6444,7 +6530,7 @@ int cw_open_device_oss(const char *device)
 		close(soundcard);
 		return RC_ERROR;
         } else {
-		fprintf(stderr, "cwlib: OSS fragment size = %d\n", size);
+		cw_dev_debug ("OSS fragment size = %d", size);
 	}
 	generator->buffer_n_samples = size;
 
@@ -6511,7 +6597,7 @@ int cw_open_device_oss_ioctls(int *fd, int *sample_rate)
 		}
         }
 	if (rate != CW_AUDIO_SAMPLE_RATE_A && rate != CW_AUDIO_SAMPLE_RATE_B) {
-		fprintf(stderr, "cwlib: warning: imprecise sample rate: %d\n", rate);
+		cw_dev_debug ("warning: imprecise sample rate: %d", rate);
 	}
 
 
@@ -6618,8 +6704,9 @@ void *cw_generator_write_sine_wave_oss(void *arg)
 	while (gen->generate) {
 		cw_generator_calculate_sine_wave(gen);
 		if (write(gen->audio_sink, gen->buffer, n_bytes) != n_bytes) {
+			gen->thread_error = errno;
 			cw_debug (CW_DEBUG_SYSTEM, "error: audio write (OSS): %s\n", strerror(errno));
-			exit(-1); /* FIXME: convert to return */
+			return NULL;
 		}
 		if (gen->debug_sink != -1) {
 			write(gen->debug_sink, gen->buffer, n_bytes);
@@ -6696,12 +6783,17 @@ int cw_open_device_alsa(const char *device)
 	snd_pcm_uframes_t frames; /* period size in frames */
 	int dir = 1;
 	rv = snd_pcm_hw_params_get_period_size(hw_params, &frames, &dir);
-	fprintf(stderr, "cwlib: rv = %d, ALSA buffer size would be %u frames\n", rv, (unsigned int) frames);
-	generator->buffer_n_samples = frames;
+	cw_dev_debug ("rv = %d, ALSA buffer size would be %u frames", rv, (unsigned int) frames);
 
-	/* TODO: this is just temporary; do we need to get
-	   a *real* size of ALSA buffer? */
-	generator->buffer_n_samples = CW_AUDIO_GENERATOR_BUF_SIZE;
+	/* The linker (?) that I use on Debian links cwlib against
+	   old version of get_period_size(), which returns
+	   period size as return value. This is a workaround. */
+	if (rv > 1) {
+		generator->buffer_n_samples = rv;
+	} else {
+		generator->buffer_n_samples = frames;
+	}
+	cw_dev_debug ("ALSA buf size %u", (unsigned int) generator->buffer_n_samples);
 
 	return RC_SUCCESS;
 }
@@ -6740,12 +6832,12 @@ void *cw_generator_write_sine_wave_alsa(void *arg)
 		int rv = snd_pcm_writei(gen->alsa_handle, gen->buffer, gen->buffer_n_samples);
 		if (rv == -EPIPE) {
 			/* EPIPE means underrun */
-			fprintf(stderr, "cwlib: underrun occurred\n");
+			cw_debug (CW_DEBUG_SYSTEM, "ALSA: underrun");
 			snd_pcm_prepare(gen->alsa_handle);
 		} else if (rv < 0) {
-			fprintf(stderr, "cwlib: error from writei: %s\n", snd_strerror(rv));
+			cw_debug (CW_DEBUG_SYSTEM, "ALSA: writei: %s\n", snd_strerror(rv));
 		}  else if (rv != gen->buffer_n_samples) {
-			fprintf(stderr, "cwlib: short write, write %d frames\n", rv);
+			cw_debug (CW_DEBUG_SYSTEM, "ALSA: short write, %d != %d", rv, gen->buffer_n_samples);
 		} else {
 			;
 		}
@@ -6872,13 +6964,15 @@ int cw_set_alsa_hw_params(snd_pcm_t *handle, snd_pcm_hw_params_t *params)
 	{
 		/* Test and attempt to set buffer size */
 
-		snd_pcm_uframes_t val = 0, accepted = 0; /* buffer size in frames  */
+		snd_pcm_uframes_t accepted = 0; /* buffer size in frames  */
 		dir = 0;
-		for (val = 0; val < 10000; val++) {
+		for (snd_pcm_uframes_t val = 0; val < 10000; val++) {
 			rv = snd_pcm_hw_params_test_buffer_size(handle, params, val);
 			if (rv == 0) {
+				cw_dev_debug ("accepted buffer size: %u", (unsigned int) accepted);
+				/* Accept only the smallest available buffer size */
 				accepted = val;
-				fprintf(stderr, "cwlib: accepted buffer size: %u\n", (unsigned int) accepted);
+				break;
 			}
 		}
 
@@ -6895,24 +6989,21 @@ int cw_set_alsa_hw_params(snd_pcm_t *handle, snd_pcm_hw_params_t *params)
 	{
 		/* Test and attempt to set number of periods */
 
-		/* We (hopefully) have set up a buffer with some maximal
-		   size, let's split it into maximum number of periods */
-
 		dir = 0;
-		unsigned int val = 0, accepted = 0; /* number of periods per buffer */
+		unsigned int accepted = 0; /* number of periods per buffer */
 		/* this limit should be enough, 'accepted' on my machine is 8 */
 		const unsigned int n_periods_max = 30;
-		for (val = 1; val < n_periods_max; val++) {
+		for (unsigned int val = 1; val < n_periods_max; val++) {
 			rv = snd_pcm_hw_params_test_periods(handle, params, val, dir);
 			if (rv == 0) {
 				accepted = val;
-				fprintf(stderr, "cwlib: accepted number of periods: %d\n", accepted);
+				cw_dev_debug ("accepted number of periods: %d", accepted);
 			}
 		}
 		if (accepted > 0) {
 			rv = snd_pcm_hw_params_set_periods(handle, params, accepted, dir);
 			if (rv < 0) {
-				fprintf(stderr, "cwlib: can't set accepted number of periods %d: %s\n", accepted, snd_strerror(rv));
+				cw_dev_debug ("can't set accepted number of periods %d: %s", accepted, snd_strerror(rv));
 			}
 		} else {
 			cw_debug (CW_DEBUG_SYSTEM, "error: no accepted number of periods\n");
@@ -6921,9 +7012,8 @@ int cw_set_alsa_hw_params(snd_pcm_t *handle, snd_pcm_hw_params_t *params)
 #if 0
 	{
 		/* Test period size */
-		snd_pcm_uframes_t val; /* approximate period size in frames */
 		dir = 0;
-		for (val = 0; val < 100000; val++) {
+		for (snd_pcm_uframes_t val = 0; val < 100000; val++) {
 			rv = snd_pcm_hw_params_test_period_size(handle, params, val, dir);
 			if (rv == 0) {
 				fprintf(stderr, "cwlib: accepted period size: %d\n", val);
@@ -6931,11 +7021,11 @@ int cw_set_alsa_hw_params(snd_pcm_t *handle, snd_pcm_hw_params_t *params)
 			}
 		}
 	}
+
 	{
 		/* Test buffer time */
-		unsigned int val; /* approximate buffer duration in us */
 		dir = 0;
-		for (val = 0; val < 100000; val++) {
+		for (unsigned int val = 0; val < 100000; val++) {
 			rv = snd_pcm_hw_params_test_buffer_time(handle, params, val, dir);
 			if (rv == 0) {
 				fprintf(stderr, "cwlib: accepted buffer time: %d\n", val);
@@ -6957,7 +7047,7 @@ int cw_set_alsa_hw_params(snd_pcm_t *handle, snd_pcm_hw_params_t *params)
 		snd_pcm_uframes_t frames; /* period size in frames */
 		int dir = 0;
 		snd_pcm_hw_params_get_period_size(params, &frames, &dir);
-		fprintf(stderr, "cwlib: %d, ALSA buffer size would be %u frames\n", rv, (unsigned int) frames);
+		cw_dev_debug ("%d, ALSA buffer size would be %u frames", rv, (unsigned int) frames);
 		return RC_SUCCESS;
 	}
 }
@@ -6965,6 +7055,8 @@ int cw_set_alsa_hw_params(snd_pcm_t *handle, snd_pcm_hw_params_t *params)
 
 
 
+
+#if CW_DEV
 
 /* debug function */
 int cw_print_alsa_params(snd_pcm_hw_params_t *params)
@@ -6974,29 +7066,31 @@ int cw_print_alsa_params(snd_pcm_hw_params_t *params)
 
 	int rv = snd_pcm_hw_params_get_periods(params, &val, &dir);
 	if (rv < 0) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: can't get 'periods': %s\n", snd_strerror(rv));
+		cw_debug (CW_DEBUG_SYSTEM, "error: can't get 'periods': %s", snd_strerror(rv));
 	} else {
-		fprintf(stderr, "cwlib: 'periods' = %u\n", val);
+		cw_dev_debug ("'periods' = %u", val);
 	}
 
 	snd_pcm_uframes_t period_size = 0;
 	rv = snd_pcm_hw_params_get_period_size(params, &period_size, &dir);
 	if (rv < 0) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: can't get 'period size': %s\n", snd_strerror(rv));
+		cw_debug (CW_DEBUG_SYSTEM, "error: can't get 'period size': %s", snd_strerror(rv));
 	} else {
-		fprintf(stderr, "cwlib: 'period size' = %u\n", (unsigned int) period_size);
+		cw_dev_debug ("'period size' = %u", (unsigned int) period_size);
 	}
 
 	snd_pcm_uframes_t buffer_size;
 	rv = snd_pcm_hw_params_get_buffer_size(params, &buffer_size);
 	if (rv < 0) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: can't get buffer size: %s\n", snd_strerror(rv));
+		cw_debug (CW_DEBUG_SYSTEM, "error: can't get buffer size: %s", snd_strerror(rv));
 	} else {
-		fprintf(stderr, "cwlib: 'buffer size' = %u\n", (unsigned int) buffer_size);
+		cw_dev_debug ("'buffer size' = %u", (unsigned int) buffer_size);
 	}
 
 	return RC_SUCCESS;
 }
+
+#endif
 
 
 
@@ -7010,7 +7104,7 @@ int cw_print_alsa_params(snd_pcm_hw_params_t *params)
 #if CW_MAIN
 
 
-typedef int (*predicate_t) (const char *device);
+typedef bool (*predicate_t)(const char *device);
 static void main_helper(int audio_system, const char *name, const char *device, predicate_t predicate);
 
 
@@ -7035,7 +7129,6 @@ void main_helper(int audio_system, const char *name, const char *device, predica
 {
 	int rv = RC_ERROR;
 
-	fprintf(stderr, "%s:\n", name);
 	rv = predicate(device);
 	if (rv == RC_SUCCESS) {
 		rv = cw_generator_new(audio_system, device);
