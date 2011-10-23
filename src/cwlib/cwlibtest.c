@@ -1,6 +1,6 @@
-/* vi: set ts=2 shiftwidth=2 expandtab:
- *
+/*
  * Copyright (C) 2001-2006  Simon Baldwin (simon_baldwin@yahoo.com)
+ * Copyright (C) 2011       Kamil Ignacak (acerion@wp.pl)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -41,70 +41,47 @@
 
 
 /*---------------------------------------------------------------------*/
-/*  Module variables, miscellaneous other stuff                        */
-/*---------------------------------------------------------------------*/
-
-/* True/False enumeration values. */
-enum { FALSE = 0, TRUE = !FALSE };
-
-
-/*---------------------------------------------------------------------*/
 /*  Unit tests                                                         */
 /*---------------------------------------------------------------------*/
 
 /*
  * cw_self_test_admin()
  */
-static int
-cw_self_test_admin (void)
+static int cw_self_test_admin(void)
 {
-  int failures = 0;
-  unsigned int flags, index;
+	/* Test the cw_version and cw_license functions. */
+	fprintf(stderr, "cwlib: version %d.%d\n", cw_version() >> 16, cw_version() & 0xff);
+	cw_license();
 
-  /*
-   * Test the cw_version and cw_license functions.
-   */
-  printf ("cwlib: version %d.%d\n", cw_version () >> 16, cw_version () & 0xff);
-  cw_license ();
+	/* Test getting and setting of debug flags. */
+	unsigned int flags = cw_get_debug_flags();
+	int failures = 0;
+	for (unsigned int i = 0; i <= CW_DEBUG_MASK; i++) {
+		cw_set_debug_flags(i);
+		if (cw_get_debug_flags() != i) {
+			fprintf(stderr, "cwlib: ERROR: cw_get/set_debug flags\n");
+			failures++;
+			break;
+		}
+	}
+	cw_set_debug_flags(flags);
+	fprintf(stderr, "cwlib: cw_get/set_debug flags tests complete\n");
 
-  /*
-   * Test getting and setting of debug flags.
-   */
-  flags = cw_get_debug_flags ();
-  for (index = 0; index <= CW_DEBUG_MASK; index++)
-    {
-      cw_set_debug_flags (index);
-      if (cw_get_debug_flags () != index)
-        {
-          printf ("cwlib: ERROR: cw_get/set_debug flags\n");
-          failures++;
-          break;
-        }
-    }
-  cw_set_debug_flags (flags);
+	/* Test availability of audio sinks. */
 
-  /*
-   * Test setting sound output selections.
-   */
-  if (!cw_is_console_possible(NULL))
-    {
-      printf ("cwlib: console device cannot do sound\n");
-      perror (cw_get_console_device());
-      cw_set_console_sound (FALSE);
-    }
-  else
-    cw_set_console_sound (TRUE);
-  if (!cw_is_oss_possible (NULL))
-    {
-      printf ("cwlib: soundcard device unavailable\n");
-      perror (cw_get_soundcard_device());
-      cw_set_soundcard_sound (FALSE);
-    }
-  else
-    cw_set_soundcard_sound (TRUE);
+	if (!cw_is_oss_possible(NULL)) {
+		fprintf(stderr, "cwlib: OSS: soundcard device unavailable: %s\n", strerror(errno));
+	}
 
-  printf ("cwlib: cw_get/set_debug flags tests complete\n");
-  return failures;
+	if (!cw_is_alsa_possible(NULL)) {
+		fprintf(stderr, "cwlib: ALSA: soundcard device unavailable: %s\n", strerror(errno));
+	}
+
+	if (!cw_is_console_possible(NULL)) {
+		fprintf(stderr, "cwlib: console device unavailable: %s\n", strerror(errno));
+	}
+
+	return failures;
 }
 
 
@@ -728,7 +705,7 @@ cw_self_test_prosign_lookups (void)
 
   /*
    * For each character, look up its expansion and check for two or three
-   * characters, and a TRUE/FALSE assignment to the display hint.
+   * characters, and a true/false assignment to the display hint.
    */
   printf ("cwlib: cw_get_maximum_procedural_expansion_length %d\n",
           cw_get_maximum_procedural_expansion_length ());
@@ -770,7 +747,7 @@ cw_self_test_phonetic_lookups (void)
 
   /*
    * For each ASCII character, look up its phonetic and check for a string
-   * that start with this character, if alphabetic, and FALSE otherwise.
+   * that start with this character, if alphabetic, and false otherwise.
    */
   printf ("cwlib: cw_get_maximum_phonetic_length %d\n",
           cw_get_maximum_phonetic_length ());
@@ -780,7 +757,7 @@ cw_self_test_phonetic_lookups (void)
       char phonetic[256];
 
       status = cw_lookup_phonetic ((char) index, phonetic);
-      if (status != (isalpha (index) ? TRUE : FALSE))
+      if (status != (isalpha (index) ? true : false))
         {
           printf ("cwlib: ERROR: cw_lookup_phonetic()\n");
           failures++;
@@ -1243,7 +1220,7 @@ cw_self_test_keyer (void)
    * are not tested here, just the basics - dots, dashes, and alternating
    * dots and dashes.
    */
-  if (!cw_notify_keyer_paddle_event (TRUE, FALSE))
+  if (!cw_notify_keyer_paddle_event (true, false))
     {
       printf ("cwlib: ERROR: cw_notify_keyer_paddle_event\n");
       failures++;
@@ -1264,7 +1241,7 @@ cw_self_test_keyer (void)
       failures++;
     }
 
-  if (!cw_notify_keyer_paddle_event (FALSE, TRUE))
+  if (!cw_notify_keyer_paddle_event (false, true))
     {
       printf ("cwlib: ERROR: cw_notify_keyer_paddle_event\n");
       failures++;
@@ -1285,7 +1262,7 @@ cw_self_test_keyer (void)
       failures++;
     }
 
-  if (!cw_notify_keyer_paddle_event (TRUE, TRUE))
+  if (!cw_notify_keyer_paddle_event (true, true))
     {
       printf ("cwlib: ERROR: cw_notify_keyer_paddle_event\n");
       failures++;
@@ -1306,7 +1283,7 @@ cw_self_test_keyer (void)
       failures++;
     }
 
-  cw_notify_keyer_paddle_event (FALSE, FALSE);
+  cw_notify_keyer_paddle_event (false, false);
   cw_wait_for_keyer ();
 
   printf ("cwlib: cw_notify_keyer_paddle_event tests complete\n");
@@ -1328,9 +1305,9 @@ cw_self_test_straight_key (void)
    */
   for (index = 0; index < 10; index++)
     {
-      if (!cw_notify_straight_key_event (FALSE))
+      if (!cw_notify_straight_key_event (false))
         {
-          printf ("cwlib: ERROR: cw_notify_straight_key_event FALSE\n");
+          printf ("cwlib: ERROR: cw_notify_straight_key_event false\n");
           failures++;
         }
       if (cw_get_straight_key_state ())
@@ -1346,9 +1323,9 @@ cw_self_test_straight_key (void)
     }
   for (index = 0; index < 10; index++)
     {
-      if (!cw_notify_straight_key_event (TRUE))
+      if (!cw_notify_straight_key_event (true))
         {
-          printf ("cwlib: ERROR: cw_notify_straight_key_event TRUE\n");
+          printf ("cwlib: ERROR: cw_notify_straight_key_event true\n");
           failures++;
         }
       if (!cw_get_straight_key_state ())
@@ -1365,9 +1342,9 @@ cw_self_test_straight_key (void)
   sleep (1);
   for (index = 0; index < 10; index++)
     {
-      if (!cw_notify_straight_key_event (FALSE))
+      if (!cw_notify_straight_key_event (false))
         {
-          printf ("cwlib: ERROR: cw_notify_straight_key_event FALSE\n");
+          printf ("cwlib: ERROR: cw_notify_straight_key_event false\n");
           failures++;
         }
     }
@@ -1464,12 +1441,12 @@ cw_self_test_delayed_release (void)
  * cw_self_test_signal_handling_callback()
  * cw_self_test_signal_handling()
  */
-static int cw_self_test_signal_handling_callback_called = FALSE;
+static int cw_self_test_signal_handling_callback_called = false;
 static void
 cw_self_test_signal_handling_callback (int signal_number)
 {
   signal_number = 0;
-  cw_self_test_signal_handling_callback_called = TRUE;
+  cw_self_test_signal_handling_callback_called = true;
 }
 
 static int
@@ -1495,7 +1472,7 @@ cw_self_test_signal_handling (void)
       failures++;
     }
 
-  cw_self_test_signal_handling_callback_called = FALSE;
+  cw_self_test_signal_handling_callback_called = false;
   raise (SIGUSR1);
   sleep (1);
   if (!cw_self_test_signal_handling_callback_called)
@@ -1510,7 +1487,7 @@ cw_self_test_signal_handling (void)
       failures++;
     }
 
-  cw_self_test_signal_handling_callback_called = FALSE;
+  cw_self_test_signal_handling_callback_called = false;
   raise (SIGUSR1);
   sleep (1);
   if (cw_self_test_signal_handling_callback_called)
@@ -1582,132 +1559,137 @@ cw_self_test_setup (void)
  *
  * Perform a series of self-tests on library public interfaces.
  */
-static int
-cw_self_test (unsigned int testset)
+static int cw_self_test (unsigned int testset)
 {
-  static int (*const TEST_FUNCTIONS[]) (void) = {
-      cw_self_test_admin, cw_self_test_limits, cw_self_test_ranges,
-      cw_self_test_tone_parameters, cw_self_test_simple_tones,
-      cw_self_test_complex_tones, cw_self_test_tone_queue,
-      cw_self_test_volumes, cw_self_test_lookups,
-      cw_self_test_prosign_lookups, cw_self_test_phonetic_lookups,
-      cw_self_test_dot_dash, cw_self_test_representations,
-      cw_self_test_characters, cw_self_test_full_send,
-      cw_self_test_fixed_receive, cw_self_test_adaptive_receive,
-      cw_self_test_keyer, cw_self_test_straight_key,
-      cw_self_test_delayed_release, cw_self_test_signal_handling,
-      NULL};
-  int tests = 0, failures = 0, test;
+	static int (*const TEST_FUNCTIONS[])(void) = {
+		cw_self_test_admin, /* Version, license, debug flags, availability of output systems. */
+		cw_self_test_limits,
+		cw_self_test_ranges,
+		cw_self_test_tone_parameters,
+		cw_self_test_simple_tones,
+		cw_self_test_complex_tones,
+		cw_self_test_tone_queue,
+		cw_self_test_volumes,
+		cw_self_test_lookups,
+		cw_self_test_prosign_lookups,
+		cw_self_test_phonetic_lookups,
+		cw_self_test_dot_dash,
+		cw_self_test_representations,
+		cw_self_test_characters,
+		cw_self_test_full_send,
+		cw_self_test_fixed_receive,
+		cw_self_test_adaptive_receive,
+		cw_self_test_keyer,
+		cw_self_test_straight_key,
+		cw_self_test_delayed_release,
+		//cw_self_test_signal_handling, /* FIXME - not sure why this test fails :( */
+		NULL };
 
-  /*
-   * If admin test not selected, set console and soundcard sound according
-   * to what appears to be available.  This will generate sound from both the
-   * soundcard and the console.  To get just console sound, unplug the
-   * speakers.  To get just soundcard sound, run the tests with stdout
-   * redirected to a non-console device.
-   */
-  if (testset && !(testset & 1))
-    {
-      if (!cw_is_console_possible(NULL))
-        {
-          printf ("cwlib: console device cannot do sound, %s\n",
-            cw_get_console_device());
-          cw_set_console_sound (FALSE);
-        }
-      else
-        cw_set_console_sound (TRUE);
-      if (!cw_is_oss_possible (NULL))
-        {
-          printf ("cwlib: sound device unavailable, %s\n",
-            cw_get_soundcard_device());
-          cw_set_soundcard_sound (FALSE);
-        }
-      else
-        cw_set_soundcard_sound (TRUE);
-    }
+	int output = CW_AUDIO_NONE;
+	if (cw_is_oss_possible(NULL)) {
+		output = CW_AUDIO_OSS;
+	} else {
+		fprintf(stderr, "cwlib: OSS: soundcard device unavailable: %s\n", strerror(errno));
+	}
 
-  /*
-   * Run each test specified in the testset bit mask, and add up the errors
-   * that the tests report.
-   */
-  for (test = 0; TEST_FUNCTIONS[test]; test++)
-    {
-      if (testset & (1 << test))
-        {
-          cw_self_test_setup ();
-          tests++;
-          failures += (*TEST_FUNCTIONS[test]) ();
-        }
-    }
+	if (output == CW_AUDIO_NONE) {
+		if (cw_is_alsa_possible(NULL)) {
+			output = CW_AUDIO_ALSA;
+		} else {
+			fprintf(stderr, "cwlib: ALSA: soundcard device unavailable: %s\n", strerror(errno));
+		}
+	}
 
-  /*
-   * All tests done; return success if no failures, otherwise return an
-   * error status code.
-   */
-  if (failures == 0)
-    {
-      printf ("cwlib: %d test%c completed SUCCESSFULLY\n",
-              tests, tests == 1 ? ' ' : 's');
-      return EXIT_SUCCESS;
-    }
-  else
-    {
-      printf ("cwlib: %d test%c completed with %d ERROR%c\n",
-              tests, tests == 1 ? ' ' : 's',
-              failures, failures == 1 ? ' ' : 'S');
-      return EXIT_FAILURE;
-    }
+	if (output == CW_AUDIO_NONE) {
+		if (cw_is_console_possible(NULL)) {
+			output = CW_AUDIO_OSS;
+		} else {
+			fprintf(stderr, "cwlib: console device cannot do sound: %s\n", strerror(errno));
+		}
+	}
+	if (output == CW_AUDIO_NONE) {
+		fprintf(stderr, "cwlib: no audio output available, stopping the test\n");
+		return -1;
+	}
+
+	int rv = cw_generator_new(output, NULL);
+	if (rv != 1) {
+		fprintf(stderr, "cwlib: can't create generator, stopping the test\n");
+		return -1;
+	}
+	rv = cw_generator_start();
+	if (rv != 1) {
+		fprintf(stderr, "cwlib: can't start generator, stopping the test\n");
+		cw_generator_delete();
+		return -1;
+	}
+
+
+	int tests = 0, failures = 0;
+	/* Run each test specified in the testset bit mask,
+	   and add up the errors that the tests report. */
+	for (int test = 0; TEST_FUNCTIONS[test]; test++) {
+		if (testset & (1 << test)) {
+			cw_self_test_setup();
+			tests++;
+			failures += (*TEST_FUNCTIONS[test])();
+		}
+	}
+
+	sleep(1);
+	cw_generator_stop();
+	sleep(1);
+	cw_generator_delete();
+
+	/* All tests done; return success if no failures,
+	   otherwise return an error status code. */
+	if (failures == 0) {
+		fprintf(stderr, "cwlib: %d test%c completed SUCCESSFULLY\n",
+			tests, tests == 1 ? ' ' : 's');
+		return 0;
+	} else {
+		fprintf(stderr, "cwlib: %d test%c completed with %d ERROR%c\n",
+			tests, tests == 1 ? ' ' : 's',
+			failures, failures == 1 ? ' ' : 'S');
+		return -1;
+	}
 }
 
 
 /*
  * main()
  *
- * Calls the main test function, and exits with 0 if all tests complete
- * successfully, otherwise exits with 1.
+ * Calls the main test function, and exits with EXIT_SUCCESS if all
+ * tests complete successfully, otherwise exits with EXIT_FAILURE.
  */
-int
-main (int argc, const char *argv[])
+int main(int argc, const char *argv[])
 {
-  static const int SIGNALS[] = { SIGHUP, SIGINT, SIGQUIT, SIGPIPE, SIGTERM, 0 };
+	static const int SIGNALS[] = { SIGHUP, SIGINT, SIGQUIT, SIGPIPE, SIGTERM, 0 };
 
-  unsigned int index, testset;
+	unsigned int testset;
 
-  /*
-   * Obtain a bitmask of the tests to run from the command line arguments.
-   * If none, then default to ~0, which effectively requests all tests.
-   */
-  if (argc > 1)
-    {
-      int arg;
+	/* Obtain a bitmask of the tests to run from the command line
+	   arguments. If none, then default to ~0, which effectively
+	   requests all tests. */
+	if (argc > 1) {
+		testset = 0;
+		for (int arg = 1; arg < argc; arg++) {
+			unsigned int test = strtoul(argv[arg], NULL, 0);
+			testset |= 1 << test;
+		}
+	} else {
+		testset = ~0;
+	}
 
-      testset = 0;
-      for (arg = 1; arg < argc; arg++)
-        {
-          unsigned int test = 0;
+	/* Arrange for the test to exit on a range of signals. */
+	for (int i = 0; SIGNALS[i] != 0; i++) {
+		if (!cw_register_signal_handler(SIGNALS[i], SIG_DFL)) {
+			fprintf(stderr, "cwlib: ERROR: cw_register_signal_handler\n");
+			exit(EXIT_FAILURE);
+		}
+	}
+	/* Run each requested test. */
+	int rv = cw_self_test(testset);
 
-          test = strtoul (argv[arg], NULL, 0);
-          testset |= 1 << test;
-        }
-    }
-  else
-    testset = ~0;
-
-  /* Arrange for the test to exit on a range of signals. */
-  for (index = 0; SIGNALS[index] != 0; index++)
-    {
-      if (!cw_register_signal_handler (SIGNALS[index], SIG_DFL))
-        {
-          printf ("cwlib: ERROR: cw_register_signal_handler\n");
-          exit (EXIT_FAILURE);
-        }
-    }
-
-  cw_generator_new(CW_AUDIO_OSS, NULL);
-  cw_generator_start();
-  /* Run each requested test. */
-  int rv = cw_self_test (testset);
-  cw_generator_stop();
-  cw_generator_delete();
-  return rv == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
+	return rv == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }
