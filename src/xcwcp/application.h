@@ -21,19 +21,23 @@
 #define _XCWCP_APPLICATION_H
 
 #include <QMainWindow>
-#include <QHideEvent>
+#include <QToolButton>
+#include <QComboBox>
+#include <QSpinBox>
+//#include <QHideEvent>
+
 #include <string>
 #include <deque>
 
 #include "modeset.h"
 
 
-class QKeyEvent;
-class QComboBox;
-class QSpinBox;
-class QToolButton;
-class QCheckBox;
-class QTimer;
+//class QKeyEvent;
+//class QComboBox;
+//class QSpinBox;
+//class QToolButton;
+//class QCheckBox;
+//class QTimer;
 
 
 //-----------------------------------------------------------------------
