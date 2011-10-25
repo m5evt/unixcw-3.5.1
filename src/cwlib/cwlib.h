@@ -31,17 +31,10 @@ extern "C"
 {
 #endif
 
-/* libcw functions will, in most cases return one of the two values.
-   Client code is encouraged to use the symbolic names, but can
-   also use traditional values 0/-1. "Traditional" as in libc tradition,
-   because up until now libcw used 1/0 values. But I'm going to change
-   major version number of the library, so this is a good moment to
-   do such large change.
-   libcw doesn't use the values yet, I will do the change in one of
-   upcoming commits. Remember to always check return vales ;) */
+
 enum cw_return_values {
-	CW_SUCCESS = 0,
-	CW_FAILURE = -1 };
+	CW_FAILURE = false,
+	CW_SUCCESS = true };
 
 /* supported audio sound systems */
 enum cw_audio_systems {
