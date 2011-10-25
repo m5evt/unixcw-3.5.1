@@ -220,9 +220,6 @@ static cw_gen_t *generator = NULL;
 
 
 
-/* False, true, and library return codes. */
-enum { RC_SUCCESS = true, RC_ERROR = false };
-
 #if 0 /* disabling, this text will be included from cwutils/copyright.h */
 static const char *const CW_COPYRIGHT =
 	"Copyright (C) 2001-2006  Simon Baldwin\n"
@@ -605,12 +602,12 @@ cw_lookup_character (char c, char *representation)
     {
       if (representation)
         strcpy (representation, retval);
-      return RC_SUCCESS;
+      return CW_SUCCESS;
     }
 
   /* Failed to find the requested character. */
   errno = ENOENT;
-  return RC_ERROR;
+  return CW_FAILURE;
 }
 
 
@@ -792,11 +789,11 @@ cw_check_representation (const char *representation)
           && representation[index] != CW_DASH_REPRESENTATION)
         {
           errno = EINVAL;
-          return RC_ERROR;
+          return CW_FAILURE;
         }
     }
 
-  return RC_SUCCESS;
+  return CW_SUCCESS;
 }
 
 
@@ -817,7 +814,7 @@ cw_lookup_representation (const char *representation, char *c)
   if (!cw_check_representation (representation))
     {
       errno = EINVAL;
-      return RC_ERROR;
+      return CW_FAILURE;
     }
 
   /* Lookup the representation, and if found, return the character. */
@@ -826,12 +823,12 @@ cw_lookup_representation (const char *representation, char *c)
     {
       if (c)
         *c = character;
-      return RC_SUCCESS;
+      return CW_SUCCESS;
     }
 
   /* Failed to find the requested representation. */
   errno = ENOENT;
-  return RC_ERROR;
+  return CW_FAILURE;
 }
 
 
@@ -1032,12 +1029,12 @@ cw_lookup_procedural_character (char c, char *representation,
         strcpy (representation, retval);
       if (is_usually_expanded)
         *is_usually_expanded = is_expanded;
-      return RC_SUCCESS;
+      return CW_SUCCESS;
     }
 
   /* Failed to find the requested procedural signal character. */
   errno = ENOENT;
-  return RC_ERROR;
+  return CW_FAILURE;
 }
 
 
@@ -1102,12 +1099,12 @@ cw_lookup_phonetic (char c, char *phonetic)
     {
       if (phonetic)
         strcpy (phonetic, CW_PHONETICS[c - 'A']);
-      return RC_SUCCESS;
+      return CW_SUCCESS;
     }
 
   /* No such phonetic. */
   errno = ENOENT;
-  return RC_ERROR;
+  return CW_FAILURE;
 }
 
 
@@ -1460,7 +1457,7 @@ cw_set_send_speed (int new_value)
   if (new_value < CW_SPEED_MIN || new_value > CW_SPEED_MAX)
     {
       errno = EINVAL;
-      return RC_ERROR;
+      return CW_FAILURE;
     }
   if (new_value != cw_send_speed)
     {
@@ -1471,7 +1468,7 @@ cw_set_send_speed (int new_value)
       cw_sync_parameters_internal ();
     }
 
-  return RC_SUCCESS;
+  return CW_SUCCESS;
 }
 
 int
@@ -1480,14 +1477,14 @@ cw_set_receive_speed (int new_value)
   if (cw_is_adaptive_receive_enabled)
     {
       errno = EPERM;
-      return RC_ERROR;
+      return CW_FAILURE;
     }
   else
     {
       if (new_value < CW_SPEED_MIN || new_value > CW_SPEED_MAX)
         {
           errno = EINVAL;
-          return RC_ERROR;
+          return CW_FAILURE;
         }
     }
   if (new_value != cw_receive_speed)
@@ -1499,7 +1496,7 @@ cw_set_receive_speed (int new_value)
       cw_sync_parameters_internal ();
     }
 
-  return RC_SUCCESS;
+  return CW_SUCCESS;
 }
 
 
@@ -1510,10 +1507,10 @@ int cw_set_frequency(int new_value)
 {
 	if (new_value < CW_FREQUENCY_MIN || new_value > CW_FREQUENCY_MAX) {
 		errno = EINVAL;
-		return RC_ERROR;
+		return CW_FAILURE;
 	} else {
 		generator->frequency = new_value;
-		return RC_SUCCESS;
+		return CW_SUCCESS;
 	}
 }
 
@@ -1525,10 +1522,10 @@ int cw_set_volume(int new_value)
 {
 	if (new_value < CW_VOLUME_MIN || new_value > CW_VOLUME_MAX) {
 		errno = EINVAL;
-		return RC_ERROR;
+		return CW_FAILURE;
 	} else {
 		generator->volume = new_value;
-		return RC_SUCCESS;
+		return CW_SUCCESS;
 	}
 }
 
@@ -1542,7 +1539,7 @@ cw_set_gap (int new_value)
   if (new_value < CW_GAP_MIN || new_value > CW_GAP_MAX)
     {
       errno = EINVAL;
-      return RC_ERROR;
+      return CW_FAILURE;
     }
   if (new_value != cw_gap)
     {
@@ -1553,7 +1550,7 @@ cw_set_gap (int new_value)
       cw_sync_parameters_internal ();
     }
 
-  return RC_SUCCESS;
+  return CW_SUCCESS;
 }
 
 int
@@ -1562,7 +1559,7 @@ cw_set_tolerance (int new_value)
   if (new_value < CW_TOLERANCE_MIN || new_value > CW_TOLERANCE_MAX)
     {
       errno = EINVAL;
-      return RC_ERROR;
+      return CW_FAILURE;
     }
   if (new_value != cw_tolerance)
     {
@@ -1573,7 +1570,7 @@ cw_set_tolerance (int new_value)
       cw_sync_parameters_internal ();
     }
 
-  return RC_SUCCESS;
+  return CW_SUCCESS;
 }
 
 int
@@ -1582,7 +1579,7 @@ cw_set_weighting (int new_value)
   if (new_value < CW_WEIGHTING_MIN || new_value > CW_WEIGHTING_MAX)
     {
       errno = EINVAL;
-      return RC_ERROR;
+      return CW_FAILURE;
     }
   if (new_value != cw_weighting)
     {
@@ -1593,7 +1590,7 @@ cw_set_weighting (int new_value)
       cw_sync_parameters_internal ();
     }
 
-  return RC_SUCCESS;
+  return CW_SUCCESS;
 }
 
 int
@@ -1740,11 +1737,11 @@ cw_set_noise_spike_threshold (int threshold)
   if (threshold < 0)
     {
       errno = EINVAL;
-      return RC_ERROR;
+      return CW_FAILURE;
     }
   cw_noise_spike_threshold = threshold;
 
-  return RC_SUCCESS;
+  return CW_SUCCESS;
 }
 
 int
@@ -1832,10 +1829,10 @@ cw_set_timer_internal (int usecs)
   if (status == -1)
     {
       perror ("cw: setitimer");
-      return RC_ERROR;
+      return CW_FAILURE;
     }
 
-  return RC_SUCCESS;
+  return CW_SUCCESS;
 }
 
 
@@ -1867,7 +1864,7 @@ cw_request_timeout_internal (int usecs, void (*request_handler) (void))
       if (status == -1)
         {
           perror ("cw: sigaction");
-          return RC_ERROR;
+          return CW_FAILURE;
         }
 
       cw_is_sigalrm_handler_installed = true;
@@ -1903,7 +1900,7 @@ cw_request_timeout_internal (int usecs, void (*request_handler) (void))
             {
               errno = ENOMEM;
               perror ("cw: overflow cw_request_handlers");
-              return RC_ERROR;
+              return CW_FAILURE;
             }
           cw_request_handlers[handler] = request_handler;
         }
@@ -1925,7 +1922,7 @@ cw_request_timeout_internal (int usecs, void (*request_handler) (void))
       if (raise (SIGALRM) != 0)
         {
           perror ("cw: raise");
-          return RC_ERROR;
+          return CW_FAILURE;
         }
     }
   else
@@ -1935,10 +1932,10 @@ cw_request_timeout_internal (int usecs, void (*request_handler) (void))
        * duration.
        */
       if (!cw_set_timer_internal (usecs))
-        return RC_ERROR;
+        return CW_FAILURE;
     }
 
-  return RC_SUCCESS;
+  return CW_SUCCESS;
 }
 
 
@@ -1959,20 +1956,20 @@ cw_release_timeouts_internal (void)
 
       /* Cancel any pending itimer setting. */
       if (!cw_set_timer_internal (0))
-        return RC_ERROR;
+        return CW_FAILURE;
 
       /* Put back the SIGALRM information saved earlier. */
       status = sigaction (SIGALRM, &cw_sigalrm_original_disposition, NULL);
       if (status == -1)
         {
           perror ("cw: sigaction");
-          return RC_ERROR;
+          return CW_FAILURE;
         }
 
       cw_is_sigalrm_handler_installed = false;
     }
 
-  return RC_SUCCESS;
+  return CW_SUCCESS;
 }
 
 
@@ -1994,17 +1991,17 @@ cw_check_signal_mask_internal (void)
   if (status == -1)
     {
       perror ("cw: sigprocmask");
-      return RC_ERROR;
+      return CW_FAILURE;
     }
 
   /* Check that SIGALRM is not blocked in the current mask. */
   if (sigismember (&current_set, SIGALRM))
     {
       errno = EDEADLK;
-      return RC_ERROR;
+      return CW_FAILURE;
     }
 
-  return RC_SUCCESS;
+  return CW_SUCCESS;
 }
 
 
@@ -2027,10 +2024,10 @@ cw_block_signal_internal (int is_block)
   if (status == -1)
     {
       perror ("cw: sigprocmask");
-      return RC_ERROR;
+      return CW_FAILURE;
     }
 
-  return RC_SUCCESS;
+  return CW_SUCCESS;
 }
 
 
@@ -2066,7 +2063,7 @@ cw_wait_for_signal_internal (void)
   if (status == -1)
     {
       perror ("cw: sigprocmask");
-      return RC_ERROR;
+      return CW_FAILURE;
     }
 
   /* Wait on the current mask. */
@@ -2074,10 +2071,10 @@ cw_wait_for_signal_internal (void)
   if (status == -1 && errno != EINTR)
     {
       perror ("cw: sigsuspend");
-      return RC_ERROR;
+      return CW_FAILURE;
     }
 
-  return RC_SUCCESS;
+  return CW_SUCCESS;
 }
 
 
@@ -2135,10 +2132,10 @@ int cw_set_console_device(const char *device)
 	}
 
 	if (cw_console_device) {
-		return RC_SUCCESS;
+		return CW_SUCCESS;
 	} else {
 		cw_debug (CW_DEBUG_SYSTEM, "error: malloc");
-		return RC_ERROR;
+		return CW_FAILURE;
 	}
 }
 #endif
@@ -2171,7 +2168,7 @@ int cw_set_audio_device(const char *device)
 	if (generator->audio_system == CW_AUDIO_NONE) {
 		generator->audio_device = (char *) NULL;
 		cw_dev_debug ("no audio system specified");
-		return RC_ERROR;
+		return CW_FAILURE;
 	}
 
 	if (device) {
@@ -2182,9 +2179,9 @@ int cw_set_audio_device(const char *device)
 
 	if (!generator->audio_device) {
 		cw_debug (CW_DEBUG_SYSTEM, "error: malloc error\n");
-		return RC_ERROR;
+		return CW_FAILURE;
 	} else {
-		return RC_SUCCESS;
+		return CW_SUCCESS;
 	}
 }
 
@@ -2241,20 +2238,20 @@ cw_is_soundcard_possible (void)
 	/* FIXME: you have messed up this function, fix this */
   if (generator->audio_system == CW_AUDIO_OSS
       || generator->audio_system == CW_AUDIO_ALSA)
-    return RC_SUCCESS;
+    return CW_SUCCESS;
 
   if (!generator->audio_device)
     {
       errno = EINVAL;
-      return RC_ERROR;
+      return CW_FAILURE;
     }
 
   if (access (generator->audio_device, W_OK) == -1)
     {
-      return RC_ERROR;
+      return CW_FAILURE;
     }
 
-  return RC_SUCCESS;
+  return CW_SUCCESS;
 }
 #endif
 
@@ -2289,7 +2286,7 @@ cw_get_sound_pcm_volume_internal (int *volume)
              MIXER_READ (SOUND_MIXER_PCM), &read_volume) == 0)
     {
       *volume = read_volume;
-      return RC_SUCCESS;
+      return CW_SUCCESS;
     }
 
   /* Volume not found; try the mixer PCM channel volume instead. */
@@ -2298,7 +2295,7 @@ cw_get_sound_pcm_volume_internal (int *volume)
     {
       cw_debug (CW_DEBUG_SYSTEM, "error: open ");
       perror (cw_mixer_device);
-      return RC_ERROR;
+      return CW_FAILURE;
     }
 
   /* Check the available mixer channels. */
@@ -2306,7 +2303,7 @@ cw_get_sound_pcm_volume_internal (int *volume)
     {
       perror ("cw: ioctl SOUND_MIXER_READ_DEVMASK");
       close (mixer);
-      return RC_ERROR;
+      return CW_FAILURE;
     }
   if (device_mask & SOUND_MASK_PCM)
     {
@@ -2315,12 +2312,12 @@ cw_get_sound_pcm_volume_internal (int *volume)
         {
           perror ("cw: ioctl MIXER_READ(SOUND_MIXER_PCM)");
           close (mixer);
-          return RC_ERROR;
+          return CW_FAILURE;
         }
 
       *volume = read_volume;
       close (mixer);
-      return RC_SUCCESS;
+      return CW_SUCCESS;
     }
   else
     {
@@ -2332,12 +2329,12 @@ cw_get_sound_pcm_volume_internal (int *volume)
             {
               perror ("cw: ioctl MIXER_READ(SOUND_MIXER_VOLUME)");
               close (mixer);
-              return RC_ERROR;
+              return CW_FAILURE;
             }
 
           *volume = read_volume;
           close (mixer);
-          return RC_SUCCESS;
+          return CW_SUCCESS;
         }
     }
 
@@ -2345,7 +2342,7 @@ cw_get_sound_pcm_volume_internal (int *volume)
   errno = EINVAL;
   perror ("cw: mixer DEVMASK lacks volume controls");
   close (mixer);
-  return RC_ERROR;
+  return CW_FAILURE;
 }
 
 
@@ -2365,7 +2362,7 @@ cw_set_sound_pcm_volume_internal (int volume)
   /* Try to use the main /dev/audio device for ioctls first. */
   if (ioctl (generator->audio_sink,
              MIXER_WRITE (SOUND_MIXER_PCM), &volume) == 0)
-    return RC_SUCCESS;
+    return CW_SUCCESS;
 
   /* Try the mixer PCM channel volume instead. */
   mixer = open (cw_mixer_device, O_RDWR | O_NONBLOCK);
@@ -2373,7 +2370,7 @@ cw_set_sound_pcm_volume_internal (int volume)
     {
       fprintf (stderr, "cw: open ");
       perror (cw_mixer_device);
-      return RC_ERROR;
+      return CW_FAILURE;
     }
 
   /* Check the available mixer channels. */
@@ -2381,7 +2378,7 @@ cw_set_sound_pcm_volume_internal (int volume)
     {
       perror ("cw: ioctl SOUND_MIXER_READ_DEVMASK");
       close (mixer);
-      return RC_ERROR;
+      return CW_FAILURE;
     }
   if (device_mask & SOUND_MASK_PCM)
     {
@@ -2390,11 +2387,11 @@ cw_set_sound_pcm_volume_internal (int volume)
         {
           perror ("cw: ioctl MIXER_WRITE(SOUND_MIXER_PCM)");
           close (mixer);
-          return RC_ERROR;
+          return CW_FAILURE;
         }
 
       close (mixer);
-      return RC_SUCCESS;
+      return CW_SUCCESS;
     }
   else
     {
@@ -2406,11 +2403,11 @@ cw_set_sound_pcm_volume_internal (int volume)
             {
               perror ("cw: ioctl MIXER_WRITE(SOUND_MIXER_VOLUME)");
               close (mixer);
-              return RC_ERROR;
+              return CW_FAILURE;
             }
 
           close (mixer);
-          return RC_SUCCESS;
+          return CW_SUCCESS;
         }
     }
 
@@ -2418,7 +2415,7 @@ cw_set_sound_pcm_volume_internal (int volume)
   errno = EINVAL;
   perror ("cw: mixer DEVMASK lacks volume controls");
   close (mixer);
-  return RC_ERROR;
+  return CW_FAILURE;
 
 }
 
@@ -2444,7 +2441,7 @@ cw_open_sound_soundcard_internal (void)
         {
           fprintf (stderr, "cw: open ");
           perror (cw_sound_device);
-          return RC_ERROR;
+          return CW_FAILURE;
         }
 
       /*
@@ -2462,7 +2459,7 @@ cw_open_sound_soundcard_internal (void)
         {
           perror ("cw: ioctl SNDCTL_DSP_SETFRAGMENT");
           close (soundcard);
-          return RC_ERROR;
+          return CW_FAILURE;
         }
 
       /* Set the audio format to 8-bit unsigned. */
@@ -2471,14 +2468,14 @@ cw_open_sound_soundcard_internal (void)
         {
           perror ("cw: ioctl SNDCTL_DSP_SETFMT");
           close (soundcard);
-          return RC_ERROR;
+          return CW_FAILURE;
         }
       if (parameter != DSP_FORMAT)
         {
           errno = ERR_NO_SUPPORT;
           perror ("cw: sound AFMT_U8 not supported");
           close (soundcard);
-          return RC_ERROR;
+          return CW_FAILURE;
         }
 
       /* Set up mono mode - a single audio channel. */
@@ -2487,14 +2484,14 @@ cw_open_sound_soundcard_internal (void)
         {
           perror ("cw: ioctl SNDCTL_DSP_CHANNELS");
           close (soundcard);
-          return RC_ERROR;
+          return CW_FAILURE;
         }
       if (parameter != DSP_CHANNELS)
         {
           errno = ERR_NO_SUPPORT;
           perror ("cw: sound mono not supported");
           close (soundcard);
-          return RC_ERROR;
+          return CW_FAILURE;
         }
 
       /*
@@ -2506,7 +2503,7 @@ cw_open_sound_soundcard_internal (void)
         {
           perror ("cw: ioctl SNDCTL_DSP_SPEED");
           close (soundcard);
-          return RC_ERROR;
+          return CW_FAILURE;
         }
       if (cw_sound_sample_rate != DSP_RATE)
         {
@@ -2518,7 +2515,7 @@ cw_open_sound_soundcard_internal (void)
         {
           perror ("cw: ioctl SNDCTL_DSP_GETBLKSIZE");
           close (soundcard);
-          return RC_ERROR;
+          return CW_FAILURE;
         }
       if (parameter != (1 << DSP_SETFRAGMENT))
         {
@@ -2536,7 +2533,7 @@ cw_open_sound_soundcard_internal (void)
         {
           close (cw_sound_descriptor);
           cw_sound_descriptor = -1;
-          return RC_ERROR;
+          return CW_FAILURE;
         }
 
       /* Set the mixer volume to zero, so the card is silent initially. */
@@ -2544,7 +2541,7 @@ cw_open_sound_soundcard_internal (void)
         {
           close (cw_sound_descriptor);
           cw_sound_descriptor = -1;
-          return RC_ERROR;
+          return CW_FAILURE;
         }
 
       cw_debug (CW_DEBUG_SOUND, "dsp opened");
@@ -2553,7 +2550,7 @@ cw_open_sound_soundcard_internal (void)
       cw_is_sound_open = true;
     }
 
-  return RC_SUCCESS;
+  return CW_SUCCESS;
 }
 
 
@@ -2577,7 +2574,7 @@ cw_close_sound_soundcard_internal (void)
 
       /* Restore the saved volume. */
       if (!cw_set_sound_pcm_volume_internal (cw_sound_saved_vol))
-        return RC_ERROR;
+        return CW_FAILURE;
 
       /* Close the file descriptor, and note as closed. */
       close (cw_sound_descriptor);
@@ -2587,7 +2584,7 @@ cw_close_sound_soundcard_internal (void)
       cw_debug (CW_DEBUG_SOUND, "dsp flushed and closed");
     }
 
-  return RC_SUCCESS;
+  return CW_SUCCESS;
 }
 
 
@@ -2649,7 +2646,7 @@ cw_generate_sound_internal (void)
           if (current_frequency != TONE_SILENT)
             cw_close_sound_soundcard_internal ();
           if (!cw_open_sound_soundcard_internal ())
-            return RC_ERROR;
+            return CW_FAILURE;
 
           /* Reset the current generated tone and phase. */
           current_frequency = cw_sound_generate_frequency;
@@ -2673,7 +2670,7 @@ cw_generate_sound_internal (void)
       if (ioctl (cw_sound_descriptor, SNDCTL_DSP_GETOSPACE, &info_buf) == -1)
         {
           perror ("cw: ioctl SNDCTL_DSP_GETOSPACE");
-          return RC_ERROR;
+          return CW_FAILURE;
         }
 
       /*
@@ -2740,7 +2737,7 @@ cw_generate_sound_internal (void)
                      buffer, info_buf.fragsize) != info_buf.fragsize)
             {
               perror ("cw: soundcard write");
-              return RC_ERROR;
+              return CW_FAILURE;
             }
 
           /* Update the count of bytes written on this call. */
@@ -2750,7 +2747,7 @@ cw_generate_sound_internal (void)
       cw_debug (CW_DEBUG_SOUND, "dsp data buffered, %d Hz, %d", cw_sound_generate_frequency, bytes);
     }
 
-  return RC_SUCCESS;
+  return CW_SUCCESS;
 }
 
 
@@ -2812,7 +2809,7 @@ cw_sound_soundcard_internal_old (int frequency)
 	  || generator->sound_system == CW_AUDIO_ALSA) {
 
 	      if (!cw_set_sound_pcm_volume_internal(volume)) {
-		      return RC_ERROR;
+		      return CW_FAILURE;
 	      }
       }
 
@@ -2846,7 +2843,7 @@ cw_sound_soundcard_internal_old (int frequency)
 	      || generator->sound_system == CW_AUDIO_ALSA) {
 
 		  if (!cw_set_sound_pcm_volume_internal(volume)) {
-			  return RC_ERROR;
+			  return CW_FAILURE;
 		  }
 	  }
 
@@ -2864,7 +2861,7 @@ cw_sound_soundcard_internal_old (int frequency)
       /* cw_generate_sound_internal (); */
     }
 
-  return RC_SUCCESS;
+  return CW_SUCCESS;
 }
 #endif
 
@@ -2886,11 +2883,11 @@ int cw_sound_soundcard_internal(int state)
 		cw_dev_debug ("called the function for output other than sound card (%d)",
 			generator->audio_system);
 
-		/* Strictly speaking this should be RC_ERROR, but this
+		/* Strictly speaking this should be CW_FAILURE, but this
 		   is not a place and time to do anything more. The above
 		   message printed to stderr should be enough to catch
 		   problems during development phase */
-		return RC_SUCCESS;
+		return CW_SUCCESS;
 	}
 
 	/* TODO:
@@ -2920,7 +2917,7 @@ int cw_sound_soundcard_internal(int state)
 		generator->slope = CW_AUDIO_GENERATOR_SLOPE;
 	}
 
-	return RC_SUCCESS;
+	return CW_SUCCESS;
 }
 
 
@@ -2941,7 +2938,7 @@ int cw_release_sound_internal(void)
 	cw_generator_stop();
 	cw_generator_delete();
 
-	return RC_SUCCESS;
+	return CW_SUCCESS;
 }
 
 
@@ -2960,7 +2957,7 @@ int cw_sound_internal(int frequency)
 {
 	/* If silence requested, then ignore the call. */
 	if (cw_is_debugging_internal(CW_DEBUG_SILENT)) {
-		return RC_SUCCESS;
+		return CW_SUCCESS;
 	}
 
 	if (!generator) {
@@ -2968,11 +2965,11 @@ int cw_sound_internal(int frequency)
 		   usage of cwlib is rather complicated; this should
 		   be somehow resolved */
 		cw_dev_debug ("called the function for NULL generator");
-		return RC_SUCCESS;
+		return CW_SUCCESS;
 	}
 
 	int state = frequency == CW_TONE_SILENT ? 0 : 1;
-	int status = RC_SUCCESS;
+	int status = CW_SUCCESS;
 
 	if (generator->audio_system == CW_AUDIO_OSS
 	    || generator->audio_system == CW_AUDIO_ALSA) {
@@ -3262,7 +3259,7 @@ cw_register_signal_handler (int signal_number,
       || signal_number == SIGALRM)
     {
       errno = EINVAL;
-      return RC_ERROR;
+      return CW_FAILURE;
     }
 
   /* Install our handler as the actual handler. */
@@ -3273,7 +3270,7 @@ cw_register_signal_handler (int signal_number,
   if (status == -1)
     {
       perror ("cw: sigaction");
-      return RC_ERROR;
+      return CW_FAILURE;
     }
 
   /* If we trampled another handler, replace it and return false. */
@@ -3285,16 +3282,16 @@ cw_register_signal_handler (int signal_number,
       if (status == -1)
         {
           perror ("cw: sigaction");
-          return RC_ERROR;
+          return CW_FAILURE;
         }
 
       errno = EINVAL;
-      return RC_ERROR;
+      return CW_FAILURE;
     }
 
   /* Save the callback function (it may validly be SIG_DFL or SIG_IGN). */
   cw_signal_callbacks[signal_number] = callback_func;
-  return RC_SUCCESS;
+  return CW_SUCCESS;
 }
 
 
@@ -3317,7 +3314,7 @@ cw_unregister_signal_handler (int signal_number)
       || signal_number == SIGALRM)
     {
       errno = EINVAL;
-      return RC_ERROR;
+      return CW_FAILURE;
     }
 
   /* See if the current handler was put there by us. */
@@ -3325,12 +3322,12 @@ cw_unregister_signal_handler (int signal_number)
   if (status == -1)
     {
       perror ("cw: sigaction");
-      return RC_ERROR;
+      return CW_FAILURE;
     }
   if (original_disposition.sa_handler != cw_interpose_signal_handler_internal)
     {
       errno = EINVAL;
-      return RC_ERROR;
+      return CW_FAILURE;
     }
 
   /* Remove the signal handler by resetting to SIG_DFL. */
@@ -3341,12 +3338,12 @@ cw_unregister_signal_handler (int signal_number)
   if (status == -1)
     {
       perror ("cw: sigaction");
-      return RC_ERROR;
+      return CW_FAILURE;
     }
 
   /* Reset the callback entry for tidiness. */
   cw_signal_callbacks[signal_number] = SIG_DFL;
-  return RC_SUCCESS;
+  return CW_SUCCESS;
 }
 
 
@@ -3631,7 +3628,7 @@ cw_enqueue_tone_internal (int usecs, int frequency)
   if (cw_is_keyer_busy () || cw_is_straight_key_busy ())
     {
       errno = EBUSY;
-      return RC_ERROR;
+      return CW_FAILURE;
     }
 
   /* Get the new value of the queue tail index. */
@@ -3644,7 +3641,7 @@ cw_enqueue_tone_internal (int usecs, int frequency)
   if (new_tq_tail == cw_tq_head)
     {
       errno = EAGAIN;
-      return RC_ERROR;
+      return CW_FAILURE;
     }
 
   cw_debug (CW_DEBUG_TONE_QUEUE, "enqueue tone %d usec, %d Hz", usecs, frequency);
@@ -3664,7 +3661,7 @@ cw_enqueue_tone_internal (int usecs, int frequency)
       cw_request_timeout_internal (0, cw_tone_queue_clock_internal);
     }
 
-  return RC_SUCCESS;
+  return CW_SUCCESS;
 }
 
 
@@ -3685,7 +3682,7 @@ cw_register_tone_queue_low_callback (void (*callback_func) (void*),
   if (level < 0 || level >= TONE_QUEUE_CAPACITY - 1)
     {
       errno = EINVAL;
-      return RC_ERROR;
+      return CW_FAILURE;
     }
 
   /* Store the function and low water mark level. */
@@ -3693,7 +3690,7 @@ cw_register_tone_queue_low_callback (void (*callback_func) (void*),
   cw_tq_low_water_callback = callback_func;
   cw_tq_low_water_callback_arg = callback_arg;
 
-  return RC_SUCCESS;
+  return CW_SUCCESS;
 }
 
 
@@ -3724,14 +3721,14 @@ cw_wait_for_tone (void)
   /* Check that SIGALRM is not blocked. */
   status = cw_check_signal_mask_internal ();
   if (!status)
-    return RC_ERROR;
+    return CW_FAILURE;
 
   /* Wait for the tail index to change or the dequeue to go idle. */
   check_tq_head = cw_tq_head;
   while (cw_tq_head == check_tq_head && cw_dequeue_state != QS_IDLE)
     cw_wait_for_signal_internal ();
 
-  return RC_SUCCESS;
+  return CW_SUCCESS;
 }
 
 
@@ -3750,13 +3747,13 @@ cw_wait_for_tone_queue (void)
   /* Check that SIGALRM is not blocked. */
   status = cw_check_signal_mask_internal ();
   if (!status)
-    return RC_ERROR;
+    return CW_FAILURE;
 
   /* Wait until the dequeue indicates it's hit the end of the queue. */
   while (cw_dequeue_state != QS_IDLE)
     cw_wait_for_signal_internal ();
 
-  return RC_SUCCESS;
+  return CW_SUCCESS;
 }
 
 
@@ -3779,13 +3776,13 @@ cw_wait_for_tone_queue_critical (int level)
   /* Check that SIGALRM is not blocked. */
   status = cw_check_signal_mask_internal ();
   if (!status)
-    return RC_ERROR;
+    return CW_FAILURE;
 
   /* Wait until the queue length is at or below criticality. */
   while (cw_get_tone_queue_length_internal () > level)
     cw_wait_for_signal_internal ();
 
-  return RC_SUCCESS;
+  return CW_SUCCESS;
 }
 
 
@@ -3882,7 +3879,7 @@ cw_queue_tone (int usecs, int frequency)
       || frequency < CW_FREQUENCY_MIN || frequency > CW_FREQUENCY_MAX)
     {
       errno = EINVAL;
-      return RC_ERROR;
+      return CW_FAILURE;
     }
 
   return cw_enqueue_tone_internal (usecs, frequency);
@@ -3942,17 +3939,17 @@ cw_send_element_internal (char element)
   else
     {
       errno = EINVAL;
-      status = RC_ERROR;
+      status = CW_FAILURE;
     }
   if (!status)
-    return RC_ERROR;
+    return CW_FAILURE;
 
   /* Send the inter-element gap. */
   status = cw_enqueue_tone_internal (cw_end_of_ele_delay, CW_TONE_SILENT);
   if (!status)
-    return RC_ERROR;
+    return CW_FAILURE;
 
-  return RC_SUCCESS;
+  return CW_SUCCESS;
 }
 
 
@@ -4031,7 +4028,7 @@ cw_send_representation_internal (const char *representation, int partial)
   if (cw_get_tone_queue_length () >= TONE_QUEUE_HIGH_WATER_MARK)
     {
       errno = EAGAIN;
-      return RC_ERROR;
+      return CW_FAILURE;
     }
 
   /* Sound the elements of the CW equivalent. */
@@ -4045,7 +4042,7 @@ cw_send_representation_internal (const char *representation, int partial)
        */
       status = cw_send_element_internal (representation[index]);
       if (!status)
-        return RC_ERROR;
+        return CW_FAILURE;
     }
 
   /*
@@ -4058,10 +4055,10 @@ cw_send_representation_internal (const char *representation, int partial)
 
       status = cw_send_character_space ();
       if (!status)
-        return RC_ERROR;
+        return CW_FAILURE;
     }
 
-  return RC_SUCCESS;
+  return CW_SUCCESS;
 }
 
 
@@ -4083,7 +4080,7 @@ cw_send_representation (const char *representation)
   if (!cw_check_representation (representation))
     {
       errno = EINVAL;
-      return RC_ERROR;
+      return CW_FAILURE;
     }
 
   return cw_send_representation_internal (representation, false);
@@ -4108,7 +4105,7 @@ cw_send_representation_partial (const char *representation)
   if (!cw_check_representation (representation))
     {
       errno = ENOENT;
-      return RC_ERROR;
+      return CW_FAILURE;
     }
 
   return cw_send_representation_internal (representation, true);
@@ -4137,14 +4134,14 @@ cw_send_character_internal (char c, int partial)
   if (!representation)
     {
       errno = ENOENT;
-      return RC_ERROR;
+      return CW_FAILURE;
     }
 
   status = cw_send_representation_internal (representation, partial);
   if (!status)
-    return RC_ERROR;
+    return CW_FAILURE;
 
-  return RC_SUCCESS;
+  return CW_SUCCESS;
 }
 
 
@@ -4163,10 +4160,10 @@ cw_check_character (char c)
    * lookup table, return success.
    */
   if (c == ' ' || cw_lookup_character_internal (c))
-    return RC_SUCCESS;
+    return CW_SUCCESS;
 
   errno = ENOENT;
-  return RC_ERROR;
+  return CW_FAILURE;
 }
 
 
@@ -4191,7 +4188,7 @@ cw_send_character (char c)
   if (!cw_check_character (c))
     {
       errno = ENOENT;
-      return RC_ERROR;
+      return CW_FAILURE;
     }
 
   return cw_send_character_internal (c, false);
@@ -4218,7 +4215,7 @@ cw_send_character_partial (char c)
   if (!cw_check_character (c))
     {
       errno = ENOENT;
-      return RC_ERROR;
+      return CW_FAILURE;
     }
 
   return cw_send_character_internal (c, true);
@@ -4247,11 +4244,11 @@ cw_check_string (const char *string)
             || cw_lookup_character_internal (string[index])))
         {
           errno = EINVAL;
-          return RC_ERROR;
+          return CW_FAILURE;
         }
     }
 
-  return RC_SUCCESS;
+  return CW_SUCCESS;
 }
 
 
@@ -4281,7 +4278,7 @@ cw_send_string (const char *string)
   if (!cw_check_string (string))
     {
       errno = ENOENT;
-      return RC_ERROR;
+      return CW_FAILURE;
     }
 
   /* Send every character in the string. */
@@ -4291,10 +4288,10 @@ cw_send_string (const char *string)
 
       status = cw_send_character_internal (string[index], false);
       if (!status)
-        return RC_ERROR;
+        return CW_FAILURE;
     }
 
-  return RC_SUCCESS;
+  return CW_SUCCESS;
 }
 
 
@@ -4590,7 +4587,7 @@ cw_validate_timestamp_internal (const struct timeval *timestamp,
           || timestamp->tv_usec >= USECS_PER_SEC)
         {
           errno = EINVAL;
-          return RC_ERROR;
+          return CW_FAILURE;
         }
       *return_timestamp = *timestamp;
     }
@@ -4599,10 +4596,10 @@ cw_validate_timestamp_internal (const struct timeval *timestamp,
       if (gettimeofday (return_timestamp, NULL) != 0)
         {
           perror ("cw: gettimeofday");
-          return RC_ERROR;
+          return CW_FAILURE;
         }
     }
-  return RC_SUCCESS;
+  return CW_SUCCESS;
 }
 
 
@@ -4714,12 +4711,12 @@ cw_start_receive_tone (const struct timeval *timestamp)
   if (cw_receive_state != RS_IDLE && cw_receive_state != RS_AFTER_TONE)
     {
       errno = ERANGE;
-      return RC_ERROR;
+      return CW_FAILURE;
     }
 
   /* Validate and save the timestamp, or get one and then save it. */
   if (!cw_validate_timestamp_internal (timestamp, &cw_rr_start_timestamp))
-    return RC_ERROR;
+    return CW_FAILURE;
 
   /*
    * If we are in the after tone state, we can measure the inter-element
@@ -4743,7 +4740,7 @@ cw_start_receive_tone (const struct timeval *timestamp)
 
   cw_debug (CW_DEBUG_RECEIVE_STATES, "receive state ->%d", cw_receive_state);
 
-  return RC_SUCCESS;
+  return CW_SUCCESS;
 }
 
 
@@ -4772,7 +4769,7 @@ cw_identify_receive_tone_internal (int element_usec, char *representation)
       && element_usec <= cw_dot_range_maximum)
     {
       *representation = CW_DOT_REPRESENTATION;
-      return RC_SUCCESS;
+      return CW_SUCCESS;
     }
 
   /* Do the same for a dash. */
@@ -4780,7 +4777,7 @@ cw_identify_receive_tone_internal (int element_usec, char *representation)
       && element_usec <= cw_dash_range_maximum)
     {
       *representation = CW_DASH_REPRESENTATION;
-      return RC_SUCCESS;
+      return CW_SUCCESS;
     }
 
   /*
@@ -4799,7 +4796,7 @@ cw_identify_receive_tone_internal (int element_usec, char *representation)
 
   /* Return ENOENT to the caller. */
   errno = ENOENT;
-  return RC_ERROR;
+  return CW_FAILURE;
 }
 
 
@@ -4889,7 +4886,7 @@ cw_end_receive_tone (const struct timeval *timestamp)
   if (cw_receive_state != RS_IN_TONE)
     {
       errno = ERANGE;
-      return RC_ERROR;
+      return CW_FAILURE;
     }
 
   /*
@@ -4900,7 +4897,7 @@ cw_end_receive_tone (const struct timeval *timestamp)
 
   /* Save the timestamp passed in, or get one. */
   if (!cw_validate_timestamp_internal (timestamp, &cw_rr_end_timestamp))
-    return RC_ERROR;
+    return CW_FAILURE;
 
   /* Compare the timestamps to determine the length of the tone. */
   element_usec = cw_compare_timestamps_internal (&cw_rr_start_timestamp,
@@ -4929,7 +4926,7 @@ cw_end_receive_tone (const struct timeval *timestamp)
       cw_debug (CW_DEBUG_RECEIVE_STATES, "receive state ->%d", cw_receive_state);
 
       errno = EAGAIN;
-      return RC_ERROR;
+      return CW_FAILURE;
     }
 
   /*
@@ -4941,7 +4938,7 @@ cw_end_receive_tone (const struct timeval *timestamp)
    */
   status = cw_identify_receive_tone_internal (element_usec, &representation);
   if (!status)
-    return RC_ERROR;
+    return CW_FAILURE;
 
   /*
    * Update the averaging buffers so that the adaptive tracking of received
@@ -4980,7 +4977,7 @@ cw_end_receive_tone (const struct timeval *timestamp)
       cw_debug (CW_DEBUG_RECEIVE_STATES, "receive state ->%d", cw_receive_state);
 
       errno = ENOMEM;
-      return RC_ERROR;
+      return CW_FAILURE;
     }
 
   /* All is well.  Move to the more normal after-tone state. */
@@ -4988,7 +4985,7 @@ cw_end_receive_tone (const struct timeval *timestamp)
 
   cw_debug (CW_DEBUG_RECEIVE_STATES, "receive state ->%d", cw_receive_state);
 
-  return RC_SUCCESS;
+  return CW_SUCCESS;
 }
 
 
@@ -5010,7 +5007,7 @@ cw_receive_buffer_element_internal (const struct timeval *timestamp,
   if (cw_receive_state != RS_IDLE && cw_receive_state != RS_AFTER_TONE)
     {
       errno = ERANGE;
-      return RC_ERROR;
+      return CW_FAILURE;
     }
 
   /*
@@ -5025,7 +5022,7 @@ cw_receive_buffer_element_internal (const struct timeval *timestamp,
    * whether this is a dot or a dash.
    */
   if (!cw_validate_timestamp_internal (timestamp, &cw_rr_end_timestamp))
-    return RC_ERROR;
+    return CW_FAILURE;
 
   /* Add the element to the receive representation buffer. */
   cw_receive_representation_buffer[cw_rr_current++] = element;
@@ -5042,7 +5039,7 @@ cw_receive_buffer_element_internal (const struct timeval *timestamp,
       cw_debug (CW_DEBUG_RECEIVE_STATES, "receive state ->%d", cw_receive_state);
 
       errno = ENOMEM;
-      return RC_ERROR;
+      return CW_FAILURE;
     }
 
   /*
@@ -5053,7 +5050,7 @@ cw_receive_buffer_element_internal (const struct timeval *timestamp,
 
   cw_debug (CW_DEBUG_RECEIVE_STATES, "receive state ->%d", cw_receive_state);
 
-  return RC_SUCCESS;
+  return CW_SUCCESS;
 }
 
 
@@ -5122,7 +5119,7 @@ cw_receive_representation (const struct timeval *timestamp,
         *is_error = (cw_receive_state == RS_ERR_WORD);
       *representation = '\0';
       strncat (representation, cw_receive_representation_buffer, cw_rr_current);
-      return RC_SUCCESS;
+      return CW_SUCCESS;
     }
 
   /*
@@ -5133,7 +5130,7 @@ cw_receive_representation (const struct timeval *timestamp,
       && cw_receive_state != RS_END_CHAR && cw_receive_state != RS_ERR_CHAR)
     {
       errno = ERANGE;
-      return RC_ERROR;
+      return CW_FAILURE;
     }
 
   /*
@@ -5149,7 +5146,7 @@ cw_receive_representation (const struct timeval *timestamp,
    * against the latest end timestamp.
    */
   if (!cw_validate_timestamp_internal (timestamp, &now_timestamp))
-    return RC_ERROR;
+    return CW_FAILURE;
 
   /*
    * Now we need to compare the timestamps to determine the length of the
@@ -5190,7 +5187,7 @@ cw_receive_representation (const struct timeval *timestamp,
         *is_error = (cw_receive_state == RS_ERR_CHAR);
       *representation = '\0';
       strncat (representation, cw_receive_representation_buffer, cw_rr_current);
-      return RC_SUCCESS;
+      return CW_SUCCESS;
     }
 
   /*
@@ -5219,7 +5216,7 @@ cw_receive_representation (const struct timeval *timestamp,
         *is_error = (cw_receive_state == RS_ERR_WORD);
       *representation = '\0';
       strncat (representation, cw_receive_representation_buffer, cw_rr_current);
-      return RC_SUCCESS;
+      return CW_SUCCESS;
     }
 
   /*
@@ -5227,7 +5224,7 @@ cw_receive_representation (const struct timeval *timestamp,
    * on what we have in the buffer, so return EAGAIN.
    */
   errno = EAGAIN;
-  return RC_ERROR;
+  return CW_FAILURE;
 }
 
 
@@ -5260,14 +5257,14 @@ cw_receive_character(const struct timeval *timestamp,
   status = cw_receive_representation (timestamp, representation,
                                       &end_of_word, &error);
   if (!status)
-    return RC_ERROR;
+    return CW_FAILURE;
 
   /* Look up the representation using the lookup functions. */
   character = cw_lookup_representation_internal (representation);
   if (!character)
     {
       errno = ENOENT;
-      return RC_ERROR;
+      return CW_FAILURE;
     }
 
   /* If we got this far, all is well, so return what we uncovered. */
@@ -5277,7 +5274,7 @@ cw_receive_character(const struct timeval *timestamp,
     *is_end_of_word = end_of_word;
   if (is_error)
     *is_error = error;
-  return RC_SUCCESS;
+  return CW_SUCCESS;
 }
 
 
@@ -5600,7 +5597,7 @@ cw_notify_keyer_paddle_event (int dot_paddle_state,
   if (cw_is_straight_key_busy () || cw_is_tone_busy ())
     {
       errno = EBUSY;
-      return RC_ERROR;
+      return CW_FAILURE;
     }
 
   /* Clean up and save the paddle states passed in. */
@@ -5651,7 +5648,7 @@ cw_notify_keyer_paddle_event (int dot_paddle_state,
 
   cw_debug (CW_DEBUG_KEYER_STATES, "keyer ->%d", cw_keyer_state);
 
-  return RC_SUCCESS;
+  return CW_SUCCESS;
 }
 
 
@@ -5738,7 +5735,7 @@ cw_wait_for_keyer_element (void)
   /* Check that SIGALRM is not blocked. */
   status = cw_check_signal_mask_internal ();
   if (!status)
-    return RC_ERROR;
+    return CW_FAILURE;
 
   /*
    * First wait for the state to move to idle (or just do nothing if it's
@@ -5763,7 +5760,7 @@ cw_wait_for_keyer_element (void)
          && cw_keyer_state != KS_IN_DASH_B)
     cw_wait_for_signal_internal ();
 
-  return RC_SUCCESS;
+  return CW_SUCCESS;
 }
 
 
@@ -5782,7 +5779,7 @@ cw_wait_for_keyer (void)
   /* Check that SIGALRM is not blocked. */
   status = cw_check_signal_mask_internal ();
   if (!status)
-    return RC_ERROR;
+    return CW_FAILURE;
 
   /*
    * Check that neither paddle is true; if either is, then the signal cycle
@@ -5791,14 +5788,14 @@ cw_wait_for_keyer (void)
   if (cw_ik_dot_paddle || cw_ik_dash_paddle)
     {
       errno = EDEADLK;
-      return RC_ERROR;
+      return CW_FAILURE;
     }
 
   /* Wait for the keyer state to go idle. */
   while (cw_keyer_state != KS_IDLE)
     cw_wait_for_signal_internal ();
 
-  return RC_SUCCESS;
+  return CW_SUCCESS;
 }
 
 
@@ -5883,7 +5880,7 @@ cw_notify_straight_key_event (int key_state)
   if (cw_is_tone_busy () || cw_is_keyer_busy ())
     {
       errno = EBUSY;
-      return RC_ERROR;
+      return CW_FAILURE;
     }
 
   /* If the key state did not change, ignore the call. */
@@ -5922,7 +5919,7 @@ cw_notify_straight_key_event (int key_state)
         }
     }
 
-  return RC_SUCCESS;
+  return CW_SUCCESS;
 }
 
 
@@ -6007,7 +6004,7 @@ int cw_generator_new(int audio_system, const char *device)
 	generator = (cw_gen_t *) malloc(sizeof (cw_gen_t));
 	if (!generator) {
 		cw_debug (CW_DEBUG_SYSTEM, "error: malloc");
-		return RC_ERROR;
+		return CW_FAILURE;
 	}
 
 	generator->audio_device = NULL;
@@ -6026,7 +6023,7 @@ int cw_generator_new(int audio_system, const char *device)
 
 	cw_set_audio_device(device);
 
-	int rv = RC_ERROR;
+	int rv = CW_FAILURE;
 	if (audio_system == CW_AUDIO_CONSOLE) {
 		rv = cw_open_device_console(generator->audio_device);
 	} else if (audio_system == CW_AUDIO_OSS) {
@@ -6035,19 +6032,19 @@ int cw_generator_new(int audio_system, const char *device)
 		rv = cw_open_device_alsa(generator->audio_device);
 	} else {
 		cw_dev_debug ("unsupported audio system");
-		rv = RC_ERROR;
+		rv = CW_FAILURE;
 	}
 
-	if (rv == RC_SUCCESS) {
+	if (rv == CW_SUCCESS) {
 		generator->buffer = (cw_sample_t *) malloc(generator->buffer_n_samples * sizeof (cw_sample_t));
 		if (generator->buffer != NULL) {
-			return RC_SUCCESS;
+			return CW_SUCCESS;
 		} else {
 			cw_debug (CW_DEBUG_SYSTEM, "error: malloc");
 		}
 	}
 
-	return RC_ERROR;
+	return CW_FAILURE;
 }
 
 
@@ -6116,13 +6113,13 @@ int cw_generator_start(void)
 					(void *) generator);
 		if (rv != 0) {
 			cw_debug (CW_DEBUG_SYSTEM, "error: failed to create OSS generator thread\n");
-			return RC_ERROR;
+			return CW_FAILURE;
 		} else {
 			/* for some yet unknown reason you have to
 			   put usleep() here, otherwise a generator
 			   may work incorrectly */
 			usleep(100000);
-			return RC_SUCCESS;
+			return CW_SUCCESS;
 		}
 	} else if (generator->audio_system == CW_AUDIO_ALSA) {
 		int rv = pthread_create(&(generator->thread), &(generator->thread_attr),
@@ -6130,19 +6127,19 @@ int cw_generator_start(void)
 					(void *) generator);
 		if (rv != 0) {
 			cw_debug (CW_DEBUG_SYSTEM, "error: failed to create ALSA generator thread\n");
-			return RC_ERROR;
+			return CW_FAILURE;
 		} else {
 			/* for some yet unknown reason you have to
 			   put usleep() here, otherwise a generator
 			   may work incorrectly */
 			usleep(100000);
-			return RC_SUCCESS;
+			return CW_SUCCESS;
 		}
 	} else {
 		cw_dev_debug ("unsupported audio system %d", generator->audio_system);
 	}
 
-	return RC_SUCCESS;
+	return CW_SUCCESS;
 }
 
 
@@ -6226,7 +6223,7 @@ int cw_generator_calculate_sine_wave(cw_gen_t *gen)
 	int n_periods = floor(phase / (2.0 * M_PI));
 	gen->phase_offset = phase - n_periods * 2.0 * M_PI;
 
-	return RC_SUCCESS;
+	return CW_SUCCESS;
 }
 
 
@@ -6324,7 +6321,7 @@ bool cw_is_console_possible(const char *device)
 	int fd = open(dev, O_WRONLY);
 	if (fd == -1) {
 		cw_debug (CW_DEBUG_SYSTEM, "error: open(%s): %s\n", dev, strerror(errno));
-		return RC_ERROR;
+		return CW_FAILURE;
 	}
 
 	int rv = ioctl(fd, KIOCSOUND, 0);
@@ -6333,12 +6330,12 @@ bool cw_is_console_possible(const char *device)
 		/* console device can be opened, even with WRONLY perms, but,
 		   if you aren't root user, you can't call ioctl()s on it,
 		   and - as a result - can't generate sound on the device */
-		return RC_ERROR;
+		return CW_FAILURE;
 	} else {
-		return RC_SUCCESS;
+		return CW_SUCCESS;
 	}
 #else
-	return RC_ERROR;
+	return CW_FAILURE;
 #endif
 }
 
@@ -6363,13 +6360,13 @@ int cw_open_device_console(const char *device)
 
 	if (generator->audio_device_open) {
 		/* Ignore the call if the console device is already open. */
-		return RC_SUCCESS;
+		return CW_SUCCESS;
 	}
 
 	int console = open(device, O_WRONLY);
 	if (console == -1) {
 		cw_debug (CW_DEBUG_SYSTEM, "error: open(%s): \"%s\"", device, strerror(errno));
-		return RC_ERROR;
+		return CW_FAILURE;
         } else {
 		cw_dev_debug ("open successfully, console = %d", console);
 	}
@@ -6377,7 +6374,7 @@ int cw_open_device_console(const char *device)
 	generator->audio_sink = console;
 	generator->audio_device_open = 1;
 
-	return RC_SUCCESS;
+	return CW_SUCCESS;
 }
 
 
@@ -6397,7 +6394,7 @@ static int cw_close_device_console(void)
 
 	cw_debug (CW_DEBUG_SOUND, "console closed");
 
-	return RC_SUCCESS;
+	return CW_SUCCESS;
 }
 
 
@@ -6430,9 +6427,9 @@ int cw_sound_console_internal(int state)
 	/* Call the ioctl, and return any error status. */
 	if (ioctl(generator->audio_sink, KIOCSOUND, argument) == -1) {
 		cw_debug (CW_DEBUG_SYSTEM, "error: ioctl KIOCSOUND: \"%s\"\n", strerror(errno));
-		return RC_ERROR;
+		return CW_FAILURE;
 	} else {
-		return RC_SUCCESS;
+		return CW_SUCCESS;
 	}
 }
 
@@ -6484,12 +6481,12 @@ bool cw_is_oss_possible(const char *device)
 	  So, we call all necessary ioctls to be 100% sure that all
 	  needed features are available. cw_open_device_oss_ioctls()
 	  doesn't specifically look for EINVAL, it only checks return
-	  values from ioctl() and returns RC_ERROR if one of ioctls()
+	  values from ioctl() and returns CW_FAILURE if one of ioctls()
 	  returns -1. */
 	int dummy;
 	int rv = cw_open_device_oss_ioctls(&soundcard, &dummy);
 	close(soundcard);
-	if (rv != RC_SUCCESS) {
+	if (rv != CW_SUCCESS) {
 		cw_debug (CW_DEBUG_SYSTEM, "error: one or more OSS ioctl() calls failed");
 		return false;
 	} else {
@@ -6507,14 +6504,14 @@ int cw_open_device_oss(const char *device)
 	int soundcard = open(device, O_WRONLY);
 	if (soundcard == -1) {
 		cw_debug (CW_DEBUG_SYSTEM, "error: open(%s): \"%s\"\n", device, strerror(errno));
-		return RC_ERROR;
+		return CW_FAILURE;
         }
 
 	int rv = cw_open_device_oss_ioctls(&soundcard, &(generator->sample_rate));
-	if (rv != RC_SUCCESS) {
+	if (rv != CW_SUCCESS) {
 		cw_debug (CW_DEBUG_SYSTEM, "error: one or more OSS ioctl() calls failed\n");
 		close(soundcard);
-		return RC_ERROR;
+		return CW_FAILURE;
 	}
 
 	int size = 0;
@@ -6524,13 +6521,13 @@ int cw_open_device_oss(const char *device)
 	if ((rv = ioctl(soundcard, SNDCTL_DSP_GETBLKSIZE, &size)) == -1) {
 		cw_debug (CW_DEBUG_SYSTEM, "error: ioctl(SNDCTL_DSP_GETBLKSIZE): \"%s\"\n", strerror(errno));
 		close(soundcard);
-		return RC_ERROR;
+		return CW_FAILURE;
         }
 
 	if ((size & 0x0000ffff) != (1 << CW_OSS_SETFRAGMENT)) {
 		cw_debug (CW_DEBUG_SYSTEM, "error: OSS fragment size not set, %d\n", size);
 		close(soundcard);
-		return RC_ERROR;
+		return CW_FAILURE;
         } else {
 		cw_dev_debug ("OSS fragment size = %d", size);
 	}
@@ -6543,7 +6540,7 @@ int cw_open_device_oss(const char *device)
 
 	generator->debug_sink = open("/tmp/cw_file.raw", O_WRONLY | O_NONBLOCK);
 
-	return RC_SUCCESS;
+	return CW_SUCCESS;
 }
 
 
@@ -6555,35 +6552,35 @@ int cw_open_device_oss_ioctls(int *fd, int *sample_rate)
 	int parameter = 0; /* ignored */
 	if (ioctl(*fd, SNDCTL_DSP_SYNC, &parameter) == -1) {
 		cw_debug (CW_DEBUG_SYSTEM, "error: ioctl(SNDCTL_DSP_SYNC): \"%s\"\n", strerror(errno));
-		return RC_ERROR;
+		return CW_FAILURE;
         }
 
 	parameter = 0; /* ignored */
 	if (ioctl(*fd, SNDCTL_DSP_POST, &parameter) == -1) {
 		cw_debug (CW_DEBUG_SYSTEM, "error: ioctl(SNDCTL_DSP_POST): \"%s\"\n", strerror(errno));
-		return RC_ERROR;
+		return CW_FAILURE;
         }
 
 	/* Set the audio format to 8-bit unsigned. */
 	parameter = CW_OSS_SAMPLE_FORMAT;
 	if (ioctl(*fd, SNDCTL_DSP_SETFMT, &parameter) == -1) {
 		cw_debug (CW_DEBUG_SYSTEM, "error: ioctl(SNDCTL_DSP_SETFMT): \"%s\"\n", strerror(errno));
-		return RC_ERROR;
+		return CW_FAILURE;
         }
 	if (parameter != CW_OSS_SAMPLE_FORMAT) {
 		cw_debug (CW_DEBUG_SYSTEM, "error: sample format not supported\n");
-		return RC_ERROR;
+		return CW_FAILURE;
         }
 
 	/* Set up mono mode - a single audio channel. */
 	parameter = CW_AUDIO_CHANNELS;
 	if (ioctl(*fd, SNDCTL_DSP_CHANNELS, &parameter) == -1) {
 		cw_debug (CW_DEBUG_SYSTEM, "error: ioctl(SNDCTL_DSP_CHANNELS): \"%s\"\n", strerror(errno));
-		return RC_ERROR;
+		return CW_FAILURE;
         }
 	if (parameter != CW_AUDIO_CHANNELS) {
 		cw_debug (CW_DEBUG_SYSTEM, "error: number of channels not supported\n");
-		return RC_ERROR;
+		return CW_FAILURE;
         }
 
 	/*
@@ -6595,7 +6592,7 @@ int cw_open_device_oss_ioctls(int *fd, int *sample_rate)
 		rate = CW_AUDIO_SAMPLE_RATE_B;
 		if (ioctl(*fd, SNDCTL_DSP_SPEED, &rate) == -1) {
 			cw_debug (CW_DEBUG_SYSTEM, "error: ioctl(SNDCTL_DSP_SPEED): \"%s\"\n", strerror(errno));
-			return RC_ERROR;
+			return CW_FAILURE;
 		}
         }
 	if (rate != CW_AUDIO_SAMPLE_RATE_A && rate != CW_AUDIO_SAMPLE_RATE_B) {
@@ -6609,7 +6606,7 @@ int cw_open_device_oss_ioctls(int *fd, int *sample_rate)
 	audio_buf_info buff;
 	if (ioctl(*fd, SNDCTL_DSP_GETOSPACE, &buff) == -1) {
 		cw_debug (CW_DEBUG_SYSTEM, "error: ioctl(SNDCTL_DSP_GETOSPACE): \"%s\"\n", strerror(errno));
-		return RC_ERROR;
+		return CW_FAILURE;
         } else {
 		/*
 		fprintf(stderr, "before:\n");
@@ -6637,14 +6634,14 @@ int cw_open_device_oss_ioctls(int *fd, int *sample_rate)
 
 	if (ioctl(*fd, SNDCTL_DSP_SETFRAGMENT, &parameter) == -1) {
 		cw_debug (CW_DEBUG_SYSTEM, "error: ioctl(SNDCTL_DSP_SETFRAGMENT): \"%s\"\n", strerror(errno));
-		return RC_ERROR;
+		return CW_FAILURE;
         }
 	cw_debug (CW_DEBUG_SOUND, "fragment size is %d", parameter & 0x0000ffff);
 
 	/* Query fragment size just to get the driver buffers set. */
 	if (ioctl(*fd, SNDCTL_DSP_GETBLKSIZE, &parameter) == -1) {
 		cw_debug (CW_DEBUG_SYSTEM, "error: ioctl(SNDCTL_DSP_GETBLKSIZE): \"%s\"\n", strerror(errno));
-		return RC_ERROR;
+		return CW_FAILURE;
         }
 
 	if (parameter != (1 << CW_OSS_SETFRAGMENT)) {
@@ -6656,13 +6653,13 @@ int cw_open_device_oss_ioctls(int *fd, int *sample_rate)
 	parameter = 5;
 	if (ioctl(*fd, SNDCTL_DSP_POLICY, &parameter) == -1) {
 		cw_debug (CW_DEBUG_SYSTEM, "error: ioctl(SNDCTL_DSP_POLICY): \"%s\"\n", strerror(errno));
-		return RC_ERROR;
+		return CW_FAILURE;
         }
 #endif
 
 	if (ioctl(*fd, SNDCTL_DSP_GETOSPACE, &buff) == -1) {
 		cw_debug (CW_DEBUG_SYSTEM, "error: ioctl(SNDCTL_GETOSPACE): \"%s\"\n", strerror(errno));
-		return RC_ERROR;
+		return CW_FAILURE;
         } else {
 		/*
 		fprintf(stderr, "after:\n");
@@ -6673,7 +6670,7 @@ int cw_open_device_oss_ioctls(int *fd, int *sample_rate)
 		*/
 	}
 
-	return RC_SUCCESS;
+	return CW_SUCCESS;
 }
 
 
@@ -6691,7 +6688,7 @@ int cw_close_device_oss(void)
 		generator->debug_sink = -1;
 	}
 
-	return RC_SUCCESS;
+	return CW_SUCCESS;
 }
 
 
@@ -6759,26 +6756,26 @@ int cw_open_device_alsa(const char *device)
 			      0);                      /* mode, 0 | SND_PCM_NONBLOCK | SND_PCM_ASYNC */
 	if (rv < 0) {
 		cw_debug (CW_DEBUG_SYSTEM, "error: can't open ALSA device \"%s\"\n", device);
-		return RC_ERROR;
+		return CW_FAILURE;
 	}
 
 	snd_pcm_hw_params_t *hw_params = NULL;
 	rv = snd_pcm_hw_params_malloc(&hw_params);
 	if (rv < 0) {
 		cw_debug (CW_DEBUG_SYSTEM, "error: can't allocate memory for ALSA hw params\n");
-		return RC_ERROR;
+		return CW_FAILURE;
 	}
 
 	rv = cw_set_alsa_hw_params(generator->alsa_handle, hw_params);
-	if (rv != RC_SUCCESS) {
+	if (rv != CW_SUCCESS) {
 		cw_debug (CW_DEBUG_SYSTEM, "error: can't set ALSA hw params\n");
-		return RC_ERROR;
+		return CW_FAILURE;
 	}
 
 	rv = snd_pcm_prepare(generator->alsa_handle);
 	if (rv < 0) {
 		cw_debug (CW_DEBUG_SYSTEM, "error: can't prepare ALSA handler\n");
-		return RC_ERROR;
+		return CW_FAILURE;
 	}
 
 	/* Get size for data buffer */
@@ -6797,7 +6794,7 @@ int cw_open_device_alsa(const char *device)
 	}
 	cw_dev_debug ("ALSA buf size %u", (unsigned int) generator->buffer_n_samples);
 
-	return RC_SUCCESS;
+	return CW_SUCCESS;
 }
 
 
@@ -6816,7 +6813,7 @@ int cw_close_device_alsa(void)
 		generator->debug_sink = -1;
 	}
 
-	return RC_SUCCESS;
+	return CW_SUCCESS;
 }
 
 
@@ -6862,7 +6859,7 @@ int cw_set_alsa_hw_params(snd_pcm_t *handle, snd_pcm_hw_params_t *params)
 	int rv = snd_pcm_hw_params_any(handle, params);
 	if (rv < 0) {
 		cw_debug (CW_DEBUG_SYSTEM, "error: can't get current hw params: %s\n", snd_strerror(rv));
-		return RC_ERROR;
+		return CW_FAILURE;
 	}
 
 
@@ -6870,7 +6867,7 @@ int cw_set_alsa_hw_params(snd_pcm_t *handle, snd_pcm_hw_params_t *params)
 	rv = snd_pcm_hw_params_set_format(handle, params, CW_ALSA_SAMPLE_FORMAT);
 	if (rv < 0) {
 		cw_debug (CW_DEBUG_SYSTEM, "error: can't set sample format: %s\n", snd_strerror(rv));
-		return RC_ERROR;
+		return CW_FAILURE;
 	}
 
 
@@ -6899,7 +6896,7 @@ int cw_set_alsa_hw_params(snd_pcm_t *handle, snd_pcm_hw_params_t *params)
 
 	if (!success) {
 		cw_debug (CW_DEBUG_SYSTEM, "error: can't set sample rate\n");
-		return RC_ERROR;
+		return CW_FAILURE;
 	} else {
 		generator->sample_rate = sample_rates[i];
 	}
@@ -6908,14 +6905,14 @@ int cw_set_alsa_hw_params(snd_pcm_t *handle, snd_pcm_hw_params_t *params)
 	rv = snd_pcm_hw_params_set_access(handle, params, SND_PCM_ACCESS_RW_INTERLEAVED);
 	if (rv < 0) {
 		cw_debug (CW_DEBUG_SYSTEM, "error: can't set access type: %s\n", snd_strerror(rv));
-		return RC_ERROR;
+		return CW_FAILURE;
 	}
 
 	/* Set number of channels */
 	rv = snd_pcm_hw_params_set_channels(handle, params, CW_AUDIO_CHANNELS);
 	if (rv < 0) {
 		cw_debug (CW_DEBUG_SYSTEM, "error: can't set number of channels: %s\n", snd_strerror(rv));
-		return RC_ERROR;
+		return CW_FAILURE;
 	}
 
 
@@ -7043,14 +7040,14 @@ int cw_set_alsa_hw_params(snd_pcm_t *handle, snd_pcm_hw_params_t *params)
 	rv = snd_pcm_hw_params(handle, params);
 	if (rv < 0) {
 		cw_debug (CW_DEBUG_SYSTEM, "error: can't save hw parameters: %s\n", snd_strerror(rv));
-		return RC_ERROR;
+		return CW_FAILURE;
 	} else {
 		/* Get size for data buffer */
 		snd_pcm_uframes_t frames; /* period size in frames */
 		int dir = 0;
 		snd_pcm_hw_params_get_period_size(params, &frames, &dir);
 		cw_dev_debug ("%d, ALSA buffer size would be %u frames", rv, (unsigned int) frames);
-		return RC_SUCCESS;
+		return CW_SUCCESS;
 	}
 }
 
@@ -7089,7 +7086,7 @@ int cw_print_alsa_params(snd_pcm_hw_params_t *params)
 		cw_dev_debug ("'buffer size' = %u", (unsigned int) buffer_size);
 	}
 
-	return RC_SUCCESS;
+	return CW_SUCCESS;
 }
 
 #endif
@@ -7129,12 +7126,12 @@ int main(void)
 
 void main_helper(int audio_system, const char *name, const char *device, predicate_t predicate)
 {
-	int rv = RC_ERROR;
+	int rv = CW_FAILURE;
 
 	rv = predicate(device);
-	if (rv == RC_SUCCESS) {
+	if (rv == CW_SUCCESS) {
 		rv = cw_generator_new(audio_system, device);
-		if (rv == RC_SUCCESS) {
+		if (rv == CW_SUCCESS) {
 			cw_reset_send_receive_parameters();
 			cw_set_send_speed(22);
 			cw_generator_start();
