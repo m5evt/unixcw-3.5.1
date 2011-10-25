@@ -1,5 +1,4 @@
-/* vi: set ts=2 shiftwidth=2 expandtab:
- *
+/*
  * Copyright (C) 2001-2006  Simon Baldwin (simon_baldwin@yahoo.com)
  * Copyright (C) 2011       Kamil Ignacak (acerion@wp.pl)
  *
