@@ -106,7 +106,7 @@ int cw_config_is_valid(cw_config_t *config)
 		if (config->audio_system == CW_AUDIO_SOUNDCARD) {
 			fprintf(stderr, "cwlib: a device has been specified for 'soundcard' argument\n");
 			fprintf(stderr, "cwlib: a device can be specified only for 'console', 'oss' or 'alsa'\n");
-			return 0;
+			return CW_FAILURE;
 		} else {
 			; /* audio_system is one that accepts custom "audio device" */
 		}
@@ -114,7 +114,7 @@ int cw_config_is_valid(cw_config_t *config)
 		; /* no custom "audio device" specified, a default will be used */
 	}
 
-	return 1;
+	return CW_SUCCESS;
 }
 
 
@@ -131,16 +131,14 @@ int cw_generator_new_from_config(cw_config_t *config, const char *argv0)
 	    || config->audio_system == CW_AUDIO_OSS
 	    || config->audio_system == CW_AUDIO_SOUNDCARD) {
 
-		int rv = -1;
 		if (cw_is_oss_possible(config->audio_device)) {
-			rv = cw_generator_new(CW_AUDIO_OSS, config->audio_device);
-			if (rv != 1) {
+			if (cw_generator_new(CW_AUDIO_OSS, config->audio_device)) {
+				cw_generator_apply_config(config);
+				return CW_SUCCESS;
+			} else {
 				fprintf(stderr,
 					"%s: failed to open OSS output with device \"%s\"\n",
 					argv0, cw_get_soundcard_device());
-			} else {
-				cw_generator_apply_config(config);
-				return 1;
 			}
 		}
 		/* fall through to try with next audio system type */
@@ -151,16 +149,14 @@ int cw_generator_new_from_config(cw_config_t *config, const char *argv0)
 	    || config->audio_system == CW_AUDIO_ALSA
 	    || config->audio_system == CW_AUDIO_SOUNDCARD) {
 
-		int rv = -1;
 		if (cw_is_alsa_possible(config->audio_device)) {
-			rv = cw_generator_new(CW_AUDIO_ALSA, config->audio_device);
-			if (rv != 1) {
+			if (cw_generator_new(CW_AUDIO_ALSA, config->audio_device)) {
+				cw_generator_apply_config(config);
+				return CW_SUCCESS;
+			} else {
 				fprintf(stderr,
 					"%s: failed to open ALSA output with device \"%s\"\n",
 					argv0, cw_get_soundcard_device());
-			} else {
-				cw_generator_apply_config(config);
-				return 1;
 			}
 		}
 		/* fall through to try with next audio system type */
@@ -170,23 +166,21 @@ int cw_generator_new_from_config(cw_config_t *config, const char *argv0)
 	if (config->audio_system == CW_AUDIO_NONE
 	    || config->audio_system == CW_AUDIO_CONSOLE) {
 
-		int rv = -1;
 		if (cw_is_console_possible(config->audio_device)) {
-			rv = cw_generator_new(CW_AUDIO_CONSOLE, config->audio_device);
-			if (rv != 1) {
+			if (cw_generator_new(CW_AUDIO_CONSOLE, config->audio_device)) {
+				cw_generator_apply_config(config);
+				return CW_SUCCESS;
+			} else {
 				fprintf(stderr,
 					"%s: failed to open console output with device \"%s\"\n",
 					argv0, cw_get_soundcard_device());
-			} else {
-				cw_generator_apply_config(config);
-				return 1;
 			}
 		}
 		/* fall through to try with next audio system type */
 	}
 
 	/* there is no next audio system type to try */
-	return -1;
+	return CW_FAILURE;
 }
 
 
