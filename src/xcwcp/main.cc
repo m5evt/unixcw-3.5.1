@@ -385,26 +385,25 @@ int main(int argc, char **argv)
 
 		config = cw_config_new();
 		if (!config) {
-			return -1;
+			return EXIT_FAILURE;
 		}
 		config->has_practice_time = 1;
 		// config->has_outfile = 1;
 
-		int rv = cw_process_argv(argc, argv, all_options.c_str(), config);
-		if (rv != 0) {
+		if (!cw_process_argv(argc, argv, all_options.c_str(), config)) {
 			fprintf(stderr, _("%s: failed to parse command line args\n"), argv0.c_str());
-			return -1;
+			return EXIT_FAILURE;
 		}
 		if (!cw_config_is_valid(config)) {
 			fprintf(stderr, _("%s: inconsistent arguments\n"), argv0.c_str());
-			return -1;
+			return EXIT_FAILURE;
 		}
 
 		if (config->input_file) {
 			if (!dictionary_load(config->input_file)) {
 				fprintf(stderr, _("%s: %s\n"), argv0.c_str(), strerror(errno));
 				fprintf(stderr, _("%s: can't load dictionary from input file %s\n"), argv0.c_str(), config->input_file);
-				return -1;
+				return EXIT_FAILURE;
 			}
 		}
 
@@ -412,14 +411,13 @@ int main(int argc, char **argv)
 			if (!dictionary_write(config->output_file)) {
 				fprintf(stderr, _("%s: %s\n"), argv0.c_str(), strerror(errno));
 				fprintf(stderr, _("%s: can't save dictionary to output file  %s\n"), argv0.c_str(), config->input_file);
-				return -1;
+				return EXIT_FAILURE;
 			}
 		}
 
-		rv = cw_generator_new_from_config(config, argv0.c_str());
-		if (rv != 1) {
+		if (!cw_generator_new_from_config(config, argv0.c_str())) {
 			fprintf(stderr, "%s: failed to create generator\n", argv0.c_str());
-			exit(EXIT_FAILURE);
+			return EXIT_FAILURE;
 		}
 
 		cw_generator_start();
@@ -445,7 +443,7 @@ int main(int argc, char **argv)
 				      &q_application, SLOT (quit ()));
 
 		// Enter the application event loop.
-		rv = q_application.exec();
+		int rv = q_application.exec();
 
 		cw_generator_stop();
 		cw_generator_delete();
