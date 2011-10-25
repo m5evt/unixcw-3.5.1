@@ -886,32 +886,30 @@ int main (int argc, char *const argv[])
 
 	config = cw_config_new();
 	if (!config) {
-		return -1;
+		return EXIT_FAILURE;
 	}
 	config->is_cw = 1;
 
-	int rv = cw_process_argv(argc, argv, all_options, config);
-	if (rv != 0) {
+	if (!cw_process_argv(argc, argv, all_options, config)) {
 		fprintf(stderr, _("%s: failed to parse command line args\n"), argv0);
-		return -1;
+		return EXIT_FAILURE;
 	}
 	if (!cw_config_is_valid(config)) {
 		fprintf(stderr, _("%s: inconsistent arguments\n"), argv0);
-		return -1;
+		return EXIT_FAILURE;
 	}
 
 	if (config->input_file) {
 		if (!freopen(config->input_file, "r", stdin)) {
 			fprintf(stderr, _("%s: %s\n"), argv0, strerror(errno));
 			fprintf(stderr, _("%s: error opening input file %s\n"), argv0, config->input_file);
+			return EXIT_FAILURE;
 		}
-		return -1;
 	}
 
-	rv = cw_generator_new_from_config(config, argv0);
-	if (rv != 1) {
+	if (!cw_generator_new_from_config(config, argv0)) {
 		fprintf(stderr, "%s: failed to create generator\n", argv0);
-		exit(EXIT_FAILURE);
+		return EXIT_FAILURE;
 	}
 
 	/* Set up signal handlers to exit on a range of signals. */
@@ -920,7 +918,7 @@ int main (int argc, char *const argv[])
 	for (index = 0; SIGNALS[index] != 0; index++) {
 		if (!cw_register_signal_handler(SIGNALS[index], SIG_DFL)) {
 			fprintf(stderr, _("%s: can't register signal: %s\n"), argv0, strerror(errno));
-			exit(EXIT_FAILURE);
+			return EXIT_FAILURE;
 		}
 	}
 
@@ -939,5 +937,5 @@ int main (int argc, char *const argv[])
 
 	cw_config_delete(&config);
 
-  return EXIT_SUCCESS;
+	return EXIT_SUCCESS;
 }
