@@ -1,6 +1,5 @@
-// vi: set ts=2 shiftwidth=2 expandtab:
-//
 // Copyright (C) 2001-2006  Simon Baldwin (simon_baldwin@yahoo.com)
+// Copyright (C) 2011       Kamil Ignacak (acerion@wp.pl)
 //
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -25,7 +24,6 @@
 #include <deque>
 #include <sstream>
 
-//#include <QEvent>
 
 #include "sender.h"
 #include "display.h"

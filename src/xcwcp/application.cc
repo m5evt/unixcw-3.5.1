@@ -1,6 +1,5 @@
-// vi: set ts=2 shiftwidth=2 expandtab:
-//
 // Copyright (C) 2001-2006  Simon Baldwin (simon_baldwin@yahoo.com)
+// Copyright (C) 2011       Kamil Ignacak (acerion@wp.pl)
 //
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -19,21 +18,11 @@
 
 #include "../config.h"
 
-//#include <cstdlib>
-//#include <ctime>
-//#include <cstdio>
-//#include <cctype>
 #include <cerrno>
-
-// #include <sstream>
 #include <iostream>
-// #include <string>
 
 #include <QIconSet>
 #include <QToolBar>
-//#include <QToolButton>
-//#include <QComboBox>
-//#include <QSpinBox>
 #include <QLabel>
 #include <QStatusBar>
 #include <QMenu>
@@ -67,9 +56,7 @@
 #include "cwlib.h"
 
 #include "i18n.h"
-// #include "cmdline.h"
 #include "copyright.h"
-// #include "memory.h"
 
 
 namespace cw {
