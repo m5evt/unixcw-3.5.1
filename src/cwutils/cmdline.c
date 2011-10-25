@@ -35,6 +35,7 @@
 # include <getopt.h>
 #endif
 
+#include "cwlib.h"
 #include "cmdline.h"
 #include "i18n.h"
 #include "memory.h"
@@ -44,7 +45,6 @@
 
 static int cw_process_option(int opt, const char *optarg, cw_config_t *config, const char *argv0);
 static void cw_print_usage(const char *argv0);
-static void cw_generator_apply_config(cw_config_t *config);
 
 
 /*---------------------------------------------------------------------*/
@@ -358,18 +358,17 @@ int cw_process_argv(int argc, char *const argv[], const char *options, cw_config
 	char *argument;
 
 	while (get_option(argc, argv, options, &option, &argument)) {
-		int rv = cw_process_option(option, argument, config, argv0);
-		if (rv != 0) {
-			return -1;
+		if (!cw_process_option(option, argument, config, argv0)) {
+			return CW_FAILURE;
 		}
 	}
 
 	if (get_optind() != argc) {
 		fprintf(stderr, "cwlib: expected argument after options\n");
 		cw_print_usage(argv0);
-		return -1;
+		return CW_FAILURE;
 	} else {
-		return 0;
+		return CW_SUCCESS;
 	}
 }
 
@@ -400,7 +399,7 @@ int cw_process_option(int opt, const char *optarg, cw_config_t *config, const ch
 			config->audio_system = CW_AUDIO_SOUNDCARD;
 		} else {
 			fprintf(stderr, "cwlib: invalid audio system (option 's'): %s\n", optarg);
-			return -1;
+			return CW_FAILURE;
 		}
 		break;
 
@@ -410,7 +409,7 @@ int cw_process_option(int opt, const char *optarg, cw_config_t *config, const ch
 			config->audio_device = strdup(optarg);
 		} else {
 			fprintf(stderr, "cwlib: no device specified for option -d\n");
-			return -1;
+			return CW_FAILURE;
 		}
 		break;
 
@@ -420,7 +419,7 @@ int cw_process_option(int opt, const char *optarg, cw_config_t *config, const ch
 			int speed = atoi(optarg);
 			if (speed < CW_SPEED_MIN || speed > CW_SPEED_MAX) {
 				fprintf(stderr, "cwlib: speed out of range: %d\n", speed);
-				return -1;
+				return CW_FAILURE;
 			} else {
 				config->send_speed = speed;
 			}
@@ -433,7 +432,7 @@ int cw_process_option(int opt, const char *optarg, cw_config_t *config, const ch
 			int frequency = atoi(optarg);
 			if (frequency < CW_FREQUENCY_MIN || frequency > CW_FREQUENCY_MAX) {
 				fprintf(stderr, "cwlib: frequency out of range: %d\n", frequency);
-				return -1;
+				return CW_FAILURE;
 			} else {
 				config->frequency = frequency;
 			}
@@ -446,7 +445,7 @@ int cw_process_option(int opt, const char *optarg, cw_config_t *config, const ch
 			int volume = atoi(optarg);
 			if (volume < CW_FREQUENCY_MIN || volume > CW_FREQUENCY_MAX) {
 				fprintf(stderr, "cwlib: volume level out of range: %d\n", volume);
-				return -1;
+				return CW_FAILURE;
 			} else {
 				config->volume = volume;
 			}
@@ -459,7 +458,7 @@ int cw_process_option(int opt, const char *optarg, cw_config_t *config, const ch
 			int gap = atoi(optarg);
 			if (gap < CW_GAP_MIN || gap > CW_GAP_MAX) {
 				fprintf(stderr, "cwlib: gap out of range: %d\n", gap);
-				return -1;
+				return CW_FAILURE;
 			} else {
 				config->gap = gap;
 			}
@@ -472,7 +471,7 @@ int cw_process_option(int opt, const char *optarg, cw_config_t *config, const ch
 			int weighting = atoi(optarg);
 			if (weighting < CW_WEIGHTING_MIN || weighting > CW_WEIGHTING_MAX) {
 				fprintf(stderr, "cwlib: weighting out of range: %d\n", weighting);
-				return -1;
+				return CW_FAILURE;
 			} else {
 				config->weighting = weighting;
 			}
@@ -485,7 +484,7 @@ int cw_process_option(int opt, const char *optarg, cw_config_t *config, const ch
 			int time = atoi(optarg);
 			if (time < 0) {
 				fprintf(stderr, "cwlib: practice time is negative\n");
-				return -1;
+				return CW_FAILURE;
 			} else {
 				config->practice_time = time;
 			}
@@ -497,7 +496,7 @@ int cw_process_option(int opt, const char *optarg, cw_config_t *config, const ch
 			config->input_file = strdup(optarg);
 		} else {
 			fprintf(stderr, "cwlib: no input file specified for option -i\n");
-			return -1;
+			return CW_FAILURE;
 		}
 		/* TODO: access() */
 		break;
@@ -524,7 +523,7 @@ int cw_process_option(int opt, const char *optarg, cw_config_t *config, const ch
 
 	case 'h':
 		cw_print_help(argv0, config);
-		return 0;
+		return CW_SUCCESS;
 
 	case 'V':
 		fprintf(stderr, _("%s version %s\n"), argv0, PACKAGE_VERSION);
@@ -532,14 +531,14 @@ int cw_process_option(int opt, const char *optarg, cw_config_t *config, const ch
 
 	case '?':
 		cw_print_usage(argv0);
-		return -1;
+		return CW_FAILURE;
 
 	default: /* '?' */
 		cw_print_usage(argv0);
-		return -1;
+		return CW_FAILURE;
 	}
 
-	return 0;
+	return CW_SUCCESS;
 }
 
 
