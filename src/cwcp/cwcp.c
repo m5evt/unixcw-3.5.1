@@ -1669,21 +1669,20 @@ int main(int argc, char **argv)
 	config->has_practice_time = 1;
 	config->has_outfile = 1;
 
-	int rv = cw_process_argv(argc, argv, all_options, config);
-	if (rv != 0) {
+	if (!cw_process_argv(argc, argv, all_options, config)) {
 		fprintf(stderr, _("%s: failed to parse command line args\n"), argv0);
-		return -1;
+		return EXIT_FAILURE;
 	}
 	if (!cw_config_is_valid(config)) {
 		fprintf(stderr, _("%s: inconsistent arguments\n"), argv0);
-		return -1;
+		return EXIT_FAILURE;
 	}
 
 	if (config->input_file) {
 		if (!dictionary_load(config->input_file)) {
 			fprintf(stderr, _("%s: %s\n"), argv0, strerror(errno));
 			fprintf(stderr, _("%s: can't load dictionary from input file %s\n"), argv0, config->input_file);
-			return -1;
+			return EXIT_FAILURE;
 		}
 	}
 
@@ -1691,14 +1690,13 @@ int main(int argc, char **argv)
 		if (!dictionary_write(config->output_file)) {
 			fprintf(stderr, _("%s: %s\n"), argv0, strerror(errno));
 			fprintf(stderr, _("%s: can't save dictionary to output file  %s\n"), argv0, config->input_file);
-			return -1;
+			return EXIT_FAILURE;
 		}
 	}
 
-	rv = cw_generator_new_from_config(config, argv0);
-	if (rv != 1) {
+	if (!cw_generator_new_from_config(config, argv0)) {
 		fprintf(stderr, "%s: failed to create generator\n", argv0);
-		exit(EXIT_FAILURE);
+		return EXIT_FAILURE;
 	}
 
 
@@ -1708,7 +1706,7 @@ int main(int argc, char **argv)
 	for (index = 0; SIGNALS[index] != 0; index++) {
 		if (!cw_register_signal_handler(SIGNALS[index], signal_handler)) {
 			fprintf(stderr, _("%s: can't register signal: %s\n"), argv0, strerror(errno));
-			exit(EXIT_FAILURE);
+			return EXIT_FAILURE;
 		}
 	}
 
@@ -1740,5 +1738,5 @@ int main(int argc, char **argv)
 	cw_generator_delete();
 	cw_config_delete(&config);
 
-	exit(EXIT_SUCCESS);
+	return EXIT_SUCCESS;
 }
