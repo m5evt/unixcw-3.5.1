@@ -1,6 +1,6 @@
-/* vi: set ts=2 shiftwidth=2 expandtab:
- *
+/*
  * Copyright (C) 2001-2006  Simon Baldwin (simon_baldwin@yahoo.com)
+ * Copyright (C) 2011       Kamil Ignacak (acerion@wp.pl)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -301,7 +301,7 @@ parse_command_line (int argc, char **argv)
           print_help (argv0);
 
         case 'v':
-          printf (_("%s version %s, %s\n"),
+          printf (_("%s version %s\n%s\n"),
                   argv0, PACKAGE_VERSION, _(CW_COPYRIGHT));
           exit (EXIT_SUCCESS);
 
