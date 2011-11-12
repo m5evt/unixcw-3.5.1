@@ -180,14 +180,6 @@ extern bool cw_is_alsa_possible(const char *device);
 extern const char *cw_get_console_device(void);
 extern const char *cw_get_soundcard_device(void);
 
-#if 0
-extern void cw_set_soundmixer_file (const char *new_value);
-extern const char *cw_get_soundmixer_file (void);
-extern void cw_set_console_sound (int sound_state);
-extern int cw_get_console_sound (void);
-extern void cw_set_soundcard_sound (int sound_state);
-extern int cw_get_soundcard_sound (void);
-#endif
 
 extern void cw_complete_reset (void);
 extern int cw_register_signal_handler (int signal_number,
