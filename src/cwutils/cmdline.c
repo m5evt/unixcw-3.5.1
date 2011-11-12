@@ -292,9 +292,8 @@ void cw_print_help(const char *argv0, cw_config_t *config)
 	fprintf(stderr, _("        'soundcard': use either OSS or ALSA\n"));
 	fprintf(stderr, _("        default sound system: 'oss'\n\n"));
 	fprintf(stderr, _("  -d, --device=DEVICE\n"));
-	fprintf(stderr, _("        use DEVICE as output device instead of default one\n"));
-	fprintf(stderr, _("        optional for {console|alsa|oss}\n"));
-	fprintf(stderr, _("        specify a device to be used \n"));
+	fprintf(stderr, _("        use DEVICE as output device instead of default one;\n"));
+	fprintf(stderr, _("        optional for {console|alsa|oss};\n"));
 	fprintf(stderr, _("        default devices are:\n"));
 	fprintf(stderr, _("        'console': %s\n"), CW_DEFAULT_CONSOLE_DEVICE);
 	fprintf(stderr, _("        'oss': %s\n"), CW_DEFAULT_OSS_DEVICE);
@@ -332,7 +331,7 @@ void cw_print_help(const char *argv0, cw_config_t *config)
 		fprintf(stderr, _("  -T, --time=TIME    set initial practice time\n"));
 		fprintf(stderr, _("                     default value: %d\n"), CW_PRACTICE_TIME_INITIAL);
 	}
-	fprintf(stderr, _("  -f, --infile=FILE        read practice words from FILE\n"));
+	fprintf(stderr, _("  -f, --infile=FILE      read practice words from FILE\n"));
 	if (config->has_outfile) {
 		fprintf(stderr, _("  -F, --outfile=FILE        write current configuration to FILE\n"));
 	}
@@ -523,16 +522,13 @@ int cw_process_option(int opt, const char *optarg, cw_config_t *config, const ch
 
 	case 'h':
 		cw_print_help(argv0, config);
-		return CW_SUCCESS;
+		exit(EXIT_SUCCESS);
 
 	case 'V':
 		fprintf(stderr, _("%s version %s\n"), argv0, PACKAGE_VERSION);
 		fprintf(stderr, "%s\n", CW_COPYRIGHT);
-
+		exit(EXIT_SUCCESS);
 	case '?':
-		cw_print_usage(argv0);
-		return CW_FAILURE;
-
 	default: /* '?' */
 		cw_print_usage(argv0);
 		return CW_FAILURE;
