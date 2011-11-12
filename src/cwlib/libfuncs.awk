@@ -1,7 +1,7 @@
 #!/bin/awk -f
-# vi: set ts=2 shiftwidth=2 expandtab:
 #
 # Copyright (C) 2001-2006  Simon Baldwin (simon_baldwin@yahoo.com)
+# Copyright (C) 2011       Kamil Ignacak (acerion@wp.pl)
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -18,60 +18,62 @@
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #
 #
-# AWK script to produce function descriptions from processed C source.
+# AWK script to produce function documentation strings from processed C source.
 #
 
 # Initialize the states, arrays, and indices.
 BEGIN {
-  IDLE = 0
-  TYPE = 1
-  SPECIFICATION = 2
-  DESCRIPTION = 3
-  state = IDLE
+	IDLE = 0
+	TYPE = 1
+	SPECIFICATION = 2
+	DOCUMENTATION = 3
+	state = IDLE
 
-  GLOBALTYPE_TAG = "GT"
-  GLOBALSPECIFICATION_TAG = "GS"
-  GLOBALDOCUMENTATION_TAG = "GD"
-  GLOBALEND_TAG = "GE"
-}
-
-# Find a global type tag; start of a function description.
-$1 == GLOBALTYPE_TAG {
-  sub (GLOBALTYPE_TAG, "")
-  sub (/^ */, "")
-  gsub (/\t/, " ")
-  printf (".nf\n.sp\n.sp\n")
-  printf (".BI \"%s ", $0)
-  state = TYPE
-  next
+	FUNCTION_TAG      = "F"
+	DOCUMENTATION_TAG = "D"
+	END_TAG           = "E"
 }
 
 # Handle each global specification entry.
-$1 == GLOBALSPECIFICATION_TAG {
-  sub (GLOBALSPECIFICATION_TAG, "")
-  sub (/^ */, "")
-  gsub (/\t/, " ")
-  printf ("%s%s\"\n", (state == TYPE ? "" : ".BI \""), $0)
-  state = SPECIFICATION
-  next
+$1 == FUNCTION_TAG {
+	sub(FUNCTION_TAG, "")
+	sub(/^ */, "")
+	gsub(/\t/, "       ")
+
+	if (state != SPECIFICATION) {
+		# additional line before printing (possibly
+		# multi-line) specification
+		print("\n.sp\n");
+	}
+
+	printf(".br\n.B \"%s\"\n", $0)
+	if ($0 ~ /\)$/) {
+		# newline line after last line of (possibly multi-line)
+		# specification
+		printf(".sp\n", $0)
+	}
+	state = SPECIFICATION
+	next
 }
 
 # Handle all documentation entries.
-$1 == GLOBALDOCUMENTATION_TAG {
-  if (state == SPECIFICATION || state == TYPE)
-    {
-      printf (".sp\n")
-      printf (".fi\n")
-    }
-  sub (GLOBALDOCUMENTATION_TAG, "")
-  sub (/^ */, "")
-  printf ("%s\n", $0)
-  state = DESCRIPTION
-  next
+$1 == DOCUMENTATION_TAG {
+	if (state == SPECIFICATION) {
+		state = DOCUMENTATION
+		# empty line between function prototype and
+		# function documentation
+		print("\n.br\n");
+	}
+
+	sub(DOCUMENTATION_TAG, "")
+
+	print $0
+
+	next
 }
 
 # On end of a function, reset state.
-$1 == GLOBALEND_TAG {
-  state = IDLE
-  next
+$1 == END_TAG {
+	state = IDLE
+	next
 }
