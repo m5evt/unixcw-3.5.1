@@ -1,7 +1,7 @@
 #!/bin/awk -f
-# vi: set ts=2 shiftwidth=2 expandtab:
 #
 # Copyright (C) 2001-2006  Simon Baldwin (simon_baldwin@yahoo.com)
+# Copyright (C) 2011       Kamil Ignacak (acerion@wp.pl)
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -24,95 +24,123 @@
 
 # Initialize the states, arrays, and indices.
 BEGIN {
-  IDLE = 0
-  DOCUMENTATION = 1
-  FUNCTION_TYPE = 2
-  SPECIFICATION = 3
-  FUNCTION_BODY = 4
-  state = IDLE
+	IDLE = 0
+	DOCUMENTATION = 1
+	FUNCTION_SPECIFICATION = 2
+	FUNCTION_BODY = 3
+	state = IDLE
 
-  GLOBAL_TAG = "G"
-  STATIC_TAG = "S"
-  DOCUMENTATION_TAG = "D"
-  FUNCTION_TYPE_TAG = "T"
-  SPECIFICATION_TAG = "S"
-  static = 0
+	DOCUMENTATION_TAG = "D"
+	FUNCTION_TAG      = "F"
+	END_TAG           = "E"
 
-  # Delete output.
-  output_line   = 0
+	skip_this_specification = 0
+
+	# Delete output.
+	output_line   = 0
 }
+
+
 
 # Ignore all blank lines in the file.
 /^[[:space:]]*$/ {
-  next
+	if (state == IDLE) {
+		next
+	}
 }
 
 # Handle every other line in the file according to the state.
 {
-  # Ignore everything seen while idle.
-  if (state == IDLE)
-    {
-      # Move to documentation state on seeing '/**'.  Read and discard the
-      # two lines that follow, up to '^ *$'.
-      if ($0 ~ /^\/\*\*/)
-        {
-          static = 0
-          state = DOCUMENTATION
-          output_line = 0
-          while ($0 !~ /^ \* *$/)
-            if (getline == 0)
-              break;
-          next
-        }
-      next
-    }
+	# Ignore everything seen while idle.
+	if (state == IDLE) {
+		if ($0 ~ /^static /) {
+			# potentially a static function declaration
 
-  # Catch documentation lines, stopping on ' */'.
-  if (state == DOCUMENTATION)
-    {
-      # Check for end of the documentation.
-      if ($0 ~ /^ \*\//)
-        {
-          # Now expecting the function specification, starting with a one-
-          # line return type.
-          state = FUNCTION_TYPE
-        }
-      else
-        {
-          # Remove any " * ", and save the line as documentation.
-          sub (/^ \* /," *")
-          sub (/^ \*/,"")
-          output[output_line++] = DOCUMENTATION_TAG" "$0
-        }
-      next
-    }
+			match($0, /[a-zA-Z0-9_\* ]+ \**([a-zA-Z0-9_]+)\(/, matches);
+			if (matches[1] != "") {
+				# print matches[1] > "/dev/stderr"
+				static_functions[matches[1]] = matches[1];
+			}
+		} else if ($0 ~ /^\/\*\*/) {
+			# Move to documentation state on seeing '/**'.  Read and discard the
+			# two lines that follow, up to '^ *$'.
+			state = DOCUMENTATION
+			output_line = 0
 
-  # Catch the function type, one line after the documentation.
-  if (state == FUNCTION_TYPE)
-    {
-      output[output_line++] = FUNCTION_TYPE_TAG" "$0
-      static = ($0 ~ /static/)
-      state = SPECIFICATION
-      next
-    }
+			next
+		} else {
 
-  # Catch all specification lines, stopping on '{'.
-  if (state == SPECIFICATION)
-    {
-      # Check for end of the specification.
-      if ($0 ~ /^\{/)
-        {
-          # Now expecting some form of function body.
-          state = FUNCTION_BODY
-        }
-      else
-        {
-          # Save this line as specification, prepending the function type if
-          # we have one.
-          output[output_line++] = SPECIFICATION_TAG" "$0
-        }
-      next
-    }
+		}
+		next
+	}
+
+
+	# Catch documentation lines, stopping on ' */'.
+	if (state == DOCUMENTATION) {
+
+		# Check for end of the documentation.
+		if ($0 ~ /^ *\*\//) {
+			# Now expecting the function specification
+			state = FUNCTION_SPECIFICATION
+
+			# attempt to read the specification; if it turns out
+			# to be static function (static_functions[]), this
+			# flag will be set to 1, and the specification
+			# (possibly multiline) won't be processed
+			skip_this_specification = 0;
+		} else {
+			# Some documentation texts still have " * " at the
+			# beginning sub (/^ \* /," *")
+			sub(/^ \* */,"")
+
+			# Handle Doxygen tags
+			sub(/^ *\\brief /, "Brief: ")
+			sub(/^ *\\param /, "Parameter: ")
+
+			if (match($0, /\\param ([0-9a-zA-Z_]+)/, matches)) {
+				replacement = "\\fB"matches[1]"\\fP"
+				gsub(/(\\param [0-9a-zA-Z_]+)/, replacement, $0)
+			}
+
+			sub(/^ *\\return /, "Returns: ")
+
+			output[output_line++] = DOCUMENTATION_TAG" "$0
+		}
+		next
+	}
+
+
+	# Catch all specification lines, stopping on '{'.
+	if (state == FUNCTION_SPECIFICATION) {
+		# Check for end of the specification.
+		if ($0 ~ /^\{/) {
+			# Now expecting some form of function body.
+			state = FUNCTION_BODY
+		} else {
+			if (!skip_this_specification) {
+				match($0, /[a-zA-Z0-9_\* ]+ \**([a-zA-Z0-9_]+)\(/, matches);
+				if (static_functions[matches[1]]) {
+					# specification of static function
+					# no point in processing it
+					skip_this_specification = 1
+
+					# static function, mark its documentation
+					# for removal
+					i = output_line - 1;
+					while (output[i] ~ /^D/) {
+						output[i] = "";
+						i--;
+					}
+				} else {
+
+					# Save this line as specification, prepending the function type if
+					# we have one.
+					output[output_line++] = FUNCTION_TAG" "$0
+				}
+			}
+		}
+		next
+	}
 
   # Ignore function lines, but at the end, check for 'run-on' functions.  If
   # any are found, go back to storing specifications, otherwise drop through,
@@ -136,9 +164,8 @@ BEGIN {
                 {
                   # Set the new state, catch the read specification line, and
                   # continue.
-                  output[output_line++] = FUNCTION_TYPE_TAG" "$0
-                  static = ($0 ~ /static/)
-                  state = SPECIFICATION
+                  output[output_line++] = FUNCTION_TAG" "$0
+                  state = FUNCTION_SPECIFICATION
                   next
                 }
             }
@@ -154,15 +181,15 @@ BEGIN {
   # ordering so that documentation lines come after the function signatures.
   for (i = 0; i < output_line; i++)
     {
-      if (index (output[i], DOCUMENTATION_TAG) == 0)
-        print (static?STATIC_TAG:GLOBAL_TAG)output[i]
+      if (index(output[i], DOCUMENTATION_TAG) == 0)
+        print output[i]
     }
   for (i = 0; i < output_line; i++)
     {
-      if (index (output[i], DOCUMENTATION_TAG) != 0)
-        print (static?STATIC_TAG:GLOBAL_TAG)output[i]
+      if (index(output[i], DOCUMENTATION_TAG) != 0)
+        print output[i]
     }
-  print (static?STATIC_TAG:GLOBAL_TAG)END_TAG
+  print END_TAG
 
   # Reset variables and state for the next section.
   state = IDLE
@@ -175,14 +202,14 @@ BEGIN {
 END {
   for (i = 0; i < output_line; i++)
     {
-      if (index (output[i], DOCUMENTATION_TAG) == 0)
-        print (static?STATIC_TAG:GLOBAL_TAG)output[i]
+      if (index(output[i], DOCUMENTATION_TAG) == 0)
+        print output[i]
     }
   for (i = 0; i < output_line; i++)
     {
-      if (index (output[i], DOCUMENTATION_TAG) != 0)
-        print (static?STATIC_TAG:GLOBAL_TAG)output[i]
+      if (index(output[i], DOCUMENTATION_TAG) != 0)
+        print output[i]
     }
   if (i > 0)
-    print (static?STATIC_TAG:GLOBAL_TAG)END_TAG
+    print END_TAG
 }
