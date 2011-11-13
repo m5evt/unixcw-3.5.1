@@ -18,10 +18,15 @@
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #
 #
-# AWK script to produce function documentation strings from processed C source.
+# AWK script to produce function documentation strings from processed
+# C source. Pass output of libdoc.awk script to input of this script.
 #
 
-# Initialize the states, arrays, and indices.
+
+
+
+
+# Initialize states and tags
 BEGIN {
 	IDLE = 0
 	TYPE = 1
@@ -34,45 +39,65 @@ BEGIN {
 	END_TAG           = "E"
 }
 
-# Handle each global specification entry.
+
+
+
+
+# Handle each line containing function specification
 $1 == FUNCTION_TAG {
 	sub(FUNCTION_TAG, "")
 	sub(/^ */, "")
 	gsub(/\t/, "       ")
 
 	if (state != SPECIFICATION) {
-		# additional line before printing (possibly
+		# first line of specification;
+		# print empty line before printing (possibly
 		# multi-line) specification
 		print("\n.sp\n");
 	}
 
 	printf(".br\n.B \"%s\"\n", $0)
+
 	if ($0 ~ /\)$/) {
 		# newline line after last line of (possibly multi-line)
 		# specification
-		printf(".sp\n", $0)
+		# printf(".sp\n", $0)
 	}
 	state = SPECIFICATION
 	next
 }
 
-# Handle all documentation entries.
+
+
+
+
+# Handle all documentation lines
 $1 == DOCUMENTATION_TAG {
 	if (state == SPECIFICATION) {
 		state = DOCUMENTATION
-		# empty line between function prototype and
+		# line break between function prototype and
 		# function documentation
-		print("\n.br\n");
+		print(".br");
 	}
 
 	sub(DOCUMENTATION_TAG, "")
+	sub(/^ +/, "")
+
+	# line break for printing consecutive 'Returns: ' in separate lines
+	if ($0 ~ /^Returns:/) {
+		print(".br")
+	}
 
 	print $0
 
 	next
 }
 
-# On end of a function, reset state.
+
+
+
+
+# On end of a function specification, reset state
 $1 == END_TAG {
 	state = IDLE
 	next
