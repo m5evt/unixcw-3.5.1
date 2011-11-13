@@ -1436,7 +1436,7 @@ cw_self_test_delayed_release (void)
   return failures;
 }
 
-
+# if 0
 /*
  * cw_self_test_signal_handling_callback()
  * cw_self_test_signal_handling()
@@ -1530,7 +1530,7 @@ cw_self_test_signal_handling (void)
   printf ("cwlib: cw_[un]register_signal_handler tests complete\n");
   return failures;
 }
-
+#endif
 
 /*---------------------------------------------------------------------*/
 /*  Unit tests drivers                                                 */
