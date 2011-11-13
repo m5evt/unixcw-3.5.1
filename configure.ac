@@ -99,27 +99,65 @@ else
 fi
 
 
+
+
+
+
 #
-# test area
+# test area (autodetection of QT4 dependencies)
 #
+
 
 # possible locations of Qt4 headers
 QT4HEADER_DIRS="/usr/include/qt4 \ # Debian
-               /usr/include/"      # Arch (?)
+               /usr/include"      # Arch (?)
 
-QT4DIR=""
-# QTDIR=""
-if [[[ $QTDIR != "" ]]] ; then
+# possible locations of Qt4 moc (a.k.a. moc-qt4)
+QT4BIN_DIRS="/usr/bin" #Debian
+
+
+# QTDIR="" # for testing purposes
+QT4INC=""
+QT4MOC=""
+
+if [[[ $QTDIR = "" ]]] ; then
+
     for dir in $QT4HEADER_DIRS; do
 	if test -d "$dir/QtGui" && test -d "$dir/QtCore" ; then
-            QT4DIR=$dir;
+            QT4INC=$dir;
 	fi
     done
+
+    for dir in $QT4BIN_DIRS; do
+	if test -f "$dir/moc-qt4" ; then
+            QT4MOC=$dir/moc-qt4;
+	    break
+	elif test -f "$dir/moc"; then
+	     MAJOR="`$dir/moc -v 2>&1 | sed -e 's;.\+ (Qt \([[0-9]]\).\+;\1;g'`"
+	     if [[[ $MAJOR = "4" ]]] ; then
+	     	QT4MOC="$dir/moc"
+		break
+	     fi
+	fi
+    done
+
 fi
 
-if [[[ $QT4DIR != "" ]]] ; then
-    echo "QT4 headers dir is $QT4DIR"
+
+if [[[ $QT4INC != "" && $QT4MOC != "" ]]] ; then
+   echo "QT4 headers dir is $QT4INC"
+   echo "QT4 moc is $QT4MOC"
+else
+   QT4INC=""
+   QT4MOC=""
 fi
+
+
+
+#
+# end of test area
+#
+
 
 
 
