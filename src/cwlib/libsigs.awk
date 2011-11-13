@@ -19,37 +19,35 @@
 #
 #
 # AWK script to produce function signatures from processed C source.
-#
+# Pass output of libdoc.awk script to input of this script.
 
-# Initialize the states, arrays, and indices.
+
+
+
+
+# Initialize tags
 BEGIN {
-  IDLE = 0
-  SPECIFICATION = 1
-  state = IDLE
-
-  FUNCTION_TAG = "F"
-  END_TAG = "E"
-  specifications = 0
+	FUNCTION_TAG = "F"
 }
 
 
-# Handle each function specification entry.
+
+
+
+# Handle lines containing function specification
 $1 == FUNCTION_TAG {
-  sub (FUNCTION_TAG, "")
-  sub (/^ */, "")
-  gsub (/\t/, "        ")
-  printf (".BI \"%s\"\n.br\n", $0)
-  state = SPECIFICATION
-  next
+	sub(FUNCTION_TAG, "")
+	sub(/^ */, "")
+	gsub(/\t/, "        ")
+	printf(".BI \"%s\"\n.br\n", $0)
+	next
 }
 
-# On end of a function, reset state.
-$1 == END_TAG {
-  state = IDLE
-  next
-}
 
-# Tidy up on end of file.
+
+
+
+# Tidy up on end of file
 END {
-  printf ("%s.fi\n", (specifications > 0 ? ".sp\n" : ""))
+	print(".fi\n")
 }
