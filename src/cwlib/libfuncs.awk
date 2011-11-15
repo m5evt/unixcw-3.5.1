@@ -83,8 +83,9 @@ $1 == DOCUMENTATION_TAG {
 	sub(DOCUMENTATION_TAG, "")
 	sub(/^ +/, "")
 
-	# line break for printing consecutive 'Returns: ' in separate lines
-	if ($0 ~ /^Returns:/) {
+	# line break for printing consecutive 'Returns: ' and 'Parameter: '
+	# in separate lines
+	if ($0 ~ /^Returns:/ || $0 ~ /^Parameter:/) {
 		print(".br")
 	}
 
