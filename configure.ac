@@ -18,7 +18,7 @@
 
 # General initializations.
 AC_PREREQ(2.57)
-AC_INIT([UnixCW], 2.3, [simon_baldwin@yahoo.com])
+AC_INIT([UnixCW], 3.0, [acerion@wp.pl])
 
 # Specify a configuration header.
 AC_CONFIG_HEADERS(src/config.h)
@@ -101,70 +101,83 @@ fi
 
 
 
+# autodetection of QT4 dependencies
 
-
-#
-# test area (autodetection of QT4 dependencies)
-#
-
+MOC_MAJOR_EARLIEST=4
 
 # possible locations of Qt4 headers
 QT4HEADER_DIRS="/usr/include/qt4 \ # Debian
                /usr/include"      # Arch (?)
 
 # possible locations of Qt4 moc (a.k.a. moc-qt4)
-QT4BIN_DIRS="/usr/bin" #Debian
-
+QT4BIN_DIRS=$PATH # pretty standard
 
 # QTDIR="" # for testing purposes
-QT4INC=""
-QT4MOC=""
+QT4INC=""  # full path to directory with QT4 QtCore + QtGui subdirs and include files, e.g. /usr/include/qt4/
+QT4MOC=""  # full path to QT4 moc executable
 
 if [[[ $QTDIR = "" ]]] ; then
 
+    # look for QT4 include directories
     for dir in $QT4HEADER_DIRS; do
 	if test -d "$dir/QtGui" && test -d "$dir/QtCore" ; then
             QT4INC=$dir;
 	fi
     done
 
-    for dir in $QT4BIN_DIRS; do
-	if test -f "$dir/moc-qt4" ; then
-            QT4MOC=$dir/moc-qt4;
-	    break
-	elif test -f "$dir/moc"; then
-	     MAJOR="`$dir/moc -v 2>&1 | sed -e 's;.\+ (Qt \([[0-9]]\).\+;\1;g'`"
-	     if [[[ $MAJOR = "4" ]]] ; then
-	     	QT4MOC="$dir/moc"
-		break
-	     fi
+    # look for QT4 moc binary
+    AC_PATH_PROG(QT4MOC, moc-qt4, , $PATH)
+    if test -n "$QT4MOC" ; then
+        MOC_MAJOR="`$QT4MOC -v 2>&1 | sed -e 's;.\+ (Qt \([[0-9]]\).\+;\1;g'`"
+	if [[[ $MOC_MAJOR != $MOC_MAJOR_EARLIEST ]]] ; then
+	   QT4MOC=""
 	fi
-    done
+    fi
 
-fi
+    if [[[ "$QT4MOC" = "" ]]] ; then
+        QT4MOC_2=""
+        AC_PATH_PROG(QT4MOC_2, moc, , $PATH)
+        if test -n "$QT4MOC_2" ; then
+            MOC_MAJOR="`$QT4MOC_2 -v 2>&1 | sed -e 's;.\+ (Qt \([[0-9]]\).\+;\1;g'`"
+	    if [[[ $MOC_MAJOR = $MOC_MAJOR_EARLIEST ]]] ; then
+	        QT4MOC=$QT4MOC_2
+	    fi
+        fi
+    fi
 
 
-if [[[ $QT4INC != "" && $QT4MOC != "" ]]] ; then
-   echo "QT4 headers dir is $QT4INC"
-   echo "QT4 moc is $QT4MOC"
+    if [[[ $QT4INC != "" && $QT4MOC != "" ]]] ; then
+       	echo "QT4 headers dir is $QT4INC"
+        echo "QT4 moc is $QT4MOC"
+
+	# we have moc4 and path to QT4 include files,
+	# so we can build xcwcp
+	SUBDIRS="$SUBDIRS xcwcp"
+
+	AC_SUBST(QT4INC)
+	AC_SUBST(QT4MOC)
+    else
+	if [[[ $QT4INC = "" ]]] ; then
+	    AC_MSG_WARN([Can't find directory with QT4 header files - unable to build xcwcp])
+	fi
+
+	if [[[ $QT4MOC = "" ]]] ; then
+	    AC_MSG_WARN([Can't find QT moc version == $MOC_MAJOR_EARLIEST - unable to build xcwcp])
+	fi
+
+	AC_MSG_WARN([Hint: try setting QTDIR env variable per instructions in unixcw/INSTALLATION])
+
+	QT4INC=""
+   	QT4MOC=""
+    fi
+
+
 else
-   QT4INC=""
-   QT4MOC=""
-fi
-
-
-
-#
-# end of test area
-#
-
-
 
 
 # Look for $QTDIR.  If found, then look for moc, either on $PATH, or
 # in $QTDIR/bin.
-MOC_EARLIEST=4
-if test -n "$QTDIR" ; then
+
   AC_PATH_PROG(QTMOC, moc, , $QTDIR/bin:$PATH)
   if test -n "$QTMOC" ; then
     MOC_VERSION="`$QTMOC -v 2>&1 | sed -e 's;.*(Qt ;;' -e 's;).*;;'`"
@@ -173,13 +186,13 @@ if test -n "$QTDIR" ; then
       expr "$MOC_MAJOR" + 0 >/dev/null 2>/dev/null
       status=$?
       if test -n "$MOC_MAJOR" -a $status -eq 0 ; then
-        if test "$MOC_MAJOR" -ge $MOC_EARLIEST ; then
+        if test "$MOC_MAJOR" -ge $MOC_MAJOR_EARLIEST ; then
           SUBDIRS="$SUBDIRS xcwcp"
           AC_SUBST(QTDIR)
           AC_SUBST(QTMOC)
         else
           AC_MSG_WARN([Found 'moc' $MOC_VERSION - unable to build xcwcp])
-          AC_MSG_WARN([Hint: xcwcp requires 'moc' version >= $MOC_EARLIEST])
+          AC_MSG_WARN([Hint: xcwcp requires 'moc' version >= $MOC_MAJOR_EARLIEST])
         fi
       else
         AC_MSG_WARN([Cannot find 'moc' version - unable to build xcwcp])
@@ -193,11 +206,10 @@ if test -n "$QTDIR" ; then
     AC_MSG_WARN([Cannot find 'moc' - unable to build xcwcp])
     AC_MSG_WARN([Hint: ensure 'moc' is in QTDIR/bin on your PATH])
   fi
-else
-  AC_MSG_WARN([Cannot find libqt - unable to build xcwcp])
-  AC_MSG_WARN([Hint: try setting a value for the QTDIR variable])
 fi
 AC_SUBST(SUBDIRS)
+
+
 
 # Add -Wall, -W, -pedantic, and other paranoia to gcc command flags, and -Wall
 # to with a few suppressions to icc command flags, then similarly, though less
