@@ -219,7 +219,7 @@ static const unsigned int CW_AUDIO_SAMPLE_RATE_B = 48000;       /* Secondary sou
 static const int          CW_AUDIO_CHANNELS = 1;                /* Sound in mono */
 static const long int     CW_AUDIO_VOLUME_RANGE = (1 << 15);    /* 2^15 = 32768 */
 // enum                    { CW_AUDIO_GENERATOR_BUF_SIZE = 128 };  /* Size of buffer storing samples, the value works well for both OSS and ALSA */
-static const int          CW_AUDIO_GENERATOR_SLOPE = 100;       /* ~100 for 44.1/48 kHz sample rate */
+static const float        CW_AUDIO_GENERATOR_SLOPE_RATIO = 1.0;    /* ~1.0 for 44.1/48 kHz sample rate */
 
 /* 0Hz = silent 'tone'. */
 static const int CW_TONE_SILENT = 0;
@@ -2375,12 +2375,19 @@ int cw_sound_soundcard_internal(int state)
 	/* use 'slope' to control amplitude of sine wave generator:
 	   negative slope decreases amplitude to zero, positive slope
 	   increases amplitude to current volume level */
+
+	/* having slope dependent on volume helps us avoiding shorter
+	   slopes at lower volumes; with constant slope it would take
+	   shorter to switch from zero to max (and from max to zero),
+	   which may result in pops at low volumes */
+	int minimum_slope = 1;
+	int slope = generator->volume ?
+		CW_AUDIO_GENERATOR_SLOPE_RATIO * generator->volume :
+		minimum_slope;
 	if (state == CW_TONE_SILENT) { /* TONE_SILENT == 0, silence the sound */
-		// fprintf(stderr, "cwlib: toggling sound level to 0\n");
-		generator->slope = -CW_AUDIO_GENERATOR_SLOPE;
+		generator->slope = -slope;
 	} else {
-		// fprintf(stderr, "cwlib: toggling sound level to 1\n");
-		generator->slope = CW_AUDIO_GENERATOR_SLOPE;
+		generator->slope = slope;
 	}
 
 	return CW_SUCCESS;
@@ -5522,7 +5529,7 @@ void cw_generator_stop(void)
 	} else if (generator->audio_system == CW_AUDIO_OSS
 		   || generator->audio_system == CW_AUDIO_ALSA) {
 
-		generator->slope = -CW_AUDIO_GENERATOR_SLOPE;
+		cw_sound_soundcard_internal(CW_TONE_SILENT);
 
 		/* time needed between initiating stop sequence and
 		   ending write() to device and closing the device */
