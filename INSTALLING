@@ -1,5 +1,5 @@
 
-The source code for UnixCW version 2.3 comes with a 'configure' file.  Its job
+The source code for UnixCW version 3.0 comes with a 'configure' file.  Its job
 is to try and decide which features your system offers, and then configure
 UnixCW the best way it can for these features.
 
@@ -11,18 +11,21 @@ matter, a working console speaker, but you will need the definitions from
 various header files.  Of course, you will need a sound card or console speaker
 if you want to run any of the programs once they are built.
 
-If you have a Curses library, UnixCW will build 'cwcp'.  And if you have a Qt
-library, version 3.1 or later, and a C++ compiler, it will also build 'xcwcp'.
-You need to set the environment variable
+cwcp:
+If you have a Curses (ncurses) library, UnixCW will build 'cwcp'.
 
-    QTDIR
+xcwcp:
+If you have a Qt library, version 4.0 or later, and a C++ compiler, UnixCW
+will build 'xcwcp'. 'configure' script will try to resolve all dependencies
+needed to build QT4 application without using QT-specific build tools.
+If the script fails at detecting 'moc' executable or include files for QT4,
+you may have to set the environment variable QTDIR (if not already set)
+to indicate the Qt library directory on your system. On Debian it would be:
 
-to indicate the Qt library directory on your system, for example
+    export QTDIR=/usr/share/qt4
 
-    export QTDIR=/usr/lib/qt-3.1
-
-if QTDIR is not already set.  The configure script will look for the Qt 'moc'
-utility on either your current $PATH or in $QTDIR/bin.
+The configure script will then look for the Qt 'moc' utility on either your
+current $PATH or in $QTDIR/bin.
 
 UnixCW may port to other platforms, but the primary target systems on which it
 should "just build", perhaps with a bit of tweaking as shown above with
