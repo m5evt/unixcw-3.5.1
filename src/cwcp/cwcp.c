@@ -702,7 +702,8 @@ mode_is_sending_active (void)
  * character limit imposed by ISO C89 on string literal lengths.
  */
 static const char *const INTRODUCTION = N_("\n"
-  "UNIX/Linux Morse Tutor v2.3, (C) 1997-2006 Simon Baldwin\n"
+  "UNIX/Linux Morse Tutor v3.0\n"
+  "Copyright (C) 1997-2006 Simon Baldwin, 2011 Kamil Ignacak\n"
   "--------------------------------------------------------\n\n"
   "Cwcp is an interactive Morse code tutor program, designed\n"
   "both for learning Morse code for the first time, and for\n"
