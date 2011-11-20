@@ -30,31 +30,33 @@ LD_LINKS_SO	= $(AC_LD_LINKS_SO)
 
 SHELL	= /bin/sh
 
+COMMON_LIBS = -lm -lpthread -lasound
+
 default: all
 
-all: libcw.a libcw.so.0.0.0 libcw.so.0 libcw.so libcw.pc cwlib.3 cwlibtest
+all: libcw.a libcw.so.3.0.0 libcw.so.3 libcw.so libcw.pc cwlib.3 cwlibtest
 
 # Build the static and shared libraries.
 libcw.a: cwlib.o
 	rm -f libcw.a; ar -cr libcw.a cwlib.o
 	$(RANLIB) libcw.a
 
-libcw.so.0.0.0: cwlib.o
+libcw.so.3.0.0: cwlib.o
 	if [ "$(CC_LINKS_SO)" = "yes" ]; then				\
-		$(CC) -shared -Wl,-soname,libcw.so.0			\
-			-o libcw.so.0.0.0 cwlib.o;			\
+		$(CC) -shared $(COMMON_LIBS) -Wl,-soname,libcw.so.3	\
+			-o libcw.so.3.0.0 cwlib.o;			\
 	else								\
 		if [ "$(LD_LINKS_SO)" = "yes" ]; then			\
-			$(LD) -G -Wl,-soname,libcw.so.0			\
-				-o libcw.so.0.0.0 cwlib.o;		\
+			$(LD) $(COMMON_LIBS) -G -Wl,-soname,libcw.so.3	\
+				-o libcw.so.3.0.0 cwlib.o;		\
 		fi							\
 	fi
 
-libcw.so.0: libcw.so.0.0.0
-	$(LN_S) -f libcw.so.0.0.0 libcw.so.0
+libcw.so.3: libcw.so.3.0.0
+	$(LN_S) -f libcw.so.3.0.0 libcw.so.3
 
-libcw.so: libcw.so.0.0.0
-	$(LN_S) -f libcw.so.0.0.0 libcw.so
+libcw.so: libcw.so.3.0.0
+	$(LN_S) -f libcw.so.3.0.0 libcw.so
 
 # Build the library man page.
 cwlib.3: cwlib.3.m4 cwlib.c
@@ -65,7 +67,7 @@ cwlib.3: cwlib.3.m4 cwlib.c
 
 # Build the unit test.
 cwlibtest: cwlibtest.o
-	$(CC) -o cwlibtest cwlibtest.o -L. -lcw -lm -lpthread -lasound
+	$(CC) -o cwlibtest cwlibtest.o -L. -lcw
 
 # Build the pkgconfig metadata file.
 libcw.pc:
@@ -86,9 +88,9 @@ install: all
 	$(INSTALL_DATA) cwlib.h $(includedir)/cwlib.h
 	$(INSTALL_DATA) libcw.a $(libdir)/libcw.a
 	if [ "$(CC_LINKS_SO)" = "yes" -o "$(LD_LINKS_SO)" = "yes" ]; then \
-		$(INSTALL_PROGRAM) libcw.so.0.0.0 $(libdir)/libcw.so.0.0.0; \
-		$(LN_S) -f libcw.so.0.0.0 $(libdir)/libcw.so.0; \
-		$(LN_S) -f libcw.so.0.0.0 $(libdir)/libcw.so; \
+		$(INSTALL_PROGRAM) libcw.so.3.0.0 $(libdir)/libcw.so.3.0.0; \
+		$(LN_S) -f libcw.so.3.0.0 $(libdir)/libcw.so.3; \
+		$(LN_S) -f libcw.so.3.0.0 $(libdir)/libcw.so; \
 		$(LDCONFIG) -n $(libdir); \
 	fi
 	$(INSTALL_DATA) cwlib.3 $(mandir)/man3/cwlib.3
@@ -105,7 +107,7 @@ install-strip:
 uninstall:
 	rm -f $(includedir)/cwlib.h
 	rm -f $(libdir)/libcw.a
-	rm -f $(libdir)/libcw.so $(libdir)/libcw.so.0 $(libdir)/libcw.so.0.0.0
+	rm -f $(libdir)/libcw.so $(libdir)/libcw.so.3 $(libdir)/libcw.so.3.0.0
 	$(LDCONFIG) -n $(libdir)
 	rm -f $(mandir)/man3/cwlib.3 $(mandir)/man3/cwlib.3.gz
 	rm -f $(mandir)/man7/cw.7 $(mandir)/man7/cw.7.gz
@@ -114,7 +116,7 @@ uninstall:
 
 # Cleanup targets.
 clean:
-	rm -f libcw.a libcw.so libcw.so.0 libcw.so.0.0.0 *.s libcw.pc *.o
+	rm -f libcw.a libcw.so libcw.so.3 libcw.so.3.0.0 *.s libcw.pc *.o
 	rm -f cwlib.3 signatures functions
 	rm -f cwlibtest
 	rm -f core core.*
