@@ -82,7 +82,7 @@ class Application : public QMainWindow
   // the 'this' of the CW user instance, or NULL if no current user.
   static Application *cwlib_user_application_instance;
 
-  QPixmap unixcw_icon;
+  QPixmap xcwcp_icon;
 
   bool play_;
   QPixmap start_icon;
