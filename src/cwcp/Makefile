@@ -33,7 +33,7 @@ cwcp.o: cwcp.c ../cwlib/cwlib.h
 
 cwcp: cwcp.o
 	$(CC) $(LDFLAGS) -o $@ cwcp.o ../cwutils/i18n.o ../cwutils/cw_common.o ../cwutils/cmdline.o \
-	../cwutils/dictionary.o ../cwutils/memory.o $(LIBS) -lm -lpthread -lasound
+	../cwutils/dictionary.o ../cwutils/memory.o $(LIBS)
 
 # Install targets.
 install: all
@@ -62,13 +62,18 @@ mostlyclean: clean
 maintainer-clean: distclean
 
 # Test targets.
-check: all
-	-LD_LIBRARY_PATH=../cwlib:$$LD_LIBRARY_PATH ./cwcp -sb ||	\
-	 ( echo "Retrying the test for soundcard only";			\
-	   LD_LIBRARY_PATH=../cwlib:$$LD_LIBRARY_PATH ./cwcp -ss ) ||	\
-	 ( echo "Retrying the test in silent mode";			\
-	   CWLIB_DEBUG=1 \
-	   LD_LIBRARY_PATH=../cwlib:$$LD_LIBRARY_PATH ./cwcp -ss )
+# This test target will be invoked when creating deb package.
+check:
+
+# This test target can be invoked manually.
+real_check: all
+	( echo "Trying with OSS audio output";				\
+	  LD_LIBRARY_PATH=../cwlib:$$LD_LIBRARY_PATH ./cwcp -so ) ||	\
+	( echo "Retrying with ALSA audio output";			\
+	  LD_LIBRARY_PATH=../cwlib:$$LD_LIBRARY_PATH ./cwcp -sa ) ||	\
+	( echo "Retrying with console audio output";			\
+	  CWLIB_DEBUG=1 						\
+	  LD_LIBRARY_PATH=../cwlib:$$LD_LIBRARY_PATH ./cwcp -sc )
 
 # Unimplemented targets.
 TAGS:
