@@ -112,11 +112,11 @@ QT4HEADER_DIRS="/usr/include/qt4 \ # Debian
 # possible locations of Qt4 moc (a.k.a. moc-qt4)
 QT4BIN_DIRS=$PATH # pretty standard
 
-# QTDIR="" # for testing purposes
+# QT4DIR="" # for testing purposes
 QT4INC=""  # full path to directory with QT4 QtCore + QtGui subdirs and include files, e.g. /usr/include/qt4/
 QT4MOC=""  # full path to QT4 moc executable
 
-if [[[ $QTDIR = "" ]]] ; then
+if [[[ $QT4DIR = "" ]]] ; then
 
     # look for QT4 include directories
     for dir in $QT4HEADER_DIRS; do
@@ -147,8 +147,6 @@ if [[[ $QTDIR = "" ]]] ; then
 
 
     if [[[ $QT4INC != "" && $QT4MOC != "" ]]] ; then
-       	echo "QT4 headers dir is $QT4INC"
-        echo "QT4 moc is $QT4MOC"
 
 	# we have moc4 and path to QT4 include files,
 	# so we can build xcwcp
@@ -165,7 +163,7 @@ if [[[ $QTDIR = "" ]]] ; then
 	    AC_MSG_WARN([Can't find QT moc version == $MOC_MAJOR_EARLIEST - unable to build xcwcp])
 	fi
 
-	AC_MSG_WARN([Hint: try setting QTDIR env variable per instructions in unixcw/INSTALLATION])
+	AC_MSG_WARN([Hint: try setting QT4DIR env variable per instructions in unixcw/INSTALLATION])
 
 	QT4INC=""
    	QT4MOC=""
@@ -175,12 +173,12 @@ if [[[ $QTDIR = "" ]]] ; then
 else
 
 
-# Look for $QTDIR.  If found, then look for moc, either on $PATH, or
-# in $QTDIR/bin.
+# Look for $QT4DIR.  If found, then look for moc, either on $PATH, or
+# in $QT4DIR/bin.
 
-  AC_PATH_PROG(QTMOC, moc, , $QTDIR/bin:$PATH)
-  if test -n "$QTMOC" ; then
-    MOC_VERSION="`$QTMOC -v 2>&1 | sed -e 's;.*(Qt ;;' -e 's;).*;;'`"
+  AC_PATH_PROG(QT4MOC, moc, , $QT4DIR/bin:$PATH)
+  if test -n "$QT4MOC" ; then
+    MOC_VERSION="`$QT4MOC -v 2>&1 | sed -e 's;.*(Qt ;;' -e 's;).*;;'`"
     if test -n "$MOC_VERSION" ; then
       MOC_MAJOR="`echo $MOC_VERSION | sed -e 's;\..*;;'`"
       expr "$MOC_MAJOR" + 0 >/dev/null 2>/dev/null
@@ -188,26 +186,32 @@ else
       if test -n "$MOC_MAJOR" -a $status -eq 0 ; then
         if test "$MOC_MAJOR" -ge $MOC_MAJOR_EARLIEST ; then
           SUBDIRS="$SUBDIRS xcwcp"
-          AC_SUBST(QTDIR)
-          AC_SUBST(QTMOC)
+	  QT4INC="$QT4DIR/include"
+          AC_SUBST(QT4INC)
+          AC_SUBST(QT4MOC)
         else
           AC_MSG_WARN([Found 'moc' $MOC_VERSION - unable to build xcwcp])
           AC_MSG_WARN([Hint: xcwcp requires 'moc' version >= $MOC_MAJOR_EARLIEST])
         fi
       else
         AC_MSG_WARN([Cannot find 'moc' version - unable to build xcwcp])
-        AC_MSG_WARN([Hint: ensure 'moc' is in QTDIR/bin on your PATH])
+        AC_MSG_WARN([Hint: ensure 'moc' is in QT4DIR/bin on your PATH])
       fi
     else
       AC_MSG_WARN([Cannot find 'moc' version - unable to build xcwcp])
-      AC_MSG_WARN([Hint: ensure 'moc' is in QTDIR/bin on your PATH])
+      AC_MSG_WARN([Hint: ensure 'moc' is in QT4DIR/bin on your PATH])
     fi
   else
     AC_MSG_WARN([Cannot find 'moc' - unable to build xcwcp])
-    AC_MSG_WARN([Hint: ensure 'moc' is in QTDIR/bin on your PATH])
+    AC_MSG_WARN([Hint: ensure 'moc' is in QT4DIR/bin on your PATH])
   fi
 fi
 AC_SUBST(SUBDIRS)
+
+if [[[ $QT4INC != "" && $QT4MOC != "" ]]] ; then
+   echo "QT4 headers dir is $QT4INC"
+   echo "QT4 moc is $QT4MOC"
+fi
 
 
 
