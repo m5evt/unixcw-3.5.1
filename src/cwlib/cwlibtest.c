@@ -67,20 +67,6 @@ static int cw_self_test_admin(void)
 	cw_set_debug_flags(flags);
 	fprintf(stderr, "cwlib: cw_get/set_debug flags tests complete\n");
 
-	/* Test availability of audio sinks. */
-
-	if (!cw_is_oss_possible(NULL)) {
-		fprintf(stderr, "cwlib: OSS: soundcard device unavailable: %s\n", strerror(errno));
-	}
-
-	if (!cw_is_alsa_possible(NULL)) {
-		fprintf(stderr, "cwlib: ALSA: soundcard device unavailable: %s\n", strerror(errno));
-	}
-
-	if (!cw_is_console_possible(NULL)) {
-		fprintf(stderr, "cwlib: console device unavailable: %s\n", strerror(errno));
-	}
-
 	return failures;
 }
 
@@ -1562,7 +1548,7 @@ cw_self_test_setup (void)
 static int cw_self_test (unsigned int testset)
 {
 	static int (*const TEST_FUNCTIONS[])(void) = {
-		cw_self_test_admin, /* Version, license, debug flags, availability of output systems. */
+		cw_self_test_admin, /* Version, license, debug flags */
 		cw_self_test_limits,
 		cw_self_test_ranges,
 		cw_self_test_tone_parameters,
