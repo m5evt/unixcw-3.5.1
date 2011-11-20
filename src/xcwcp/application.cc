@@ -43,8 +43,9 @@
 #include <QHideEvent>
 
 
-#include "start.xpm"
-#include "stop.xpm"
+#include "icons/icon_start.xpm"
+#include "icons/icon_stop.xpm"
+#include "icons/icon_mini_unixcw.xpm"
 
 #include "application.h"
 #include "sender.h"
@@ -135,7 +136,7 @@ Application::Application() : QMainWindow (0)
 
 	QMainWindow::setAttribute(Qt::WA_DeleteOnClose, true);
 	QMainWindow::setWindowTitle(_("Xcwcp"));
-	QMainWindow::setWindowIcon(start_icon); // This is just a temporary program icon
+	QMainWindow::setWindowIcon(xcwcp_icon);
 	QMainWindow::resize(800, 400);
 
 	make_toolbar();
@@ -946,8 +947,9 @@ void Application::make_central_widget(void)
 
 void Application::make_auxiliaries_begin(void)
 {
-	start_icon = QPixmap(start_xpm);
-	stop_icon = QPixmap(stop_xpm);
+	start_icon = QPixmap(icon_start_xpm);
+	stop_icon = QPixmap(icon_stop_xpm);
+	xcwcp_icon = QPixmap(icon_mini_unixcw_xpm);
 
 	is_using_cwlib_ = false;
 	saved_receive_speed_ = cw_get_receive_speed();
