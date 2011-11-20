@@ -28,7 +28,7 @@ OBJECTS = main.o modeset.o display.o sender.o receiver.o application.o \
           moc_application.o
 
 # Link to the shared libcw.
-LIBS	=  -L../cwlib -lcw -lpthread -lasound -lQtGui -lQtCore
+LIBS	=  -L../cwlib -lcw -lQtGui -lQtCore
 
 default: all
 
@@ -86,13 +86,18 @@ mostlyclean: clean
 maintainer-clean: distclean
 
 # Test targets.
-check: all
-	-LD_LIBRARY_PATH=../cwlib:$$LD_LIBRARY_PATH ./xcwcp -sb ||	\
-	 ( echo "Retrying the test for soundcard only";			\
-	   LD_LIBRARY_PATH=../cwlib:$$LD_LIBRARY_PATH ./xcwcp -ss ) ||	\
-	 ( echo "Retrying the test in silent mode";			\
-	   CWLIB_DEBUG=1 \
-	   LD_LIBRARY_PATH=../cwlib:$$LD_LIBRARY_PATH ./xcwcp -ss )
+# This test target will be invoked when creating deb package.
+check:
+
+# This test target can be invoked manually.
+real_check: all
+	( echo "Trying with OSS audio output";				\
+	  LD_LIBRARY_PATH=../cwlib:$$LD_LIBRARY_PATH ./xcwcp -so ) ||	\
+	( echo "Retrying with ALSA audio output";			\
+	  LD_LIBRARY_PATH=../cwlib:$$LD_LIBRARY_PATH ./xcwcp -sa ) ||	\
+	( echo "Retrying the test in silent mode";			\
+	  CWLIB_DEBUG=1 						\
+	  LD_LIBRARY_PATH=../cwlib:$$LD_LIBRARY_PATH ./xcwcp -sc )
 
 # Unimplemented targets.
 TAGS:
