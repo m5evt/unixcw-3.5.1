@@ -19,13 +19,13 @@ If you have a Qt library, version 4.0 or later, and a C++ compiler, UnixCW
 will build 'xcwcp'. 'configure' script will try to resolve all dependencies
 needed to build QT4 application without using QT-specific build tools.
 If the script fails at detecting 'moc' executable or include files for QT4,
-you may have to set the environment variable QTDIR (if not already set)
+you may have to set the environment variable QT4DIR (if not already set)
 to indicate the Qt library directory on your system. On Debian it would be:
 
-    export QTDIR=/usr/share/qt4
+    export QT4DIR=/usr/share/qt4
 
-The configure script will then look for the Qt 'moc' utility on either your
-current $PATH or in $QTDIR/bin.
+The configure script will then look for the Qt4 'moc' utility on either your
+current $PATH or in $QT4DIR/bin.
 
 UnixCW may port to other platforms, but the primary target systems on which it
 should "just build", perhaps with a bit of tweaking as shown above with
