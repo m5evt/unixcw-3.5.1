@@ -45,7 +45,7 @@
 
 #include "icons/icon_start.xpm"
 #include "icons/icon_stop.xpm"
-#include "icons/icon_mini_unixcw.xpm"
+#include "icons/icon_mini_xcwcp.xpm"
 
 #include "application.h"
 #include "sender.h"
@@ -949,7 +949,7 @@ void Application::make_auxiliaries_begin(void)
 {
 	start_icon = QPixmap(icon_start_xpm);
 	stop_icon = QPixmap(icon_stop_xpm);
-	xcwcp_icon = QPixmap(icon_mini_unixcw_xpm);
+	xcwcp_icon = QPixmap(icon_mini_xcwcp_xpm);
 
 	is_using_cwlib_ = false;
 	saved_receive_speed_ = cw_get_receive_speed();
