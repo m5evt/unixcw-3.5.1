@@ -1,17 +1,17 @@
 .\"
 .\" UnixCW CW Tutor Package - CW
 .\" Copyright (C) 2001-2006  Simon Baldwin (simon_baldwin@yahoo.com)
-.\" 
+.\"
 .\" This program is free software; you can redistribute it and/or
 .\" modify it under the terms of the GNU General Public License
 .\" as published by the Free Software Foundation; either version 2
 .\" of the License, or (at your option) any later version.
-.\" 
+.\"
 .\" This program is distributed in the hope that it will be useful,
 .\" but WITHOUT ANY WARRANTY; without even the implied warranty of
 .\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 .\" GNU General Public License for more details.
-.\" 
+.\"
 .\" You should have received a copy of the GNU General Public License
 .\" along with this program; if not, write to the Free Software
 .\" Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
@@ -176,7 +176,36 @@ ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"$()+\-./:;=?_@ and space
 In addition, the program also understands the following ISO 8859-1
 and ISO 8859-2 accented characters:
 .IP
-ÜÄÇÖÉÈÀÑª®
+.\" ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ñªï¿½
+.\"
+.\"
+.\" This looks like a great place for tutorial on non-standard characters
+.\" in troff document tutorial ;)
+.\"
+.\" Q: how to produce 'ï¿½' ('S' with Cedilla)?
+.\" A: use composite glyph; 'man 7 groff_char' gives this syntax of
+.\"    composite glyph:
+.\"    \[base_glyph composite_1 composite_2 ...]
+.\"    For 'ï¿½' base glyph is 'S', and first (and only) composite is
+.\"    'cedilla', represented by Unicode thingy 'u0327'. Thus:
+.\"    'ï¿½' = '\[S u0327]';
+.\"
+.\" Q: how to produce 'ï¿½' ('Z' with caron/hacek)?
+.\" A: in two ways: either as a composite glyph as demonstrated above),
+.\"    i.e. like this: '\[Z u030C]', or in 'regular' way, using
+.\"    non-composite glyph \[vZ]'
+.\"
+.\" Q: any more tips?
+.\" A: two:
+.\"    - read 'man 7 groff_char' (or 'man 7 troff_char');
+.\"    - make sure that your terminal (terminal emulator) can display
+.\"      non-standard characters correctly (and I mean *really* correctly);
+.\"      make a little test: open 'man 7 troff_char' in your terminal,
+.\"      and open web page with html version of the man page, then search
+.\"      for non-standard characters (e.g. cedilla) in the html document
+.\"      and compare them with those displayed in the terminal;
+.\"
+\[:U]\[:A]\[,C]\[:O]\['E]\[`E]\[`A]\[~N]\[S u0327] (S with cedilla), \[vZ] (Z with caron/hacek),
 .PP
 and accepts the following as single character forms of common procedural
 signals:
