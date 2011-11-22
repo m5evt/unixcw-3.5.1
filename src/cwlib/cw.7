@@ -75,7 +75,8 @@ ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"$()+\-./:;=?_@ and space
 In addition, following ISO 8859-1 and ISO 8859-2 accented characters are
 also part of the generally accepted international Morse code:
 .IP
-�������Ѫ�
+.\" ÜÄÇÖÉČŔŃŞŽ
+\[:U]\[:A]\[,C]\[:O]\['E]\[`E]\[`A]\[~N]\[S u0327] (S with cedilla), \[vZ] (Z with caron/hacek),
 .PP
 Finally, \fBcwlib\fP adds the following ASCII characters as extensions to
 single character procedural signals:
@@ -92,7 +93,6 @@ accented ISO 8859-1, and accented ISO 8859-2 characters above.  The ASCII
 portion of this table is taken from the \fIARRL Handbook\fP, and the
 accented extensions from various other sources:
 .\"
-.\"SP
 .TS
 l l l l l l l l
 _ _ _ _ _ _ _ _
@@ -115,16 +115,15 @@ Y	-.--	Z	--..
 \.	.-.-.-	/	-..-.	:	---...	;	-.-.-.
 \(eq	-...-	?	..--..	\(ul	..--.-
 .BR
-�	..--	�	.-.-	�	-.-..	�	---.
-�	..-..	�	.-..-	�	.--.-	�	--.--
-�	----	�	--..-
+\[:U]	..--	\[:A]	.-.-	\[,C]	-.-..	\[:O]	---.
+\['E]	..-..	\[`A]	.-..-	\[`A]	.--.-	\[~N]	--.--
+\[S u0327] (S+cedilla)	----	\[vZ] (Z+caron/hacek)	--..-
 .TE
 .PP
 In addition to the above standard characters, the following characters
 are conventionally used for punctuation and procedural signals as
 follows:
 .\"
-.\"SP
 .TS
 l l l l l l l l
 _ _ _ _ _ _ _ _
@@ -139,7 +138,6 @@ Ch	Code	Ch	Code	Ch	Code	Ch	Code
 and the following are non-conventional extensions implemented
 by \fBcwlib\fP:
 .\"
-.\"SP
 .TS
 l l l l l l l l
 _ _ _ _ _ _ _ _
@@ -152,7 +150,6 @@ Ch	Code	Ch	Code	Ch	Code	Ch	Code
 An alternative view of punctuation and procedural signals is as
 combination Morse characters:
 .\"
-.\"SP
 .TS
 l l l l l l l l
 _ _ _ _ _ _ _ _
