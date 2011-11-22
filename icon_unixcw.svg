@@ -15,7 +15,7 @@
    id="svg2"
    version="1.1"
    inkscape:version="0.47 r22583"
-   sodipodi:docname="Rysunek.svg"
+   sodipodi:docname="unixcw.svg"
    inkscape:export-filename="/home/acerion/Rysunek.png"
    inkscape:export-xdpi="14.4"
    inkscape:export-ydpi="14.4">
@@ -77,9 +77,9 @@
      borderopacity="1.0"
      inkscape:pageopacity="0"
      inkscape:pageshadow="2"
-     inkscape:zoom="0.28083332"
-     inkscape:cx="177.90443"
-     inkscape:cy="455.84884"
+     inkscape:zoom="0.38080565"
+     inkscape:cx="1007.1367"
+     inkscape:cy="403.13868"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="false"
@@ -105,7 +105,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -124,7 +124,7 @@
            height="1272.1846"
            x="1137.0853"
            y="101.03836" /></flowRegion><flowPara
-         id="flowPara3655"></flowPara></flowRoot>    <g
+         id="flowPara3655" /></flowRoot>    <g
        transform="matrix(-127.89109,0,0,179.69918,187264.59,-52246.069)"
        style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;font-family:FreeSans;-inkscape-font-specification:FreeSans"
        id="flowRoot3657">
@@ -143,15 +143,15 @@
            height="287.08588"
            x="1350.9924"
            y="196.73366" /></flowRegion><flowPara
-         id="flowPara3671"></flowPara></flowRoot>    <rect
-       style="fill:#ff0700;fill-opacity:1;stroke:#ff0900;stroke-width:24.99999809;stroke-linejoin:round;stroke-miterlimit:4;stroke-opacity:0.78445231;stroke-dasharray:none"
+         id="flowPara3671" /></flowRoot>    <rect
+       style="fill:#ff0000;fill-opacity:1;stroke:#ff0000;stroke-width:25;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
        id="rect3687"
        width="125"
        height="125"
        x="112.5"
        y="364.86218" />
     <rect
-       style="fill:#ff0700;fill-opacity:1;stroke:#ff0900;stroke-width:24.99999619;stroke-linejoin:round;stroke-miterlimit:4;stroke-opacity:0.78445231;stroke-dasharray:none"
+       style="fill:#ff0000;fill-opacity:1;stroke:#ff0000;stroke-width:24.99999619000000095;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
        id="rect3687-6"
        width="125"
        height="125"
