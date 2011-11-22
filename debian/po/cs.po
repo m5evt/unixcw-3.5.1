@@ -1,0 +1,66 @@
+# translation of cs.po to Czech
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# Vítězslav Kotrla <vitezslav.kotrla@gmail.com>, 2009.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: unixcw@packages.debian.org\n"
+"POT-Creation-Date: 2011-11-19 21:24+0100\n"
+"PO-Revision-Date: 2009-06-30 06:32+0200\n"
+"Last-Translator: Vítězslav Kotrla <vitezslav.kotrla@gmail.com>\n"
+"Language-Team: Czech <debian-l10n-czech@lists.debian.org>\n"
+"Language: cs\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: KBabel 1.11.4\n"
+
+#. Type: boolean
+#. Description
+#: ../cwcp.templates:1001
+#, fuzzy
+#| msgid "Make cwcp setuid root"
+msgid "Make cwcp setuid root?"
+msgstr "Spouštět cwcp s oprávněními superuživatele (setuid root)"
+
+#. Type: boolean
+#. Description
+#: ../cwcp.templates:1001
+msgid ""
+"The cwcp program only runs correctly as the root user. One way of doing this "
+"is to make the program setuid root. This is generally a bad idea as there "
+"are better ways, such as using the sudo program, to do this. However, you "
+"have the option here of making it setuid root if you like."
+msgstr ""
+"Program cwcp správně pracuje pouze tehdy, pokud je spuštěn s oprávněními "
+"superuživatele (root). Jeden ze způsobů, jak to zajistit, je nastavit "
+"spuštění programu s oprávněními vlastníka (setuid root). To není úplně "
+"správný spůsob, protože existují vhodnější řešení, například použití příkazu "
+"sudo. V každém případě máte možnost setuid root použít, pokud to opravdu "
+"chcete udělat."
+
+#. Type: boolean
+#. Description
+#: ../cw.templates:1001
+#, fuzzy
+#| msgid "Make cw setuid root"
+msgid "Make cw setuid root?"
+msgstr "Spouštět cwcp s oprávněními superuživatele (setuid root)"
+
+#. Type: boolean
+#. Description
+#: ../cw.templates:1001
+msgid ""
+"The cw program only runs correctly as the root user. One way of doing this "
+"is to make the program setuid root. This is generally a bad idea as there "
+"are better ways, such as using the sudo program, to do this. However, you "
+"have the option here of making it setuid root if you like."
+msgstr ""
+"Program cwcp správně pracuje pouze tehdy, pokud je spuštěn s oprávněními "
+"superuživatele (root). Jeden ze způsobů, jak to zajistit, je nastavit "
+"spuštění programu s oprávněními vlastníka (setuid root). To není úplně "
+"správný spůsob, protože existují vhodnější řešení, například použití příkazu "
+"sudo. V každém případě máte možnost setuid root použít, pokud to opravdu "
+"chcete udělat."

@@ -1,0 +1,64 @@
+# ITALIAN TRANSLATION OF UNICXW'S PO-DEBCONF FILE.
+# COPYRIGHT (C) 2009 THE UNIXCW'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the unixcw package.
+#
+# Vincenzo Campanella <vinz65@gmail.com>, 2009.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: unixcw\n"
+"Report-Msgid-Bugs-To: unixcw@packages.debian.org\n"
+"POT-Creation-Date: 2011-11-19 21:24+0100\n"
+"PO-Revision-Date: 2009-12-16 18:53+0100\n"
+"Last-Translator: Vincenzo Campanella <vinz65@gmail.com>\n"
+"Language-Team: Italian <tp@lists.linux.it>\n"
+"Language: it\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#. Type: boolean
+#. Description
+#: ../cwcp.templates:1001
+#, fuzzy
+#| msgid "Make cwcp setuid root"
+msgid "Make cwcp setuid root?"
+msgstr "Impostare cwcp con setuid root"
+
+#. Type: boolean
+#. Description
+#: ../cwcp.templates:1001
+msgid ""
+"The cwcp program only runs correctly as the root user. One way of doing this "
+"is to make the program setuid root. This is generally a bad idea as there "
+"are better ways, such as using the sudo program, to do this. However, you "
+"have the option here of making it setuid root if you like."
+msgstr ""
+"cwcp funziona regolarmente solo se eseguito come utente root; a tal fine lo "
+"si può impostare con setuid root, ma questa normalmente non è una buona "
+"idea, in quanto ci sono modi migliori come, per esempio, utilizzare il "
+"programma sudo. Ad ogni modo, si ha la possibilità di impostarlo con setuid "
+"root, se lo si desidera."
+
+#. Type: boolean
+#. Description
+#: ../cw.templates:1001
+#, fuzzy
+#| msgid "Make cw setuid root"
+msgid "Make cw setuid root?"
+msgstr "Impostare cw con setuid root"
+
+#. Type: boolean
+#. Description
+#: ../cw.templates:1001
+msgid ""
+"The cw program only runs correctly as the root user. One way of doing this "
+"is to make the program setuid root. This is generally a bad idea as there "
+"are better ways, such as using the sudo program, to do this. However, you "
+"have the option here of making it setuid root if you like."
+msgstr ""
+"cw funziona regolarmente solo se eseguito come utente root; a tal fine lo si "
+"può impostare con setuid root, ma questa normalmente non è una buona idea, "
+"in quanto ci sono modi migliori come, per esempio, utilizzare il programma "
+"sudo. Ad ogni modo, si ha la possibilità di impostarlo con setuid root, se "
+"lo si desidera."

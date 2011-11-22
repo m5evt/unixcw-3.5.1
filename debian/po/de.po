@@ -1,0 +1,88 @@
+#
+#    Translators, if you are not familiar with the PO format, gettext
+#    documentation is worth reading, especially sections dedicated to
+#    this format, e.g. by running:
+#         info -n '(gettext)PO Files'
+#         info -n '(gettext)Header Entry'
+#
+#    Some information specific to po-debconf are available at
+#            /usr/share/doc/po-debconf/README-trans
+#         or http://www.debian.org/intl/l10n/po-debconf/README-trans
+#
+#    Developers do not need to manually edit POT or PO files.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: unixcw@packages.debian.org\n"
+"POT-Creation-Date: 2011-11-19 21:24+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=ISO-8859-15\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#. Type: boolean
+#. Description
+#: ../cwcp.templates:1001
+#, fuzzy
+#| msgid "Make cwcp setuid root"
+msgid "Make cwcp setuid root?"
+msgstr "Das cwcp Programm soll setuid root laufen"
+
+#. Type: boolean
+#. Description
+#: ../cwcp.templates:1001
+msgid ""
+"The cwcp program only runs correctly as the root user. One way of doing this "
+"is to make the program setuid root. This is generally a bad idea as there "
+"are better ways, such as using the sudo program, to do this. However, you "
+"have the option here of making it setuid root if you like."
+msgstr ""
+" Das cwcp Programm muss einige aufrufe als root Benutzer durchführen. Eine\n"
+" Möglichkeit ist das Programm setuid root zu machen. Dies ist generell eine\n"
+" schlechte Idee, da es bessere Wege gibt dies zu erreichen, z.B. mit sudo.\n"
+" Jedoch können Sie mit dieser Option das Programm setuid root installieren."
+
+#. Type: boolean
+#. Description
+#: ../cw.templates:1001
+#, fuzzy
+#| msgid "Make cw setuid root"
+msgid "Make cw setuid root?"
+msgstr "Das cw Programm soll setuid root laufen"
+
+#. Type: boolean
+#. Description
+#: ../cw.templates:1001
+msgid ""
+"The cw program only runs correctly as the root user. One way of doing this "
+"is to make the program setuid root. This is generally a bad idea as there "
+"are better ways, such as using the sudo program, to do this. However, you "
+"have the option here of making it setuid root if you like."
+msgstr ""
+" Das cw Programm muss einige aufrufe als root Benutzer durchführen. Eine\n"
+" Möglichkeit ist das Programm setuid root zu machen. Dies ist generell eine\n"
+" schlechte Idee, da es bessere Wege gibt dies zu erreichen, z.B. mit sudo.\n"
+" Jedoch können Sie mit dieser Option das Programm setuid root installieren."
+
+#~ msgid "Make xcwcp setuid root"
+#~ msgstr "Das xcwcp Programm soll setuid root laufen"
+
+#~ msgid ""
+#~ "The xcwcp program only runs correctly as the root user. One way of doing "
+#~ "this is to make the program setuid root. This is generally a bad idea as "
+#~ "there are better ways, such as using the sudo program, to do this. "
+#~ "However, you have the option here of making it setuid root if you like."
+#~ msgstr ""
+#~ " Das xcwcp Programm muss einige aufrufe als root Benutzer durchführen. "
+#~ "Eine\n"
+#~ " Möglichkeit ist das Programm setuid root zu machen. Dies ist generell "
+#~ "eine\n"
+#~ " schlechte Idee, da es bessere Wege gibt dies zu erreichen, z.B. mit "
+#~ "sudo.\n"
+#~ " Jedoch können Sie mit dieser Option das Programm setuid root "
+#~ "installieren."

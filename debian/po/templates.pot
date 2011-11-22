@@ -1,0 +1,50 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: unixcw@packages.debian.org\n"
+"POT-Creation-Date: 2011-11-19 21:24+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#. Type: boolean
+#. Description
+#: ../cwcp.templates:1001
+msgid "Make cwcp setuid root?"
+msgstr ""
+
+#. Type: boolean
+#. Description
+#: ../cwcp.templates:1001
+msgid ""
+"The cwcp program only runs correctly as the root user. One way of doing this "
+"is to make the program setuid root. This is generally a bad idea as there "
+"are better ways, such as using the sudo program, to do this. However, you "
+"have the option here of making it setuid root if you like."
+msgstr ""
+
+#. Type: boolean
+#. Description
+#: ../cw.templates:1001
+msgid "Make cw setuid root?"
+msgstr ""
+
+#. Type: boolean
+#. Description
+#: ../cw.templates:1001
+msgid ""
+"The cw program only runs correctly as the root user. One way of doing this "
+"is to make the program setuid root. This is generally a bad idea as there "
+"are better ways, such as using the sudo program, to do this. However, you "
+"have the option here of making it setuid root if you like."
+msgstr ""
