@@ -1,0 +1,6 @@
+usr/lib/libcw.a
+usr/include/cwlib.h
+usr/include/cw.h
+usr/share/man/man3
+usr/share/doc/libcw3-dev
+usr/lib/pkgconfig/libcw.pc

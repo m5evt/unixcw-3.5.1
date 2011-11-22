@@ -1,0 +1,8 @@
+Template: cwcp/suid_bit
+Type: boolean
+Default: false
+_Description: Make cwcp setuid root?
+ The cwcp program only runs correctly as the root user. One way of doing
+ this is to make the program setuid root. This is generally a bad idea as
+ there are better ways, such as using the sudo program, to do this.
+ However, you have the option here of making it setuid root if you like.

@@ -1,0 +1,55 @@
+Source: unixcw
+Section: hamradio
+Priority: optional
+Maintainer: Debian QA Group <packages@qa.debian.org>
+Standards-Version: 3.9.1
+Build-Depends: debhelper (>=7), libqt4-dev, libncurses5-dev, po-debconf, autotools-dev, mawk|gawk
+
+Package: libcw3
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Recommends: cw | cwcp | xcwcp
+Description: Shared library for Morse programs
+ Package needed by cw, cwcp and xcwcp. It contains a shared library
+ with Morse code functions.
+
+Package: cw
+Architecture: any
+Depends: libcw3, ${shlibs:Depends}, ${misc:Depends}, debconf|debconf-2.0
+Description: Command-line frontend to libcw
+ This package contains a simple command line client called cw, which sounds
+ characters as Morse code on the console speaker. The included cwgen binary
+ can generate groups of random characters for Morse code practice.
+ .
+ Included are some examples files with embedded commands. These commands can
+ be used to change speed, tone, spacing between characters and much more.
+
+Package: libcw3-dev
+Section: libdevel
+Architecture: any
+Depends: libcw3 (= ${binary:Version}), ${misc:Depends},
+Description: Development files for Morse programs
+ Static library, headers and manual page for program development.
+ The provided environment is intended to write programs for receiving
+ and sending Morse code.
+
+Package: cwcp
+Architecture: any
+Depends: libcw3, ${shlibs:Depends}, ${misc:Depends}, debconf|debconf-2.0
+Description: Ncurses frontend to libcw
+ Cwcp is  a curses-based interactive Morse code tutor program.
+ It allows menu selection from a number of sending modes, and also permits
+ character sounding options, such as the tone pitch, and sending speed,
+ to be varied from the keyboard using a full-screen user interface.
+
+Package: xcwcp
+Architecture: any
+Depends: libcw3, ${shlibs:Depends}, ${misc:Depends}, debconf|debconf-2.0
+Description: Qt frontend to libcw3
+ Xcwcp is an X-based interactive Morse code tutor program.
+ It lets you choose from a number of options for practice, including sending
+ random characters, random words, and characters from the keyboard. It will
+ also receive Morse code that you send using the keyboard or mouse as a Morse
+ keyer, and display the characters it sees.
+
+

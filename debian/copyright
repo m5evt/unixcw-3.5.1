@@ -1,0 +1,14 @@
+This package was debianized by Joop Stakenborg pa3aba@debian.org on
+Wed, 20 Jun 2001 09:44:23 +0200.
+
+This package was obtained by private e-mail from Simon Baldwin, the
+upstream maintainer. It will probably be also available on sunsite
+within the next couple of weeks.
+
+Copyright:
+
+ * Copyright (C) 2001-2006  Simon Baldwin (simon_baldwin@yahoo.com)
+
+This program is distributed under the GPL. There should be a copy
+of the GPL available on your debian system under
+/usr/share/common-licenses/GPL.
