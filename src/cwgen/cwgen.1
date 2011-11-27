@@ -1,23 +1,24 @@
 .\"
 .\" UnixCW CW Tutor Package - CWGEN
 .\" Copyright (C) 2001-2006  Simon Baldwin (simon_baldwin@yahoo.com)
-.\" 
+.\" Copyright (C) 2011       Kamil Ignacak (acerion@wp.pl)
+.\"
 .\" This program is free software; you can redistribute it and/or
 .\" modify it under the terms of the GNU General Public License
 .\" as published by the Free Software Foundation; either version 2
 .\" of the License, or (at your option) any later version.
-.\" 
+.\"
 .\" This program is distributed in the hope that it will be useful,
 .\" but WITHOUT ANY WARRANTY; without even the implied warranty of
 .\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 .\" GNU General Public License for more details.
-.\" 
+.\"
 .\" You should have received a copy of the GNU General Public License
 .\" along with this program; if not, write to the Free Software
 .\" Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 .\"
 .\"
-.TH CWGEN 1 "CW Tutor Package" "G0FRD" \" -*- nroff -*-
+.TH CWGEN 1 "CW Tutor Package" "cwgen ver. 3.0" \" -*- nroff -*-
 .SH NAME
 .\"
 cwgen \- generate groups of random characters for Morse code practice
@@ -27,18 +28,19 @@ cwgen \- generate groups of random characters for Morse code practice
 .SH SYNOPSIS
 .\"
 .B cwgen
-[\-g \fIgroups\fP] [\-\-groups=\fIgroups\fP]
-[\-n \fIgroupsize\fP] [\-\-groupsize=\fIgroupsize\fP]
-[\-n \fIgroup_min-group_max\fP] [\-\-groupsize=\fIgroup_min-group_max\fP]
-[\-r \fIrepeat\fP] [\-\-repeat=\fIrepeat\fP]
-[\-x \fIlimit\fP] [\-\-limit=\fIlimit\fP]
-[\-c \fIcharset\fP] [\-\-charset=\fIcharset\fP]
+[\-g\ \-\-groups=\fIgroups\fP]
+[\-n\ \-\-groupsize=\fIgroupsize\fP]
+[\-n\ \-\-groupsize=\fIgroup_min-group_max\fP]
+[\-r\ \-\-repeat=\fIrepeat\fP]
+[\-x\ \-\-limit=\fIlimit\fP]
+[\-c\ \-\-charset=\fIcharset\fP]
+.BR
+[\-h\ \-\-help]
+[\-V\ \-\-version]
 .PP
-.B cwgen
-also accepts the \-h, \-\-help, \-v and \-\-version options.
-.PP
-The LINUX version understands both short form and long form command
-line options.  Other versions may understand only the short form options.
+\fBcwgen\fP installed on GNU/Linux systems understands both short form
+and long form command line options.  \fBcwgen\fP installed on other
+operating systems may understand only the short form options.
 .PP
 Options may be predefined in the environment variable \fBCWGEN_OPTIONS\fP.
 If defined, these options are used first; command line options take
@@ -102,7 +104,7 @@ are shown:
 cwgen \-g 20 \-n 10 \-c "EISH5" | cw \-w 25 \-t 850
 .IP
 cwgen \-\-groups=20 \-\-groupsize=10 \-\-charset="EISH5" |
-cw \-\-wpm=25 \-\-hz=850
+cw \-\-wpm=25 \-\-tone=850
 .PP
 .\"
 .\"
