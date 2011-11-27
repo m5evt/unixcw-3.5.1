@@ -1,6 +1,7 @@
 .\"
 .\" UnixCW CW Tutor Package - CW
 .\" Copyright (C) 2001-2006  Simon Baldwin (simon_baldwin@yahoo.com)
+.\" Copyright (C) 2011       Kamil Ignacak (acerion@wp.pl)
 .\"
 .\" This program is free software; you can redistribute it and/or
 .\" modify it under the terms of the GNU General Public License
@@ -17,7 +18,7 @@
 .\" Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 .\"
 .\"
-.TH CW 1 "CW Tutor Package" "G0FRD" \" -*- nroff -*-
+.TH CW 1 "CW Tutor Package" "cw ver. 3.0" \" -*- nroff -*-
 .SH NAME
 .\"
 cw \- sound characters as Morse code on the soundcard or console speaker
@@ -27,29 +28,30 @@ cw \- sound characters as Morse code on the soundcard or console speaker
 .SH SYNOPSIS
 .\"
 .B cw
-[\-s \fIsound\fP] [\-\-sound=\fIsound\fP]
-[\-x \fIsdevice\fP] [\-\-sdevice=\fIsdevice\fP]
-[\-y \fImdevice\fP] [\-\-mdevice=\fImdevice\fP]
-[\-d \fIcdevice\fP] [\-\-cdevice=\fIcdevice\fP]
-[\-f \fIfile\fP] [\-\-file=\fIfile\fP]
-[\-w \fIWPM\fP] [\-\-wpm=\fIWPM\fP]
-[\-t \fItone\fP] [\-\-tone=\fItone\fP] [\-\-hz=\fItone\fP]
-[\-v \fIvolume\fP] [\-\-volume=\fIvolume\fP]
-[\-g \fIgap\fP] [\-\-gap=\fIgap\fP]
-[\-k \fIweighting\fP] [\-\-weighting=\fIweighting\fP]
+[\-s\ \-\-system=\fISYSTEM\fP]
+[\-d\ \-\-device=\fIDEVICE\fP]
+[\-w\ \-\-wpm=\fIWPM\fP]
+[\-t\ \-\-tone=\fIHZ\fP]
+[\-v\ \-\-volume=\fIPERCENT\fP]
+[\-g\ \-\-gap=\fIGAP\fP]
+[\-k\ \-\-weighting=\fIWEIGHT\fP]
 .BR
-[\-e] [\-\-noecho]
-[\-m] [\-\-nomessages]
-[\-c] [\-\-nocommands]
-[\-o] [\-\-nocombinations]
-[\-p] [\-\-nocomments]
+[\-e\ \-\-noecho]
+[\-m\ \-\-nomessages]
+[\-c\ \-\-nocommands]
+[\-o\ \-\-nocombinations]
+[\-p\ \-\-nocomments]
+[\-f\ \-\-infile=\fIFILE\fP]
+.BR
+[\-h\ \-\-help]
+[\-V\ \-\-version]
 .BR
 .PP
-.B cw
-also accepts the \-h, \-\-help, \-V and \-\-version options.
+\fBcw\fP installed on GNU/Linux systems understands both short form
+and long form command line options.  \fBcw\fP installed on other
+operating systems may understand only the short form options.
 .PP
-The LINUX version understands both short form and long form command
-line options.  Other versions may understand only the short form options.
+There are no mandatory options.
 .PP
 Options may be predefined in the environment variable \fBCW_OPTIONS\fP.
 If defined, these options are used first; command line options take
@@ -61,79 +63,67 @@ precedence.
 .SH DESCRIPTION
 .\"
 .PP
-.B cw
-reads characters from an input file, or from standard input, and sounds
-each valid character as Morse code on either the system sound card, the
-system console speaker, or both.  After it sounds a character, \fBcw\fP
+\fBcw\fP reads characters from an input file, or from standard input, and
+sounds each valid character as Morse code on either the system sound card,
+or the system console speaker.  After it sounds a character, \fBcw\fP
 echoes it to standard output.  The input stream can contain embedded
 command strings.  These change the parameters used when sounding the
 Morse code.
-.B cw
-reports any errors in embedded commands on standard error.
+\fBcw\fP reports any errors in embedded commands on standard error.
 .PP
+Use 'Ctrl+D' key combination to exit \fBcw\fP.
 .\"
 .\"
 .\"
 .SS COMMAND LINE OPTIONS
 .\"
-.B cw
-understands the following command line options.  The long form options
-may not be available in non-LINUX versions.
+\fBcw\fP understands the following command line options.  The long
+form options may not be available in non-LINUX versions.
 .TP
-.I "\-s, \-\-sound"
+.I "\-s, \-\-system=SYSTEM"
 Specifies the way that \fBcw\fP generates tones.  Valid values
-are 'soundcard' for tones through the system sound card, 'console'
-for tones through the console speaker, or 'both'.  These may be shortened
-to 's', 'c', or 'b'.  The default value is 'soundcard'.
+are:
+\fIconsole\fP for tones through the console speaker,
+\fIalsa\fP for tones generated through the system sound card using ALSA
+sound system,
+\fIoss\fP for tones generated through system sound card using OSS sound
+system,
+\fIsoundcard\fP for tones generated through the system sound card, but
+without explicit selection of sound system. These values can be
+shortened to 'c', 'a', 'o', or 's', respectively. The default value
+is 'oss'.
 .TP
-.I "\-x, \-\-sdevice"
-Specifies the device file to open for access to the sound card.  The
-default device is \fI/dev/audio\fP, and this is generally the correct
-device on most systems.  See \fINOTES ON USING A SOUND CARD\fP below.
-This option is invalid if \fBcw\fP is generating tones only on the
-console.
+.I "\-d, \-\-device=DEVICE"
+Specifies the device file to open for generating a sound.
+\fBcw\fP will use default device if none is specified. The default
+devices are:
+\fI/dev/console\fP for sound produced through console,
+\fIdefault\fP for ALSA sound system,
+\fI/dev/audio\fP for OSS sound system.
+See also \fINOTES ON USING A SOUND CARD\fP below.
 .TP
-.I "\-y, \-\-mdevice"
-Specifies the device file to open for access to the sound mixer.  The
-default device is \fI/dev/mixer\fP.  See \fINOTES ON USING A SOUND CARD\fP
-below.  This option is invalid if \fBcw\fP is generating tones only on
-the console.
-.TP
-.I "\-d, \-\-cdevice"
-Specifies the device file to open for sound using the console speaker.
-The default device here is \fI/dev/console\fP, although in general it is
-likely to be necessary to provide a suitable value for this option if
-console sound is selected.  The value should be a console device file,
-capable of KIOCSOUND.  See \fISELECTING SUITABLE SOUND DEVICE FILES\fP
-below.  This option is invalid if \fBcw\fP is generating tones only on
-the soundcard.
-.TP
-.I "\-f, \-\-file"
-Specifies the input file to open.  The default input file is standard
-input.
-.TP
-.I "\-w, \-\-wpm"
+.I "\-w, \-\-wpm=WPM"
 Sets the initial sending speed in words per minute.  The value must be
 between 4 and 60.  The default value is 12 WPM.
 .TP
-.I "\-t, \-\-hz, \-\-tone"
+.I "\-t, \-\-tone=HZ"
 Sets the initial sounder pitch in Hz.  This value must be between 0
 and 4,000.  A value of 0 selects silent operation, and can be used for
 timing checks or other testing.  The default value is 800Hz,
 .TP
-.I "\-v, \-\-volume"
-Sets the initial sending volume, as a percentage.  The value must be
-between 0 and 100.  The default value is 70 %.  Sound volumes work
-fully for sound card tones, but \fBcw\fP cannot control the volume of
-tones from the console speaker.  In this case, a volume of zero is
-silent, and all other volume values are simply sounded.
+.I "\-v, \-\-volume=PERCENT"
+Sets the initial sending volume, as a percentage of full scale volume.
+The value must be between 0 and 100.  The default value is 70 %.
+Sound volumes work fully for sound card tones, but \fBcw\fP cannot
+control the volume of tones from the console speaker.  In this case,
+a volume of zero is silent, and all other volume values are simply sounded.
 .TP
-.I "\-g, \-\-gap"
+.I "\-g, \-\-gap=GAP"
 Sets the initial extra gap, in dot lengths, between characters
 (the 'Farnsworth' delay).  It must be between 0 and 60.  The default
 is 0.
 .TP
-.I "\-k, \-\-weighting"
+.I "\-k, \-\-weighting=WEIGHT"
 Sets the initial weighting, as a percentage of dot lengths.  It must be
 between 20 and 80.  The default is 50.
 .TP
@@ -159,23 +149,34 @@ as 'comments'.  Characters inside these braces will be echoed to standard
 output, but not sounded.  When comments are being honored, any
 embedded commands inside the braces will be ignored.  The default is
 to honor comments.
+.TP
+.I "\-f, \-\-infile=FILE"
+Specifies a text file that \fBcw\fP can read to configure its practice
+text.
+.TP
+.I "\-h, \-\-help"
+Prints short help message.
+.TP
+.I "\-V, \-\-version"
+Prints information about program's version, authors and license.
 .PP
 .\"
 .\"
 .\"
 .SS SOUNDING CHARACTERS
 .\"
-.B cw
-reads characters, one at a time, from its standard input or from its
-input file.  Lowercase letters are converted internally to uppercase.
-The following list shows the valid IS0 8859-1 (Latin-1) characters that
-can be sounded by \fBcw\fP:
+\fBcw\fP reads characters, one at a time, from its standard input or
+from its input file.  Lowercase letters are converted internally to
+uppercase. The following list shows the valid IS0 8859-1 (Latin-1)
+characters that can be sounded by \fBcw\fP:
+.\" \[u0022] = ", otherwise emacs syntax highlighting is messed up;
 .IP
-ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"$()+\-./:;=?_@ and space
+ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789\[u0022]$()+\-./:;=?_@ and space
 .PP
 In addition, the program also understands the following ISO 8859-1
 and ISO 8859-2 accented characters:
-.IP
+.\"
+.\"
 .\" �������Ѫ�
 .\"
 .\"
@@ -205,6 +206,10 @@ and ISO 8859-2 accented characters:
 .\"      for non-standard characters (e.g. cedilla) in the html document
 .\"      and compare them with those displayed in the terminal;
 .\"
+.\"
+.\"
+.\"
+.IP
 \[:U]\[:A]\[,C]\[:O]\['E]\[`E]\[`A]\[~N]\[S u0327] (S with cedilla), \[vZ] (Z with caron/hacek),
 .PP
 and accepts the following as single character forms of common procedural
@@ -227,9 +232,8 @@ See \fIEMBEDDED COMMANDS\fP and \fIMORSE CODE COMBINATIONS\fP below.
 .\"
 .SS EMBEDDED COMMANDS
 .\"
-.B cw
-recognizes special sequences in the input stream as embedded commands.
-These commands alter the parameters of the \fBcw\fP while it is
+\fBcw\fP recognizes special sequences in the input stream as embedded
+commands.  These commands alter the parameters of the \fBcw\fP while it is
 running, or query current values.  All commands are prefixed by the
 command escape character '%', and those which set a value end with a
 semicolon.
@@ -436,42 +440,39 @@ as any other (invalid) input character.
 .\"
 .SS NOTES ON USING A SOUND CARD
 .\"
-By default, \fBcw\fP uses the sound device "/dev/audio" to access the system
-sound card.  This is generally the correct device to use, but for systems
-with special requirements, or those with multiple sound cards, the
-option \fI-x\fP or \fI\-\-sdevice\fP can be used to specify the device
-for sound card access.  If the sound card device cannot be set up, \fBcw\fP
-prints the error message
+By default, \fBcw\fP tries to open OSS device "/dev/audio" to access
+the system sound card.  This is generally the correct device to use,
+but for systems with special requirements, or those with multiple sound
+cards, the option \fI-d\fP or \fI\-\-device\fP, combined with
+\fI-s\fP or \fI\-\-system\fP can be used to specify the device
+and audio system for sound card access.  If the sound card device
+cannot be set up, \fBcw\fP prints the error message
 .IP
 cannot set up soundcard sound
 .PP
 and exits.
 .PP
-Sound card devices are usually single-access devices, so that when one
-process has opened the device, other processes are prevented from using
-it.  If \fBcw\fP finds that the sound card is busy, it prints the error
-message
+Sound card devices, when opened through OSS sound system, are usually
+single-access devices, so that when one process has opened the device,
+other processes are prevented from using it. In such cases \fBcw\fP
+will of course conflict with any other programs that expect exclusive
+use of the system sound card (for example, MP3 players).
+If \fBcw\fP finds that the sound card is already busy, it prints the
+error message
 .IP
 open /dev/audio: Device or resource busy
 .PP
-but continues to retry on each new tone until it can access the device.
-Once it has control of the sound card, \fBcw\fP will only use it as long
-as it has Morse code tones to sound.  It will close the device during
-pauses in output, to allow other programs to use it.
+and exits.
 .PP
-The main sound card device will often allow \fBcw\fP to control tone
-volumes directly, but where this is not possible, \fBcw\fP uses the
-mixer device instead.  By default, this is "/dev/mixer", but the device
-can be specified with the \fI-y\fP or \fI\-\-mdevice\fP options.  In
-general, as with the main sound card device, the default mixer device
-is usually the correct one to use.
-.PP
-The mixer device is only used if the sound card does not allow volume
-control through the main sound card device.
-.PP
-.B cw
-will of course conflict with any other programs that expect exclusive
-use of the system sound card (for example, MP3 players).
+.\" The main sound card device will often allow \fBcw\fP to control tone
+.\" volumes directly, but where this is not possible, \fBcw\fP uses the
+.\" mixer device instead.  By default, this is "/dev/mixer", but the device
+.\" can be specified with the \fI-y\fP or \fI\-\-mdevice\fP options.  In
+.\" general, as with the main sound card device, the default mixer device
+.\" is usually the correct one to use.
+.\" .PP
+.\" The mixer device is only used if the sound card does not allow volume
+.\" control through the main sound card device.
 .PP
 The sound card device is not used if \fBcw\fP is only sending tones on
 the console speaker.
@@ -479,32 +480,34 @@ the console speaker.
 .\"
 .\"
 .\"
-.SS SELECTING SUITABLE SOUND DEVICE FILES
+.SS AUDIO OUTPUT \- DEFAULTS AND SELECTION
 .\"
-When \fBcw\fP sounds Morse code on the UNIX console speaker, it uses
-the KIOCSOUND ioctl.  By default, it will try to use the device "/dev/console",
-unless the \fI-d\fP or \fI\-\-cdevice\fP option is used.  If the device
-refuses to create tones, \fBcw\fP prints the error message
-.IP
-cannot set up console sound
+\fBcw\fP first tries to access sound card using OSS audio system
+and default OSS audio device name ('/dev/audio'), unless user
+specifies other audio device with option \fI-d\fP or \fI\-\-device\fP.
 .PP
-and exits.
+If opening soundcard through OSS fails, \fBcw\fP tries to access
+the sound card using ALSA audio system, and default ALSA audio device
+name ('default'), unless user specifies other audio device with option
+\fI-d\fP or \fI\-\-device\fP.
 .PP
-If the default device is not available, or if \fBcw\fP has no permissions
-to use it, \fBcw\fP will need to be told which device to use.  Which
-device files are suitable will depend on which operating system is
-running, and which system user ID runs \fBcw\fP.  They must however be
-console multiscreen devices, for example \fI/dev/tty1\fP and up on LINUX.
+If opening soundcard through ALSA also fails, \fBcw\fP tries to access
+system console buzzer using default buzzer device '/dev/console',
+unless user specifies other audio device with option \fI-d\fP or
+\fI\-\-device\fP.
 .PP
-For console sound on LINUX, it is normally possible to run \fBcw\fP as
-superuser, with the default \fI/dev/console\fP as the sound device; this
-combination will usually work.  Unless running as superuser, \fBcw\fP
-won't have the necessary permission to access a 'foreign' tty.
-Making \fBcw\fP an suid binary avoids this problem.  The program does not
-fork() or exec(), so making it suid should be relatively safe.
+It is very common that in order to access the console buzzer device
+user has to have root priviledges.  For that reason trying to open
+console buzzer almost always fails.  This is not a program's bug,
+this is a result of operating system's restrictions.
+Making \fBcw\fP an suid binary bypasses this restriction.  The program
+does not fork() or exec(), so making it suid should be relatively safe.
+Note however that this practice is discouraged for security reasons.
 .PP
-There is no need to worry about console sound devices if \fBcw\fP is only
-sending tones on the system sound card.
+As stated, user can tell \fBcw\fP which device to use, using
+\fI-d\fP or \fI\-\-device\fP option.  Which device files are suitable
+will depend on which operating system is running, which system
+user ID runs \fBcw\fP, and which user groups user belongs to.
 .PP
 .\"
 .\"
