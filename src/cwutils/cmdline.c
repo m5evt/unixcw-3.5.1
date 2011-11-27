@@ -333,7 +333,7 @@ void cw_print_help(const char *argv0, cw_config_t *config)
 	}
 	fprintf(stderr, _("  -f, --infile=FILE      read practice words from FILE\n"));
 	if (config->has_outfile) {
-		fprintf(stderr, _("  -F, --outfile=FILE        write current configuration to FILE\n"));
+		fprintf(stderr, _("  -F, --outfile=FILE        write current practice words to FILE\n"));
 	}
 	if (config->is_cw) {
 		fprintf(stderr, _("                         default file: stdin\n"));
@@ -494,7 +494,17 @@ int cw_process_option(int opt, const char *optarg, cw_config_t *config, const ch
 		if (optarg && strlen(optarg)) {
 			config->input_file = strdup(optarg);
 		} else {
-			fprintf(stderr, "cwlib: no input file specified for option -i\n");
+			fprintf(stderr, "cwlib: no input file specified for option -f\n");
+			return CW_FAILURE;
+		}
+		/* TODO: access() */
+		break;
+
+	case 'F':
+		if (optarg && strlen(optarg)) {
+			config->output_file = strdup(optarg);
+		} else {
+			fprintf(stderr, "cwlib: no output file specified for option -F\n");
 			return CW_FAILURE;
 		}
 		/* TODO: access() */
