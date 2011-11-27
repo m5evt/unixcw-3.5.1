@@ -140,6 +140,8 @@ int cw_generator_new_from_config(cw_config_t *config, const char *argv0)
 					"%s: failed to open OSS output with device \"%s\"\n",
 					argv0, cw_get_soundcard_device());
 			}
+		} else {
+			fprintf(stderr, "%s: OSS output not available\n", argv0);
 		}
 		/* fall through to try with next audio system type */
 	}
@@ -158,6 +160,8 @@ int cw_generator_new_from_config(cw_config_t *config, const char *argv0)
 					"%s: failed to open ALSA output with device \"%s\"\n",
 					argv0, cw_get_soundcard_device());
 			}
+		} else {
+			fprintf(stderr, "%s: ALSA output not available\n", argv0);
 		}
 		/* fall through to try with next audio system type */
 	}
@@ -167,6 +171,7 @@ int cw_generator_new_from_config(cw_config_t *config, const char *argv0)
 	    || config->audio_system == CW_AUDIO_CONSOLE) {
 
 		if (cw_is_console_possible(config->audio_device)) {
+			fprintf(stderr, "trying\n");
 			if (cw_generator_new(CW_AUDIO_CONSOLE, config->audio_device)) {
 				cw_generator_apply_config(config);
 				return CW_SUCCESS;
@@ -175,6 +180,8 @@ int cw_generator_new_from_config(cw_config_t *config, const char *argv0)
 					"%s: failed to open console output with device \"%s\"\n",
 					argv0, cw_get_soundcard_device());
 			}
+		} else {
+			fprintf(stderr, "%s: console output not available\n", argv0);
 		}
 		/* fall through to try with next audio system type */
 	}
