@@ -18,7 +18,7 @@
 .\" Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 .\"
 .\"
-.TH CWLIB 3 "CW Tutor Package" "G0FRD" \" -*- nroff -*-
+.TH CWLIB 3 "CW Tutor Package" "cwlib ver. 3.0" \" -*- nroff -*-
 .SH NAME
 .\"
 cwlib \- general purpose Morse code functions library
