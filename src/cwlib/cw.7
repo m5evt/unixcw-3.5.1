@@ -1,6 +1,7 @@
 .\"
-.\" UnixCW CW Tutor Package - CW
+.\" UnixCW CW Tutor Package - cw
 .\" Copyright (C) 2001-2006  Simon Baldwin (simon_baldwin@yahoo.com)
+.\" Copyright (C) 2011       Kamil Ignacak (acerion@wp.pl)
 .\"
 .\" This program is free software; you can redistribute it and/or
 .\" modify it under the terms of the GNU General Public License
@@ -17,7 +18,7 @@
 .\" Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 .\"
 .\"
-.TH CW 7 "CW Tutor Package" "G0FRD" \" -*- nroff -*-
+.TH CW 7 "CW Tutor Package" \" -*- nroff -*-
 .SH NAME
 .\"
 CW \- the international Morse code
@@ -70,7 +71,8 @@ the average word is 50 units, including spaces.
 The following list shows the IS0 8859-1 (Latin-1) characters that have
 commonly understood representations in Morse code:
 .IP
-ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"$()+\-./:;=?_@ and space
+.\" \[u0022] = ", otherwise emacs syntax highlighting is messed up;
+ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789\[u0022]$()+\-./:;=?_@ and space
 .PP
 In addition, following ISO 8859-1 and ISO 8859-2 accented characters are
 also part of the generally accepted international Morse code:
@@ -110,13 +112,21 @@ Y	-.--	Z	--..
 4	....-	5	.....	6	-....	7	--...
 8	---..	9	----.
 .BR
-"	.-..-.	'	.----.	$	...-..-	(	-.--.
+.\" \[u0022] = ", otherwise emacs syntax highlighting is messed up;
+\[u0022]	.-..-.	'	.----.	$	...-..-	(	-.--.
 )	-.--.-	+	.-.-.	,	--..--	-	-....-
 \.	.-.-.-	/	-..-.	:	---...	;	-.-.-.
 \(eq	-...-	?	..--..	\(ul	..--.-
-.BR
-\[:U]	..--	\[:A]	.-.-	\[,C]	-.-..	\[:O]	---.
-\['E]	..-..	\[`A]	.-..-	\[`A]	.--.-	\[~N]	--.--
+.TE
+.TS
+l l l l
+_ _ _ _
+l l l l .
+Ch	Code	Ch	Code
+\[:U]	..--	\[:A]	.-.-
+\[,C]	-.-..	\[:O]	---.
+\['E]	..-..	\[`A]	.-..-
+\[`A]	.--.-	\[~N]	--.--
 \[S u0327] (S+cedilla)	----	\[vZ] (Z+caron/hacek)	--..-
 .TE
 .PP
@@ -129,7 +139,8 @@ l l l l l l l l
 _ _ _ _ _ _ _ _
 l l l l l l l l.
 Ch	Code	Ch	Code	Ch	Code	Ch	Code
-"	.-..-.	'	.----.	$	...-..-	(	-.--.
+.\" \[u0022] = "
+\[u0022]	.-..-.	'	.----.	$	...-..-	(	-.--.
 )	-.--.-	+	.-.-.	,	--..--	-	-....-
 \.	.-.-.-	/	-..-.	:	---...	;	-.-.-.
 \(eq	-...-	?	..--..	\(ul	..--.-	@	.--.-.
@@ -155,7 +166,8 @@ l l l l l l l l
 _ _ _ _ _ _ _ _
 l l l l l l l l.
 Ch	Prosig	Ch	Prosig	Ch	Prosig	Ch	Prosig
-"	[AF]	'	[WG]	$	[SX]	(	[KN]
+.\" \[u0022] = "
+\[u0022]	[AF]	'	[WG]	$	[SX]	(	[KN]
 )	[KK]	+	[AR]	,	[MIM]	-	[DU]
 \.	[AAA]	/	[DN]	:	[OS]	;	[KR]
 \(eq	[BT]	?	[IMI]	\(ul	[IQ]	@	[AC]
