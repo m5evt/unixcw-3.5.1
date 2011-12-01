@@ -17,8 +17,8 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef _CWLIB_H
-#define _CWLIB_H
+#ifndef _LIBCW_H
+#define _LIBCW_H
 
 #include <sys/time.h>  /* For struct timeval */
 #include <alsa/asoundlib.h>
@@ -48,11 +48,11 @@ enum cw_audio_systems {
 
 typedef int16_t cw_sample_t;
 
-struct cw_gen_struct; /* Forward declaration, struct is defined in cwlib.c. */
+struct cw_gen_struct; /* Forward declaration, struct is defined in libcw.c. */
 typedef struct cw_gen_struct cw_gen_t;
 
 
-/* Default outputs for audio systems. Used by cwlib unless
+/* Default outputs for audio systems. Used by libcw unless
    client code decides otherwise. */
 #define CW_DEFAULT_CONSOLE_DEVICE   "/dev/console"
 #define CW_DEFAULT_OSS_DEVICE       "/dev/audio"
@@ -253,4 +253,4 @@ extern void cw_reset_straight_key (void);
 #if defined(__cplusplus)
 }
 #endif
-#endif  /* _CWLIB_H */
+#endif  /* _LIBCW_H */

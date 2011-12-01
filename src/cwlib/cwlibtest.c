@@ -37,7 +37,7 @@
 # include <strings.h>
 #endif
 
-#include "cwlib.h"
+#include "libcw.h"
 
 
 /*---------------------------------------------------------------------*/
@@ -50,7 +50,7 @@
 static int cw_self_test_admin(void)
 {
 	/* Test the cw_version and cw_license functions. */
-	fprintf(stderr, "cwlib: version %d.%d\n", cw_version() >> 16, cw_version() & 0xff);
+	fprintf(stderr, "libcw: version %d.%d\n", cw_version() >> 16, cw_version() & 0xff);
 	cw_license();
 
 	/* Test getting and setting of debug flags. */
@@ -59,13 +59,13 @@ static int cw_self_test_admin(void)
 	for (unsigned int i = 0; i <= CW_DEBUG_MASK; i++) {
 		cw_set_debug_flags(i);
 		if (cw_get_debug_flags() != i) {
-			fprintf(stderr, "cwlib: ERROR: cw_get/set_debug flags\n");
+			fprintf(stderr, "libcw: ERROR: cw_get/set_debug flags\n");
 			failures++;
 			break;
 		}
 	}
 	cw_set_debug_flags(flags);
-	fprintf(stderr, "cwlib: cw_get/set_debug flags tests complete\n");
+	fprintf(stderr, "libcw: cw_get/set_debug flags tests complete\n");
 
 	return failures;
 }
@@ -86,30 +86,30 @@ cw_self_test_limits (void)
    * Ensure that we can obtain the main parameter limits.
    */
   cw_get_speed_limits (&cw_min_speed, &cw_max_speed);
-  printf ("cwlib: cw_get_speed_limits=%d,%d\n",
+  printf ("libcw: cw_get_speed_limits=%d,%d\n",
           cw_min_speed, cw_max_speed);
 
   cw_get_frequency_limits (&cw_min_frequency, &cw_max_frequency);
-  printf ("cwlib: cw_get_frequency_limits=%d,%d\n",
+  printf ("libcw: cw_get_frequency_limits=%d,%d\n",
           cw_min_frequency, cw_max_frequency);
 
   cw_get_volume_limits (&cw_min_volume, &cw_max_volume);
-  printf ("cwlib: cw_get_volume_limits=%d,%d\n",
+  printf ("libcw: cw_get_volume_limits=%d,%d\n",
           cw_min_volume, cw_max_volume);
 
   cw_get_gap_limits (&cw_min_gap, &cw_max_gap);
-  printf ("cwlib: cw_get_gap_limits=%d,%d\n",
+  printf ("libcw: cw_get_gap_limits=%d,%d\n",
           cw_min_gap, cw_max_gap);
 
   cw_get_tolerance_limits (&cw_min_tolerance, &cw_max_tolerance);
-  printf ("cwlib: cw_get_tolerance_limits=%d,%d\n",
+  printf ("libcw: cw_get_tolerance_limits=%d,%d\n",
           cw_min_tolerance, cw_max_tolerance);
 
   cw_get_weighting_limits (&cw_min_weighting, &cw_max_weighting);
-  printf ("cwlib: cw_get_weighting_limits=%d,%d\n",
+  printf ("libcw: cw_get_weighting_limits=%d,%d\n",
           cw_min_weighting, cw_max_weighting);
 
-  printf ("cwlib: cw_get_limits tests complete\n");
+  printf ("libcw: cw_get_limits tests complete\n");
   return failures;
 }
 
@@ -136,8 +136,8 @@ cw_self_test_ranges (void)
                           &end_of_element_usecs, &end_of_character_usecs,
                           &end_of_word_usecs, &additional_usecs,
                           &adjustment_usecs);
-  printf ("cwlib: cw_get_send_parameters\n"
-          "cwlib:     %d, %d, %d, %d, %d, %d, %d\n",
+  printf ("libcw: cw_get_send_parameters\n"
+          "libcw:     %d, %d, %d, %d, %d, %d, %d\n",
           txdot_usecs, txdash_usecs, end_of_element_usecs,
           end_of_character_usecs,end_of_word_usecs, additional_usecs,
           adjustment_usecs);
@@ -152,9 +152,9 @@ cw_self_test_ranges (void)
                              &end_of_character_max_usecs,
                              &end_of_character_ideal_usecs,
                              &adaptive_threshold);
-  printf ("cwlib: cw_get_receive_parameters\n"
-          "cwlib:     %d, %d, %d, %d, %d, %d, %d, %d\n"
-          "cwlib:     %d, %d, %d, %d, %d\n",
+  printf ("libcw: cw_get_receive_parameters\n"
+          "libcw:     %d, %d, %d, %d, %d, %d, %d, %d\n"
+          "libcw:     %d, %d, %d, %d, %d\n",
           rxdot_usecs, rxdash_usecs, dot_min_usecs, dot_max_usecs,
           dash_min_usecs, dash_max_usecs, end_of_element_min_usecs,
           end_of_element_max_usecs, end_of_element_ideal_usecs,
@@ -170,14 +170,14 @@ cw_self_test_ranges (void)
   status = cw_set_send_speed (cw_min - 1);
   if (status || errno != EINVAL)
     {
-      printf ("cwlib: ERROR: cw_set_send_speed(cw_min_speed-1)\n");
+      printf ("libcw: ERROR: cw_set_send_speed(cw_min_speed-1)\n");
       failures++;
     }
   errno = 0;
   status = cw_set_send_speed (cw_max + 1);
   if (status || errno != EINVAL)
     {
-      printf ("cwlib: ERROR: cw_set_send_speed(cw_max_speed+1)\n");
+      printf ("libcw: ERROR: cw_set_send_speed(cw_max_speed+1)\n");
       failures++;
     }
   for (index = cw_min; index <= cw_max; index++)
@@ -185,7 +185,7 @@ cw_self_test_ranges (void)
       cw_set_send_speed (index);
       if (cw_get_send_speed () != index)
         {
-          printf ("cwlib: ERROR: cw_get/set_send_speed\n");
+          printf ("libcw: ERROR: cw_get/set_send_speed\n");
           failures++;
           break;
         }
@@ -194,14 +194,14 @@ cw_self_test_ranges (void)
   status = cw_set_receive_speed (cw_min - 1);
   if (status || errno != EINVAL)
     {
-      printf ("cwlib: ERROR: cw_set_receive_speed(cw_min_speed-1)\n");
+      printf ("libcw: ERROR: cw_set_receive_speed(cw_min_speed-1)\n");
       failures++;
     }
   errno = 0;
   status = cw_set_receive_speed (cw_max + 1);
   if (status || errno != EINVAL)
     {
-      printf ("cwlib: ERROR: cw_set_receive_speed(cw_max_speed+1)\n");
+      printf ("libcw: ERROR: cw_set_receive_speed(cw_max_speed+1)\n");
       failures++;
     }
   for (index = cw_min; index <= cw_max; index++)
@@ -209,26 +209,26 @@ cw_self_test_ranges (void)
       cw_set_receive_speed (index);
       if (cw_get_receive_speed () != index)
         {
-          printf ("cwlib: ERROR: cw_get/set_receive_speed\n");
+          printf ("libcw: ERROR: cw_get/set_receive_speed\n");
           failures++;
           break;
         }
     }
-  printf ("cwlib: cw_set/get_send/receive_speed tests complete\n");
+  printf ("libcw: cw_set/get_send/receive_speed tests complete\n");
 
   cw_get_frequency_limits (&cw_min, &cw_max);
   errno = 0;
   status = cw_set_frequency (cw_min - 1);
   if (status || errno != EINVAL)
     {
-      printf ("cwlib: ERROR: cw_set_frequency(cw_min_frequency-1)\n");
+      printf ("libcw: ERROR: cw_set_frequency(cw_min_frequency-1)\n");
       failures++;
     }
   errno = 0;
   status = cw_set_frequency (cw_max + 1);
   if (status || errno != EINVAL)
     {
-      printf ("cwlib: ERROR: cw_set_frequency(cw_max_frequency+1)\n");
+      printf ("libcw: ERROR: cw_set_frequency(cw_max_frequency+1)\n");
       failures++;
     }
   for (index = cw_min; index <= cw_max; index++)
@@ -236,26 +236,26 @@ cw_self_test_ranges (void)
       cw_set_frequency (index);
       if (cw_get_frequency () != index)
         {
-          printf ("cwlib: ERROR: cw_get/set_frequency\n");
+          printf ("libcw: ERROR: cw_get/set_frequency\n");
           failures++;
           break;
         }
     }
-  printf ("cwlib: cw_set/get_frequency tests complete\n");
+  printf ("libcw: cw_set/get_frequency tests complete\n");
 
   cw_get_volume_limits (&cw_min, &cw_max);
   errno = 0;
   status = cw_set_volume (cw_min - 1);
   if (status || errno != EINVAL)
     {
-      printf ("cwlib: ERROR: cw_set_volume(cw_min_volume-1)\n");
+      printf ("libcw: ERROR: cw_set_volume(cw_min_volume-1)\n");
       failures++;
     }
   errno = 0;
   status = cw_set_volume (cw_max + 1);
   if (status || errno != EINVAL)
     {
-      printf ("cwlib: ERROR: cw_set_volume(cw_max_volume+1)\n");
+      printf ("libcw: ERROR: cw_set_volume(cw_max_volume+1)\n");
       failures++;
     }
   for (index = cw_min; index <= cw_max; index++)
@@ -263,26 +263,26 @@ cw_self_test_ranges (void)
       cw_set_volume (index);
       if (cw_get_volume () != index)
         {
-          printf ("cwlib: ERROR: cw_get/set_volume\n");
+          printf ("libcw: ERROR: cw_get/set_volume\n");
           failures++;
           break;
         }
     }
-  printf ("cwlib: cw_set/get_volume tests complete\n");
+  printf ("libcw: cw_set/get_volume tests complete\n");
 
   cw_get_gap_limits (&cw_min, &cw_max);
   errno = 0;
   status = cw_set_gap (cw_min - 1);
   if (status || errno != EINVAL)
     {
-      printf ("cwlib: ERROR: cw_set_gap(cw_min_gap-1)\n");
+      printf ("libcw: ERROR: cw_set_gap(cw_min_gap-1)\n");
       failures++;
     }
   errno = 0;
   status = cw_set_gap (cw_max + 1);
   if (status || errno != EINVAL)
     {
-      printf ("cwlib: ERROR: cw_set_gap(cw_max_gap+1)\n");
+      printf ("libcw: ERROR: cw_set_gap(cw_max_gap+1)\n");
       failures++;
     }
   for (index = cw_min; index <= cw_max; index++)
@@ -290,26 +290,26 @@ cw_self_test_ranges (void)
       cw_set_gap (index);
       if (cw_get_gap () != index)
         {
-          printf ("cwlib: ERROR: cw_get/set_gap\n");
+          printf ("libcw: ERROR: cw_get/set_gap\n");
           failures++;
           break;
         }
     }
-  printf ("cwlib: cw_set/get_gap tests complete\n");
+  printf ("libcw: cw_set/get_gap tests complete\n");
 
   cw_get_tolerance_limits (&cw_min, &cw_max);
   errno = 0;
   status = cw_set_tolerance (cw_min - 1);
   if (status || errno != EINVAL)
     {
-      printf ("cwlib: ERROR: cw_set_tolerance(cw_min_tolerance-1)\n");
+      printf ("libcw: ERROR: cw_set_tolerance(cw_min_tolerance-1)\n");
       failures++;
     }
   errno = 0;
   status = cw_set_tolerance (cw_max + 1);
   if (status || errno != EINVAL)
     {
-      printf ("cwlib: ERROR: cw_set_tolerance(cw_max_tolerance+1)\n");
+      printf ("libcw: ERROR: cw_set_tolerance(cw_max_tolerance+1)\n");
       failures++;
     }
   for (index = cw_min; index <= cw_max; index++)
@@ -317,26 +317,26 @@ cw_self_test_ranges (void)
       cw_set_tolerance (index);
       if (cw_get_tolerance () != index)
         {
-          printf ("cwlib: ERROR: cw_get/set_tolerance\n");
+          printf ("libcw: ERROR: cw_get/set_tolerance\n");
           failures++;
           break;
         }
     }
-  printf ("cwlib: cw_set/get_tolerance tests complete\n");
+  printf ("libcw: cw_set/get_tolerance tests complete\n");
 
   cw_get_weighting_limits (&cw_min, &cw_max);
   errno = 0;
   status = cw_set_weighting (cw_min - 1);
   if (status || errno != EINVAL)
     {
-      printf ("cwlib: ERROR: cw_set_weighting(cw_min_weighting-1)\n");
+      printf ("libcw: ERROR: cw_set_weighting(cw_min_weighting-1)\n");
       failures++;
     }
   errno = 0;
   status = cw_set_weighting (cw_max + 1);
   if (status || errno != EINVAL)
     {
-      printf ("cwlib: ERROR: cw_set_weighting(cw_max_weighting+1)\n");
+      printf ("libcw: ERROR: cw_set_weighting(cw_max_weighting+1)\n");
       failures++;
     }
   for (index = cw_min; index <= cw_max; index++)
@@ -344,13 +344,13 @@ cw_self_test_ranges (void)
       cw_set_weighting (index);
       if (cw_get_weighting () != index)
         {
-          printf ("cwlib: ERROR: cw_get/set_weighting\n");
+          printf ("libcw: ERROR: cw_get/set_weighting\n");
           failures++;
           break;
         }
     }
 
-  printf ("cwlib: cw_set/get_weighting tests complete\n");
+  printf ("libcw: cw_set/get_weighting tests complete\n");
   return failures;
 }
 
@@ -372,25 +372,25 @@ cw_self_test_tone_parameters (void)
   status = cw_queue_tone (-1, cw_min);
   if (status || errno != EINVAL)
     {
-      printf ("cwlib: ERROR: cw_queue_tone(-1, cw_min_frequency)\n");
+      printf ("libcw: ERROR: cw_queue_tone(-1, cw_min_frequency)\n");
       failures++;
     }
   errno = 0;
   status = cw_queue_tone (0, cw_min - 1);
   if (status || errno != EINVAL)
     {
-      printf ("cwlib: ERROR: cw_queue_tone(0, cw_min_frequency-1)\n");
+      printf ("libcw: ERROR: cw_queue_tone(0, cw_min_frequency-1)\n");
       failures++;
     }
   errno = 0;
   status = cw_queue_tone (0, cw_max + 1);
   if (status || errno != EINVAL)
     {
-      printf ("cwlib: ERROR: cw_queue_tone(0, cw_max_frequency+1)\n");
+      printf ("libcw: ERROR: cw_queue_tone(0, cw_max_frequency+1)\n");
       failures++;
     }
 
-  printf ("cwlib: cw_queue_tone argument tests complete\n");
+  printf ("libcw: cw_queue_tone argument tests complete\n");
   return failures;
 }
 
@@ -412,36 +412,36 @@ cw_self_test_simple_tones (void)
       || !cw_queue_tone (100000, 2000)
       || !cw_queue_tone (100000, 1000))
     {
-      printf ("cwlib: ERROR: cw_queue_tone(10000, 4000|2000|1000)\n");
+      printf ("libcw: ERROR: cw_queue_tone(10000, 4000|2000|1000)\n");
       failures++;
     }
   for (index = 0; index < 3; index++)
     {
       if (!cw_wait_for_tone ())
         {
-          printf ("cwlib: ERROR: cw_wait_for_tone()\n");
+          printf ("libcw: ERROR: cw_wait_for_tone()\n");
           failures++;
         }
     }
   if (cw_get_tone_queue_length () != 0)
     {
-      printf ("cwlib: ERROR: cw_get_tone_queue_length()\n");
+      printf ("libcw: ERROR: cw_get_tone_queue_length()\n");
       failures++;
     }
 
   if (!cw_queue_tone (100000, 1000)
       || !cw_queue_tone (100000, 500))
     {
-      printf ("cwlib: ERROR: cw_queue_tone(10000, 1000|500)\n");
+      printf ("libcw: ERROR: cw_queue_tone(10000, 1000|500)\n");
       failures++;
     }
   if (!cw_wait_for_tone_queue ())
     {
-      printf ("cwlib: ERROR: cw_wait_for_tone_queue()\n");
+      printf ("libcw: ERROR: cw_wait_for_tone_queue()\n");
       failures++;
     }
 
-  printf ("cwlib: cw_queue_tone single tone test complete\n");
+  printf ("libcw: cw_queue_tone single tone test complete\n");
   return failures;
 }
 
@@ -468,14 +468,14 @@ cw_self_test_complex_tones (void)
         {
           if (!cw_wait_for_tone ())
             {
-              printf ("cwlib: ERROR: cw_wait_for_tone()\n");
+              printf ("libcw: ERROR: cw_wait_for_tone()\n");
               failures++;
               break;
             }
         }
       if (!cw_queue_tone (10000, index))
         {
-          printf ("cwlib: ERROR: cw_queue_tone()\n");
+          printf ("libcw: ERROR: cw_queue_tone()\n");
           failures++;
           break;
         }
@@ -486,27 +486,27 @@ cw_self_test_complex_tones (void)
         {
           if (!cw_wait_for_tone ())
             {
-              printf ("cwlib: ERROR: cw_wait_for_tone()\n");
+              printf ("libcw: ERROR: cw_wait_for_tone()\n");
               failures++;
               break;
             }
         }
       if (!cw_queue_tone (10000, index))
         {
-          printf ("cwlib: ERROR: cw_queue_tone()\n");
+          printf ("libcw: ERROR: cw_queue_tone()\n");
           failures++;
           break;
         }
     }
   if (!cw_wait_for_tone_queue ())
     {
-      printf ("cwlib: ERROR: cw_wait_for_tone_queue()\n");
+      printf ("libcw: ERROR: cw_wait_for_tone_queue()\n");
       failures++;
     }
   cw_queue_tone (0, 0);
   cw_wait_for_tone_queue ();
 
-  printf ("cwlib: cw_queue_tone/cw_wait_for_tone_queue tests complete\n");
+  printf ("libcw: cw_queue_tone/cw_wait_for_tone_queue tests complete\n");
   return failures;
 }
 
@@ -526,33 +526,33 @@ cw_self_test_tone_queue (void)
    * afterwards, and recover.
    */
   cw_set_volume (70);
-  printf ("cwlib: cw_get_tone_queue_capacity=%d\n",
+  printf ("libcw: cw_get_tone_queue_capacity=%d\n",
           cw_get_tone_queue_capacity ());
-  printf ("cwlib: empty cw_get_tone_queue_length=%d\n",
+  printf ("libcw: empty cw_get_tone_queue_length=%d\n",
           cw_get_tone_queue_length ());
 
   index = 0;
   while (!cw_is_tone_queue_full ())
     cw_queue_tone (1000000, 100 + (index++ & 1) * 100);
-  printf ("cwlib: full cw_get_tone_queue_length=%d\n",
+  printf ("libcw: full cw_get_tone_queue_length=%d\n",
           cw_get_tone_queue_length ());
 
   errno = 0;
   status = cw_queue_tone (1000000, 100);
   if (status || errno != EAGAIN)
     {
-      printf ("cwlib: ERROR: full cw_queue_tone()\n");
+      printf ("libcw: ERROR: full cw_queue_tone()\n");
       failures++;
     }
 
   cw_flush_tone_queue ();
   if (cw_get_tone_queue_length () > 0)
     {
-      printf ("cwlib: ERROR: cw_get_tone_queue_length()\n");
+      printf ("libcw: ERROR: cw_get_tone_queue_length()\n");
       failures++;
     }
 
-  printf ("cwlib: cw_flush_tone_queue/length/capacity tests complete\n");
+  printf ("libcw: cw_flush_tone_queue/length/capacity tests complete\n");
   return failures;
 }
 
@@ -579,13 +579,13 @@ cw_self_test_volumes (void)
       cw_wait_for_tone ();
       if (!cw_set_volume (index))
         {
-          printf ("cwlib: ERROR: cw_set_volume()\n");
+          printf ("libcw: ERROR: cw_set_volume()\n");
           failures++;
           break;
         }
       if (cw_get_volume () != index)
         {
-          printf ("cwlib: ERROR: cw_get_volume()\n");
+          printf ("libcw: ERROR: cw_get_volume()\n");
           failures++;
           break;
         }
@@ -596,13 +596,13 @@ cw_self_test_volumes (void)
       cw_wait_for_tone ();
       if (!cw_set_volume (index))
         {
-          printf ("cwlib: ERROR: cw_set_volume()\n");
+          printf ("libcw: ERROR: cw_set_volume()\n");
           failures++;
           break;
         }
       if (cw_get_volume () != index)
         {
-          printf ("cwlib: ERROR: cw_get_volume()\n");
+          printf ("libcw: ERROR: cw_get_volume()\n");
           failures++;
           break;
         }
@@ -611,7 +611,7 @@ cw_self_test_volumes (void)
   cw_wait_for_tone ();
   cw_flush_tone_queue ();
 
-  printf ("cwlib: cw_set/get_volume tests complete\n");
+  printf ("libcw: cw_set/get_volume tests complete\n");
   return failures;
 }
 
@@ -629,16 +629,16 @@ cw_self_test_lookups (void)
   /*
    * Collect and print out a list of characters in the main CW table.
    */
-  printf ("cwlib: cw_get_character_count %d\n", cw_get_character_count ());
+  printf ("libcw: cw_get_character_count %d\n", cw_get_character_count ());
   cw_list_characters (charlist);
-  printf ("cwlib: cw_list_characters\n"
-          "cwlib:     %s\n", charlist);
+  printf ("libcw: cw_list_characters\n"
+          "libcw:     %s\n", charlist);
 
   /*
    * For each character, look up its representation, the look up each
    * representation in the opposite direction.
    */
-  printf ("cwlib: cw_get_maximum_representation_length %d\n",
+  printf ("libcw: cw_get_maximum_representation_length %d\n",
           cw_get_maximum_representation_length ());
   for (index = 0; charlist[index] != '\0'; index++)
     {
@@ -646,25 +646,25 @@ cw_self_test_lookups (void)
 
       if (!cw_lookup_character (charlist[index], representation))
         {
-          printf ("cwlib: ERROR: cw_lookup_character()\n");
+          printf ("libcw: ERROR: cw_lookup_character()\n");
           failures++;
           break;
         }
       if (!cw_lookup_representation (representation, &c))
         {
-          printf ("cwlib: ERROR: cw_lookup_representation()\n");
+          printf ("libcw: ERROR: cw_lookup_representation()\n");
           failures++;
           break;
         }
       if (charlist[index] != c)
         {
-          printf ("cwlib: ERROR: cw_lookup_() mapping wrong\n");
+          printf ("libcw: ERROR: cw_lookup_() mapping wrong\n");
           failures++;
           break;
         }
     }
 
-  printf ("cwlib: cw list and lookup tests complete\n");
+  printf ("libcw: cw list and lookup tests complete\n");
   return failures;
 }
 
@@ -683,17 +683,17 @@ cw_self_test_prosign_lookups (void)
    * Collect and print out a list of characters in the procedural signals
    * expansion table.
    */
-  printf ("cwlib: cw_get_procedural_character_count %d\n",
+  printf ("libcw: cw_get_procedural_character_count %d\n",
           cw_get_procedural_character_count ());
   cw_list_procedural_characters (charlist);
-  printf ("cwlib: cw_list_procedural_characters\n"
-          "cwlib:     %s\n", charlist);
+  printf ("libcw: cw_list_procedural_characters\n"
+          "libcw:     %s\n", charlist);
 
   /*
    * For each character, look up its expansion and check for two or three
    * characters, and a true/false assignment to the display hint.
    */
-  printf ("cwlib: cw_get_maximum_procedural_expansion_length %d\n",
+  printf ("libcw: cw_get_maximum_procedural_expansion_length %d\n",
           cw_get_maximum_procedural_expansion_length ());
   for (index = 0; charlist[index] != '\0'; index++)
     {
@@ -704,20 +704,20 @@ cw_self_test_prosign_lookups (void)
       if (!cw_lookup_procedural_character (charlist[index],
                                            expansion, &is_usually_expanded))
         {
-          printf ("cwlib: ERROR: cw_lookup_procedural_character()\n");
+          printf ("libcw: ERROR: cw_lookup_procedural_character()\n");
           failures++;
           break;
         }
       if ((strlen (expansion) != 2 && strlen (expansion) != 3)
           || is_usually_expanded == -1)
         {
-          printf ("cwlib: ERROR: cw_lookup_procedural_() mapping wrong\n");
+          printf ("libcw: ERROR: cw_lookup_procedural_() mapping wrong\n");
           failures++;
           break;
         }
     }
 
-  printf ("cwlib: cw prosign list and lookup tests complete\n");
+  printf ("libcw: cw prosign list and lookup tests complete\n");
   return failures;
 }
 
@@ -735,7 +735,7 @@ cw_self_test_phonetic_lookups (void)
    * For each ASCII character, look up its phonetic and check for a string
    * that start with this character, if alphabetic, and false otherwise.
    */
-  printf ("cwlib: cw_get_maximum_phonetic_length %d\n",
+  printf ("libcw: cw_get_maximum_phonetic_length %d\n",
           cw_get_maximum_phonetic_length ());
   for (index = 0; index < UCHAR_MAX; index++)
     {
@@ -745,7 +745,7 @@ cw_self_test_phonetic_lookups (void)
       status = cw_lookup_phonetic ((char) index, phonetic);
       if (status != (isalpha (index) ? true : false))
         {
-          printf ("cwlib: ERROR: cw_lookup_phonetic()\n");
+          printf ("libcw: ERROR: cw_lookup_phonetic()\n");
           failures++;
           break;
         }
@@ -753,14 +753,14 @@ cw_self_test_phonetic_lookups (void)
         {
           if (phonetic[0] != toupper (index))
             {
-              printf ("cwlib: ERROR: cw_lookup_phonetic() mapping wrong\n");
+              printf ("libcw: ERROR: cw_lookup_phonetic() mapping wrong\n");
               failures++;
               break;
             }
         }
     }
 
-  printf ("cwlib: cw phonetics lookup tests complete\n");
+  printf ("libcw: cw phonetics lookup tests complete\n");
   return failures;
 }
 
@@ -778,27 +778,27 @@ cw_self_test_dot_dash (void)
    */
   if (!cw_send_dot ())
     {
-      printf ("cwlib: ERROR: cw_send_dot()\n");
+      printf ("libcw: ERROR: cw_send_dot()\n");
       failures++;
     }
   if (!cw_send_dash ())
     {
-      printf ("cwlib: ERROR: cw_send_dash()\n");
+      printf ("libcw: ERROR: cw_send_dash()\n");
       failures++;
     }
   if (!cw_send_character_space ())
     {
-      printf ("cwlib: ERROR: cw_send_character_space()\n");
+      printf ("libcw: ERROR: cw_send_character_space()\n");
       failures++;
     }
   if (!cw_send_word_space ())
     {
-      printf ("cwlib: ERROR: cw_send_word_space()\n");
+      printf ("libcw: ERROR: cw_send_word_space()\n");
       failures++;
     }
   cw_wait_for_tone_queue ();
 
-  printf ("cwlib: cw_send_dot/dash tests complete\n");
+  printf ("libcw: cw_send_dot/dash tests complete\n");
   return failures;
 }
 
@@ -818,27 +818,27 @@ cw_self_test_representations (void)
   if (!cw_check_representation (".-.-.-")
       || cw_check_representation ("INVALID"))
     {
-      printf ("cwlib: ERROR: cw_check_representation()\n");
+      printf ("libcw: ERROR: cw_check_representation()\n");
       failures++;
     }
   if (!cw_send_representation_partial (".-.-.-"))
     {
-      printf ("cwlib: ERROR: cw_send_representation_partial()\n");
+      printf ("libcw: ERROR: cw_send_representation_partial()\n");
       failures++;
     }
   if (!cw_send_representation (".-.-.-"))
     {
-      printf ("cwlib: ERROR: valid cw_send_representation()\n");
+      printf ("libcw: ERROR: valid cw_send_representation()\n");
       failures++;
     }
   if (cw_send_representation ("INVALID"))
     {
-      printf ("cwlib: ERROR: invalid cw_send_representation()\n");
+      printf ("libcw: ERROR: invalid cw_send_representation()\n");
       failures++;
     }
   cw_wait_for_tone_queue ();
 
-  printf ("cwlib: cw_send_representation tests complete\n");
+  printf ("libcw: cw_send_representation tests complete\n");
   return failures;
 }
 
@@ -864,7 +864,7 @@ cw_self_test_characters (void)
         {
           if (!cw_check_character (index))
             {
-              printf ("cwlib: ERROR: valid cw_check_character()\n");
+              printf ("libcw: ERROR: valid cw_check_character()\n");
               failures++;
               break;
             }
@@ -873,7 +873,7 @@ cw_self_test_characters (void)
         {
           if (cw_check_character (index))
             {
-              printf ("cwlib: ERROR: invalid cw_check_character()\n");
+              printf ("libcw: ERROR: invalid cw_check_character()\n");
               failures++;
               break;
             }
@@ -888,16 +888,16 @@ cw_self_test_characters (void)
   cw_list_characters (charlist);
   if (!cw_check_string (charlist))
     {
-      printf ("cwlib: ERROR: cw_check_string()\n");
+      printf ("libcw: ERROR: cw_check_string()\n");
       failures++;
     }
   if (cw_check_string ("%INVALID%"))
     {
-      printf ("cwlib: ERROR: invalid cw_check_string()\n");
+      printf ("libcw: ERROR: invalid cw_check_string()\n");
       failures++;
     }
 
-  printf ("cwlib: cw_check_character/string tests complete\n");
+  printf ("libcw: cw_check_character/string tests complete\n");
   return failures;
 }
 
@@ -916,15 +916,15 @@ cw_self_test_full_send (void)
    * Send all the characters from the charlist individually.
    */
   cw_list_characters (charlist);
-  printf ("cwlib: cw_send_character\n"
-          "cwlib:     ");
+  printf ("libcw: cw_send_character\n"
+          "libcw:     ");
   for (index = 0; charlist[index] != '\0'; index++)
     {
       putchar (charlist[index]);
       fflush (stdout);
       if (!cw_send_character (charlist[index]))
         {
-          printf ("cwlib: ERROR: cw_send_character()\n");
+          printf ("libcw: ERROR: cw_send_character()\n");
           failures++;
         }
       cw_wait_for_tone_queue ();
@@ -932,34 +932,34 @@ cw_self_test_full_send (void)
   putchar ('\n');
   if (cw_send_character (0))
     {
-      printf ("cwlib: ERROR: invalid cw_send_character()\n");
+      printf ("libcw: ERROR: invalid cw_send_character()\n");
       failures++;
     }
 
 
   /* Now send the complete charlist as a single string. */
-  printf ("cwlib: cw_send_string\n"
-          "cwlib:     %s\n", charlist);
+  printf ("libcw: cw_send_string\n"
+          "libcw:     %s\n", charlist);
   if (!cw_send_string (charlist))
     {
-      printf ("cwlib: ERROR: cw_send_string()\n");
+      printf ("libcw: ERROR: cw_send_string()\n");
       failures++;
     }
   while (cw_get_tone_queue_length () > 0)
     {
-      printf ("cwlib: tone queue length %-6d\r", cw_get_tone_queue_length ());
+      printf ("libcw: tone queue length %-6d\r", cw_get_tone_queue_length ());
       fflush (stdout);
       cw_wait_for_tone ();
     }
-  printf ("cwlib: tone queue length %-6d\n", cw_get_tone_queue_length ());
+  printf ("libcw: tone queue length %-6d\n", cw_get_tone_queue_length ());
   cw_wait_for_tone_queue ();
   if (cw_send_string ("%INVALID%"))
     {
-      printf ("cwlib: ERROR: invalid cw_send_string()\n");
+      printf ("libcw: ERROR: invalid cw_send_string()\n");
       failures++;
     }
 
-  printf ("cwlib: cw_send_character/string tests complete\n");
+  printf ("libcw: cw_send_character/string tests complete\n");
   return failures;
 }
 
@@ -991,7 +991,7 @@ cw_self_test_fixed_receive (void)
    * Add just a little jitter to the timestamps.  This is a _very_ minimal
    * test, omitting all error states.
    */
-  printf ("cwlib: cw_get_receive_buffer_capacity=%d\n",
+  printf ("libcw: cw_get_receive_buffer_capacity=%d\n",
           cw_get_receive_buffer_capacity ());
 
   cw_set_receive_speed (60);
@@ -1015,52 +1015,52 @@ cw_self_test_fixed_receive (void)
       if (cw_get_receive_buffer_length ()
           != (int) strlen (TEST_DATA[index].representation))
         {
-          printf ("cwlib: ERROR: incorrect receive_buffer_length()\n");
+          printf ("libcw: ERROR: incorrect receive_buffer_length()\n");
           failures++;
           break;
         }
       if (!cw_receive_representation (&tv, representation, &is_word, &is_error))
         {
-          printf ("cwlib: ERROR: cw_receive_representation()\n");
+          printf ("libcw: ERROR: cw_receive_representation()\n");
           failures++;
           break;
         }
       if (strcmp (representation, TEST_DATA[index].representation) != 0)
         {
-          printf ("cwlib: ERROR: incorrect cw_receive_representation\n");
+          printf ("libcw: ERROR: incorrect cw_receive_representation\n");
           failures++;
           break;
         }
       if (is_word)
         {
-          printf ("cwlib: ERROR: cw_receive_representation not char\n");
+          printf ("libcw: ERROR: cw_receive_representation not char\n");
           failures++;
           break;
         }
       if (is_error)
         {
-          printf ("cwlib: ERROR: cw_receive_representation error\n");
+          printf ("libcw: ERROR: cw_receive_representation error\n");
           failures++;
           break;
         }
       if (!cw_receive_character (&tv, &c, &is_word, &is_error))
         {
-          printf ("cwlib: ERROR: cw_receive_character()\n");
+          printf ("libcw: ERROR: cw_receive_character()\n");
           failures++;
           break;
         }
       if (c != TEST_DATA[index].character)
         {
-          printf ("cwlib: ERROR: incorrect cw_receive_character\n");
+          printf ("libcw: ERROR: incorrect cw_receive_character\n");
           failures++;
           break;
         }
-      printf ("cwlib: cw_receive_representation/character <%s>,<%c>\n",
+      printf ("libcw: cw_receive_representation/character <%s>,<%c>\n",
               representation, c);
       cw_clear_receive_buffer ();
       if (cw_get_receive_buffer_length () != 0)
         {
-          printf ("cwlib: ERROR: incorrect receive_buffer_length()\n");
+          printf ("libcw: ERROR: incorrect receive_buffer_length()\n");
           failures++;
           break;
         }
@@ -1068,12 +1068,12 @@ cw_self_test_fixed_receive (void)
 
   cw_get_receive_statistics (&dot_sd, &dash_sd,
                              &element_end_sd, &character_end_sd);
-  printf ("cwlib: cw_receive_statistics %.2f, %.2f, %.2f, %.2f\n",
+  printf ("libcw: cw_receive_statistics %.2f, %.2f, %.2f, %.2f\n",
           dot_sd, dash_sd, element_end_sd, character_end_sd);
   cw_reset_receive_statistics ();
 
-  printf ("cwlib: cw_receive_representation/character tests complete\n"
-          "cwlib: cw fixed speed receive tests complete\n");
+  printf ("libcw: cw_receive_representation/character tests complete\n"
+          "libcw: cw fixed speed receive tests complete\n");
   return failures;
 }
 
@@ -1125,56 +1125,56 @@ cw_self_test_adaptive_receive (void)
       if (cw_get_receive_buffer_length ()
           != (int) strlen (TEST_DATA[index].representation))
         {
-          printf ("cwlib: ERROR: incorrect receive_buffer_length()\n");
+          printf ("libcw: ERROR: incorrect receive_buffer_length()\n");
           failures++;
           break;
         }
       if (!cw_receive_representation (&tv, representation, &is_word, &is_error))
         {
-          printf ("cwlib: ERROR: cw_receive_representation()\n");
+          printf ("libcw: ERROR: cw_receive_representation()\n");
           failures++;
           break;
         }
       if (strcmp (representation, TEST_DATA[index].representation) != 0)
         {
-          printf ("cwlib: ERROR: incorrect cw_receive_representation\n");
+          printf ("libcw: ERROR: incorrect cw_receive_representation\n");
           failures++;
           break;
         }
       if ((TEST_DATA[index].usecs[entry] == 0 && is_word)
           || (TEST_DATA[index].usecs[entry] < 0 && !is_word))
         {
-          printf ("cwlib: ERROR: cw_receive_representation not %s\n",
+          printf ("libcw: ERROR: cw_receive_representation not %s\n",
                   is_word ? "char" : "word");
           failures++;
           break;
         }
       if (is_error)
         {
-          printf ("cwlib: ERROR: cw_receive_representation error\n");
+          printf ("libcw: ERROR: cw_receive_representation error\n");
           failures++;
           break;
         }
       if (!cw_receive_character (&tv, &c, &is_word, &is_error))
         {
-          printf ("cwlib: ERROR: cw_receive_character()\n");
+          printf ("libcw: ERROR: cw_receive_character()\n");
           failures++;
           break;
         }
       if (c != TEST_DATA[index].character)
         {
-          printf ("cwlib: ERROR: incorrect cw_receive_character\n");
+          printf ("libcw: ERROR: incorrect cw_receive_character\n");
           failures++;
           break;
         }
-      printf ("cwlib: adaptive speed tracking reports %d wpm\n",
+      printf ("libcw: adaptive speed tracking reports %d wpm\n",
               cw_get_receive_speed ());
-      printf ("cwlib: cw_receive_representation/character <%s>,<%c>\n",
+      printf ("libcw: cw_receive_representation/character <%s>,<%c>\n",
               representation, c);
       cw_clear_receive_buffer ();
       if (cw_get_receive_buffer_length () != 0)
         {
-          printf ("cwlib: ERROR: incorrect receive_buffer_length()\n");
+          printf ("libcw: ERROR: incorrect receive_buffer_length()\n");
           failures++;
           break;
         }
@@ -1182,12 +1182,12 @@ cw_self_test_adaptive_receive (void)
 
   cw_get_receive_statistics (&dot_sd, &dash_sd,
                              &element_end_sd, &character_end_sd);
-  printf ("cwlib: cw_receive_statistics %.2f, %.2f, %.2f, %.2f\n",
+  printf ("libcw: cw_receive_statistics %.2f, %.2f, %.2f, %.2f\n",
           dot_sd, dash_sd, element_end_sd, character_end_sd);
   cw_reset_receive_statistics ();
 
-  printf ("cwlib: cw_receive_representation/character tests complete\n"
-          "cwlib: cw adaptive speed receive tests complete\n");
+  printf ("libcw: cw_receive_representation/character tests complete\n"
+          "libcw: cw adaptive speed receive tests complete\n");
   return failures;
 }
 
@@ -1208,10 +1208,10 @@ cw_self_test_keyer (void)
    */
   if (!cw_notify_keyer_paddle_event (true, false))
     {
-      printf ("cwlib: ERROR: cw_notify_keyer_paddle_event\n");
+      printf ("libcw: ERROR: cw_notify_keyer_paddle_event\n");
       failures++;
     }
-  printf ("cwlib: testing iambic keyer dots   ");
+  printf ("libcw: testing iambic keyer dots   ");
   fflush (stdout);
   for (index = 0; index < 30; index++)
     {
@@ -1223,16 +1223,16 @@ cw_self_test_keyer (void)
   cw_get_keyer_paddles (&dot_paddle, &dash_paddle);
   if (!dot_paddle || dash_paddle)
     {
-      printf ("cwlib: ERROR: cw_keyer_get_paddles mismatch\n");
+      printf ("libcw: ERROR: cw_keyer_get_paddles mismatch\n");
       failures++;
     }
 
   if (!cw_notify_keyer_paddle_event (false, true))
     {
-      printf ("cwlib: ERROR: cw_notify_keyer_paddle_event\n");
+      printf ("libcw: ERROR: cw_notify_keyer_paddle_event\n");
       failures++;
     }
-  printf ("cwlib: testing iambic keyer dashes ");
+  printf ("libcw: testing iambic keyer dashes ");
   fflush (stdout);
   for (index = 0; index < 30; index++)
     {
@@ -1244,16 +1244,16 @@ cw_self_test_keyer (void)
   cw_get_keyer_paddles (&dot_paddle, &dash_paddle);
   if (dot_paddle || !dash_paddle)
     {
-      printf ("cwlib: ERROR: cw_keyer_get_paddles mismatch\n");
+      printf ("libcw: ERROR: cw_keyer_get_paddles mismatch\n");
       failures++;
     }
 
   if (!cw_notify_keyer_paddle_event (true, true))
     {
-      printf ("cwlib: ERROR: cw_notify_keyer_paddle_event\n");
+      printf ("libcw: ERROR: cw_notify_keyer_paddle_event\n");
       failures++;
     }
-  printf ("cwlib: testing iambic alternating  ");
+  printf ("libcw: testing iambic alternating  ");
   fflush (stdout);
   for (index = 0; index < 30; index++)
     {
@@ -1265,14 +1265,14 @@ cw_self_test_keyer (void)
   cw_get_keyer_paddles (&dot_paddle, &dash_paddle);
   if (!dot_paddle || !dash_paddle)
     {
-      printf ("cwlib: ERROR: cw_keyer_get_paddles mismatch\n");
+      printf ("libcw: ERROR: cw_keyer_get_paddles mismatch\n");
       failures++;
     }
 
   cw_notify_keyer_paddle_event (false, false);
   cw_wait_for_keyer ();
 
-  printf ("cwlib: cw_notify_keyer_paddle_event tests complete\n");
+  printf ("libcw: cw_notify_keyer_paddle_event tests complete\n");
   return failures;
 }
 
@@ -1293,17 +1293,17 @@ cw_self_test_straight_key (void)
     {
       if (!cw_notify_straight_key_event (false))
         {
-          printf ("cwlib: ERROR: cw_notify_straight_key_event false\n");
+          printf ("libcw: ERROR: cw_notify_straight_key_event false\n");
           failures++;
         }
       if (cw_get_straight_key_state ())
         {
-          printf ("cwlib: ERROR: cw_get_straight_key_state\n");
+          printf ("libcw: ERROR: cw_get_straight_key_state\n");
           failures++;
         }
       if (cw_is_straight_key_busy ())
         {
-          printf ("cwlib: ERROR: cw_straight_key_busy\n");
+          printf ("libcw: ERROR: cw_straight_key_busy\n");
           failures++;
         }
     }
@@ -1311,17 +1311,17 @@ cw_self_test_straight_key (void)
     {
       if (!cw_notify_straight_key_event (true))
         {
-          printf ("cwlib: ERROR: cw_notify_straight_key_event true\n");
+          printf ("libcw: ERROR: cw_notify_straight_key_event true\n");
           failures++;
         }
       if (!cw_get_straight_key_state ())
         {
-          printf ("cwlib: ERROR: cw_get_straight_key_state\n");
+          printf ("libcw: ERROR: cw_get_straight_key_state\n");
           failures++;
         }
       if (!cw_is_straight_key_busy ())
         {
-          printf ("cwlib: ERROR: cw_straight_key_busy\n");
+          printf ("libcw: ERROR: cw_straight_key_busy\n");
           failures++;
         }
     }
@@ -1330,17 +1330,17 @@ cw_self_test_straight_key (void)
     {
       if (!cw_notify_straight_key_event (false))
         {
-          printf ("cwlib: ERROR: cw_notify_straight_key_event false\n");
+          printf ("libcw: ERROR: cw_notify_straight_key_event false\n");
           failures++;
         }
     }
   if (cw_get_straight_key_state ())
     {
-      printf ("cwlib: ERROR: cw_get_straight_key_state\n");
+      printf ("libcw: ERROR: cw_get_straight_key_state\n");
       failures++;
     }
 
-  printf ("cwlib: cw_notify_straight_key_event/busy tests complete\n");
+  printf ("libcw: cw_notify_straight_key_event/busy tests complete\n");
   return failures;
 }
 
@@ -1361,16 +1361,16 @@ cw_self_test_delayed_release (void)
    */
   if (!cw_send_character_space ())
     {
-      printf ("cwlib: ERROR: cw_send_character_space()\n");
+      printf ("libcw: ERROR: cw_send_character_space()\n");
       failures++;
     }
 
   if (gettimeofday (&start, NULL) != 0)
     {
-      printf ("cwlib: WARNING: gettimeofday failed, test incomplete\n");
+      printf ("libcw: WARNING: gettimeofday failed, test incomplete\n");
       return failures;
     }
-  printf ("cwlib: waiting for cw_finalization delayed release");
+  printf ("libcw: waiting for cw_finalization delayed release");
   fflush (stdout);
   do
     {
@@ -1379,14 +1379,14 @@ cw_self_test_delayed_release (void)
       sleep (1);
       if (sigaction (SIGALRM, NULL, &disposition) != 0)
         {
-          printf ("cwlib: WARNING: sigaction failed, test incomplete\n");
+          printf ("libcw: WARNING: sigaction failed, test incomplete\n");
           return failures;
         }
       is_released = disposition.sa_handler == SIG_DFL;
 
       if (gettimeofday (&finish, NULL) != 0)
         {
-          printf ("cwlib: WARNING: gettimeofday failed, test incomplete\n");
+          printf ("libcw: WARNING: gettimeofday failed, test incomplete\n");
           return failures;
         }
 
@@ -1405,20 +1405,20 @@ cw_self_test_delayed_release (void)
    */
   if (is_released)
     {
-      printf ("cwlib: cw_finalization delayed release after %d usecs\n", delay);
+      printf ("libcw: cw_finalization delayed release after %d usecs\n", delay);
       if (delay < 5000000)
         {
-          printf ("cwlib: ERROR: cw_finalization release too quick\n");
+          printf ("libcw: ERROR: cw_finalization release too quick\n");
           failures++;
         }
     }
   else
     {
-      printf ("cwlib: ERROR: cw_finalization release wait timed out\n");
+      printf ("libcw: ERROR: cw_finalization release wait timed out\n");
       failures++;
     }
 
-  printf ("cwlib: cw_finalization release tests complete\n");
+  printf ("libcw: cw_finalization release tests complete\n");
   return failures;
 }
 
@@ -1447,14 +1447,14 @@ cw_self_test_signal_handling (void)
    */
   if (cw_unregister_signal_handler (SIGUSR1))
     {
-      printf ("cwlib: ERROR: cw_unregister_signal_handler invalid\n");
+      printf ("libcw: ERROR: cw_unregister_signal_handler invalid\n");
       failures++;
     }
 
   if (!cw_register_signal_handler (SIGUSR1,
                                    cw_self_test_signal_handling_callback))
     {
-      printf ("cwlib: ERROR: cw_register_signal_handler failed\n");
+      printf ("libcw: ERROR: cw_register_signal_handler failed\n");
       failures++;
     }
 
@@ -1463,13 +1463,13 @@ cw_self_test_signal_handling (void)
   sleep (1);
   if (!cw_self_test_signal_handling_callback_called)
     {
-      printf ("cwlib: ERROR: cw_self_test_signal_handling_callback missed\n");
+      printf ("libcw: ERROR: cw_self_test_signal_handling_callback missed\n");
       failures++;
     }
 
   if (!cw_register_signal_handler (SIGUSR1, SIG_IGN))
     {
-      printf ("cwlib: ERROR: cw_register_signal_handler (overwrite) failed\n");
+      printf ("libcw: ERROR: cw_register_signal_handler (overwrite) failed\n");
       failures++;
     }
 
@@ -1478,19 +1478,19 @@ cw_self_test_signal_handling (void)
   sleep (1);
   if (cw_self_test_signal_handling_callback_called)
     {
-      printf ("cwlib: ERROR: cw_self_test_signal_handling_callback called\n");
+      printf ("libcw: ERROR: cw_self_test_signal_handling_callback called\n");
       failures++;
     }
 
   if (!cw_unregister_signal_handler (SIGUSR1))
     {
-      printf ("cwlib: ERROR: cw_unregister_signal_handler failed\n");
+      printf ("libcw: ERROR: cw_unregister_signal_handler failed\n");
       failures++;
     }
 
   if (cw_unregister_signal_handler (SIGUSR1))
     {
-      printf ("cwlib: ERROR: cw_unregister_signal_handler invalid\n");
+      printf ("libcw: ERROR: cw_unregister_signal_handler invalid\n");
       failures++;
     }
 
@@ -1499,21 +1499,21 @@ cw_self_test_signal_handling (void)
   sigemptyset (&action.sa_mask);
   if (sigaction (SIGUSR1, &action, &disposition) != 0)
     {
-      printf ("cwlib: WARNING: sigaction failed, test incomplete\n");
+      printf ("libcw: WARNING: sigaction failed, test incomplete\n");
       return failures;
     }
   if (cw_register_signal_handler (SIGUSR1, SIG_IGN))
     {
-      printf ("cwlib: ERROR: cw_register_signal_handler clobbered\n");
+      printf ("libcw: ERROR: cw_register_signal_handler clobbered\n");
       failures++;
     }
   if (sigaction (SIGUSR1, &disposition, NULL) != 0)
     {
-      printf ("cwlib: WARNING: sigaction failed, test incomplete\n");
+      printf ("libcw: WARNING: sigaction failed, test incomplete\n");
       return failures;
     }
 
-  printf ("cwlib: cw_[un]register_signal_handler tests complete\n");
+  printf ("libcw: cw_[un]register_signal_handler tests complete\n");
   return failures;
 }
 #endif
@@ -1575,14 +1575,14 @@ static int cw_self_test (unsigned int testset)
 	if (cw_is_oss_possible(NULL)) {
 		output = CW_AUDIO_OSS;
 	} else {
-		fprintf(stderr, "cwlib: OSS: soundcard device unavailable: %s\n", strerror(errno));
+		fprintf(stderr, "libcw: OSS: soundcard device unavailable: %s\n", strerror(errno));
 	}
 
 	if (output == CW_AUDIO_NONE) {
 		if (cw_is_alsa_possible(NULL)) {
 			output = CW_AUDIO_ALSA;
 		} else {
-			fprintf(stderr, "cwlib: ALSA: soundcard device unavailable: %s\n", strerror(errno));
+			fprintf(stderr, "libcw: ALSA: soundcard device unavailable: %s\n", strerror(errno));
 		}
 	}
 
@@ -1590,22 +1590,22 @@ static int cw_self_test (unsigned int testset)
 		if (cw_is_console_possible(NULL)) {
 			output = CW_AUDIO_OSS;
 		} else {
-			fprintf(stderr, "cwlib: console device cannot do sound: %s\n", strerror(errno));
+			fprintf(stderr, "libcw: console device cannot do sound: %s\n", strerror(errno));
 		}
 	}
 	if (output == CW_AUDIO_NONE) {
-		fprintf(stderr, "cwlib: no audio output available, stopping the test\n");
+		fprintf(stderr, "libcw: no audio output available, stopping the test\n");
 		return -1;
 	}
 
 	int rv = cw_generator_new(output, NULL);
 	if (rv != 1) {
-		fprintf(stderr, "cwlib: can't create generator, stopping the test\n");
+		fprintf(stderr, "libcw: can't create generator, stopping the test\n");
 		return -1;
 	}
 	rv = cw_generator_start();
 	if (rv != 1) {
-		fprintf(stderr, "cwlib: can't start generator, stopping the test\n");
+		fprintf(stderr, "libcw: can't start generator, stopping the test\n");
 		cw_generator_delete();
 		return -1;
 	}
@@ -1630,11 +1630,11 @@ static int cw_self_test (unsigned int testset)
 	/* All tests done; return success if no failures,
 	   otherwise return an error status code. */
 	if (failures == 0) {
-		fprintf(stderr, "cwlib: %d test%c completed SUCCESSFULLY\n",
+		fprintf(stderr, "libcw: %d test%c completed SUCCESSFULLY\n",
 			tests, tests == 1 ? ' ' : 's');
 		return 0;
 	} else {
-		fprintf(stderr, "cwlib: %d test%c completed with %d ERROR%c\n",
+		fprintf(stderr, "libcw: %d test%c completed with %d ERROR%c\n",
 			tests, tests == 1 ? ' ' : 's',
 			failures, failures == 1 ? ' ' : 'S');
 		return -1;
@@ -1670,7 +1670,7 @@ int main(int argc, const char *argv[])
 	/* Arrange for the test to exit on a range of signals. */
 	for (int i = 0; SIGNALS[i] != 0; i++) {
 		if (!cw_register_signal_handler(SIGNALS[i], SIG_DFL)) {
-			fprintf(stderr, "cwlib: ERROR: cw_register_signal_handler\n");
+			fprintf(stderr, "libcw: ERROR: cw_register_signal_handler\n");
 			exit(EXIT_FAILURE);
 		}
 	}

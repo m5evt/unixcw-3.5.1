@@ -1,5 +1,5 @@
 .\"
-.\" UnixCW CW Tutor Package - CWLIB
+.\" UnixCW CW Tutor Package - LIBCW
 .\" Copyright (C) 2001-2006  Simon Baldwin (simon_baldwin@yahoo.com)
 .\" Copyright (C) 2011       Kamil Ignacak (acerion@wp.pl)
 .\"
@@ -18,17 +18,17 @@
 .\" 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 .\"
 .\"
-.TH CWLIB 3 "CW Tutor Package" "cwlib ver. 3.0" \" -*- nroff -*-
+.TH LIBCW 3 "CW Tutor Package" "libcw ver. 3.0" \" -*- nroff -*-
 .SH NAME
 .\"
-cwlib \- general purpose Morse code functions library
+libcw \- general purpose Morse code functions library
 .\"
 .\"
 .\"
 .SH SYNOPSIS
 .\"
 .nf
-.B #include <cwlib.h>
+.B #include <libcw.h>
 .sp
 .fi
 include(signatures)
@@ -38,7 +38,7 @@ include(signatures)
 .\"
 .SS DESCRIPTION
 .\"
-.B cwlib
+.B libcw
 is a general purpose CW (Morse code) functions library.  It contains
 routines for converting characters into Morse code representations
 and back again, for sending Morse code characters, and for receiving
@@ -56,7 +56,7 @@ and the dot and dash representations for the various Morse characters.
 .\"
 .SS TONE QUEUE
 .\"
-.B cwlib
+.B libcw
 contains an inbuilt tone queue.  The queue is emptied by background
 processing, using SIGALRM calls and itimers, so a caller program can
 continue with other tasks while the library sends tones and keys any
@@ -71,14 +71,14 @@ functions are publicly available to caller programs.
 .\"
 .SS CONTROLLING AN EXTERNAL DEVICE
 .\"
-.B cwlib
+.B libcw
 may be passed the address of a function that controls external keying.
 This function is called each time the library changes the keying state,
 either as a result of sending a Morse character or representation, or
 as a result of an iambic keyer or straight key state change.  The argument
 passed is a single integer, TRUE for key-down, and FALSE for key-up.
 .PP
-.B cwlib
+.B libcw
 calls the external keying function only when the keying state changes.
 A call is likely each time a tone is taken off the tone queue.
 .PP
@@ -87,7 +87,7 @@ A call is likely each time a tone is taken off the tone queue.
 .\"
 .SS SENDING CW CHARACTERS AND STRINGS
 .\"
-.B cwlib
+.B libcw
 offers several functions that send individual characters and character
 strings as Morse code.  It also offers functions that allow
 specialized 'representations' to be sent.  A 'representation' is an ASCII
@@ -102,7 +102,7 @@ on the tone queue, for action by the background queue emptying process.
 .\"
 .SS RECEIVING CW CHARACTERS AND REPRESENTATIONS
 .\"
-.B cwlib
+.B libcw
 contains functions to allow it to receive Morse code.  To receive, the
 library must be told when a tone start is detected, and when a tone end
 is detected.  It then determines whether the tone was a dot or a dash
@@ -118,7 +118,7 @@ receive character functions.
 .\"
 .SS IAMBIC KEYER
 .\"
-.B cwlib
+.B libcw
 offers functions to simulate an Iambic Morse keyer.  The caller program
 needs to tell the library of paddle state changes.  Iambic keyer functions
 are mutually exclusive with character send and straight key functions.
@@ -128,7 +128,7 @@ are mutually exclusive with character send and straight key functions.
 .\"
 .SS STRAIGHT KEY
 .\"
-.B cwlib
+.B libcw
 offers simple functions to allow effective pass-through of straight key
 information.  The caller program needs to tell the library of key state
 changes.  Straight key functions are mutually exclusive with character
@@ -138,7 +138,7 @@ send and iambic keyer functions.
 .\"
 .\"
 .SS FUNCTIONS
-The following list describes the functions available to a \fBcwlib\fP caller:
+The following list describes the functions available to a \fBlibcw\fP caller:
 include(functions)
 .PP
 .\"
@@ -151,7 +151,7 @@ refers to Morse code elements as dots and dashes, DO NOT think in these
 terms when trying to learn Morse code.  Always think of them as 'dit's
 and 'dah's.
 .PP
-.B cwlib
+.B libcw
 uses system itimers for its internal timing.  On most UNIX flavours,
 itimers are not guaranteed to signal a program exactly at the specified
 time, and they generally offer a resolution only as good as the normal
