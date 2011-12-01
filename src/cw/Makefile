@@ -18,19 +18,19 @@
 
 include ../../Makefile.inc
 CC	= $(AC_CC)
-CFLAGS	= $(AC_CFLAGS) $(AC_DEFS) -I../cwlib -I../cwutils
+CFLAGS	= $(AC_CFLAGS) $(AC_DEFS) -I../libcw -I../cwutils
 GZIP	= $(AC_GZIP)
 
 SHELL	= /bin/sh
 
 default: all
 
-LIBS	= -L../cwlib -lcw
+LIBS	= -L../libcw -lcw
 
 # Build the cw binary.
 all: cw
 
-cw.o: cw.c ../cwlib/cwlib.h
+cw.o: cw.c ../libcw/libcw.h
 
 cw: cw.o
 	$(CC) -o $@ cw.o ../cwutils/i18n.o ../cwutils/cw_common.o ../cwutils/cmdline.o	\
@@ -71,12 +71,12 @@ check:
 # This test target can be invoked manually.
 real_check: all
 	( echo "Trying with OSS audio output";					\
-	  LD_LIBRARY_PATH=../cwlib:$$LD_LIBRARY_PATH ./cw -so -f test.cw ) || 	\
+	  LD_LIBRARY_PATH=../libcw:$$LD_LIBRARY_PATH ./cw -so -f test.cw ) || 	\
 	( echo "Retrying with ALSA audio output";			    	\
-	  LD_LIBRARY_PATH=../cwlib:$$LD_LIBRARY_PATH ./cw -sa -f test.cw ) ||	\
+	  LD_LIBRARY_PATH=../libcw:$$LD_LIBRARY_PATH ./cw -sa -f test.cw ) ||	\
 	( echo "Retrying with console audio output";			        \
-	  CWLIB_DEBUG=1 							\
-	  LD_LIBRARY_PATH=../cwlib:$$LD_LIBRARY_PATH ./cw -sc -f test.cw )
+	  LIBCW_DEBUG=1 							\
+	  LD_LIBRARY_PATH=../libcw:$$LD_LIBRARY_PATH ./cw -sc -f test.cw )
 
 # Unimplemented targets.
 TAGS:
