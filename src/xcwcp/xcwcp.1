@@ -258,7 +258,7 @@ unless user specifies other audio device with option \fI-d\fP or
 \fI\-\-device\fP.
 .PP
 It is very common that in order to access the console buzzer device
-user has to have root priviledges.  For that reason trying to open
+user has to have root privileges.  For that reason trying to open
 console buzzer almost always fails.  This is not a program's bug,
 this is a result of operating system's restrictions.
 Making \fBxcwcp\fP an suid binary bypasses this restriction.  The program
@@ -281,7 +281,7 @@ begin with.  It can however read in a file at startup that reconfigures
 these to provide different character groupings, word sets, and other
 practice data.
 .PP
-To read a configuration file, use the \fI-i\fP or \fI\-\-inifile\fP command
+To read a configuration file, use the \fI-i\fP or \fI\-\-infile\fP command
 line option.  The file should introduce each \fBxcwcp\fP mode with a
 section header in '[' ... ']' characters, followed by the practice text
 for that mode, with elements separated by whitespace.  Lines starting with
