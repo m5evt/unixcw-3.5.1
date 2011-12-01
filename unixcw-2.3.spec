@@ -66,7 +66,6 @@ rm -rf $RPM_BUILD_ROOT
 /usr/bin/cwgen
 /usr/bin/xcwcp
 
-/usr/include/cw.h
 /usr/include/cwlib.h
 
 /usr/lib/libcw.a
