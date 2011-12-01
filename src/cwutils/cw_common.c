@@ -126,7 +126,6 @@ int cw_config_is_valid(cw_config_t *config)
    For a lack of better place I put it in this file */
 int cw_generator_new_from_config(cw_config_t *config, const char *argv0)
 {
-
 	if (config->audio_system == CW_AUDIO_NONE
 	    || config->audio_system == CW_AUDIO_OSS
 	    || config->audio_system == CW_AUDIO_SOUNDCARD) {
@@ -171,14 +170,14 @@ int cw_generator_new_from_config(cw_config_t *config, const char *argv0)
 	    || config->audio_system == CW_AUDIO_CONSOLE) {
 
 		if (cw_is_console_possible(config->audio_device)) {
-			fprintf(stderr, "trying\n");
 			if (cw_generator_new(CW_AUDIO_CONSOLE, config->audio_device)) {
 				cw_generator_apply_config(config);
 				return CW_SUCCESS;
 			} else {
 				fprintf(stderr,
-					"%s: failed to open console output with device \"%s\"\n",
-					argv0, cw_get_soundcard_device());
+					"%s: failed to open console output with device %s\n",
+					/* FIXME: this condition doesn't look 100% correct */
+					argv0, cw_get_soundcard_device() ? cw_get_soundcard_device() : config->audio_device);
 			}
 		} else {
 			fprintf(stderr, "%s: console output not available\n", argv0);
