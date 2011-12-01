@@ -90,7 +90,7 @@ AC_FUNC_SELECT_ARGTYPES
 
 # Decide on which subdirectories to build; substitute into SUBDIRS.  Build
 # cwcp if curses is available, and xcwcp if Qt is available.
-SUBDIRS="cwlib cwutils cw cwgen"
+SUBDIRS="libcw cwutils cw cwgen"
 # Simple test for curses based on prior library check.
 if test $ac_cv_lib_curses_initscr = 'yes' ; then
   SUBDIRS="$SUBDIRS cwcp"
