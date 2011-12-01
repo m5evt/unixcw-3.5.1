@@ -7,7 +7,7 @@ quite found one that did the stuff I wanted.
 From the original UnixCW package came version 2.  This was almost a total
 rewrite, although it included the same basic binaries as were in version 1.
 The two major changes for this version were the addition of an extensive,
-general purpose CW library, and also an Xwindows-based CW tutor program.
+general purpose CW library, and also an X Window-based CW tutor program.
 
 With version 2.1, finally, came full sound card support, built into the CW
 library itself.  All three main user level programs that use the library were
@@ -23,8 +23,23 @@ volumes if it finds that it cannot do this with the main sound card device.
 Version 2.3 is a thorough overhaul, cleanup, and refactoring of version 2.2.
 All the code has been reformatted for correct Gnu style, and programs now take
 a lot more care over what they do, and don't do, in signal handler context.
-Cwcp and xcwcp now offer fully configurable modes and dictionaries through a
+cwcp and xcwcp now offer fully configurable modes and dictionaries through a
 configuration file option, and xcwcp has been rewritten in proper C++ style.
+
+Version 3.0 has been prepared and released by new maintainer, Kamil Ignacak.
+The takeover of unixcw has been discussed with and approved by Simon Baldwin.
+Main changes in 3.0 are:
+  o rewriting parts of libcw so that using OSS is less probable to cause
+    problems (this should solve at least one Debian bug)
+  o adding support for ALSA to libcw; libcw uses OSS as default audio system,
+    but there are no differences in support of OSS and ALSA in terms of
+    functionality
+  o porting xcwcp to Qt4
+The fact that there is a new maintainer should take some burden off of
+shoulders of Kamal Mostafa, who was responsible for (among other things)
+patching unixcw.
+Version 3.0 introduces some changes in API, and there should be some
+more API changes in 3.1. Hopefully things will be more stable in 3.2.
 
 
 The heart of the package is 'libcw'.  This is a library which, when built,
@@ -33,7 +48,7 @@ offers the following basic CW services to a caller program:
   o Morse code character translation tables, and lookup functions
   o Morse code low-level timing calculations
   o A 'sidetone' generation and queueing system, using either the system sound
-    card, the console speaker, or both
+    card or the console speaker
   o Optional keying control for an external device, say a transmitter, or an
     oscillator
   o CW character and string send routines, tied in with the character lookup
@@ -42,24 +57,37 @@ offers the following basic CW services to a caller program:
   o An iambic keyer, with both Curtis 8044 types A and B timing
   o Straight key emulation
 
-The library uses signals extensively to create a background task in which to do
+The library uses signals and threads to create a background task in which to do
 the majority of its work, leaving the main program free to handle other tasks.
 For example, the simplest CW sending program that uses the library looks like:
 
-    #include <cwlib.h>
-    int main ()
-    {
-      /* Start the string sending in the background. */
-      cw_send_string ("Hello, world");
-    
-      /* Wait for the string send to complete. */
-      cw_wait_for_tone_queue ();
-    }
+
+#include <libcw.h>
+
+int main ()
+{
+        /* Library initialization */
+        cw_generator_new(CW_AUDIO_ALSA, NULL);
+        cw_generator_start();
+
+        /* Start the string sending in the background. */
+        cw_send_string ("Hello, world");
+
+        /* Wait for the string send to complete. */
+        cw_wait_for_tone_queue();
+
+        /* Library cleanup */
+        cw_generator_stop();
+        cw_generator_delete();
+
+        return;
+}
+
 
 Instead of the cw_tone_queue_wait() call, this program could instead handle any
 other work it has to do, asynchronously from the CW library's sending.
 
-As well as the handful of applications included in UnixCW 2.3, the following
+As well as the handful of applications included in UnixCW 3.0, the following
 sorts of programs might also use 'libcw' as their core:
 
   o A fully graphical CW send and receive station
@@ -71,7 +99,7 @@ sorts of programs might also use 'libcw' as their core:
   o A more comprehensive CW tutor program
   o An automated Morse Code testing application
 
-'cwlib' is written in C for easy portability and use.
+'libcw' is written in C for easy portability and use.
 
 
 The package comes with four basic applications:
@@ -87,28 +115,28 @@ The package comes with four basic applications:
 
   o cwcp   A curses-based program that generates groups of characters from
            selected sets, words, and CW abbreviations randomly, and sounds
-           them using 'cwlib'.  It owes much to CP222.EXE, by VU2ZAP.
+           them using 'libcw'.  It owes much to CP222.EXE, by VU2ZAP.
 
-  o xcwcp  An X-based CW tutor program.  It offers the same random and keyboard
-           sending as 'cwcp', and in addition can read CW that sent to it
-           using the keyboard or mouse as a keyer, making it useful for sending
-           as well as receiving practice.
+  o xcwcp  A CW tutor program for X Window environment.  It offers the same
+           random and keyboard sending as 'cwcp', and in addition can read
+           CW that sent to it using the keyboard or mouse as a keyer, making
+           it useful for sending as well as receiving practice.
 
-'cwlib', 'cw', and 'cwgen' require a C compiler.  'cwcp' requires a C compiler
+'libcw', 'cw', and 'cwgen' require a C compiler.  'cwcp' requires a C compiler
 and a Curses library.  'xcwcp' requires a C++ compiler and a copy of the
-Trolltech Qt library.  This library is fairly standard on Linux systems, as it
-is the basis of KDE, so relying on this should not be too much of a problem.
+Qt library (version 4).  This library is fairly standard on Linux systems, as
+it is the basis of KDE, so relying on this should not be too much of a problem.
 
 
-See INSTALLING for details on how to build UnixCW version 2.3 from the
+See INSTALLING for details on how to build UnixCW version 3.0 from the
 distributed sources.
 
-UnixCW is distributed under the GNU GPL.  See COPYING for details.
+UnixCW is distributed under the GNU GPL 2 (or later).  See COPYING for details.
 
 
 Thanks to...
 
-Kamal Mostafa, KA6MAL, for reviewing the cwlib API, showing me the errors of my
+Kamal Mostafa, KA6MAL, for reviewing the libcw API, showing me the errors of my
 ways with 64-bit integers, and hounding me to add the adaptive receive speed
 tracking...
 
@@ -139,4 +167,10 @@ card, the package would not have progressed at all.
 
 
 Simon Baldwin, G0FRD <simon_baldwin@yahoo.com>
+
+-------------------------
+
+Kamil Ignacak <acerion@wp.pl>
+
+
 
