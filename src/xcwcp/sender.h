@@ -57,7 +57,7 @@ class Sender
   Display *display_;
 
   // Deque and queue manipulation functions, used to handle and maintain the
-  // buffer of characters awaiting cwlib send.
+  // buffer of characters awaiting libcw send.
   bool is_queue_idle_;
   std::deque<char> send_queue_;
   void dequeue_character ();

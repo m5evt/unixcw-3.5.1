@@ -78,9 +78,9 @@ class Application : public QMainWindow
   void poll_timer_event ();
 
  private:
-  // Class variable to enable sharing of the cwlib across instances.  Set to
+  // Class variable to enable sharing of the libcw across instances.  Set to
   // the 'this' of the CW user instance, or NULL if no current user.
-  static Application *cwlib_user_application_instance;
+  static Application *libcw_user_application_instance;
 
   QPixmap xcwcp_icon;
 
@@ -133,21 +133,21 @@ class Application : public QMainWindow
 
   // Poll timer, used to ensure that all of the application processing can
   // be handled in the foreground, rather than in the signal handling context
-  // of a cwlib tone queue low callback.
+  // of a libcw tone queue low callback.
   QTimer *poll_timer_;
 
-  // Flag indicating if this instance is currently using the cwlib.
-  bool is_using_cwlib_;
+  // Flag indicating if this instance is currently using the libcw.
+  bool is_using_libcw_;
 
   // Saved receive speed, used to reinstate adaptive tracked speed on start.
   int saved_receive_speed_;
 
-  // Keying callback function for cwlib.  There is a static version for
+  // Keying callback function for libcw.  There is a static version for
   // the whole class, and an instance version for each object.  The class
   // version calls the relevant instance version, based on which instance is
-  // the current registered cwlib user.
-  static void cwlib_keying_event_static (void *, int key_state);
-  void cwlib_keying_event (int key_state);
+  // the current registered libcw user.
+  static void libcw_keying_event_static (void *, int key_state);
+  void libcw_keying_event (int key_state);
 
   // Wrappers for creating UI.
   void make_central_widget(void);

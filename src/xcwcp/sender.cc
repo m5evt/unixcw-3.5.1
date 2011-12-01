@@ -29,7 +29,7 @@
 #include "display.h"
 #include "modeset.h"
 
-#include "cwlib.h"
+#include "libcw.h"
 
 #include "i18n.h"
 

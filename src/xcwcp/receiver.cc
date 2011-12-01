@@ -27,7 +27,7 @@
 #include "display.h"
 #include "modeset.h"
 
-#include "cwlib.h"
+#include "libcw.h"
 
 #include "i18n.h"
 
@@ -48,8 +48,8 @@ Receiver::poll (const Mode *current_mode)
   if (current_mode->is_receive ())
     {
       // Report and clear any receiver errors noted when handling the last
-      // cwlib keyer event.
-      if (cwlib_receive_errno_ != 0)
+      // libcw keyer event.
+      if (libcw_receive_errno_ != 0)
         poll_report_receive_error ();
 
       // If we are awaiting a possible space, poll that first, then go on
@@ -172,7 +172,7 @@ Receiver::handle_mouse_event (QMouseEvent *event, const Mode *current_mode,
 }
 
 
-// handle_cwlib_keying_event()
+// handle_libcw_keying_event()
 //
 // Handler for the keying callback from the CW library indicating that the
 // keying state changed.  The function handles the receive of keyed CW,
@@ -183,7 +183,7 @@ Receiver::handle_mouse_event (QMouseEvent *event, const Mode *current_mode,
 // it goes out of its way to deliver results by setting flags that are
 // later handled by receive polling.
 void
-Receiver::handle_cwlib_keying_event (int key_state)
+Receiver::handle_libcw_keying_event (int key_state)
 {
   // Ignore calls where the key state matches our tracked key state.  This
   // avoids possible problems where this event handler is redirected between
@@ -227,7 +227,7 @@ Receiver::handle_cwlib_keying_event (int key_state)
 
             case ENOMEM:
             case ENOENT:
-              cwlib_receive_errno_ = errno;
+              libcw_receive_errno_ = errno;
               cw_clear_receive_buffer ();
               break;
 
@@ -248,23 +248,23 @@ Receiver::clear ()
 {
   cw_clear_receive_buffer ();
   is_pending_space_ = false;
-  cwlib_receive_errno_ = 0;
+  libcw_receive_errno_ = 0;
   tracked_key_state_ = FALSE;
 }
 
 
 // poll_report_receive_error()
 //
-// Handle any error registered when handling a cwlib keying event.
+// Handle any error registered when handling a libcw keying event.
 void
 Receiver::poll_report_receive_error ()
 {
   // Handle any receive errors detected on tone end but delayed until here.
-  display_->show_status (cwlib_receive_errno_ == ENOENT
+  display_->show_status (libcw_receive_errno_ == ENOENT
                          ? _("Badly formed CW element")
                          : _("Receive buffer overrun"));
 
-  cwlib_receive_errno_ = 0;
+  libcw_receive_errno_ = 0;
 }
 
 

@@ -28,7 +28,7 @@
 //-----------------------------------------------------------------------
 
 // Encapsulates the main application receiver data and functions.  Receiver
-// abstracts states associated with receiving, event handling, cwlib keyer
+// abstracts states associated with receiving, event handling, libcw keyer
 // event handling, and data passed between signal handler and foreground
 // contexts.
 
@@ -42,7 +42,7 @@ class Receiver
  public:
   Receiver (Display *display)
     : display_ (display),
-      is_pending_space_ (false), cwlib_receive_errno_ (0),
+      is_pending_space_ (false), libcw_receive_errno_ (0),
       tracked_key_state_ (false) { }
 
   // Poll timeout handler, and keypress and mouse event handlers.
@@ -53,7 +53,7 @@ class Receiver
                            bool is_reverse_paddles);
 
   // CW library keying event handler.
-  void handle_cwlib_keying_event (int key_state);
+  void handle_libcw_keying_event (int key_state);
 
   // Clear out queued data on stop, mode change, etc.
   void clear ();
@@ -67,7 +67,7 @@ class Receiver
   // errno detected in signal handler context and needing to be passed to
   // the foreground.
   volatile bool is_pending_space_;
-  volatile int cwlib_receive_errno_;
+  volatile int libcw_receive_errno_;
 
   // Safety flag to ensure that we keep the library in sync with keyer events.
   // Without, there's a chance that of a on-off event, one half will go to one

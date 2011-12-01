@@ -36,7 +36,7 @@
 
 #include "application.h"
 
-#include "cwlib.h"
+#include "libcw.h"
 
 #include "i18n.h"
 #include "cmdline.h"
