@@ -22,7 +22,7 @@ include Makefile.inc
 SHELL	= /bin/sh
 SUBDIRS	= src
 
-DIST	= unixcw-2.3
+DIST	= unixcw-3.0
 
 # Top level makefile - descends into subdirectories and executes the make in
 # these one at a time.
