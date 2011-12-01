@@ -96,12 +96,18 @@ install-arch:
 	install -d debian/tmp/usr/share/doc/xcwcp
 
 	dh_install --sourcedir=debian/tmp
+
 	mkdir -p debian/cw/DEBIAN
 	po2debconf debian/cw.templates > debian/cw/DEBIAN/templates
 	install debian/cw.config debian/cw/DEBIAN/config
+
 	mkdir -p debian/cwcp/DEBIAN
 	po2debconf debian/cwcp.templates > debian/cwcp/DEBIAN/templates
 	install debian/cwcp.config debian/cwcp/DEBIAN/config
+
+	mkdir -p debian/xcwcp/DEBIAN
+	po2debconf debian/xcwcp.templates > debian/xcwcp/DEBIAN/templates
+	install debian/xcwcp.config debian/xcwcp/DEBIAN/config
 
 # Must not depend on anything. This is to be called by
 # binary-arch/binary-indep
