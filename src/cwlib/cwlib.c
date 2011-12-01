@@ -5381,6 +5381,11 @@ int cw_generator_new(int audio_system, const char *device)
 	}
 
 	if (rv == CW_SUCCESS) {
+		if (audio_system == CW_AUDIO_CONSOLE) {
+			/* console output does not require audio buffer */
+			return CW_SUCCESS;
+		}
+
 		generator->buffer = (cw_sample_t *) malloc(generator->buffer_n_samples * sizeof (cw_sample_t));
 		if (generator->buffer != NULL) {
 			return CW_SUCCESS;
