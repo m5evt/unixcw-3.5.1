@@ -17,20 +17,20 @@
 #
 
 # Autoconfigure definitions.
-AC_CC		= gcc
-AC_CFLAGS	= -g -O2 -Wall -W -pedantic -Wfloat-equal -Wpointer-arith -std=gnu99 -Wcast-qual -Wwrite-strings -Wmissing-prototypes -Wstrict-prototypes -Wmissing-declarations -Wredundant-decls
-AC_CXX		= g++
-AC_CXXFLAGS	= -g -O2 -Wall -W -pedantic -Wno-long-long
+AC_CC		= x86_64-linux-gnu-gcc
+AC_CFLAGS	= -Wall -g -std=gnu99 -O2
+AC_CXX		= x86_64-linux-gnu-g++
+AC_CXXFLAGS	= -g -O2
 AC_DEFS		= -DHAVE_CONFIG_H
 AC_GZIP		= /bin/gzip
-AC_LDCONFIG	= :
-AC_LIBS		= -lcurses
+AC_LDCONFIG	= /sbin/ldconfig
+AC_LIBS		= -lcurses 
 AC_AWK		= gawk
 AC_RANLIB	= ranlib
 # AC_QTDIR	= @QTDIR@
 # AC_QTMOC	= @QTMOC@
-AC_QT4INC	= /usr/include/qt4
-AC_QT4MOC	= /usr/bin/moc-qt4
+AC_QT4INC	= /usr/share/qt4/include
+AC_QT4MOC	= /usr/share/qt4/bin/moc
 AC_CFLAG_PIC	= -fPIC
 AC_SUBDIRS	= libcw cwutils cw cwgen cwcp xcwcp
 AC_CC_LINKS_SO	= yes
@@ -42,7 +42,7 @@ AC_LN_S		= ln -s
 INSTALL		= /usr/bin/install -c
 INSTALL_PROGRAM	= ${INSTALL}
 INSTALL_DATA	= ${INSTALL} -m 644
-prefix		= /usr/local
+prefix		= /usr
 exec_prefix	= ${prefix}
 includedir	= ${prefix}/include
 bindir		= ${exec_prefix}/bin
