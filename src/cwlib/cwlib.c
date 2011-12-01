@@ -6136,7 +6136,7 @@ void cw_close_device_oss(void)
 /**
    \brief Write a constant sine wave to OSS output
 
-   \param arg - current generator (casted to (void *)
+   \param arg - current generator (casted to (void *))
 
    \return NULL pointer
 */
@@ -6292,7 +6292,7 @@ void cw_close_device_alsa(void)
 /**
    \brief Write a constant sine wave to ALSA output
 
-   \param arg - current generator (casted to (void *)
+   \param arg - current generator (casted to (void *))
 
    \return NULL pointer
 */
