@@ -2,7 +2,9 @@ Template: cwcp/suid_bit
 Type: boolean
 Default: false
 _Description: Make cwcp setuid root?
- The cwcp program only runs correctly as the root user. One way of doing
- this is to make the program setuid root. This is generally a bad idea as
- there are better ways, such as using the sudo program, to do this.
- However, you have the option here of making it setuid root if you like.
+ cwcp can produce sounds using console buzzer, but this feature
+ is available only if cwcp is run by root user.
+ You can achieve this by setting setuid bit here (not recommended)
+ or by running cwcp with sudo (also not recommended). You can also
+ use soundcard output instead of console buzzer output and
+ eliminate this problem completely.
