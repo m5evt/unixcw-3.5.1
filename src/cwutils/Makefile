@@ -18,7 +18,7 @@
 
 include ../../Makefile.inc
 CC	= $(AC_CC)
-CFLAGS	= $(AC_CFLAGS) $(AC_DEFS) -I../cwlib
+CFLAGS	= $(AC_CFLAGS) $(AC_DEFS) -I../libcw
 
 SHELL	= /bin/sh
 

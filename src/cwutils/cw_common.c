@@ -19,14 +19,14 @@
 
 
 /* Code that is common for all _applications_ from unixcw package.
-   Wrappers for some cwlib functions, that probably don't belong
-   to cwlib.c. */
+   Wrappers for some libcw functions, that probably don't belong
+   to libcw.c. */
 
 
 #include <stdio.h>  /* fprintf(stderr, ...) */
 #include <stdlib.h> /* malloc() / free() */
 
-#include "cwlib.h"
+#include "libcw.h"
 #include "cw_common.h"
 
 static void cw_generator_apply_config(cw_config_t *config);
@@ -39,7 +39,7 @@ cw_config_t *cw_config_new(void)
 {
 	cw_config_t *config = (cw_config_t *) malloc(sizeof (cw_config_t));
 	if (!config) {
-		fprintf(stderr, "cwlib: can't allocate memory for configuration\n");
+		fprintf(stderr, "libcw: can't allocate memory for configuration\n");
 		return NULL;
 	}
 
@@ -104,8 +104,8 @@ int cw_config_is_valid(cw_config_t *config)
 	/* Deal with odd argument combinations. */
         if (config->audio_device) {
 		if (config->audio_system == CW_AUDIO_SOUNDCARD) {
-			fprintf(stderr, "cwlib: a device has been specified for 'soundcard' argument\n");
-			fprintf(stderr, "cwlib: a device can be specified only for 'console', 'oss' or 'alsa'\n");
+			fprintf(stderr, "libcw: a device has been specified for 'soundcard' argument\n");
+			fprintf(stderr, "libcw: a device can be specified only for 'console', 'oss' or 'alsa'\n");
 			return CW_FAILURE;
 		} else {
 			; /* audio_system is one that accepts custom "audio device" */
