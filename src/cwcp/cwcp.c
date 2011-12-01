@@ -39,7 +39,7 @@
 # include <strings.h>
 #endif
 
-#include "cwlib.h"
+#include "libcw.h"
 
 #include "i18n.h"
 #include "cmdline.h"
@@ -640,18 +640,18 @@ mode_buffer_random_text (moderef_t mode)
 
 
 /*
- * mode_cwlib_poll_sender()
+ * mode_libcw_poll_sender()
  *
  * Poll the CW library tone queue, and if it is getting low, arrange for
  * more data to be passed in to the sender.
  */
 static void
-mode_cwlib_poll_sender (void)
+mode_libcw_poll_sender (void)
 {
   if (cw_get_tone_queue_length () <= 1)
     {
       /*
-       * If sending is active, arrange more data for cwlib.  The source for
+       * If sending is active, arrange more data for libcw.  The source for
        * this data is dependent on the mode.  If in dictionary modes, update
        * and check the timer, then add more random data if the queue is empty.
        * If in keyboard mode, just dequeue anything currently on the character
@@ -1291,7 +1291,7 @@ poll_until_keypress_ready (int fd, int usecs)
         }
 
       /* Poll the sender on timeouts and on reads; it's just easier. */
-      mode_cwlib_poll_sender ();
+      mode_libcw_poll_sender ();
     }
   while (fd_count != 1);
 }
@@ -1391,7 +1391,7 @@ int main(int argc, char **argv)
 	/*
 	 * Initialize the curses user interface, then catch and action every
 	 * keypress we see.  Before calling getch, wait until data is available on
-	 * stdin, polling the cwlib sender.  At 60WPM, a dot is 20ms, so polling
+	 * stdin, polling the libcw sender.  At 60WPM, a dot is 20ms, so polling
 	 * for the maximum library speed needs a 10ms (10,000usec) timeout.
 	 */
 	interface_initialize ();

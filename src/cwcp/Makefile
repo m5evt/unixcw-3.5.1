@@ -18,9 +18,9 @@
 
 include ../../Makefile.inc
 CC	= $(AC_CC)
-CFLAGS	= $(AC_CFLAGS) $(AC_DEFS) -I../cwlib -I../cwutils
+CFLAGS	= $(AC_CFLAGS) $(AC_DEFS) -I../libcw -I../cwutils
 GZIP	= $(AC_GZIP)
-LIBS	= $(AC_LIBS) -L../cwlib -lcw
+LIBS	= $(AC_LIBS) -L../libcw -lcw
 
 SHELL	= /bin/sh
 
@@ -29,7 +29,7 @@ default: all
 # Build the cwcp binary.
 all: cwcp
 
-cwcp.o: cwcp.c ../cwlib/cwlib.h
+cwcp.o: cwcp.c ../libcw/libcw.h
 
 cwcp: cwcp.o
 	$(CC) $(LDFLAGS) -o $@ cwcp.o ../cwutils/i18n.o ../cwutils/cw_common.o ../cwutils/cmdline.o \
@@ -68,12 +68,12 @@ check:
 # This test target can be invoked manually.
 real_check: all
 	( echo "Trying with OSS audio output";				\
-	  LD_LIBRARY_PATH=../cwlib:$$LD_LIBRARY_PATH ./cwcp -so ) ||	\
+	  LD_LIBRARY_PATH=../libcw:$$LD_LIBRARY_PATH ./cwcp -so ) ||	\
 	( echo "Retrying with ALSA audio output";			\
-	  LD_LIBRARY_PATH=../cwlib:$$LD_LIBRARY_PATH ./cwcp -sa ) ||	\
+	  LD_LIBRARY_PATH=../libcw:$$LD_LIBRARY_PATH ./cwcp -sa ) ||	\
 	( echo "Retrying with console audio output";			\
-	  CWLIB_DEBUG=1 						\
-	  LD_LIBRARY_PATH=../cwlib:$$LD_LIBRARY_PATH ./cwcp -sc )
+	  LIBCW_DEBUG=1 						\
+	  LD_LIBRARY_PATH=../libcw:$$LD_LIBRARY_PATH ./cwcp -sc )
 
 # Unimplemented targets.
 TAGS:
