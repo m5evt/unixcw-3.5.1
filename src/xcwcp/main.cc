@@ -58,7 +58,7 @@ std::string argv0;
 std::string all_options = "s:|sound,d:|device,"
 	"w:|wpm,t:|tone,v:|volume,"
 	"g:|gap,k:|weighting,"
-	"i:|inifile,F:|outfile,"
+	"i:|infile,F:|outfile,"
 	"p:|time,"
 	"h|help,V|version";
 
