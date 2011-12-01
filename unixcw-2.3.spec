@@ -66,7 +66,7 @@ rm -rf $RPM_BUILD_ROOT
 /usr/bin/cwgen
 /usr/bin/xcwcp
 
-/usr/include/cwlib.h
+/usr/include/libcw.h
 
 /usr/lib/libcw.a
 /usr/lib/libcw.so
@@ -78,7 +78,7 @@ rm -rf $RPM_BUILD_ROOT
 /usr/man/man1/cwgen.1.gz
 /usr/man/man1/xcwcp.1.gz
 
-/usr/man/man3/cwlib.3.gz
+/usr/man/man3/libcw.3.gz
 
 /usr/man/man7/CW.7.gz
 /usr/man/man7/cw.7.gz
