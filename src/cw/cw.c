@@ -611,7 +611,7 @@ int main (int argc, char *const argv[])
 	}
 
 	if (!cw_generator_new_from_config(config, argv0)) {
-		fprintf(stderr, "%s: failed to create generator with device '%s'\n", argv0, config->audio_device);
+		//fprintf(stderr, "%s: failed to create generator with device '%s'\n", argv0, config->audio_device);
 		return EXIT_FAILURE;
 	}
 
