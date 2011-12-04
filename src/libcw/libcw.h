@@ -67,11 +67,11 @@ typedef struct cw_gen_struct cw_gen_t;
 #define CW_FREQUENCY_MIN         0   /* Lowest tone allowed (0=silent) */
 #define CW_FREQUENCY_MAX      4000   /* Highest tone allowed */
 #define CW_FREQUENCY_INITIAL   800   /* Initial tone in Hz */
-#define CW_FREQUENCY_STEP      100
+#define CW_FREQUENCY_STEP       20
 #define CW_VOLUME_MIN            0   /* Quietest volume allowed (0=silent) */
 #define CW_VOLUME_MAX          100   /* Loudest volume allowed */
 #define CW_VOLUME_INITIAL       70   /* Initial volume percent */
-#define CW_VOLUME_STEP           5
+#define CW_VOLUME_STEP           1
 #define CW_GAP_MIN               0   /* Lowest extra gap allowed */
 #define CW_GAP_MAX              60   /* Highest extra gap allowed */
 #define CW_GAP_INITIAL           0   /* Initial gap setting */
