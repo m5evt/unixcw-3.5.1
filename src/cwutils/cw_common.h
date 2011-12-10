@@ -46,6 +46,7 @@ typedef struct {
 	int is_cw;
 	int has_practice_time;
 	int has_outfile;
+	bool has_infile;
 
 	/*
 	 * Program-specific state variables, settable from the command line, or from
