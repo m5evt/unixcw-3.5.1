@@ -8,7 +8,7 @@ Build-Depends: debhelper (>=7), libasound2-dev, libqt4-dev, libncurses5-dev, po-
 Package: libcw3
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Replaces : unixcw
+Replaces: unixcw
 Recommends: cw | cwcp | xcwcp
 Description: Shared library for Morse programs
  Shared library files for cw, cwcp and xcwcp programs.
