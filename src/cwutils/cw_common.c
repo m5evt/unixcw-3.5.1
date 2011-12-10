@@ -57,6 +57,7 @@ cw_config_t *cw_config_new(void)
 	config->is_cw = 0;
 	config->has_practice_time = 0;
 	config->has_outfile = 0;
+	config->has_infile = true; /* TODO: set to false by default, update sources */
 
 	config->do_echo = TRUE;
 	config->do_errors = TRUE;
