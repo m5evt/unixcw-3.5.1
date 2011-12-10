@@ -123,23 +123,26 @@ combine_arguments (const char *env_variable,
 /*  Option handling helpers                                            */
 /*---------------------------------------------------------------------*/
 
-enum { FALSE = 0, TRUE = !FALSE };
 
 
-/*
- * has_longopts()
- *
- * Returns TRUE if the system supports long options, FALSE otherwise.
- */
-int
-has_longopts (void)
+
+/**
+   \brief Check if target system supports long options
+
+   \return true the system supports long options,
+   \return false otherwise
+*/
+bool has_longopts(void)
 {
 #if defined(HAVE_GETOPT_LONG)
-  return TRUE;
+	return true;
 #else
-  return FALSE;
+	return false;
 #endif
 }
+
+
+
 
 
 /*
@@ -254,7 +257,7 @@ get_option (int argc, char *const argv[],
         option_string = NULL;
       }
 
-    /* Return the option and argument, with FALSE if no more arguments. */
+    /* Return the option and argument, with false if no more arguments. */
     *option = opt;
     *argument = optarg;
     return !(opt == -1);
@@ -276,9 +279,12 @@ get_optind (void)
 
 void cw_print_help(const char *argv0, cw_config_t *config)
 {
-	/* TODO: make use of this */
 	/* int format = has_longopts() */
-	fprintf(stderr, _("Usage: %s [options...]\n\n"), argv0);
+	fprintf(stderr, _("Usage: %s [options...]\n"), argv0);
+
+	if (!has_longopts()) {
+		fprintf(stderr, _("Long format of options is not supported on your system\n\n"));
+	}
 
 	fprintf(stderr, _("Audio system options:\n"));
 	fprintf(stderr, _("  -s, --system=SYSTEM\n"));
@@ -294,9 +300,9 @@ void cw_print_help(const char *argv0, cw_config_t *config)
 	fprintf(stderr, _("        use DEVICE as output device instead of default one;\n"));
 	fprintf(stderr, _("        optional for {console|alsa|oss};\n"));
 	fprintf(stderr, _("        default devices are:\n"));
-	fprintf(stderr, _("        'console': %s\n"), CW_DEFAULT_CONSOLE_DEVICE);
-	fprintf(stderr, _("        'oss': %s\n"), CW_DEFAULT_OSS_DEVICE);
-	fprintf(stderr, _("        'alsa': %s\n\n"), CW_DEFAULT_ALSA_DEVICE);
+	fprintf(stderr, _("        'console': \"%s\"\n"), CW_DEFAULT_CONSOLE_DEVICE);
+	fprintf(stderr, _("        'oss': \"%s\"\n"), CW_DEFAULT_OSS_DEVICE);
+	fprintf(stderr, _("        'alsa': \"%s\"\n\n"), CW_DEFAULT_ALSA_DEVICE);
 
 	fprintf(stderr, _("Sending options:\n"));
 
@@ -327,12 +333,15 @@ void cw_print_help(const char *argv0, cw_config_t *config)
 		fprintf(stderr, _("  -p, --nocomments       disallow {...} comments\n"));
 	}
 	if (config->has_practice_time) {
-		fprintf(stderr, _("  -T, --time=TIME    set initial practice time\n"));
-		fprintf(stderr, _("                     default value: %d\n"), CW_PRACTICE_TIME_INITIAL);
+		fprintf(stderr, _("  -T, --time=TIME        set initial practice time (in minutes)\n"));
+		fprintf(stderr, _("                         valid values: %d - %d\n"), CW_PRACTICE_TIME_MIN, CW_PRACTICE_TIME_MAX);
+		fprintf(stderr, _("                         default value: %d\n"), CW_PRACTICE_TIME_INITIAL);
 	}
-	fprintf(stderr, _("  -f, --infile=FILE      read practice words from FILE\n"));
+	if (config->has_infile) {
+		fprintf(stderr, _("  -f, --infile=FILE      read practice words from FILE\n"));
+	}
 	if (config->has_outfile) {
-		fprintf(stderr, _("  -F, --outfile=FILE        write current practice words to FILE\n"));
+		fprintf(stderr, _("  -F, --outfile=FILE     write current practice words to FILE\n"));
 	}
 	if (config->is_cw) {
 		fprintf(stderr, _("                         default file: stdin\n"));
@@ -402,7 +411,7 @@ int cw_process_option(int opt, const char *optarg, cw_config_t *config, const ch
 		break;
 
 	case 'd':
-		fprintf(stderr, "libcw: d:%s\n", optarg);
+		// fprintf(stderr, "libcw: d:%s\n", optarg);
 		if (optarg && strlen(optarg)) {
 			config->audio_device = strdup(optarg);
 		} else {
@@ -413,7 +422,7 @@ int cw_process_option(int opt, const char *optarg, cw_config_t *config, const ch
 
 	case 'w':
 		{
-			fprintf(stderr, "libcw: w:%s\n", optarg);
+			// fprintf(stderr, "libcw: w:%s\n", optarg);
 			int speed = atoi(optarg);
 			if (speed < CW_SPEED_MIN || speed > CW_SPEED_MAX) {
 				fprintf(stderr, "libcw: speed out of range: %d\n", speed);
@@ -426,7 +435,7 @@ int cw_process_option(int opt, const char *optarg, cw_config_t *config, const ch
 
 	case 't':
 		{
-			fprintf(stderr, "libcw: t:%s\n", optarg);
+			// fprintf(stderr, "libcw: t:%s\n", optarg);
 			int frequency = atoi(optarg);
 			if (frequency < CW_FREQUENCY_MIN || frequency > CW_FREQUENCY_MAX) {
 				fprintf(stderr, "libcw: frequency out of range: %d\n", frequency);
@@ -439,9 +448,9 @@ int cw_process_option(int opt, const char *optarg, cw_config_t *config, const ch
 
 	case 'v':
 		{
-			fprintf(stderr, "libcw: v:%s\n", optarg);
+			// fprintf(stderr, "libcw: v:%s\n", optarg);
 			int volume = atoi(optarg);
-			if (volume < CW_FREQUENCY_MIN || volume > CW_FREQUENCY_MAX) {
+			if (volume < CW_VOLUME_MIN || volume > CW_VOLUME_MAX) {
 				fprintf(stderr, "libcw: volume level out of range: %d\n", volume);
 				return CW_FAILURE;
 			} else {
@@ -452,7 +461,7 @@ int cw_process_option(int opt, const char *optarg, cw_config_t *config, const ch
 
 	case 'g':
 		{
-			fprintf(stderr, "libcw: g:%s\n", optarg);
+			// fprintf(stderr, "libcw: g:%s\n", optarg);
 			int gap = atoi(optarg);
 			if (gap < CW_GAP_MIN || gap > CW_GAP_MAX) {
 				fprintf(stderr, "libcw: gap out of range: %d\n", gap);
@@ -465,7 +474,7 @@ int cw_process_option(int opt, const char *optarg, cw_config_t *config, const ch
 
 	case 'k':
 		{
-			fprintf(stderr, "libcw: k:%s\n", optarg);
+			// fprintf(stderr, "libcw: k:%s\n", optarg);
 			int weighting = atoi(optarg);
 			if (weighting < CW_WEIGHTING_MIN || weighting > CW_WEIGHTING_MAX) {
 				fprintf(stderr, "libcw: weighting out of range: %d\n", weighting);
@@ -478,7 +487,7 @@ int cw_process_option(int opt, const char *optarg, cw_config_t *config, const ch
 
 	case 'T':
 		{
-			fprintf(stderr, "libcw: T:%s\n", optarg);
+			// fprintf(stderr, "libcw: T:%s\n", optarg);
 			int time = atoi(optarg);
 			if (time < 0) {
 				fprintf(stderr, "libcw: practice time is negative\n");
@@ -510,23 +519,23 @@ int cw_process_option(int opt, const char *optarg, cw_config_t *config, const ch
 		break;
 
         case 'e':
-		config->do_echo = FALSE;
+		config->do_echo = false;
 		break;
 
         case 'm':
-		config->do_errors = FALSE;
+		config->do_errors = false;
 		break;
 
         case 'c':
-		config->do_commands = FALSE;
+		config->do_commands = false;
 		break;
 
         case 'o':
-		config->do_combinations = FALSE;
+		config->do_combinations = false;
 		break;
 
         case 'p':
-		config->do_comments = FALSE;
+		config->do_comments = false;
 		break;
 
 	case 'h':
