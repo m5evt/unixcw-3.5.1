@@ -62,7 +62,7 @@ static const char *all_options = "s:|system,d:|device,"
 	"w:|wpm,t:|tone,v:|volume,"
 	"g:|gap,k:|weighting,"
 	"f:|infile,F:|outfile,"
-	"p:|time,"
+	"T:|time,"
 	/* "c:|colours,c:|colors,m|mono," */
 	"h|help,V|version";
 static cw_config_t *config;
@@ -701,21 +701,24 @@ mode_is_sending_active (void)
  * User interface introduction strings, split in two to avoid the 509
  * character limit imposed by ISO C89 on string literal lengths.
  */
-static const char *const INTRODUCTION = N_("\n"
+static const char *const INTRODUCTION = N_(
   "UNIX/Linux Morse Tutor v3.0\n"
-  "Copyright (C) 1997-2006 Simon Baldwin, 2011 Kamil Ignacak\n"
-  "--------------------------------------------------------\n\n"
+  "Copyright (C) 1997-2006 Simon Baldwin\n"
+  "Copyright (C) 2011      Kamil Ignacak\n"
+  "---------------------------------------------------------\n"
   "Cwcp is an interactive Morse code tutor program, designed\n"
   "both for learning Morse code for the first time, and for\n"
   "experienced Morse users who want, or need, to improve\n"
-  "their receiving speed.\n\n");
-static const char *const INTRODUCTION_CONTINUED = N_("\n"
-  "To use the program, select a mode from those listed on\n"
-  "the left, and begin sending by pressing Return or F9.\n\n"
-  "You can vary the speed, tone, volume, and spacing of the\n"
-  "Morse code at any time using the appropriate keys.\n\n"
-  "To stop sending, press F9.  To stop the program, select\n"
-  "Exit from the Mode menu, or use F12 or ^C.\n");
+  "their receiving speed.\n");
+static const char *const INTRODUCTION_CONTINUED = N_(
+  "---------------------------------------------------------\n"
+  "Select mode:                   Up/Down arrow/F10/F11\n"
+  "Start sending selected mode:   Enter/F9\n"
+  "Pause:                         F9/Esc\n"
+  "Resume:                        F9\n"
+  "Exit program:                  menu->Exit/F12/^C\n"
+  "Use keys specified below to adjust speed, tone, volume,\n"
+  "and spacing of the Morse code at any time.\n");
 
 /* Alternative F-keys for folks without (some, or all) F-keys. */
 enum
@@ -1370,6 +1373,7 @@ int main(int argc, char **argv)
 		fprintf(stderr, "%s: failed to create generator\n", argv0);
 		return EXIT_FAILURE;
 	}
+	timer_set_practice_time(config->practice_time);
 
 
 	int index;
