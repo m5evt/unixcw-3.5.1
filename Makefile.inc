@@ -48,3 +48,6 @@ includedir	= ${prefix}/include
 bindir		= ${exec_prefix}/bin
 mandir		= ${prefix}/share/man
 libdir		= ${exec_prefix}/lib
+
+# http://www.gnu.org/s/hello/manual/autoconf/Changed-Directory-Variables.html
+datarootdir = ${prefix}/share
