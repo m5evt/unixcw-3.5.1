@@ -58,8 +58,8 @@ std::string argv0;
 std::string all_options = "s:|sound,d:|device,"
 	"w:|wpm,t:|tone,v:|volume,"
 	"g:|gap,k:|weighting,"
-	"i:|infile,F:|outfile,"
-	"p:|time,"
+	// "i:|infile,F:|outfile,"
+	// "T:|time,"
 	"h|help,V|version";
 
 
@@ -107,8 +107,8 @@ int main(int argc, char **argv)
 		if (!config) {
 			return EXIT_FAILURE;
 		}
-		config->has_practice_time = 1;
-		// config->has_outfile = 1;
+		config->has_practice_time = 0;
+		config->has_infile = false;
 
 		if (!cw_process_argv(argc, argv, all_options.c_str(), config)) {
 			fprintf(stderr, _("%s: failed to parse command line args\n"), argv0.c_str());
