@@ -20,6 +20,7 @@
 #ifndef _CWCMDLINE_H
 #define _CWCMDLINE_H
 
+#include <stdbool.h>
 #include "cw_common.h" /* cw_config_t */
 
 #if defined(__cplusplus)
@@ -33,7 +34,7 @@ extern void combine_arguments(const char *env_variable,
 			      int *new_argc, char **new_argv[]);
 
 extern int cw_process_argv(int argc, char *const argv[], const char *options, cw_config_t *config);
-extern int has_longopts(void);
+extern bool has_longopts(void);
 extern int get_option(int argc, char *const argv[],
                        const char *descriptor,
                        int *option, char **argument);
