@@ -4,8 +4,8 @@
     below probably justify this.
   - New main developer: Kamil Ignacak <acerion@wp.pl>
   - New website: http://unixcw.sourceforge.net
-  - Scripts building Debian packages now build 'libcw' package
-    instead of 'unixcw' package, and 'libcw-dev' Debian package instead
+  - Scripts building Debian packages now build 'libcw3' package
+    instead of 'unixcw' package, and 'libcw3-dev' Debian package instead
     of 'unixcw-dev' Debian package.
 
   libcw:
@@ -16,22 +16,23 @@
   - Added support for ALSA. OSS is still the default backend.
   - As a consequence, libasound2 is a new dependency. There is no
     possibility (yet) to disable or reconfigure this at build time.
-    It is possible to select sound backend in applications using libcw.
+    It is possible to select sound backend in applications that use
+    libcw.
   - Added implicit dependency on pthread library (which is a part
     of libc library, so it should be available on target system by
     default). Main routine generating sine wave operates as a separate
     thread.
-  - Added actual slopes to dots and dash sounds produced by the
+  - Added actual slopes to dot and dash sounds produced by the
     library. This should result in less of (or even none) audible
     pops. Unfortunately current implementation makes dots and dashes
-    a tiny bit longer than they would be without the slope. The
+    a tiny bit longer than they would be without the slopes. The
     difference is not significant, but I plan to re-implement it
     in the future to make this feature 100% correct.
     The slopes are linear.
   - Rewritten management of sound volume so that the library doesn't
-    use OSS mixer. This should resolve Debian bug #567394.
+    use OSS mixer. This should resolve Debian bug #567394
     (http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=567394).
-    Sound that controls volume level is common for OSS and ALSA.
+    Code that controls volume level is common for OSS and ALSA.
   - Since libcw doesn't touch the mixer device anymore, then Debian
     bug #567392 should be resolved as well
     (http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=567392).
