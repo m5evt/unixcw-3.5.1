@@ -1,9 +1,11 @@
 Source: unixcw
 Section: hamradio
 Priority: optional
-Maintainer: Debian QA Group <packages@qa.debian.org>
+Maintainer: Debian Hamradio Maintainers <debian-hams@lists.debian.org>
+Uploaders: Kamil Ignacak <acerion@wp.pl>, Kamal Mostafa <kamal@whence.com>
 Standards-Version: 3.9.2
 Build-Depends: debhelper (>=7), libasound2-dev, libqt4-dev, libncurses5-dev, po-debconf, autotools-dev, mawk|gawk
+Homepage: http://unixcw.sourceforge.net/
 
 Package: libcw3
 Architecture: any
