@@ -1,6 +1,8 @@
-#!/bin/sh -e
+#!/bin/sh
 
 #DEBHELPER#
+
+set -e
 
 [ "$1" = configure ] || exit 0
 
