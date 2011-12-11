@@ -1,6 +1,7 @@
 unixcw (3.0-1) unstable; urgency=low
 
   * Prepare Debian packages for upstream package version 3.0.
+  * New maintainer.  Closes: #554134.
 
  -- Kamil Ignacak <acerion@wp.pl>  Sat, 19 Nov 2011 17:06:21 +0100
 
