@@ -17,7 +17,7 @@
 #
 #
 
-include Makefile.inc
+-include Makefile.inc
 
 SHELL	= /bin/sh
 SUBDIRS	= src

@@ -16,7 +16,7 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-include ../Makefile.inc
+-include ../Makefile.inc
 SUBDIRS	= $(AC_SUBDIRS)
 
 SHELL	= /bin/sh
