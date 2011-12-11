@@ -43,12 +43,12 @@ libcw.a: libcw.o
 
 libcw.so.3.0.0: libcw.o
 	if [ "$(CC_LINKS_SO)" = "yes" ]; then				\
-		$(CC) -shared $(COMMON_LIBS) -Wl,-soname,libcw.so.3	\
-			-o libcw.so.3.0.0 libcw.o;			\
+		$(CC) -shared -Wl,-soname,libcw.so.3			\
+			-o libcw.so.3.0.0 libcw.o $(COMMON_LIBS);	\
 	else								\
 		if [ "$(LD_LINKS_SO)" = "yes" ]; then			\
-			$(LD) $(COMMON_LIBS) -G -Wl,-soname,libcw.so.3	\
-				-o libcw.so.3.0.0 libcw.o;		\
+			$(LD) -G -Wl,-soname,libcw.so.3			\
+				-o libcw.so.3.0.0 libcw.o $(COMMON_LIBS); \
 		fi							\
 	fi
 
