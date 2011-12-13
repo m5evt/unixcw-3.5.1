@@ -1,4 +1,9 @@
-3.0
+version 3.0 / 2011.12.13
+
+Thanks to Simon Baldwin for creating this software in the
+first place, and to Kamal Mostafa for helping me with packaging
+unixcw 3.0 for Debian.
+
   unixcw:
   - Changed major version of unixcw package to '3'. Changes listed
     below probably justify this.
@@ -54,6 +59,7 @@
     library's function: CW_FAILURE / CW_SUCCESS.
 
   xcwcp:
-  - Ported xcwcp to QT4.
+  - Ported xcwcp to QT4. This should resolve Debian bug #604386
+    (http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=604386).
   - Added auto-detection of QT4 headers and QT4 moc by build files.
 
