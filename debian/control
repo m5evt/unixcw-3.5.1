@@ -8,6 +8,7 @@ Build-Depends: debhelper (>=7), libasound2-dev, libqt4-dev, libncurses5-dev, po-
 Homepage: http://unixcw.sourceforge.net/
 
 Package: libcw3
+Section: libs
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Replaces: unixcw
