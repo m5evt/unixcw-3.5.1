@@ -2491,12 +2491,27 @@ static volatile int cw_finalization_countdown = 0;
 /* Use a mutex to suppress delayed finalizations on complete resets. */
 static volatile bool cw_is_finalization_locked_out = false;
 
+
+
+
+/* http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=403043 */
+#if defined(NSIG)             /* Debian GNU/Linux: signal.h; Debian kFreeBSD: signal.h (libc0.1-dev_2.13-21_kfreebsd-i386.deb) */
+#define CW_SIG_MAX (NSIG)
+#elif defined(_NSIG)          /* Debian GNU/Linux: asm-generic/signal.h; Debian kFreeBSD: i386-kfreebsd-gnu/bits/signum.h->signal.h (libc0.1-dev_2.13-21_kfreebsd-i386.deb) */
+#define CW_SIG_MAX (_NSIG)
+#elif defined(RTSIG_MAX)      /* Debian GNU/Linux: linux/limits.h */
+#define CW_SIG_MAX ((RTSIG_MAX)+1)
+#else
+#error "unknown number of signals"
+#endif
+
+
 /*
  * Array of callbacks registered for convenience signal handling.  They're
  * initialized dynamically to SIG_DFL (if SIG_DFL is not NULL, which it
  * seems that it is in most cases).
  */
-static void (*cw_signal_callbacks[RTSIG_MAX]) (int);
+static void (*cw_signal_callbacks[CW_SIG_MAX]) (int);
 
 
 /**
@@ -2668,14 +2683,14 @@ int cw_register_signal_handler(int signal_number,
     {
       int index;
 
-      for (index = 0; index < RTSIG_MAX; index++)
+      for (index = 0; index < CW_SIG_MAX; index++)
         cw_signal_callbacks[index] = SIG_DFL;
 
       is_initialized = true;
     }
 
   /* Reject invalid signal numbers, and SIGALRM, which we use internally. */
-  if (signal_number < 0 || signal_number >= RTSIG_MAX
+  if (signal_number < 0 || signal_number >= CW_SIG_MAX
       || signal_number == SIGALRM)
     {
       errno = EINVAL;
@@ -2727,7 +2742,7 @@ int cw_unregister_signal_handler(int signal_number)
   int status;
 
   /* As above, reject unacceptable signal numbers. */
-  if (signal_number < 0 || signal_number >= RTSIG_MAX
+  if (signal_number < 0 || signal_number >= CW_SIG_MAX
       || signal_number == SIGALRM)
     {
       errno = EINVAL;
