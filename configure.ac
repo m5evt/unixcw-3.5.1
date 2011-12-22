@@ -47,6 +47,9 @@ AC_SUBST(LDCONFIG)
 
 # Checks for libraries.
 AC_CHECK_LIB(curses, initscr)
+AC_CHECK_LIB(asound, snd_pcm_open)
+AC_CHECK_LIB(pthread, pthread_create)
+AC_CHECK_LIB(m, floor)
 
 # Checks for header files, and refuse to go on if no KIOCSOUND is available.
 AC_HEADER_STDC

@@ -60,6 +60,6 @@ BEGIN {
 
   # Print the remaining metadata.
   printf ("Name: libcw\nDescription: CW (Morse code) library.\n")
-  printf ("Version: %s\nRequires:\n", version())
-  printf ("Libs: -L${libdir} -lcw\nCflags: -I${includedir}\n")
+  printf ("Version: %s\nRequires: alsa\n", version())
+  printf ("Libs: -L${libdir} -lcw -lpthread -lm\nCflags: -I${includedir}\n")
 }

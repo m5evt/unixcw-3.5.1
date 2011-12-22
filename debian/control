@@ -20,7 +20,7 @@ Description: Shared library for Morse programs
 Package: libcw3-dev
 Section: libdevel
 Architecture: any
-Depends: libcw3 (= ${binary:Version}), ${misc:Depends}
+Depends: libcw3 (= ${binary:Version}), ${misc:Depends}, libasound2-dev
 Description: Development files for Morse programs
  Static library, headers and manual page for development of
  programs that handle (i.e. send and receive) Morse code.
