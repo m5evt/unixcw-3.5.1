@@ -1,3 +1,13 @@
+unixcw (3.0-2) unstable; urgency=low
+
+  * Fix library dependencies: alsa, pthread, m
+    - Add libcw3-dev Depends on libasound2-dev
+    - Drop Replaces: unixcw{-dev} (see Bug: #652618)
+  * Reapply lost patch: Fix FTBFS on GNU/kFreeBSD. Closes: #403043 (again).
+  * Set libcw3 debian package section to libs
+
+ -- Kamal Mostafa <kamal@whence.com>  Thu, 22 Dec 2011 14:44:54 -0800
+
 unixcw (3.0-1) unstable; urgency=low
 
   * Prepare Debian packages for upstream package version 3.0.
