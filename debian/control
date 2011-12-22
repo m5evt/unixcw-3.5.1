@@ -11,7 +11,6 @@ Package: libcw3
 Section: libs
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Replaces: unixcw
 Recommends: cw | cwcp | xcwcp
 Description: Shared library for Morse programs
  Shared library files for cw, cwcp and xcwcp programs.
@@ -22,7 +21,6 @@ Package: libcw3-dev
 Section: libdevel
 Architecture: any
 Depends: libcw3 (= ${binary:Version}), ${misc:Depends}
-Replaces: unixcw-dev
 Description: Development files for Morse programs
  Static library, headers and manual page for development of
  programs that handle (i.e. send and receive) Morse code.
