@@ -20,7 +20,7 @@ include ../../Makefile.inc
 CC	= $(AC_CC)
 CFLAGS	= $(AC_CFLAGS) $(AC_DEFS) -I../libcw -I../cwutils
 GZIP	= $(AC_GZIP)
-LIBS	= $(AC_LIBS) -L../libcw -lcw
+LIBS	= -lcurses -L../libcw -lcw
 
 SHELL	= /bin/sh
 
