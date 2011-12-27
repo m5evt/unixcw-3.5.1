@@ -33,8 +33,12 @@ DESCEND	= for subdir in $(SUBDIRS); do				\
 	  done
 
 # Targets that do nothing other than descend.
-all install install-strip uninstall clean TAGS info dvi check:
+all install install-strip uninstall TAGS info dvi check:
 	$(DESCEND)
+
+clean:
+	$(DESCEND)
+	rm -f Makefile.inc
 
 # Targets that do just a little more than this.
 distclean mostlyclean:
