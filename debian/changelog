@@ -1,3 +1,11 @@
+unixcw (3.0-3) unstable; urgency=high
+
+  * Fix upgrade from unixcw:
+    - libcw3{-dev} Replaces and Conflicts unixcw{-dev}. Closes: #653411
+  * Cherry-pick from upstream: 0006-Adding-Makefile.inc-to-clean-target.patch
+
+ -- Kamal Mostafa <kamal@whence.com>  Wed, 28 Dec 2011 21:27:48 -0800
+
 unixcw (3.0-2) unstable; urgency=low
 
   * Fix library dependencies: alsa, pthread, m
