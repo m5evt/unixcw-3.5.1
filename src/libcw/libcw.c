@@ -6383,8 +6383,11 @@ int cw_set_alsa_hw_params(snd_pcm_t *handle, snd_pcm_hw_params_t *params)
 	int success = 0;
 	int i = 0;
 	while (sample_rates[i] != -1) {
+#if defined(HAVE_SND_PCM_HW_PARAMS_TEST_RATE)
 		rv = snd_pcm_hw_params_test_rate(handle, params, sample_rates[i], dir);
-		if (rv == 0) {
+		if (rv == 0)
+#endif
+		{
 			rv = snd_pcm_hw_params_set_rate(handle, params, sample_rates[i], dir);
 			if (rv == 0) {
 				success = 1;
@@ -6416,7 +6419,7 @@ int cw_set_alsa_hw_params(snd_pcm_t *handle, snd_pcm_hw_params_t *params)
 	}
 
 
-#if CW_ALSA_HW_BUFFER_CONFIG
+#if CW_ALSA_HW_BUFFER_CONFIG && defined(HAVE_SND_PCM_HW_PARAMS_TEST_BUFFER_SIZE) && defined(HAVE_SND_PCM_HW_PARAMS_TEST_PERIODS)
 
 	/*
 	  http://equalarea.com/paul/alsa-audio.html:

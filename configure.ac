@@ -91,6 +91,14 @@ AC_CHECK_FUNCS([floor gettimeofday memset sqrt strchr strdup strrchr \
                 strtoul getopt_long setlocale memmove select strerror strspn])
 AC_FUNC_SELECT_ARGTYPES
 
+# Check for certain routines which are missing from liboss-salsa-dev
+# (kfreebsd's libasound implementation):
+AC_CHECK_FUNCS([ \
+	snd_pcm_hw_params_test_rate \
+	snd_pcm_hw_params_test_periods \
+	snd_pcm_hw_params_test_buffer_size \
+	])
+
 # Decide on which subdirectories to build; substitute into SUBDIRS.  Build
 # cwcp if curses is available, and xcwcp if Qt is available.
 SUBDIRS="libcw cwutils cw cwgen"
