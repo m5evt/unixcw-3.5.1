@@ -22,13 +22,15 @@
 # the need for a full m4 binary; overkill for what we really need.
 #
 
-# Catch 'include(...)' special lines
-/^[[:space:]]*include\([^\)]*\)[[:space:]]*$/ {
+# Catch 'include(...)' special lines; watch out, mawk doesn't support
+# POSIX character classes (http://ubuntuforums.org/archive/index.php/t-619985.html)
+/^include\([^\)]*\)$/ {
+
 
   # Find the name of the file being included.
   file = $0
-  sub(/^[[:space:]]*include\(/, "", file)
-  sub(/\)[[:space:]]*$/, "", file)
+  sub(/^include\(/, "", file)
+  sub(/\)$/, "", file)
 
   # Read in each line of the file, and print it out.
   while ((status=getline line <file) > 0)
