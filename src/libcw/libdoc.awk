@@ -55,11 +55,12 @@ function handle_global_space()
 	do {
 		if ($0 ~ /^static /) {
 			# potentially a static function declaration
-			#                               function_name
-			match($0, /[a-zA-Z0-9_\* ]+ \**([a-zA-Z0-9_]+)\(/, matches);
-			if (matches[1] != "") {
-				# print matches[1] > "/dev/stderr"
-				static_functions[matches[1]] = matches[1];
+			start = match($0, /[a-zA-Z0-9_\* ]+ \**([a-zA-Z0-9_]+)\(/);
+			if (RSTART > 0) {
+				len = RLENGTH
+				name = substr($0, start, len);
+				static_functions[name] = name;
+				# print name > "/dev/stderr"
 			}
 		}
 	} while ($0 !~ /^\/\*\*/ && getline)
@@ -87,9 +88,16 @@ function delete_documentation(line)
 
 function handle_function_specification()
 {
-	#                               function_name
-	match($0, /[a-zA-Z0-9_\* ]+ \**([a-zA-Z0-9_]+)\(/, matches);
-	if (static_functions[matches[1]]) {
+	# catch function's name
+	start = match($0, /[a-zA-Z0-9_\* ]+ \**([a-zA-Z0-9_]+)\(/);
+	if (RSTART > 0) {
+		len = RLENGTH
+		name = substr($0, start, len);
+		# print name > "/dev/stderr"
+	}
+
+
+	if (static_functions[name]) {
 		# specification of static function;
 		# no point in processing it
 
@@ -119,16 +127,25 @@ function handle_function_documentation()
 		# beginning sub (/^ \* /," *")
 		sub(/^ \* */,"")
 
-		# Handle Doxygen tags
+		# Handle Doxygen tags:
+		# \brief at the very beginning of top-level function comment,
+		# \param in function's parameters specification,
+		# \return in function's return values specification.
 		sub(/^ *\\brief /, "Brief: ")
 		sub(/^ *\\param /, "Parameter: ")
-
-		if (match($0, /\\param ([0-9a-zA-Z_]+)/, matches)) {
-			replacement = "\\fB"matches[1]"\\fP"
-			gsub(/(\\param [0-9a-zA-Z_]+)/, replacement, $0)
-		}
-
 		sub(/^ *\\return /, " Returns: ")
+
+		# Handle Doxygen tag:
+		# \param in the body of top-level function comment
+		start = match($0, /\\param ([0-9a-zA-Z_]+)/);
+		if (RSTART > 0) {
+			len = RLENGTH
+			# 7 - strlen(\\param )
+			param_name = substr($0, start + 7, len - 7);
+			param_name = "\\fB"param_name"\\fP"
+			gsub(/(\\param [0-9a-zA-Z_]+)/, param_name, $0)
+			# print param_name > "/dev/stderr"
+		}
 
 		output[output_line++] = DOCUMENTATION_TAG" "$0
 		getline
