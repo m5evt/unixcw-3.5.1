@@ -1,3 +1,9 @@
+unixcw (3.0-4) unstable; urgency=high
+
+  * Fix FTBFS in Debian kfreebsd (missing snd_pcm test routines)
+
+ -- Kamal Mostafa <kamal@whence.com>  Sat, 31 Dec 2011 11:56:45 -0800
+
 unixcw (3.0-3) unstable; urgency=high
 
   * Fix upgrade from unixcw:
