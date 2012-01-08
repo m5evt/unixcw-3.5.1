@@ -1,3 +1,14 @@
+unixcw (3.0.1-1) unstable; urgency=low
+
+  * Prepare unixcw source package for new release: 3.0.1
+  * Remove source of lintian warnings:
+     - W: cw: maintainer-script-ignores-errors preinst
+     - W: cwcp: maintainer-script-ignores-errors preinst
+     - W: libcw3-dev: manpage-has-errors-from-man ...
+     - W: xcwcp: maintainer-script-ignores-errors preinst
+
+ -- Kamil Ignacak <acerion@wp.pl>  Sun, 08 Jan 2012 13:22:36 +0100
+
 unixcw (3.0-5) unstable; urgency=high
 
   * Remove dangling symlinks /usr/share/doc/{cw,cwcp,xcwcp}
