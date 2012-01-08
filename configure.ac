@@ -1,5 +1,5 @@
 # Copyright (C) 2001-2006  Simon Baldwin (simon_baldwin@yahoo.com)
-# Copyright (C) 2011       Kamil Ignacak (acerion@wp.pl)
+# Copyright (C) 2011-2012  Kamil Ignacak (acerion@wp.pl)
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -18,7 +18,7 @@
 
 # General initializations.
 AC_PREREQ(2.57)
-AC_INIT([UnixCW], 3.0, [acerion@wp.pl])
+AC_INIT([UnixCW], 3.0.1, [acerion@wp.pl])
 
 # Specify a configuration header.
 AC_CONFIG_HEADERS(src/config.h)
