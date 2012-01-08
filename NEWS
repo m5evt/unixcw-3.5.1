@@ -1,3 +1,35 @@
+version 3.0.1 / 2012.01.08
+
+Thanks to Kamal Mostafa for providing patches that are the reason
+for 3.0.1 release.
+Content of upstream package unixcw-3.0.1 is approximately the same as of
+Debian source package unixcw_3.0-5.
+
+  debian/:
+  - added proper "Section" field in control file;
+  - fixed library dependencies in control file;
+  - fixed "Replaces:"/"Conflicts:" fields in control file;
+  - fixed Debian bug #653411: changes in *.preinst files to remove
+    dangling symlinks left by old packaging (suggested by Bob Proulx);
+
+  general:
+  - fixed library dependencies in "configure" script;
+  - fixed library dependencies provided by libcw.pc file;
+
+  libcw:
+  - proper detection of capabilities of liboss-salsa-dev
+    (kfreebsd's libasound implementation); libcw now can be built
+    properly on Debian/kFreeBSD;
+  - fixing awk scripts producing man pages: the awk scripts now
+    work with mawk too;
+
+  cwcp:
+  - fixed list of libraries in Makefile;
+
+
+----------------------------------------------------------------------------
+
+
 version 3.0 / 2011.12.13
 
 Thanks to Simon Baldwin for creating this software in the

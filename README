@@ -41,6 +41,11 @@ patching unixcw.
 Version 3.0 introduces some changes in API, and there should be some
 more API changes in 3.1. Hopefully things will be more stable in 3.2.
 
+Version 3.0.1 contains small fixes that don't influence core capabilities
+of any application, but are still important. Patches for this release were
+provided mainly by Kamal Mostafa (thanks Kamal!).
+
+
 
 The heart of the package is 'libcw'.  This is a library which, when built,
 offers the following basic CW services to a caller program:
