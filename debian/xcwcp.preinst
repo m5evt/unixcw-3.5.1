@@ -2,6 +2,8 @@
 
 #DEBHELPER#
 
+set -e
+
 DOCLINK=/usr/share/doc/xcwcp
 
 # Previously in version 2.3-13 $DOCLINK was a symlink to /usr/share/doc/unixcw.
