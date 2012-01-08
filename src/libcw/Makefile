@@ -1,5 +1,5 @@
 # Copyright (C) 2001-2006  Simon Baldwin (simon_baldwin@yahoo.com)
-# Copyright (C) 2011       Kamil Ignacak (acerion@wp.pl)
+# Copyright (C) 2011-2012  Kamil Ignacak (acerion@wp.pl)
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -34,29 +34,29 @@ COMMON_LIBS = -lm -lpthread -lasound
 
 default: all
 
-all: libcw.a libcw.so.3.0.0 libcw.so.3 libcw.so libcw.pc libcw.3 libcwtest
+all: libcw.a libcw.so.3.0.1 libcw.so.3 libcw.so libcw.pc libcw.3 libcwtest
 
 # Build the static and shared libraries.
 libcw.a: libcw.o
 	rm -f libcw.a; ar -cr libcw.a libcw.o
 	$(RANLIB) libcw.a
 
-libcw.so.3.0.0: libcw.o
+libcw.so.3.0.1: libcw.o
 	if [ "$(CC_LINKS_SO)" = "yes" ]; then				\
 		$(CC) -shared -Wl,-soname,libcw.so.3			\
-			-o libcw.so.3.0.0 libcw.o $(COMMON_LIBS);	\
+			-o libcw.so.3.0.1 libcw.o $(COMMON_LIBS);	\
 	else								\
 		if [ "$(LD_LINKS_SO)" = "yes" ]; then			\
 			$(LD) -G -Wl,-soname,libcw.so.3			\
-				-o libcw.so.3.0.0 libcw.o $(COMMON_LIBS); \
+				-o libcw.so.3.0.1 libcw.o $(COMMON_LIBS); \
 		fi							\
 	fi
 
-libcw.so.3: libcw.so.3.0.0
-	$(LN_S) -f libcw.so.3.0.0 libcw.so.3
+libcw.so.3: libcw.so.3.0.1
+	$(LN_S) -f libcw.so.3.0.1 libcw.so.3
 
-libcw.so: libcw.so.3.0.0
-	$(LN_S) -f libcw.so.3.0.0 libcw.so
+libcw.so: libcw.so.3.0.1
+	$(LN_S) -f libcw.so.3.0.1 libcw.so
 
 # Build the library man page.
 libcw.3: libcw.3.m4 libcw.c
@@ -88,9 +88,9 @@ install: all
 	$(INSTALL_DATA) libcw.h $(includedir)/libcw.h
 	$(INSTALL_DATA) libcw.a $(libdir)/libcw.a
 	if [ "$(CC_LINKS_SO)" = "yes" -o "$(LD_LINKS_SO)" = "yes" ]; then \
-		$(INSTALL_PROGRAM) libcw.so.3.0.0 $(libdir)/libcw.so.3.0.0; \
-		$(LN_S) -f libcw.so.3.0.0 $(libdir)/libcw.so.3; \
-		$(LN_S) -f libcw.so.3.0.0 $(libdir)/libcw.so; \
+		$(INSTALL_PROGRAM) libcw.so.3.0.1 $(libdir)/libcw.so.3.0.1; \
+		$(LN_S) -f libcw.so.3.0.1 $(libdir)/libcw.so.3; \
+		$(LN_S) -f libcw.so.3.0.1 $(libdir)/libcw.so; \
 		$(LDCONFIG) -n $(libdir); \
 	fi
 	$(INSTALL_DATA) libcw.3 $(mandir)/man3/libcw.3
@@ -107,7 +107,7 @@ install-strip:
 uninstall:
 	rm -f $(includedir)/libcw.h
 	rm -f $(libdir)/libcw.a
-	rm -f $(libdir)/libcw.so $(libdir)/libcw.so.3 $(libdir)/libcw.so.3.0.0
+	rm -f $(libdir)/libcw.so $(libdir)/libcw.so.3 $(libdir)/libcw.so.3.0.1
 	$(LDCONFIG) -n $(libdir)
 	rm -f $(mandir)/man3/libcw.3 $(mandir)/man3/libcw.3.gz
 	rm -f $(mandir)/man7/cw.7 $(mandir)/man7/cw.7.gz
@@ -116,7 +116,7 @@ uninstall:
 
 # Cleanup targets.
 clean:
-	rm -f libcw.a libcw.so libcw.so.3 libcw.so.3.0.0 *.s libcw.pc *.o
+	rm -f libcw.a libcw.so libcw.so.3 libcw.so.3.0.1 *.s libcw.pc *.o
 	rm -f libcw.3 signatures functions
 	rm -f libcwtest
 	rm -f core core.*
