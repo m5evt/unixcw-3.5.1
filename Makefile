@@ -1,5 +1,5 @@
 # Copyright (C) 2001-2006  Simon Baldwin (simon_baldwin@yahoo.com)
-# Copyright (C) 2011       Kamil Ignacak (acerion@wp.pl)
+# Copyright (C) 2011-2012  Kamil Ignacak (acerion@wp.pl)
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -22,7 +22,7 @@
 SHELL	= /bin/sh
 SUBDIRS	= src
 
-DIST	= unixcw-3.0
+DIST	= unixcw-3.0.1
 
 # Top level makefile - descends into subdirectories and executes the make in
 # these one at a time.
