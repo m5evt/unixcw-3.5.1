@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2001-2006  Simon Baldwin (simon_baldwin@yahoo.com)
- * Copyright (C) 2011       Kamil Ignacak (acerion@wp.pl)
+ * Copyright (C) 2011-2012  Kamil Ignacak (acerion@wp.pl)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -646,8 +646,8 @@ int cw_lookup_character(char c, char *representation)
  *
  * This hash algorithm is designed ONLY for valid CW representations; that is,
  * strings composed of only '.' and '-', and in this case, strings shorter than
- * eight characters.  The algorithm simply turns the representation into a
- * 'bitmask', based on occurrences of '.' and '-'.  The first bit set in the
+ * eight characters.  The algorithm simply turns the representation into
+ * a 'bitmask', based on occurrences of '.' and '-'.  The first bit set in the
  * mask indicates the start of data (hence the 7-character limit).  This mask
  * is viewable as an integer in the range 2 (".") to 255 ("-------"), and can
  * be used as an index into a fast lookup array.
@@ -2329,8 +2329,8 @@ const char *cw_get_soundcard_device(void)
    \brief Start generating a sound using soundcard
 
    Start generating sound on soundcard with frequency depending on
-   state of current generator. The function has a single argument
-   'state'. The argument toggles between zero volume (state == 0)
+   state of current generator. The function has a single argument 'state'.
+   The argument toggles between zero volume (state == 0)
    and full volume (frequency > 0).
 
    The function only initializes generation, you have to do another
