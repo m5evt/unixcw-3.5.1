@@ -1,3 +1,25 @@
+unixcw (3.0.1-2) unstable; urgency=low
+
+  * Debconf templates and debian/control reviewed by the debian-l10n-
+    english team as part of the Smith review project. Closes: #652526
+  * [Debconf translation updates]
+  * Portuguese (Pedro Ribeiro).  Closes: #654962
+  * Slovak (Ivan Masár).  Closes: #655464
+  * Dutch; (Jeroen Schot).  Closes: #655718
+  * Portuguese (Pedro Ribeiro).  Closes: #655766
+  * Russian (Yuri Kozlov).  Closes: #655830
+  * German (Chris Leick).  Closes: #656080
+  * Czech (Michal Simunek).  Closes: #656240
+  * French (Steve R. Petruzzello).  Closes: #656419
+  * Indonesian (Mahyuddin Susanto).  Closes: #657462
+  * Danish (Joe Hansen).  Closes: #657500
+  * Polish (Michał Kułach).  Closes: #657513
+  * Swedish (Martin Bagge / brother).  Closes: #657549
+  * Spanish; (Jaime Robles).  Closes: #657744
+  * Spanish; (Jaime Robles).  Closes: #657744
+
+ -- Christian Perrier <bubulle@debian.org>  Sun, 18 Dec 2011 12:16:29 +0100
+
 unixcw (3.0.1-1) unstable; urgency=low
 
   * Prepare unixcw source package for new release: 3.0.1

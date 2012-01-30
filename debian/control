@@ -14,10 +14,12 @@ Depends: ${shlibs:Depends}, ${misc:Depends}
 Replaces: unixcw
 Conflicts: unixcw
 Recommends: cw | cwcp | xcwcp
-Description: Shared library for Morse programs
- Shared library files for cw, cwcp and xcwcp programs.
- The library handles Morse code signals and generates sound
- on console buzzer or sound card through OSS or ALSA.
+Description: Morse code tutor - shared library
+ The unixcw project provides support for learning to use Morse code.
+ .
+ This package provides shared library files to handle Morse code
+ signals and to generate sound on the console buzzer or a sound card
+ through OSS or ALSA.
 
 Package: libcw3-dev
 Section: libdevel
@@ -25,45 +27,49 @@ Architecture: any
 Depends: libcw3 (= ${binary:Version}), ${misc:Depends}, libasound2-dev
 Replaces: unixcw-dev
 Conflicts: unixcw-dev
-Description: Development files for Morse programs
- Static library, headers and manual page for development of
- programs that handle (i.e. send and receive) Morse code.
+Description: Morse code tutor - development files
+ The unixcw project provides support for learning to use Morse code.
+ .
+ This package provides the static library, headers, and manual page for
+ development of programs that handle (i.e. send and receive) Morse code.
 
 Package: cw
 Architecture: any
 Depends: libcw3, ${shlibs:Depends}, ${misc:Depends}, debconf|debconf-2.0
-Description: Morse code tutor with command line user interface
- The package provides two executables:
-  * cw - simple command line application that converts
-    keyboard keys to Morse code that can be heard through
-    console buzzer or sound card.
-  * cwgen - program that generates groups of random
-    characters for Morse code practice, that can be
-    piped to cw program.
+Description: Morse code tutor - command line user interface
+ The unixcw project provides support for learning to use Morse.
  .
- Package also includes examples files with embedded commands.
- These commands can be used to change speed, tone, spacing
- between characters and much more. The files have 'cw'
- extension.
+ This package provides two executables:
+  * cw - a simple command line application that converts key-presses
+    to Morse code that can be heard through the console buzzer or a
+    sound card;
+  * cwgen - a program that generates groups of random characters for
+    Morse code practice, which can be piped to the cw program.
+ .
+ It also includes example files (with the extension "cw") containing
+ commands which can be used to change properties such as the speed,
+ tone, and spacing of characters.
 
 Package: cwcp
 Architecture: any
 Depends: libcw3, ${shlibs:Depends}, ${misc:Depends}, debconf|debconf-2.0
-Description: Morse code tutor, text user interface
- Interactive Morse code tutor with text-based (ncurses) user
- interface. It allows menu selection from a number of sending
- modes, and also permits character sounding options, such as
- the tone pitch, and sending speed, to be varied from the
- keyboard using a full-screen user interface.
+Description: Morse code tutor - text user interface
+ The unixcw project provides support for learning to use Morse code.
+ .
+ This package provides an interactive Morse code tutor with a
+ full-screen text-based (ncurses) user interface. It offers menu
+ selection of sending modes, and keyboard control of character
+ sounding options such as the sending speed and pitch.
 
 Package: xcwcp
 Architecture: any
 Depends: libcw3, ${shlibs:Depends}, ${misc:Depends}, debconf|debconf-2.0
-Description: Morse code tutor, X Window user interface
- Interactive Morse code tutor with X Window-based (QT4)
- interface. It lets you choose from a number of options for
- practice, including sending random characters, random words,
- and characters from the keyboard. It will also receive Morse
- code that you send using the keyboard or mouse as a Morse
- keyer, and display the characters it sees.
-
+Description: Morse code tutor - graphical user interface
+ The unixcw project provides support for learning to use Morse code.
+ .
+ This package provides an interactive Morse code tutor with a Qt4
+ user interface. It allows choosing from a number of options for
+ practice, including sending random characters, random words, and
+ characters from the keyboard. It will also receive Morse code sent
+ using the keyboard or mouse as a Morse keyer, and display the
+ characters it sees.
