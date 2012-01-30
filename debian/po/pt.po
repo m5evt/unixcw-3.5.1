@@ -1,15 +1,16 @@
 # Portuguese translation of unixcw's debconf messages.
-# Copyright (C) 2007
+# Copyright (C) 2007, 2012
 # This file is distributed under the same license as the unixcw package.
 # Ricardo Silva <ardoric@gmail.com>, 2007.
+# Pedro Ribeiro <p.m42.ribeiro@gmail.com>, 2012.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: unixcw 2.3-5\n"
+"Project-Id-Version: unixcw 3.0-2\n"
 "Report-Msgid-Bugs-To: unixcw@packages.debian.org\n"
-"POT-Creation-Date: 2011-12-01 21:00+0100\n"
-"PO-Revision-Date: 2007-05-07 23:52+0100\n"
-"Last-Translator: Ricardo Silva <ardoric@gmail.com>\n"
+"POT-Creation-Date: 2012-01-11 06:51+0100\n"
+"PO-Revision-Date: 2012-01-11 23:50+0000\n"
+"Last-Translator: Pedro Ribeiro <p.m42.ribeiro@gmail.com>, 2011.\n"
 "Language-Team: Portuguese <traduz@debianpt.org>\n"
 "Language: pt\n"
 "MIME-Version: 1.0\n"
@@ -18,77 +19,84 @@ msgstr ""
 
 #. Type: boolean
 #. Description
-#: ../cwcp.templates:1001
-#, fuzzy
-#| msgid "Make cwcp setuid root"
-msgid "Make cwcp setuid root?"
-msgstr "Tornar o cwcp setuid root"
+#: ../cwcp.templates:2001
+msgid "Run cwcp with root privileges?"
+msgstr "Executar cwcp com privilégios de root?"
 
 #. Type: boolean
 #. Description
-#: ../cwcp.templates:1001
+#: ../cwcp.templates:2001
 msgid ""
-"cwcp can produce sounds using console buzzer, but this feature is available "
-"only if cwcp is run by root user. You can achieve this by setting setuid bit "
-"here (not recommended) or by running cwcp with sudo (also not recommended). "
-"You can also use soundcard output instead of console buzzer output and "
-"eliminate this problem completely."
+"If it is run with elevated privileges (which is not recommended), cwcp can "
+"produce sounds using the console buzzer."
 msgstr ""
+"Se for executado com privilégios elevados (que não é recomendado), o cwcp "
+"pode produzir sons através do besouro da consola."
 
 #. Type: boolean
 #. Description
-#: ../cw.templates:1001
-#, fuzzy
-#| msgid "Make cw setuid root"
-msgid "Make cw setuid root?"
-msgstr "Tornar o cw setuid root"
-
-#. Type: boolean
-#. Description
-#: ../cw.templates:1001
+#: ../cwcp.templates:2001 ../cw.templates:2001
 msgid ""
-"cw can produce sounds using console buzzer, but this feature is available "
-"only if cw is run by root user. You can achieve this by setting setuid bit "
-"here (not recommended) or by running cw with sudo (also not recommended). "
-"You can also use soundcard output instead of console buzzer output and "
-"eliminate this problem completely."
+"Please choose whether this should be achieved by giving the executable the "
+"\"setuid\" attribute."
 msgstr ""
+"Escolha, por favor, se quer ativar o atributo \"setuid\" deste executável "
+"para poder usar o besouro."
+
+#. Type: boolean
+#. Description
+#: ../cwcp.templates:2001 ../cw.templates:2001
+msgid ""
+"Alternatives include running the program with sudo or eliminating this issue "
+"completely by using output via a sound card instead of the buzzer."
+msgstr ""
+"As alternativas incluem executar o programa com sudo ou eliminar por "
+"completo este problema através do uso de uma placa de som em vez do besouro."
+
+#. Type: boolean
+#. Description
+#: ../cw.templates:2001
+msgid "Run cw with root privileges?"
+msgstr "Executar cw com privilégios de root?"
+
+#. Type: boolean
+#. Description
+#: ../cw.templates:2001
+msgid ""
+"If it is run with elevated privileges (which is not recommended), cw can "
+"produce sounds using the console buzzer."
+msgstr ""
+"Se for executado com privilégios elevados (que não é recomendado), o cw pode "
+"produzir sons através do besouro da consola."
+
+#~ msgid "Make cwcp setuid root?"
+#~ msgstr "Tornar o cwcp setuid root?"
 
 #~ msgid ""
-#~ "The cwcp program only runs correctly as the root user. One way of doing "
-#~ "this is to make the program setuid root. This is generally a bad idea as "
-#~ "there are better ways, such as using the sudo program, to do this. "
-#~ "However, you have the option here of making it setuid root if you like."
+#~ "cwcp can produce sounds using console buzzer, but this feature is "
+#~ "available only if cwcp is run by root user. You can achieve this by "
+#~ "setting setuid bit here (not recommended) or by running cwcp with sudo "
+#~ "(also not recommended). You can also use soundcard output instead of "
+#~ "console buzzer output and eliminate this problem completely."
 #~ msgstr ""
-#~ "O programa cwcp apenas corre correctamente como o utilizador root. Uma "
-#~ "forma de contornar isto é tornar o programa setuid root. Isto é uma má "
-#~ "ideia em geral uma vez que há maneiras melhores, tal como usando o "
-#~ "programa sudo, para fazer isto. No entanto tem aqui a opção de o tornar "
-#~ "setuid root se assim o desejar."
+#~ "O cwcp pode produzir sons através do besouro da consola, mas esta "
+#~ "funcionalidade só está disponível se o cwcp for corrido pelo root. Pode "
+#~ "conseguir isto se activar o bit setuid aqui (não recomendado) ou correndo "
+#~ "o cwcp com sudo (também não recomendado). Pode usar a saída da placa de "
+#~ "som em vez do besouro da consola e eliminar completamente este problema."
+
+#~ msgid "Make cw setuid root?"
+#~ msgstr "Tornar o cw setuid root?"
 
 #~ msgid ""
-#~ "The cw program only runs correctly as the root user. One way of doing "
-#~ "this is to make the program setuid root. This is generally a bad idea as "
-#~ "there are better ways, such as using the sudo program, to do this. "
-#~ "However, you have the option here of making it setuid root if you like."
+#~ "cw can produce sounds using console buzzer, but this feature is available "
+#~ "only if cw is run by root user. You can achieve this by setting setuid "
+#~ "bit here (not recommended) or by running cw with sudo (also not "
+#~ "recommended). You can also use soundcard output instead of console buzzer "
+#~ "output and eliminate this problem completely."
 #~ msgstr ""
-#~ "O programa cw apenas corre correctamente como o utilizador root. Uma "
-#~ "forma de contornar isto é tornar o programa setuid root. Isto é uma má "
-#~ "ideia em geral uma vez que há maneiras melhores, tal como usando o "
-#~ "programa sudo, para fazer isto. No entanto tem aqui a opção de o tornar "
-#~ "setuid root se assim o desejar."
-
-#~ msgid "Make xcwcp setuid root"
-#~ msgstr "Tornar o xcwcp setuid root"
-
-#~ msgid ""
-#~ "The xcwcp program only runs correctly as the root user. One way of doing "
-#~ "this is to make the program setuid root. This is generally a bad idea as "
-#~ "there are better ways, such as using the sudo program, to do this. "
-#~ "However, you have the option here of making it setuid root if you like."
-#~ msgstr ""
-#~ "O programa xcwcp apenas corre correctamente como o utilizador root. Uma "
-#~ "forma de contornar isto é tornar o programa setuid root. Isto é uma má "
-#~ "ideia em geral uma vez que há maneiras melhores, tal como usando o "
-#~ "programa sudo, para fazer isto. No entanto tem aqui a opção de o tornar "
-#~ "setuid root se assim o desejar."
+#~ "O cw pode produzir sons através do besouro da consola, mas esta "
+#~ "funcionalidade só está disponível se o cw for corrido pelo root. Pode "
+#~ "conseguir isto se activar o bit setuid aqui (não recomendado) ou correndo "
+#~ "o cw com sudo (também não recomendado). Pode usar a saída da placa de som "
+#~ "em vez do besouro da consola e eliminar completamente este problema."

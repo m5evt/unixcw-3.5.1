@@ -1,102 +1,72 @@
-#
-#    Translators, if you are not familiar with the PO format, gettext
-#    documentation is worth reading, especially sections dedicated to
-#    this format, e.g. by running:
-#         info -n '(gettext)PO Files'
-#         info -n '(gettext)Header Entry'
-#    Some information specific to po-debconf are available at
-#            /usr/share/doc/po-debconf/README-trans
-#         or http://www.debian.org/intl/l10n/po-debconf/README-trans#
-#    Developers do not need to manually edit POT or PO files.
+# Translation of unixcw debconf template to French
+# Copyright (C) 2011 Debian French l10n Team
+# This file is distributed under the same license as the unixcw package.
+# Translators:
+# Michel Grentzinger, <mic.grentz@online.fr>, before 2011
+# Steve Petruzzello, <dlist@bluewin.ch>@bluewin.ch>, 2012
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: unixcw_2.2-4\n"
+"Project-Id-Version: unixcw_3.0-2\n"
 "Report-Msgid-Bugs-To: unixcw@packages.debian.org\n"
-"POT-Creation-Date: 2011-12-01 21:00+0100\n"
-"PO-Revision-Date: 2003-07-04 09:41+0200\n"
-"Last-Translator: Michel Grentzinger <mic.grentz@online.fr>\n"
+"POT-Creation-Date: 2012-01-11 06:51+0100\n"
+"PO-Revision-Date: 2012-01-16 21:00+0100\n"
+"Last-Translator: Steve R. Petruzzello <dlist@bluewin.ch>\n"
 "Language-Team: French <debian-l10n-french@lists.debian.org>\n"
 "Language: fr\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=ISO-8859-15\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
 #. Type: boolean
 #. Description
-#: ../cwcp.templates:1001
-#, fuzzy
-#| msgid "Make cwcp setuid root"
-msgid "Make cwcp setuid root?"
-msgstr "Rendre cwcp « setuid root »"
+#: ../cwcp.templates:2001
+msgid "Run cwcp with root privileges?"
+msgstr "Faut-il exÃ©cuter cwcp avec les privilÃ¨ges du super-utilisateurÂ ?"
 
 #. Type: boolean
 #. Description
-#: ../cwcp.templates:1001
+#: ../cwcp.templates:2001
 msgid ""
-"cwcp can produce sounds using console buzzer, but this feature is available "
-"only if cwcp is run by root user. You can achieve this by setting setuid bit "
-"here (not recommended) or by running cwcp with sudo (also not recommended). "
-"You can also use soundcard output instead of console buzzer output and "
-"eliminate this problem completely."
+"If it is run with elevated privileges (which is not recommended), cwcp can "
+"produce sounds using the console buzzer."
 msgstr ""
+"Le programme cwcp peut produire des sons s'il est exÃ©cutÃ© avec des "
+"privilÃ¨ges Ã©levÃ©s (ce qui n'est pas recommandÃ©)."
 
 #. Type: boolean
 #. Description
-#: ../cw.templates:1001
-#, fuzzy
-#| msgid "Make cw setuid root"
-msgid "Make cw setuid root?"
-msgstr "Rendre cw « suid root »"
-
-#. Type: boolean
-#. Description
-#: ../cw.templates:1001
+#: ../cwcp.templates:2001 ../cw.templates:2001
 msgid ""
-"cw can produce sounds using console buzzer, but this feature is available "
-"only if cw is run by root user. You can achieve this by setting setuid bit "
-"here (not recommended) or by running cw with sudo (also not recommended). "
-"You can also use soundcard output instead of console buzzer output and "
-"eliminate this problem completely."
+"Please choose whether this should be achieved by giving the executable the "
+"\"setuid\" attribute."
 msgstr ""
+"Veuillez choisir si vous dÃ©sirez ceci en donnant au programme l'attribut "
+"Â«Â setuidÂ Â»."
 
-#~ msgid ""
-#~ "The cwcp program only runs correctly as the root user. One way of doing "
-#~ "this is to make the program setuid root. This is generally a bad idea as "
-#~ "there are better ways, such as using the sudo program, to do this. "
-#~ "However, you have the option here of making it setuid root if you like."
-#~ msgstr ""
-#~ "Seul le super-utilisateur peut faire fonctionner correctement le "
-#~ "programme cwcp. Afin que tout le monde puisse l'utiliser, on peut le "
-#~ "rendre « setuid root ». C'est généralement une mauvaise idée car il "
-#~ "existe d'autres méthodes, comme l'utilisation du programme sudo. "
-#~ "Cependant, vous pouvez tout de même décider ici de le rendre « suid "
-#~ "root »."
+#. Type: boolean
+#. Description
+#: ../cwcp.templates:2001 ../cw.templates:2001
+msgid ""
+"Alternatives include running the program with sudo or eliminating this issue "
+"completely by using output via a sound card instead of the buzzer."
+msgstr ""
+"Il est possible de contourner ce problÃ¨me en exÃ©cutant ce programme Ã  l'aide "
+"de Â«Â sudoÂ Â» ou l'Ã©liminer en utilisant la sortie d'une carte son plutÃ´t que "
+"le buzzer de la console."
 
-#~ msgid ""
-#~ "The cw program only runs correctly as the root user. One way of doing "
-#~ "this is to make the program setuid root. This is generally a bad idea as "
-#~ "there are better ways, such as using the sudo program, to do this. "
-#~ "However, you have the option here of making it setuid root if you like."
-#~ msgstr ""
-#~ "Seul le super-utilisateur peut faire fonctionner correctement le "
-#~ "programme cw. Afin que tout le monde puisse l'utiliser, on peut le rendre "
-#~ "« setuid root ». C'est généralement une mauvaise idée car il existe "
-#~ "d'autres méthodes, comme l'utilisation du programme sudo. Cependant, vous "
-#~ "pouvez tout de même décider ici de le rendre « suid root »."
+#. Type: boolean
+#. Description
+#: ../cw.templates:2001
+msgid "Run cw with root privileges?"
+msgstr "Faut-il exÃ©cuter cw avec les privilÃ¨ges du super-utilisateurÂ ?"
 
-#~ msgid "Make xcwcp setuid root"
-#~ msgstr "Rendre xcwcp « suid root »"
-
-#~ msgid ""
-#~ "The xcwcp program only runs correctly as the root user. One way of doing "
-#~ "this is to make the program setuid root. This is generally a bad idea as "
-#~ "there are better ways, such as using the sudo program, to do this. "
-#~ "However, you have the option here of making it setuid root if you like."
-#~ msgstr ""
-#~ "Seul le super-utilisateur peut faire fonctionner correctement le "
-#~ "programme xcwcp. Afin que tout le monde puisse l'utiliser, on peut le "
-#~ "rendre « setuid root ». C'est généralement une mauvaise idée car il "
-#~ "existe d'autres méthodes, comme l'utilisation du programme sudo. "
-#~ "Cependant, vous pouvez tout de même décider ici de le rendre « suid root "
-#~ "»."
+#. Type: boolean
+#. Description
+#: ../cw.templates:2001
+msgid ""
+"If it is run with elevated privileges (which is not recommended), cw can "
+"produce sounds using the console buzzer."
+msgstr ""
+"Le programme cw peut produire des sons en utilisant le buzzer de la console "
+"s'il est exÃ©cutÃ© avec des privilÃ¨ges Ã©levÃ©s (ce qui n'est pas recommandÃ©)."

@@ -1,16 +1,16 @@
 # Slovak translation of unixcw.
 # Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
 # This file is distributed under the same license as the unixcw package.
-# Ivan Masár <helix84@centrum.sk>, 2009.
+# Ivan Masár <helix84@centrum.sk>, 2009, 2012.
 #
 msgid ""
 msgstr ""
 "Project-Id-Version: unixcw\n"
 "Report-Msgid-Bugs-To: unixcw@packages.debian.org\n"
-"POT-Creation-Date: 2011-12-01 21:00+0100\n"
-"PO-Revision-Date: 2009-06-30 11:36+0100\n"
+"POT-Creation-Date: 2012-01-11 06:51+0100\n"
+"PO-Revision-Date: 2012-01-11 13:47+0100\n"
 "Last-Translator: Ivan Masár <helix84@centrum.sk>\n"
-"Language-Team: Slovak <sk-i18n@lists.linux.sk>\n"
+"Language-Team: Slovak <debian-l10n-slovak@lists.debian.org>\n"
 "Language: sk\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -19,61 +19,53 @@ msgstr ""
 
 #. Type: boolean
 #. Description
-#: ../cwcp.templates:1001
-#, fuzzy
-#| msgid "Make cwcp setuid root"
-msgid "Make cwcp setuid root?"
-msgstr "Nastaviť setuid root pre cwcp"
+#: ../cwcp.templates:2001
+msgid "Run cwcp with root privileges?"
+msgstr "Spúšťať cwcp s oprávnením používateľa root?"
 
 #. Type: boolean
 #. Description
-#: ../cwcp.templates:1001
+#: ../cwcp.templates:2001
 msgid ""
-"cwcp can produce sounds using console buzzer, but this feature is available "
-"only if cwcp is run by root user. You can achieve this by setting setuid bit "
-"here (not recommended) or by running cwcp with sudo (also not recommended). "
-"You can also use soundcard output instead of console buzzer output and "
-"eliminate this problem completely."
+"If it is run with elevated privileges (which is not recommended), cwcp can "
+"produce sounds using the console buzzer."
 msgstr ""
+"Ak ho spustíte so zvýšenými oprávneniami (čo sa neodporúča), cwcp môže "
+"vydávať zvuky prostredníctvom pípnutí konzoly."
 
 #. Type: boolean
 #. Description
-#: ../cw.templates:1001
-#, fuzzy
-#| msgid "Make cw setuid root"
-msgid "Make cw setuid root?"
-msgstr "Nastaviť setuid root pre cw"
-
-#. Type: boolean
-#. Description
-#: ../cw.templates:1001
+#: ../cwcp.templates:2001 ../cw.templates:2001
 msgid ""
-"cw can produce sounds using console buzzer, but this feature is available "
-"only if cw is run by root user. You can achieve this by setting setuid bit "
-"here (not recommended) or by running cw with sudo (also not recommended). "
-"You can also use soundcard output instead of console buzzer output and "
-"eliminate this problem completely."
+"Please choose whether this should be achieved by giving the executable the "
+"\"setuid\" attribute."
 msgstr ""
+"Prosím, zvoľte, či sa to má dosiahnuť udelením atribútu „setuid“ "
+"spustiteľnému súboru."
 
-#~ msgid ""
-#~ "The cwcp program only runs correctly as the root user. One way of doing "
-#~ "this is to make the program setuid root. This is generally a bad idea as "
-#~ "there are better ways, such as using the sudo program, to do this. "
-#~ "However, you have the option here of making it setuid root if you like."
-#~ msgstr ""
-#~ "Program cwcp beží správne iba pod používateľom root. Jeden zo spôsobov "
-#~ "ako toho dosiahnuť je nastaviť setuid root pre cwcp. To je vo "
-#~ "všeobecnosti zlý nápad, pretože existujú lepšie spôsoby ako napr. "
-#~ "použitie programu sudo. Ale ak chcete, tu máte možnosť nastaviť setuid "
-#~ "root pre cwcp."
+#. Type: boolean
+#. Description
+#: ../cwcp.templates:2001 ../cw.templates:2001
+msgid ""
+"Alternatives include running the program with sudo or eliminating this issue "
+"completely by using output via a sound card instead of the buzzer."
+msgstr ""
+"Medzi alternatívy patrí spúšťanie programu pomocou sudo alebo úplná "
+"eliminácia problému použitím výstupu prostredníctvom zvukovej karty namiesto "
+"pípnutí konzoly."
 
-#~ msgid ""
-#~ "The cw program only runs correctly as the root user. One way of doing "
-#~ "this is to make the program setuid root. This is generally a bad idea as "
-#~ "there are better ways, such as using the sudo program, to do this. "
-#~ "However, you have the option here of making it setuid root if you like."
-#~ msgstr ""
-#~ "Program cw beží správne iba pod používateľom root. Jeden zo spôsobov ako "
-#~ "toho dosiahnuť je nastaviť setuid root pre cw. To je vo všeobecnosti zlý "
-#~ "nápad, pretože existujú lepšie spôsoby ako napr. použitie programu sudo. "
-#~ "Ale ak chcete, tu máte možnosť nastaviť setuid root pre cw."
+#. Type: boolean
+#. Description
+#: ../cw.templates:2001
+msgid "Run cw with root privileges?"
+msgstr "Spúšťať cw s oprávnením používateľa root?"
+
+#. Type: boolean
+#. Description
+#: ../cw.templates:2001
+msgid ""
+"If it is run with elevated privileges (which is not recommended), cw can "
+"produce sounds using the console buzzer."
+msgstr ""
+"Ak ho spustíte so zvýšenými oprávneniami (čo sa neodporúča), cw môže vydávať "
+"zvuky prostredníctvom pípnutí konzoly."

@@ -1,103 +1,70 @@
+# Dutch translation of unixcw debconf templates.
+# Copyright (C) 2012 THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the unixcw package.
+# Jeroen Schot <schot@a-eskwadraat.nl>, 2012.
 #
-#    Translators, if you are not familiar with the PO format, gettext
-#    documentation is worth reading, especially sections dedicated to
-#    this format, e.g. by running:
-#         info -n '(gettext)PO Files'
-#         info -n '(gettext)Header Entry'
-#
-#    Some information specific to po-debconf are available at
-#            /usr/share/doc/po-debconf/README-trans
-#         or http://www.debian.org/intl/l10n/po-debconf/README-trans
-#
-#    Developers do not need to manually edit POT or PO files.
-#
-#, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: PACKAGE VERSION\n"
+"Project-Id-Version: unixcw 3.0-5\n"
 "Report-Msgid-Bugs-To: unixcw@packages.debian.org\n"
-"POT-Creation-Date: 2011-12-01 21:00+0100\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language-Team: LANGUAGE <LL@li.org>\n"
-"Language: \n"
+"POT-Creation-Date: 2012-01-11 06:51+0100\n"
+"PO-Revision-Date: 2012-01-12 14:40+0100\n"
+"Last-Translator: Jeroen Schot <schot@a-eskwadraat.nl>\n"
+"Language-Team: Debian l10n Dutch <debian-l10n-dutch@lists.debian.org>\n"
+"Language: nl\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=ISO-8859-15\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
 #. Type: boolean
 #. Description
-#: ../cwcp.templates:1001
-#, fuzzy
-#| msgid "Make cwcp setuid root"
-msgid "Make cwcp setuid root?"
-msgstr "Maak het cwcp programma setuid root"
+#: ../cwcp.templates:2001
+msgid "Run cwcp with root privileges?"
+msgstr "Cwcp met beheerdersprivileges uitvoeren?"
 
 #. Type: boolean
 #. Description
-#: ../cwcp.templates:1001
+#: ../cwcp.templates:2001
 msgid ""
-"cwcp can produce sounds using console buzzer, but this feature is available "
-"only if cwcp is run by root user. You can achieve this by setting setuid bit "
-"here (not recommended) or by running cwcp with sudo (also not recommended). "
-"You can also use soundcard output instead of console buzzer output and "
-"eliminate this problem completely."
+"If it is run with elevated privileges (which is not recommended), cwcp can "
+"produce sounds using the console buzzer."
 msgstr ""
+"Wanneer cwcp wordt uitgevoerd met verhoogde privileges (wat niet wordt "
+"aangeraden), kan deze geluiden produceren via de console-buzzer."
 
 #. Type: boolean
 #. Description
-#: ../cw.templates:1001
-#, fuzzy
-#| msgid "Make cw setuid root"
-msgid "Make cw setuid root?"
-msgstr "Maak het cw programma setuid root"
-
-#. Type: boolean
-#. Description
-#: ../cw.templates:1001
+#: ../cwcp.templates:2001 ../cw.templates:2001
 msgid ""
-"cw can produce sounds using console buzzer, but this feature is available "
-"only if cw is run by root user. You can achieve this by setting setuid bit "
-"here (not recommended) or by running cw with sudo (also not recommended). "
-"You can also use soundcard output instead of console buzzer output and "
-"eliminate this problem completely."
+"Please choose whether this should be achieved by giving the executable the "
+"\"setuid\" attribute."
 msgstr ""
+"Geef aan of dit mogelijk moet worden gemaakt door het \"setuid\"-attribuut "
+"toe te kennen aan het programma."
 
-#~ msgid ""
-#~ "The cwcp program only runs correctly as the root user. One way of doing "
-#~ "this is to make the program setuid root. This is generally a bad idea as "
-#~ "there are better ways, such as using the sudo program, to do this. "
-#~ "However, you have the option here of making it setuid root if you like."
-#~ msgstr ""
-#~ "Het cwcp programma loopt alleen goed als root gebruiker. Een manier om "
-#~ "cwcp als root te runnen, is het suid bit te zetten. Over het algemeen is "
-#~ "dit een slecht idee omdat er betere manieren zijn, bijvoorbeeld met het "
-#~ "sudo programma. Je krijgt hier echter de mogelijkheid om toch het suid "
-#~ "bit te gebruiken."
+#. Type: boolean
+#. Description
+#: ../cwcp.templates:2001 ../cw.templates:2001
+msgid ""
+"Alternatives include running the program with sudo or eliminating this issue "
+"completely by using output via a sound card instead of the buzzer."
+msgstr ""
+"Andere mogelijkheden zijn onder andere het uitvoeren van het programma met "
+"sudo of door de uitvoer via de geluidskaart in plaats van de buzzer te laten "
+"verlopen."
 
-#~ msgid ""
-#~ "The cw program only runs correctly as the root user. One way of doing "
-#~ "this is to make the program setuid root. This is generally a bad idea as "
-#~ "there are better ways, such as using the sudo program, to do this. "
-#~ "However, you have the option here of making it setuid root if you like."
-#~ msgstr ""
-#~ "Het cw programma loopt alleen goed als root gebruiker. Een manier om cw "
-#~ "als root te runnen, is het suid bit te zetten. Over het algemeen is dit "
-#~ "een slecht idee omdat er betere manieren zijn, bijvoorbeeld met het sudo "
-#~ "programma. Je krijgt hier echter de mogelijkheid om toch het suid bit te "
-#~ "gebruiken."
+#. Type: boolean
+#. Description
+#: ../cw.templates:2001
+msgid "Run cw with root privileges?"
+msgstr "Cw met beheerdersprivileges uitvoeren?"
 
-#~ msgid "Make xcwcp setuid root"
-#~ msgstr "Maak het xcwcp programma setuid root"
-
-#~ msgid ""
-#~ "The xcwcp program only runs correctly as the root user. One way of doing "
-#~ "this is to make the program setuid root. This is generally a bad idea as "
-#~ "there are better ways, such as using the sudo program, to do this. "
-#~ "However, you have the option here of making it setuid root if you like."
-#~ msgstr ""
-#~ "Het xcwcp programma loopt alleen goed als root gebruiker. Een manier om "
-#~ "xcwcp als root te runnen, is het suid bit te zetten. Over het algemeen is "
-#~ "dit een slecht idee omdat er betere manieren zijn, bijvoorbeeld met het "
-#~ "sudo programma. Je krijgt hier echter de mogelijkheid om toch het suid "
-#~ "bit te gebruiken."
+#. Type: boolean
+#. Description
+#: ../cw.templates:2001
+msgid ""
+"If it is run with elevated privileges (which is not recommended), cw can "
+"produce sounds using the console buzzer."
+msgstr ""
+"Wanneer cw wordt uitgevoerd met verhoogde privileges (wat niet wordt "
+"aangeraden), kan deze geluiden produceren via de console-buzzer."

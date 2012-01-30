@@ -11,93 +11,71 @@
 #
 #    Developers do not need to manually edit POT or PO files.
 #
-#, fuzzy
+# Yuri Kozlov <yuray@komyakino.ru>, 2012.
 msgid ""
 msgstr ""
-"Project-Id-Version: PACKAGE VERSION\n"
+"Project-Id-Version: unixcw 3.0-2\n"
 "Report-Msgid-Bugs-To: unixcw@packages.debian.org\n"
-"POT-Creation-Date: 2011-12-01 21:00+0100\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language-Team: LANGUAGE <LL@li.org>\n"
-"Language: \n"
+"POT-Creation-Date: 2012-01-11 06:51+0100\n"
+"PO-Revision-Date: 2012-01-14 11:47+0400\n"
+"Last-Translator: Yuri Kozlov <yuray@komyakino.ru>\n"
+"Language-Team: Russian <debian-l10n-russian@lists.debian.org>\n"
+"Language: ru\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=KOI8-R\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Lokalize 1.0\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n"
+"%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
 
 #. Type: boolean
 #. Description
-#: ../cwcp.templates:1001
-#, fuzzy
-#| msgid "Make cwcp setuid root"
-msgid "Make cwcp setuid root?"
-msgstr "Сделать cwcp setuid root"
+#: ../cwcp.templates:2001
+msgid "Run cwcp with root privileges?"
+msgstr "п≈п╟п©я┐я│п╨п╟я┌я▄ cwcp я│ п©я─п╟п╡п╟п╪п╦ я│я┐п©п╣я─п©п╬п╩я▄п╥п╬п╡п╟я┌п╣п╩я▐?"
 
 #. Type: boolean
 #. Description
-#: ../cwcp.templates:1001
+#: ../cwcp.templates:2001
 msgid ""
-"cwcp can produce sounds using console buzzer, but this feature is available "
-"only if cwcp is run by root user. You can achieve this by setting setuid bit "
-"here (not recommended) or by running cwcp with sudo (also not recommended). "
-"You can also use soundcard output instead of console buzzer output and "
-"eliminate this problem completely."
+"If it is run with elevated privileges (which is not recommended), cwcp can "
+"produce sounds using the console buzzer."
 msgstr ""
+"п÷я─п╦ п╥п╟п©я┐я│п╨п╣ я│ я─п╟я│я┬п╦я─п╣п╫п╫я▀п╪п╦ п©я─п╟п╡п╟п╪п╦ (п╫п╣ я─п╣п╨п╬п╪п╣п╫п╢я┐п╣я┌я│я▐) cwcp я│п╪п╬п╤п╣я┌ п©п╬п╢п╟п╡п╟я┌я▄ "
+"п╥п╡я┐п╨п╬п╡я▀п╣ я│п╦пЁп╫п╟п╩я▀ я┤п╣я─п╣п╥ п╨п╬п╫я│п╬п╩я▄п╫я▀п╧ п╢п╦п╫п╟п╪п╦п╨."
 
 #. Type: boolean
 #. Description
-#: ../cw.templates:1001
-#, fuzzy
-#| msgid "Make cw setuid root"
-msgid "Make cw setuid root?"
-msgstr "Сделайте sw setuid root"
-
-#. Type: boolean
-#. Description
-#: ../cw.templates:1001
+#: ../cwcp.templates:2001 ../cw.templates:2001
 msgid ""
-"cw can produce sounds using console buzzer, but this feature is available "
-"only if cw is run by root user. You can achieve this by setting setuid bit "
-"here (not recommended) or by running cw with sudo (also not recommended). "
-"You can also use soundcard output instead of console buzzer output and "
-"eliminate this problem completely."
+"Please choose whether this should be achieved by giving the executable the "
+"\"setuid\" attribute."
 msgstr ""
+"п▓я▀п╠п╣я─п╦я┌п╣, я┘п╬я┌п╦я┌п╣ п╩п╦ п╡я▀ я█я┌п╬пЁп╬ (я┐ п╦я│п©п╬п╩п╫я▐п╣п╪п╬пЁп╬ я└п╟п╧п╩п╟ п╠я┐п╢п╣я┌ п╡п╨п╩я▌я┤я▒п╫ п╟я┌я─п╦п╠я┐я┌ "
+"б╚setuidб╩)."
 
-#~ msgid ""
-#~ "The cwcp program only runs correctly as the root user. One way of doing "
-#~ "this is to make the program setuid root. This is generally a bad idea as "
-#~ "there are better ways, such as using the sudo program, to do this. "
-#~ "However, you have the option here of making it setuid root if you like."
-#~ msgstr ""
-#~ "Программа cwcp запускается корректно только от имени пользователя root "
-#~ "Один  из  способов обойти это ограничение - установить setuid root для "
-#~ "программы.  Обычно  это  плохая идея, так как существует лучший путь - "
-#~ "использовать  программу  sudo.  Однако, если хотите, можете установить "
-#~ "setuid root сейчас."
+#. Type: boolean
+#. Description
+#: ../cwcp.templates:2001 ../cw.templates:2001
+msgid ""
+"Alternatives include running the program with sudo or eliminating this issue "
+"completely by using output via a sound card instead of the buzzer."
+msgstr ""
+"п≤п╩п╦ п╡я▀ п╪п╬п╤п╣я┌п╣ п╡п╨п╩я▌я┤п╦я┌я▄ п╥п╟п©я┐я│п╨ п©я─п╬пЁя─п╟п╪п╪я▀ п╦п╥ sudo п╦п╩п╦ я─п╣я┬п╦я┌я▄ я█я┌п╬я┌ п╡п╬п©я─п╬я│ "
+"я│п╬п╡я│п╣п╪, п╡я▀п╡п╬п╢я▐ п╥п╡я┐п╨ я┤п╣я─п╣п╥ п╥п╡я┐п╨п╬п╡я┐я▌ п╨п╟я─я┌я┐, п╟ п╫п╣ п╢п╦п╫п╟п╪п╦п╨."
 
-#~ msgid ""
-#~ "The cw program only runs correctly as the root user. One way of doing "
-#~ "this is to make the program setuid root. This is generally a bad idea as "
-#~ "there are better ways, such as using the sudo program, to do this. "
-#~ "However, you have the option here of making it setuid root if you like."
-#~ msgstr ""
-#~ "Программа cw работает корректно только от пользователя root. Одним из "
-#~ "способов это сделать является установка бита смены идентификатора. Обычно "
-#~ "это плохая идея, поскольку, чтобы добиться того же самого существуют "
-#~ "другие пути, например, использование программы sudo. Однако, если хотите, "
-#~ "можете использовать предлагаемую опцию и сделать программу суидной."
+#. Type: boolean
+#. Description
+#: ../cw.templates:2001
+msgid "Run cw with root privileges?"
+msgstr "п≈п╟п©я┐я│п╨п╟я┌я▄ cw я│ п©я─п╟п╡п╟п╪п╦ я│я┐п©п╣я─п©п╬п╩я▄п╥п╬п╡п╟я┌п╣п╩я▐?"
 
-#~ msgid "Make xcwcp setuid root"
-#~ msgstr "Сделать xcwcp setuid root"
-
-#~ msgid ""
-#~ "The xcwcp program only runs correctly as the root user. One way of doing "
-#~ "this is to make the program setuid root. This is generally a bad idea as "
-#~ "there are better ways, such as using the sudo program, to do this. "
-#~ "However, you have the option here of making it setuid root if you like."
-#~ msgstr ""
-#~ "Прорамма xcwcp запускается корректно только от имени пользователя root. "
-#~ "Один из способов обойти это ограничение - установить setuid root для "
-#~ "программы. Обычно это плохая идея, так как существует лучший путь - "
-#~ "использовать программу sudo. Однако, если хотите, можете установить "
-#~ "setuid root сейчас."
+#. Type: boolean
+#. Description
+#: ../cw.templates:2001
+msgid ""
+"If it is run with elevated privileges (which is not recommended), cw can "
+"produce sounds using the console buzzer."
+msgstr ""
+"п÷я─п╦ п╥п╟п©я┐я│п╨п╣ я│ я─п╟я│я┬п╦я─п╣п╫п╫я▀п╪п╦ п©я─п╟п╡п╟п╪п╦ (п╫п╣ я─п╣п╨п╬п╪п╣п╫п╢я┐п╣я┌я│я▐) cw я│п╪п╬п╤п╣я┌ п©п╬п╢п╟п╡п╟я┌я▄ "
+"п╥п╡я┐п╨п╬п╡я▀п╣ я│п╦пЁп╫п╟п╩я▀ я┤п╣я─п╣п╥ п╨п╬п╫я│п╬п╩я▄п╫я▀п╧ п╢п╦п╫п╟п╪п╦п╨."
