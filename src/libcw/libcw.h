@@ -107,14 +107,24 @@ enum
   CW_DEBUG_MASK = (1 << 11) - 1      /* Bit mask of used debug bits */
 };
 
-/* CW library function prototypes. */
-extern int cw_version (void);
+
+
+/* CW library function prototypes */
+
+/* Functions handling library meta data */
+extern int  cw_version (void);
 extern void cw_license (void);
-extern int cw_generator_new(int audio_system, const char *device);
+
+/* Functions handling 'generator' */
+extern int  cw_generator_new(int audio_system, const char *device);
 extern void cw_generator_delete(void);
 extern int  cw_generator_start(void);
 extern void cw_generator_stop(void);
 extern const char *cw_generator_get_audio_system_label(void);
+
+/* Functions handling representation of a character */
+extern bool cw_representation_valid(const char *representation);
+extern int  cw_representation_to_character(const char *representation);
 
 
 extern void cw_set_debug_flags (unsigned int new_value);
@@ -123,8 +133,6 @@ extern int cw_get_character_count (void);
 extern void cw_list_characters (char *list);
 extern int cw_get_maximum_representation_length (void);
 extern int cw_lookup_character (char c, char *representation);
-extern int cw_check_representation (const char *representation);
-extern int cw_lookup_representation (const char *representation, char *c);
 extern int cw_get_procedural_character_count (void);
 extern void cw_list_procedural_characters (char *list);
 extern int cw_get_maximum_procedural_expansion_length (void);
@@ -249,6 +257,14 @@ extern int cw_notify_straight_key_event (int key_state);
 extern int cw_get_straight_key_state (void);
 extern bool cw_is_straight_key_busy (void);
 extern void cw_reset_straight_key (void);
+
+
+
+
+/* deprecated functions */
+extern int cw_check_representation(const char *representation) __attribute__ ((deprecated("Use cw_representation_valid()")));
+extern int cw_lookup_representation(const char *representation, char *c);  __attribute__ ((deprecated("Use cw_representation_to_character()")));
+
 
 #if defined(__cplusplus)
 }
