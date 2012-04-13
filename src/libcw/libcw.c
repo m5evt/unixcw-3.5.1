@@ -172,13 +172,14 @@ static int cw_sound_internal(int frequency);
 static bool cw_is_debugging_internal(unsigned int flag);
 static int cw_open_device_oss_ioctls(int *fd, int *sample_rate);
 
-static const char *cw_lookup_character_internal(char c);
+
 
 /* functions handling representation of a character;
    representation looks like this: ".-" for 'a', "--.." for 'z', etc. */
 static bool         cw_representation_lookup_init(const cw_entry_t *lookup[]);
-static int          cw_representation_lookup(const char *representation);
-static unsigned int cw_representation_hash(const char *representation);
+static int          cw_representation_to_char(const char *representation);
+static unsigned int cw_representation_to_hash(const char *representation);
+static const char  *cw_char_to_representation(int c);
 
 static const char *cw_lookup_procedural_character_internal(char c, int *is_usually_expanded);
 static void cw_sync_parameters_internal(void);
@@ -334,6 +335,7 @@ static unsigned int cw_debug_flags = 0;
 void cw_set_debug_flags(unsigned int new_value)
 {
 	cw_debug_flags = new_value;
+	return;
 }
 
 
@@ -441,206 +443,280 @@ bool cw_is_debugging_internal(unsigned int flag)
  */
 
 static const cw_entry_t CW_TABLE[] = {
-  /* ASCII 7bit letters */
-  {'A', ".-"},    {'B', "-..."},  {'C', "-.-."},
-  {'D', "-.."},   {'E', "."},     {'F', "..-."},
-  {'G', "--."},   {'H', "...."},  {'I', ".."},
-  {'J', ".---"},  {'K', "-.-"},   {'L', ".-.."},
-  {'M', "--"},    {'N', "-."},    {'O', "---"},
-  {'P', ".--."},  {'Q', "--.-"},  {'R', ".-."},
-  {'S', "..."},   {'T', "-"},     {'U', "..-"},
-  {'V', "...-"},  {'W', ".--"},   {'X', "-..-"},
-  {'Y', "-.--"},  {'Z', "--.."},
+	/* ASCII 7bit letters */
+	{'A', ".-"  },  {'B', "-..."},  {'C', "-.-."},
+	{'D', "-.." },  {'E', "."   },  {'F', "..-."},
+	{'G', "--." },  {'H', "...."},  {'I', ".."  },
+	{'J', ".---"},  {'K', "-.-" },  {'L', ".-.."},
+	{'M', "--"  },  {'N', "-."  },  {'O', "---" },
+	{'P', ".--."},  {'Q', "--.-"},  {'R', ".-." },
+	{'S', "..." },  {'T', "-"   },  {'U', "..-" },
+	{'V', "...-"},  {'W', ".--" },  {'X', "-..-"},
+	{'Y', "-.--"},  {'Z', "--.."},
 
-  /* Numerals */
-  {'0', "-----"},  {'1', ".----"},  {'2', "..---"},
-  {'3', "...--"},  {'4', "....-"},  {'5', "....."},
-  {'6', "-...."},  {'7', "--..."},  {'8', "---.."},
-  {'9', "----."},
+	/* Numerals */
+	{'0', "-----"},  {'1', ".----"},  {'2', "..---"},
+	{'3', "...--"},  {'4', "....-"},  {'5', "....."},
+	{'6', "-...."},  {'7', "--..."},  {'8', "---.."},
+	{'9', "----."},
 
-  /* Punctuation */
-  {'"', ".-..-."},  {'\'', ".----."},  {'$', "...-..-"},
-  {'(', "-.--."},   {')', "-.--.-"},   {'+', ".-.-."},
-  {',', "--..--"},  {'-', "-....-"},   {'.', ".-.-.-"},
-  {'/', "-..-."},   {':', "---..."},   {';', "-.-.-."},
-  {'=', "-...-"},   {'?', "..--.."},   {'_', "..--.-"},
-  {'@', ".--.-."},
+	/* Punctuation */
+	{'"', ".-..-."},  {'\'', ".----."},  {'$', "...-..-"},
+	{'(', "-.--." },  {')',  "-.--.-"},  {'+', ".-.-."  },
+	{',', "--..--"},  {'-',  "-....-"},  {'.', ".-.-.-" },
+	{'/', "-..-." },  {':',  "---..."},  {';', "-.-.-." },
+	{'=', "-...-" },  {'?',  "..--.."},  {'_', "..--.-" },
+	{'@', ".--.-."},
 
-  /* ISO 8859-1 accented characters */
-  {'\334', "..--"},    /* U with diaeresis */
-  {'\304', ".-.-"},    /* A with diaeresis */
-  {'\307', "-.-.."},   /* C with cedilla */
-  {'\326', "---."},    /* O with diaeresis */
-  {'\311', "..-.."},   /* E with acute */
-  {'\310', ".-..-"},   /* E with grave */
-  {'\300', ".--.-"},   /* A with grave */
-  {'\321', "--.--"},   /* N with tilde */
+	/* ISO 8859-1 accented characters */
+	{'\334', "..--" },   /* U with diaeresis */
+	{'\304', ".-.-" },   /* A with diaeresis */
+	{'\307', "-.-.."},   /* C with cedilla */
+	{'\326', "---." },   /* O with diaeresis */
+	{'\311', "..-.."},   /* E with acute */
+	{'\310', ".-..-"},   /* E with grave */
+	{'\300', ".--.-"},   /* A with grave */
+	{'\321', "--.--"},   /* N with tilde */
 
-  /* ISO 8859-2 accented characters */
-  {'\252', "----"},    /* S with cedilla */
-  {'\256', "--..-"},   /* Z with dot above */
+	/* ISO 8859-2 accented characters */
+	{'\252', "----" },   /* S with cedilla */
+	{'\256', "--..-"},   /* Z with dot above */
 
-  /* Non-standard procedural signal extensions to standard CW characters. */
-  {'<', "...-.-"},     /* VA/SK, end of work */
-  {'>', "-...-.-"},    /* BK, break */
-  {'!', "...-."},      /* SN, understood */
-  {'&', ".-..."},      /* AS, wait */
-  {'^', "-.-.-"},      /* KA, starting signal */
-  {'~', ".-.-.."},     /* AL, paragraph */
+	/* Non-standard procedural signal extensions to standard CW characters. */
+	{'<', "...-.-" },    /* VA/SK, end of work */
+	{'>', "-...-.-"},    /* BK, break */
+	{'!', "...-."  },    /* SN, understood */
+	{'&', ".-..."  },    /* AS, wait */
+	{'^', "-.-.-"  },    /* KA, starting signal */
+	{'~', ".-.-.." },    /* AL, paragraph */
 
-  /* Sentinel end of table value */
-  {0, NULL}
+	/* Sentinel end of table value */
+	{0, NULL}
 };
 
 
+
+
+
 /**
- * Returns the number of characters represented in the character lookup
- * table.
- */
+   \brief Return the number of characters present in character lookup table
+
+   Return the number of characters that are known to libcw.
+   The number only includes alphanumeric characters, punctuation, and following
+   procedural characters: VA/SK, BK, SN, AS, KA, AL.
+
+   \return number of known characters
+*/
 int cw_get_character_count(void)
 {
-  static int character_count = 0;
+	static int character_count = 0;
 
-  if (character_count == 0)
-    {
-      const cw_entry_t *cw_entry;
+	if (character_count == 0) {
+		for (const cw_entry_t *cw_entry = CW_TABLE; cw_entry->character; cw_entry++) {
+			character_count++;
+		}
+	}
 
-      for (cw_entry = CW_TABLE; cw_entry->character; cw_entry++)
-        character_count++;
-    }
-
-  return character_count;
+	return character_count;
 }
 
 
+
+
+
 /**
- * Returns into list a string containing all of the Morse characters
- * represented in the table.  The length of list must be at least one greater
- * than the number of characters represented in the character lookup table,
- * returned by cw_get_character_count.
- */
+   \brief Get list of characters present in character lookup table
+
+   Function provides a string containing all of the characters represented
+   in library's lookup table.
+   The list only includes alphanumeric characters, punctuation, and following
+   procedural characters: VA/SK, BK, SN, AS, KA, AL.
+
+   \p list should be allocated by caller. The length of \p list must be at
+   least one greater than the number of characters represented in the
+   character lookup table, returned by cw_get_character_count().
+
+   \param list - pointer to space to be filled by function
+*/
 void cw_list_characters(char *list)
 {
-  const cw_entry_t *cw_entry;
-  int index;
+	/* Append each table character to the output string. */
+	int index = 0;
+	for (const cw_entry_t *cw_entry = CW_TABLE; cw_entry->character; cw_entry++) {
+		list[index++] = cw_entry->character;
+	}
 
-  /* Append each table character to the output string. */
-  index = 0;
-  for (cw_entry = CW_TABLE; cw_entry->character; cw_entry++)
-    list[index++] = cw_entry->character;
+	list[index] = '\0';
 
-  list[index] = '\0';
+	return;
 }
 
 
+
+
+
 /**
- * Returns the string length of the longest representation in the character
- * lookup table.
- */
+   \brief Get length of the longest representation
+
+   Function returns the string length of the longest representation in the
+   character lookup table.
+
+   \return a positive number - length of the longest representation
+*/
 int cw_get_maximum_representation_length(void)
 {
-  static int maximum_length = 0;
+	static int maximum_length = 0;
 
-  if (maximum_length == 0)
-    {
-      const cw_entry_t *cw_entry;
+	if (maximum_length == 0) {
+		/* Traverse the main lookup table, finding the longest representation. */
+		for (const cw_entry_t *cw_entry = CW_TABLE; cw_entry->character; cw_entry++) {
+			int length = (int) strlen (cw_entry->representation);
+			if (length > maximum_length) {
+				maximum_length = length;
+			}
+		}
+	}
 
-      /* Traverse the main lookup table, finding the longest. */
-      for (cw_entry = CW_TABLE; cw_entry->character; cw_entry++)
-        {
-          int length;
-
-          length = (int) strlen (cw_entry->representation);
-          if (length > maximum_length)
-            maximum_length = length;
-        }
-    }
-
-  return maximum_length;
+	return maximum_length;
 }
 
 
+
+
+
 /**
- * Look up the given character, and return the representation of that
- * character.  Returns NULL if there is no table entry for the given
- * character.
- */
-const char *cw_lookup_character_internal(char c)
+   \brief Return representation of given character
+
+   Look up the given character \p c, and return the representation of
+   that character.  Return NULL if there is no table entry for the given
+   character. Otherwise return pointer to static string with representation
+   of character. The string is owned by library.
+
+   \param c - character to look up
+
+   \return pointer to string with representation of character on success
+   \return NULL on failure
+*/
+const char *cw_char_to_representation(int c)
 {
-  static const cw_entry_t *lookup[UCHAR_MAX];  /* Fast lookup table */
-  static bool is_initialized = false;
+	static const cw_entry_t *lookup[UCHAR_MAX];  /* Fast lookup table */
+	static bool is_initialized = false;
 
-  const cw_entry_t *cw_entry;
+	/* If this is the first call, set up the fast lookup table to give
+	   direct access to the CW table for a given character. */
+	if (!is_initialized) {
+		cw_debug (CW_DEBUG_LOOKUPS, "initialize fast lookup table");
 
-  /*
-   * If this is the first call, set up the fast lookup table to give direct
-   * access to the CW table for a given character.
-   */
-  if (!is_initialized)
-    {
-      cw_debug (CW_DEBUG_LOOKUPS, "initialize fast lookup table");
+		for (const cw_entry_t *cw_entry = CW_TABLE; cw_entry->character; cw_entry++) {
+			lookup[(unsigned char) cw_entry->character] = cw_entry;
+		}
 
-      for (cw_entry = CW_TABLE; cw_entry->character; cw_entry++)
-        lookup[(unsigned char) cw_entry->character] = cw_entry;
+		is_initialized = true;
+	}
 
-      is_initialized = true;
-    }
+	/* There is no differentiation in the table between upper and lower
+	   case characters; everything is held as uppercase.  So before we
+	   do the lookup, we convert to ensure that both cases work. */
+	c = toupper(c);
 
-  /*
-   * There is no differentiation in the table between upper and lower case
-   * characters; everything is held as uppercase.  So before we do the lookup,
-   * we convert to ensure that both cases work.
-   */
-  c = toupper (c);
+	/* Now use the table to lookup the table entry.  Unknown characters
+	   return NULL, courtesy of the fact that explicitly uninitialized
+	   static variables are initialized to zero, so lookup[x] is NULL
+	   if it's not assigned to in the above loop. */
+	const cw_entry_t *cw_entry = lookup[(unsigned char) c];
 
-  /*
-   * Now use the table to lookup the table entry.  Unknown characters return
-   * NULL, courtesy of the fact that explicitly uninitialized static variables
-   * are initialized to zero, so lookup[x] is NULL if it's not assigned to in
-   * the above loop.
-   */
-  cw_entry = lookup[(unsigned char) c];
+	if (cw_is_debugging_internal (CW_DEBUG_LOOKUPS)) {
+		if (cw_entry) {
+			fprintf (stderr, "cw: lookup '%c' returned <'%c':\"%s\">\n",
+				 c, cw_entry->character, cw_entry->representation);
+		} else if (isprint (c)) {
+			fprintf (stderr, "cw: lookup '%c' found nothing\n", c);
+		} else {
+			fprintf (stderr, "cw: lookup 0x%02x found nothing\n",
+				 (unsigned char) c);
+		}
+	}
 
-  if (cw_is_debugging_internal (CW_DEBUG_LOOKUPS))
-    {
-      if (cw_entry)
-        fprintf (stderr, "cw: lookup '%c' returned <'%c':\"%s\">\n",
-                 c, cw_entry->character, cw_entry->representation);
-      else if (isprint (c))
-        fprintf (stderr, "cw: lookup '%c' found nothing\n", c);
-      else
-        fprintf (stderr, "cw: lookup 0x%02x found nothing\n",
-                 (unsigned char) c);
-    }
-
-  return cw_entry ? cw_entry->representation : NULL;
+	return cw_entry ? cw_entry->representation : NULL;
 }
 
 
+
+
+
 /**
- * Returns the string 'shape' of a given Morse code character.  The routine
- * returns true on success, and fills in the string pointer passed in.  On
- * error, it returns false and sets errno to ENOENT, indicating that the
- * character could not be found.  The length of representation must be at
- * least one greater than the longest representation held in the character
- * lookup table, returned by cw_get_maximum_representation_length.
- */
+   \brief Get representation of a given character
+
+   The function is depreciated, use cw_character_to_representation() instead.
+
+   Return the string 'shape' of a given Morse code character.  The routine
+   returns CW_SUCCESS on success, and fills in the string pointer passed in.
+   On error, it returns CW_FAILURE and sets errno to ENOENT, indicating that
+   the character could not be found.
+
+   The length of \p representation must be at least one greater than the
+   longest representation held in the character lookup table, returned by
+   cw_get_maximum_representation_length().
+
+   \param c - character to look up
+   \param representation - pointer to space for representation of character
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
 int cw_lookup_character(char c, char *representation)
 {
-  const char *retval;
+	/* Lookup the character, and if found, return the string. */
+	const char *retval = cw_char_to_representation(c);
+	if (retval) {
+		if (representation) {
+			strcpy(representation, retval);
+		}
+		return CW_SUCCESS;
+	}
 
-  /* Lookup the character, and if found, return the string. */
-  retval = cw_lookup_character_internal (c);
-  if (retval)
-    {
-      if (representation)
-        strcpy (representation, retval);
-      return CW_SUCCESS;
-    }
+	/* Failed to find the requested character. */
+	errno = ENOENT;
+	return CW_FAILURE;
+}
 
-  /* Failed to find the requested character. */
-  errno = ENOENT;
-  return CW_FAILURE;
+
+
+
+
+/**
+   \brief Get representation of a given character
+
+   On success return representation of a given character.
+   Returned pointer is owned by caller of the function.
+
+   On errors function returns NULL and sets errno:
+   ENOENT indicates that the character could not be found.
+   ENOMEM indicates that character has been found, but function failed
+   to strdup() representation.
+
+   \param c - character to look up
+
+   \return pointer to freshly allocated representation on success
+   \return NULL on failure
+*/
+char *cw_character_to_representation(int c)
+{
+	/* Lookup the character, and if found, return the string */
+	const char *representation = cw_char_to_representation(c);
+	if (representation) {
+		char *r = strdup(representation);
+		if (r) {
+			return r;
+		} else {
+			errno = ENOMEM;
+			return NULL;
+		}
+	} else {
+		/* Failed to find the requested character */
+		errno = ENOENT;
+		return NULL;
+	}
 }
 
 
@@ -666,7 +742,7 @@ int cw_lookup_character(char c, char *representation)
    \return non-zero value for valid representation
    \return zero for invalid representation
 */
-unsigned int cw_representation_hash(const char *representation)
+unsigned int cw_representation_to_hash(const char *representation)
 {
 	/* Our algorithm can handle only 7 characters of representation.
 	   And we insist on there being at least one character, too.  */
@@ -712,7 +788,7 @@ unsigned int cw_representation_hash(const char *representation)
    \return zero if there is no character for given representation
    \return non-zero character corresponding to given representation otherwise
 */
-int cw_representation_lookup(const char *representation)
+int cw_representation_to_char(const char *representation)
 {
 	static const cw_entry_t *lookup[UCHAR_MAX];   /* Fast lookup table */
 	static bool is_complete = true;               /* Set to false if there are any
@@ -729,7 +805,7 @@ int cw_representation_lookup(const char *representation)
 	}
 
 	/* Hash the representation to get an index for the fast lookup. */
-	unsigned int hash = cw_representation_hash(representation);
+	unsigned int hash = cw_representation_to_hash(representation);
 
 	const cw_entry_t *cw_entry = NULL;
 	/* If the hashed lookup table is complete, we can simply believe any
@@ -738,8 +814,9 @@ int cw_representation_lookup(const char *representation)
 	if (is_complete) {
 		cw_entry = lookup[hash];
 	} else {
-		/* impossible, since test_cw_representation_hash()
+		/* impossible, since test_cw_representation_to_hash()
 		   passes without problems */
+		/* TODO: add debug message */
 
 		/* If the hashed lookup table is not complete, the lookup
 		   might still have found us the entry we are looking for.
@@ -809,7 +886,7 @@ bool cw_representation_lookup_init(const cw_entry_t *lookup[])
 	   happen).  The hashed table speeds up lookups of representations by
 	   a factor of 5-10. */
 	for (const cw_entry_t *cw_entry = CW_TABLE; cw_entry->character; cw_entry++) {
-		unsigned int hash = cw_representation_hash(cw_entry->representation);
+		unsigned int hash = cw_representation_to_hash(cw_entry->representation);
 		if (hash) {
 			lookup[hash] = cw_entry;
 		} else {
@@ -921,7 +998,7 @@ int cw_lookup_representation(const char *representation, char *c)
 	}
 
 	/* Lookup the representation, and if found, return the character. */
-	char character = cw_representation_lookup(representation);
+	char character = cw_representation_to_char(representation);
 	if (character) {
 		if (c) {
 			*c = character;
@@ -964,7 +1041,7 @@ int cw_representation_to_character(const char *representation)
 	}
 
 	/* Lookup the representation, and if found, return the character. */
-	int c = cw_representation_lookup(representation);
+	int c = cw_representation_to_char(representation);
 	if (c) {
 		return c;
 	} else {
@@ -3654,14 +3731,13 @@ int cw_send_representation_partial(const char *representation)
 int cw_send_character_internal(char c, int partial)
 {
   int status;
-  const char *representation;
 
   /* Handle space special case; delay end-of-word and return. */
   if (c == ' ')
     return cw_send_word_space ();
 
   /* Lookup the character, and sound it. */
-  representation = cw_lookup_character_internal (c);
+  const char *representation = cw_char_to_representation (c);
   if (!representation)
     {
       errno = ENOENT;
@@ -3687,7 +3763,7 @@ int cw_check_character(char c)
    * If the character is the space special-case, or if not, but it is in the
    * lookup table, return success.
    */
-  if (c == ' ' || cw_lookup_character_internal (c))
+  if (c == ' ' || cw_char_to_representation (c))
     return CW_SUCCESS;
 
   errno = ENOENT;
@@ -3760,7 +3836,7 @@ int cw_check_string(const char *string)
   for (index = 0; string[index] != '\0'; index++)
     {
       if (!(string[index] == ' '
-            || cw_lookup_character_internal (string[index])))
+            || cw_char_to_representation (string[index])))
         {
           errno = EINVAL;
           return CW_FAILURE;
@@ -4765,7 +4841,7 @@ int cw_receive_character(const struct timeval *timestamp,
     return CW_FAILURE;
 
   /* Look up the representation using the lookup functions. */
-  character = cw_representation_lookup(representation);
+  character = cw_representation_to_char(representation);
   if (!character)
     {
       errno = ENOENT;
@@ -6801,7 +6877,7 @@ void main_helper(int audio_system, const char *name, const char *device, predica
 #include <assert.h>
 
 
-static unsigned int test_cw_representation_hash(void);
+static unsigned int test_cw_representation_to_hash(void);
 
 
 
@@ -6810,7 +6886,7 @@ int main(void)
 {
 	fprintf(stderr, "libcw unit tests facility\n");
 
-	test_cw_representation_hash();
+	test_cw_representation_to_hash();
 
 	/* "make check" facility requires this message to be
 	   printed on stdout; don't localize it */
@@ -6831,9 +6907,9 @@ int main(void)
 
 
 
-unsigned int test_cw_representation_hash(void)
+unsigned int test_cw_representation_to_hash(void)
 {
-	fprintf(stderr, "\ttesting cw_representation_hash()... ");
+	fprintf(stderr, "\ttesting cw_representation_to_hash()... ");
 
 
 	char input[REPRESENTATION_TABLE_SIZE][REPRESENTATION_LEN + 1];
@@ -6856,7 +6932,7 @@ unsigned int test_cw_representation_hash(void)
 	}
 
 	for (int j = 0; j < i; j++) {
-		unsigned int hash = cw_representation_hash(input[j]);
+		unsigned int hash = cw_representation_to_hash(input[j]);
 		assert(hash);
 	}
 
