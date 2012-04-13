@@ -606,10 +606,10 @@ LD_LINKS_SO
 LD
 CC_LINKS_SO
 CFLAG_PIC
-SUBDIRS
-QT4INC
-QT4MOC_2
 QT4MOC
+QT4INC
+QT4MOC_PATH
+SUBDIRS
 LIBOBJS
 EGREP
 GREP
@@ -4897,41 +4897,120 @@ fi
 
 
 
-# autodetection of QT4 dependencies
+
+
+# detection of Qt4 moc and Qt4 include dir
+# Copyright (C) 2001-2006  Simon Baldwin (simon_baldwin@yahoo.com)
+# Copyright (C) 2011-2012  Kamil Ignacak (acerion@wp.pl)
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+
+
+
+# Script that detects some paths/files necessary to build
+# Qt4 application using autotools.
+# On success, the script sets two variables for build system by making
+# these two calls:
+#    AC_SUBST(QT4INC)
+#    AC_SUBST(QT4MOC)
+# so that these two Autoconfigure definitions will be available:
+#    AC_QT4INC	= @QT4INC@
+#    AC_QT4MOC	= @QT4MOC@
+# How these are used / can be used is outside of scope of this text.
+
+# On some occasions the script needs to guess location of Qt4 include dir.
+# It uses list of well-known possible locations of Qt4 headers: QT4HEADER_DIRS.
+# If the script has problems on your system, try to add the include path
+# that is valid on your system.
+
+# You can include this file to your configure.ac file like this:
+
+# # detection of Qt4 moc and Qt4 include dir
+# m4_include([configure.qt.inc])
+
+
+
+# possible locations of Qt4 headers - you may have to extend this list
+QT4HEADER_DIRS="/usr/include/qt4 \ # Debian
+               /usr/include"       # Arch (?)
+
 
 MOC_MAJOR_EARLIEST=4
 
-# possible locations of Qt4 headers
-QT4HEADER_DIRS="/usr/include/qt4 \ # Debian
-               /usr/include"      # Arch (?)
 
-# possible locations of Qt4 moc (a.k.a. moc-qt4)
-QT4BIN_DIRS=$PATH # pretty standard
 
-# QT4DIR="" # for testing purposes
+# There are four major tasks performed by this script:
+# Task 1: find Qt4 include directory
+# Task 2: find Qt4 moc
+# Task 3: make sure that major version of the moc is >= MOC_MAJOR_EARLIEST
+# Task 4: on success set up some build system variables (AC_SUBST)
+
+
+
+
+
 QT4INC=""  # full path to directory with QT4 QtCore + QtGui subdirs and include files, e.g. /usr/include/qt4/
-QT4MOC=""  # full path to QT4 moc executable
+QT4MOC=""  # full path to Qt4 moc
+# QT4DIR="" # for testing purposes
 
+
+
+
+
+# Task 1: find Qt4 include directory
 if [[ $QT4DIR = "" ]] ; then
 
-    # look for QT4 include directories
+    # build environment doesn't define $QT4DIR, we have to guess where
+    # Qt4 include files are located; there are only few possible locations,
+    # stored by this script in $QTHEADERS_DIRS
     for dir in $QT4HEADER_DIRS; do
 	if test -d "$dir/QtGui" && test -d "$dir/QtCore" ; then
             QT4INC=$dir;
 	fi
     done
 
-    # look for QT4 moc binary
+else
+    QT4INC="$QT4DIR/include" # trivial
+fi
+
+
+
+
+
+# Task 2: find Qt4 moc
+QT4MOC=""
+QT4MOC_PATH=""
+
+if [[ $QT4DIR = "" ]] ; then
+
+    # we should guess where Qt4 moc binary is;
+    # first we see if we are lucky and Qt4 moc installed on build machine
+    # is called moc-qt4;
+    # on my system /usr/bin/moc links to /etc/alternatives/moc, which links
+    # to /usr/binary/moc-qt4 - the real binary
     # Extract the first word of "moc-qt4", so it can be a program name with args.
 set dummy moc-qt4; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
 $as_echo_n "checking for $ac_word... " >&6; }
-if ${ac_cv_path_QT4MOC+:} false; then :
+if ${ac_cv_path_QT4MOC_PATH+:} false; then :
   $as_echo_n "(cached) " >&6
 else
-  case $QT4MOC in
+  case $QT4MOC_PATH in
   [\\/]* | ?:[\\/]*)
-  ac_cv_path_QT4MOC="$QT4MOC" # Let the user override the test with a path.
+  ac_cv_path_QT4MOC_PATH="$QT4MOC_PATH" # Let the user override the test with a path.
   ;;
   *)
   as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
@@ -4941,7 +5020,7 @@ do
   test -z "$as_dir" && as_dir=.
     for ac_exec_ext in '' $ac_executable_extensions; do
   if { test -f "$as_dir/$ac_word$ac_exec_ext" && $as_test_x "$as_dir/$ac_word$ac_exec_ext"; }; then
-    ac_cv_path_QT4MOC="$as_dir/$ac_word$ac_exec_ext"
+    ac_cv_path_QT4MOC_PATH="$as_dir/$ac_word$ac_exec_ext"
     $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
     break 2
   fi
@@ -4952,35 +5031,29 @@ IFS=$as_save_IFS
   ;;
 esac
 fi
-QT4MOC=$ac_cv_path_QT4MOC
-if test -n "$QT4MOC"; then
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $QT4MOC" >&5
-$as_echo "$QT4MOC" >&6; }
+QT4MOC_PATH=$ac_cv_path_QT4MOC_PATH
+if test -n "$QT4MOC_PATH"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $QT4MOC_PATH" >&5
+$as_echo "$QT4MOC_PATH" >&6; }
 else
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 fi
 
 
-    if test -n "$QT4MOC" ; then
-        MOC_MAJOR="`$QT4MOC -v 2>&1 | sed -e 's;.\+ (Qt \([0-9]\).\+;\1;g'`"
-	if [[ $MOC_MAJOR != $MOC_MAJOR_EARLIEST ]] ; then
-	   QT4MOC=""
-	fi
-    fi
-
-    if [[ "$QT4MOC" = "" ]] ; then
-        QT4MOC_2=""
-        # Extract the first word of "moc", so it can be a program name with args.
+    if [[ "$QT4MOC_PATH" = "" ]] ; then
+	# there is no moc-qt4, so let's try to find "regular" moc;
+	# we will check its version below
+	# Extract the first word of "moc", so it can be a program name with args.
 set dummy moc; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
 $as_echo_n "checking for $ac_word... " >&6; }
-if ${ac_cv_path_QT4MOC_2+:} false; then :
+if ${ac_cv_path_QT4MOC_PATH+:} false; then :
   $as_echo_n "(cached) " >&6
 else
-  case $QT4MOC_2 in
+  case $QT4MOC_PATH in
   [\\/]* | ?:[\\/]*)
-  ac_cv_path_QT4MOC_2="$QT4MOC_2" # Let the user override the test with a path.
+  ac_cv_path_QT4MOC_PATH="$QT4MOC_PATH" # Let the user override the test with a path.
   ;;
   *)
   as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
@@ -4990,7 +5063,7 @@ do
   test -z "$as_dir" && as_dir=.
     for ac_exec_ext in '' $ac_executable_extensions; do
   if { test -f "$as_dir/$ac_word$ac_exec_ext" && $as_test_x "$as_dir/$ac_word$ac_exec_ext"; }; then
-    ac_cv_path_QT4MOC_2="$as_dir/$ac_word$ac_exec_ext"
+    ac_cv_path_QT4MOC_PATH="$as_dir/$ac_word$ac_exec_ext"
     $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
     break 2
   fi
@@ -5001,68 +5074,34 @@ IFS=$as_save_IFS
   ;;
 esac
 fi
-QT4MOC_2=$ac_cv_path_QT4MOC_2
-if test -n "$QT4MOC_2"; then
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $QT4MOC_2" >&5
-$as_echo "$QT4MOC_2" >&6; }
+QT4MOC_PATH=$ac_cv_path_QT4MOC_PATH
+if test -n "$QT4MOC_PATH"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $QT4MOC_PATH" >&5
+$as_echo "$QT4MOC_PATH" >&6; }
 else
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 fi
 
 
-        if test -n "$QT4MOC_2" ; then
-            MOC_MAJOR="`$QT4MOC_2 -v 2>&1 | sed -e 's;.\+ (Qt \([0-9]\).\+;\1;g'`"
-	    if [[ $MOC_MAJOR = $MOC_MAJOR_EARLIEST ]] ; then
-	        QT4MOC=$QT4MOC_2
-	    fi
-        fi
     fi
-
-
-    if [[ $QT4INC != "" && $QT4MOC != "" ]] ; then
-
-	# we have moc4 and path to QT4 include files,
-	# so we can build xcwcp
-	SUBDIRS="$SUBDIRS xcwcp"
-
-
-
-    else
-	if [[ $QT4INC = "" ]] ; then
-	    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Can't find directory with QT4 header files - unable to build xcwcp" >&5
-$as_echo "$as_me: WARNING: Can't find directory with QT4 header files - unable to build xcwcp" >&2;}
-	fi
-
-	if [[ $QT4MOC = "" ]] ; then
-	    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Can't find QT moc version == $MOC_MAJOR_EARLIEST - unable to build xcwcp" >&5
-$as_echo "$as_me: WARNING: Can't find QT moc version == $MOC_MAJOR_EARLIEST - unable to build xcwcp" >&2;}
-	fi
-
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Hint: try setting QT4DIR env variable per instructions in unixcw/INSTALLATION" >&5
-$as_echo "$as_me: WARNING: Hint: try setting QT4DIR env variable per instructions in unixcw/INSTALLATION" >&2;}
-
-	QT4INC=""
-   	QT4MOC=""
-    fi
-
-
 else
+    # There is a decent build environment on this build machine, it
+    # defines/provides a $QT4DIR environment variable. Use it to find
+    # Qt4 moc, and to locate Qt4 include dir (which should be trivial).
 
+    # Look for moc, either on $PATH (?), or in $QT4DIR/bin.
 
-# Look for $QT4DIR.  If found, then look for moc, either on $PATH, or
-# in $QT4DIR/bin.
-
-  # Extract the first word of "moc", so it can be a program name with args.
+    # Extract the first word of "moc", so it can be a program name with args.
 set dummy moc; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
 $as_echo_n "checking for $ac_word... " >&6; }
-if ${ac_cv_path_QT4MOC+:} false; then :
+if ${ac_cv_path_QT4MOC_PATH+:} false; then :
   $as_echo_n "(cached) " >&6
 else
-  case $QT4MOC in
+  case $QT4MOC_PATH in
   [\\/]* | ?:[\\/]*)
-  ac_cv_path_QT4MOC="$QT4MOC" # Let the user override the test with a path.
+  ac_cv_path_QT4MOC_PATH="$QT4MOC_PATH" # Let the user override the test with a path.
   ;;
   *)
   as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
@@ -5073,7 +5112,7 @@ do
   test -z "$as_dir" && as_dir=.
     for ac_exec_ext in '' $ac_executable_extensions; do
   if { test -f "$as_dir/$ac_word$ac_exec_ext" && $as_test_x "$as_dir/$ac_word$ac_exec_ext"; }; then
-    ac_cv_path_QT4MOC="$as_dir/$ac_word$ac_exec_ext"
+    ac_cv_path_QT4MOC_PATH="$as_dir/$ac_word$ac_exec_ext"
     $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
     break 2
   fi
@@ -5084,59 +5123,93 @@ IFS=$as_save_IFS
   ;;
 esac
 fi
-QT4MOC=$ac_cv_path_QT4MOC
-if test -n "$QT4MOC"; then
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $QT4MOC" >&5
-$as_echo "$QT4MOC" >&6; }
+QT4MOC_PATH=$ac_cv_path_QT4MOC_PATH
+if test -n "$QT4MOC_PATH"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $QT4MOC_PATH" >&5
+$as_echo "$QT4MOC_PATH" >&6; }
 else
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 fi
 
 
-  if test -n "$QT4MOC" ; then
-    MOC_VERSION="`$QT4MOC -v 2>&1 | sed -e 's;.*(Qt ;;' -e 's;).*;;'`"
-    if test -n "$MOC_VERSION" ; then
-      MOC_MAJOR="`echo $MOC_VERSION | sed -e 's;\..*;;'`"
-      expr "$MOC_MAJOR" + 0 >/dev/null 2>/dev/null
-      status=$?
-      if test -n "$MOC_MAJOR" -a $status -eq 0 ; then
-        if test "$MOC_MAJOR" -ge $MOC_MAJOR_EARLIEST ; then
-          SUBDIRS="$SUBDIRS xcwcp"
-	  QT4INC="$QT4DIR/include"
+
+fi
 
 
-        else
-          { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Found 'moc' $MOC_VERSION - unable to build xcwcp" >&5
-$as_echo "$as_me: WARNING: Found 'moc' $MOC_VERSION - unable to build xcwcp" >&2;}
-          { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Hint: xcwcp requires 'moc' version >= $MOC_MAJOR_EARLIEST" >&5
-$as_echo "$as_me: WARNING: Hint: xcwcp requires 'moc' version >= $MOC_MAJOR_EARLIEST" >&2;}
-        fi
-      else
-        { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Cannot find 'moc' version - unable to build xcwcp" >&5
-$as_echo "$as_me: WARNING: Cannot find 'moc' version - unable to build xcwcp" >&2;}
-        { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Hint: ensure 'moc' is in QT4DIR/bin on your PATH" >&5
-$as_echo "$as_me: WARNING: Hint: ensure 'moc' is in QT4DIR/bin on your PATH" >&2;}
-      fi
+
+
+
+# Task 3: make sure that major version of the moc is >= MOC_MAJOR_EARLIEST
+if [[ "$QT4MOC_PATH" != "" ]] ; then
+    MOC_VERSION="`$QT4MOC_PATH -v 2>&1 | sed -e 's;.*(Qt ;;' -e 's;).*;;'`"
+    if [[ "$MOC_VERSION" != "" ]] ; then
+	MOC_MAJOR="`echo $MOC_VERSION | sed -e 's;\..*;;'`"
+	expr "$MOC_MAJOR" + 0 >/dev/null 2>/dev/null
+	status=$?
+	if [[ "$MOC_MAJOR" != "" && $status = 0 ]] ; then
+	    if [[ "$MOC_MAJOR" < "$MOC_MAJOR_EARLIEST" ]] ; then
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: \"Found moc $MOC_VERSION - unable to build xcwcp\"" >&5
+$as_echo "$as_me: WARNING: \"Found moc $MOC_VERSION - unable to build xcwcp\"" >&2;}
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: \"xcwcp requires moc version >= $MOC_MAJOR_EARLIEST\"" >&5
+$as_echo "$as_me: WARNING: \"xcwcp requires moc version >= $MOC_MAJOR_EARLIEST\"" >&2;}
+	    else
+		QT4MOC=$QT4MOC_PATH
+	    fi
+	else
+	    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: \"Can't get moc major version - unable to build xcwcp\"" >&5
+$as_echo "$as_me: WARNING: \"Can't get moc major version - unable to build xcwcp\"" >&2;}
+	fi
     else
-      { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Cannot find 'moc' version - unable to build xcwcp" >&5
-$as_echo "$as_me: WARNING: Cannot find 'moc' version - unable to build xcwcp" >&2;}
-      { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Hint: ensure 'moc' is in QT4DIR/bin on your PATH" >&5
-$as_echo "$as_me: WARNING: Hint: ensure 'moc' is in QT4DIR/bin on your PATH" >&2;}
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: \"Can't get moc version - unable to build xcwcp\"" >&5
+$as_echo "$as_me: WARNING: \"Can't get moc version - unable to build xcwcp\"" >&2;}
     fi
-  else
-    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Cannot find 'moc' - unable to build xcwcp" >&5
-$as_echo "$as_me: WARNING: Cannot find 'moc' - unable to build xcwcp" >&2;}
-    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Hint: ensure 'moc' is in QT4DIR/bin on your PATH" >&5
-$as_echo "$as_me: WARNING: Hint: ensure 'moc' is in QT4DIR/bin on your PATH" >&2;}
-  fi
+else
+    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: \"Can't find moc - unable to build xcwcp\"" >&5
+$as_echo "$as_me: WARNING: \"Can't find moc - unable to build xcwcp\"" >&2;}
 fi
 
 
+
+
+
+# Task 4: on success set up some build system variables (AC_SUBST)
 if [[ $QT4INC != "" && $QT4MOC != "" ]] ; then
-   echo "QT4 headers dir is $QT4INC"
-   echo "QT4 moc is $QT4MOC"
+    echo "Qt4 headers dir is $QT4INC"
+    echo "Qt4 moc is $QT4MOC"
+
+
+
+
+    # we have moc4 and path to Qt4 include files,
+    # so we can build xcwcp
+    SUBDIRS="$SUBDIRS xcwcp"
+
+else
+    if [[ $QT4INC = "" ]] ; then
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: \"Can't find directory with Qt4 header files - unable to build xcwcp\"" >&5
+$as_echo "$as_me: WARNING: \"Can't find directory with Qt4 header files - unable to build xcwcp\"" >&2;}
+    fi
+
+    if [[ $QT4MOC = "" ]] ; then
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: \"Can't find Qt moc version >= $MOC_MAJOR_EARLIEST - unable to build xcwcp\"" >&5
+$as_echo "$as_me: WARNING: \"Can't find Qt moc version >= $MOC_MAJOR_EARLIEST - unable to build xcwcp\"" >&2;}
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: \"Hint: to build xcwcp make sure that moc is in QT4DIR/bin on your PATH\"" >&5
+$as_echo "$as_me: WARNING: \"Hint: to build xcwcp make sure that moc is in QT4DIR/bin on your PATH\"" >&2;}
+    fi
+
+    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: \"Hint: try setting QT4DIR env variable per instructions in unixcw/INSTALLING\"" >&5
+$as_echo "$as_me: WARNING: \"Hint: try setting QT4DIR env variable per instructions in unixcw/INSTALLING\"" >&2;}
+
+    QT4INC=""
+    QT4MOC=""
 fi
+
+
+
+
+
+
 
 
 
