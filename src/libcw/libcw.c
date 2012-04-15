@@ -68,7 +68,7 @@
 #elif defined(HAVE_SOUNDCARD_H)
 # include <soundcard.h>
 #else
-# error "Neither sys/soundcard.h nor soundcard.h header file available"
+#
 #endif
 
 #if defined(BSD)
@@ -155,12 +155,14 @@ static void cw_close_device_console(void);
 static int  cw_open_device_alsa(const char *device);
 static void cw_close_device_alsa(void);
 static int cw_set_alsa_hw_params(snd_pcm_t *handle, snd_pcm_hw_params_t *params);
-#ifdef CW_DEV
+
+#ifdef LIBCW_WITH_DEV
 static int cw_print_alsa_params(snd_pcm_hw_params_t *params);
 #endif
 static int cw_set_audio_device(const char *device);
 
 static void *cw_generator_write_sine_wave_oss(void *arg);
+
 static void *cw_generator_write_sine_wave_alsa(void *arg);
 static int   cw_generator_calculate_sine_wave(cw_gen_t *gen);
 static int   cw_generator_calculate_amplitude(cw_gen_t *gen);
@@ -218,8 +220,7 @@ static void cw_straight_key_clock_internal(void);
 
 
 /* Conditional compilation flags */
-#define CW_MAIN                   1  /* for stand-alone compilation and tests of this file */
-#define CW_DEV                    0  /* development support */
+#define CW_MAIN                   0  /* for stand-alone compilation and tests of this file */
 #define CW_OSS_SET_FRAGMENT       1  /* ioctl(fd, SNDCTL_DSP_SETFRAGMENT, &param) */
 #define CW_OSS_SET_POLICY         0  /* ioctl(fd, SNDCTL_DSP_POLICY, &param) */
 #define CW_ALSA_HW_BUFFER_CONFIG  1  /* set up hw buffer parameters, doesn't work 100% correctly (yet) */
@@ -236,15 +237,16 @@ static const float        CW_AUDIO_GENERATOR_SLOPE_RATIO = 1.0;    /* ~1.0 for 4
 /* 0Hz = silent 'tone'. */
 static const int CW_TONE_SILENT = 0;
 
-
+#ifdef LIBCW_WITH_OSS
 /* Constants specific to OSS audio system configuration */
 static const int CW_OSS_SETFRAGMENT = 7;              /* Sound fragment size, 2^7 samples */
 static const int CW_OSS_SAMPLE_FORMAT = AFMT_S16_NE;  /* Sound format AFMT_S16_NE = signed 16 bit, native endianess; LE = Little endianess */
+#endif
 
-
+#ifdef LIBCW_WITH_ALSA
 /* Constants specific to ALSA audio system configuration */
 static const snd_pcm_format_t CW_ALSA_SAMPLE_FORMAT = SND_PCM_FORMAT_S16; /* "Signed 16 bit CPU endian"; I'm guessing that "CPU endian" == "native endianess" */
-
+#endif
 
 /* indexed by values of 'enum cw_audio_systems' */
 static const char *default_audio_devices[] = {
@@ -415,7 +417,7 @@ bool cw_is_debugging_internal(unsigned int flag)
 
 
 /* Debugging message for library developer */
-#if CW_DEV
+#if LIBCW_WITH_DEV
 #define cw_dev_debug(...)						\
 	{								\
 		fprintf(stderr, "libcw: ");				\
@@ -5592,11 +5594,11 @@ int cw_generator_new(int audio_system, const char *device)
 	cw_set_audio_device(device);
 
 	int rv = CW_FAILURE;
-	if (audio_system == CW_AUDIO_CONSOLE) {
+	if (audio_system == CW_AUDIO_CONSOLE && cw_is_console_possible(device)) {
 		rv = cw_open_device_console(generator->audio_device);
-	} else if (audio_system == CW_AUDIO_OSS) {
+	} else if (audio_system == CW_AUDIO_OSS && cw_is_oss_possible(device)) {
 		rv = cw_open_device_oss(generator->audio_device);
-	} else if (audio_system == CW_AUDIO_ALSA) {
+	} else if (audio_system == CW_AUDIO_ALSA && cw_is_alsa_possible(device)) {
 		rv = cw_open_device_alsa(generator->audio_device);
 	} else {
 		cw_dev_debug ("unsupported audio system");
@@ -5753,7 +5755,9 @@ void cw_generator_stop(void)
 		/* sine wave generation should have been stopped
 		   by a code generating dots/dashes, but
 		   just in case... */
+#ifdef LIBCW_WITH_CONSOLE
 		ioctl(generator->audio_sink, KIOCSOUND, 0);
+#endif
 	} else if (generator->audio_system == CW_AUDIO_OSS
 		   || generator->audio_system == CW_AUDIO_ALSA) {
 
@@ -5930,7 +5934,9 @@ static const int KIOCSOUND_CLOCK_TICK_RATE = 1193180;
 */
 bool cw_is_console_possible(const char *device)
 {
-#if defined(KIOCSOUND)
+#ifndef LIBCW_WITH_CONSOLE
+	return false;
+#else
 	/* no need to allocate space for device path, just a
 	   pointer (to a memory allocated somewhere else by
 	   someone else) will be sufficient in local scope */
@@ -5939,7 +5945,7 @@ bool cw_is_console_possible(const char *device)
 	int fd = open(dev, O_WRONLY);
 	if (fd == -1) {
 		cw_debug (CW_DEBUG_SYSTEM, "error: open(%s): %s\n", dev, strerror(errno));
-		return CW_FAILURE;
+		return false;
 	}
 
 	int rv = ioctl(fd, KIOCSOUND, 0);
@@ -5948,13 +5954,11 @@ bool cw_is_console_possible(const char *device)
 		/* console device can be opened, even with WRONLY perms, but,
 		   if you aren't root user, you can't call ioctl()s on it,
 		   and - as a result - can't generate sound on the device */
-		return CW_FAILURE;
+		return false;
 	} else {
-		return CW_SUCCESS;
+		return true;
 	}
-#else
-	return CW_FAILURE;
-#endif
+#endif // #ifndef LIBCW_WITH_CONSOLE
 }
 
 
@@ -5975,9 +5979,9 @@ bool cw_is_console_possible(const char *device)
 */
 int cw_open_device_console(const char *device)
 {
-#ifndef KIOCSOUND
-	assert (0); /* You should have called cw_is_console_possible(). Bad developer, bad! */
-#endif
+#ifndef LIBCW_WITH_CONSOLE
+	return CW_FAILURE;
+#else
 	assert (device);
 
 	if (generator->audio_device_open) {
@@ -5997,6 +6001,7 @@ int cw_open_device_console(const char *device)
 	generator->audio_device_open = 1;
 
 	return CW_SUCCESS;
+#endif // #ifndef LIBCW_WITH_CONSOLE
 }
 
 
@@ -6008,6 +6013,9 @@ int cw_open_device_console(const char *device)
 */
 void cw_close_device_console(void)
 {
+#ifndef LIBCW_WITH_CONSOLE
+	return;
+#else
 	close(generator->audio_sink);
 	generator->audio_sink = -1;
 	generator->audio_device_open = 0;
@@ -6015,6 +6023,7 @@ void cw_close_device_console(void)
 	cw_debug (CW_DEBUG_SOUND, "console closed");
 
 	return;
+#endif
 }
 
 
@@ -6037,6 +6046,9 @@ void cw_close_device_console(void)
 */
 int cw_sound_console_internal(int state)
 {
+#ifndef LIBCW_WITH_CONSOLE
+	return CW_FAILURE;
+#else
 	/*
 	 * Calculate the correct argument for KIOCSOUND.  There's nothing we
 	 * can do to control the volume, but if we find the volume is set to
@@ -6058,6 +6070,7 @@ int cw_sound_console_internal(int state)
 	} else {
 		return CW_SUCCESS;
 	}
+#endif // #ifndef LIBCW_WITH_CONSOLE
 }
 
 
@@ -6085,6 +6098,9 @@ int cw_sound_console_internal(int state)
 */
 bool cw_is_oss_possible(const char *device)
 {
+#ifndef LIBCW_WITH_OSS
+	return false;
+#else
 	const char *dev = device ? device : CW_DEFAULT_OSS_DEVICE;
 	/* Open the given soundcard device file, for write only. */
 	int soundcard = open(dev, O_WRONLY);
@@ -6130,6 +6146,7 @@ bool cw_is_oss_possible(const char *device)
 	} else {
 		return true;
 	}
+#endif // #ifndef LIBCW_WITH_OSS
 }
 
 
@@ -6146,6 +6163,9 @@ bool cw_is_oss_possible(const char *device)
 */
 int cw_open_device_oss(const char *device)
 {
+#ifndef LIBCW_WITH_OSS
+	return CW_FAILURE;
+#else
 	/* Open the given soundcard device file, for write only. */
 	int soundcard = open(device, O_WRONLY);
 	if (soundcard == -1) {
@@ -6187,6 +6207,7 @@ int cw_open_device_oss(const char *device)
 	generator->debug_sink = open("/tmp/cw_file.raw", O_WRONLY | O_NONBLOCK);
 
 	return CW_SUCCESS;
+#endif // #ifndef LIBCW_WITH_OSS
 }
 
 
@@ -6207,6 +6228,9 @@ int cw_open_device_oss(const char *device)
 */
 int cw_open_device_oss_ioctls(int *fd, int *sample_rate)
 {
+#ifndef LIBCW_WITH_OSS
+	return CW_FAILURE;
+#else
 	int parameter = 0; /* ignored */
 	if (ioctl(*fd, SNDCTL_DSP_SYNC, &parameter) == -1) {
 		cw_debug (CW_DEBUG_SYSTEM, "error: ioctl(SNDCTL_DSP_SYNC): \"%s\"\n", strerror(errno));
@@ -6329,6 +6353,7 @@ int cw_open_device_oss_ioctls(int *fd, int *sample_rate)
 	}
 
 	return CW_SUCCESS;
+#endif // #ifndef LIBCW_WITH_OSS
 }
 
 
@@ -6340,6 +6365,9 @@ int cw_open_device_oss_ioctls(int *fd, int *sample_rate)
 */
 void cw_close_device_oss(void)
 {
+#ifndef LIBCW_WITH_OSS
+	return;
+#else
 	close(generator->audio_sink);
 	generator->audio_sink = -1;
 	generator->audio_device_open = 0;
@@ -6350,6 +6378,7 @@ void cw_close_device_oss(void)
 	}
 
 	return;
+#endif // #ifndef LIBCW_WITH_OSS
 }
 
 
@@ -6365,6 +6394,9 @@ void cw_close_device_oss(void)
 */
 void *cw_generator_write_sine_wave_oss(void *arg)
 {
+#ifndef LIBCW_WITH_OSS
+	return NULL;
+#else
 	cw_gen_t *gen = (cw_gen_t *) arg;
 
 	int n_bytes = sizeof (gen->buffer[0]) * gen->buffer_n_samples;
@@ -6381,6 +6413,7 @@ void *cw_generator_write_sine_wave_oss(void *arg)
 	} /* while() */
 
 	return NULL;
+#endif // #ifndef LIBCW_WITH_OSS
 }
 
 
@@ -6408,6 +6441,9 @@ void *cw_generator_write_sine_wave_oss(void *arg)
 */
 bool cw_is_alsa_possible(const char *device)
 {
+#ifndef LIBCW_WITH_ALSA
+	return false;
+#else
 	const char *dev = device ? device : CW_DEFAULT_ALSA_DEVICE;
 	snd_pcm_t *alsa_handle;
 	int rv = snd_pcm_open(&alsa_handle,
@@ -6421,6 +6457,7 @@ bool cw_is_alsa_possible(const char *device)
 		snd_pcm_close(alsa_handle);
 		return true;
 	}
+#endif
 }
 
 
@@ -6437,6 +6474,9 @@ bool cw_is_alsa_possible(const char *device)
 */
 int cw_open_device_alsa(const char *device)
 {
+#ifndef LIBCW_WITH_ALSA
+	return CW_FAILURE;
+#else
 	int rv = snd_pcm_open(&(generator->alsa_handle),
 			      device,                  /* name */
 			      SND_PCM_STREAM_PLAYBACK, /* stream (playback/capture) */
@@ -6484,6 +6524,7 @@ int cw_open_device_alsa(const char *device)
 	cw_dev_debug ("ALSA buf size %u", (unsigned int) generator->buffer_n_samples);
 
 	return CW_SUCCESS;
+#endif // #ifndef LIBCW_WITH_ALSA
 }
 
 
@@ -6495,6 +6536,7 @@ int cw_open_device_alsa(const char *device)
 */
 void cw_close_device_alsa(void)
 {
+#ifdef LIBCW_WITH_ALSA
 	snd_pcm_drain(generator->alsa_handle);
 	snd_pcm_close(generator->alsa_handle);
 
@@ -6504,7 +6546,7 @@ void cw_close_device_alsa(void)
 		close(generator->debug_sink);
 		generator->debug_sink = -1;
 	}
-
+#endif
 	return;
 }
 
@@ -6521,6 +6563,7 @@ void cw_close_device_alsa(void)
 */
 void *cw_generator_write_sine_wave_alsa(void *arg)
 {
+#ifdef LIBCW_WITH_ALSA
 	cw_gen_t *gen = (cw_gen_t *) arg;
 
 	int n_bytes = sizeof (gen->buffer[0]) * gen->buffer_n_samples;
@@ -6544,7 +6587,7 @@ void *cw_generator_write_sine_wave_alsa(void *arg)
 			write(gen->debug_sink, gen->buffer, n_bytes);
 		}
 	} /* while() */
-
+#endif
 	return NULL;
 }
 
@@ -6563,6 +6606,9 @@ void *cw_generator_write_sine_wave_alsa(void *arg)
 */
 int cw_set_alsa_hw_params(snd_pcm_t *handle, snd_pcm_hw_params_t *params)
 {
+#ifndef LIBCW_WITH_ALSA
+	return CW_FAILURE;
+#else
 	/* Get current hw configuration. */
 	int rv = snd_pcm_hw_params_any(handle, params);
 	if (rv < 0) {
@@ -6760,17 +6806,21 @@ int cw_set_alsa_hw_params(snd_pcm_t *handle, snd_pcm_hw_params_t *params)
 		cw_dev_debug ("%d, ALSA buffer size would be %u frames", rv, (unsigned int) frames);
 		return CW_SUCCESS;
 	}
+#endif // #ifndef LIBCW_WITH_ALSA
 }
 
 
 
 
 
-#if CW_DEV
+#ifdef LIBCW_WITH_DEV
 
 /* debug function */
 int cw_print_alsa_params(snd_pcm_hw_params_t *params)
 {
+#ifndef LIBCW_WITH_ALSA
+	return CW_FAILURE;
+#else
 	unsigned int val = 0;
 	int dir = 0;
 
@@ -6798,11 +6848,10 @@ int cw_print_alsa_params(snd_pcm_hw_params_t *params)
 	}
 
 	return CW_SUCCESS;
+#endif // #ifndef LIBCW_WITH_ALSA
 }
 
 #endif
-
-
 
 
 
