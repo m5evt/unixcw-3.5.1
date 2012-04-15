@@ -156,10 +156,6 @@ if [[[ $QT4INC != "" && $QT4MOC != "" ]]] ; then
     AC_SUBST(QT4INC)
     AC_SUBST(QT4MOC)
 
-    # we have moc4 and path to Qt4 include files,
-    # so we can build xcwcp
-    SUBDIRS="$SUBDIRS xcwcp"
-    AC_SUBST(SUBDIRS)
 else
     if [[[ $QT4INC = "" ]]] ; then
 	AC_MSG_WARN(["Can't find directory with Qt4 header files - unable to build xcwcp"])
