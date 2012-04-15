@@ -51,7 +51,7 @@ libcw_la_LDFLAGS = -version-number 3:1:1
 # source code files used to build libcwtest program
 libcwtest_SOURCES = libcwtest.c
 # target-specific linker flags (objects to link)
-libcwtest_LDADD = -L./ -lcw
+libcwtest_LDADD = -L./.libs -lcw
 
 
 
