@@ -1,0 +1,33 @@
+2012-04-15 Kamil Ignacak
+	* build system: Most important change: adding code that handles
+	--disable-xxx options passed to the script:
+	--disable-console
+	--disable-oss
+	--disable-alsa
+	--disable-cwcp
+	--disable-xcwcp
+	The options allow disabling certain functionalities of unixcw, so
+	that the package can be built on machines that don't provide some
+	functions or properties.
+	Example: unixcw 3.0.1 can't be compiled on hurd-i386 because of
+	this error from configure script:
+	"configure: error: Cannot find either sys/kd.h, sys/vtkd.h, or sys/kbio.h"
+	At lease one of these headers is needed for console buzzer support.
+	With new code in configure, compilation of code working with console
+	buzzer can be disabled.
+	Similarly, user can now disable compilation of OSS-related code on
+	platforms that no longer provide OSS.
+	Functionality can be disabled explicitly (with command line option),
+	or implicitly - if any of tests performed by configure script fails.
+	Changes described above required some modifications of libcw.c file.
+	Also added --enable-dev.
+
+	Build system now uses Makefile.am and Makefile.in files used/generated
+	by Automake. Adding two calls to configure: AM_INIT_AUTOMAKE (build
+	system now uses Automake to handle Makefile files), and
+	AC_PROG_LIBTOOL (libtool is now used to create libraries).
+
+	Build system now supports "make distcheck" target.
+
+	Build system now depends on libtool.
+
