@@ -35,6 +35,7 @@ AC_PROG_LIBTOOL
 AC_PROG_INSTALL
 AC_PROG_MAKE_SET
 AC_PROG_LN_S
+AM_PROG_CC_C_O
 
 # Check specifically for gzip and ldconfig, and substitute the harmless ":"
 # if absent.
