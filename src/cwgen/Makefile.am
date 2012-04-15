@@ -24,7 +24,7 @@ cwgen_SOURCES = cwgen.c
 # target-specific preprocessor flags (#defs and include dirs)
 cwgen_CPPFLAGS = -I$(top_srcdir)/src/cwutils/ -I$(top_srcdir)/src/libcw/
 # target-specific linker flags (objects to link)
-cwgen_LDADD = -L$(top_srcdir)/src/libcw/ -lcw $(top_builddir)/src/cwutils/lib_cwgen.a
+cwgen_LDADD = -L$(top_builddir)/src/libcw/.libs -lcw $(top_builddir)/src/cwutils/lib_cwgen.a
 
 
 # copy man page to proper directory during installation

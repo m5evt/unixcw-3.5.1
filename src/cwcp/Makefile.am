@@ -24,7 +24,7 @@ cwcp_SOURCES = cwcp.c
 # target-specific preprocessor flags (#defs and include dirs)
 cwcp_CPPFLAGS = -I$(top_srcdir)/src/cwutils/ -I$(top_srcdir)/src/libcw/
 # target-specific linker flags (objects to link)
-cwcp_LDADD = -lcurses -L$(top_srcdir)/src/libcw/ -lcw $(top_builddir)/src/cwutils/lib_cwcp.a
+cwcp_LDADD = -lcurses -L$(top_builddir)/src/libcw/.libs -lcw $(top_builddir)/src/cwutils/lib_cwcp.a
 
 
 # copy man page to proper directory during installation

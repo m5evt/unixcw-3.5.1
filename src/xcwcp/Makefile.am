@@ -37,7 +37,7 @@ xcwcp_SOURCES = \
 # target-specific preprocessor flags (#defs and include dirs)
 xcwcp_CPPFLAGS = -I$(top_srcdir)/src/cwutils/ -I$(top_srcdir)/src/libcw/ -I$(AC_QT4INC) -I$(AC_QT4INC)/QtCore -I$(AC_QT4INC)/QtGui
 # target-specific linker flags (objects to link)
-xcwcp_LDADD = -L$(top_srcdir)/src/libcw/ -lcw -lQtGui -lQtCore $(top_builddir)/src/cwutils/lib_xcwcp.a
+xcwcp_LDADD = -L$(top_builddir)/src/libcw/.libs -lcw -lQtGui -lQtCore $(top_builddir)/src/cwutils/lib_xcwcp.a
 
 
 
@@ -52,7 +52,7 @@ EXTRA_DIST = xcwcp.1 \
 
 
 # Qt4 magic
-moc_application.cpp: application.h
+moc_application.cc: application.h
 	$(AC_QT4MOC) $< -o $@
 
 # Test targets.
