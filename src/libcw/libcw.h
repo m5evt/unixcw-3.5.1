@@ -199,16 +199,19 @@ extern void cw_register_keying_callback (void (*callback_func) (void*, int),
                                          void *callback_arg);
 extern int cw_register_tone_queue_low_callback (void (*callback_func) (void*),
                                                 void *callback_arg, int level);
-extern bool cw_is_tone_busy (void);
-extern int cw_wait_for_tone (void);
-extern int cw_wait_for_tone_queue (void);
-extern int cw_wait_for_tone_queue_critical (int level);
-extern bool cw_is_tone_queue_full (void);
-extern int cw_get_tone_queue_capacity (void);
-extern int cw_get_tone_queue_length (void);
-extern void cw_flush_tone_queue (void);
-extern int cw_queue_tone (int usecs, int frequency);
-extern void cw_reset_tone_queue (void);
+extern bool cw_is_tone_busy(void);
+extern int  cw_wait_for_tone(void);
+extern int  cw_wait_for_tone_queue(void);
+extern int  cw_wait_for_tone_queue_critical(int level);
+extern bool cw_is_tone_queue_full(void);
+extern int  cw_get_tone_queue_capacity(void);
+extern int  cw_get_tone_queue_length(void);
+extern void cw_flush_tone_queue(void);
+extern int  cw_queue_tone(int usecs, int frequency);
+extern void cw_reset_tone_queue(void);
+
+
+
 extern int cw_send_dot (void);
 extern int cw_send_dash (void);
 extern int cw_send_character_space (void);
