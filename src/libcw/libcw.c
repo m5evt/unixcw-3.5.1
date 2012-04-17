@@ -197,10 +197,15 @@ static void cw_schedule_finalization_internal(void);
 static void cw_cancel_finalization_internal(void);
 static void cw_interpose_signal_handler_internal(int signal_number);
 static void cw_key_control_internal(int requested_key_state);
-static int cw_get_tone_queue_length_internal(void);
-static int cw_next_tone_queue_index_internal(int current);
+
+
+/* tone queue */
+static int  cw_tone_queue_length(void);
+static int  cw_tone_queue_next_index(int current);
 static void cw_tone_queue_clock_internal(void);
-static int cw_enqueue_tone_internal(int usecs, int frequency);
+static int  cw_tone_queue_add(int usecs, int frequency);
+
+
 static int cw_send_element_internal(char element);
 static int cw_send_representation_internal(const char *representation, int partial);
 static int cw_send_character_internal(char c, int partial);
@@ -3041,26 +3046,31 @@ void cw_key_control_internal(int requested_key_state)
 }
 
 
-/*---------------------------------------------------------------------*/
+
+
+
+/* ******************************************************************** */
 /*  Tone queue                                                         */
-/*---------------------------------------------------------------------*/
+/* ******************************************************************** */
+
 
 /*
- * Tone queue.  This is a circular list of tone durations and frequencies
- * pending, and a pair of indexes, tail (enqueue) and head (dequeue) to
- * manage additions and asynchronous sending.
- */
-enum
-{ TONE_QUEUE_CAPACITY = 3000,        /* ~= 5 minutes at 12 WPM */
-  TONE_QUEUE_HIGH_WATER_MARK = 2900  /* Refuse characters if <100 free */
+  Tone queue - a circular list of tone durations and frequencies pending,
+  and a pair of indexes, tail (enqueue) and head (dequeue) to manage
+  additions and asynchronous sending. */
+
+enum {
+	CW_TONE_QUEUE_CAPACITY = 3000,        /* ~= 5 minutes at 12 WPM */
+	CW_TONE_QUEUE_HIGH_WATER_MARK = 2900  /* Refuse characters if <100 free */
 };
-typedef struct
-{
-  int usecs;      /* Tone duration in usecs */
-  int frequency;  /* Frequency of the tone */
+
+
+typedef struct {
+	int usecs;      /* Tone duration in usecs */
+	int frequency;  /* Frequency of the tone */
 } cw_queued_tone_t;
 
-static volatile cw_queued_tone_t cw_tone_queue[TONE_QUEUE_CAPACITY];
+static volatile cw_queued_tone_t cw_tone_queue[CW_TONE_QUEUE_CAPACITY];
 static volatile int cw_tq_tail = 0,  /* Tone queue tail index */
                     cw_tq_head = 0;  /* Tone queue head index */
 
@@ -3076,14 +3086,15 @@ static void *cw_tq_low_water_callback_arg = NULL;
 
 
 /**
- * Return the count of tones currently held in the circular tone buffer, and
- * advance a tone queue index, including circular wrapping.
- */
-int cw_get_tone_queue_length_internal(void)
+   \brief Return number of items on tone queue
+
+   \return the count of tones currently held in the circular tone buffer.
+*/
+int cw_tone_queue_length(void)
 {
-  return cw_tq_tail >= cw_tq_head
-         ? cw_tq_tail - cw_tq_head
-         : cw_tq_tail - cw_tq_head + TONE_QUEUE_CAPACITY;
+	return cw_tq_tail >= cw_tq_head
+		? cw_tq_tail - cw_tq_head
+		: cw_tq_tail - cw_tq_head + CW_TONE_QUEUE_CAPACITY;
 }
 
 
@@ -3091,11 +3102,19 @@ int cw_get_tone_queue_length_internal(void)
 
 
 /**
-   See documentation of cw_get_tone_queue_length_internal() for more information
+   \brief Get next index to queue
+
+   Calculate index of next element in queue, relative to given \p index.
+   The function calculates the index taking circular wrapping into
+   consideration.
+
+   \param index - index in relation to which calculate index of next element in queue
+
+   \return index of next element in queue
 */
-int cw_next_tone_queue_index_internal(int current)
+int cw_tone_queue_next_index(int index)
 {
-  return (current + 1) % TONE_QUEUE_CAPACITY;
+	return (index + 1) % CW_TONE_QUEUE_CAPACITY;
 }
 
 
@@ -3118,403 +3137,464 @@ int cw_next_tone_queue_index_internal(int current)
 static volatile enum { QS_IDLE, QS_BUSY } cw_dequeue_state = QS_IDLE;
 
 
+
+
+
 /**
- * Signal handler for itimer.  Dequeue a tone request, and send the ioctl to
- * generate the tone.  If the queue is empty when we get the signal, then
- * we're at the end of the work list, so set the dequeue state to idle and
- * return.
- */
+   \brief Signal handler for itimer
+
+   Dequeue a tone request, and call cw_sound_internal() to generate the tone.
+   If the queue is empty when we get the signal, then we're at the end of
+   the work list, so set the dequeue state to idle and return.
+*/
 void cw_tone_queue_clock_internal(void)
 {
-  /* Decide what to do based on the current state. */
-  switch (cw_dequeue_state)
-    {
-    /* Ignore calls if our state is idle. */
-    case QS_IDLE:
-      return;
+	/* Decide what to do based on the current state. */
+	switch (cw_dequeue_state) {
+		/* Ignore calls if our state is idle. */
+	case QS_IDLE:
+		return;
 
-    /*
-     * If busy, dequeue the next tone, or if no more tones, go to the idle
-     * state.
-     */
-    case QS_BUSY:
-      if (cw_tq_head != cw_tq_tail)
-        {
-          int usecs, frequency, queue_length;
+	case QS_BUSY:
+		/* If busy, dequeue the next tone, or if no
+		   more tones, go to the idle state. */
+		if (cw_tq_head != cw_tq_tail) {
+			/* Get the current queue length.  Later on, we'll
+			   compare with the length after we've scanned
+			   over every tone we can omit, and use it to see
+			   if we've crossed the low water mark, if any. */
+			int queue_length = cw_tone_queue_length();
 
-          /*
-           * Get the current queue length.  Later on, we'll compare with the
-           * length after we've scanned over every tone we can omit, and use it
-           * to see if we've crossed the low water mark, if any.
-           */
-          queue_length = cw_get_tone_queue_length_internal ();
+			/* Advance over the tones list until we find the
+			   first tone with a duration of more than zero
+			   usecs, or until the end of the list.
+			   TODO: don't add tones with duration = 0? */
+			do  {
+				cw_tq_head = cw_tone_queue_next_index(cw_tq_head);
+			} while (cw_tq_head != cw_tq_tail
+				 && cw_tone_queue[cw_tq_head].usecs == 0);
 
-          /*
-           * Advance over the tones list until we find the first tone with a
-           * duration of more than zero usecs, or until the end of the list.
-           */
-          do
-            {
-              cw_tq_head = cw_next_tone_queue_index_internal (cw_tq_head);
-            }
-          while (cw_tq_head != cw_tq_tail
-                 && cw_tone_queue[cw_tq_head].usecs == 0);
+			/* Dequeue the next tone to send. */
+			int usecs = cw_tone_queue[cw_tq_head].usecs;
+			int frequency = cw_tone_queue[cw_tq_head].frequency;
 
-          /* Dequeue the next tone to send. */
-          usecs = cw_tone_queue[cw_tq_head].usecs;
-          frequency = cw_tone_queue[cw_tq_head].frequency;
+			cw_debug (CW_DEBUG_TONE_QUEUE, "dequeue tone %d usec, %d Hz", usecs, frequency);
 
-	  cw_debug (CW_DEBUG_TONE_QUEUE, "dequeue tone %d usec, %d Hz", usecs, frequency);
+			/* Start the tone.  If function generating tone
+			   fails, there's nothing we can do at this point,
+			   in the way of returning error codes. */
+			cw_sound_internal(frequency);
 
-          /*
-           * Start the tone.  If the ioctl fails, there's nothing we can do at
-           * this point, in the way of returning error codes.
-           */
-          cw_sound_internal (frequency);
+			/* Notify the key control function that there might
+			   have been a change of keying state (and then
+			   again, there might not have been -- it will sort
+			   this out for us). */
+			cw_key_control_internal(frequency != CW_TONE_SILENT);
 
-          /*
-           * Notify the key control function that there might have been a
-           * change of keying state (and then again, there might not have
-           * been -- it will sort this out for us).
-           */
-          cw_key_control_internal (frequency != CW_TONE_SILENT);
+			/* If microseconds is zero, leave it at that.  This
+			   way, a queued tone of 0 usec implies leaving the
+			   sound in this state, and 0 usec and 0 frequency
+			   leaves silence.  */
+			if (usecs > 0) {
+				/* Request a timeout.  If it fails, there's
+				   little we can do at this point.  But it
+				   shouldn't fail. */
+				cw_request_timeout_internal(usecs, NULL);
+			} else {
+				/* Autonomous dequeuing has finished for
+				   the moment. */
+				cw_dequeue_state = QS_IDLE;
+				cw_schedule_finalization_internal();
+			}
 
-          /*
-           * If microseconds is zero, leave it at that.  This way, a queued
-           * tone of 0 usec implies leaving the sound in this state, and 0
-           * usec and 0 frequency leaves silence.
-           */
-          if (usecs > 0)
-            {
-              /*
-               * Request a timeout.  If it fails, there's little we can do at
-               * this point.  But it shouldn't fail.
-               */
-              cw_request_timeout_internal (usecs, NULL);
-            }
-          else
-            {
-              /* Autonomous dequeuing has finished for the moment. */
-              cw_dequeue_state = QS_IDLE;
-              cw_schedule_finalization_internal ();
-            }
+			/* If there is a low water mark callback registered,
+			   and if we passed under the water mark, call the
+			   callback here.  We want to be sure to call this
+			   late in the processing, especially after setting
+			   the state to idle, since the most likely action
+			   of this routine is to queue tones, and we don't
+			   want to play with the state here after that. */
+			if (cw_tq_low_water_callback) {
+				/* If the length we originally calculated
+				   was above the low water mark, and the
+				   one we have now is below or equal to it,
+				   call the callback. */
+				if (queue_length > cw_tq_low_water_mark
+				    && cw_tone_queue_length()
+				    <= cw_tq_low_water_mark) {
 
-          /*
-           * If there is a low water mark callback registered, and if we passed
-           * under the water mark, call the callback here.  We want to be sure
-           * to call this late in the processing, especially after setting the
-           * state to idle, since the most likely action of this routine is to
-           * queue tones, and we don't want to play with the state here after
-           * that.
-           */
-          if (cw_tq_low_water_callback)
-            {
-              /*
-               * If the length we originally calculated was above the low water
-               * mark, and the one we have now is below or equal to it, call
-               * the callback.
-               */
-              if (queue_length > cw_tq_low_water_mark
-                  && cw_get_tone_queue_length_internal ()
-                     <= cw_tq_low_water_mark)
-                (*cw_tq_low_water_callback) (cw_tq_low_water_callback_arg);
-            }
-        }
-      else
-        {
-          /*
-           * This is the end of the last tone on the queue, and since we got a
-           * signal we know that it had a usec greater than zero.  So this is
-           * the time to return to silence.
-           */
-          cw_sound_internal (CW_TONE_SILENT);
+					(*cw_tq_low_water_callback)(cw_tq_low_water_callback_arg);
+				}
+			}
+		} else { /* cw_tq_head == cw_tq_tail */
+			/* This is the end of the last tone on the queue,
+			   and since we got a signal we know that it had
+			   a usec greater than zero.  So this is the time
+			   to return to silence. */
+			cw_sound_internal (CW_TONE_SILENT);
 
-          /* Notify the keying control function, as above. */
-          cw_key_control_internal (false);
+			/* Notify the keying control function, as above. */
+			cw_key_control_internal (false);
 
-          /*
-           * Set state to idle, indicating that autonomous dequeueing has
-           * finished for the moment.  We need this set whenever the queue
-           * indexes are equal and there is no pending itimeout.
-           */
-          cw_dequeue_state = QS_IDLE;
-          cw_schedule_finalization_internal ();
-        }
-    }
+			/* Set state to idle, indicating that autonomous
+			   dequeuing has finished for the moment.  We
+			   need this set whenever the queue indexes are
+			   equal and there is no pending itimeout. */
+			cw_dequeue_state = QS_IDLE;
+			cw_schedule_finalization_internal ();
+		}
+	}
 }
 
 
+
+
+
 /**
- * Enqueue a tone for specified frequency and number of microseconds.  This
- * routine adds the new tone to the queue, and if necessary starts the
- * itimer process to have the tone sent.  The routine returns true on success.
- * If the tone queue is full, the routine returns false, with errno set to
- * EAGAIN.  If the iambic keyer or straight key are currently busy, the
- * routine returns false, with errno set to EBUSY.
- */
-int cw_enqueue_tone_internal(int usecs, int frequency)
+   \brief Add tone to tone queue
+
+   Enqueue a tone for specified frequency and number of microseconds.
+   This routine adds the new tone to the queue, and if necessary starts
+   the itimer process to have the tone sent.  The routine returns CW_SUCCESS
+   on success. If the tone queue is full, the routine returns CW_FAILURE,
+   with errno set to EAGAIN.  If the iambic keyer or straight key are currently
+   busy, the routine returns CW_FAILURE, with errno set to EBUSY.
+
+   \param usecs - length of added tone
+   \param frequency - frequency of added tone
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
+int cw_tone_queue_add(int usecs, int frequency)
 {
-  int new_tq_tail;
+	/* If the keyer or straight key are busy, return an error.
+	   This is because they use the sound card/console tones and key
+	   control, and will interfere with us if we try to use them at
+	   the same time. */
+	if (cw_is_keyer_busy() || cw_is_straight_key_busy()) {
+		errno = EBUSY;
+		return CW_FAILURE;
+	}
 
-  /*
-   * If the keyer or straight key are busy, return an error.  This is because
-   * they use the sound card/console tones and key control, and will interfere
-   * with us if we try to use them at the same time.
-   */
-  if (cw_is_keyer_busy () || cw_is_straight_key_busy ())
-    {
-      errno = EBUSY;
-      return CW_FAILURE;
-    }
+	/* Get the new value of the queue tail index. */
+	int new_tq_tail = cw_tone_queue_next_index(cw_tq_tail);
 
-  /* Get the new value of the queue tail index. */
-  new_tq_tail = cw_next_tone_queue_index_internal (cw_tq_tail);
+	/* If the new value is bumping against the head index, then
+	   the queue is currently full. */
+	if (new_tq_tail == cw_tq_head) {
+		errno = EAGAIN;
+		return CW_FAILURE;
+	}
 
-  /*
-   * If the new value is bumping against the head index, then the queue
-   * is currently full, so return EAGAIN.
-   */
-  if (new_tq_tail == cw_tq_head)
-    {
-      errno = EAGAIN;
-      return CW_FAILURE;
-    }
+	cw_debug (CW_DEBUG_TONE_QUEUE, "enqueue tone %d usec, %d Hz", usecs, frequency);
 
-  cw_debug (CW_DEBUG_TONE_QUEUE, "enqueue tone %d usec, %d Hz", usecs, frequency);
+	/* Set the new tail index, and enqueue the new tone. */
+	cw_tq_tail = new_tq_tail;
+	cw_tone_queue[cw_tq_tail].usecs = usecs;
+	cw_tone_queue[cw_tq_tail].frequency = frequency;
 
-  /* Set the new tail index, and enqueue the new tone. */
-  cw_tq_tail = new_tq_tail;
-  cw_tone_queue[cw_tq_tail].usecs = usecs;
-  cw_tone_queue[cw_tq_tail].frequency = frequency;
+	/* If there is currently no autonomous dequeue happening, kick
+	   off the itimer process. */
+	if (cw_dequeue_state == QS_IDLE) {
+		/* There is currently no (external) process that would
+		   remove (dequeue) tones from the queue and (possibly)
+		   play them.
+		   Let's mark that dequeuing is starting, and lets start
+		   such a process using cw_tone_queue_clock_internal()). */
+		cw_dequeue_state = QS_BUSY;
+		cw_request_timeout_internal(0, cw_tone_queue_clock_internal);
+	}
 
-  /*
-   * If there is currently no autonomous dequeue happening, kick off the
-   * itimer process.
-   */
-  if (cw_dequeue_state == QS_IDLE)
-    {
-      cw_dequeue_state = QS_BUSY;
-      cw_request_timeout_internal (0, cw_tone_queue_clock_internal);
-    }
-
-  return CW_SUCCESS;
+	return CW_SUCCESS;
 }
 
 
+
+
+
 /**
- * Registers a function to be called automatically by the dequeue routine
- * whenever the tone queue falls to a given level; callback_arg may be used
- * to give a value passed back on callback calls.  A NULL function pointer
- * suppresses callbacks.  On success, the routine returns true.  If level is
- * invalid, the routine returns false with errno set to EINVAL.  Any callback
- * supplied will be called in signal handler context.
- */
-int cw_register_tone_queue_low_callback(void (*callback_func)(void*),
-					void *callback_arg, int level)
+   \brief Register callback for low queue state
+
+   Register a function to be called automatically by the dequeue routine
+   whenever the tone queue falls to a given level; callback_arg may be used
+   to give a value passed back on callback calls.  A NULL function pointer
+   suppresses callbacks.  On success, the routine returns CW_SUCCESS.
+
+   If level is invalid, the routine returns CW_FAILURE with errno set to
+   EINVAL.  Any callback supplied will be called in signal handler context.
+
+   \param callback_func - callback function to be registered
+   \param callback_arg - argument for callback_func to pass return value
+   \param level - low level of queue triggering callback call
+
+   \return CW_SUCCESS on successful registration
+   \return CW_FAILURE on failure
+*/
+int cw_register_tone_queue_low_callback(void (*callback_func)(void*), void *callback_arg, int level)
 {
-  if (level < 0 || level >= TONE_QUEUE_CAPACITY - 1)
-    {
-      errno = EINVAL;
-      return CW_FAILURE;
-    }
+	if (level < 0 || level >= CW_TONE_QUEUE_CAPACITY - 1) {
+		errno = EINVAL;
+		return CW_FAILURE;
+	}
 
-  /* Store the function and low water mark level. */
-  cw_tq_low_water_mark = level;
-  cw_tq_low_water_callback = callback_func;
-  cw_tq_low_water_callback_arg = callback_arg;
+	/* Store the function and low water mark level. */
+	cw_tq_low_water_mark = level;
+	cw_tq_low_water_callback = callback_func;
+	cw_tq_low_water_callback_arg = callback_arg;
 
-  return CW_SUCCESS;
+	return CW_SUCCESS;
 }
 
 
+
+
+
 /**
- * Indicates if the tone sender is busy; returns true if there are still
- * entries in the tone queue, false if the queue is empty.
- */
+   \brief Check if tone sender is busy
+
+   Indicate if the tone sender is busy.
+
+   \return true if there are still entries in the tone queue
+   \return false if the queue is empty
+*/
 bool cw_is_tone_busy(void)
 {
 	return cw_dequeue_state != QS_IDLE;
 }
 
 
+
+
+
 /**
- * Wait for the current tone to complete.  The routine returns true on
- * success.  If called with SIGALRM blocked, the routine returns false, with
- * errno set to EDEADLK, to avoid indefinite waits.
- */
+   \brief Wait for the current tone to complete
+
+   The routine returns CW_SUCCESS on success.  If called with SIGALRM
+   blocked, the routine returns CW_FAILURE, with errno set to EDEADLK,
+   to avoid indefinite waits.
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
 int cw_wait_for_tone(void)
 {
-  int status, check_tq_head;
+	/* Check that SIGALRM is not blocked. */
+	if (!cw_check_signal_mask_internal()) {
+		return CW_FAILURE;
+	}
 
-  /* Check that SIGALRM is not blocked. */
-  status = cw_check_signal_mask_internal ();
-  if (!status)
-    return CW_FAILURE;
+	/* Wait for the tail index to change or the dequeue to go idle. */
+	int check_tq_head = cw_tq_head;
+	while (cw_tq_head == check_tq_head && cw_dequeue_state != QS_IDLE) {
+		cw_wait_for_signal_internal();
+	}
 
-  /* Wait for the tail index to change or the dequeue to go idle. */
-  check_tq_head = cw_tq_head;
-  while (cw_tq_head == check_tq_head && cw_dequeue_state != QS_IDLE)
-    cw_wait_for_signal_internal ();
-
-  return CW_SUCCESS;
+	return CW_SUCCESS;
 }
 
 
+
+
+
 /**
- * Wait for the tone queue to drain.  The routine returns true on success.
- * If called with SIGALRM blocked, the routine returns false, with errno set
- * to EDEADLK, to avoid indefinite waits.
- */
+   \brief Wait for the tone queue to drain
+
+   The routine returns CW_SUCCESS on success. If called with SIGALRM
+   blocked, the routine returns false, with errno set to EDEADLK,
+   to avoid indefinite waits.
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
 int cw_wait_for_tone_queue(void)
 {
-  int status;
+	/* Check that SIGALRM is not blocked. */
+	if (!cw_check_signal_mask_internal()) {
+		return CW_FAILURE;
+	}
 
-  /* Check that SIGALRM is not blocked. */
-  status = cw_check_signal_mask_internal ();
-  if (!status)
-    return CW_FAILURE;
+	/* Wait until the dequeue indicates it's hit the end of the queue. */
+	while (cw_dequeue_state != QS_IDLE) {
+		cw_wait_for_signal_internal();
+	}
 
-  /* Wait until the dequeue indicates it's hit the end of the queue. */
-  while (cw_dequeue_state != QS_IDLE)
-    cw_wait_for_signal_internal ();
-
-  return CW_SUCCESS;
+	return CW_SUCCESS;
 }
 
 
+
+
+
 /**
- * Wait for the tone queue to drain until only as many tones as given
- * in level remain queued.  This routine is for use by programs that want
- * to optimize themselves to avoid the cleanup that happens when the tone
- * queue drains completely; such programs have a short time in which to
- * add more tones to the queue.  The routine returns true on success.  If
- * called with SIGALRM blocked, the routine returns false, with errno set to
- * EDEADLK, to avoid indefinite waits.
- */
+   \brief Wait for the tone queue to drain until only as many tones as given in level remain queued.
+
+   This routine is for use by programs that want to optimize themselves
+   to avoid the cleanup that happens when the tone queue drains completely;
+   such programs have a short time in which to add more tones to the queue.
+
+   The routine returns CW_SUCCESS on success.  If called with SIGALRM
+   blocked, the routine returns false, with errno set to EDEADLK, to
+   avoid indefinite waits.
+
+   \param level - low level in queue, at which to return
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
 int cw_wait_for_tone_queue_critical(int level)
 {
-  int status;
+	/* Check that SIGALRM is not blocked. */
+	if (!cw_check_signal_mask_internal()) {
+		return CW_FAILURE;
+	}
 
-  /* Check that SIGALRM is not blocked. */
-  status = cw_check_signal_mask_internal ();
-  if (!status)
-    return CW_FAILURE;
+	/* Wait until the queue length is at or below criticality. */
+	while (cw_tone_queue_length() > level) {
+		cw_wait_for_signal_internal();
+	}
 
-  /* Wait until the queue length is at or below criticality. */
-  while (cw_get_tone_queue_length_internal () > level)
-    cw_wait_for_signal_internal ();
-
-  return CW_SUCCESS;
+	return CW_SUCCESS;
 }
 
 
+
+
+
 /**
- * Indicates if the tone queue is full, returning true if full, false if not.
- */
+   \brief Indicate if the tone queue is full
+
+   \return true if tone queue is full
+   \return false if tone queue is not full
+*/
 bool cw_is_tone_queue_full(void)
 {
 	/* If advancing would meet the tail index, return true. */
-	return cw_next_tone_queue_index_internal(cw_tq_tail) == cw_tq_head;
+	return cw_tone_queue_next_index(cw_tq_tail) == cw_tq_head;
 }
 
 
+
+
+
 /**
- * Returns the number of entries the tone queue can accommodate.
- */
+   \brief Return the number of entries the tone queue can accommodate
+*/
 int cw_get_tone_queue_capacity(void)
 {
-  /*
-   * Since the head and tail indexes cannot be equal, the perceived capacity
-   * for the client is always one less than the actual declared queue size.
-   */
-  return TONE_QUEUE_CAPACITY - 1;
+	/* Since the head and tail indexes cannot be equal, the
+	   perceived capacity for the client is always one less
+	   than the actual declared queue size. */
+	return CW_TONE_QUEUE_CAPACITY - 1;
 }
 
 
+
+
+
 /**
- * Returns the number of entries currently pending in the tone queue.
- */
+   \brief Return the number of entries currently pending in the tone queue
+*/
 int cw_get_tone_queue_length(void)
 {
-  return cw_get_tone_queue_length_internal ();
+	return cw_tone_queue_length();
 }
 
 
+
+
 /**
- * Cancel all pending queued tones, and return to silence.  If there is a
- * tone in progress, the function will wait until this last one has
- * completed, then silence the tones.
- *
- * This function may be called with SIGALRM blocked, in which case it
- * will empty the queue as best it can, then return without waiting for
- * the final tone to complete.  In this case, it may not be possible to
- * guarantee silence after the call.
- */
+   \brief Cancel all pending queued tones, and return to silence.
+
+   If there is a tone in progress, the function will wait until this
+   last one has completed, then silence the tones.
+
+   This function may be called with SIGALRM blocked, in which case it
+   will empty the queue as best it can, then return without waiting for
+   the final tone to complete.  In this case, it may not be possible to
+   guarantee silence after the call.
+*/
 void cw_flush_tone_queue(void)
 {
-  /* Empty the queue, by setting the head to the tail. */
-  cw_tq_head = cw_tq_tail;
+	/* Empty the queue, by setting the head to the tail. */
+	cw_tq_head = cw_tq_tail;
 
-  /* If we can, wait until the dequeue goes idle. */
-  if (cw_check_signal_mask_internal ())
-    cw_wait_for_tone_queue ();
+	/* If we can, wait until the dequeue goes idle. */
+	if (cw_check_signal_mask_internal()) {
+		cw_wait_for_tone_queue();
+	}
 
-  /*
-   * Force silence on the speaker anyway, and stop any background soundcard
-   * tone generation.
-   */
-  cw_sound_internal (CW_TONE_SILENT);
-  cw_schedule_finalization_internal ();
+	/* Force silence on the speaker anyway, and stop any background
+	   soundcard tone generation. */
+	cw_sound_internal (CW_TONE_SILENT);
+	cw_schedule_finalization_internal();
+
+	return;
 }
 
 
+
+
+
 /**
- * Provides primitive access to simple tone generation.  This routine queues
- * a tone of given duration and frequency.  The routine returns true on
- * success.  If usec or frequency are invalid, it returns false with errno
- * set to EINVAL.  If the sound card, console speaker, or keying function are
- * busy, it returns false with errno set to EBUSY.  If the tone queue is full,
- * it returns false with errno set to EAGAIN.
- */
+   \brief Primitive access to simple tone generation
+
+   This routine queues a tone of given duration and frequency.
+   The routine returns CW_SUCCESS on success.  If usec or frequency
+   are invalid, it returns CW_FAILURE with errno set to EINVAL.
+   If the sound card, console speaker, or keying function are busy,
+   it returns CW_FAILURE  with errno set to EBUSY.  If the tone queue
+   is full, it returns false with errno set to EAGAIN.
+
+   \param usecs - duration of queued tone, in microseconds
+   \param frequency - frequency of queued tone
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
 int cw_queue_tone(int usecs, int frequency)
 {
-  /*
-   * Check the arguments given for realistic values.  Note that we do nothing
-   * here to protect the caller from setting up neverending (0 usecs) tones,
-   * if that's what they want to do.
-   */
-  if (usecs < 0 || frequency < 0
-      || frequency < CW_FREQUENCY_MIN || frequency > CW_FREQUENCY_MAX)
-    {
-      errno = EINVAL;
-      return CW_FAILURE;
-    }
+	/* Check the arguments given for realistic values.  Note that we
+	   do nothing here to protect the caller from setting up
+	   neverending (0 usecs) tones, if that's what they want to do. */
+	if (usecs < 0
+	    || frequency < 0
+	    || frequency < CW_FREQUENCY_MIN || frequency > CW_FREQUENCY_MAX) {
 
-  return cw_enqueue_tone_internal (usecs, frequency);
+		errno = EINVAL;
+		return CW_FAILURE;
+	}
+
+	return cw_tone_queue_add(usecs, frequency);
 }
 
 
+
+
+
 /**
- * Cancel all pending queued tones, reset any queue low callback registered,
- * and return to silence.  This function is suitable for calling from an
- * application exit handler.
- */
+   Cancel all pending queued tones, reset any queue low callback registered,
+   and return to silence.  This function is suitable for calling from an
+   application exit handler.
+*/
 void cw_reset_tone_queue(void)
 {
-  /* Empty the queue, and force state to idle. */
-  cw_tq_head = cw_tq_tail;
-  cw_dequeue_state = QS_IDLE;
+	/* Empty the queue, and force state to idle. */
+	cw_tq_head = cw_tq_tail;
+	cw_dequeue_state = QS_IDLE;
 
-  /* Reset low water mark details to their initial values. */
-  cw_tq_low_water_mark = 0;
-  cw_tq_low_water_callback = NULL;
-  cw_tq_low_water_callback_arg = NULL;
+	/* Reset low water mark details to their initial values. */
+	cw_tq_low_water_mark = 0;
+	cw_tq_low_water_callback = NULL;
+	cw_tq_low_water_callback_arg = NULL;
 
-  /* Silence sound and stop any background soundcard tone generation. */
-  cw_sound_internal (CW_TONE_SILENT);
-  cw_schedule_finalization_internal ();
+	/* Silence sound and stop any background soundcard tone generation. */
+	cw_sound_internal (CW_TONE_SILENT);
+	cw_schedule_finalization_internal ();
 
-  cw_debug (CW_DEBUG_TONE_QUEUE, "tone queue reset");
+	cw_debug (CW_DEBUG_TONE_QUEUE, "tone queue reset");
+
+	return;
 }
 
 
@@ -3535,9 +3615,9 @@ int cw_send_element_internal(char element)
 
   /* Send either a dot or a dash element, depending on representation. */
   if (element == CW_DOT_REPRESENTATION)
-    status = cw_enqueue_tone_internal (cw_send_dot_length, generator->frequency);
+    status = cw_tone_queue_add(cw_send_dot_length, generator->frequency);
   else if (element == CW_DASH_REPRESENTATION)
-    status = cw_enqueue_tone_internal (cw_send_dash_length, generator->frequency);
+    status = cw_tone_queue_add(cw_send_dash_length, generator->frequency);
   else
     {
       errno = EINVAL;
@@ -3547,7 +3627,7 @@ int cw_send_element_internal(char element)
     return CW_FAILURE;
 
   /* Send the inter-element gap. */
-  status = cw_enqueue_tone_internal (cw_end_of_ele_delay, CW_TONE_SILENT);
+  status = cw_tone_queue_add(cw_end_of_ele_delay, CW_TONE_SILENT);
   if (!status)
     return CW_FAILURE;
 
@@ -3600,7 +3680,7 @@ int cw_send_character_space(void)
    * Delay for the standard end of character period, plus any additional
    * inter-character gap
    */
-  return cw_enqueue_tone_internal (cw_end_of_char_delay + cw_additional_delay,
+  return cw_tone_queue_add(cw_end_of_char_delay + cw_additional_delay,
                                    CW_TONE_SILENT);
 }
 
@@ -3620,7 +3700,7 @@ int cw_send_word_space(void)
    * Send silence for the word delay period, plus any adjustment that may be
    * needed at end of word.
    */
-  return cw_enqueue_tone_internal (cw_end_of_word_delay + cw_adjustment_delay,
+  return cw_tone_queue_add(cw_end_of_word_delay + cw_adjustment_delay,
                                    CW_TONE_SILENT);
 }
 
@@ -3644,7 +3724,7 @@ int cw_send_representation_internal(const char *representation, int partial)
    * However, since the queue is comfortably long, we can get away with just
    * looking for a high water mark.
    */
-  if (cw_get_tone_queue_length () >= TONE_QUEUE_HIGH_WATER_MARK)
+  if (cw_get_tone_queue_length () >= CW_TONE_QUEUE_HIGH_WATER_MARK)
     {
       errno = EAGAIN;
       return CW_FAILURE;
@@ -6804,6 +6884,7 @@ int cw_set_alsa_hw_params(snd_pcm_t *handle, snd_pcm_hw_params_t *params)
 		int dir = 0;
 		snd_pcm_hw_params_get_period_size(params, &frames, &dir);
 		cw_dev_debug ("%d, ALSA buffer size would be %u frames", rv, (unsigned int) frames);
+		cw_print_alsa_params(params);
 		return CW_SUCCESS;
 	}
 #endif // #ifndef LIBCW_WITH_ALSA
@@ -6874,8 +6955,8 @@ static void main_helper(int audio_system, const char *name, const char *device, 
 int main(void)
 {
 	main_helper(CW_AUDIO_ALSA,    "ALSA",    CW_DEFAULT_ALSA_DEVICE,    cw_is_alsa_possible);
-	main_helper(CW_AUDIO_CONSOLE, "console", CW_DEFAULT_CONSOLE_DEVICE, cw_is_console_possible);
-	main_helper(CW_AUDIO_OSS,     "OSS",     CW_DEFAULT_OSS_DEVICE,     cw_is_oss_possible);
+	//main_helper(CW_AUDIO_CONSOLE, "console", CW_DEFAULT_CONSOLE_DEVICE, cw_is_console_possible);
+	//main_helper(CW_AUDIO_OSS,     "OSS",     CW_DEFAULT_OSS_DEVICE,     cw_is_oss_possible);
 
 	return 0;
 }
@@ -6896,7 +6977,7 @@ void main_helper(int audio_system, const char *name, const char *device, predica
 			cw_set_send_speed(22);
 			cw_generator_start();
 
-			cw_send_string("morse");
+			cw_send_string("abcdefghijklmnopqrstuvwyz0123456789");
 			cw_wait_for_tone_queue();
 
 			cw_generator_stop();
