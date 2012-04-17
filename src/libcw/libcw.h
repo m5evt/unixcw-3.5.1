@@ -197,7 +197,11 @@ extern int cw_register_signal_handler (int signal_number,
 extern int cw_unregister_signal_handler (int signal_number);
 extern void cw_register_keying_callback (void (*callback_func) (void*, int),
                                          void *callback_arg);
-extern int cw_register_tone_queue_low_callback (void (*callback_func) (void*),
+
+
+
+/* tone queue */
+extern int cw_register_tone_queue_low_callback(void (*callback_func) (void*),
                                                 void *callback_arg, int level);
 extern bool cw_is_tone_busy(void);
 extern int  cw_wait_for_tone(void);
