@@ -75,9 +75,6 @@
 /* Define to 1 if you have the `snd_pcm_hw_params_test_periods' function. */
 #undef HAVE_SND_PCM_HW_PARAMS_TEST_PERIODS
 
-/* Define to 1 if you have the `snd_pcm_hw_params_test_rate' function. */
-#undef HAVE_SND_PCM_HW_PARAMS_TEST_RATE
-
 /* Define to 1 if you have the <soundcard.h> header file. */
 #undef HAVE_SOUNDCARD_H
 
