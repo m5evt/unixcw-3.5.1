@@ -21,7 +21,7 @@
 #define _LIBCW_H
 
 #include <sys/time.h>  /* For struct timeval */
-#include <alsa/asoundlib.h>
+
 #include <stdint.h>    /* int16_t */
 #include <pthread.h>
 #include <stdbool.h>
@@ -181,7 +181,7 @@ extern void cw_get_receive_parameters (int *dot_usecs, int *dash_usecs,
                                        int *adaptive_threshold);
 extern int cw_set_noise_spike_threshold (int threshold);
 extern int cw_get_noise_spike_threshold (void);
-extern void cw_block_callback (int is_block);
+extern void cw_block_callback(int block);
 
 extern bool cw_is_console_possible(const char *device);
 extern bool cw_is_oss_possible(const char *device);
@@ -216,17 +216,23 @@ extern void cw_reset_tone_queue(void);
 
 
 
-extern int cw_send_dot (void);
-extern int cw_send_dash (void);
-extern int cw_send_character_space (void);
-extern int cw_send_word_space (void);
-extern int cw_send_representation (const char *representation);
-extern int cw_send_representation_partial (const char *representation);
-extern int cw_check_character (char c);
-extern int cw_send_character (char c);
-extern int cw_send_character_partial (char c);
-extern int cw_check_string (const char *string);
-extern int cw_send_string (const char *string);
+/* sending */
+extern int cw_send_dot(void);
+extern int cw_send_dash(void);
+extern int cw_send_character_space(void);
+extern int cw_send_word_space(void);
+extern int cw_send_representation(const char *representation);
+extern int cw_send_representation_partial(const char *representation);
+extern int cw_send_character(char c);
+extern int cw_send_character_partial(char c);
+extern int cw_send_string(const char *string);
+
+extern int cw_check_character(char c);
+extern int cw_check_string(const char *string);
+
+
+
+
 extern void cw_get_receive_statistics (double *dot_sd, double *dash_sd,
                                        double *element_end_sd,
                                        double *character_end_sd);
