@@ -17,8 +17,39 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+
+/*
+   Table of contents
+
+   - Debugging
+   - Core Morse code data and lookup
+   - Extended Morse code data and lookup
+   - Morse code controls and timing parameters
+   - SIGALRM and timer handling
+   - General control of console buzzer and of soundcard
+   - Finalization and cleanup
+   - Keying control
+   - Tone queue
+   - Sending
+   - Receive tracking and statistics helpers
+   - Receiving
+   - Iambic keyer
+   - Straight key
+   - Generator - generic
+   - Console buzzer output
+   - Soundcard output with OSS
+   - Soundcard output with ALSA
+   - main() function for testing purposes
+   - Unit tests for internal functions
+*/
+
+
+
+
 #define _BSD_SOURCE   /* usleep() */
-#define _POSIX_SOURCE /* signaction() */
+#define _POSIX_SOURCE /* sigaction() */
+#define _POSIX_C_SOURCE 200112L /* pthread_sigmask() */
+
 #include "../config.h"
 
 #include <sys/time.h>
@@ -36,8 +67,8 @@
 #include <errno.h>
 #include <assert.h>
 #include <stdbool.h>
-
 #include <math.h>
+
 #ifndef M_PI  /* C99 may not define M_PI */
 #define M_PI  3.14159265358979323846
 #endif
@@ -55,21 +86,33 @@
 # include <strings.h>
 #endif
 
-#if defined(HAVE_SYS_KD_H)
-# include <sys/kd.h>
+
+#if defined(LIBCW_WITH_CONSOLE)
+#if   defined(HAVE_SYS_KD_H)
+#       include <sys/kd.h>
 #elif defined(HAVE_SYS_VTKD_H)
-# include <sys/vtkd.h>
+#       include <sys/vtkd.h>
 #elif defined(HAVE_SYS_KBIO_H)
-# include <sys/kbio.h>
+#       include <sys/kbio.h>
+#endif
 #endif
 
-#if defined(HAVE_SYS_SOUNDCARD_H)
-# include <sys/soundcard.h>
+
+#if defined(LIBCW_WITH_OSS)
+#if   defined(HAVE_SYS_SOUNDCARD_H)
+#       include <sys/soundcard.h>
 #elif defined(HAVE_SOUNDCARD_H)
-# include <soundcard.h>
+#       include <soundcard.h>
 #else
 #
 #endif
+#endif
+
+
+#if defined(LIBCW_WITH_ALSA)
+#include <alsa/asoundlib.h>
+#endif
+
 
 #if defined(BSD)
 # define ERR_NO_SUPPORT EPROTONOSUPPORT
@@ -96,10 +139,12 @@ struct cw_gen_struct {
 	int audio_sink;
 	/* output handle for audio data (ALSA) */
 	snd_pcm_t *alsa_handle;
-	/* output file descriptor for debug data (console, OSS) */
-	int debug_sink;
+	/* output file descriptor for debug data (console, OSS, ALSA) */
+	int dev_raw_sink;
 
 
+	int send_speed;
+	int gap;
 	int volume; /* this is the level of sound that you want to have */
 	int frequency;   /* this is the frequency of sound that you want to generate */
 
@@ -162,7 +207,6 @@ static int cw_print_alsa_params(snd_pcm_hw_params_t *params);
 static int cw_set_audio_device(const char *device);
 
 static void *cw_generator_write_sine_wave_oss(void *arg);
-
 static void *cw_generator_write_sine_wave_alsa(void *arg);
 static int   cw_generator_calculate_sine_wave(cw_gen_t *gen);
 static int   cw_generator_calculate_amplitude(cw_gen_t *gen);
@@ -178,20 +222,26 @@ static int cw_open_device_oss_ioctls(int *fd, int *sample_rate);
 
 /* functions handling representation of a character;
    representation looks like this: ".-" for 'a', "--.." for 'z', etc. */
-static bool         cw_representation_lookup_init(const cw_entry_t *lookup[]);
-static int          cw_representation_to_char(const char *representation);
-static unsigned int cw_representation_to_hash(const char *representation);
-static const char  *cw_char_to_representation(int c);
+static bool         cw_representation_lookup_init_internal(const cw_entry_t *lookup[]);
+static int          cw_representation_to_character_internal(const char *representation);
+static unsigned int cw_representation_to_hash_internal(const char *representation);
+static const char  *cw_character_to_representation_internal(int c);
 
 static const char *cw_lookup_procedural_character_internal(char c, int *is_usually_expanded);
 static void cw_sync_parameters_internal(void);
-static void cw_sigalrm_handler_internal(int signal_number);
-static int cw_set_timer_internal(int usecs);
-static int cw_request_timeout_internal(int usecs, void (*request_handler)(void));
-static int cw_release_timeouts_internal(void);
-static int cw_check_signal_mask_internal(void);
-static int cw_block_signal_internal(int is_block);
-static int cw_wait_for_signal_internal(void);
+
+static int cw_timer_run_internal(int usecs);
+static int cw_timer_run_with_handler_internal(int usecs, void (*sigalrm_handler)(void));
+
+
+/* functions handling SIGALRM signal and its handlers, and other signals */
+static void cw_sigalrm_handlers_caller_internal(int signal_number);
+static bool cw_sigalrm_is_blocked_internal(void);
+static int  cw_sigalrm_block_internal(bool block);
+static int  cw_sigalrm_restore_internal(void);
+static int  cw_signal_wait_internal(void);
+
+
 static void cw_finalization_clock_internal(void);
 static void cw_schedule_finalization_internal(void);
 static void cw_cancel_finalization_internal(void);
@@ -199,16 +249,17 @@ static void cw_interpose_signal_handler_internal(int signal_number);
 static void cw_key_control_internal(int requested_key_state);
 
 
-/* tone queue */
-static int  cw_tone_queue_length(void);
-static int  cw_tone_queue_next_index(int current);
-static void cw_tone_queue_clock_internal(void);
-static int  cw_tone_queue_add(int usecs, int frequency);
+/* functions handling tone queue */
+static int  cw_tone_queue_length_internal(void);
+static int  cw_tone_queue_next_index_internal(int current);
+static void cw_tone_queue_dequeue_and_play_internal(void);
+static int  cw_tone_queue_enqueue_internal(int usecs, int frequency);
 
 
+/* sending */
 static int cw_send_element_internal(char element);
 static int cw_send_representation_internal(const char *representation, int partial);
-static int cw_send_character_internal(char c, int partial);
+static int cw_send_character_internal(char character, int partial);
 
 
 static void cw_set_adaptive_receive_internal(bool flag);
@@ -225,22 +276,24 @@ static void cw_straight_key_clock_internal(void);
 
 
 /* Conditional compilation flags */
-#define CW_MAIN                   0  /* for stand-alone compilation and tests of this file */
 #define CW_OSS_SET_FRAGMENT       1  /* ioctl(fd, SNDCTL_DSP_SETFRAGMENT, &param) */
 #define CW_OSS_SET_POLICY         0  /* ioctl(fd, SNDCTL_DSP_POLICY, &param) */
 #define CW_ALSA_HW_BUFFER_CONFIG  1  /* set up hw buffer parameters, doesn't work 100% correctly (yet) */
+#ifdef LIBCW_WITH_DEV
+#define CW_DEV_MAIN               1  /* for stand-alone compilation and tests of this file */
+#define CW_DEV_RAW_SINK           1  /* create /tmp/cw_file.raw file with raw samples */
+#endif
 
 
 /* Generic constants - common for all audio systems (or not used in some of systems) */
-static const unsigned int CW_AUDIO_SAMPLE_RATE_A = 44100;       /* Primary sound sample rate */
-static const unsigned int CW_AUDIO_SAMPLE_RATE_B = 48000;       /* Secondary sound sample rate */
 static const int          CW_AUDIO_CHANNELS = 1;                /* Sound in mono */
 static const long int     CW_AUDIO_VOLUME_RANGE = (1 << 15);    /* 2^15 = 32768 */
-// enum                    { CW_AUDIO_GENERATOR_BUF_SIZE = 128 };  /* Size of buffer storing samples, the value works well for both OSS and ALSA */
 static const float        CW_AUDIO_GENERATOR_SLOPE_RATIO = 1.0;    /* ~1.0 for 44.1/48 kHz sample rate */
+
 
 /* 0Hz = silent 'tone'. */
 static const int CW_TONE_SILENT = 0;
+
 
 #ifdef LIBCW_WITH_OSS
 /* Constants specific to OSS audio system configuration */
@@ -248,10 +301,12 @@ static const int CW_OSS_SETFRAGMENT = 7;              /* Sound fragment size, 2^
 static const int CW_OSS_SAMPLE_FORMAT = AFMT_S16_NE;  /* Sound format AFMT_S16_NE = signed 16 bit, native endianess; LE = Little endianess */
 #endif
 
+
 #ifdef LIBCW_WITH_ALSA
 /* Constants specific to ALSA audio system configuration */
 static const snd_pcm_format_t CW_ALSA_SAMPLE_FORMAT = SND_PCM_FORMAT_S16; /* "Signed 16 bit CPU endian"; I'm guessing that "CPU endian" == "native endianess" */
 #endif
+
 
 /* indexed by values of 'enum cw_audio_systems' */
 static const char *default_audio_devices[] = {
@@ -259,6 +314,18 @@ static const char *default_audio_devices[] = {
 	CW_DEFAULT_CONSOLE_DEVICE,
 	CW_DEFAULT_OSS_DEVICE,
 	CW_DEFAULT_ALSA_DEVICE };
+
+
+static const unsigned int cw_supported_sample_rates[] = {
+	44100,
+	48000,
+	32000,
+	22050,
+	16000,
+	11025,
+	 8000,
+	    0 /* guard */
+};
 
 
 /* main data container; this is a global variable in library file,
@@ -314,9 +381,9 @@ void cw_license(void)
 
 
 
-/* ************************ */
-/*         Debugging        */
-/* ************************ */
+/* ******************************************************************** */
+/*                             Debugging                                */
+/* ******************************************************************** */
 
 
 
@@ -438,9 +505,13 @@ bool cw_is_debugging_internal(unsigned int flag)
 
 
 
-/*---------------------------------------------------------------------*/
-/*  Core Morse code data and lookup                                    */
-/*---------------------------------------------------------------------*/
+/* ******************************************************************** */
+/*                  Core Morse code data and lookup                     */
+/* ******************************************************************** */
+
+
+
+
 
 /*
  * Morse code characters table.  This table allows lookup of the Morse shape
@@ -604,7 +675,7 @@ int cw_get_maximum_representation_length(void)
    \return pointer to string with representation of character on success
    \return NULL on failure
 */
-const char *cw_char_to_representation(int c)
+const char *cw_character_to_representation_internal(int c)
 {
 	static const cw_entry_t *lookup[UCHAR_MAX];  /* Fast lookup table */
 	static bool is_initialized = false;
@@ -632,7 +703,7 @@ const char *cw_char_to_representation(int c)
 	   if it's not assigned to in the above loop. */
 	const cw_entry_t *cw_entry = lookup[(unsigned char) c];
 
-	if (cw_is_debugging_internal (CW_DEBUG_LOOKUPS)) {
+	if (cw_is_debugging_internal(CW_DEBUG_LOOKUPS)) {
 		if (cw_entry) {
 			fprintf (stderr, "cw: lookup '%c' returned <'%c':\"%s\">\n",
 				 c, cw_entry->character, cw_entry->representation);
@@ -674,7 +745,7 @@ const char *cw_char_to_representation(int c)
 int cw_lookup_character(char c, char *representation)
 {
 	/* Lookup the character, and if found, return the string. */
-	const char *retval = cw_char_to_representation(c);
+	const char *retval = cw_character_to_representation_internal(c);
 	if (retval) {
 		if (representation) {
 			strcpy(representation, retval);
@@ -710,7 +781,7 @@ int cw_lookup_character(char c, char *representation)
 char *cw_character_to_representation(int c)
 {
 	/* Lookup the character, and if found, return the string */
-	const char *representation = cw_char_to_representation(c);
+	const char *representation = cw_character_to_representation_internal(c);
 	if (representation) {
 		char *r = strdup(representation);
 		if (r) {
@@ -749,7 +820,7 @@ char *cw_character_to_representation(int c)
    \return non-zero value for valid representation
    \return zero for invalid representation
 */
-unsigned int cw_representation_to_hash(const char *representation)
+unsigned int cw_representation_to_hash_internal(const char *representation)
 {
 	/* Our algorithm can handle only 7 characters of representation.
 	   And we insist on there being at least one character, too.  */
@@ -792,10 +863,12 @@ unsigned int cw_representation_to_hash(const char *representation)
 
    \param representation - representation of a character to look up
 
+   FIXME: function should be able to return zero as non-error value.
+
    \return zero if there is no character for given representation
    \return non-zero character corresponding to given representation otherwise
 */
-int cw_representation_to_char(const char *representation)
+int cw_representation_to_character_internal(const char *representation)
 {
 	static const cw_entry_t *lookup[UCHAR_MAX];   /* Fast lookup table */
 	static bool is_complete = true;               /* Set to false if there are any
@@ -807,12 +880,12 @@ int cw_representation_to_char(const char *representation)
 	   access to the CW table for a hashed representation. */
 	if (!is_initialized) {
 		cw_debug (CW_DEBUG_LOOKUPS, "initialize hash lookup table");
-		is_complete = cw_representation_lookup_init(lookup);
+		is_complete = cw_representation_lookup_init_internal(lookup);
 		is_initialized = true;
 	}
 
 	/* Hash the representation to get an index for the fast lookup. */
-	unsigned int hash = cw_representation_to_hash(representation);
+	unsigned int hash = cw_representation_to_hash_internal(representation);
 
 	const cw_entry_t *cw_entry = NULL;
 	/* If the hashed lookup table is complete, we can simply believe any
@@ -821,7 +894,7 @@ int cw_representation_to_char(const char *representation)
 	if (is_complete) {
 		cw_entry = lookup[hash];
 	} else {
-		/* impossible, since test_cw_representation_to_hash()
+		/* impossible, since test_cw_representation_to_hash_internal()
 		   passes without problems */
 		/* TODO: add debug message */
 
@@ -883,7 +956,7 @@ int cw_representation_to_char(const char *representation)
    \return true on success
    \return false otherwise
 */
-bool cw_representation_lookup_init(const cw_entry_t *lookup[])
+bool cw_representation_lookup_init_internal(const cw_entry_t *lookup[])
 {
 	bool is_complete = true;
 
@@ -893,7 +966,7 @@ bool cw_representation_lookup_init(const cw_entry_t *lookup[])
 	   happen).  The hashed table speeds up lookups of representations by
 	   a factor of 5-10. */
 	for (const cw_entry_t *cw_entry = CW_TABLE; cw_entry->character; cw_entry++) {
-		unsigned int hash = cw_representation_to_hash(cw_entry->representation);
+		unsigned int hash = cw_representation_to_hash_internal(cw_entry->representation);
 		if (hash) {
 			lookup[hash] = cw_entry;
 		} else {
@@ -1005,7 +1078,7 @@ int cw_lookup_representation(const char *representation, char *c)
 	}
 
 	/* Lookup the representation, and if found, return the character. */
-	char character = cw_representation_to_char(representation);
+	char character = cw_representation_to_character_internal(representation);
 	if (character) {
 		if (c) {
 			*c = character;
@@ -1048,7 +1121,7 @@ int cw_representation_to_character(const char *representation)
 	}
 
 	/* Lookup the representation, and if found, return the character. */
-	int c = cw_representation_to_char(representation);
+	int c = cw_representation_to_character_internal(representation);
 	if (c) {
 		return c;
 	} else {
@@ -1062,10 +1135,13 @@ int cw_representation_to_character(const char *representation)
 
 
 
+/* ******************************************************************** */
+/*                Extended Morse code data and lookup                   */
+/* ******************************************************************** */
 
-/*---------------------------------------------------------------------*/
-/*  Extended Morse code data and lookup                                */
-/*---------------------------------------------------------------------*/
+
+
+
 
 /*
  * Ancilliary procedural signals table.  This table maps procedural signal
@@ -1318,9 +1394,16 @@ int cw_lookup_phonetic(char c, char *phonetic)
 }
 
 
-/*---------------------------------------------------------------------*/
-/* Morse code controls and timing parameters                           */
-/*---------------------------------------------------------------------*/
+
+
+
+/* ******************************************************************** */
+/*              Morse code controls and timing parameters               */
+/* ******************************************************************** */
+
+
+
+
 
 /* Dot length magic number; from PARIS calibration, 1 Dot=1200000/WPM usec. */
 enum { DOT_CALIBRATION = 1200000 };
@@ -1344,9 +1427,7 @@ enum
  * set by client code; setting them may trigger a recalculation of the low
  * level timing values held and set below.
  */
-static int cw_send_speed = CW_SPEED_INITIAL,
-           cw_gap = CW_GAP_INITIAL,
-           cw_receive_speed = CW_SPEED_INITIAL,
+static int cw_receive_speed = CW_SPEED_INITIAL,
            cw_tolerance = CW_TOLERANCE_INITIAL,
            cw_weighting = CW_WEIGHTING_INITIAL,
            cw_noise_spike_threshold = CW_INITIAL_NOISE_THRESHOLD;
@@ -1576,7 +1657,7 @@ void cw_sync_parameters_internal(void)
        * adjustment is by adding or subtracting a length based on 50 % as a
        * neutral weighting.
        */
-      unit_length = DOT_CALIBRATION / cw_send_speed;
+      unit_length = DOT_CALIBRATION / generator->send_speed;
       weighting_length = (2 * (cw_weighting - 50) * unit_length) / 100;
       cw_send_dot_length = unit_length + weighting_length;
       cw_send_dash_length = 3 * cw_send_dot_length;
@@ -1593,7 +1674,7 @@ void cw_sync_parameters_internal(void)
       cw_end_of_ele_delay = unit_length - (28 * weighting_length) / 22;
       cw_end_of_char_delay = 3 * unit_length - cw_end_of_ele_delay;
       cw_end_of_word_delay = 7 * unit_length - cw_end_of_char_delay;
-      cw_additional_delay = cw_gap * unit_length;
+      cw_additional_delay = generator->gap * unit_length;
 
       /*
        * For 'Farnsworth', there also needs to be an adjustment delay added
@@ -1608,7 +1689,7 @@ void cw_sync_parameters_internal(void)
       cw_adjustment_delay = (7 * cw_additional_delay) / 3;
 
       cw_debug (CW_DEBUG_PARAMETERS, "send usec timings <%d>: %d, %d, %d, %d, %d, %d, %d",
-		cw_send_speed, cw_send_dot_length, cw_send_dash_length,
+		generator->send_speed, cw_send_dot_length, cw_send_dash_length,
 		cw_end_of_ele_delay, cw_end_of_char_delay,
 		cw_end_of_word_delay, cw_additional_delay, cw_adjustment_delay);
 
@@ -1720,10 +1801,10 @@ void cw_sync_parameters_internal(void)
  */
 void cw_reset_send_receive_parameters(void)
 {
-  cw_send_speed = CW_SPEED_INITIAL;
+  generator->send_speed = CW_SPEED_INITIAL;
   generator->frequency = CW_FREQUENCY_INITIAL;
   generator->volume = CW_VOLUME_INITIAL;
-  cw_gap = CW_GAP_INITIAL;
+  generator->gap = CW_GAP_INITIAL;
   cw_receive_speed = CW_SPEED_INITIAL;
   cw_tolerance = CW_TOLERANCE_INITIAL;
   cw_weighting = CW_WEIGHTING_INITIAL;
@@ -1756,21 +1837,20 @@ void cw_reset_send_receive_parameters(void)
  */
 int cw_set_send_speed(int new_value)
 {
-  if (new_value < CW_SPEED_MIN || new_value > CW_SPEED_MAX)
-    {
-      errno = EINVAL;
-      return CW_FAILURE;
-    }
-  if (new_value != cw_send_speed)
-    {
-      cw_send_speed = new_value;
+	if (new_value < CW_SPEED_MIN || new_value > CW_SPEED_MAX) {
+		errno = EINVAL;
+		return CW_FAILURE;
+	}
 
-      /* Changes of send speed require resynchronization. */
-      cw_is_in_sync = false;
-      cw_sync_parameters_internal ();
-    }
+	if (new_value != generator->send_speed) {
+		generator->send_speed = new_value;
 
-  return CW_SUCCESS;
+		/* Changes of send speed require resynchronization. */
+		cw_is_in_sync = false;
+		cw_sync_parameters_internal();
+	}
+
+	return CW_SUCCESS;
 }
 
 
@@ -1872,21 +1952,20 @@ int cw_set_volume(int new_value)
 */
 int cw_set_gap(int new_value)
 {
-  if (new_value < CW_GAP_MIN || new_value > CW_GAP_MAX)
-    {
-      errno = EINVAL;
-      return CW_FAILURE;
-    }
-  if (new_value != cw_gap)
-    {
-      cw_gap = new_value;
+	if (new_value < CW_GAP_MIN || new_value > CW_GAP_MAX) {
+		errno = EINVAL;
+		return CW_FAILURE;
+	}
 
-      /* Changes of gap require resynchronization. */
-      cw_is_in_sync = false;
-      cw_sync_parameters_internal ();
-    }
+	if (new_value != generator->gap) {
+		generator->gap = new_value;
 
-  return CW_SUCCESS;
+		/* Changes of gap require resynchronization. */
+		cw_is_in_sync = false;
+		cw_sync_parameters_internal();
+	}
+
+	return CW_SUCCESS;
 }
 
 
@@ -1950,7 +2029,7 @@ int cw_set_weighting(int new_value)
 */
 int cw_get_send_speed(void)
 {
-  return cw_send_speed;
+	return generator->send_speed;
 }
 
 
@@ -2008,7 +2087,7 @@ int cw_get_volume(void)
 */
 int cw_get_gap(void)
 {
-	return cw_gap;
+	return generator->gap;
 }
 
 
@@ -2152,181 +2231,193 @@ int cw_get_noise_spike_threshold(void)
 
 
 
-/*---------------------------------------------------------------------*/
-/*  SIGALRM and timer handling                                         */
-/*---------------------------------------------------------------------*/
+/* ******************************************************************** */
+/*                     SIGALRM and timer handling                       */
+/* ******************************************************************** */
+
 
 /* Microseconds in a second, for struct timeval handling. */
 static const int USECS_PER_SEC = 1000000;
 
-/*
- * The library registers a single central SIGALRM handler.  This handler will
- * call all of the functions on a list sequentially on each SIGALRM received.
- * This is where the list is kept.
- */
-enum { SIGALRM_HANDLERS = 32 };
-static void (*cw_request_handlers[SIGALRM_HANDLERS])(void);
+
+/* The library keeps a single central non-sparse list of SIGALRM signal
+   handlers. The handler functions will be called sequentially on each
+   SIGALRM received. */
+enum { CW_SIGALRM_HANDLERS_MAX = 32 };
+static void (*cw_sigalrm_handlers[CW_SIGALRM_HANDLERS_MAX])(void);
+
 
 /*
  * Flag to tell us if the SIGALRM handler is installed, and a place to keep
  * the old SIGALRM disposition, so we can restore it when the library decides
  * it can stop handling SIGALRM for a while.
  */
-static bool cw_is_sigalrm_handler_installed = false;
+static bool cw_is_sigalrm_handlers_caller_installed = false;
 static struct sigaction cw_sigalrm_original_disposition;
 
 
 
-/**
- * Common SIGALRM handler.  This function calls the signal handlers of the
- * library subsystems, expecting them to ignore unexpected calls.
- */
-void cw_sigalrm_handler_internal(int signal_number)
-{
-  int handler;
-
-  /* Avoid compiler warnings about unused argument. */
-  signal_number = 0;
-
-  /*
-   * Call the known functions that are interested in this signal.  Stop on
-   * the first free slot found; valid because the array is filled in order
-   * from index 0, and there are no deletions.
-   */
-  for (handler = 0;
-       handler < SIGALRM_HANDLERS && cw_request_handlers[handler]; handler++)
-    {
-      void (*request_handler)(void);
-
-      request_handler = cw_request_handlers[handler];
-      (*request_handler) ();
-    }
-}
 
 
 /**
- * Convenience function to set the itimer for a single shot timeout after a
- * given number of microseconds.
- */
-int cw_set_timer_internal(int usecs)
+   \brief Call handlers of SIGALRM signal
+
+   This function calls the SIGALRM signal handlers of the library
+   subsystems, expecting them to ignore unexpected calls.
+
+   The handlers are kept in cw_sigalrm_handlers[] table, and can be added
+   to the table with cw_timer_run_with_handler_internal().
+
+   SIGALRM is sent to a process every time an itimer timer expires.
+   The timer is set with cw_timer_run_internal().
+*/
+void cw_sigalrm_handlers_caller_internal(__attribute__((unused)) int signal_number)
 {
-  int status;
-  struct itimerval itimer;
+	/* Call the known functions that are interested in SIGALRM signal.
+	   Stop on the first free slot found; valid because the array is
+	   filled in order from index 0, and there are no deletions. */
+	for (int handler = 0;
+	     handler < CW_SIGALRM_HANDLERS_MAX && cw_sigalrm_handlers[handler]; handler++) {
 
-  /* Set up a single shot timeout for the given period. */
-  itimer.it_interval.tv_sec = 0;
-  itimer.it_interval.tv_usec = 0;
-  itimer.it_value.tv_sec = usecs / USECS_PER_SEC;
-  itimer.it_value.tv_usec = usecs % USECS_PER_SEC;
-  status = setitimer (ITIMER_REAL, &itimer, NULL);
-  if (status == -1)
-    {
-      perror ("cw: setitimer");
-      return CW_FAILURE;
-    }
+		(cw_sigalrm_handlers[handler])();
+	}
 
-  return CW_SUCCESS;
+	return;
 }
+
+
+
 
 
 /**
- * Install the SIGALRM handler, if not yet installed.  Add any given lower
- * level handler to the list of registered handlers.  Then set an itimer
- * to expire after the requested number of microseconds.
- */
-int cw_request_timeout_internal(int usecs, void (*request_handler)(void))
+   \brief Set up a timer for specified number of microseconds
+
+   Convenience function to set the itimer for a single shot timeout after
+   a given number of microseconds. SIGALRM is sent to caller process when the
+   timer expires.
+
+   \param usecs - time in microseconds
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
+int cw_timer_run_internal(int usecs)
 {
-  struct sigaction action;
+	struct itimerval itimer;
 
-  /* Install the SIGALRM handler if not currently installed. */
-  if (!cw_is_sigalrm_handler_installed)
-    {
-      int status;
+	/* Set up a single shot timeout for the given period. */
+	itimer.it_interval.tv_sec = 0;
+	itimer.it_interval.tv_usec = 0;
+	itimer.it_value.tv_sec = usecs / USECS_PER_SEC;
+	itimer.it_value.tv_usec = usecs % USECS_PER_SEC;
+	int status = setitimer(ITIMER_REAL, &itimer, NULL);
+	if (status == -1) {
+		cw_debug (CW_DEBUG_SYSTEM, "setitimer(): %s\n", strerror(errno));
+		return CW_FAILURE;
+	}
 
-      /*
-       * Register the SIGALRM handler routine, and keep the old information
-       * so we can put it back when useful to do so.
-       */
-      action.sa_handler = cw_sigalrm_handler_internal;
-      action.sa_flags = SA_RESTART;
-      sigemptyset (&action.sa_mask);
-      status = sigaction (SIGALRM, &action, &cw_sigalrm_original_disposition);
-      if (status == -1)
-        {
-          perror ("cw: sigaction");
-          return CW_FAILURE;
-        }
-
-      cw_is_sigalrm_handler_installed = true;
-    }
-
-  /*
-   * If it's not already present, and one was given, add the request handler
-   * address to the list of known handlers.
-   */
-  if (request_handler)
-    {
-      int handler;
-
-      /*
-       * Search for this handler, or the first free entry, stopping at the
-       * last entry in the table even if it's not a match and not free.
-       */
-      for (handler = 0; handler < SIGALRM_HANDLERS - 1; handler++)
-        {
-          if (!cw_request_handlers[handler]
-              || cw_request_handlers[handler] == request_handler)
-            break;
-        }
-
-      /*
-       * If the handler is already there, do no more.  Otherwise, if we ended
-       * the search at an unused entry, add it to the list of lower level
-       * handlers.
-       */
-      if (cw_request_handlers[handler] != request_handler)
-        {
-          if (cw_request_handlers[handler])
-            {
-              errno = ENOMEM;
-              perror ("cw: overflow cw_request_handlers");
-              return CW_FAILURE;
-            }
-          cw_request_handlers[handler] = request_handler;
-        }
-    }
-
-  /*
-   * The fact that we receive a call means that something is using timeouts
-   * and sound, so make sure that any pending finalization doesn't happen.
-   */
-  cw_cancel_finalization_internal ();
-
-  /*
-   * Depending on the value of usec, either set an itimer, or send ourselves
-   * SIGALRM right away.
-   */
-  if (usecs <= 0)
-    {
-      /* Send ourselves SIGALRM immediately. */
-      if (raise (SIGALRM) != 0)
-        {
-          perror ("cw: raise");
-          return CW_FAILURE;
-        }
-    }
-  else
-    {
-      /*
-       * Set the itimer to produce a single interrupt after the given
-       * duration.
-       */
-      if (!cw_set_timer_internal (usecs))
-        return CW_FAILURE;
-    }
-
-  return CW_SUCCESS;
+	return CW_SUCCESS;
 }
+
+
+
+
+
+/**
+   \brief Register SIGALRM handler(s), and send SIGALRM signal
+
+   Install top level handler of SIGALRM signal (cw_sigalrm_handlers_caller_internal())
+   if it is not already installed.
+
+   Register given \p sigalrm_handler lower level handler, if not NULL and
+   if not yet registered.
+   Then send SIGALRM signal after delay equal to \p usecs microseconds.
+
+   \param usecs - time for itimer
+   \param sigalrm_handler - SIGALRM handler to register
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
+int cw_timer_run_with_handler_internal(int usecs, void (*sigalrm_handler)(void))
+{
+	if (!cw_is_sigalrm_handlers_caller_installed) {
+		/* Install the main SIGALRM handler routine (a.k.a. top level
+		   SIGALRM handler) - a function that calls all registered
+		   lower level handlers), and keep the  old information
+		   (disposition) so we can put it back when useful to do so. */
+
+		struct sigaction action;
+		action.sa_handler = cw_sigalrm_handlers_caller_internal;
+		action.sa_flags = SA_RESTART;
+		sigemptyset(&action.sa_mask);
+
+		int status = sigaction(SIGALRM, &action, &cw_sigalrm_original_disposition);
+		if (status == -1) {
+			cw_debug (CW_DEBUG_SYSTEM, "sigaction(): %s\n", strerror(errno));
+			return CW_FAILURE;
+		}
+
+		cw_is_sigalrm_handlers_caller_installed = true;
+	}
+
+	/* If it's not already present, and one was given, add address
+	   of the lower level SIGALRM handler to the list of known
+	   handlers. */
+	if (sigalrm_handler) {
+		int handler;
+
+		/* Search for this handler, or the first free entry,
+		   stopping at the last entry in the table even if it's
+		   not a match and not free. */
+		for (handler = 0; handler < CW_SIGALRM_HANDLERS_MAX - 1; handler++) {
+			if (!cw_sigalrm_handlers[handler]
+			    || cw_sigalrm_handlers[handler] == sigalrm_handler) {
+
+				break;
+			}
+		}
+
+		/* If the handler is already there, do no more.  Otherwise,
+		   if we ended the search at an unused entry, add it to
+		   the list of lower level handlers. */
+		if (cw_sigalrm_handlers[handler] != sigalrm_handler) {
+			if (cw_sigalrm_handlers[handler]) {
+				errno = ENOMEM;
+				cw_debug (CW_DEBUG_SYSTEM, "libc: overflow cw_sigalrm_handlers");
+				return CW_FAILURE;
+			} else {
+				cw_sigalrm_handlers[handler] = sigalrm_handler;
+			}
+		}
+	}
+
+	/* The fact that we receive a call means that something is using
+	   timeouts and sound, so make sure that any pending finalization
+	   doesn't happen. */
+	cw_cancel_finalization_internal();
+
+	/* Depending on the value of usec, either set an itimer, or send
+	   ourselves SIGALRM right away. */
+	if (usecs <= 0) {
+		/* Send ourselves SIGALRM immediately. */
+		if (raise(SIGALRM) != 0) {
+			cw_debug (CW_DEBUG_SYSTEM, "libcw: raise");
+			return CW_FAILURE;
+		}
+	} else {
+		/* Set the itimer to produce a single interrupt after the
+		   given duration. */
+		if (!cw_timer_run_internal(usecs)) {
+			return CW_FAILURE;
+		}
+	}
+
+	return CW_SUCCESS;
+}
+
+
+
 
 
 /**
@@ -2334,15 +2425,15 @@ int cw_request_timeout_internal(int usecs, void (*request_handler)(void))
  * for the system to the state we found it in before we installed our own
  * SIGALRM handler.
  */
-int cw_release_timeouts_internal(void)
+int cw_sigalrm_restore_internal(void)
 {
   /* Ignore the call if we haven't installed our handler. */
-  if (cw_is_sigalrm_handler_installed)
+  if (cw_is_sigalrm_handlers_caller_installed)
     {
       int status;
 
       /* Cancel any pending itimer setting. */
-      if (!cw_set_timer_internal (0))
+      if (!cw_timer_run_internal (0))
         return CW_FAILURE;
 
       /* Put back the SIGALRM information saved earlier. */
@@ -2353,109 +2444,170 @@ int cw_release_timeouts_internal(void)
           return CW_FAILURE;
         }
 
-      cw_is_sigalrm_handler_installed = false;
+      cw_is_sigalrm_handlers_caller_installed = false;
     }
 
   return CW_SUCCESS;
 }
 
 
-/**
- * Check the signal mask of the process, and return an error, with errno
- * set to EDEADLK, if SIGALRM is blocked.
- */
-int cw_check_signal_mask_internal(void)
-{
-  int status;
-  sigset_t empty_set, current_set;
 
-  /* Block a empty set of signals to obtain the current mask. */
-  sigemptyset (&empty_set);
-  status = sigprocmask (SIG_BLOCK, &empty_set, &current_set);
-  if (status == -1)
-    {
-      perror ("cw: sigprocmask");
-      return CW_FAILURE;
-    }
-
-  /* Check that SIGALRM is not blocked in the current mask. */
-  if (sigismember (&current_set, SIGALRM))
-    {
-      errno = EDEADLK;
-      return CW_FAILURE;
-    }
-
-  return CW_SUCCESS;
-}
 
 
 /**
- * Block SIGALRM for the duration of certain critical sections, or unblock
- * after; passed true to block SIGALRM, and false to unblock.
- */
-int cw_block_signal_internal(int is_block)
+   \brief Check if SIGALRM is currently blocked
+
+   Check the signal mask of the process, and return false, with errno
+   set to EDEADLK, if SIGALRM is blocked.
+   If function returns true, but errno is set, the function has failed
+   to check if SIGALRM is blocked.
+
+   \return true if SIGALRM is currently blocked (errno is zero)
+   \return true on errors (errno is set by system call that failed)
+   \return false if SIGALRM is currently not blocked
+*/
+bool cw_sigalrm_is_blocked_internal(void)
 {
-  int status;
-  sigset_t block_set;
+	sigset_t empty_set, current_set;
 
-  /* Block or unblock SIGALRM for the process. */
-  sigemptyset (&block_set);
-  sigaddset (&block_set, SIGALRM);
-  status = sigprocmask (is_block ? SIG_BLOCK : SIG_UNBLOCK, &block_set, NULL);
-  if (status == -1)
-    {
-      perror ("cw: sigprocmask");
-      return CW_FAILURE;
-    }
+	/* Prepare empty set of signals */
+	int status = sigemptyset(&empty_set);
+	if (status == -1) {
+		cw_debug (CW_DEBUG_SYSTEM, "sigemptyset(): %s\n", strerror(errno));
+		return true;
+	}
 
-  return CW_SUCCESS;
+	/* Block an empty set of signals to obtain the current mask. */
+	status = sigprocmask(SIG_BLOCK, &empty_set, &current_set);
+	if (status == -1) {
+		cw_debug (CW_DEBUG_SYSTEM, "sigprocmask(): %s\n", strerror(errno));
+		return true;
+	}
+
+	/* Check that SIGALRM is not blocked in the current mask. */
+	if (sigismember(&current_set, SIGALRM)) {
+		errno = 0;
+		return true;
+	} else {
+		return false;
+	}
 }
+
+
+
 
 
 /**
- * Blocks the callback from being called for a critical section of caller
- * code if is_block is true, and unblocks the callback if block is false.
- * Works by blocking SIGALRM; a block should always be matched by an unblock,
- * otherwise the tone queue will suspend forever.
- */
-void cw_block_callback(int is_block)
+   \brief Block or unblock SIGALRM signal
+
+   Function blocks or unblocks SIGALRM.
+   It may be used to block the signal for the duration of certain
+   critical sections, and to unblock the signal afterwards.
+
+   \param block - pass true to block SIGALRM, and false to unblock it
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
+int cw_sigalrm_block_internal(bool block)
 {
-  cw_block_signal_internal (is_block);
+	sigset_t set;
+
+	/* Prepare empty set of signals */
+	int status = sigemptyset(&set);
+	if (status == -1) {
+		cw_debug (CW_DEBUG_SYSTEM, "sigemptyset(): %s\n", strerror(errno));
+		return CW_FAILURE;
+	}
+
+	/* Add single signal to the set */
+	status = sigaddset(&set, SIGALRM);
+	if (status == -1) {
+		cw_debug (CW_DEBUG_SYSTEM, "sigaddset(): %s\n", strerror(errno));
+		return CW_FAILURE;
+	}
+
+	/* Block or unblock SIGALRM for the process using the set of signals */
+	status = pthread_sigmask(block ? SIG_BLOCK : SIG_UNBLOCK, &set, NULL);
+	if (status == -1) {
+		cw_debug (CW_DEBUG_SYSTEM, "pthread_sigmask(): %s\n", strerror(errno));
+		return CW_FAILURE;
+	}
+
+	return CW_SUCCESS;
 }
+
+
+
 
 
 /**
- * Wait for a signal, usually a SIGALRM.  Assumes SIGALRM is not blocked.
- */
-int cw_wait_for_signal_internal(void)
+   \brief Block the callback from being called
+
+   Function blocks the callback from being called for a critical section of
+   caller code if \p block is true, and unblocks the callback if \p block is
+   false.
+
+   Function works by blocking SIGALRM; a block should always be matched by
+   an unblock, otherwise the tone queue will suspend forever.
+
+   \param block - pass 1 to block SIGALRM, and 0 to unblock it
+*/
+void cw_block_callback(int block)
 {
-  int status;
-  sigset_t empty_set, current_set;
-
-  /* Block a empty set of signals to obtain the current mask. */
-  sigemptyset (&empty_set);
-  status = sigprocmask (SIG_BLOCK, &empty_set, &current_set);
-  if (status == -1)
-    {
-      perror ("cw: sigprocmask");
-      return CW_FAILURE;
-    }
-
-  /* Wait on the current mask. */
-  status = sigsuspend (&current_set);
-  if (status == -1 && errno != EINTR)
-    {
-      perror ("cw: sigsuspend");
-      return CW_FAILURE;
-    }
-
-  return CW_SUCCESS;
+	cw_sigalrm_block_internal((bool) block);
+	return;
 }
 
 
-/*---------------------------------------------------------------------*/
-/*  Console and soundcard control                                      */
-/*---------------------------------------------------------------------*/
+
+
+
+/**
+   \brief Wait for a signal, usually a SIGALRM
+
+   Function assumes that SIGALRM is not blocked.
+   Function may return CW_FAILURE on failure, i.e. when call to
+   sigemptyset(), sigprocmask() or sigsuspend() fails.
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
+int cw_signal_wait_internal(void)
+{
+	sigset_t empty_set, current_set;
+
+	/* Prepare empty set of signals */
+	int status = sigemptyset(&empty_set);
+	if (status == -1) {
+		cw_debug (CW_DEBUG_SYSTEM, "sigemptyset(): %s\n", strerror(errno));
+		return CW_FAILURE;
+	}
+
+	/* Block an empty set of signals to obtain the current mask. */
+	status = sigprocmask(SIG_BLOCK, &empty_set, &current_set);
+	if (status == -1) {
+		cw_debug (CW_DEBUG_SYSTEM, "sigprocmask(): %s\n", strerror(errno));
+		return CW_FAILURE;
+	}
+
+	/* Wait on the current mask */
+	status = sigsuspend(&current_set);
+	if (status == -1 && errno != EINTR) {
+		cw_debug (CW_DEBUG_SYSTEM, "suspend(): %s\n", strerror(errno));
+		return CW_FAILURE;
+	}
+
+	return CW_SUCCESS;
+}
+
+
+
+
+
+/* ******************************************************************** */
+/*          General control of console buzzer and of soundcard          */
+/* ******************************************************************** */
 
 
 
@@ -2688,9 +2840,13 @@ int cw_sound_internal(int frequency)
 
 
 
-/*---------------------------------------------------------------------*/
-/*  Finalization and cleanup                                           */
-/*---------------------------------------------------------------------*/
+/* ******************************************************************** */
+/*                     Finalization and cleanup                         */
+/* ******************************************************************** */
+
+
+
+
 
 /*
  * We prefer to close the soundcard after a period of library inactivity,
@@ -2744,7 +2900,7 @@ void cw_finalization_clock_internal(void)
         {
 	  cw_debug (CW_DEBUG_FINALIZATION, "finalization timeout, closing down");
 
-          cw_release_timeouts_internal ();
+          cw_sigalrm_restore_internal ();
           // cw_release_sound_internal ();
 
           cw_is_finalization_pending = false;
@@ -2760,7 +2916,7 @@ void cw_finalization_clock_internal(void)
            * back again after reqesting the timeout.
            */
           cw_is_finalization_pending = false;
-          cw_request_timeout_internal (USECS_PER_SEC, NULL);
+          cw_timer_run_with_handler_internal(USECS_PER_SEC, NULL);
           cw_is_finalization_pending = true;
         }
     }
@@ -2777,11 +2933,11 @@ void cw_schedule_finalization_internal(void)
 {
   if (!cw_is_finalization_locked_out && !cw_is_finalization_pending)
     {
-      cw_request_timeout_internal (USECS_PER_SEC,
-                                   cw_finalization_clock_internal);
+      cw_timer_run_with_handler_internal(USECS_PER_SEC,
+					 cw_finalization_clock_internal);
 
       /*
-       * Set the flag and countdown last; calling cw_request_timeout_internal
+       * Set the flag and countdown last; calling cw_timer_run_with_handler
        * above results in a call to our cw_cancel_finalization, which clears
        * the flag and countdown if we set them early.
        */
@@ -2834,7 +2990,7 @@ void cw_complete_reset(void)
   /* Silence sound, and shutdown use of the sound devices. */
   //cw_sound_soundcard_internal (CW_TONE_SILENT);
   cw_release_sound_internal ();
-  cw_release_timeouts_internal ();
+  cw_sigalrm_restore_internal ();
 
   /* Call the reset functions for each subsystem. */
   cw_reset_tone_queue ();
@@ -2995,9 +3151,15 @@ int cw_unregister_signal_handler(int signal_number)
 }
 
 
-/*---------------------------------------------------------------------*/
-/*  Keying control                                                     */
-/*---------------------------------------------------------------------*/
+
+
+
+/* ******************************************************************** */
+/*                           Keying control                             */
+/* ******************************************************************** */
+
+
+
 
 /*
  * External keying function.  It may be useful for a client to have this
@@ -3050,7 +3212,7 @@ void cw_key_control_internal(int requested_key_state)
 
 
 /* ******************************************************************** */
-/*  Tone queue                                                         */
+/*                             Tone queue                               */
 /* ******************************************************************** */
 
 
@@ -3090,7 +3252,7 @@ static void *cw_tq_low_water_callback_arg = NULL;
 
    \return the count of tones currently held in the circular tone buffer.
 */
-int cw_tone_queue_length(void)
+int cw_tone_queue_length_internal(void)
 {
 	return cw_tq_tail >= cw_tq_head
 		? cw_tq_tail - cw_tq_head
@@ -3112,7 +3274,7 @@ int cw_tone_queue_length(void)
 
    \return index of next element in queue
 */
-int cw_tone_queue_next_index(int index)
+int cw_tone_queue_next_index_internal(int index)
 {
 	return (index + 1) % CW_TONE_QUEUE_CAPACITY;
 }
@@ -3147,7 +3309,7 @@ static volatile enum { QS_IDLE, QS_BUSY } cw_dequeue_state = QS_IDLE;
    If the queue is empty when we get the signal, then we're at the end of
    the work list, so set the dequeue state to idle and return.
 */
-void cw_tone_queue_clock_internal(void)
+void cw_tone_queue_dequeue_and_play_internal(void)
 {
 	/* Decide what to do based on the current state. */
 	switch (cw_dequeue_state) {
@@ -3163,14 +3325,14 @@ void cw_tone_queue_clock_internal(void)
 			   compare with the length after we've scanned
 			   over every tone we can omit, and use it to see
 			   if we've crossed the low water mark, if any. */
-			int queue_length = cw_tone_queue_length();
+			int queue_length = cw_tone_queue_length_internal();
 
 			/* Advance over the tones list until we find the
 			   first tone with a duration of more than zero
 			   usecs, or until the end of the list.
 			   TODO: don't add tones with duration = 0? */
 			do  {
-				cw_tq_head = cw_tone_queue_next_index(cw_tq_head);
+				cw_tq_head = cw_tone_queue_next_index_internal(cw_tq_head);
 			} while (cw_tq_head != cw_tq_tail
 				 && cw_tone_queue[cw_tq_head].usecs == 0);
 
@@ -3199,7 +3361,7 @@ void cw_tone_queue_clock_internal(void)
 				/* Request a timeout.  If it fails, there's
 				   little we can do at this point.  But it
 				   shouldn't fail. */
-				cw_request_timeout_internal(usecs, NULL);
+				cw_timer_run_with_handler_internal(usecs, NULL);
 			} else {
 				/* Autonomous dequeuing has finished for
 				   the moment. */
@@ -3220,7 +3382,7 @@ void cw_tone_queue_clock_internal(void)
 				   one we have now is below or equal to it,
 				   call the callback. */
 				if (queue_length > cw_tq_low_water_mark
-				    && cw_tone_queue_length()
+				    && cw_tone_queue_length_internal()
 				    <= cw_tq_low_water_mark) {
 
 					(*cw_tq_low_water_callback)(cw_tq_low_water_callback_arg);
@@ -3231,17 +3393,17 @@ void cw_tone_queue_clock_internal(void)
 			   and since we got a signal we know that it had
 			   a usec greater than zero.  So this is the time
 			   to return to silence. */
-			cw_sound_internal (CW_TONE_SILENT);
+			cw_sound_internal(CW_TONE_SILENT);
 
 			/* Notify the keying control function, as above. */
-			cw_key_control_internal (false);
+			cw_key_control_internal(false);
 
 			/* Set state to idle, indicating that autonomous
 			   dequeuing has finished for the moment.  We
 			   need this set whenever the queue indexes are
 			   equal and there is no pending itimeout. */
 			cw_dequeue_state = QS_IDLE;
-			cw_schedule_finalization_internal ();
+			cw_schedule_finalization_internal();
 		}
 	}
 }
@@ -3266,7 +3428,7 @@ void cw_tone_queue_clock_internal(void)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_tone_queue_add(int usecs, int frequency)
+int cw_tone_queue_enqueue_internal(int usecs, int frequency)
 {
 	/* If the keyer or straight key are busy, return an error.
 	   This is because they use the sound card/console tones and key
@@ -3278,7 +3440,7 @@ int cw_tone_queue_add(int usecs, int frequency)
 	}
 
 	/* Get the new value of the queue tail index. */
-	int new_tq_tail = cw_tone_queue_next_index(cw_tq_tail);
+	int new_tq_tail = cw_tone_queue_next_index_internal(cw_tq_tail);
 
 	/* If the new value is bumping against the head index, then
 	   the queue is currently full. */
@@ -3301,9 +3463,9 @@ int cw_tone_queue_add(int usecs, int frequency)
 		   remove (dequeue) tones from the queue and (possibly)
 		   play them.
 		   Let's mark that dequeuing is starting, and lets start
-		   such a process using cw_tone_queue_clock_internal()). */
+		   such a process using cw_tone_queue_dequeue_and_play_internal(). */
 		cw_dequeue_state = QS_BUSY;
-		cw_request_timeout_internal(0, cw_tone_queue_clock_internal);
+		cw_timer_run_with_handler_internal(0, cw_tone_queue_dequeue_and_play_internal);
 	}
 
 	return CW_SUCCESS;
@@ -3379,15 +3541,17 @@ bool cw_is_tone_busy(void)
 */
 int cw_wait_for_tone(void)
 {
-	/* Check that SIGALRM is not blocked. */
-	if (!cw_check_signal_mask_internal()) {
+	if (cw_sigalrm_is_blocked_internal()) {
+		/* no point in waiting for event, when signal
+		   controlling the event is blocked */
+		errno = EDEADLK;
 		return CW_FAILURE;
 	}
 
 	/* Wait for the tail index to change or the dequeue to go idle. */
 	int check_tq_head = cw_tq_head;
 	while (cw_tq_head == check_tq_head && cw_dequeue_state != QS_IDLE) {
-		cw_wait_for_signal_internal();
+		cw_signal_wait_internal();
 	}
 
 	return CW_SUCCESS;
@@ -3409,14 +3573,16 @@ int cw_wait_for_tone(void)
 */
 int cw_wait_for_tone_queue(void)
 {
-	/* Check that SIGALRM is not blocked. */
-	if (!cw_check_signal_mask_internal()) {
+	if (cw_sigalrm_is_blocked_internal()) {
+		/* no point in waiting for event, when signal
+		   controlling the event is blocked */
+		errno = EDEADLK;
 		return CW_FAILURE;
 	}
 
 	/* Wait until the dequeue indicates it's hit the end of the queue. */
 	while (cw_dequeue_state != QS_IDLE) {
-		cw_wait_for_signal_internal();
+		cw_signal_wait_internal();
 	}
 
 	return CW_SUCCESS;
@@ -3427,7 +3593,7 @@ int cw_wait_for_tone_queue(void)
 
 
 /**
-   \brief Wait for the tone queue to drain until only as many tones as given in level remain queued.
+   \brief Wait for the tone queue to drain until only as many tones as given in level remain queued
 
    This routine is for use by programs that want to optimize themselves
    to avoid the cleanup that happens when the tone queue drains completely;
@@ -3444,14 +3610,16 @@ int cw_wait_for_tone_queue(void)
 */
 int cw_wait_for_tone_queue_critical(int level)
 {
-	/* Check that SIGALRM is not blocked. */
-	if (!cw_check_signal_mask_internal()) {
+	if (cw_sigalrm_is_blocked_internal()) {
+		/* no point in waiting for event, when signal
+		   controlling the event is blocked */
+		errno = EDEADLK;
 		return CW_FAILURE;
 	}
 
 	/* Wait until the queue length is at or below criticality. */
-	while (cw_tone_queue_length() > level) {
-		cw_wait_for_signal_internal();
+	while (cw_tone_queue_length_internal() > level) {
+		cw_signal_wait_internal();
 	}
 
 	return CW_SUCCESS;
@@ -3470,7 +3638,7 @@ int cw_wait_for_tone_queue_critical(int level)
 bool cw_is_tone_queue_full(void)
 {
 	/* If advancing would meet the tail index, return true. */
-	return cw_tone_queue_next_index(cw_tq_tail) == cw_tq_head;
+	return cw_tone_queue_next_index_internal(cw_tq_tail) == cw_tq_head;
 }
 
 
@@ -3497,7 +3665,7 @@ int cw_get_tone_queue_capacity(void)
 */
 int cw_get_tone_queue_length(void)
 {
-	return cw_tone_queue_length();
+	return cw_tone_queue_length_internal();
 }
 
 
@@ -3520,13 +3688,13 @@ void cw_flush_tone_queue(void)
 	cw_tq_head = cw_tq_tail;
 
 	/* If we can, wait until the dequeue goes idle. */
-	if (cw_check_signal_mask_internal()) {
+	if (!cw_sigalrm_is_blocked_internal()) {
 		cw_wait_for_tone_queue();
 	}
 
 	/* Force silence on the speaker anyway, and stop any background
 	   soundcard tone generation. */
-	cw_sound_internal (CW_TONE_SILENT);
+	cw_sound_internal(CW_TONE_SILENT);
 	cw_schedule_finalization_internal();
 
 	return;
@@ -3565,7 +3733,7 @@ int cw_queue_tone(int usecs, int frequency)
 		return CW_FAILURE;
 	}
 
-	return cw_tone_queue_add(usecs, frequency);
+	return cw_tone_queue_enqueue_internal(usecs, frequency);
 }
 
 
@@ -3589,8 +3757,8 @@ void cw_reset_tone_queue(void)
 	cw_tq_low_water_callback_arg = NULL;
 
 	/* Silence sound and stop any background soundcard tone generation. */
-	cw_sound_internal (CW_TONE_SILENT);
-	cw_schedule_finalization_internal ();
+	cw_sound_internal(CW_TONE_SILENT);
+	cw_schedule_finalization_internal();
 
 	cw_debug (CW_DEBUG_TONE_QUEUE, "tone queue reset");
 
@@ -3598,41 +3766,61 @@ void cw_reset_tone_queue(void)
 }
 
 
-/*---------------------------------------------------------------------*/
-/*  Sending                                                            */
-/*---------------------------------------------------------------------*/
+
+
+/* ******************************************************************** */
+/*                                Sending                               */
+/* ******************************************************************** */
+
+
 
 /**
- * Low level primitive to send a tone element of the given type, followed
- * by the standard inter-element silence.
+   \brief Send an element
+
+   Low level primitive to send a tone element of the given type, followed
+   by the standard inter-element silence.
+
+   Function sets errno to EINVAL if an argument is invalid, and returns
+   CW_FAILURE.
+   Function also returns failure if adding the element to queue of elements
+   failed.
+
+   \param element - element to send - dot (CW_DOT_REPRESENTATION) or dash (CW_DASH_REPRESENTATION)
+
+   \return CW_FAILURE on failure
+   \return CW_SUCCESS on success
  */
 int cw_send_element_internal(char element)
 {
-  int status;
+	int status;
 
-  /* Synchronize low-level timings if required. */
-  cw_sync_parameters_internal ();
+	/* Synchronize low-level timings if required. */
+	cw_sync_parameters_internal ();
 
-  /* Send either a dot or a dash element, depending on representation. */
-  if (element == CW_DOT_REPRESENTATION)
-    status = cw_tone_queue_add(cw_send_dot_length, generator->frequency);
-  else if (element == CW_DASH_REPRESENTATION)
-    status = cw_tone_queue_add(cw_send_dash_length, generator->frequency);
-  else
-    {
-      errno = EINVAL;
-      status = CW_FAILURE;
-    }
-  if (!status)
-    return CW_FAILURE;
+	/* Send either a dot or a dash element, depending on representation. */
+	if (element == CW_DOT_REPRESENTATION) {
+		status = cw_tone_queue_enqueue_internal(cw_send_dot_length, generator->frequency);
+	} else if (element == CW_DASH_REPRESENTATION) {
+		status = cw_tone_queue_enqueue_internal(cw_send_dash_length, generator->frequency);
+	} else {
+		errno = EINVAL;
+		status = CW_FAILURE;
+	}
 
-  /* Send the inter-element gap. */
-  status = cw_tone_queue_add(cw_end_of_ele_delay, CW_TONE_SILENT);
-  if (!status)
-    return CW_FAILURE;
+	if (!status) {
+		return CW_FAILURE;
+	}
 
-  return CW_SUCCESS;
+	/* Send the inter-element gap. */
+	if (!cw_tone_queue_enqueue_internal(cw_end_of_ele_delay, CW_TONE_SILENT)) {
+		return CW_FAILURE;
+	} else {
+		return CW_SUCCESS;
+	}
 }
+
+
+
 
 
 /**
@@ -3649,7 +3837,7 @@ int cw_send_element_internal(char element)
  */
 int cw_send_dot(void)
 {
-  return cw_send_element_internal (CW_DOT_REPRESENTATION);
+	return cw_send_element_internal(CW_DOT_REPRESENTATION);
 }
 
 
@@ -3661,7 +3849,7 @@ int cw_send_dot(void)
 */
 int cw_send_dash(void)
 {
-  return cw_send_element_internal (CW_DASH_REPRESENTATION);
+	return cw_send_element_internal(CW_DASH_REPRESENTATION);
 }
 
 
@@ -3673,15 +3861,13 @@ int cw_send_dash(void)
 */
 int cw_send_character_space(void)
 {
-  /* Synchronize low-level timing parameters. */
-  cw_sync_parameters_internal ();
+	/* Synchronize low-level timing parameters. */
+	cw_sync_parameters_internal();
 
-  /*
-   * Delay for the standard end of character period, plus any additional
-   * inter-character gap
-   */
-  return cw_tone_queue_add(cw_end_of_char_delay + cw_additional_delay,
-                                   CW_TONE_SILENT);
+	/* Delay for the standard end of character period, plus any
+	   additional inter-character gap */
+	return cw_tone_queue_enqueue_internal(cw_end_of_char_delay + cw_additional_delay,
+					      CW_TONE_SILENT);
 }
 
 
@@ -3693,15 +3879,13 @@ int cw_send_character_space(void)
 */
 int cw_send_word_space(void)
 {
-  /* Synchronize low-level timing parameters. */
-  cw_sync_parameters_internal ();
+	/* Synchronize low-level timing parameters. */
+	cw_sync_parameters_internal();
 
-  /*
-   * Send silence for the word delay period, plus any adjustment that may be
-   * needed at end of word.
-   */
-  return cw_tone_queue_add(cw_end_of_word_delay + cw_adjustment_delay,
-                                   CW_TONE_SILENT);
+	/* Send silence for the word delay period, plus any adjustment
+	   that may be needed at end of word. */
+	return cw_tone_queue_enqueue_internal(cw_end_of_word_delay + cw_adjustment_delay,
+					      CW_TONE_SILENT);
 }
 
 
@@ -3709,269 +3893,331 @@ int cw_send_word_space(void)
 
 
 /**
- * Send the given string as dots and dashes, adding the post-character
- * gap.
- */
+   Send the given string as dots and dashes, adding the post-character gap.
+
+   \param representation
+   \param partial
+
+   Function sets EAGAIN if there is not enough space in tone queue to
+   enqueue \p representation.
+
+   \return CW_FAILURE on failure
+   \return CW_SUCCESS on success
+*/
 int cw_send_representation_internal(const char *representation, int partial)
 {
-  int index;
+	/* Before we let this representation loose on tone generation,
+	   we'd really like to know that all of its tones will get queued
+	   up successfully.  The right way to do this is to calculate the
+	   number of tones in our representation, then check that the space
+	   exists in the tone queue. However, since the queue is comfortably
+	   long, we can get away with just looking for a high water mark.  */
+	if (cw_get_tone_queue_length() >= CW_TONE_QUEUE_HIGH_WATER_MARK) {
+		errno = EAGAIN;
+		return CW_FAILURE;
+	}
 
-  /*
-   * Before we let this representation loose on tone generation, we'd really
-   * like to know that all of its tones will get queued up successfully.  The
-   * right way to do this is to calculate the number of tones in our
-   * representation, then check that the space exists in the tone queue.
-   * However, since the queue is comfortably long, we can get away with just
-   * looking for a high water mark.
-   */
-  if (cw_get_tone_queue_length () >= CW_TONE_QUEUE_HIGH_WATER_MARK)
-    {
-      errno = EAGAIN;
-      return CW_FAILURE;
-    }
+	/* Sound the elements of the CW equivalent. */
+	for (int index = 0; representation[index] != '\0'; index++) {
+		/* Send a tone of dot or dash length, followed by the
+		   normal, standard, inter-element gap. */
+		if (!cw_send_element_internal(representation[index])) {
+			return CW_FAILURE;
+		}
+	}
 
-  /* Sound the elements of the CW equivalent. */
-  for (index = 0; representation[index] != '\0'; index++)
-    {
-      int status;
+	/* If this representation is stated as being 'partial', then
+	   suppress any and all end of character delays.*/
+	if (!partial) {
+		if (!cw_send_character_space()) {
+			return CW_FAILURE;
+		}
+	}
 
-      /*
-       * Send a tone of dot or dash length, followed by the normal, standard,
-       * inter-element gap.
-       */
-      status = cw_send_element_internal (representation[index]);
-      if (!status)
-        return CW_FAILURE;
-    }
-
-  /*
-   * If this representation is stated as being 'partial', then suppress any
-   * and all end of character delays.
-   */
-  if (!partial)
-    {
-      int status;
-
-      status = cw_send_character_space ();
-      if (!status)
-        return CW_FAILURE;
-    }
-
-  return CW_SUCCESS;
+	return CW_SUCCESS;
 }
 
 
+
+
+
 /**
- * Checks, then sends the given string as dots and dashes.  The representation
- * passed in is assumed to be a complete Morse character; that is, all post-
- * character delays will be added when the character is sent.  On success,
- * the routine returns true.  On error, it returns false, with errno set to
- * EINVAL if any character of the representation is invalid, EBUSY if the
- * sound card, console speaker, or keying system is busy, or EAGAIN if the
- * tone queue is full, or if there is insufficient space to queue the tones
- * for the representation.
- */
+   \brief Check, then send the given string as dots and dashes.
+
+   The representation passed in is assumed to be a complete Morse
+   character; that is, all post-character delays will be added when
+   the character is sent.
+
+   On success, the routine returns CW_SUCCESS.
+   On error, it returns CW_FAILURE, with errno set to EINVAL if any
+   character of the representation is invalid, EBUSY if the sound card,
+   console speaker, or keying system is busy, or EAGAIN if the tone
+   queue is full, or if there is insufficient space to queue the tones
+   or the representation.
+
+   \param representation - representation to send
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
 int cw_send_representation(const char *representation)
 {
-  if (!cw_representation_valid(representation))
-    {
-      errno = EINVAL;
-      return CW_FAILURE;
-    }
-
-  return cw_send_representation_internal (representation, false);
+	if (!cw_representation_valid(representation)) {
+		errno = EINVAL;
+		return CW_FAILURE;
+	} else {
+		return cw_send_representation_internal(representation, false);
+	}
 }
 
 
+
+
+
 /**
- * Check, then send the given string as dots and dashes.  The representation
- * passed in is assumed to be only part of a larger Morse representation;
- * that is, no post-character delays will be added when the character is sent.
- * On success, the routine returns true.  On error, it returns false, with
- * errno set to EINVAL if any character of the representation is invalid,
- * EBUSY if the sound card, console speaker, or keying system is busy, or
- * EAGAIN if the tone queue is full, or if there is insufficient space to
- * queue the tones for the representation.
- */
+   \brief Check, then send the given string as dots and dashes
+
+   The \p representation passed in is assumed to be only part of a larger
+   Morse representation; that is, no post-character delays will be added
+   when the character is sent.
+
+   On success, the routine returns CW_SUCCESS.
+   On error, it returns CW_FAILURE, with errno set to EINVAL if any
+   character of the representation is invalid, EBUSY if the sound card,
+   console speaker, or keying system is busy, or EAGAIN if the tone queue
+   is full, or if there is insufficient space to queue the tones for
+   the representation.
+*/
 int cw_send_representation_partial(const char *representation)
 {
-  if (!cw_representation_valid(representation))
-    {
-      errno = ENOENT;
-      return CW_FAILURE;
-    }
-
-  return cw_send_representation_internal (representation, true);
+	if (!cw_representation_valid(representation)) {
+		errno = ENOENT;
+		return CW_FAILURE;
+	} else {
+		return cw_send_representation_internal(representation, true);
+	}
 }
 
 
+
+
+
 /**
- * Lookup, and send a given ASCII character as cw.  If 'partial' is set, the
- * end of character delay is not appended to the Morse sent. On success,
- * the routine returns true, otherwise it returns an error.
- */
-int cw_send_character_internal(char c, int partial)
+   \brief Lookup, and send a given ASCII character as Morse code
+
+   If 'partial' is set, the end of character delay is not appended to the
+   Morse code sent.
+
+   Function sets errno to ENOENT if \p character is not a recognized character.
+
+   \param character - character to send
+   \param partial
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
+int cw_send_character_internal(char character, int partial)
 {
-  int status;
+	/* Handle space special case; delay end-of-word and return. */
+	if (character == ' ') {
+		return cw_send_word_space();
+	}
 
-  /* Handle space special case; delay end-of-word and return. */
-  if (c == ' ')
-    return cw_send_word_space ();
+	/* Lookup the character, and sound it. */
+	const char *representation = cw_character_to_representation_internal(character);
+	if (!representation) {
+		errno = ENOENT;
+		return CW_FAILURE;
+	}
 
-  /* Lookup the character, and sound it. */
-  const char *representation = cw_char_to_representation (c);
-  if (!representation)
-    {
-      errno = ENOENT;
-      return CW_FAILURE;
-    }
-
-  status = cw_send_representation_internal (representation, partial);
-  if (!status)
-    return CW_FAILURE;
-
-  return CW_SUCCESS;
+	if (!cw_send_representation_internal(representation, partial)) {
+		return CW_FAILURE;
+	} else {
+		return CW_SUCCESS;
+	}
 }
 
 
+
+
+
 /**
- * Checks that the given character is validly sendable in Morse.  If it is,
- * the routine returns true.  If not, the routine returns false, with errno
- * set to ENOENT.
- */
+   \brief Checks that the given character is validly sendable in Morse
+
+   Function sets errno to ENOENT on failure.
+
+   \param c - character to check
+
+   \return CW_SUCCESS if character is valid
+   \return CW_FAILURE if character is invalid
+*/
 int cw_check_character(char c)
 {
-  /*
-   * If the character is the space special-case, or if not, but it is in the
-   * lookup table, return success.
-   */
-  if (c == ' ' || cw_char_to_representation (c))
-    return CW_SUCCESS;
-
-  errno = ENOENT;
-  return CW_FAILURE;
+	/* If the character is the space special-case, or it is in the
+	   lookup table, return success. */
+	if (c == ' ' || cw_character_to_representation_internal(c)) {
+		return CW_SUCCESS;
+	} else {
+		errno = ENOENT;
+		return CW_FAILURE;
+	}
 }
 
 
+
+
+
 /**
- * Lookup, and send a given ASCII character as Morse.  The end of character
- * delay is appended to the Morse sent. On success, the routine returns true.
- * On error, it returns false, with errno set to ENOENT if the given character
- * is not a valid Morse character, EBUSY if the sound card, console speaker,
- * or keying system is busy, or EAGAIN if the tone queue is full, or if
- * there is insufficient space to queue the tones for the representation.
- *
- * This routine returns as soon as the character has been successfully
- * queued for send; that is, almost immediately.  The actual sending happens
- * in background processing.  See cw_wait_for_tone and cw_wait_for_tone_queue
- * for ways to check the progress of sending.
- */
+   \brief Lookup, and send a given ASCII character as Morse
+
+   The end of character delay is appended to the Morse sent.
+
+   On success, the routine returns true.
+   On error, it returns false, with errno set to ENOENT if the given
+   character \p c is not a valid Morse character, EBUSY if the sound card,
+   console speaker, or keying system is busy, or EAGAIN if the tone queue
+   is full, or if there is insufficient space to queue the tones for the
+   character.
+
+   This routine returns as soon as the character has been successfully
+   queued for sending; that is, almost immediately.  The actual sending
+   happens in background processing.  See cw_wait_for_tone() and
+   cw_wait_for_tone_queue() for ways to check the progress of sending.
+
+   \param c - character to send
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
 int cw_send_character(char c)
 {
-  if (!cw_check_character (c))
-    {
-      errno = ENOENT;
-      return CW_FAILURE;
-    }
-
-  return cw_send_character_internal (c, false);
+	if (!cw_check_character(c)) {
+		errno = ENOENT;
+		return CW_FAILURE;
+	} else {
+		return cw_send_character_internal(c, false);
+	}
 }
 
 
+
+
+
 /**
- * Lookup, and send a given ASCII character as Morse.  The end of character
- * delay is not appended to the Morse sent by the function, to support the
- * formation of combination characters. On success, the routine returns true.
- * On error, it returns false, with errno set to ENOENT if the given character
- * is not a valid Morse character, EBUSY if the sound card, console speaker,
- * or keying system is busy, or EAGAIN if the tone queue is full, or if
- * there is insufficient space to queue the tones for the representation.
- *
- * This routine queues its arguments for background processing.  See
- * cw_send_character for details of how to check the queue status.
- */
+   \brief Lookup, and send a given ASCII character as Morse code
+
+   'partial' means that the 'end of character' delay is not appended
+   to the Morse code sent by the function, to support the formation of
+   combination characters.
+
+   On success, the routine returns CW_SUCCESS.
+   On error, it returns CW_FAILURE, with errno set to ENOENT if the
+   given character \p is not a valid Morse character, EBUSY if the sound
+   card, console speaker, or keying system is busy, or EAGAIN if the
+   tone queue is full, or if there is insufficient space to queue the
+   tones for the character.
+
+   This routine queues its arguments for background processing.  See
+   cw_send_character() for details of how to check the queue status.
+
+   \param c - character to send
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
 int cw_send_character_partial(char c)
 {
-  if (!cw_check_character (c))
-    {
-      errno = ENOENT;
-      return CW_FAILURE;
-    }
-
-  return cw_send_character_internal (c, true);
+	if (!cw_check_character(c)) {
+		errno = ENOENT;
+		return CW_FAILURE;
+	} else {
+		return cw_send_character_internal(c, true);
+	}
 }
 
 
+
+
+
 /**
- * Checks that each character in the given string is validly sendable in Morse.
- * On success, the routine returns true.  On error, it returns false, with
- * errno set to EINVAL.
- */
+   \brief Check that each character in the given string is validly sendable in Morse
+
+   Function sets errno to EINVAL on failure
+
+   \param string - string to check
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
 int cw_check_string(const char *string)
 {
-  int index;
+	/* Check that each character in the string has a Morse
+	   representation, or - as a special case - is a space character. */
+	for (int i = 0; string[i] != '\0'; i++) {
+		if (!(string[i] == ' '
+		      || cw_character_to_representation_internal(string[i]))) {
 
-  /*
-   * Check that each character in the string has a Morse representation, or
-   * is the space special case.
-   */
-  for (index = 0; string[index] != '\0'; index++)
-    {
-      if (!(string[index] == ' '
-            || cw_char_to_representation (string[index])))
-        {
-          errno = EINVAL;
-          return CW_FAILURE;
-        }
-    }
+			errno = EINVAL;
+			return CW_FAILURE;
+		}
+	}
 
-  return CW_SUCCESS;
+	return CW_SUCCESS;
 }
+
+
+
 
 
 /**
- * Send a given ASCII string as cw.  On success, the routine returns true.
- * On error, it returns false, with errno set to ENOENT if any character in
- * the string is not a valid Morse character, EBUSY if the sound card, console
- * speaker, or keying system is in use by the iambic keyer or the straight
- * key, or EAGAIN if the tone queue is full.  If the tone queue runs out
- * of space part way through queueing the string, the function returns EAGAIN.
- * However, an indeterminate number of the characters from the string will
- * have already been queued.  For safety, clients can ensure the tone queue
- * is empty before queueing a string, or use cw_send_character() if they
- * need finer control.
- *
- * This routine queues its arguments for background processing.  See
- * cw_send_character for details of how to check the queue status.
- */
+   \brief Send a given ASCII string in Morse code
+
+   errno is set to ENOENT if any character in the string is not a valid
+   Morse character, EBUSY if the sound card, console speaker, or keying
+   system is in use by the iambic keyer or the straight key, or EAGAIN
+   if the tone queue is full. If the tone queue runs out of space part
+   way through queueing the string, the function returns EAGAIN.
+   However, an indeterminate number of the characters from the string will
+   have already been queued.  For safety, clients can ensure the tone queue
+   is empty before queueing a string, or use cw_send_character() if they
+   need finer control.
+
+   This routine queues its arguments for background processing.  See
+   cw_send_character() for details of how to check the queue status.
+
+   \param string - string to send
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
 int cw_send_string(const char *string)
 {
-  int index;
+	/* Check the string is composed of sendable characters. */
+	if (!cw_check_string(string)) {
+		errno = ENOENT;
+		return CW_FAILURE;
+	}
 
-  /* Check the string is composed of sendable characters. */
-  if (!cw_check_string (string))
-    {
-      errno = ENOENT;
-      return CW_FAILURE;
-    }
+	/* Send every character in the string. */
+	for (int i = 0; string[i] != '\0'; i++) {
+		if (!cw_send_character_internal(string[i], false))
+			return CW_FAILURE;
+	}
 
-  /* Send every character in the string. */
-  for (index = 0; string[index] != '\0'; index++)
-    {
-      int status;
-
-      status = cw_send_character_internal (string[index], false);
-      if (!status)
-        return CW_FAILURE;
-    }
-
-  return CW_SUCCESS;
+	return CW_SUCCESS;
 }
 
 
-/*---------------------------------------------------------------------*/
-/*  Receive tracking and statistics helpers                            */
-/*---------------------------------------------------------------------*/
+
+
+
+/* ******************************************************************** */
+/*                Receive tracking and statistics helpers               */
+/* ******************************************************************** */
+
+
+
+
 
 /*
  * Receive adaptive speed tracking.  A moving averages structure, comprising
@@ -4159,9 +4405,16 @@ void cw_reset_receive_statistics(void)
 }
 
 
-/*---------------------------------------------------------------------*/
-/*  Receiving                                                          */
-/*---------------------------------------------------------------------*/
+
+
+
+/* ******************************************************************** */
+/*                               Receiving                              */
+/* ******************************************************************** */
+
+
+
+
 
 /*
  * Receive buffering.  This is a fixed-length representation, filled in
@@ -4923,7 +5176,7 @@ int cw_receive_character(const struct timeval *timestamp,
     return CW_FAILURE;
 
   /* Look up the representation using the lookup functions. */
-  character = cw_representation_to_char(representation);
+  character = cw_representation_to_character_internal(representation);
   if (!character)
     {
       errno = ENOENT;
@@ -4993,9 +5246,16 @@ void cw_reset_receive(void)
 }
 
 
-/*---------------------------------------------------------------------*/
-/*  Iambic keyer                                                       */
-/*---------------------------------------------------------------------*/
+
+
+
+/* ******************************************************************** */
+/*                            Iambic keyer                              */
+/* ******************************************************************** */
+
+
+
+
 
 /*
  * Iambic keyer status.  The keyer functions maintain the current known state
@@ -5118,7 +5378,7 @@ void cw_keyer_clock_internal(void)
     case KS_IN_DOT_B:
       cw_sound_internal (CW_TONE_SILENT);
       cw_key_control_internal (false);
-      cw_request_timeout_internal (cw_end_of_ele_delay, NULL);
+      cw_timer_run_with_handler_internal(cw_end_of_ele_delay, NULL);
       cw_keyer_state = cw_keyer_state == KS_IN_DOT_A
                        ? KS_AFTER_DOT_A : KS_AFTER_DOT_B;
 
@@ -5129,7 +5389,7 @@ void cw_keyer_clock_internal(void)
     case KS_IN_DASH_B:
       cw_sound_internal (CW_TONE_SILENT);
       cw_key_control_internal (false);
-      cw_request_timeout_internal (cw_end_of_ele_delay, NULL);
+      cw_timer_run_with_handler_internal(cw_end_of_ele_delay, NULL);
       cw_keyer_state = cw_keyer_state == KS_IN_DASH_A
                        ? KS_AFTER_DASH_A : KS_AFTER_DASH_B;
 
@@ -5152,14 +5412,14 @@ void cw_keyer_clock_internal(void)
         {
           cw_sound_internal (generator->frequency);
           cw_key_control_internal (true);
-          cw_request_timeout_internal (cw_send_dash_length, NULL);
+          cw_timer_run_with_handler_internal(cw_send_dash_length, NULL);
           cw_keyer_state = KS_IN_DASH_A;
         }
       else if (cw_ik_dash_latch)
         {
           cw_sound_internal (generator->frequency);
           cw_key_control_internal (true);
-          cw_request_timeout_internal (cw_send_dash_length, NULL);
+          cw_timer_run_with_handler_internal(cw_send_dash_length, NULL);
           if (cw_ik_curtis_b_latch)
             {
               cw_ik_curtis_b_latch = false;
@@ -5172,7 +5432,7 @@ void cw_keyer_clock_internal(void)
         {
           cw_sound_internal (generator->frequency);
           cw_key_control_internal (true);
-          cw_request_timeout_internal (cw_send_dot_length, NULL);
+          cw_timer_run_with_handler_internal(cw_send_dot_length, NULL);
           cw_keyer_state = KS_IN_DOT_A;
         }
       else
@@ -5192,14 +5452,14 @@ void cw_keyer_clock_internal(void)
         {
           cw_sound_internal (generator->frequency);
           cw_key_control_internal (true);
-          cw_request_timeout_internal (cw_send_dot_length, NULL);
+          cw_timer_run_with_handler_internal(cw_send_dot_length, NULL);
           cw_keyer_state = KS_IN_DOT_A;
         }
       else if (cw_ik_dot_latch)
         {
           cw_sound_internal (generator->frequency);
           cw_key_control_internal (true);
-          cw_request_timeout_internal (cw_send_dot_length, NULL);
+          cw_timer_run_with_handler_internal(cw_send_dot_length, NULL);
           if (cw_ik_curtis_b_latch)
             {
               cw_ik_curtis_b_latch = false;
@@ -5212,7 +5472,7 @@ void cw_keyer_clock_internal(void)
         {
           cw_sound_internal (generator->frequency);
           cw_key_control_internal (true);
-          cw_request_timeout_internal (cw_send_dash_length, NULL);
+          cw_timer_run_with_handler_internal(cw_send_dash_length, NULL);
           cw_keyer_state = KS_IN_DASH_A;
         }
       else
@@ -5290,14 +5550,14 @@ int cw_notify_keyer_paddle_event(int dot_paddle_state,
           /* Pretend we just finished a dash. */
           cw_keyer_state = cw_ik_curtis_b_latch
                            ? KS_AFTER_DASH_B : KS_AFTER_DASH_A;
-          cw_request_timeout_internal (0, cw_keyer_clock_internal);
+          cw_timer_run_with_handler_internal(0, cw_keyer_clock_internal);
         }
       else if (cw_ik_dash_paddle)
         {
           /* Pretend we just finished a dot. */
           cw_keyer_state = cw_ik_curtis_b_latch
                            ? KS_AFTER_DOT_B : KS_AFTER_DOT_A;
-          cw_request_timeout_internal (0, cw_keyer_clock_internal);
+          cw_timer_run_with_handler_internal(0, cw_keyer_clock_internal);
         }
     }
 
@@ -5381,12 +5641,12 @@ bool cw_is_keyer_busy(void)
  */
 int cw_wait_for_keyer_element(void)
 {
-  int status;
-
-  /* Check that SIGALRM is not blocked. */
-  status = cw_check_signal_mask_internal ();
-  if (!status)
-    return CW_FAILURE;
+	if (cw_sigalrm_is_blocked_internal()) {
+		/* no point in waiting for event, when signal
+		   controlling the event is blocked */
+		errno = EDEADLK;
+		return CW_FAILURE;
+	}
 
   /*
    * First wait for the state to move to idle (or just do nothing if it's
@@ -5397,7 +5657,7 @@ int cw_wait_for_keyer_element(void)
          && cw_keyer_state != KS_AFTER_DOT_B
          && cw_keyer_state != KS_AFTER_DASH_A
          && cw_keyer_state != KS_AFTER_DASH_B)
-    cw_wait_for_signal_internal ();
+    cw_signal_wait_internal();
 
   /*
    * Now wait for the state to move to idle (unless it is, or was, already),
@@ -5409,7 +5669,7 @@ int cw_wait_for_keyer_element(void)
          && cw_keyer_state != KS_IN_DOT_B
          && cw_keyer_state != KS_IN_DASH_A
          && cw_keyer_state != KS_IN_DASH_B)
-    cw_wait_for_signal_internal ();
+    cw_signal_wait_internal();
 
   return CW_SUCCESS;
 }
@@ -5422,12 +5682,12 @@ int cw_wait_for_keyer_element(void)
  */
 int cw_wait_for_keyer(void)
 {
-  int status;
-
-  /* Check that SIGALRM is not blocked. */
-  status = cw_check_signal_mask_internal ();
-  if (!status)
-    return CW_FAILURE;
+	if (cw_sigalrm_is_blocked_internal()) {
+		/* no point in waiting for event, when signal
+		   controlling the event is blocked */
+		errno = EDEADLK;
+		return CW_FAILURE;
+	}
 
   /*
    * Check that neither paddle is true; if either is, then the signal cycle
@@ -5441,7 +5701,7 @@ int cw_wait_for_keyer(void)
 
   /* Wait for the keyer state to go idle. */
   while (cw_keyer_state != KS_IDLE)
-    cw_wait_for_signal_internal ();
+    cw_signal_wait_internal();
 
   return CW_SUCCESS;
 }
@@ -5471,9 +5731,16 @@ void cw_reset_keyer(void)
 }
 
 
-/*---------------------------------------------------------------------*/
-/*  Straight key                                                       */
-/*---------------------------------------------------------------------*/
+
+
+
+/* ******************************************************************** */
+/*                            Straight key                              */
+/* ******************************************************************** */
+
+
+
+
 
 /*
  * Period of constant tone generation after which we need another timeout,
@@ -5498,7 +5765,7 @@ void cw_straight_key_clock_internal(void)
     {
       /* Generate a quantum of tone data, and request another timeout. */
       /* cw_generate_sound_internal (); */
-      cw_request_timeout_internal (STRAIGHT_KEY_TIMEOUT, NULL);
+      cw_timer_run_with_handler_internal(STRAIGHT_KEY_TIMEOUT, NULL);
     }
 }
 
@@ -5540,8 +5807,8 @@ int cw_notify_straight_key_event(int key_state)
           cw_key_control_internal (true);
 
           /* Start timeouts to keep soundcard tones running. */
-          cw_request_timeout_internal (STRAIGHT_KEY_TIMEOUT,
-                                       cw_straight_key_clock_internal);
+          cw_timer_run_with_handler_internal(STRAIGHT_KEY_TIMEOUT,
+					     cw_straight_key_clock_internal);
         }
       else
         {
@@ -5602,9 +5869,10 @@ void cw_reset_straight_key(void)
 
 
 
-/* ************************ */
-/*    Generator - generic   */
-/* ************************ */
+/* ******************************************************************** */
+/*                         Generator - generic                          */
+/* ******************************************************************** */
+
 
 
 
@@ -5660,9 +5928,11 @@ int cw_generator_new(int audio_system, const char *device)
 	generator->audio_device = NULL;
 	generator->audio_system = audio_system;
 	generator->audio_device_open = 0;
-	generator->debug_sink = -1;
+	generator->dev_raw_sink = -1;
+	generator->send_speed = CW_SPEED_INITIAL,
 	generator->frequency = CW_FREQUENCY_INITIAL;
 	generator->volume = CW_VOLUME_INITIAL;
+	generator->gap = CW_GAP_INITIAL;
 	generator->buffer = NULL;
 	generator->buffer_n_samples = -1;
 
@@ -5972,9 +6242,9 @@ int cw_generator_calculate_amplitude(cw_gen_t *gen)
 
 
 
-/* ************************ */
-/*    Console output        */
-/* ************************ */
+/* ******************************************************************** */
+/*                         Console buzzer output                        */
+/* ******************************************************************** */
 
 
 
@@ -6157,9 +6427,9 @@ int cw_sound_console_internal(int state)
 
 
 
-/* ************************ */
-/*       OSS output         */
-/* ************************ */
+/* ******************************************************************** */
+/*                     Soundcard output with OSS                        */
+/* ******************************************************************** */
 
 
 
@@ -6284,7 +6554,12 @@ int cw_open_device_oss(const char *device)
 	generator->audio_device_open = 1;
 	generator->audio_sink = soundcard;
 
-	generator->debug_sink = open("/tmp/cw_file.raw", O_WRONLY | O_NONBLOCK);
+#if CW_DEV_RAW_SINK
+	generator->dev_raw_sink = open("/tmp/cw_file.oss.raw", O_WRONLY | O_TRUNC | O_NONBLOCK);
+	if (generator->dev_raw_sink == -1) {
+		cw_dev_debug ("ERROR: failed to open dev raw sink file: %s\n", strerror(errno));
+	}
+#endif
 
 	return CW_SUCCESS;
 #endif // #ifndef LIBCW_WITH_OSS
@@ -6345,24 +6620,29 @@ int cw_open_device_oss_ioctls(int *fd, int *sample_rate)
 		return CW_FAILURE;
         }
 
-	/*
-	 * Set up a standard sampling rate based on the notional correct value,
-	 * and retain the one we actually get in the library variable.
-	 */
-	unsigned int rate = CW_AUDIO_SAMPLE_RATE_A;
-	if (ioctl(*fd, SNDCTL_DSP_SPEED, &rate) == -1) {
-		rate = CW_AUDIO_SAMPLE_RATE_B;
-		if (ioctl(*fd, SNDCTL_DSP_SPEED, &rate) == -1) {
-			cw_debug (CW_DEBUG_SYSTEM, "error: ioctl(SNDCTL_DSP_SPEED): \"%s\"\n", strerror(errno));
-			return CW_FAILURE;
+	/* Set up a standard sampling rate based on the notional correct
+	   value, and retain the one we actually get. */
+	unsigned int rate = 0;
+	bool success = false;
+	for (int i = 0; cw_supported_sample_rates[i]; i++) {
+		rate = cw_supported_sample_rates[i];
+		if (!ioctl(*fd, SNDCTL_DSP_SPEED, &rate)) {
+			if (rate != cw_supported_sample_rates[i]) {
+				cw_dev_debug ("warning: imprecise sample rate:\n");
+				cw_dev_debug ("warning: asked for: %d\n", cw_supported_sample_rates[i]);
+				cw_dev_debug ("warning: got:       %d\n", rate);
+			}
+			success = true;
+			break;
 		}
-        }
-	if (rate != CW_AUDIO_SAMPLE_RATE_A && rate != CW_AUDIO_SAMPLE_RATE_B) {
-		cw_dev_debug ("warning: imprecise sample rate: %d", rate);
 	}
 
-
-	*sample_rate = rate;
+	if (!success) {
+		cw_debug (CW_DEBUG_SYSTEM, "error: ioctl(SNDCTL_DSP_SPEED): \"%s\"\n", strerror(errno));
+		return CW_FAILURE;
+        } else {
+		*sample_rate = rate;
+	}
 
 
 	audio_buf_info buff;
@@ -6452,10 +6732,12 @@ void cw_close_device_oss(void)
 	generator->audio_sink = -1;
 	generator->audio_device_open = 0;
 
-	if (generator->debug_sink != -1) {
-		close(generator->debug_sink);
-		generator->debug_sink = -1;
+#if CW_DEV_RAW_SINK
+	if (generator->dev_raw_sink != -1) {
+		close(generator->dev_raw_sink);
+		generator->dev_raw_sink = -1;
 	}
+#endif
 
 	return;
 #endif // #ifndef LIBCW_WITH_OSS
@@ -6487,9 +6769,14 @@ void *cw_generator_write_sine_wave_oss(void *arg)
 			cw_debug (CW_DEBUG_SYSTEM, "error: audio write (OSS): %s\n", strerror(errno));
 			return NULL;
 		}
-		if (gen->debug_sink != -1) {
-			write(gen->debug_sink, gen->buffer, n_bytes);
+#if CW_DEV_RAW_SINK
+		if (gen->dev_raw_sink != -1) {
+			int rv = write(gen->dev_raw_sink, gen->buffer, n_bytes);
+			if (rv == -1) {
+				cw_dev_debug ("ERROR: write error: %s\n", strerror(errno));
+			}
 		}
+#endif
 	} /* while() */
 
 	return NULL;
@@ -6500,9 +6787,9 @@ void *cw_generator_write_sine_wave_oss(void *arg)
 
 
 
-/* ************************ */
-/*       ALSA output        */
-/* ************************ */
+/* ******************************************************************** */
+/*                     Soundcard output with ALSA                       */
+/* ******************************************************************** */
 
 
 
@@ -6603,6 +6890,13 @@ int cw_open_device_alsa(const char *device)
 	}
 	cw_dev_debug ("ALSA buf size %u", (unsigned int) generator->buffer_n_samples);
 
+#if CW_DEV_RAW_SINK
+	generator->dev_raw_sink = open("/tmp/cw_file.alsa.raw", O_WRONLY | O_TRUNC | O_NONBLOCK);
+	if (generator->dev_raw_sink == -1) {
+		cw_dev_debug ("ERROR: failed to open dev raw sink file: %s\n", strerror(errno));
+	}
+#endif
+
 	return CW_SUCCESS;
 #endif // #ifndef LIBCW_WITH_ALSA
 }
@@ -6622,10 +6916,13 @@ void cw_close_device_alsa(void)
 
 	generator->audio_device_open = 0;
 
-	if (generator->debug_sink != -1) {
-		close(generator->debug_sink);
-		generator->debug_sink = -1;
+#if CW_DEV_RAW_SINK
+	if (generator->dev_raw_sink != -1) {
+		close(generator->dev_raw_sink);
+		generator->dev_raw_sink = -1;
 	}
+#endif
+
 #endif
 	return;
 }
@@ -6649,7 +6946,6 @@ void *cw_generator_write_sine_wave_alsa(void *arg)
 	int n_bytes = sizeof (gen->buffer[0]) * gen->buffer_n_samples;
 	while (gen->generate) {
 		cw_generator_calculate_sine_wave(gen);
-
 		int rv = snd_pcm_writei(gen->alsa_handle, gen->buffer, gen->buffer_n_samples);
 		if (rv == -EPIPE) {
 			/* EPIPE means underrun */
@@ -6663,9 +6959,14 @@ void *cw_generator_write_sine_wave_alsa(void *arg)
 			;
 		}
 
-		if (gen->debug_sink != -1) {
-			write(gen->debug_sink, gen->buffer, n_bytes);
+#if CW_DEV_RAW_SINK
+		if (gen->dev_raw_sink != -1) {
+			int rv = write(gen->dev_raw_sink, gen->buffer, n_bytes);
+			if (rv == -1) {
+				cw_dev_debug ("ERROR: write error: %s\n", strerror(errno));
+			}
 		}
+#endif
 	} /* while() */
 #endif
 	return NULL;
@@ -6707,36 +7008,28 @@ int cw_set_alsa_hw_params(snd_pcm_t *handle, snd_pcm_hw_params_t *params)
 
 	int dir = 0;
 
-	int sample_rates[] = {
-		CW_AUDIO_SAMPLE_RATE_A,
-		CW_AUDIO_SAMPLE_RATE_B,
-		-1 /* guard */
-	};
-
 	/* Set the sample rate (may set/influence/modify 'period size') */
-	int success = 0;
-	int i = 0;
-	while (sample_rates[i] != -1) {
-#if defined(HAVE_SND_PCM_HW_PARAMS_TEST_RATE)
-		rv = snd_pcm_hw_params_test_rate(handle, params, sample_rates[i], dir);
-		if (rv == 0)
-#endif
-		{
-			rv = snd_pcm_hw_params_set_rate(handle, params, sample_rates[i], dir);
-			if (rv == 0) {
-				success = 1;
-				break;
+	unsigned int rate = 0;
+	bool success = false;
+	for (int i = 0; cw_supported_sample_rates[i]; i++) {
+		rate = cw_supported_sample_rates[i];
+		int rv = snd_pcm_hw_params_set_rate_near(handle, params, &rate, &dir);
+		if (!rv) {
+			if (rate != cw_supported_sample_rates[i]) {
+				cw_dev_debug ("warning: imprecise sample rate:\n");
+				cw_dev_debug ("warning: asked for: %d\n", cw_supported_sample_rates[i]);
+				cw_dev_debug ("warning: got:       %d\n", rate);
 			}
+			success = true;
+			generator->sample_rate = rate;
+			break;
 		}
-		i++;
 	}
 
 	if (!success) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: can't set sample rate\n");
+		cw_debug (CW_DEBUG_SYSTEM, "error: can't get sample rate: %s\n", snd_strerror(rv));
 		return CW_FAILURE;
-	} else {
-		generator->sample_rate = sample_rates[i];
-	}
+        }
 
 	/* Set PCM access type */
 	rv = snd_pcm_hw_params_set_access(handle, params, SND_PCM_ACCESS_RW_INTERLEAVED);
@@ -6936,12 +7229,18 @@ int cw_print_alsa_params(snd_pcm_hw_params_t *params)
 
 
 
-/* ************************ */
-/*          main()          */
-/* ************************ */
 
 
-#if CW_MAIN
+
+#if CW_DEV_MAIN
+
+
+/* ******************************************************************** */
+/*                 main() function for testing purposes                 */
+/* ******************************************************************** */
+
+
+
 
 
 typedef bool (*predicate_t)(const char *device);
@@ -6977,7 +7276,8 @@ void main_helper(int audio_system, const char *name, const char *device, predica
 			cw_set_send_speed(22);
 			cw_generator_start();
 
-			cw_send_string("abcdefghijklmnopqrstuvwyz0123456789");
+			// cw_send_string("abcdefghijklmnopqrstuvwyz0123456789");
+			cw_send_string("hqhqhqhqhqhqhqhqhqhqh");
 			cw_wait_for_tone_queue();
 
 			cw_generator_stop();
@@ -7000,6 +7300,13 @@ void main_helper(int audio_system, const char *name, const char *device, predica
 #ifdef LIBCW_UNIT_TESTS
 
 
+
+/* ******************************************************************** */
+/*                 Unit tests for internal functions                    */
+/* ******************************************************************** */
+
+
+
 /* Unit tests for internal functions defined in libcw.c.
    For unit tests of library public interfaces see libcwtest.c. */
 
@@ -7007,7 +7314,7 @@ void main_helper(int audio_system, const char *name, const char *device, predica
 #include <assert.h>
 
 
-static unsigned int test_cw_representation_to_hash(void);
+static unsigned int test_cw_representation_to_hash_internal(void);
 
 
 
@@ -7016,7 +7323,7 @@ int main(void)
 {
 	fprintf(stderr, "libcw unit tests facility\n");
 
-	test_cw_representation_to_hash();
+	test_cw_representation_to_hash_internal();
 
 	/* "make check" facility requires this message to be
 	   printed on stdout; don't localize it */
@@ -7037,9 +7344,9 @@ int main(void)
 
 
 
-unsigned int test_cw_representation_to_hash(void)
+unsigned int test_cw_representation_to_hash_internal(void)
 {
-	fprintf(stderr, "\ttesting cw_representation_to_hash()... ");
+	fprintf(stderr, "\ttesting cw_representation_to_hash_internal()... ");
 
 
 	char input[REPRESENTATION_TABLE_SIZE][REPRESENTATION_LEN + 1];
@@ -7062,7 +7369,7 @@ unsigned int test_cw_representation_to_hash(void)
 	}
 
 	for (int j = 0; j < i; j++) {
-		unsigned int hash = cw_representation_to_hash(input[j]);
+		unsigned int hash = cw_representation_to_hash_internal(input[j]);
 		assert(hash);
 	}
 
