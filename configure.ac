@@ -209,7 +209,6 @@ else
         # (kfreebsd's libasound implementation). If a function is found
 	# build system defines HAVE_function_name in config.h.
 	AC_CHECK_FUNCS([ \
-	    snd_pcm_hw_params_test_rate \
 	    snd_pcm_hw_params_test_periods \
 	    snd_pcm_hw_params_test_buffer_size \
 	    ])
