@@ -131,7 +131,7 @@
 #define CW_ALSA_HW_BUFFER_CONFIG  1  /* set up hw buffer parameters, doesn't work 100% correctly (yet) */
 #ifdef LIBCW_WITH_DEV
 #define CW_DEV_MAIN               1  /* for stand-alone compilation and tests of this file */
-#define CW_DEV_RAW_SINK           1  /* create /tmp/cw_file.raw file with raw samples */
+#define CW_DEV_RAW_SINK           0  /* create /tmp/cw_file.raw file with raw samples */
 #define CW_DEV_EXPERIMENTAL_ALSA  0  /* new implementation of cw_generator_write_sine_wave_alsa_internal() that may solve some problems with timing */
 #endif
 
@@ -219,6 +219,9 @@ static int   cw_generator_release_internal(void);
 static int   cw_generator_set_audio_device_internal(cw_gen_t *gen, const char *device);
 static void *cw_generator_write_sine_wave_oss_internal(void *arg);
 static void *cw_generator_write_sine_wave_alsa_internal(void *arg);
+#if CW_DEV_EXPERIMENTAL_ALSA
+static int cw_generator_calculate_sine_wave_new_internal(cw_gen_t *gen, int start, int stop);
+#endif
 static int   cw_generator_calculate_sine_wave_internal(cw_gen_t *gen);
 static int   cw_generator_calculate_amplitude_internal(cw_gen_t *gen);
 
@@ -284,6 +287,10 @@ static int cw_send_character_internal(char character, int partial);
 
 /* debug */
 static bool cw_is_debugging_internal(unsigned int flag);
+#if CW_DEV_RAW_SINK
+static int  cw_dev_debug_raw_sink_write_internal(cw_gen_t *gen, int samples);
+#endif
+static int  cw_debug_evaluate_alsa_write_internal(cw_gen_t *gen, int rv);
 
 
 /* various other functions */
@@ -4110,8 +4117,6 @@ int cw_send_element_internal(cw_gen_t *gen, char element)
 	/* Synchronize low-level timings if required. */
 	cw_sync_parameters_internal(gen);
 
-	cw_dev_debug ("attempting to send element %c\n", element);
-
 	/* Send either a dot or a dash element, depending on representation. */
 	if (element == CW_DOT_REPRESENTATION) {
 		status = cw_tone_queue_enqueue_internal(cw_send_dot_length, gen->frequency);
@@ -6464,6 +6469,68 @@ void cw_generator_stop(void)
 
 
 
+#if CW_DEV_EXPERIMENTAL_ALSA
+
+
+
+
+
+/**
+   \brief Calculate a fragment of sine wave
+
+   Calculate a fragment of sine wave, as many samples as can be
+   fitted in generator's buffer. There will be gen->buffer_n_samples
+   samples put into gen->buffer, starting from gen->buffer[0].
+
+   The function takes into account all state variables from gen,
+   so initial phase of new fragment of sine wave in the buffer matches
+   ending phase of a sine wave generated in current call.
+
+   \param gen - current generator
+
+   \return position in buffer at which a last sample has been saved
+*/
+int cw_generator_calculate_sine_wave_new_internal(cw_gen_t *gen, int start, int stop)
+{
+	int i = 0;
+	double phase = 0.0;
+	assert (stop <= gen->buffer_n_samples);
+
+	for (i = start; i <= stop; i++) {
+		double phase = (2.0 * M_PI
+				* (double) gen->frequency * (double) i
+				/ (double) gen->sample_rate)
+			+ gen->phase_offset;
+		int amplitude = cw_generator_calculate_amplitude_internal(gen);
+
+		gen->buffer[i] = amplitude * sin(phase);
+		gen->iterator_per_sound++;
+	}
+
+	/* Compute the phase of the last generated sample
+	   (or is it phase of first sample in next series?). */
+	phase = (2.0 * M_PI
+		 * (double) gen->frequency * (double) i
+		 / (double) gen->sample_rate)
+		+ gen->phase_offset;
+
+	/* Extract the normalized phase offset. */
+	int n_periods = floor(phase / (2.0 * M_PI));
+	gen->phase_offset = phase - n_periods * 2.0 * M_PI;
+
+	return i;
+}
+
+
+
+
+
+#endif
+
+
+
+
+
 /**
    \brief Calculate a fragment of sine wave
 
@@ -6492,9 +6559,6 @@ int cw_generator_calculate_sine_wave_internal(cw_gen_t *gen)
 		int amplitude = cw_generator_calculate_amplitude_internal(gen);
 
 		gen->buffer[i] = amplitude * sin(phase);
-#if CW_DEV_EXPERIMENTAL_ALSA
-		gen->iterator_per_sound++;
-#endif
 	}
 
 	/* Compute the phase of the last generated sample
@@ -6533,6 +6597,18 @@ int cw_generator_calculate_amplitude_internal(cw_gen_t *gen)
 	int len = CW_AUDIO_GENERATOR_SLOPE_LEN;
 	int volume = (gen->volume * CW_AUDIO_VOLUME_RANGE) / 100;
 
+#if 0
+	/* blunt algorithm for calculating amplitude;
+	   for debug purposes only */
+	if (gen->frequency) {
+		gen->amplitude = volume;
+	} else {
+		gen->amplitude = 0;
+	}
+
+	return gen->amplitude;
+#endif
+
 	if (gen->frequency > 0) {
 		if (gen->iterator_per_sound < len) {
 			int i = gen->iterator_per_sound;
@@ -6541,10 +6617,9 @@ int cw_generator_calculate_amplitude_internal(cw_gen_t *gen)
 			int i = gen->samples_per_sound - gen->iterator_per_sound;
 			gen->amplitude = 1.0 * volume * i / len;
 		} else {
-			return gen->amplitude;
+			;
 		}
 	}
-
 
 
 	/* because CW_AUDIO_VOLUME_RANGE may not be exact multiple
@@ -7323,6 +7398,65 @@ void cw_alsa_close_device_internal(cw_gen_t *gen)
 
 
 
+#if CW_DEV_RAW_SINK
+
+
+
+
+
+int cw_dev_debug_raw_sink_write_internal(cw_gen_t *gen, int samples)
+{
+	if (gen->dev_raw_sink != -1) {
+#if CW_DEV_EXPERIMENTAL_ALSA
+		/* FIXME: this will cause memory access error at
+		   the end, when generator is destroyed in the
+		   other thread */
+		gen->buffer[0] = 0x7fff;
+		gen->buffer[1] = 0x7fff;
+		gen->buffer[samples - 2] = 0x8000;
+		gen->buffer[samples - 1] = 0x8000;
+#endif
+		int n_bytes = sizeof (gen->buffer[0]) * samples;
+		int rv = write(gen->dev_raw_sink, gen->buffer, n_bytes);
+		if (rv == -1) {
+			cw_dev_debug ("ERROR: write error: %s (gen->dev_raw_sink = %ld, gen->buffer = %ld, n_bytes = %d)", strerror(errno), (long) gen->dev_raw_sink, (long) gen->buffer, n_bytes);
+			return CW_FAILURE;
+		}
+	}
+
+	return CW_SUCCESS;
+}
+
+
+
+
+
+#endif
+
+
+
+
+
+int cw_debug_evaluate_alsa_write_internal(cw_gen_t *gen, int rv)
+{
+	if (rv == -EPIPE) {
+		cw_debug (CW_DEBUG_SYSTEM, "ALSA: underrun");
+		snd_pcm_prepare(gen->alsa_handle);
+	} else if (rv < 0) {
+		cw_debug (CW_DEBUG_SYSTEM, "ALSA: writei: %s\n", snd_strerror(rv));
+	}  else if (rv != gen->buffer_n_samples) {
+		cw_debug (CW_DEBUG_SYSTEM, "ALSA: short write, %d != %d", rv, gen->buffer_n_samples);
+	} else {
+		return CW_SUCCESS;
+	}
+
+	return CW_FAILURE;
+}
+
+
+
+
+
 #if CW_DEV_EXPERIMENTAL_ALSA
 
 
@@ -7343,10 +7477,13 @@ void *cw_generator_write_sine_wave_alsa_internal(void *arg)
 	cw_gen_t *gen = (cw_gen_t *) arg;
 	cw_sigalrm_install_top_level_handler_internal();
 
+	gen->samples_left = 0;
+
+	int start = 0, stop = gen->buffer_n_samples - 1;
 	while (gen->generate) {
-		cw_dev_debug ("thread %lu: waiting for signal", gen->thread_id);
-		cw_signal_wait_internal();
-		cw_dev_debug ("thread %lu: got signal", gen->thread_id);
+		//cw_dev_debug ("thread %lu: waiting for signal", gen->thread_id);
+		// cw_signal_wait_internal();
+		//cw_dev_debug ("thread %lu: got signal", gen->thread_id);
 
 		int usecs;
 		cw_tone_queue_dequeue_internal(&usecs, &(gen->frequency));
@@ -7362,52 +7499,44 @@ void *cw_generator_write_sine_wave_alsa_internal(void *arg)
 
 		while (gen->samples_left > 0) {
 
-			int samples = gen->buffer_n_samples < gen->samples_left ? gen->buffer_n_samples : gen->samples_left;
-			cw_dev_debug ("alsa: writing %d samples\n", samples);
-			cw_generator_calculate_sine_wave_internal(gen);
-			int rv = snd_pcm_writei(gen->alsa_handle, gen->buffer, samples);
-			if (rv == -EPIPE) {
-				/* EPIPE means underrun */
-				cw_debug (CW_DEBUG_SYSTEM, "ALSA: underrun");
-				snd_pcm_prepare(gen->alsa_handle);
-			} else if (rv < 0) {
-				cw_debug (CW_DEBUG_SYSTEM, "ALSA: writei: %s\n", snd_strerror(rv));
-			}  else if (rv != samples) {
-				cw_debug (CW_DEBUG_SYSTEM, "ALSA: short write, %d != %d", rv, gen->buffer_n_samples);
+			if (start + gen->samples_left >= gen->buffer_n_samples) {
+				stop = gen->buffer_n_samples - 1;
 			} else {
-				;
+				stop = gen->samples_left + start + 1;
 			}
 
-			if (samples < gen->buffer_n_samples) {
-				snd_pcm_prepare(gen->alsa_handle);
-			}
+			int samples = stop - start + 1;
+			cw_dev_debug ("start: %d, stop: %d, samples: %d", start, stop, samples);
+			gen->samples_left -= samples;
 
-
+			cw_generator_calculate_sine_wave_new_internal(gen, start, stop);
+			if (stop + 1 == gen->buffer_n_samples) {
+				cw_dev_debug ("writing samples to ALSA\n");
+				/* we can safely send audio buffer to ALSA:
+				   size of correct and current data in the buffer is the same as
+				   ALSA's period, so there should be no underruns */
+				int rv = snd_pcm_writei(gen->alsa_handle, gen->buffer, gen->buffer_n_samples);
+				cw_debug_evaluate_alsa_write_internal(gen, rv);
+				start = 0;
 #if CW_DEV_RAW_SINK
-			int samples_written = rv > 0 ? rv : samples;
-			if (gen->dev_raw_sink != -1) {
-
-				/* FIXME: this will cause memory access error at
-				   the end, when generator is destroyed in the
-				   other thread */
-				gen->buffer[0] = 0x7fff;
-				gen->buffer[1] = 0x7fff;
-				gen->buffer[samples_written - 2] = 0x8000;
-				gen->buffer[samples_written - 1] = 0x8000;
-
-				int n_bytes = sizeof (gen->buffer[0]) * samples_written;
-				int rv = write(gen->dev_raw_sink, gen->buffer, n_bytes);
-				if (rv == -1) {
-					cw_dev_debug ("ERROR: write error: %s (gen->dev_raw_sink = %ld, gen->buffer = %ld, n_bytes = %d)", strerror(errno), (long) gen->dev_raw_sink, (long) gen->buffer, n_bytes);
-				}
-			}
-			gen->samples_left -= samples_written;
-		}
+				cw_dev_debug_raw_sink_write_internal(gen, rv);
 #endif
+			} else {
+				/* there is still some space left in the
+				   buffer, go fetch new tone from tone queue */
+				start = stop + 1;
+
+			}
+		}
+
+
 	} /* while() */
 #endif
 	return NULL;
 }
+
+
+
 
 
 
@@ -7434,29 +7563,10 @@ void *cw_generator_write_sine_wave_alsa_internal(void *arg)
 	while (gen->generate) {
 		cw_generator_calculate_sine_wave_internal(gen);
 		int rv = snd_pcm_writei(gen->alsa_handle, gen->buffer, gen->buffer_n_samples);
-		if (rv == -EPIPE) {
-			/* EPIPE means underrun */
-			cw_debug (CW_DEBUG_SYSTEM, "ALSA: underrun");
-			snd_pcm_prepare(gen->alsa_handle);
-		} else if (rv < 0) {
-			cw_debug (CW_DEBUG_SYSTEM, "ALSA: writei: %s\n", snd_strerror(rv));
-		}  else if (rv != gen->buffer_n_samples) {
-			cw_debug (CW_DEBUG_SYSTEM, "ALSA: short write, %d != %d", rv, gen->buffer_n_samples);
-		} else {
-			;
-		}
+		cw_debug_evaluate_alsa_write_internal(gen, rv);
 
 #if CW_DEV_RAW_SINK
-		if (gen->dev_raw_sink != -1) {
-			int n_bytes = sizeof (gen->buffer[0]) * gen->buffer_n_samples;
-			/* FIXME: this will cause memory access error at
-			   the end, when generator is destroyed in the
-			   other thread */
-			int rv = write(gen->dev_raw_sink, gen->buffer, n_bytes);
-			if (rv == -1) {
-				cw_dev_debug ("ERROR: write error: %s\n", strerror(errno));
-			}
-		}
+		cw_dev_debug_raw_sink_write_internal(gen, rv);
 #endif
 	} /* while() */
 #endif
@@ -7674,7 +7784,9 @@ int cw_alsa_set_hw_params_internal(cw_gen_t *gen, snd_pcm_hw_params_t *hw_params
 		int dir = 0;
 		snd_pcm_hw_params_get_period_size(hw_params, &frames, &dir);
 		cw_dev_debug ("%d, ALSA buffer size would be %u frames", rv, (unsigned int) frames);
+#ifdef LIBCW_WITH_DEV
 		cw_alsa_print_params_internal(hw_params);
+#endif
 		return CW_SUCCESS;
 	}
 #endif // #ifndef LIBCW_WITH_ALSA
@@ -7770,7 +7882,7 @@ void main_helper(int audio_system, const char *name, const char *device, predica
 		rv = cw_generator_new(audio_system, device);
 		if (rv == CW_SUCCESS) {
 			cw_reset_send_receive_parameters();
-			cw_set_send_speed(50);
+			cw_set_send_speed(12);
 			cw_generator_start();
 
 			cw_send_string("abcdefghijklmnopqrstuvwyz0123456789");
