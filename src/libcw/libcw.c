@@ -191,12 +191,13 @@ struct cw_gen_struct {
 #if CW_DEV_EXPERIMENTAL_ALSA
 	int samples_left;
 	int samples_per_sound;
+	int iterator_per_sound;
 	int state;
 #endif
 
 	/* Thread function is used to generate sine wave
 	   and write the wave to audio sink. */
-	pthread_t thread;
+	pthread_t thread_id;
 	pthread_attr_t thread_attr;
 	int thread_error; /* 0 when no problems, errno when some error occurred */
 };
@@ -262,6 +263,7 @@ static void cw_sigalrm_handlers_caller_internal(int signal_number);
 static bool cw_sigalrm_is_blocked_internal(void);
 static int  cw_sigalrm_block_internal(bool block);
 static int  cw_sigalrm_restore_internal(void);
+static int  cw_sigalrm_install_top_level_handler_internal(void);
 static int  cw_signal_wait_internal(void);
 
 
@@ -270,7 +272,9 @@ static int  cw_tone_queue_length_internal(void);
 static int  cw_tone_queue_next_index_internal(int current);
 static void cw_tone_queue_dequeue_and_play_internal(void);
 static int  cw_tone_queue_enqueue_internal(int usecs, int frequency);
-
+#if CW_DEV_EXPERIMENTAL_ALSA
+static void cw_tone_queue_dequeue_internal(int *usecs, int *frequency);
+#endif
 
 /* functions performing sending */
 static int cw_send_element_internal(cw_gen_t *gen, char element);
@@ -306,6 +310,7 @@ static void cw_straight_key_clock_internal(void);
 static const int          CW_AUDIO_CHANNELS = 1;                /* Sound in mono */
 static const long int     CW_AUDIO_VOLUME_RANGE = (1 << 15);    /* 2^15 = 32768 */
 static const float        CW_AUDIO_GENERATOR_SLOPE_RATIO = 1.0;    /* ~1.0 for 44.1/48 kHz sample rate */
+static const int          CW_AUDIO_GENERATOR_SLOPE_LEN = 100;      /* ~200 for 44.1/48 kHz sample rate */
 
 
 /* 0Hz = silent 'tone'. */
@@ -355,8 +360,6 @@ static const unsigned int cw_supported_sample_rates[] = {
    TODO: perform the conversion later, when you figure out
    ins and outs of the library */
 static cw_gen_t *generator = NULL;
-
-
 
 
 /**
@@ -2291,11 +2294,14 @@ static struct sigaction cw_sigalrm_original_disposition;
 */
 void cw_sigalrm_handlers_caller_internal(__attribute__((unused)) int signal_number)
 {
+	// cw_dev_debug ("calling low level SIGALRM handlers");
 	/* Call the known functions that are interested in SIGALRM signal.
 	   Stop on the first free slot found; valid because the array is
 	   filled in order from index 0, and there are no deletions. */
 	for (int handler = 0;
 	     handler < CW_SIGALRM_HANDLERS_MAX && cw_sigalrm_handlers[handler]; handler++) {
+
+		// cw_dev_debug ("SIGALRM handler #%d", handler);
 
 		(cw_sigalrm_handlers[handler])();
 	}
@@ -2330,7 +2336,7 @@ int cw_timer_run_internal(int usecs)
 	itimer.it_value.tv_usec = usecs % USECS_PER_SEC;
 	int status = setitimer(ITIMER_REAL, &itimer, NULL);
 	if (status == -1) {
-		cw_debug (CW_DEBUG_SYSTEM, "setitimer(): %s\n", strerror(errno));
+		cw_debug (CW_DEBUG_SYSTEM, "setitimer(%d): %s\n", usecs, strerror(errno));
 		return CW_FAILURE;
 	}
 
@@ -2359,24 +2365,8 @@ int cw_timer_run_internal(int usecs)
 */
 int cw_timer_run_with_handler_internal(int usecs, void (*sigalrm_handler)(void))
 {
-	if (!cw_is_sigalrm_handlers_caller_installed) {
-		/* Install the main SIGALRM handler routine (a.k.a. top level
-		   SIGALRM handler) - a function that calls all registered
-		   lower level handlers), and keep the  old information
-		   (disposition) so we can put it back when useful to do so. */
-
-		struct sigaction action;
-		action.sa_handler = cw_sigalrm_handlers_caller_internal;
-		action.sa_flags = SA_RESTART;
-		sigemptyset(&action.sa_mask);
-
-		int status = sigaction(SIGALRM, &action, &cw_sigalrm_original_disposition);
-		if (status == -1) {
-			cw_debug (CW_DEBUG_SYSTEM, "sigaction(): %s\n", strerror(errno));
-			return CW_FAILURE;
-		}
-
-		cw_is_sigalrm_handlers_caller_installed = true;
+	if (!cw_sigalrm_install_top_level_handler_internal()) {
+		return CW_FAILURE;
 	}
 
 	/* If it's not already present, and one was given, add address
@@ -2419,18 +2409,53 @@ int cw_timer_run_with_handler_internal(int usecs, void (*sigalrm_handler)(void))
 	   ourselves SIGALRM right away. */
 	if (usecs <= 0) {
 		/* Send ourselves SIGALRM immediately. */
+#if CW_DEV_EXPERIMENTAL_ALSA
+		if (pthread_kill(generator->thread_id, SIGALRM) != 0) {
+#else
 		if (raise(SIGALRM) != 0) {
+#endif
 			cw_debug (CW_DEBUG_SYSTEM, "libcw: raise");
 			return CW_FAILURE;
 		}
+		//cw_dev_debug ("timer successfully started with time = 0");
 	} else {
 		/* Set the itimer to produce a single interrupt after the
 		   given duration. */
 		if (!cw_timer_run_internal(usecs)) {
 			return CW_FAILURE;
 		}
+		// cw_dev_debug ("timer successfully started with time = %d", usecs);
 	}
 
+	return CW_SUCCESS;
+}
+
+
+
+
+
+int cw_sigalrm_install_top_level_handler_internal(void)
+{
+	if (!cw_is_sigalrm_handlers_caller_installed) {
+		/* Install the main SIGALRM handler routine (a.k.a. top level
+		   SIGALRM handler) - a function that calls all registered
+		   lower level handlers), and keep the  old information
+		   (disposition) so we can put it back when useful to do so. */
+
+		struct sigaction action;
+		action.sa_handler = cw_sigalrm_handlers_caller_internal;
+		action.sa_flags = SA_RESTART;
+		sigemptyset(&action.sa_mask);
+
+		int status = sigaction(SIGALRM, &action, &cw_sigalrm_original_disposition);
+		if (status == -1) {
+			cw_debug (CW_DEBUG_SYSTEM, "sigaction(): %s\n", strerror(errno));
+			return CW_FAILURE;
+		}
+
+		cw_is_sigalrm_handlers_caller_installed = true;
+		cw_dev_debug ("installed top level SIGALRM handler");
+	}
 	return CW_SUCCESS;
 }
 
@@ -2581,6 +2606,64 @@ void cw_block_callback(int block)
 
 
 
+#if CW_DEV_EXPERIMENTAL_ALSA
+
+
+
+
+
+/**
+   \brief Wait for a signal, usually a SIGALRM
+
+   Function assumes that SIGALRM is not blocked.
+   Function may return CW_FAILURE on failure, i.e. when call to
+   sigemptyset(), sigprocmask() or sigsuspend() fails.
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
+int cw_signal_wait_internal(void)
+{
+	sigset_t empty_set, current_set;
+
+	/* Prepare empty set of signals */
+	int status = sigemptyset(&empty_set);
+	if (status == -1) {
+		cw_debug (CW_DEBUG_SYSTEM, "sigemptyset(): %s\n", strerror(errno));
+		return CW_FAILURE;
+	}
+
+	/* Block an empty set of signals to obtain the current mask. */
+	status = sigprocmask(SIG_BLOCK, &empty_set, &current_set);
+	if (status == -1) {
+		cw_debug (CW_DEBUG_SYSTEM, "sigprocmask(): %s\n", strerror(errno));
+		return CW_FAILURE;
+	}
+
+	/* Wait on the current mask */
+	status = sigsuspend(&current_set);
+	if (status == -1 && errno != EINTR) {
+		cw_debug (CW_DEBUG_SYSTEM, "suspend(): %s\n", strerror(errno));
+		return CW_FAILURE;
+	}
+
+	//cw_dev_debug ("got SIGALRM, forwarding it to generator thread %lu", generator->thread_id);
+	/* forwarding SIGALRM to generator thread */
+	pthread_kill(generator->thread_id, SIGALRM);
+
+	return CW_SUCCESS;
+}
+
+
+
+
+
+#else
+
+
+
+
+
 /**
    \brief Wait for a signal, usually a SIGALRM
 
@@ -2618,6 +2701,12 @@ int cw_signal_wait_internal(void)
 
 	return CW_SUCCESS;
 }
+
+
+
+
+
+#endif
 
 
 
@@ -2774,13 +2863,13 @@ int cw_generator_play_with_soundcard_internal(cw_gen_t *gen, int state)
 		minimum_slope;
 	if (state == CW_TONE_SILENT) { /* TONE_SILENT == 0, silence the sound */
 		gen->slope = -slope;
-#if CW_DEV_EXPERIMENTAL_ALSA
+#if 0
 		gen->samples_left = gen->samples_per_sound;
 		gen->state = 0; /* silence */
 #endif
 	} else {
 		gen->slope = slope;
-#if CW_DEV_EXPERIMENTAL_ALSA
+#if 0
 		gen->samples_left = gen->samples_per_sound;
 		gen->state = 1; /* sound */
 #endif
@@ -3330,6 +3419,117 @@ static volatile enum { QS_IDLE, QS_BUSY } cw_dequeue_state = QS_IDLE;
 
 
 
+#if CW_DEV_EXPERIMENTAL_ALSA
+
+
+
+
+
+/**
+   \brief Signal handler for itimer
+
+   Dequeue a tone request, and call cw_generator_play_internal() to generate the tone.
+   If the queue is empty when we get the signal, then we're at the end of
+   the work list, so set the dequeue state to idle and return.
+*/
+void cw_tone_queue_dequeue_internal(int *usecs, int *frequency)
+{
+	/* Decide what to do based on the current state. */
+	switch (cw_dequeue_state) {
+		/* Ignore calls if our state is idle. */
+	case QS_IDLE:
+		*usecs = -1;
+		return;
+
+	case QS_BUSY:
+		/* If busy, dequeue the next tone, or if no
+		   more tones, go to the idle state. */
+		if (cw_tq_head != cw_tq_tail) {
+			/* Get the current queue length.  Later on, we'll
+			   compare with the length after we've scanned
+			   over every tone we can omit, and use it to see
+			   if we've crossed the low water mark, if any. */
+			int queue_length = cw_tone_queue_length_internal();
+
+			/* Advance over the tones list until we find the
+			   first tone with a duration of more than zero
+			   usecs, or until the end of the list.
+			   TODO: don't add tones with duration = 0? */
+			do  {
+				cw_tq_head = cw_tone_queue_next_index_internal(cw_tq_head);
+			} while (cw_tq_head != cw_tq_tail
+				 && cw_tone_queue[cw_tq_head].usecs == 0);
+
+			/* Dequeue the next tone to send. */
+			*usecs = cw_tone_queue[cw_tq_head].usecs;
+			*frequency = cw_tone_queue[cw_tq_head].frequency;
+
+			cw_debug (CW_DEBUG_TONE_QUEUE, "dequeue tone %d usec, %d Hz", *usecs, *frequency);
+
+			/* Notify the key control function that there might
+			   have been a change of keying state (and then
+			   again, there might not have been -- it will sort
+			   this out for us). */
+			cw_key_control_internal(*frequency != CW_TONE_SILENT);
+
+			/* If microseconds is zero, leave it at that.  This
+			   way, a queued tone of 0 usec implies leaving the
+			   sound in this state, and 0 usec and 0 frequency
+			   leaves silence.  */
+			if (*usecs > 0) {
+				/* Request a timeout.  If it fails, there's
+				   little we can do at this point.  But it
+				   shouldn't fail. */
+				cw_timer_run_with_handler_internal(*usecs, NULL);
+			} else {
+				/* Autonomous dequeuing has finished for
+				   the moment. */
+				cw_dequeue_state = QS_IDLE;
+				cw_schedule_finalization_internal();
+			}
+
+			/* If there is a low water mark callback registered,
+			   and if we passed under the water mark, call the
+			   callback here.  We want to be sure to call this
+			   late in the processing, especially after setting
+			   the state to idle, since the most likely action
+			   of this routine is to queue tones, and we don't
+			   want to play with the state here after that. */
+			if (cw_tq_low_water_callback) {
+				/* If the length we originally calculated
+				   was above the low water mark, and the
+				   one we have now is below or equal to it,
+				   call the callback. */
+				if (queue_length > cw_tq_low_water_mark
+				    && cw_tone_queue_length_internal()
+				    <= cw_tq_low_water_mark) {
+
+					(*cw_tq_low_water_callback)(cw_tq_low_water_callback_arg);
+				}
+			}
+		} else { /* cw_tq_head == cw_tq_tail */
+			/* This is the end of the last tone on the queue,
+			   and since we got a signal we know that it had
+			   a usec greater than zero.  So this is the time
+			   to return to silence. */
+			*usecs = -1;
+
+			/* Notify the keying control function, as above. */
+			cw_key_control_internal(false);
+
+			/* Set state to idle, indicating that autonomous
+			   dequeuing has finished for the moment.  We
+			   need this set whenever the queue indexes are
+			   equal and there is no pending itimeout. */
+			cw_dequeue_state = QS_IDLE;
+			cw_schedule_finalization_internal();
+		}
+	}
+}
+
+
+#endif
+
 
 
 /**
@@ -3442,6 +3642,82 @@ void cw_tone_queue_dequeue_and_play_internal(void)
 
 
 
+#if CW_DEV_EXPERIMENTAL_ALSA
+
+
+
+
+
+/**
+   \brief Add tone to tone queue
+
+   Enqueue a tone for specified frequency and number of microseconds.
+   This routine adds the new tone to the queue, and if necessary starts
+   the itimer process to have the tone sent.  The routine returns CW_SUCCESS
+   on success. If the tone queue is full, the routine returns CW_FAILURE,
+   with errno set to EAGAIN.  If the iambic keyer or straight key are currently
+   busy, the routine returns CW_FAILURE, with errno set to EBUSY.
+
+   \param usecs - length of added tone
+   \param frequency - frequency of added tone
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
+int cw_tone_queue_enqueue_internal(int usecs, int frequency)
+{
+	/* If the keyer or straight key are busy, return an error.
+	   This is because they use the sound card/console tones and key
+	   control, and will interfere with us if we try to use them at
+	   the same time. */
+	if (cw_is_keyer_busy() || cw_is_straight_key_busy()) {
+		errno = EBUSY;
+		return CW_FAILURE;
+	}
+
+	/* Get the new value of the queue tail index. */
+	int new_tq_tail = cw_tone_queue_next_index_internal(cw_tq_tail);
+
+	/* If the new value is bumping against the head index, then
+	   the queue is currently full. */
+	if (new_tq_tail == cw_tq_head) {
+		errno = EAGAIN;
+		return CW_FAILURE;
+	}
+
+	cw_debug (CW_DEBUG_TONE_QUEUE, "enqueue tone %d usec, %d Hz", usecs, frequency);
+
+	/* Set the new tail index, and enqueue the new tone. */
+	cw_tq_tail = new_tq_tail;
+	cw_tone_queue[cw_tq_tail].usecs = usecs;
+	cw_tone_queue[cw_tq_tail].frequency = frequency;
+
+	/* If there is currently no autonomous dequeue happening, kick
+	   off the itimer process. */
+	if (cw_dequeue_state == QS_IDLE) {
+		/* There is currently no (external) process that would
+		   remove (dequeue) tones from the queue and (possibly)
+		   play them.
+		   Let's mark that dequeuing is starting, and lets start
+		   such a process using cw_tone_queue_dequeue_and_play_internal(). */
+		cw_dequeue_state = QS_BUSY;
+		cw_dev_debug ("sending initial SIGALRM to generator thread %lu\n", generator->thread_id);
+		pthread_kill(generator->thread_id, SIGALRM);
+	}
+
+	return CW_SUCCESS;
+}
+
+
+
+
+
+#else
+
+
+
+
+
 /**
    \brief Add tone to tone queue
 
@@ -3500,6 +3776,12 @@ int cw_tone_queue_enqueue_internal(int usecs, int frequency)
 
 	return CW_SUCCESS;
 }
+
+
+
+
+
+#endif
 
 
 
@@ -3827,6 +4109,8 @@ int cw_send_element_internal(cw_gen_t *gen, char element)
 
 	/* Synchronize low-level timings if required. */
 	cw_sync_parameters_internal(gen);
+
+	cw_dev_debug ("attempting to send element %c\n", element);
 
 	/* Send either a dot or a dash element, depending on representation. */
 	if (element == CW_DOT_REPRESENTATION) {
@@ -6086,7 +6370,7 @@ int cw_generator_start(void)
 	if (generator->audio_system == CW_AUDIO_CONSOLE) {
 		; /* no thread needed for generating sound on console */
 	} else if (generator->audio_system == CW_AUDIO_OSS) {
-		int rv = pthread_create(&(generator->thread), &(generator->thread_attr),
+		int rv = pthread_create(&(generator->thread_id), &(generator->thread_attr),
 					cw_generator_write_sine_wave_oss_internal,
 					(void *) generator);
 		if (rv != 0) {
@@ -6100,7 +6384,7 @@ int cw_generator_start(void)
 			return CW_SUCCESS;
 		}
 	} else if (generator->audio_system == CW_AUDIO_ALSA) {
-		int rv = pthread_create(&(generator->thread), &(generator->thread_attr),
+		int rv = pthread_create(&(generator->thread_id), &(generator->thread_attr),
 					cw_generator_write_sine_wave_alsa_internal,
 					(void *) generator);
 		if (rv != 0) {
@@ -6208,6 +6492,9 @@ int cw_generator_calculate_sine_wave_internal(cw_gen_t *gen)
 		int amplitude = cw_generator_calculate_amplitude_internal(gen);
 
 		gen->buffer[i] = amplitude * sin(phase);
+#if CW_DEV_EXPERIMENTAL_ALSA
+		gen->iterator_per_sound++;
+#endif
 	}
 
 	/* Compute the phase of the last generated sample
@@ -6223,6 +6510,63 @@ int cw_generator_calculate_sine_wave_internal(cw_gen_t *gen)
 
 	return CW_SUCCESS;
 }
+
+
+
+
+
+#if CW_DEV_EXPERIMENTAL_ALSA
+
+
+
+
+
+/**
+   \brief Calculate value of a sample of sine wave
+
+   \param gen - generator used to generate a sine wave
+
+   \return value of a sample of sine wave, a non-negative number
+*/
+int cw_generator_calculate_amplitude_internal(cw_gen_t *gen)
+{
+	int len = CW_AUDIO_GENERATOR_SLOPE_LEN;
+	int volume = (gen->volume * CW_AUDIO_VOLUME_RANGE) / 100;
+
+	if (gen->frequency > 0) {
+		if (gen->iterator_per_sound < len) {
+			int i = gen->iterator_per_sound;
+			gen->amplitude = 1.0 * volume * i / len;
+		} else if (gen->iterator_per_sound > gen->samples_per_sound - len) {
+			int i = gen->samples_per_sound - gen->iterator_per_sound;
+			gen->amplitude = 1.0 * volume * i / len;
+		} else {
+			return gen->amplitude;
+		}
+	}
+
+
+
+	/* because CW_AUDIO_VOLUME_RANGE may not be exact multiple
+	   of gen->slope, gen->amplitude may be sometimes out
+	   of range; this may produce audible clicks;
+	   remove values out of range */
+	if (gen->amplitude > CW_AUDIO_VOLUME_RANGE) {
+		gen->amplitude = CW_AUDIO_VOLUME_RANGE;
+	} else if (gen->amplitude < 0) {
+		gen->amplitude = 0;
+	} else {
+		;
+	}
+
+	return gen->amplitude;
+}
+
+
+
+
+
+#else
 
 
 
@@ -6276,6 +6620,7 @@ int cw_generator_calculate_amplitude_internal(cw_gen_t *gen)
 }
 
 
+#endif
 
 
 
@@ -6996,28 +7341,50 @@ void *cw_generator_write_sine_wave_alsa_internal(void *arg)
 
 #ifdef LIBCW_WITH_ALSA
 	cw_gen_t *gen = (cw_gen_t *) arg;
+	cw_sigalrm_install_top_level_handler_internal();
 
 	while (gen->generate) {
+		cw_dev_debug ("thread %lu: waiting for signal", gen->thread_id);
+		cw_signal_wait_internal();
+		cw_dev_debug ("thread %lu: got signal", gen->thread_id);
 
-		while (generator->samples_left > 0) {
+		int usecs;
+		cw_tone_queue_dequeue_internal(&usecs, &(gen->frequency));
 
+		cw_timer_run_internal(usecs);
+
+		gen->samples_per_sound = ((gen->sample_rate / 1000) * usecs) / 1000;
+		gen->iterator_per_sound = 0;
+
+		cw_dev_debug ("--- %d samples, %d Hz", gen->samples_per_sound, gen->frequency);
+		gen->samples_left = gen->samples_per_sound;
+
+
+		while (gen->samples_left > 0) {
+
+			int samples = gen->buffer_n_samples < gen->samples_left ? gen->buffer_n_samples : gen->samples_left;
+			cw_dev_debug ("alsa: writing %d samples\n", samples);
 			cw_generator_calculate_sine_wave_internal(gen);
-			int rv = snd_pcm_writei(gen->alsa_handle, gen->buffer,
-						gen->buffer_n_samples < generator->samples_left ? gen->buffer_n_samples : generator->samples_left);
+			int rv = snd_pcm_writei(gen->alsa_handle, gen->buffer, samples);
 			if (rv == -EPIPE) {
 				/* EPIPE means underrun */
 				cw_debug (CW_DEBUG_SYSTEM, "ALSA: underrun");
 				snd_pcm_prepare(gen->alsa_handle);
 			} else if (rv < 0) {
 				cw_debug (CW_DEBUG_SYSTEM, "ALSA: writei: %s\n", snd_strerror(rv));
-			}  else if (rv != gen->buffer_n_samples) {
+			}  else if (rv != samples) {
 				cw_debug (CW_DEBUG_SYSTEM, "ALSA: short write, %d != %d", rv, gen->buffer_n_samples);
 			} else {
 				;
 			}
 
+			if (samples < gen->buffer_n_samples) {
+				snd_pcm_prepare(gen->alsa_handle);
+			}
+
+
 #if CW_DEV_RAW_SINK
-			int samples_written = rv;
+			int samples_written = rv > 0 ? rv : samples;
 			if (gen->dev_raw_sink != -1) {
 
 				/* FIXME: this will cause memory access error at
@@ -7031,17 +7398,10 @@ void *cw_generator_write_sine_wave_alsa_internal(void *arg)
 				int n_bytes = sizeof (gen->buffer[0]) * samples_written;
 				int rv = write(gen->dev_raw_sink, gen->buffer, n_bytes);
 				if (rv == -1) {
-					cw_dev_debug ("ERROR: write error: %s\n", strerror(errno));
+					cw_dev_debug ("ERROR: write error: %s (gen->dev_raw_sink = %ld, gen->buffer = %ld, n_bytes = %d)", strerror(errno), (long) gen->dev_raw_sink, (long) gen->buffer, n_bytes);
 				}
 			}
-			generator->samples_left -= samples_written;
-		}
-		int minimum_slope = 1;
-		int slope = generator->volume ?
-			CW_AUDIO_GENERATOR_SLOPE_RATIO * generator->volume :
-			minimum_slope;
-		if (generator->state) {
-			generator->slope = -slope;
+			gen->samples_left -= samples_written;
 		}
 #endif
 	} /* while() */
@@ -7391,8 +7751,8 @@ static void main_helper(int audio_system, const char *name, const char *device, 
 int main(void)
 {
 	main_helper(CW_AUDIO_ALSA,    "ALSA",    CW_DEFAULT_ALSA_DEVICE,    cw_is_alsa_possible);
-	main_helper(CW_AUDIO_CONSOLE, "console", CW_DEFAULT_CONSOLE_DEVICE, cw_is_console_possible);
-	main_helper(CW_AUDIO_OSS,     "OSS",     CW_DEFAULT_OSS_DEVICE,     cw_is_oss_possible);
+	//main_helper(CW_AUDIO_CONSOLE, "console", CW_DEFAULT_CONSOLE_DEVICE, cw_is_console_possible);
+	//main_helper(CW_AUDIO_OSS,     "OSS",     CW_DEFAULT_OSS_DEVICE,     cw_is_oss_possible);
 
 	return 0;
 }
@@ -7410,11 +7770,15 @@ void main_helper(int audio_system, const char *name, const char *device, predica
 		rv = cw_generator_new(audio_system, device);
 		if (rv == CW_SUCCESS) {
 			cw_reset_send_receive_parameters();
-			cw_set_send_speed(22);
+			cw_set_send_speed(50);
 			cw_generator_start();
 
-			// cw_send_string("abcdefghijklmnopqrstuvwyz0123456789");
-			cw_send_string("hhhhhhhh");
+			cw_send_string("abcdefghijklmnopqrstuvwyz0123456789");
+			cw_send_string("hhhh");
+			cw_wait_for_tone_queue();
+			sleep(1);
+			cw_set_frequency(440);
+			cw_send_string("oooo");
 			cw_wait_for_tone_queue();
 
 			cw_generator_stop();
