@@ -128,11 +128,11 @@
 /* Conditional compilation flags */
 #define CW_OSS_SET_FRAGMENT       1  /* ioctl(fd, SNDCTL_DSP_SETFRAGMENT, &param) */
 #define CW_OSS_SET_POLICY         0  /* ioctl(fd, SNDCTL_DSP_POLICY, &param) */
-#define CW_ALSA_HW_BUFFER_CONFIG  1  /* set up hw buffer parameters, doesn't work 100% correctly (yet) */
+#define CW_ALSA_HW_BUFFER_CONFIG  0  /* set up hw buffer/period parameters; unnecessary and probably harmful */
 #ifdef LIBCW_WITH_DEV
-#define CW_DEV_MAIN               1  /* for stand-alone compilation and tests of this file */
-#define CW_DEV_RAW_SINK           0  /* create /tmp/cw_file.raw file with raw samples */
-#define CW_DEV_EXPERIMENTAL_ALSA  0  /* new implementation of cw_generator_write_sine_wave_alsa_internal() that may solve some problems with timing */
+#define CW_DEV_MAIN               1  /* enable main() for stand-alone compilation and tests of this file */
+#define CW_DEV_RAW_SINK           1  /* create and use /tmp/cw_file.<audio system>.raw file with audio samples written as raw data */
+#define CW_DEV_EXPERIMENTAL_ALSA  1  /* new implementation of cw_generator_write_sine_wave_alsa_internal() that may solve some problems with timing */
 #endif
 
 
@@ -189,10 +189,8 @@ struct cw_gen_struct {
 	double phase;
 
 #if CW_DEV_EXPERIMENTAL_ALSA
-	int samples_left;
-	int samples_per_sound;
-	int iterator_per_sound;
-	int state;
+	int tone_n_samples;
+	int tone_iterator;
 #endif
 
 	/* Thread function is used to generate sine wave
@@ -2870,17 +2868,8 @@ int cw_generator_play_with_soundcard_internal(cw_gen_t *gen, int state)
 		minimum_slope;
 	if (state == CW_TONE_SILENT) { /* TONE_SILENT == 0, silence the sound */
 		gen->slope = -slope;
-#if 0
-		gen->samples_left = gen->samples_per_sound;
-		gen->state = 0; /* silence */
-#endif
 	} else {
 		gen->slope = slope;
-#if 0
-		gen->samples_left = gen->samples_per_sound;
-		gen->state = 1; /* sound */
-#endif
-
 	}
 
 	return CW_SUCCESS;
@@ -3477,7 +3466,7 @@ void cw_tone_queue_dequeue_internal(int *usecs, int *frequency)
 			   have been a change of keying state (and then
 			   again, there might not have been -- it will sort
 			   this out for us). */
-			cw_key_control_internal(*frequency != CW_TONE_SILENT);
+			//cw_key_control_internal(*frequency != CW_TONE_SILENT);
 
 			/* If microseconds is zero, leave it at that.  This
 			   way, a queued tone of 0 usec implies leaving the
@@ -3487,7 +3476,7 @@ void cw_tone_queue_dequeue_internal(int *usecs, int *frequency)
 				/* Request a timeout.  If it fails, there's
 				   little we can do at this point.  But it
 				   shouldn't fail. */
-				cw_timer_run_with_handler_internal(*usecs, NULL);
+				//cw_timer_run_with_handler_internal(*usecs, NULL);
 			} else {
 				/* Autonomous dequeuing has finished for
 				   the moment. */
@@ -6257,11 +6246,9 @@ int cw_generator_new(int audio_system, const char *device)
 	generator->buffer_n_samples = -1;
 
 #if CW_DEV_EXPERIMENTAL_ALSA
-	generator->samples_left = 0;
-	generator->samples_per_sound = 1950; /* arbitrary value */
-	generator->state = 0;
+	generator->tone_n_samples = 0;
+	generator->tone_iterator = 0;
 #endif
-
 
 	pthread_attr_init(&(generator->thread_attr));
 	pthread_attr_setdetachstate(&(generator->thread_attr), PTHREAD_CREATE_DETACHED);
@@ -6504,7 +6491,7 @@ int cw_generator_calculate_sine_wave_new_internal(cw_gen_t *gen, int start, int 
 		int amplitude = cw_generator_calculate_amplitude_internal(gen);
 
 		gen->buffer[i] = amplitude * sin(phase);
-		gen->iterator_per_sound++;
+		gen->tone_iterator++;
 	}
 
 	/* Compute the phase of the last generated sample
@@ -6594,7 +6581,7 @@ int cw_generator_calculate_sine_wave_internal(cw_gen_t *gen)
 */
 int cw_generator_calculate_amplitude_internal(cw_gen_t *gen)
 {
-	int len = CW_AUDIO_GENERATOR_SLOPE_LEN;
+	int slope_len = CW_AUDIO_GENERATOR_SLOPE_LEN;
 	int volume = (gen->volume * CW_AUDIO_VOLUME_RANGE) / 100;
 
 #if 0
@@ -6610,17 +6597,25 @@ int cw_generator_calculate_amplitude_internal(cw_gen_t *gen)
 #endif
 
 	if (gen->frequency > 0) {
-		if (gen->iterator_per_sound < len) {
-			int i = gen->iterator_per_sound;
-			gen->amplitude = 1.0 * volume * i / len;
-		} else if (gen->iterator_per_sound > gen->samples_per_sound - len) {
-			int i = gen->samples_per_sound - gen->iterator_per_sound;
-			gen->amplitude = 1.0 * volume * i / len;
+		if (gen->tone_iterator < slope_len) {
+			int i = gen->tone_iterator;
+			gen->amplitude = 1.0 * volume * i / slope_len;
+		} else if (gen->tone_iterator > gen->tone_n_samples - slope_len + 1) {
+			int i = gen->tone_n_samples - gen->tone_iterator + 1;
+			gen->amplitude = 1.0 * volume * i / slope_len;
 		} else {
 			;
 		}
+	} else {
+		gen->amplitude = 0;
 	}
 
+	assert (gen->amplitude >= 0); /* will fail if calculations above are modified */
+
+#if 0 /* no longer necessary since calculation of amplitude,
+	 implemented above guarantees that amplitude won't be
+	 less than zero, and amplitude slightly larger than
+	 volume is not an issue */
 
 	/* because CW_AUDIO_VOLUME_RANGE may not be exact multiple
 	   of gen->slope, gen->amplitude may be sometimes out
@@ -6633,6 +6628,7 @@ int cw_generator_calculate_amplitude_internal(cw_gen_t *gen)
 	} else {
 		;
 	}
+#endif
 
 	return gen->amplitude;
 }
@@ -7344,7 +7340,7 @@ int cw_alsa_open_device_internal(cw_gen_t *gen)
 	/* Get size for data buffer */
 	snd_pcm_uframes_t frames; /* period size in frames */
 	int dir = 1;
-	rv = snd_pcm_hw_params_get_period_size(hw_params, &frames, &dir);
+	rv = snd_pcm_hw_params_get_period_size_min(hw_params, &frames, &dir);
 	cw_dev_debug ("rv = %d, ALSA buffer size would be %u frames", rv, (unsigned int) frames);
 
 	/* The linker (?) that I use on Debian links libcw against
@@ -7477,7 +7473,7 @@ void *cw_generator_write_sine_wave_alsa_internal(void *arg)
 	cw_gen_t *gen = (cw_gen_t *) arg;
 	cw_sigalrm_install_top_level_handler_internal();
 
-	gen->samples_left = 0;
+	int samples_left = 0;
 
 	int start = 0, stop = gen->buffer_n_samples - 1;
 	while (gen->generate) {
@@ -7488,30 +7484,30 @@ void *cw_generator_write_sine_wave_alsa_internal(void *arg)
 		int usecs;
 		cw_tone_queue_dequeue_internal(&usecs, &(gen->frequency));
 
-		cw_timer_run_internal(usecs);
+		//cw_timer_run_internal(usecs);
 
-		gen->samples_per_sound = ((gen->sample_rate / 1000) * usecs) / 1000;
-		gen->iterator_per_sound = 0;
+		gen->tone_n_samples = ((gen->sample_rate / 1000) * usecs) / 1000;
+		gen->tone_iterator = 0;
 
-		cw_dev_debug ("--- %d samples, %d Hz", gen->samples_per_sound, gen->frequency);
-		gen->samples_left = gen->samples_per_sound;
+		cw_dev_debug ("--- %d samples, %d Hz", gen->tone_n_samples, gen->frequency);
+		samples_left = gen->tone_n_samples;
 
 
-		while (gen->samples_left > 0) {
+		while (samples_left > 0) {
 
-			if (start + gen->samples_left >= gen->buffer_n_samples) {
+			if (start + samples_left >= gen->buffer_n_samples) {
 				stop = gen->buffer_n_samples - 1;
 			} else {
-				stop = gen->samples_left + start + 1;
+				stop = samples_left + start + 1;
 			}
 
 			int samples = stop - start + 1;
-			cw_dev_debug ("start: %d, stop: %d, samples: %d", start, stop, samples);
-			gen->samples_left -= samples;
+			//cw_dev_debug ("start: %d, stop: %d, samples: %d", start, stop, samples);
+			samples_left -= samples;
 
 			cw_generator_calculate_sine_wave_new_internal(gen, start, stop);
 			if (stop + 1 == gen->buffer_n_samples) {
-				cw_dev_debug ("writing samples to ALSA\n");
+				//cw_dev_debug ("writing samples to ALSA\n");
 				/* we can safely send audio buffer to ALSA:
 				   size of correct and current data in the buffer is the same as
 				   ALSA's period, so there should be no underruns */
@@ -7653,6 +7649,26 @@ int cw_alsa_set_hw_params_internal(cw_gen_t *gen, snd_pcm_hw_params_t *hw_params
 	}
 
 
+	/* Don't try to over-configure ALSA, it would be a pointless
+	   exercise. See comment from this article, starting
+	   with "This is my soundcard initialization function":
+	   http://stackoverflow.com/questions/3345083/correctly-sizing-alsa-buffers-weird-api
+	   Poster sets basic audio playback parameters (channels, sampling
+	   rate, sample format), saves the config (with snd_pcm_hw_params()),
+	   and then only queries ALSA handle for period size and period
+	   time.
+
+	   It turns out that it works in our case: basic hw configuration
+	   plus getting period size (I don't need period time).
+
+	   Period size seems to be the most important, and most useful
+	   data that I need from configured ALSA handle - this is the
+	   size of audio buffer which I can fill with my data and send
+	   it down to ALSA internals (possibly without worrying about
+	   underruns; if I understand correctly - if I send to ALSA
+	   chunks of data of proper size then I don't have to worry
+	   about underruns). */
+
 #if CW_ALSA_HW_BUFFER_CONFIG && defined(HAVE_SND_PCM_HW_PARAMS_TEST_BUFFER_SIZE) && defined(HAVE_SND_PCM_HW_PARAMS_TEST_PERIODS)
 
 	/*
@@ -7745,14 +7761,14 @@ int cw_alsa_set_hw_params_internal(cw_gen_t *gen, snd_pcm_hw_params_t *hw_params
 			cw_debug (CW_DEBUG_SYSTEM, "error: no accepted number of periods\n");
 		}
 	}
-#if 0
+
 	{
 		/* Test period size */
 		dir = 0;
 		for (snd_pcm_uframes_t val = 0; val < 100000; val++) {
 			rv = snd_pcm_hw_params_test_period_size(gen->alsa_handle, hw_params, val, dir);
 			if (rv == 0) {
-				fprintf(stderr, "libcw: accepted period size: %d\n", val);
+				fprintf(stderr, "libcw: accepted period size: %lu\n", val);
 				// break;
 			}
 		}
@@ -7769,9 +7785,7 @@ int cw_alsa_set_hw_params_internal(cw_gen_t *gen, snd_pcm_hw_params_t *hw_params
 			}
 		}
 	}
-#endif
-
-#endif
+#endif /* #if CW_ALSA_HW_BUFFER_CONFIG */
 
 	/* Save hw parameters to device */
 	rv = snd_pcm_hw_params(gen->alsa_handle, hw_params);
@@ -7779,14 +7793,6 @@ int cw_alsa_set_hw_params_internal(cw_gen_t *gen, snd_pcm_hw_params_t *hw_params
 		cw_debug (CW_DEBUG_SYSTEM, "error: can't save hw parameters: %s\n", snd_strerror(rv));
 		return CW_FAILURE;
 	} else {
-		/* Get size for data buffer */
-		snd_pcm_uframes_t frames; /* period size in frames */
-		int dir = 0;
-		snd_pcm_hw_params_get_period_size(hw_params, &frames, &dir);
-		cw_dev_debug ("%d, ALSA buffer size would be %u frames", rv, (unsigned int) frames);
-#ifdef LIBCW_WITH_DEV
-		cw_alsa_print_params_internal(hw_params);
-#endif
 		return CW_SUCCESS;
 	}
 #endif // #ifndef LIBCW_WITH_ALSA
