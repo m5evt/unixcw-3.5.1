@@ -23,6 +23,8 @@
 #include <string>
 #include <sstream>
 
+#include <cstdio>
+
 #include "receiver.h"
 #include "display.h"
 #include "modeset.h"

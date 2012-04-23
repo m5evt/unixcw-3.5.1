@@ -25,6 +25,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <cerrno>
 
 #include <sstream>
 #include <iostream>
