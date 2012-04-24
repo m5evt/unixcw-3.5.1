@@ -132,7 +132,7 @@
 #ifdef LIBCW_WITH_DEV
 #define CW_DEV_MAIN               1  /* enable main() for stand-alone compilation and tests of this file */
 #define CW_DEV_RAW_SINK           1  /* create and use /tmp/cw_file.<audio system>.raw file with audio samples written as raw data */
-#define CW_DEV_EXPERIMENTAL_ALSA  1  /* new implementation of cw_generator_write_sine_wave_alsa_internal() that may solve some problems with timing */
+#define CW_DEV_EXPERIMENTAL_WRITE 1  /* new implementation of code that generates and writes samples to audio sink - may solve some problems with timing */
 #endif
 
 
@@ -188,7 +188,7 @@ struct cw_gen_struct {
 	double phase_offset;
 	double phase;
 
-#if CW_DEV_EXPERIMENTAL_ALSA
+#if CW_DEV_EXPERIMENTAL_WRITE
 	int tone_n_samples;
 	int tone_iterator;
 #endif
@@ -216,9 +216,12 @@ static int   cw_generator_play_with_soundcard_internal(cw_gen_t *gen, int state)
 static int   cw_generator_release_internal(void);
 static int   cw_generator_set_audio_device_internal(cw_gen_t *gen, const char *device);
 static void *cw_generator_write_sine_wave_oss_internal(void *arg);
+
+#if CW_DEV_EXPERIMENTAL_WRITE
+static void *cw_generator_write_sine_wave_internal(void *arg);
+static int   cw_generator_calculate_sine_wave_new_internal(cw_gen_t *gen, int start, int stop);
+#else
 static void *cw_generator_write_sine_wave_alsa_internal(void *arg);
-#if CW_DEV_EXPERIMENTAL_ALSA
-static int cw_generator_calculate_sine_wave_new_internal(cw_gen_t *gen, int start, int stop);
 #endif
 static int   cw_generator_calculate_sine_wave_internal(cw_gen_t *gen);
 static int   cw_generator_calculate_amplitude_internal(cw_gen_t *gen);
@@ -273,7 +276,7 @@ static int  cw_tone_queue_length_internal(void);
 static int  cw_tone_queue_next_index_internal(int current);
 static void cw_tone_queue_dequeue_and_play_internal(void);
 static int  cw_tone_queue_enqueue_internal(int usecs, int frequency);
-#if CW_DEV_EXPERIMENTAL_ALSA
+#if CW_DEV_EXPERIMENTAL_WRITE
 static void cw_tone_queue_dequeue_internal(int *usecs, int *frequency);
 #endif
 
@@ -2414,7 +2417,7 @@ int cw_timer_run_with_handler_internal(int usecs, void (*sigalrm_handler)(void))
 	   ourselves SIGALRM right away. */
 	if (usecs <= 0) {
 		/* Send ourselves SIGALRM immediately. */
-#if CW_DEV_EXPERIMENTAL_ALSA
+#if CW_DEV_EXPERIMENTAL_WRITE
 		if (pthread_kill(generator->thread_id, SIGALRM) != 0) {
 #else
 		if (raise(SIGALRM) != 0) {
@@ -2611,7 +2614,7 @@ void cw_block_callback(int block)
 
 
 
-#if CW_DEV_EXPERIMENTAL_ALSA
+#if CW_DEV_EXPERIMENTAL_WRITE
 
 
 
@@ -3415,7 +3418,7 @@ static volatile enum { QS_IDLE, QS_BUSY } cw_dequeue_state = QS_IDLE;
 
 
 
-#if CW_DEV_EXPERIMENTAL_ALSA
+#if CW_DEV_EXPERIMENTAL_WRITE
 
 
 
@@ -3638,7 +3641,7 @@ void cw_tone_queue_dequeue_and_play_internal(void)
 
 
 
-#if CW_DEV_EXPERIMENTAL_ALSA
+#if CW_DEV_EXPERIMENTAL_WRITE
 
 
 
@@ -6245,7 +6248,7 @@ int cw_generator_new(int audio_system, const char *device)
 	generator->buffer = NULL;
 	generator->buffer_n_samples = -1;
 
-#if CW_DEV_EXPERIMENTAL_ALSA
+#if CW_DEV_EXPERIMENTAL_WRITE
 	generator->tone_n_samples = 0;
 	generator->tone_iterator = 0;
 #endif
@@ -6336,6 +6339,70 @@ void cw_generator_delete(void)
 
 
 
+#if CW_DEV_EXPERIMENTAL_WRITE
+
+
+
+
+
+/**
+   \brief Start a generator
+
+   Start producing sound using generator created with
+   cw_generator_new().
+
+   \return CW_FAILURE on errors
+   \return CW_SUCCESS on success
+*/
+int cw_generator_start(void)
+{
+	generator->phase_offset = 0.0;
+	generator->phase = 0.0;
+
+	/* both values being zero here means that generator
+	   has started working, but its output is silence;
+	   set .slope to a positive value to start generating
+	   a sound with non-zero amplitude */
+	generator->slope = 0;
+	generator->amplitude = 0;
+
+	generator->generate = 1;
+
+	if (generator->audio_system == CW_AUDIO_CONSOLE) {
+		; /* no thread needed for generating sound on console */
+	} else if (generator->audio_system == CW_AUDIO_OSS
+		   || generator->audio_system == CW_AUDIO_ALSA) {
+
+		int rv = pthread_create(&(generator->thread_id), &(generator->thread_attr),
+					cw_generator_write_sine_wave_internal,
+					(void *) generator);
+		if (rv != 0) {
+			cw_debug (CW_DEBUG_SYSTEM, "error: failed to create %s generator thread\n", generator->audio_system == CW_AUDIO_OSS ? "OSS" : "ALSA");
+			return CW_FAILURE;
+		} else {
+			/* for some yet unknown reason you have to
+			   put usleep() here, otherwise a generator
+			   may work incorrectly */
+			usleep(100000);
+			return CW_SUCCESS;
+		}
+	} else {
+		cw_dev_debug ("unsupported audio system %d", generator->audio_system);
+	}
+
+	return CW_SUCCESS;
+}
+
+
+
+
+
+#else
+
+
+
+
+
 /**
    \brief Start a generator
 
@@ -6400,6 +6467,12 @@ int cw_generator_start(void)
 
 
 
+#endif
+
+
+
+
+
 /**
    \brief Shut down a generator
 
@@ -6456,7 +6529,7 @@ void cw_generator_stop(void)
 
 
 
-#if CW_DEV_EXPERIMENTAL_ALSA
+#if CW_DEV_EXPERIMENTAL_WRITE
 
 
 
@@ -6566,7 +6639,7 @@ int cw_generator_calculate_sine_wave_internal(cw_gen_t *gen)
 
 
 
-#if CW_DEV_EXPERIMENTAL_ALSA
+#if CW_DEV_EXPERIMENTAL_WRITE
 
 
 
@@ -7403,7 +7476,7 @@ void cw_alsa_close_device_internal(cw_gen_t *gen)
 int cw_dev_debug_raw_sink_write_internal(cw_gen_t *gen, int samples)
 {
 	if (gen->dev_raw_sink != -1) {
-#if CW_DEV_EXPERIMENTAL_ALSA
+#if CW_DEV_EXPERIMENTAL_WRITE
 		/* FIXME: this will cause memory access error at
 		   the end, when generator is destroyed in the
 		   other thread */
@@ -7453,23 +7526,21 @@ int cw_debug_evaluate_alsa_write_internal(cw_gen_t *gen, int rv)
 
 
 
-#if CW_DEV_EXPERIMENTAL_ALSA
-
+#if CW_DEV_EXPERIMENTAL_WRITE
 
 
 
 
 /**
-   \brief Write a constant sine wave to ALSA output
+   \brief Write a constant sine wave to ALSA or OSS output
 
    \param arg - current generator (casted to (void *))
 
    \return NULL pointer
 */
-void *cw_generator_write_sine_wave_alsa_internal(void *arg)
+void *cw_generator_write_sine_wave_internal(void *arg)
 {
-
-#ifdef LIBCW_WITH_ALSA
+#if (defined LIBCW_WITH_ALSA || defined LIBCW_WITH_OSS)
 	cw_gen_t *gen = (cw_gen_t *) arg;
 	cw_sigalrm_install_top_level_handler_internal();
 
@@ -7507,12 +7578,35 @@ void *cw_generator_write_sine_wave_alsa_internal(void *arg)
 
 			cw_generator_calculate_sine_wave_new_internal(gen, start, stop);
 			if (stop + 1 == gen->buffer_n_samples) {
-				//cw_dev_debug ("writing samples to ALSA\n");
-				/* we can safely send audio buffer to ALSA:
-				   size of correct and current data in the buffer is the same as
-				   ALSA's period, so there should be no underruns */
-				int rv = snd_pcm_writei(gen->alsa_handle, gen->buffer, gen->buffer_n_samples);
-				cw_debug_evaluate_alsa_write_internal(gen, rv);
+
+				int rv = 0;
+#ifdef LIBCW_WITH_OSS
+				if (generator->audio_system == CW_AUDIO_OSS) {
+					int n_bytes = sizeof (gen->buffer[0]) * gen->buffer_n_samples;
+					rv = write(gen->audio_sink, gen->buffer, n_bytes);
+					if (rv != n_bytes) {
+						gen->thread_error = errno;
+						cw_debug (CW_DEBUG_SYSTEM, "error: audio write (OSS): %s\n", strerror(errno));
+						//return NULL;
+					}
+					cw_dev_debug ("written %d samples with OSS", gen->buffer_n_samples);
+
+				} else
+#endif
+
+#ifdef LIBCW_WITH_ALSA
+					if (generator->audio_system == CW_AUDIO_ALSA) {
+					/* we can safely send audio buffer to ALSA:
+					   size of correct and current data in the buffer is the same as
+					   ALSA's period, so there should be no underruns */
+					rv = snd_pcm_writei(gen->alsa_handle, gen->buffer, gen->buffer_n_samples);
+					cw_debug_evaluate_alsa_write_internal(gen, rv);
+					cw_dev_debug ("written %d samples with ALSA", gen->buffer_n_samples)
+				} else {
+#endif
+					assert (0);
+				}
+
 				start = 0;
 #if CW_DEV_RAW_SINK
 				cw_dev_debug_raw_sink_write_internal(gen, rv);
@@ -7526,13 +7620,10 @@ void *cw_generator_write_sine_wave_alsa_internal(void *arg)
 		}
 
 
-	} /* while() */
-#endif
+	} /* while(gen->generate) */
+#endif // #if (defined LIBCW_WITH_ALSA || defined LIBCW_WITH_OSS)
 	return NULL;
 }
-
-
-
 
 
 
@@ -7888,7 +7979,7 @@ void main_helper(int audio_system, const char *name, const char *device, predica
 		rv = cw_generator_new(audio_system, device);
 		if (rv == CW_SUCCESS) {
 			cw_reset_send_receive_parameters();
-			cw_set_send_speed(12);
+			cw_set_send_speed(15);
 			cw_generator_start();
 
 			cw_send_string("abcdefghijklmnopqrstuvwyz0123456789");
