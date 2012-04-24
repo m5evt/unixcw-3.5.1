@@ -19,6 +19,9 @@
 # General initializations.
 AC_PREREQ(2.57)
 AC_INIT(unixcw, 3.0.1, [acerion@wp.pl])
+
+# This will put some build scripts in ./scripts/ instead of
+# cluttering main directory.
 AC_CONFIG_AUX_DIR([scripts])
 
 AM_INIT_AUTOMAKE(unixcw, 3.0.1)
