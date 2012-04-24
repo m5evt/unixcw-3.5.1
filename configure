@@ -2388,6 +2388,9 @@ ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $
 ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 
+
+# This will put some build scripts in ./scripts/ instead of
+# cluttering main directory.
 ac_aux_dir=
 for ac_dir in scripts "$srcdir"/scripts; do
   if test -f "$ac_dir/install-sh"; then
