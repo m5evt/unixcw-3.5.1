@@ -199,6 +199,7 @@ PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
+PULSEAUDIO_LIBS = @PULSEAUDIO_LIBS@
 QT4INC = @QT4INC@
 QT4MOC = @QT4MOC@
 QT4MOC_PATH = @QT4MOC_PATH@
@@ -277,7 +278,7 @@ EXTRA_DIST = include.awk libdoc.awk libfuncs.awk libpc.awk libsigs.awk \
 # source code files used to build libcw shared library
 libcw_la_SOURCES = libcw.c libcw.h
 # target-specific linker flags (objects to link)
-libcw_la_LIBADD = -lm -lpthread $(AC_ALSA_LIBS)
+libcw_la_LIBADD = -lm -lpthread $(AC_ALSA_LIBS)  $(AC_PULSEAUDIO_LIBS)
 # target-specific linker flags (additional flags)
 # http://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html
 libcw_la_LDFLAGS = -version-number 3:1:1
@@ -299,7 +300,7 @@ libcwunittests_SOURCES = libcw.c
 # target-specific preprocessor flags (#defs and include dirs)
 libcwunittests_CPPFLAGS = -DLIBCW_UNIT_TESTS
 # target-specific linker flags (objects to link)
-libcwunittests_LDADD = -lm -lpthread $(AC_ALSA_LIBS)
+libcwunittests_LDADD = -lm -lpthread $(AC_ALSA_LIBS) $(AC_PULSEAUDIO_LIBS)
 
 # target: libcw.pc
 pkgconfigdir = $(libdir)/pkgconfig
