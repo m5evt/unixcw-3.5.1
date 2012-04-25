@@ -1,5 +1,22 @@
+2012-04-25 Kamil Ignacak
+	* libcw/ALSA: the problem described below has been solved, but
+	at a cost of significant changes in how a Morse code sound is
+	generated (timers are no longer used). This will almost certainly
+	affect other parts of libcw (e.g. Morse keys handling), but it has
+	advantages: timing of ALSA sound is (should be - to be tested)
+	perfect, and I can easily add support for PulseAudio. (this change
+	has been made and committed earlier, somewhere between 21.04 and
+	24.04, I'm just describing it now).
+	* libcw/PulseAudio: Adding support for PulseAudio.
+	PulseAudio only works with "experimental write" enabled, so there
+	is no way that I can have both PulseAudio and old algorithm for
+	generating audio. Either I will have to refactor/refresh/rework
+	rest of libcw.c (and then have PulseAudio), or I will leave old
+	way of generating audio (not breaking things (yet) in applications
+	using libcw, but also not having PulseAudio).
+
 2012-04-21 Kamil Ignacak
-	* ALSA: I've noticed that there is a problem with waveform
+	* libcw/ALSA: I've noticed that there is a problem with waveform
 	produced with ALSA. Dits and dashes start at correct time, but
 	they are ended incorrectly - either too soon, or too late.
 	This results in dots and dashes of incorrect length. The length
