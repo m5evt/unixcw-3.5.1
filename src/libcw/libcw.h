@@ -42,7 +42,8 @@ enum cw_audio_systems {
 	CW_AUDIO_CONSOLE,
 	CW_AUDIO_OSS,
 	CW_AUDIO_ALSA,
-	CW_AUDIO_SOUNDCARD /* ALSA or OSS */
+	CW_AUDIO_PA, /* PulseAudio */
+	CW_AUDIO_SOUNDCARD /* OSS, ALSA or PulseAudio (PA) */
 };
 
 
@@ -57,6 +58,7 @@ typedef struct cw_gen_struct cw_gen_t;
 #define CW_DEFAULT_CONSOLE_DEVICE   "/dev/console"
 #define CW_DEFAULT_OSS_DEVICE       "/dev/audio"
 #define CW_DEFAULT_ALSA_DEVICE      "default"
+#define CW_DEFAULT_PA_DEVICE        ""
 
 
 /* Limits on values of CW send and timing parameters */
@@ -186,6 +188,7 @@ extern void cw_block_callback(int block);
 extern bool cw_is_console_possible(const char *device);
 extern bool cw_is_oss_possible(const char *device);
 extern bool cw_is_alsa_possible(const char *device);
+extern bool cw_is_pa_possible(const char *device);
 
 extern const char *cw_get_console_device(void);
 extern const char *cw_get_soundcard_device(void);
