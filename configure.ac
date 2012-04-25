@@ -76,6 +76,7 @@ fi
 # definitions of custom command line options for configure script
 # ########################################################################
 
+
 # disable_console - 'no' by default
 AC_ARG_ENABLE(console,
     AS_HELP_STRING([--disable-console], [disable support for console buzzer audio output]),
@@ -87,6 +88,7 @@ if test "$disable_console" = "no" ; then
 else
     AC_MSG_RESULT(no)
 fi
+
 
 # disable_oss - 'no' by default
 AC_ARG_ENABLE(oss,
@@ -100,6 +102,7 @@ else
     AC_MSG_RESULT(no)
 fi
 
+
 # disable_alsa - 'no' by default
 AC_ARG_ENABLE(alsa,
     AS_HELP_STRING([--disable-alsa], [disable support for ALSA audio output]),
@@ -111,6 +114,20 @@ if test "$disable_alsa" = "no" ; then
 else
     AC_MSG_RESULT(no)
 fi
+
+
+# disable_pulseaudio - 'no' by default
+AC_ARG_ENABLE(pulseaudio,
+    AS_HELP_STRING([--disable-pulseaudio], [disable support for PulseAudio audio output]),
+    [disable_pulseaudio=yes],
+    [disable_pulseaudio=no])
+AC_MSG_CHECKING([whether to include PulseAudio audio support])
+if test "$disable_pulseaudio" = "no" ; then
+    AC_MSG_RESULT(yes)
+else
+    AC_MSG_RESULT(no)
+fi
+
 
 # disable_cwcp - 'no' by default
 AC_ARG_ENABLE(cwcp,
@@ -124,6 +141,7 @@ else
     AC_MSG_RESULT(no)
 fi
 
+
 # disable_xcwcp - 'no' by default
 AC_ARG_ENABLE(xcwcp,
     AS_HELP_STRING([--disable-xcwcp], [do not build xcwcp (application with Qt4 user interface)]),
@@ -136,6 +154,7 @@ else
     AC_MSG_RESULT(no)
 fi
 
+
 # enable_dev - 'no' by default
 AC_ARG_ENABLE(dev,
     AS_HELP_STRING([--enable-dev], [enable development support (messages/debug code/asserts)]),
@@ -147,6 +166,7 @@ if test "$enable_dev" = "yes" ; then
 else
     AC_MSG_RESULT(no)
 fi
+
 
 # #####
 #  end
@@ -234,6 +254,32 @@ else
 fi
 
 AC_SUBST(ALSA_LIBS)
+
+
+
+if test "$disable_pulseaudio" = "yes" ; then
+    WITH_PULSEAUDIO='no'
+else
+    AC_CHECK_LIB(pulse-simple, pa_simple_new)
+    if test "$ac_cv_lib_pulse_simple_pa_simple_new" = 'yes' ; then
+
+	WITH_PULSEAUDIO='yes'
+    else
+	WITH_PULSEAUDIO='no'
+	AC_MSG_WARN([Cannot find PulseAudio library files - support for PulseAudio audio output will be disabled])
+    fi
+fi
+
+if test "$WITH_PULSEAUDIO" = 'yes' ; then
+    AC_DEFINE([LIBCW_WITH_PULSEAUDIO], [1], [Define as 1 if your build machine can support PulseAudio.])
+    # to be appended to LIBS in src/libcw/Makefile.am
+    PULSEAUDIO_LIBS=" -lpulse-simple "
+else
+    # to be appended to LIBS in src/libcw/Makefile.am
+    PULSEAUDIO_LIBS=""
+fi
+
+AC_SUBST(PULSEAUDIO_LIBS)
 
 
 
@@ -456,16 +502,21 @@ fi
 
 
 
-AC_MSG_NOTICE([------------------------------------])
-AC_MSG_NOTICE([---- unixcw build configuration ----])
-AC_MSG_NOTICE([build libcw:  .................  yes])
-AC_MSG_NOTICE([build cw & cwgen:  ............  yes])
-AC_MSG_NOTICE([build cwcp:  ..................  $WITH_CWCP])
-AC_MSG_NOTICE([build xcwcp:  .................  $WITH_XCWCP])
-AC_MSG_NOTICE([include console buzzer support:  $WITH_CONSOLE])
-AC_MSG_NOTICE([include OSS support:  .........  $WITH_OSS])
-AC_MSG_NOTICE([include ALSA support:  ........  $WITH_ALSA])
-AC_MSG_NOTICE([------------------------------------])
+AC_MSG_NOTICE([----------------------------------------------------])
+AC_MSG_NOTICE([------------ unixcw build configuration ------------])
+AC_MSG_NOTICE([build libcw:  .................................  yes])
+AC_MSG_NOTICE([build cw & cwgen:  ............................  yes])
+AC_MSG_NOTICE([build cwcp:  ..................................  $WITH_CWCP])
+AC_MSG_NOTICE([build xcwcp:  .................................  $WITH_XCWCP])
+if test "$WITH_XCWCP" = 'yes' ; then
+    AC_MSG_NOTICE([    Qt4 headers dir is $QT4INC"])
+    AC_MSG_NOTICE([    Qt4 moc is $QT4MOC"])
+fi
+AC_MSG_NOTICE([include console buzzer support:  ..............  $WITH_CONSOLE])
+AC_MSG_NOTICE([include OSS support:  .........................  $WITH_OSS])
+AC_MSG_NOTICE([include ALSA support:  ........................  $WITH_ALSA])
+AC_MSG_NOTICE([include PulseAudio support:  ..................  $WITH_PULSEAUDIO])
+AC_MSG_NOTICE([----------------------------------------------------])
 
 
 
