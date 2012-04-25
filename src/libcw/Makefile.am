@@ -37,7 +37,7 @@ EXTRA_DIST=include.awk libdoc.awk libfuncs.awk libpc.awk libsigs.awk \
 # source code files used to build libcw shared library
 libcw_la_SOURCES = libcw.c libcw.h
 # target-specific linker flags (objects to link)
-libcw_la_LIBADD=-lm -lpthread $(AC_ALSA_LIBS)
+libcw_la_LIBADD=-lm -lpthread $(AC_ALSA_LIBS)  $(AC_PULSEAUDIO_LIBS)
 # target-specific linker flags (additional flags)
 # http://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html
 libcw_la_LDFLAGS = -version-number 3:1:1
@@ -65,7 +65,7 @@ libcwunittests_SOURCES = libcw.c
 # target-specific preprocessor flags (#defs and include dirs)
 libcwunittests_CPPFLAGS = -DLIBCW_UNIT_TESTS
 # target-specific linker flags (objects to link)
-libcwunittests_LDADD=-lm -lpthread $(AC_ALSA_LIBS)
+libcwunittests_LDADD=-lm -lpthread $(AC_ALSA_LIBS) $(AC_PULSEAUDIO_LIBS)
 
 
 
