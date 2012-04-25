@@ -39,6 +39,9 @@
 /* Define to 1 if you have the `pthread' library (-lpthread). */
 #undef HAVE_LIBPTHREAD
 
+/* Define to 1 if you have the `pulse-simple' library (-lpulse-simple). */
+#undef HAVE_LIBPULSE_SIMPLE
+
 /* Define to 1 if you have the <limits.h> header file. */
 #undef HAVE_LIMITS_H
 
@@ -171,6 +174,9 @@
 
 /* Define as 1 if your build machine can support OSS. */
 #undef LIBCW_WITH_OSS
+
+/* Define as 1 if your build machine can support PulseAudio. */
+#undef LIBCW_WITH_PULSEAUDIO
 
 /* Define to the sub-directory in which libtool stores uninstalled libraries.
    */
