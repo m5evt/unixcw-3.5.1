@@ -113,9 +113,16 @@ enum
 
 /* CW library function prototypes */
 
+
 /* Functions handling library meta data */
 extern int  cw_version(void);
 extern void cw_license(void);
+
+
+/* Debugging */
+extern void cw_set_debug_flags(unsigned int new_value);
+extern unsigned int cw_get_debug_flags(void);
+
 
 /* Functions handling 'generator' */
 extern int  cw_generator_new(int audio_system, const char *device);
@@ -124,86 +131,104 @@ extern int  cw_generator_start(void);
 extern void cw_generator_stop(void);
 extern const char *cw_generator_get_audio_system_label(void);
 
-/* Functions handling representation of a character */
+
+/* Core Morse code data and lookup */
+extern int   cw_get_character_count(void);
+extern void  cw_list_characters(char *list);
+extern int   cw_get_maximum_representation_length(void);
+extern char *cw_character_to_representation(int c);
 extern bool  cw_representation_valid(const char *representation);
 extern int   cw_representation_to_character(const char *representation);
-extern char *cw_character_to_representation(int c);
 
-/* Support for debugging messages in library */
-extern void cw_set_debug_flags(unsigned int new_value);
-extern unsigned int cw_get_debug_flags(void);
 
-extern int cw_get_character_count(void);
-extern void cw_list_characters(char *list);
-extern int cw_get_maximum_representation_length(void);
+/* Extended Morse code data and lookup (procedural signals) */
+extern int cw_get_procedural_character_count(void);
+extern void cw_list_procedural_characters(char *list);
+extern int cw_get_maximum_procedural_expansion_length(void);
 
-extern int cw_get_procedural_character_count (void);
-extern void cw_list_procedural_characters (char *list);
-extern int cw_get_maximum_procedural_expansion_length (void);
 extern int cw_lookup_procedural_character (char c, char *representation,
                                            int *is_usually_expanded);
-extern int cw_get_maximum_phonetic_length (void);
-extern int cw_lookup_phonetic (char c, char *phonetic);
-extern void cw_get_speed_limits (int *min_speed, int *max_speed);
-extern void cw_get_frequency_limits (int *min_frequency, int *max_frequency);
-extern void cw_get_volume_limits (int *min_volume, int *max_volume);
-extern void cw_get_gap_limits (int *min_gap, int *max_gap);
-extern void cw_get_tolerance_limits (int *min_tolerance, int *max_tolerance);
-extern void cw_get_weighting_limits (int *min_weighting, int *max_weighting);
-extern void cw_reset_send_receive_parameters (void);
-extern int cw_set_send_speed (int new_value);
-extern int cw_set_receive_speed (int new_value);
-extern int cw_set_frequency (int new_value);
-extern int cw_set_volume (int new_value);
-extern int cw_set_gap (int new_value);
-extern int cw_set_tolerance (int new_value);
-extern int cw_set_weighting (int new_value);
-extern int cw_get_send_speed (void);
-extern int cw_get_receive_speed (void);
-extern int cw_get_frequency (void);
-extern int cw_get_volume (void);
-extern int cw_get_gap (void);
-extern int cw_get_tolerance (void);
-extern int cw_get_weighting (void);
-extern void cw_get_send_parameters (int *dot_usecs, int *dash_usecs,
-                                    int *end_of_element_usecs,
-                                    int *end_of_character_usecs,
-                                    int *end_of_word_usecs,
-                                    int *additional_usecs,
-                                    int *adjustment_usecs);
-extern void cw_get_receive_parameters (int *dot_usecs, int *dash_usecs,
-                                       int *dot_min_usecs, int *dot_max_usecs,
-                                       int *dash_min_usecs, int *dash_max_usecs,
-                                       int *end_of_element_min_usecs,
-                                       int *end_of_element_max_usecs,
-                                       int *end_of_element_ideal_usecs,
-                                       int *end_of_character_min_usecs,
-                                       int *end_of_character_max_usecs,
-                                       int *end_of_character_ideal_usecs,
-                                       int *adaptive_threshold);
-extern int cw_set_noise_spike_threshold (int threshold);
-extern int cw_get_noise_spike_threshold (void);
+
+
+/* Phonetic alphabet */
+extern int cw_get_maximum_phonetic_length(void);
+extern int cw_lookup_phonetic(char c, char *phonetic);
+
+
+/* Morse code controls and timing parameters */
+extern void cw_get_speed_limits(int *min_speed, int *max_speed);
+extern void cw_get_frequency_limits(int *min_frequency, int *max_frequency);
+extern void cw_get_volume_limits(int *min_volume, int *max_volume);
+extern void cw_get_gap_limits(int *min_gap, int *max_gap);
+extern void cw_get_tolerance_limits(int *min_tolerance, int *max_tolerance);
+extern void cw_get_weighting_limits(int *min_weighting, int *max_weighting);
+extern void cw_reset_send_receive_parameters(void);
+extern int cw_set_send_speed(int new_value);
+extern int cw_set_receive_speed(int new_value);
+extern int cw_set_frequency(int new_value);
+extern int cw_set_volume(int new_value);
+extern int cw_set_gap(int new_value);
+extern int cw_set_tolerance(int new_value);
+extern int cw_set_weighting(int new_value);
+extern int cw_get_send_speed(void);
+extern int cw_get_receive_speed(void);
+extern int cw_get_frequency(void);
+extern int cw_get_volume(void);
+extern int cw_get_gap(void);
+extern int cw_get_tolerance(void);
+extern int cw_get_weighting(void);
+extern void cw_get_send_parameters(int *dot_usecs, int *dash_usecs,
+				   int *end_of_element_usecs,
+				   int *end_of_character_usecs,
+				   int *end_of_word_usecs,
+				   int *additional_usecs,
+				   int *adjustment_usecs);
+extern void cw_get_receive_parameters(int *dot_usecs, int *dash_usecs,
+				      int *dot_min_usecs, int *dot_max_usecs,
+				      int *dash_min_usecs, int *dash_max_usecs,
+				      int *end_of_element_min_usecs,
+				      int *end_of_element_max_usecs,
+				      int *end_of_element_ideal_usecs,
+				      int *end_of_character_min_usecs,
+				      int *end_of_character_max_usecs,
+				      int *end_of_character_ideal_usecs,
+				      int *adaptive_threshold);
+extern int cw_set_noise_spike_threshold(int threshold);
+extern int cw_get_noise_spike_threshold(void);
+
+
 extern void cw_block_callback(int block);
+
+
+/* General control of console buzzer and of soundcard */
+extern const char *cw_get_console_device(void);
+extern const char *cw_get_soundcard_device(void);
+
 
 extern bool cw_is_console_possible(const char *device);
 extern bool cw_is_oss_possible(const char *device);
 extern bool cw_is_alsa_possible(const char *device);
 extern bool cw_is_pa_possible(const char *device);
 
-extern const char *cw_get_console_device(void);
-extern const char *cw_get_soundcard_device(void);
-
-
-extern void cw_complete_reset (void);
-extern int cw_register_signal_handler (int signal_number,
-                                       void (*callback_func) (int));
-extern int cw_unregister_signal_handler (int signal_number);
-extern void cw_register_keying_callback (void (*callback_func) (void*, int),
-                                         void *callback_arg);
 
 
 
-/* tone queue */
+/* Finalization and cleanup */
+extern void cw_complete_reset(void);
+extern int  cw_register_signal_handler(int signal_number,
+				       void (*callback_func)(int));
+extern int  cw_unregister_signal_handler(int signal_number);
+
+
+
+
+/* Keying control */
+extern void cw_register_keying_callback(void (*callback_func)(void*, bool),
+					void *callback_arg);
+
+
+
+/* Tone queue */
 extern int cw_register_tone_queue_low_callback(void (*callback_func) (void*),
                                                 void *callback_arg, int level);
 extern bool cw_is_tone_busy(void);
@@ -219,7 +244,7 @@ extern void cw_reset_tone_queue(void);
 
 
 
-/* sending */
+/* Sending */
 extern int cw_send_dot(void);
 extern int cw_send_dash(void);
 extern int cw_send_character_space(void);
@@ -235,46 +260,56 @@ extern int cw_check_string(const char *string);
 
 
 
-
-extern void cw_get_receive_statistics (double *dot_sd, double *dash_sd,
+/* Receive tracking and statistics helpers */
+extern void cw_get_receive_statistics(double *dot_sd, double *dash_sd,
                                        double *element_end_sd,
                                        double *character_end_sd);
-extern void cw_reset_receive_statistics (void);
-extern void cw_enable_adaptive_receive (void);
-extern void cw_disable_adaptive_receive (void);
-extern bool cw_get_adaptive_receive_state (void);
+extern void cw_reset_receive_statistics(void);
+
+
+/* Receiving */
+extern void cw_enable_adaptive_receive(void);
+extern void cw_disable_adaptive_receive(void);
+extern bool cw_get_adaptive_receive_state(void);
 extern int cw_start_receive_tone (const struct timeval *timestamp);
-extern int cw_end_receive_tone (const struct timeval *timestamp);
-extern int cw_receive_buffer_dot (const struct timeval *timestamp);
-extern int cw_receive_buffer_dash (const struct timeval *timestamp);
-extern int cw_receive_representation (const struct timeval *timestamp,
-                                      char *representation,
-                                      bool *is_end_of_word, bool *is_error);
-extern int cw_receive_character (const struct timeval *timestamp,
+extern int cw_end_receive_tone(const struct timeval *timestamp);
+extern int cw_receive_buffer_dot(const struct timeval *timestamp);
+extern int cw_receive_buffer_dash(const struct timeval *timestamp);
+extern int cw_receive_representation(const struct timeval *timestamp,
+				     char *representation,
+				     bool *is_end_of_word, bool *is_error);
+extern int cw_receive_character(const struct timeval *timestamp,
                                  char *c, bool *is_end_of_word, bool *is_error);
-extern void cw_clear_receive_buffer (void);
-extern int cw_get_receive_buffer_capacity (void);
-extern int cw_get_receive_buffer_length (void);
-extern void cw_reset_receive (void);
-extern void cw_enable_iambic_curtis_mode_b (void);
-extern void cw_disable_iambic_curtis_mode_b (void);
-extern int cw_get_iambic_curtis_mode_b_state (void);
-extern int cw_notify_keyer_paddle_event (int dot_paddle_state,
-                                         int dash_paddle_state);
-extern int cw_notify_keyer_dot_paddle_event (int dot_paddle_state);
-extern int cw_notify_keyer_dash_paddle_event (int dash_paddle_state);
-extern void cw_get_keyer_paddles (int *dot_paddle_state,
-                                  int *dash_paddle_state);
-extern void cw_get_keyer_paddle_latches (int *dot_paddle_latch_state,
-                                         int *dash_paddle_latch_state);
-extern bool cw_is_keyer_busy (void);
-extern int cw_wait_for_keyer_element (void);
-extern int cw_wait_for_keyer (void);
-extern void cw_reset_keyer (void);
-extern int cw_notify_straight_key_event (int key_state);
-extern int cw_get_straight_key_state (void);
-extern bool cw_is_straight_key_busy (void);
-extern void cw_reset_straight_key (void);
+extern void cw_clear_receive_buffer(void);
+extern int cw_get_receive_buffer_capacity(void);
+extern int cw_get_receive_buffer_length(void);
+extern void cw_reset_receive(void);
+
+
+/* Iambic keyer */
+extern void cw_enable_iambic_curtis_mode_b(void);
+extern void cw_disable_iambic_curtis_mode_b(void);
+extern int cw_get_iambic_curtis_mode_b_state(void);
+
+extern int cw_notify_keyer_paddle_event(int dot_paddle_state,
+					int dash_paddle_state);
+extern int cw_notify_keyer_dot_paddle_event(int dot_paddle_state);
+extern int cw_notify_keyer_dash_paddle_event(int dash_paddle_state);
+extern void cw_get_keyer_paddles(int *dot_paddle_state,
+				 int *dash_paddle_state);
+extern void cw_get_keyer_paddle_latches(int *dot_paddle_latch_state,
+					int *dash_paddle_latch_state);
+extern bool cw_is_keyer_busy(void);
+extern int cw_wait_for_keyer_element(void);
+extern int cw_wait_for_keyer(void);
+extern void cw_reset_keyer(void);
+
+
+/* Straight key */
+extern int cw_notify_straight_key_event(int key_state);
+extern int cw_get_straight_key_state(void);
+extern bool cw_is_straight_key_busy(void);
+extern void cw_reset_straight_key(void);
 
 
 
