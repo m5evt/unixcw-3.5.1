@@ -23,7 +23,8 @@
 
    - Debugging
    - Core Morse code data and lookup
-   - Extended Morse code data and lookup
+   - Extended Morse code data and lookup (procedural signals)
+   - Phonetic alphabet
    - Morse code controls and timing parameters
    - SIGALRM and timer handling
    - General control of console buzzer and of soundcard
@@ -274,15 +275,12 @@ static int          cw_representation_to_character_internal(const char *represen
 static unsigned int cw_representation_to_hash_internal(const char *representation);
 static const char  *cw_character_to_representation_internal(int c);
 
-static const char *cw_lookup_procedural_character_internal(char c, int *is_usually_expanded);
+static const char *cw_lookup_procedural_character_internal(int c, bool *is_usually_expanded);
 
 
-/* functions starting a timer */
-static int cw_timer_run_internal(int usecs);
-static int cw_timer_run_with_handler_internal(int usecs, void (*sigalrm_handler)(void));
-
-
-/* functions handling SIGALRM signal and its handlers, and other signals */
+/* SIGALRM and timer handling */
+static int  cw_timer_run_internal(int usecs);
+static int  cw_timer_run_with_handler_internal(int usecs, void (*sigalrm_handler)(void));
 static void cw_sigalrm_handlers_caller_internal(int signal_number);
 static bool cw_sigalrm_is_blocked_internal(void);
 static int  cw_sigalrm_block_internal(bool block);
@@ -291,7 +289,7 @@ static int  cw_sigalrm_install_top_level_handler_internal(void);
 static int  cw_signal_wait_internal(void);
 
 
-/* functions handling tone queue */
+/* Tone queue */
 static int  cw_tone_queue_length_internal(void);
 static int  cw_tone_queue_next_index_internal(int current);
 static void cw_tone_queue_dequeue_and_play_internal(void);
@@ -300,13 +298,14 @@ static int  cw_tone_queue_enqueue_internal(int usecs, int frequency);
 static void cw_tone_queue_dequeue_internal(int *usecs, int *frequency);
 #endif
 
-/* functions performing sending */
+
+/* Sending */
 static int cw_send_element_internal(cw_gen_t *gen, char element);
 static int cw_send_representation_internal(const char *representation, int partial);
 static int cw_send_character_internal(char character, int partial);
 
 
-/* debug */
+/* Debug */
 static bool cw_is_debugging_internal(unsigned int flag);
 #if CW_DEV_RAW_SINK
 static int  cw_dev_debug_raw_sink_write_internal(cw_gen_t *gen, int samples);
@@ -314,20 +313,35 @@ static int  cw_dev_debug_raw_sink_write_internal(cw_gen_t *gen, int samples);
 static int  cw_debug_evaluate_alsa_write_internal(cw_gen_t *gen, int rv);
 
 
-/* various other functions */
+/* Morse code controls and timing parameters */
 static void cw_sync_parameters_internal(cw_gen_t *gen);
-static void cw_finalization_clock_internal(void);
-static void cw_schedule_finalization_internal(void);
-static void cw_cancel_finalization_internal(void);
-static void cw_interpose_signal_handler_internal(int signal_number);
+
+
+/* Keying control */
 static void cw_key_control_internal(int requested_key_state);
-static void cw_set_adaptive_receive_internal(bool flag);
-static int cw_validate_timestamp_internal(const struct timeval *timestamp, struct timeval *return_timestamp);
-static int cw_compare_timestamps_internal(const struct timeval *earlier, const struct timeval *later);
-static int cw_identify_receive_tone_internal(int element_usec, char *representation);
-static void cw_update_adaptive_tracking_internal(int element_usec, char element);
-static int cw_receive_buffer_element_internal(const struct timeval *timestamp, char element);
+
+
+/* Finalization and cleanup */
+static void cw_finalization_schedule_internal(void);
+static void cw_finalization_clock_internal(void);
+static void cw_finalization_cancel_internal(void);
+static void cw_interpose_signal_handler_internal(int signal_number);
+
+
+/* Receiving */
+static void cw_receive_set_adaptive_internal(bool flag);
+static int  cw_receive_identify_tone_internal(int element_usec, char *representation);
+static void cw_receive_update_adaptive_tracking_internal(int element_usec, char element);
+static int  cw_receive_add_element_internal(const struct timeval *timestamp, char element);
+static int  cw_timestamp_validate_internal(const struct timeval *timestamp, struct timeval *return_timestamp);
+static int  cw_timestamp_compare_internal(const struct timeval *earlier, const struct timeval *later);
+
+
+/* Iambic keyer */
 static void cw_keyer_clock_internal(void);
+
+
+/* Straight key */
 static void cw_straight_key_clock_internal(void);
 
 
@@ -446,7 +460,7 @@ void cw_license(void)
 
 
 /* Current debug flags setting; no debug unless requested. */
-static unsigned int cw_debug_flags = CW_DEBUG_SYSTEM | CW_DEBUG_TONE_QUEUE;
+static unsigned int cw_debug_flags = 0; //CW_DEBUG_SYSTEM | CW_DEBUG_TONE_QUEUE;
 
 
 
@@ -1152,8 +1166,6 @@ int cw_lookup_representation(const char *representation, char *c)
 
 
 
-
-
 /**
    \brief Return the character for a given Morse representation
 
@@ -1193,261 +1205,346 @@ int cw_representation_to_character(const char *representation)
 
 
 /* ******************************************************************** */
-/*                Extended Morse code data and lookup                   */
+/*       Extended Morse code data and lookup (procedural signals)       */
 /* ******************************************************************** */
 
 
 
 
 
-/*
- * Ancilliary procedural signals table.  This table maps procedural signal
- * characters in the main table to their expansions, along with a flag noting
- * if the character is usually expanded for display.
- */
-typedef struct
-{
-  const char character;           /* Character represented */
-  const char *const expansion;    /* Procedural expansion of the character */
-  const int is_usually_expanded;  /* If expanded display is usual */
+/* Ancillary procedural signals table.  This table maps procedural signal
+   characters in the main table to their expansions, along with a flag noting
+   if the character is usually expanded for display. */
+typedef struct {
+	const char character;            /* Character represented */
+	const char *const expansion;     /* Procedural expansion of the character */
+	const bool is_usually_expanded;  /* If expanded display is usual */
 } cw_prosign_entry_t;
 
+
+
+
+
 static const cw_prosign_entry_t CW_PROSIGN_TABLE[] = {
-  /* Standard procedural signals */
-  {'"', "AF", false},   {'\'', "WG", false},  {'$', "SX", false},
-  {'(', "KN", false},   {')', "KK", false},   {'+', "AR", false},
-  {',', "MIM", false},  {'-', "DU", false},   {'.', "AAA", false},
-  {'/', "DN", false},   {':', "OS", false},   {';', "KR", false},
-  {'=', "BT", false},   {'?', "IMI", false},  {'_', "IQ", false},
-  {'@', "AC", false},
+	/* Standard procedural signals */
+	{'"', "AF",  false},   {'\'', "WG", false},  {'$', "SX",  false},
+	{'(', "KN",  false},   {')', "KK",  false},  {'+', "AR",  false},
+	{',', "MIM", false},   {'-', "DU",  false},  {'.', "AAA", false},
+	{'/', "DN",  false},   {':', "OS",  false},  {';', "KR",  false},
+	{'=', "BT",  false},   {'?', "IMI", false},  {'_', "IQ",  false},
+	{'@', "AC",  false},
 
-  /* Non-standard procedural signal extensions to standard CW characters. */
-  {'<', "VA", true},  /* VA/SK, end of work */
-  {'>', "BK", true},  /* BK, break */
-  {'!', "SN", true},  /* SN, understood */
-  {'&', "AS", true},  /* AS, wait */
-  {'^', "KA", true},  /* KA, starting signal */
-  {'~', "AL", true},  /* AL, paragraph */
+	/* Non-standard procedural signal extensions to standard CW characters. */
+	{'<', "VA", true},  /* VA/SK, end of work */
+	{'>', "BK", true},  /* BK, break */
+	{'!', "SN", true},  /* SN, understood */
+	{'&', "AS", true},  /* AS, wait */
+	{'^', "KA", true},  /* KA, starting signal */
+	{'~', "AL", true},  /* AL, paragraph */
 
-  /* Sentinel end of table value */
-  {0, NULL, false}
+	/* Sentinel end of table value */
+	{0,   NULL, false}
 };
 
 
+
+
+
 /**
- * Returns the number of characters represented in the procedural signal
- * expansion lookup table.
- */
+   \brief Get number of procedural signals
+
+   \return the number of characters represented in the procedural signal expansion lookup table
+*/
 int cw_get_procedural_character_count(void)
 {
-  static int character_count = 0;
+	static int character_count = 0;
 
-  if (character_count == 0)
-    {
-      const cw_prosign_entry_t *cw_prosign;
+	if (character_count == 0) {
 
-      for (cw_prosign = CW_PROSIGN_TABLE; cw_prosign->character; cw_prosign++)
-        character_count++;
-    }
+		for (const cw_prosign_entry_t *e = CW_PROSIGN_TABLE; e->character; e++) {
+			character_count++;
+		}
+	}
 
-  return character_count;
+	return character_count;
 }
 
 
+
+
+
 /**
- * Returns into list a string containing all of the Morse characters for which
- * procedural expansion are available.  The length of list must be at least
- * one greater than the number of characters represented in the procedural
- * signal expansion lookup table, returned by cw_get_procedural_character_count.
- */
+   \brief Get list of characters for which procedural expansion is available
+
+   Function returns into \p list a string containing all of the Morse
+   characters for which procedural expansion is available.  The length
+   of \p list must be at least by one greater than the number of
+   characters represented in the procedural signal expansion lookup
+   table, returned by cw_get_procedural_character_count().
+
+   \p list is managed by caller
+
+   \param list - space for returned characters
+*/
 void cw_list_procedural_characters(char *list)
 {
-  const cw_prosign_entry_t *cw_prosign;
-  int index;
+	/* Append each table character to the output string. */
+	int index = 0;
+	for (const cw_prosign_entry_t *e = CW_PROSIGN_TABLE; e->character; e++) {
+		list[index++] = e->character;
+	}
 
-  /* Append each table character to the output string. */
-  index = 0;
-  for (cw_prosign = CW_PROSIGN_TABLE; cw_prosign->character; cw_prosign++)
-    list[index++] = cw_prosign->character;
+	list[index] = '\0';
 
-  list[index] = '\0';
+	return;
 }
 
 
+
+
+
 /**
- * Returns the string length of the longest expansion in the procedural
- * signal expansion table.
- */
+   \brief Get length of the longest procedural expansion
+
+   Function returns the string length of the longest expansion
+   in the procedural signal expansion table.
+
+   \return length
+*/
 int cw_get_maximum_procedural_expansion_length(void)
 {
-  static int maximum_length = 0;
+	static size_t maximum_length = 0;
 
-  if (maximum_length == 0)
-    {
-      const cw_prosign_entry_t *cw_prosign;
+	if (maximum_length == 0) {
+		/* Traverse the main lookup table, finding the longest. */
+		for (const cw_prosign_entry_t *e = CW_PROSIGN_TABLE; e->character; e++) {
+			size_t length = strlen(e->expansion);
+			if (length > maximum_length) {
+				maximum_length = length;
+			}
+		}
+	}
 
-      /* Traverse the main lookup table, finding the longest. */
-      for (cw_prosign = CW_PROSIGN_TABLE; cw_prosign->character; cw_prosign++)
-        {
-          int length;
-
-          length = (int) strlen (cw_prosign->expansion);
-          if (length > maximum_length)
-            maximum_length = length;
-        }
-    }
-
-  return maximum_length;
+	return (int) maximum_length;
 }
+
+
+
 
 
 /**
- * Look up the given procedural character, and return the expansion of that
- * procedural character, with a display hint in is_usually_expanded.  Returns
- * NULL if there is no table entry for the given character.
- */
-const char *cw_lookup_procedural_character_internal(char c, int *is_usually_expanded)
+   \brief Return information related to a procedural character
+
+   Function looks up the given procedural character \p c, and returns the
+   expansion of that procedural character, with a display hint in
+   \p is_usually_expanded.
+
+   \param c - character to look up
+   \param is_usually_expanded - output, display hint
+
+   \return expansion of input character on success
+   \return NULL if there is no table entry for the given character
+*/
+const char *cw_lookup_procedural_character_internal(int c, bool *is_usually_expanded)
 {
-  static const cw_prosign_entry_t *lookup[UCHAR_MAX];  /* Fast lookup table */
-  static bool is_initialized = false;
+	static const cw_prosign_entry_t *lookup[UCHAR_MAX];  /* Fast lookup table */
+	static bool is_initialized = false;
 
-  const cw_prosign_entry_t *cw_prosign;
+	/* If this is the first call, set up the fast lookup table to
+	   give direct access to the procedural expansions table for
+	   a given character. */
+	if (!is_initialized) {
+		cw_debug (CW_DEBUG_LOOKUPS, "initialize prosign fast lookup table");
 
-  /*
-   * If this is the first call, set up the fast lookup table to give direct
-   * access to the procedural expansions table for a given character.
-   */
-  if (!is_initialized)
-    {
-      cw_debug (CW_DEBUG_LOOKUPS, "initialize prosign fast lookup table");
+		for (const cw_prosign_entry_t *e = CW_PROSIGN_TABLE; e->character; e++) {
+			lookup[(unsigned char) e->character] = e;
 
-      for (cw_prosign = CW_PROSIGN_TABLE; cw_prosign->character; cw_prosign++)
-        lookup[(unsigned char) cw_prosign->character] = cw_prosign;
+			is_initialized = true;
+		}
+	}
 
-      is_initialized = true;
-    }
+	/* Lookup the procedural signal table entry.  Unknown characters
+	   return NULL.  All procedural signals are non-alphabetical, so no
+	   need to use any uppercase coercion here. */
+	const cw_prosign_entry_t *cw_prosign = lookup[(unsigned char) c];
 
-  /*
-   * Lookup the procedural signal table entry.  Unknown characters return
-   * NULL.  All procedural signals are non-alphabetical, so no need to use
-   * any uppercase coercion here.
-   */
-  cw_prosign = lookup[(unsigned char) c];
+	if (cw_is_debugging_internal (CW_DEBUG_LOOKUPS)) {
+		if (cw_prosign) {
+			fprintf(stderr, "cw: prosign lookup '%c' returned <'%c':\"%s\":%d>\n",
+				c, cw_prosign->character,
+				cw_prosign->expansion, cw_prosign->is_usually_expanded);
+		} else if (isprint(c)) {
+			fprintf(stderr, "cw: prosign lookup '%c' found nothing\n", c);
+		} else {
+			fprintf(stderr, "cw: prosign lookup 0x%02x found nothing\n",
+				(unsigned char) c);
+		}
+	}
 
-  if (cw_is_debugging_internal (CW_DEBUG_LOOKUPS))
-    {
-      if (cw_prosign)
-        fprintf (stderr, "cw: prosign lookup '%c' returned <'%c':\"%s\":%d>\n",
-                 c, cw_prosign->character,
-                 cw_prosign->expansion, cw_prosign->is_usually_expanded);
-      else if (isprint (c))
-        fprintf (stderr, "cw: prosign lookup '%c' found nothing\n", c);
-      else
-        fprintf (stderr, "cw: prosign lookup 0x%02x found nothing\n",
-                 (unsigned char) c);
-    }
-
-  /* If found, return any display hint and the expansion; otherwise, NULL. */
-  if (cw_prosign)
-    *is_usually_expanded = cw_prosign->is_usually_expanded;
-  return cw_prosign ? cw_prosign->expansion : NULL;
+	/* If found, return any display hint and the expansion; otherwise, NULL. */
+	if (cw_prosign) {
+		*is_usually_expanded = cw_prosign->is_usually_expanded;
+		return cw_prosign->expansion;
+	} else {
+		return NULL;
+	}
 }
+
+
+
 
 
 /**
- * Returns the string expansion of a given Morse code procedural signal
- * character.  The routine returns true on success, filling in the string
- * pointer passed in and setting is_usuall_expanded to true as a display
- * hint for the caller.  On error, it returns false and sets errno to ENOENT,
- * indicating that the procedural signal character could not be found.  The
- * length of representation must be at least one greater than the longest
- * representation held in the procedural signal character lookup table,
- * returned by cw_get_maximum_procedural_expansion_length.
- */
-int cw_lookup_procedural_character(char c, char *representation,
-				   int *is_usually_expanded)
+   \brief Get the string expansion of a given Morse code procedural signal character
+
+   On success the function
+   - fills \p expansion with the string expansion of a given Morse code
+   procedural signal character \p c;
+   - sets is_usuall_expanded to true as a display hint for the caller;
+   - returns CW_SUCCESS.
+
+   \p expansion is managed by caller. The length of \p expansion must
+   be at least by one greater than the longest expansion held in
+   the procedural signal character lookup table, as returned by
+   cw_get_maximum_procedural_expansion_length().
+
+   If procedural signal character \p c cannot be found, the function sets
+   errno to ENOENT and returns CW_FAILURE.
+
+   \param c - character to look up
+   \param expansion - output, space to fill with expansion of the character
+   \param is_usually_expanded - visual hint
+
+   \return CW_FAILURE on failure (errno is set to ENOENT)
+   \return CW_SUCCESS on success
+*/
+int cw_lookup_procedural_character(char c, char *expansion, int *is_usually_expanded)
 {
-  const char *retval;
-  int is_expanded;
+	bool is_expanded;
 
-  /* Lookup, and if found, return the string and display hint. */
-  retval = cw_lookup_procedural_character_internal (c, &is_expanded);
-  if (retval)
-    {
-      if (representation)
-        strcpy (representation, retval);
-      if (is_usually_expanded)
-        *is_usually_expanded = is_expanded;
-      return CW_SUCCESS;
-    }
+	/* Lookup, and if found, return the string and display hint. */
+	const char *retval = cw_lookup_procedural_character_internal(c, &is_expanded);
+	if (retval) {
+		if (expansion) {
+			strcpy(expansion, retval);
+		}
+		if (is_usually_expanded) {
+			*is_usually_expanded = is_expanded;
+		}
+		return CW_SUCCESS;
+	}
 
-  /* Failed to find the requested procedural signal character. */
-  errno = ENOENT;
-  return CW_FAILURE;
+	/* Failed to find the requested procedural signal character. */
+	errno = ENOENT;
+	return CW_FAILURE;
 }
 
 
-/*
- * Phonetics table.  Not really CW, but it might be handy to have.  The
- * table contains ITU/NATO phonetics.
- */
+
+
+
+/* ******************************************************************** */
+/*                         Phonetic alphabet                            */
+/* ******************************************************************** */
+
+
+
+
+
+/* Phonetics table.  Not really CW, but it might be handy to have.
+   The table contains ITU/NATO phonetics. */
 static const char *const CW_PHONETICS[27] = {
-  "Alfa", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot", "Golf", "Hotel",
-  "India", "Juliett", "Kilo", "Lima", "Mike", "November", "Oscar", "Papa",
-  "Quebec", "Romeo", "Sierra", "Tango", "Uniform", "Victor", "Whiskey",
-  "X-ray", "Yankee", "Zulu", NULL
+	"Alfa",
+	"Bravo",
+	"Charlie",
+	"Delta",
+	"Echo",
+	"Foxtrot",
+	"Golf",
+	"Hotel",
+	"India",
+	"Juliett",
+	"Kilo",
+	"Lima",
+	"Mike",
+	"November",
+	"Oscar",
+	"Papa",
+	"Quebec",
+	"Romeo",
+	"Sierra",
+	"Tango",
+	"Uniform",
+	"Victor",
+	"Whiskey",
+	"X-ray",
+	"Yankee",
+	"Zulu",
+	NULL /* guard */
 };
 
 
+
+
+
 /**
- * Returns the string length of the longest phonetic in the phonetics
- * lookup table.
+   \brief Get maximum length of a phonetic
+
+   \return the string length of the longest phonetic in the phonetics lookup table
  */
 int cw_get_maximum_phonetic_length(void)
 {
-  static int maximum_length = 0;
+	static size_t maximum_length = 0;
 
-  if (maximum_length == 0)
-    {
-      int phonetic;
+	if (maximum_length == 0) {
+		/* Traverse the main lookup table, finding the longest. */
+		for (int phonetic = 0; CW_PHONETICS[phonetic]; phonetic++) {
+			size_t length = strlen(CW_PHONETICS[phonetic]);
+			if (length > maximum_length) {
+				maximum_length = length;
+			}
+		}
+	}
 
-      /* Traverse the main lookup table, finding the longest. */
-      for (phonetic = 0; CW_PHONETICS[phonetic]; phonetic++)
-        {
-          int length;
-
-          length = (int) strlen (CW_PHONETICS[phonetic]);
-          if (length > maximum_length)
-            maximum_length = length;
-        }
-    }
-
-  return maximum_length;
+	return (int) maximum_length;
 }
 
 
+
+
+
 /**
- * Returns the phonetic of a given character.  The routine returns true on
- * success, and fills in the string pointer passed in.  On error, it returns
- * false and sets errno to ENOENT, indicating that the character could not be
- * found.  The length of phonetic must be at least one greater than the
- * longest phonetic held in the phonetic lookup table, returned by
- * cw_get_maximum_phonetic_length.
- */
+   \brief Get the phonetic of a given character
+
+   On success the routine fills in the string pointer passed in with the
+   phonetic of given character \c.
+
+   The length of phonetic must be at least one greater than the longest
+   phonetic held in the phonetic lookup table, as returned by
+   cw_get_maximum_phonetic_length().
+
+   If character cannot be found, the function sets errno to ENOENT.
+
+   \param c - character to look up
+   \param phonetic - output, space for phonetic of a character
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
 int cw_lookup_phonetic(char c, char *phonetic)
 {
-  /* Coerce to uppercase, and verify the input argument. */
-  c = toupper (c);
-  if (c >= 'A' && c <= 'Z')
-    {
-      if (phonetic)
-        strcpy (phonetic, CW_PHONETICS[c - 'A']);
-      return CW_SUCCESS;
-    }
+	/* Coerce to uppercase, and verify the input argument. */
+	c = toupper(c);
+	if (c >= 'A' && c <= 'Z') {
+		if (phonetic) {
+			strcpy(phonetic, CW_PHONETICS[c - 'A']);
+			return CW_SUCCESS;
+		}
+	}
 
-  /* No such phonetic. */
-  errno = ENOENT;
-  return CW_FAILURE;
+	/* No such phonetic. */
+	errno = ENOENT;
+	return CW_FAILURE;
 }
 
 
@@ -1466,40 +1563,35 @@ int cw_lookup_phonetic(char c, char *phonetic)
 enum { DOT_CALIBRATION = 1200000 };
 
 
-
-
 /* Default initial values for library controls. */
-enum
-{
-  CW_INITIAL_ADAPTIVE = false,    /* Initial adaptive receive setting */
-  CW_INITIAL_THRESHOLD = (DOT_CALIBRATION / CW_SPEED_INITIAL) * 2,
-                               /* Initial adaptive speed threshold */
-  CW_INITIAL_NOISE_THRESHOLD = (DOT_CALIBRATION / CW_SPEED_MAX) / 2
-                               /* Initial noise filter threshold */
+enum {
+	CW_ADAPTIVE_INITIAL  = false,  /* Initial adaptive receive setting */
+	CW_INITIAL_THRESHOLD = (DOT_CALIBRATION / CW_SPEED_INITIAL) * 2,   /* Initial adaptive speed threshold */
+	CW_INITIAL_NOISE_THRESHOLD = (DOT_CALIBRATION / CW_SPEED_MAX) / 2  /* Initial noise filter threshold */
 };
 
-/*
- * Library variables, indicating the user-selected parameters for generating
- * Morse code output and receiving Morse code input.  These values can be
- * set by client code; setting them may trigger a recalculation of the low
- * level timing values held and set below.
- */
+
+
+/* Library variables, indicating the user-selected parameters for generating
+   Morse code output and receiving Morse code input.  These values can be
+   set by client code; setting them may trigger a recalculation of the low
+   level timing values held and set below. */
 static int cw_receive_speed = CW_SPEED_INITIAL,
-           cw_tolerance = CW_TOLERANCE_INITIAL,
-           cw_weighting = CW_WEIGHTING_INITIAL,
-           cw_noise_spike_threshold = CW_INITIAL_NOISE_THRESHOLD;
-static bool cw_is_adaptive_receive_enabled = CW_INITIAL_ADAPTIVE;
-/*
- * The following variables must be recalculated each time any of the above
- * Morse parameters associated with speeds, gap, tolerance, or threshold
- * change.  Keeping these in step means that we then don't have to spend time
- * calculating them on the fly.
- *
- * Since they have to be kept in sync, the problem of how to have them
- * calculated on first call if none of the above parameters has been
- * changed is taken care of with a synchronization flag.  Doing this saves
- * us from otherwise having to have a 'library initialize' function.
- */
+	cw_tolerance = CW_TOLERANCE_INITIAL,
+	cw_weighting = CW_WEIGHTING_INITIAL,
+	cw_noise_spike_threshold = CW_INITIAL_NOISE_THRESHOLD;
+static bool cw_is_adaptive_receive_enabled = CW_ADAPTIVE_INITIAL;
+
+
+/* The following variables must be recalculated each time any of the above
+   Morse parameters associated with speeds, gap, tolerance, or threshold
+   change.  Keeping these in step means that we then don't have to spend time
+   calculating them on the fly.
+
+   Since they have to be kept in sync, the problem of how to have them
+   calculated on first call if none of the above parameters has been
+   changed is taken care of with a synchronization flag.  Doing this saves
+   us from otherwise having to have a 'library initialize' function. */
 static bool cw_is_in_sync = false;       /* Synchronization flag */
 /* Sending parameters: */
 static int cw_send_dot_length = 0,      /* Length of a send Dot, in usec */
@@ -1523,13 +1615,11 @@ static int cw_send_dot_length = 0,      /* Length of a send Dot, in usec */
            cw_eoc_range_maximum = 0,    /* Longest end of char allowable */
            cw_eoc_range_ideal = 0;      /* Ideal end of char, for stats */
 
-/*
- * Library variable which is automatically maintained from the Morse input
- * stream, rather than being settable by the user.
- */
+
+/* Library variable which is automatically maintained from the Morse input
+   stream, rather than being settable by the user.
+   Initially 2-dot threshold for adaptive speed */
 static int cw_adaptive_receive_threshold = CW_INITIAL_THRESHOLD;
-                                        /* Initially 2-dot threshold for
-                                           adaptive speed */
 
 
 
@@ -1641,7 +1731,6 @@ void cw_get_gap_limits(int *min_gap, int *max_gap)
 
 
 
-
 /**
    \brief Get tolerance limits
 
@@ -1695,183 +1784,188 @@ void cw_get_weighting_limits(int *min_weighting, int *max_weighting)
 
 
 /**
- * Synchronize the dot, dash, end of element, end of character, and end
- * of word timings and ranges to new values of Morse speed, 'Farnsworth'
- * gap, receive tolerance, or weighting.
- */
+   \brief Synchronize send\receive parameters of the library
+
+   Synchronize the dot, dash, end of element, end of character, and end
+   of word timings and ranges to new values of Morse speed, 'Farnsworth'
+   gap, receive tolerance, or weighting.
+
+   Part of the parameters is a global variable in the file, and part
+   of them is stored in \p gen variable (which, at this moment, is also
+   a global variable).
+
+   \param gen - variable storing some of the parameters
+*/
 void cw_sync_parameters_internal(cw_gen_t *gen)
 {
-  /* Do nothing if we are already synchronized with speed/gap. */
-  if (!cw_is_in_sync)
-    {
-      int unit_length, weighting_length;
+	/* Do nothing if we are already synchronized with speed/gap. */
+	if (!cw_is_in_sync) {
 
-      /*
-       * Send parameters:
-       *
-       * Set the length of a Dot to be a Unit with any weighting adjustment,
-       * and the length of a Dash as three Dot lengths.  The weighting
-       * adjustment is by adding or subtracting a length based on 50 % as a
-       * neutral weighting.
-       */
-      unit_length = DOT_CALIBRATION / gen->send_speed;
-      weighting_length = (2 * (cw_weighting - 50) * unit_length) / 100;
-      cw_send_dot_length = unit_length + weighting_length;
-      cw_send_dash_length = 3 * cw_send_dot_length;
+		/* Send parameters:
 
-      /*
-       * An end of element length is one Unit, perhaps adjusted, the end of
-       * character is three Units total, and end of word is seven Units total.
-       *
-       * The end of element length is adjusted by 28/22 times weighting
-       * length to keep PARIS calibration correctly timed (PARIS has 22 full
-       * units, and 28 empty ones).  End of element and end of character
-       * delays take weightings into account.
-       */
-      cw_end_of_ele_delay = unit_length - (28 * weighting_length) / 22;
-      cw_end_of_char_delay = 3 * unit_length - cw_end_of_ele_delay;
-      cw_end_of_word_delay = 7 * unit_length - cw_end_of_char_delay;
-      cw_additional_delay = gen->gap * unit_length;
+		 Set the length of a Dot to be a Unit with any weighting
+		 adjustment, and the length of a Dash as three Dot lengths.
+		 The weighting adjustment is by adding or subtracting a
+		 length based on 50 % as a neutral weighting. */
+		int unit_length = DOT_CALIBRATION / gen->send_speed;
+		int weighting_length = (2 * (cw_weighting - 50) * unit_length) / 100;
+		cw_send_dot_length = unit_length + weighting_length;
+		cw_send_dash_length = 3 * cw_send_dot_length;
 
-      /*
-       * For 'Farnsworth', there also needs to be an adjustment delay added
-       * to the end of words, otherwise the rhythm is lost on word end.  I
-       * don't know if there is an "official" value for this, but 2.33 or so
-       * times the gap is the correctly scaled value, and seems to sound
-       * okay.
-       *
-       * Thanks to Michael D. Ivey <ivey@gweezlebur.com> for identifying this
-       * in earlier versions of libcw.
-       */
-      cw_adjustment_delay = (7 * cw_additional_delay) / 3;
+		/* An end of element length is one Unit, perhaps adjusted,
+		   the end of character is three Units total, and end of
+		   word is seven Units total.
 
-      cw_debug (CW_DEBUG_PARAMETERS, "send usec timings <%d>: %d, %d, %d, %d, %d, %d, %d",
-		gen->send_speed, cw_send_dot_length, cw_send_dash_length,
-		cw_end_of_ele_delay, cw_end_of_char_delay,
-		cw_end_of_word_delay, cw_additional_delay, cw_adjustment_delay);
+		   The end of element length is adjusted by 28/22 times
+		   weighting length to keep PARIS calibration correctly
+		   timed (PARIS has 22 full units, and 28 empty ones).
+		   End of element and end of character delays take
+		   weightings into account. */
+		cw_end_of_ele_delay = unit_length - (28 * weighting_length) / 22;
+		cw_end_of_char_delay = 3 * unit_length - cw_end_of_ele_delay;
+		cw_end_of_word_delay = 7 * unit_length - cw_end_of_char_delay;
+		cw_additional_delay = gen->gap * unit_length;
 
-      /*
-       * Receive parameters:
-       *
-       * First, depending on whether we are set for fixed speed or adaptive
-       * speed, calculate either the threshold from the receive speed, or the
-       * receive speed from the threshold, knowing that the threshold is
-       * always, effectively, two dot lengths.  Weighting is ignored for
-       * receive parameters, although the core unit length is recalculated
-       * for the receive speed, which may differ from the send speed.
-       */
-      unit_length = DOT_CALIBRATION / cw_receive_speed;
-      if (cw_is_adaptive_receive_enabled)
-        cw_receive_speed = DOT_CALIBRATION
-                           / (cw_adaptive_receive_threshold / 2);
-      else
-        cw_adaptive_receive_threshold = 2 * unit_length;
+		/* For 'Farnsworth', there also needs to be an adjustment
+		   delay added to the end of words, otherwise the rhythm is
+		   lost on word end.
+		   I don't know if there is an "official" value for this,
+		   but 2.33 or so times the gap is the correctly scaled
+		   value, and seems to sound okay.
 
-      /*
-       * Calculate the basic receive dot and dash lengths.
-       */
-      cw_receive_dot_length = unit_length;
-      cw_receive_dash_length = 3 * unit_length;
+		   Thanks to Michael D. Ivey <ivey@gweezlebur.com> for
+		   identifying this in earlier versions of libcw. */
+		cw_adjustment_delay = (7 * cw_additional_delay) / 3;
 
-      /*
-       * Set the ranges of respectable timing elements depending very much on
-       * whether we are required to adapt to the incoming Morse code speeds.
-       */
-      if (cw_is_adaptive_receive_enabled)
-        {
-          /*
-           * For adaptive timing, calculate the Dot and Dash timing ranges
-           * as zero to two Dots is a Dot, and anything, anything at all,
-           * larger than this is a Dash.
-           */
-          cw_dot_range_minimum = 0;
-          cw_dot_range_maximum = 2 * cw_receive_dot_length;
-          cw_dash_range_minimum = cw_dot_range_maximum;
-          cw_dash_range_maximum = INT_MAX;
+		cw_debug (CW_DEBUG_PARAMETERS, "send usec timings <%d>: %d, %d, %d, %d, %d, %d, %d",
+			  gen->send_speed, cw_send_dot_length, cw_send_dash_length,
+			  cw_end_of_ele_delay, cw_end_of_char_delay,
+			  cw_end_of_word_delay, cw_additional_delay, cw_adjustment_delay);
 
-          /*
-           * Make the inter-element gap be anything up to the adaptive
-           * threshold lengths - that is two Dots.  And the end of character
-           * gap is anything longer than that, and shorter than five dots.
-           */
-          cw_eoe_range_minimum = cw_dot_range_minimum;
-          cw_eoe_range_maximum = cw_dot_range_maximum;
-          cw_eoc_range_minimum = cw_eoe_range_maximum;
-          cw_eoc_range_maximum = 5 * cw_receive_dot_length;
-        }
-      else
-        {
-          int tolerance;
+		/*
+		  Receive parameters:
 
-          /*
-           * For fixed speed receiving, calculate the Dot timing range as the
-           * Dot length +/- dot*tolerance%, and the Dash timing range as the
-           * Dash length including +/- dot*tolerance% as well.
-           */
-          tolerance = (cw_receive_dot_length * cw_tolerance) / 100;
-          cw_dot_range_minimum = cw_receive_dot_length - tolerance;
-          cw_dot_range_maximum = cw_receive_dot_length + tolerance;
-          cw_dash_range_minimum = cw_receive_dash_length - tolerance;
-          cw_dash_range_maximum = cw_receive_dash_length + tolerance;
+		  First, depending on whether we are set for fixed speed or
+		  adaptive speed, calculate either the threshold from the
+		  receive speed, or the receive speed from the threshold,
+		  knowing that the threshold is always, effectively, two dot
+		  lengths.  Weighting is ignored for receive parameters,
+		  although the core unit length is recalculated for the
+		  receive speed, which may differ from the send speed. */
+		unit_length = DOT_CALIBRATION / cw_receive_speed;
+		if (cw_is_adaptive_receive_enabled) {
+			cw_receive_speed = DOT_CALIBRATION
+				/ (cw_adaptive_receive_threshold / 2);
+		} else {
+			cw_adaptive_receive_threshold = 2 * unit_length;
+		}
 
-          /*
-           * Make the inter-element gap the same as the Dot range.  Make the
-           * inter-character gap, expected to be three Dots, the same as Dash
-           * range at the lower end, but make it the same as the Dash range
-           * _plus_ the 'Farnsworth' delay at the top of the range.
-           *
-           * Any gap longer than this is by implication inter-word.
-           */
-          cw_eoe_range_minimum = cw_dot_range_minimum;
-          cw_eoe_range_maximum = cw_dot_range_maximum;
-          cw_eoc_range_minimum = cw_dash_range_minimum;
-          cw_eoc_range_maximum = cw_dash_range_maximum
-                                 + cw_additional_delay + cw_adjustment_delay;
-        }
+		/* Calculate the basic receive dot and dash lengths. */
+		cw_receive_dot_length = unit_length;
+		cw_receive_dash_length = 3 * unit_length;
 
-      /*
-       * For statistical purposes, calculate the ideal end of element and
-       * end of character timings.
-       */
-      cw_eoe_range_ideal = unit_length;
-      cw_eoc_range_ideal = 3 * unit_length;
+		/* Set the ranges of respectable timing elements depending
+		   very much on whether we are required to adapt to the
+		   incoming Morse code speeds. */
+		if (cw_is_adaptive_receive_enabled) {
+			/* For adaptive timing, calculate the Dot and
+			   Dash timing ranges as zero to two Dots is a
+			   Dot, and anything, anything at all, larger than
+			   this is a Dash. */
+			cw_dot_range_minimum = 0;
+			cw_dot_range_maximum = 2 * cw_receive_dot_length;
+			cw_dash_range_minimum = cw_dot_range_maximum;
+			cw_dash_range_maximum = INT_MAX;
 
-      cw_debug (CW_DEBUG_PARAMETERS, "receive usec timings <%d>: %d-%d, %d-%d, %d-%d[%d], %d-%d[%d], %d",
-		cw_receive_speed,
-		cw_dot_range_minimum, cw_dot_range_maximum,
-		cw_dash_range_minimum, cw_dash_range_maximum,
-		cw_eoe_range_minimum, cw_eoe_range_maximum, cw_eoe_range_ideal,
-		cw_eoc_range_minimum, cw_eoc_range_maximum, cw_eoc_range_ideal,
-		cw_adaptive_receive_threshold);
+			/* Make the inter-element gap be anything up to
+			   the adaptive threshold lengths - that is two
+			   Dots.  And the end of character gap is anything
+			   longer than that, and shorter than five dots. */
+			cw_eoe_range_minimum = cw_dot_range_minimum;
+			cw_eoe_range_maximum = cw_dot_range_maximum;
+			cw_eoc_range_minimum = cw_eoe_range_maximum;
+			cw_eoc_range_maximum = 5 * cw_receive_dot_length;
 
-      /* Set the parameters in sync flag. */
-      cw_is_in_sync = true;
-    }
+		} else {
+			/* For fixed speed receiving, calculate the Dot
+			   timing range as the Dot length +/- dot*tolerance%,
+			   and the Dash timing range as the Dash length
+			   including +/- dot*tolerance% as well. */
+			int tolerance = (cw_receive_dot_length * cw_tolerance) / 100;
+			cw_dot_range_minimum = cw_receive_dot_length - tolerance;
+			cw_dot_range_maximum = cw_receive_dot_length + tolerance;
+			cw_dash_range_minimum = cw_receive_dash_length - tolerance;
+			cw_dash_range_maximum = cw_receive_dash_length + tolerance;
+
+			/* Make the inter-element gap the same as the Dot
+			   range.  Make the inter-character gap, expected
+			   to be three Dots, the same as Dash range at the
+			   lower end, but make it the same as the Dash range
+			   _plus_ the 'Farnsworth' delay at the top of the
+			   range.
+
+			   Any gap longer than this is by implication
+			   inter-word. */
+			cw_eoe_range_minimum = cw_dot_range_minimum;
+			cw_eoe_range_maximum = cw_dot_range_maximum;
+			cw_eoc_range_minimum = cw_dash_range_minimum;
+			cw_eoc_range_maximum = cw_dash_range_maximum
+				+ cw_additional_delay + cw_adjustment_delay;
+		}
+
+		/* For statistical purposes, calculate the ideal end of
+		   element and end of character timings. */
+		cw_eoe_range_ideal = unit_length;
+		cw_eoc_range_ideal = 3 * unit_length;
+
+		cw_debug (CW_DEBUG_PARAMETERS, "receive usec timings <%d>: %d-%d, %d-%d, %d-%d[%d], %d-%d[%d], %d",
+			  cw_receive_speed,
+			  cw_dot_range_minimum, cw_dot_range_maximum,
+			  cw_dash_range_minimum, cw_dash_range_maximum,
+			  cw_eoe_range_minimum, cw_eoe_range_maximum, cw_eoe_range_ideal,
+			  cw_eoc_range_minimum, cw_eoc_range_maximum, cw_eoc_range_ideal,
+			  cw_adaptive_receive_threshold);
+
+		/* Set the 'parameters in sync' flag. */
+		cw_is_in_sync = true;
+	}
+
+	return;
 }
+
+
+
 
 
 /**
- * Reset the library speed, frequency, volume, gap, tolerance, weighting,
- * adaptive receive, and noise spike threshold to their initial default values:
- * send/receive speed 12 WPM, volume 70 %, frequency 800 Hz, gap 0 dots,
- * tolerance 50 %, and weighting 50 %.
- */
+   \brief Reset send\receive parameters
+
+   Reset the library speed, frequency, volume, gap, tolerance, weighting,
+   adaptive receive, and noise spike threshold to their initial default
+   values: send/receive speed 12 WPM, volume 70 %, frequency 800 Hz,
+   gap 0 dots, tolerance 50 %, and weighting 50 %.
+*/
 void cw_reset_send_receive_parameters(void)
 {
-  generator->send_speed = CW_SPEED_INITIAL;
-  generator->frequency = CW_FREQUENCY_INITIAL;
-  generator->volume = CW_VOLUME_INITIAL;
-  generator->gap = CW_GAP_INITIAL;
-  cw_receive_speed = CW_SPEED_INITIAL;
-  cw_tolerance = CW_TOLERANCE_INITIAL;
-  cw_weighting = CW_WEIGHTING_INITIAL;
-  cw_is_adaptive_receive_enabled = CW_INITIAL_ADAPTIVE;
-  cw_noise_spike_threshold = CW_INITIAL_NOISE_THRESHOLD;
+	generator->send_speed = CW_SPEED_INITIAL;
+	generator->frequency = CW_FREQUENCY_INITIAL;
+	generator->volume = CW_VOLUME_INITIAL;
+	generator->gap = CW_GAP_INITIAL;
 
-  /* Changes require resynchronization. */
-  cw_is_in_sync = false;
-  cw_sync_parameters_internal (generator);
+	cw_receive_speed = CW_SPEED_INITIAL;
+	cw_tolerance = CW_TOLERANCE_INITIAL;
+	cw_weighting = CW_WEIGHTING_INITIAL;
+	cw_is_adaptive_receive_enabled = CW_ADAPTIVE_INITIAL;
+	cw_noise_spike_threshold = CW_INITIAL_NOISE_THRESHOLD;
+
+	/* Changes require resynchronization. */
+	cw_is_in_sync = false;
+	cw_sync_parameters_internal (generator);
+
+	return;
 }
+
+
 
 
 /**
@@ -1919,29 +2013,25 @@ int cw_set_send_speed(int new_value)
 */
 int cw_set_receive_speed(int new_value)
 {
-  if (cw_is_adaptive_receive_enabled)
-    {
-      errno = EPERM;
-      return CW_FAILURE;
-    }
-  else
-    {
-      if (new_value < CW_SPEED_MIN || new_value > CW_SPEED_MAX)
-        {
-          errno = EINVAL;
-          return CW_FAILURE;
-        }
-    }
-  if (new_value != cw_receive_speed)
-    {
-      cw_receive_speed = new_value;
+	if (cw_is_adaptive_receive_enabled) {
+		errno = EPERM;
+		return CW_FAILURE;
+	} else {
+		if (new_value < CW_SPEED_MIN || new_value > CW_SPEED_MAX) {
+			errno = EINVAL;
+			return CW_FAILURE;
+		}
+	}
 
-      /* Changes of receive speed require resynchronization. */
-      cw_is_in_sync = false;
-      cw_sync_parameters_internal (generator);
-    }
+	if (new_value != cw_receive_speed) {
+		cw_receive_speed = new_value;
 
-  return CW_SUCCESS;
+		/* Changes of receive speed require resynchronization. */
+		cw_is_in_sync = false;
+		cw_sync_parameters_internal(generator);
+	}
+
+	return CW_SUCCESS;
 }
 
 
@@ -2034,21 +2124,20 @@ int cw_set_gap(int new_value)
 */
 int cw_set_tolerance(int new_value)
 {
-  if (new_value < CW_TOLERANCE_MIN || new_value > CW_TOLERANCE_MAX)
-    {
-      errno = EINVAL;
-      return CW_FAILURE;
-    }
-  if (new_value != cw_tolerance)
-    {
-      cw_tolerance = new_value;
+	if (new_value < CW_TOLERANCE_MIN || new_value > CW_TOLERANCE_MAX) {
+		errno = EINVAL;
+		return CW_FAILURE;
+	}
 
-      /* Changes of tolerance require resynchronization. */
-      cw_is_in_sync = false;
-      cw_sync_parameters_internal (generator);
-    }
+	if (new_value != cw_tolerance) {
+		cw_tolerance = new_value;
 
-  return CW_SUCCESS;
+		/* Changes of tolerance require resynchronization. */
+		cw_is_in_sync = false;
+		cw_sync_parameters_internal(generator);
+	}
+
+	return CW_SUCCESS;
 }
 
 
@@ -2060,21 +2149,20 @@ int cw_set_tolerance(int new_value)
 */
 int cw_set_weighting(int new_value)
 {
-  if (new_value < CW_WEIGHTING_MIN || new_value > CW_WEIGHTING_MAX)
-    {
-      errno = EINVAL;
-      return CW_FAILURE;
-    }
-  if (new_value != cw_weighting)
-    {
-      cw_weighting = new_value;
+	if (new_value < CW_WEIGHTING_MIN || new_value > CW_WEIGHTING_MAX) {
+		errno = EINVAL;
+		return CW_FAILURE;
+	}
 
-      /* Changes of weighting require resynchronization. */
-      cw_is_in_sync = false;
-      cw_sync_parameters_internal (generator);
-    }
+	if (new_value != cw_weighting) {
+		cw_weighting = new_value;
 
-  return CW_SUCCESS;
+		/* Changes of weighting require resynchronization. */
+		cw_is_in_sync = false;
+		cw_sync_parameters_internal(generator);
+	}
+
+	return CW_SUCCESS;
 }
 
 
@@ -2098,7 +2186,7 @@ int cw_get_send_speed(void)
 */
 int cw_get_receive_speed(void)
 {
-  return cw_receive_speed;
+	return cw_receive_speed;
 }
 
 
@@ -2186,21 +2274,19 @@ void cw_get_send_parameters(int *dot_usecs, int *dash_usecs,
 			    int *end_of_character_usecs, int *end_of_word_usecs,
 			    int *additional_usecs, int *adjustment_usecs)
 {
-  cw_sync_parameters_internal (generator);
-  if (dot_usecs)
-    *dot_usecs = cw_send_dot_length;
-  if (dash_usecs)
-    *dash_usecs = cw_send_dash_length;
-  if (end_of_element_usecs)
-    *end_of_element_usecs = cw_end_of_ele_delay;
-  if (end_of_character_usecs)
-    *end_of_character_usecs = cw_end_of_char_delay;
-  if (end_of_word_usecs)
-    *end_of_word_usecs = cw_end_of_word_delay;
-  if (additional_usecs)
-    *additional_usecs = cw_additional_delay;
-  if (adjustment_usecs)
-    *adjustment_usecs = cw_adjustment_delay;
+	cw_sync_parameters_internal(generator);
+
+	if (dot_usecs)   *dot_usecs = cw_send_dot_length;
+	if (dash_usecs)  *dash_usecs = cw_send_dash_length;
+
+	if (end_of_element_usecs)    *end_of_element_usecs = cw_end_of_ele_delay;
+	if (end_of_character_usecs)  *end_of_character_usecs = cw_end_of_char_delay;
+	if (end_of_word_usecs)       *end_of_word_usecs = cw_end_of_word_delay;
+
+	if (additional_usecs)    *additional_usecs = cw_additional_delay;
+	if (adjustment_usecs)    *adjustment_usecs = cw_adjustment_delay;
+
+	return;
 }
 
 
@@ -2221,34 +2307,29 @@ void cw_get_receive_parameters(int *dot_usecs, int *dash_usecs,
 			       int *end_of_character_ideal_usecs,
 			       int *adaptive_threshold)
 {
-  cw_sync_parameters_internal (generator);
-  if (dot_usecs)
-    *dot_usecs = cw_receive_dot_length;
-  if (dash_usecs)
-    *dash_usecs = cw_receive_dash_length;
-  if (dot_min_usecs)
-    *dot_min_usecs = cw_dot_range_minimum;
-  if (dot_max_usecs)
-    *dot_max_usecs = cw_dot_range_maximum;
-  if (dash_min_usecs)
-    *dash_min_usecs = cw_dash_range_minimum;
-  if (dash_max_usecs)
-    *dash_max_usecs = cw_dash_range_maximum;
-  if (end_of_element_min_usecs)
-    *end_of_element_min_usecs = cw_eoe_range_minimum;
-  if (end_of_element_max_usecs)
-    *end_of_element_max_usecs = cw_eoe_range_maximum;
-  if (end_of_element_ideal_usecs)
-    *end_of_element_ideal_usecs = cw_eoe_range_ideal;
-  if (end_of_character_min_usecs)
-    *end_of_character_min_usecs = cw_eoc_range_minimum;
-  if (end_of_character_max_usecs)
-    *end_of_character_max_usecs = cw_eoc_range_maximum;
-  if (end_of_character_ideal_usecs)
-    *end_of_character_ideal_usecs = cw_eoc_range_ideal;
-  if (adaptive_threshold)
-    *adaptive_threshold = cw_adaptive_receive_threshold;
+	cw_sync_parameters_internal(generator);
+
+	if (dot_usecs)      *dot_usecs = cw_receive_dot_length;
+	if (dash_usecs)     *dash_usecs = cw_receive_dash_length;
+	if (dot_min_usecs)  *dot_min_usecs = cw_dot_range_minimum;
+	if (dot_max_usecs)  *dot_max_usecs = cw_dot_range_maximum;
+	if (dash_min_usecs) *dash_min_usecs = cw_dash_range_minimum;
+	if (dash_max_usecs) *dash_max_usecs = cw_dash_range_maximum;
+
+	if (end_of_element_min_usecs)     *end_of_element_min_usecs = cw_eoe_range_minimum;
+	if (end_of_element_max_usecs)     *end_of_element_max_usecs = cw_eoe_range_maximum;
+	if (end_of_element_ideal_usecs)   *end_of_element_ideal_usecs = cw_eoe_range_ideal;
+	if (end_of_character_min_usecs)   *end_of_character_min_usecs = cw_eoc_range_minimum;
+	if (end_of_character_max_usecs)   *end_of_character_max_usecs = cw_eoc_range_maximum;
+	if (end_of_character_ideal_usecs) *end_of_character_ideal_usecs = cw_eoc_range_ideal;
+
+	if (adaptive_threshold) *adaptive_threshold = cw_adaptive_receive_threshold;
+
+	return;
 }
+
+
+
 
 
 /**
@@ -2262,14 +2343,13 @@ void cw_get_receive_parameters(int *dot_usecs, int *dash_usecs,
  */
 int cw_set_noise_spike_threshold(int threshold)
 {
-  if (threshold < 0)
-    {
-      errno = EINVAL;
-      return CW_FAILURE;
-    }
-  cw_noise_spike_threshold = threshold;
+	if (threshold < 0) {
+		errno = EINVAL;
+		return CW_FAILURE;
+	}
+	cw_noise_spike_threshold = threshold;
 
-  return CW_SUCCESS;
+	return CW_SUCCESS;
 }
 
 
@@ -2439,7 +2519,7 @@ int cw_timer_run_with_handler_internal(int usecs, void (*sigalrm_handler)(void))
 	/* The fact that we receive a call means that something is using
 	   timeouts and sound, so make sure that any pending finalization
 	   doesn't happen. */
-	cw_cancel_finalization_internal();
+	cw_finalization_cancel_internal();
 
 	/* Depending on the value of usec, either set an itimer, or send
 	   ourselves SIGALRM right away. */
@@ -2500,33 +2580,34 @@ int cw_sigalrm_install_top_level_handler_internal(void)
 
 
 /**
- * Uninstall the SIGALRM handler, if installed.  Return SIGALRM's disposition
- * for the system to the state we found it in before we installed our own
- * SIGALRM handler.
- */
+   \brief Uninstall the SIGALRM handler, if installed
+
+   Restores SIGALRM's disposition for the system to the state we found
+   it in before we installed our own SIGALRM handler.
+
+   \return CW_FAILURE on failure
+   \return CW_SUCCESS on success
+*/
 int cw_sigalrm_restore_internal(void)
 {
-  /* Ignore the call if we haven't installed our handler. */
-  if (cw_is_sigalrm_handlers_caller_installed)
-    {
-      int status;
+	/* Ignore the call if we haven't installed our handler. */
+	if (cw_is_sigalrm_handlers_caller_installed) {
+		/* Cancel any pending itimer setting. */
+		if (!cw_timer_run_internal(0)) {
+			return CW_FAILURE;
+		}
 
-      /* Cancel any pending itimer setting. */
-      if (!cw_timer_run_internal (0))
-        return CW_FAILURE;
+		/* Put back the SIGALRM information saved earlier. */
+		int status = sigaction(SIGALRM, &cw_sigalrm_original_disposition, NULL);
+		if (status == -1) {
+			perror ("libcw: sigaction");
+			return CW_FAILURE;
+		}
 
-      /* Put back the SIGALRM information saved earlier. */
-      status = sigaction (SIGALRM, &cw_sigalrm_original_disposition, NULL);
-      if (status == -1)
-        {
-          perror ("cw: sigaction");
-          return CW_FAILURE;
-        }
+		cw_is_sigalrm_handlers_caller_installed = false;
+	}
 
-      cw_is_sigalrm_handlers_caller_installed = false;
-    }
-
-  return CW_SUCCESS;
+	return CW_SUCCESS;
 }
 
 
@@ -2996,15 +3077,13 @@ int cw_generator_play_internal(cw_gen_t *gen, int frequency)
 
 
 
-/*
- * We prefer to close the soundcard after a period of library inactivity,
- * so that other applications can use it.  Ten seconds seems about right.
- * We do it in one-second timeouts so that any leaked pending timeouts from
- * other facilities don't cause premature finalization.
- */
-static const int FINALIZATION_DELAY = 10000000;
+/* We prefer to close the soundcard after a period of library inactivity,
+   so that other applications can use it.  Ten seconds seems about right.
+   We do it in one-second timeouts so that any leaked pending timeouts from
+   other facilities don't cause premature finalization. */
+static const int CW_AUDIO_FINALIZATION_DELAY = 10000000;
 
-/* Counter counting down the number of clock calls before we finalize. */
+ /* Counter counting down the number of clock calls before we finalize. */
 static volatile bool cw_is_finalization_pending = false;
 static volatile int cw_finalization_countdown = 0;
 
@@ -3026,74 +3105,48 @@ static volatile bool cw_is_finalization_locked_out = false;
 #endif
 
 
-/*
- * Array of callbacks registered for convenience signal handling.  They're
- * initialized dynamically to SIG_DFL (if SIG_DFL is not NULL, which it
- * seems that it is in most cases).
- */
-static void (*cw_signal_callbacks[CW_SIG_MAX]) (int);
+/* Array of callbacks registered for convenience signal handling.  They're
+   initialized dynamically to SIG_DFL (if SIG_DFL is not NULL, which it
+   seems that it is in most cases). */
+static void (*cw_signal_callbacks[CW_SIG_MAX])(int);
+
+
+
 
 
 /**
- * If finalization is pending, decrement the countdown, and if this reaches
- * zero, we've waited long enough to release sound and timeouts.
- */
+   \brief Tick a finalization clock
+
+   If finalization is pending, decrement the countdown, and if this reaches
+   zero, we've waited long enough to release sound and timeouts.
+*/
 void cw_finalization_clock_internal(void)
 {
-  if (cw_is_finalization_pending)
-    {
-      /* Decrement the timeout countdown, and finalize if we reach zero. */
-      cw_finalization_countdown--;
-      if (cw_finalization_countdown <= 0)
-        {
-	  cw_debug (CW_DEBUG_FINALIZATION, "finalization timeout, closing down");
+	if (cw_is_finalization_pending) {
+		/* Decrement the timeout countdown, and finalize if we reach zero. */
+		cw_finalization_countdown--;
+		if (cw_finalization_countdown <= 0) {
+			cw_debug (CW_DEBUG_FINALIZATION, "finalization timeout, closing down");
 
-          cw_sigalrm_restore_internal ();
-          // cw_generator_release_internal ();
+			cw_sigalrm_restore_internal();
+			// cw_generator_release_internal ();
 
-          cw_is_finalization_pending = false;
-          cw_finalization_countdown = 0;
-        }
-      else
-        {
-	  cw_debug (CW_DEBUG_FINALIZATION, "finalization countdown %d", cw_finalization_countdown);
+			cw_is_finalization_pending = false;
+			cw_finalization_countdown = 0;
+		} else {
+			cw_debug (CW_DEBUG_FINALIZATION, "finalization countdown %d", cw_finalization_countdown);
 
-          /* Request another timeout.  This results in a call to our
-           * cw_cancel_finalization_internal below; to ensure that it doesn't
-           * really cancel finalization, unset the pending flag, then set it
-           * back again after reqesting the timeout.
-           */
-          cw_is_finalization_pending = false;
-          cw_timer_run_with_handler_internal(USECS_PER_SEC, NULL);
-          cw_is_finalization_pending = true;
-        }
-    }
-}
+			/* Request another timeout.  This results in a call to our
+			   cw_finalization_cancel_internal below; to ensure that it doesn't
+			   really cancel finalization, unset the pending flag, then set it
+			   back again after reqesting the timeout. */
+			cw_is_finalization_pending = false;
+			cw_timer_run_with_handler_internal(USECS_PER_SEC, NULL);
+			cw_is_finalization_pending = true;
+		}
+	}
 
-
-/**
- * Set the finalization pending flag, and request a timeout to call the
- * finalization function after a delay of a few seconds.  Cancel any pending
- * finalization on noting other library activity, indicated by a call from
- * the timeout request function telling us that it is setting a timeout.
- */
-void cw_schedule_finalization_internal(void)
-{
-  if (!cw_is_finalization_locked_out && !cw_is_finalization_pending)
-    {
-      cw_timer_run_with_handler_internal(USECS_PER_SEC,
-					 cw_finalization_clock_internal);
-
-      /*
-       * Set the flag and countdown last; calling cw_timer_run_with_handler
-       * above results in a call to our cw_cancel_finalization, which clears
-       * the flag and countdown if we set them early.
-       */
-      cw_is_finalization_pending = true;
-      cw_finalization_countdown = FINALIZATION_DELAY / USECS_PER_SEC;
-
-      cw_debug (CW_DEBUG_FINALIZATION, "finalization scheduled");
-    }
+	return;
 }
 
 
@@ -3101,18 +3154,25 @@ void cw_schedule_finalization_internal(void)
 
 
 /**
-   See documentation of cw_schedule_finalization_internal() for more information
+  Set the finalization pending flag, and request a timeout to call the
+  finalization function after a delay of a few seconds.
 */
-void cw_cancel_finalization_internal(void)
+void cw_finalization_schedule_internal(void)
 {
-  if (cw_is_finalization_pending)
-    {
-      /* Cancel pending finalization and return to doing nothing. */
-      cw_is_finalization_pending = false;
-      cw_finalization_countdown = 0;
+	if (!cw_is_finalization_locked_out && !cw_is_finalization_pending) {
+		cw_timer_run_with_handler_internal(USECS_PER_SEC,
+						   cw_finalization_clock_internal);
 
-      cw_debug (CW_DEBUG_FINALIZATION, "finalization canceled");
-    }
+		/* Set the flag and countdown last; calling cw_timer_run_with_handler()
+		 * above results in a call to our cw_finalization_cancel_internal(),
+		 which clears the flag and countdown if we set them early. */
+		cw_is_finalization_pending = true;
+		cw_finalization_countdown = CW_AUDIO_FINALIZATION_DELAY / USECS_PER_SEC;
+
+		cw_debug (CW_DEBUG_FINALIZATION, "finalization scheduled");
+	}
+
+	return;
 }
 
 
@@ -3120,182 +3180,218 @@ void cw_cancel_finalization_internal(void)
 
 
 /**
- * Reset all library features to their default states.  Clears the tone
- * queue, receive buffers and retained state information, any current
- * keyer activity, and any straight key activity, returns to silence, and
- * closes soundcard and console devices.  This function is suitable for
- * calling from an application exit handler.
- */
+   Cancel any pending finalization on noting other library activity,
+   indicated by a call from the timeout request function telling us
+   that it is setting a timeout.
+*/
+void cw_finalization_cancel_internal(void)
+{
+	if (cw_is_finalization_pending)  {
+		/* Cancel pending finalization and return to doing nothing. */
+		cw_is_finalization_pending = false;
+		cw_finalization_countdown = 0;
+
+		cw_debug (CW_DEBUG_FINALIZATION, "finalization canceled");
+	}
+
+	return;
+}
+
+
+
+
+
+/**
+   \brief Reset all library features to their default states
+
+   Clears the tone queue, receive buffers and retained state information,
+   any current keyer activity, and any straight key activity, returns to
+   silence, and closes soundcard and console devices.  This function is
+   suitable for calling from an application exit handler.
+*/
 void cw_complete_reset(void)
 {
-  /*
-   * If the finalizer thinks it's pending, stop it, then temporarily lock
-   * out finalizations.
-   */
-  cw_cancel_finalization_internal ();
-  cw_is_finalization_locked_out = true;
+	/* If the finalizer thinks it's pending, stop it, then temporarily
+	   lock out finalizations. */
+	cw_finalization_cancel_internal();
+	cw_is_finalization_locked_out = true;
 
-  /* Silence sound, and shutdown use of the sound devices. */
-  //cw_sound_soundcard_internal (CW_TONE_SILENT);
-  cw_generator_release_internal ();
-  cw_sigalrm_restore_internal ();
+	/* Silence sound, and shutdown use of the sound devices. */
+	//cw_sound_soundcard_internal (CW_TONE_SILENT);
+	cw_generator_release_internal ();
+	cw_sigalrm_restore_internal ();
 
-  /* Call the reset functions for each subsystem. */
-  cw_reset_tone_queue ();
-  cw_reset_receive ();
-  cw_reset_keyer ();
-  cw_reset_straight_key ();
+	/* Call the reset functions for each subsystem. */
+	cw_reset_tone_queue ();
+	cw_reset_receive ();
+	cw_reset_keyer ();
+	cw_reset_straight_key ();
 
-  /* Now we can re-enable delayed finalizations. */
-  cw_is_finalization_locked_out = false;
+	/* Now we can re-enable delayed finalizations. */
+	cw_is_finalization_locked_out = false;
+
+	return;
 }
 
 
+
+
+
 /**
- * Signal handler function registered when cw_register_signal_handler is
- * requested.  Resets the library, and then either calls any supplied
- * sub-handler, exits (if SIG_DFL) or continues (if SIG_IGN).
- */
+   Signal handler function registered when cw_register_signal_handler is
+   requested.  Resets the library, and then either calls any supplied
+   sub-handler, exits (if SIG_DFL) or continues (if SIG_IGN).
+*/
 void cw_interpose_signal_handler_internal(int signal_number)
 {
-  void (*callback_func) (int);
+	cw_debug (CW_DEBUG_FINALIZATION, "caught signal %d", signal_number);
 
-  cw_debug (CW_DEBUG_FINALIZATION, "caught signal %d", signal_number);
+	/* Reset the library and retrieve the signal's handler. */
+	cw_complete_reset ();
+	void (*callback_func)(int) = cw_signal_callbacks[signal_number];
 
-  /* Reset the library and retrieve the signal's handler. */
-  cw_complete_reset ();
-  callback_func = cw_signal_callbacks[signal_number];
+	/* The default action is to stop the process; exit(1) seems to cover it. */
+	if (callback_func == SIG_DFL) {
+		exit(EXIT_FAILURE);
+	}
 
-  /* The default action is to stop the process; exit(1) seems to cover it. */
-  if (callback_func == SIG_DFL)
-    exit (EXIT_FAILURE);
+	/* If we didn't exit, invoke any additional handler callback function. */
+	if (callback_func != SIG_IGN) {
+		(*callback_func)(signal_number);
+	}
 
-  /* If we didn't exit, invoke any additional handler callback function. */
-  if (callback_func != SIG_IGN)
-    (*callback_func) (signal_number);
+	return;
 }
 
 
+
+
+
 /**
- * Register a signal handler and optional callback function for signals.  On
- * receipt of that signal, all library features will be reset to their default
- * states.  Following the reset, if callback_func is a function pointer, the
- * function is called; if it is SIG_DFL, the library calls exit(); and if it
- * is SIG_IGN, the library returns from the signal handler.  This is a
- * convenience function for clients that need to clean up library on signals,
- * with either exit, continue, or an additional function call; in effect, a
- * wrapper round a restricted form of sigaction.  The signal_number argument
- * indicates which signal to catch.  Returns true if the signal handler
- * installs correctly, false otherwise, with errno set to EINVAL if
- * signal_number is invalid or if a handler is already installed for that
- * signal, or to the sigaction error code.
- */
-int cw_register_signal_handler(int signal_number,
-			       void (*callback_func) (int))
+   \brief Register a signal handler and optional callback function for signals
+
+   On receipt of that signal, all library features will be reset to their
+   default states.  Following the reset, if \p callback_func is a function
+   pointer, the function is called; if it is SIG_DFL, the library calls
+   exit(); and if it is SIG_IGN, the library returns from the signal handler.
+   This is a convenience function for clients that need to clean up library
+   on signals, with either exit, continue, or an additional function call;
+   in effect, a wrapper round a restricted form of sigaction.
+
+   The \p signal_number argument indicates which signal to catch.
+
+   On problems errno is set to EINVAL if \p signal_number is invalid
+   or if a handler is already installed for that signal, or to the
+   sigaction error code.
+
+   \return true - if the signal handler installs correctly
+   \return false - on errors or problems
+*/
+int cw_register_signal_handler(int signal_number, void (*callback_func)(int))
 {
-  static bool is_initialized = false;
+	static bool is_initialized = false;
 
-  struct sigaction action, original_disposition;
-  int status;
+	/* On first call, initialize all signal_callbacks to SIG_DFL. */
+	if (!is_initialized) {
+		for (int i = 0; i < CW_SIG_MAX; i++) {
+			cw_signal_callbacks[i] = SIG_DFL;
+		}
+		is_initialized = true;
+	}
 
-  /* On first call, initialize all signal_callbacks to SIG_DFL. */
-  if (!is_initialized)
-    {
-      int index;
+	/* Reject invalid signal numbers, and SIGALRM, which we use internally. */
+	if (signal_number < 0
+	    || signal_number >= CW_SIG_MAX
+	    || signal_number == SIGALRM) {
 
-      for (index = 0; index < CW_SIG_MAX; index++)
-        cw_signal_callbacks[index] = SIG_DFL;
+		errno = EINVAL;
+		return CW_FAILURE;
+	}
 
-      is_initialized = true;
-    }
+	/* Install our handler as the actual handler. */
+	struct sigaction action, original_disposition;
+	action.sa_handler = cw_interpose_signal_handler_internal;
+	action.sa_flags = SA_RESTART;
+	sigemptyset(&action.sa_mask);
+	int status = sigaction(signal_number, &action, &original_disposition);
+	if (status == -1) {
+		perror("libcw: sigaction");
+		return CW_FAILURE;
+	}
 
-  /* Reject invalid signal numbers, and SIGALRM, which we use internally. */
-  if (signal_number < 0 || signal_number >= CW_SIG_MAX
-      || signal_number == SIGALRM)
-    {
-      errno = EINVAL;
-      return CW_FAILURE;
-    }
+	/* If we trampled another handler, replace it and return false. */
+	if (!(original_disposition.sa_handler == cw_interpose_signal_handler_internal
+	      || original_disposition.sa_handler == SIG_DFL
+	      || original_disposition.sa_handler == SIG_IGN)) {
 
-  /* Install our handler as the actual handler. */
-  action.sa_handler = cw_interpose_signal_handler_internal;
-  action.sa_flags = SA_RESTART;
-  sigemptyset (&action.sa_mask);
-  status = sigaction (signal_number, &action, &original_disposition);
-  if (status == -1)
-    {
-      perror ("cw: sigaction");
-      return CW_FAILURE;
-    }
+		status = sigaction(signal_number, &original_disposition, NULL);
+		if (status == -1) {
+			perror("libcw: sigaction");
+			return CW_FAILURE;
+		}
 
-  /* If we trampled another handler, replace it and return false. */
-  if (!(original_disposition.sa_handler == cw_interpose_signal_handler_internal
-      || original_disposition.sa_handler == SIG_DFL
-      || original_disposition.sa_handler == SIG_IGN))
-    {
-      status = sigaction (signal_number, &original_disposition, NULL);
-      if (status == -1)
-        {
-          perror ("cw: sigaction");
-          return CW_FAILURE;
-        }
+		errno = EINVAL;
+		return CW_FAILURE;
+	}
 
-      errno = EINVAL;
-      return CW_FAILURE;
-    }
+	/* Save the callback function (it may validly be SIG_DFL or SIG_IGN). */
+	cw_signal_callbacks[signal_number] = callback_func;
 
-  /* Save the callback function (it may validly be SIG_DFL or SIG_IGN). */
-  cw_signal_callbacks[signal_number] = callback_func;
-  return CW_SUCCESS;
+	return CW_SUCCESS;
 }
 
 
+
+
+
 /**
- * Removes a signal handler interception previously registered with
- * cw_register_signal_handler.  Returns true if the signal handler uninstalls
- * correctly, false otherwise, with errno set to EINVAL or to the sigaction
- * error code.
- */
+   \brief Unregister a signal handler interception
+
+   Function removes a signal handler interception previously registered
+   with cw_register_signal_handler().
+
+   \return true if the signal handler uninstalls correctly
+   \return false otherwise (with errno set to EINVAL or to the sigaction error code)
+*/
 int cw_unregister_signal_handler(int signal_number)
 {
-  struct sigaction action, original_disposition;
-  int status;
+	/* As above, reject unacceptable signal numbers. */
+	if (signal_number < 0
+	    || signal_number >= CW_SIG_MAX
+	    || signal_number == SIGALRM) {
 
-  /* As above, reject unacceptable signal numbers. */
-  if (signal_number < 0 || signal_number >= CW_SIG_MAX
-      || signal_number == SIGALRM)
-    {
-      errno = EINVAL;
-      return CW_FAILURE;
-    }
+		errno = EINVAL;
+		return CW_FAILURE;
+	}
 
-  /* See if the current handler was put there by us. */
-  status = sigaction (signal_number, NULL, &original_disposition);
-  if (status == -1)
-    {
-      perror ("cw: sigaction");
-      return CW_FAILURE;
-    }
-  if (original_disposition.sa_handler != cw_interpose_signal_handler_internal)
-    {
-      errno = EINVAL;
-      return CW_FAILURE;
-    }
+	/* See if the current handler was put there by us. */
+	struct sigaction original_disposition;
+	int status = sigaction(signal_number, NULL, &original_disposition);
+	if (status == -1) {
+		perror("libcw: sigaction");
+		return CW_FAILURE;
+	}
 
-  /* Remove the signal handler by resetting to SIG_DFL. */
-  action.sa_handler = SIG_DFL;
-  action.sa_flags = 0;
-  sigemptyset (&action.sa_mask);
-  status = sigaction (signal_number, &action, NULL);
-  if (status == -1)
-    {
-      perror ("cw: sigaction");
-      return CW_FAILURE;
-    }
+	if (original_disposition.sa_handler != cw_interpose_signal_handler_internal) {
+		errno = EINVAL;
+		return CW_FAILURE;
+	}
 
-  /* Reset the callback entry for tidiness. */
-  cw_signal_callbacks[signal_number] = SIG_DFL;
-  return CW_SUCCESS;
+	/* Remove the signal handler by resetting to SIG_DFL. */
+	struct sigaction action;
+	action.sa_handler = SIG_DFL;
+	action.sa_flags = 0;
+	sigemptyset(&action.sa_mask);
+	status = sigaction(signal_number, &action, NULL);
+	if (status == -1) {
+		perror("libcw: sigaction");
+		return CW_FAILURE;
+	}
+
+	/* Reset the callback entry for tidiness. */
+	cw_signal_callbacks[signal_number] = SIG_DFL;
+
+	return CW_SUCCESS;
 }
 
 
@@ -3309,50 +3405,65 @@ int cw_unregister_signal_handler(int signal_number)
 
 
 
-/*
- * External keying function.  It may be useful for a client to have this
- * library control an external keying device, for example, an oscillator,
- * or a transmitter.  Here is where we keep the address of a function that
- * is passed to us for this purpose, and a void* argument for it.
- */
-static void (*cw_kk_key_callback)(void*, int) = NULL;
+
+/* External keying function.  It may be useful for a client to have this
+   library control an external keying device, for example, an oscillator,
+   or a transmitter.  Here is where we keep the address of a function that
+   is passed to us for this purpose, and a void* argument for it. */
+static void (*cw_kk_key_callback)(void*, bool) = NULL;
 static void *cw_kk_key_callback_arg = NULL;
 
 
 /**
- * Register a function that should be called when a tone state changes from
- * key-up to key-down, or vice-versa.  The first argument passed out to the
- * registered function is the supplied callback_arg, if any.  The second
- * argument passed out is the key state: true for down, false for up.  Calling
- * this routine with an NULL function address disables keying callbacks.  Any
- * callback supplied will be called in signal handler context.
- */
-void cw_register_keying_callback(void (*callback_func)(void*, int),
+   \brief Register external callback function for keying
+
+   Register a function that should be called when a tone state changes from
+   key-up to key-down, or vice-versa.  The first argument passed out to the
+   registered function is the supplied callback_arg, if any.  The second
+   argument passed out is the key state: true for down, false for up.  Calling
+   this routine with an NULL function address disables keying callbacks.  Any
+   callback supplied will be called in signal handler context.
+
+   \param callback_func - callback function to be called on tone state changes
+   \param callback_arg - first argument to callback_func
+*/
+void cw_register_keying_callback(void (*callback_func)(void*, bool),
 				 void *callback_arg)
 {
-  cw_kk_key_callback = callback_func;
-  cw_kk_key_callback_arg = callback_arg;
+	cw_kk_key_callback = callback_func;
+	cw_kk_key_callback_arg = callback_arg;
+
+	return;
 }
 
 
+
+
+
 /**
- * Control function that calls any requested keying callback only when there
- * is a change of keying state.  This function filters successive key-down
- * or key-up actions into a single action.
- */
+   \brief Call external callback function for keying
+
+   Control function that calls any requested keying callback only when there
+   is a change of keying state.  This function filters successive key-down
+   or key-up actions into a single action.
+
+   \param requested_key_state - current key state
+*/
 void cw_key_control_internal(int requested_key_state)
 {
-  static bool current_key_state = false;  /* Maintained key control state */
+	static bool current_key_state = false;  /* Maintained key control state */
 
-  if (current_key_state != requested_key_state)
-    {
-      cw_debug (CW_DEBUG_KEYING, "keying state %d->%d", current_key_state, requested_key_state);
+	if (current_key_state != requested_key_state) {
+		cw_debug (CW_DEBUG_KEYING, "keying state %d->%d", current_key_state, requested_key_state);
 
-      /* Set the new keying state, and call any requested callback. */
-      current_key_state = requested_key_state;
-      if (cw_kk_key_callback)
-        (*cw_kk_key_callback) (cw_kk_key_callback_arg, current_key_state);
-    }
+		/* Set the new keying state, and call any requested callback. */
+		current_key_state = requested_key_state;
+		if (cw_kk_key_callback) {
+			(*cw_kk_key_callback)(cw_kk_key_callback_arg, current_key_state);
+		}
+	}
+
+	return;
 }
 
 
@@ -3393,6 +3504,9 @@ static volatile int cw_tq_tail = 0,  /* Tone queue tail index */
 static volatile int cw_tq_low_water_mark = 0;
 static void (*cw_tq_low_water_callback)(void*) = NULL;
 static void *cw_tq_low_water_callback_arg = NULL;
+
+
+
 
 
 /**
@@ -3514,7 +3628,7 @@ void cw_tone_queue_dequeue_internal(int *usecs, int *frequency)
 				/* Autonomous dequeuing has finished for
 				   the moment. */
 				cw_dequeue_state = QS_IDLE;
-				cw_schedule_finalization_internal();
+				cw_finalization_schedule_internal();
 			}
 
 			/* If there is a low water mark callback registered,
@@ -3551,7 +3665,7 @@ void cw_tone_queue_dequeue_internal(int *usecs, int *frequency)
 			   need this set whenever the queue indexes are
 			   equal and there is no pending itimeout. */
 			cw_dequeue_state = QS_IDLE;
-			cw_schedule_finalization_internal();
+			cw_finalization_schedule_internal();
 		}
 	}
 }
@@ -3625,7 +3739,7 @@ void cw_tone_queue_dequeue_and_play_internal(void)
 				/* Autonomous dequeuing has finished for
 				   the moment. */
 				cw_dequeue_state = QS_IDLE;
-				cw_schedule_finalization_internal();
+				cw_finalization_schedule_internal();
 			}
 
 			/* If there is a low water mark callback registered,
@@ -3662,7 +3776,7 @@ void cw_tone_queue_dequeue_and_play_internal(void)
 			   need this set whenever the queue indexes are
 			   equal and there is no pending itimeout. */
 			cw_dequeue_state = QS_IDLE;
-			cw_schedule_finalization_internal();
+			cw_finalization_schedule_internal();
 		}
 	}
 }
@@ -4036,7 +4150,7 @@ void cw_flush_tone_queue(void)
 	/* Force silence on the speaker anyway, and stop any background
 	   soundcard tone generation. */
 	cw_generator_play_internal(generator, CW_TONE_SILENT);
-	cw_schedule_finalization_internal();
+	cw_finalization_schedule_internal();
 
 	return;
 }
@@ -4099,7 +4213,7 @@ void cw_reset_tone_queue(void)
 
 	/* Silence sound and stop any background soundcard tone generation. */
 	cw_generator_play_internal(generator, CW_TONE_SILENT);
-	cw_schedule_finalization_internal();
+	cw_finalization_schedule_internal();
 
 	cw_debug (CW_DEBUG_TONE_QUEUE, "tone queue reset");
 
@@ -4561,36 +4675,46 @@ int cw_send_string(const char *string)
 
 
 
-/*
- * Receive adaptive speed tracking.  A moving averages structure, comprising
- * a small array of element lengths, a circular index into the array, and a
- * a running sum of elements for efficient calculation of moving averages.
- */
+/* Receive adaptive speed tracking.  A moving averages structure, comprising
+   a small array of element lengths, a circular index into the array, and
+   a running sum of elements for efficient calculation of moving averages. */
 enum { AVERAGE_ARRAY_LENGTH = 4 };
 typedef struct {
-  int buffer[AVERAGE_ARRAY_LENGTH];  /* Buffered element lengths */
-  int cursor;                        /* Circular buffer cursor */
-  int sum;                           /* Running sum */
+	int buffer[AVERAGE_ARRAY_LENGTH];  /* Buffered element lengths */
+	int cursor;                        /* Circular buffer cursor */
+	int sum;                           /* Running sum */
 } cw_tracking_t;
 
-static cw_tracking_t cw_dot_tracking = { {0}, 0, 0 },
-                     cw_dash_tracking = { {0}, 0, 0 };
+static cw_tracking_t cw_dot_tracking  = { {0}, 0, 0 },
+	             cw_dash_tracking = { {0}, 0, 0 };
+
 
 static void cw_reset_adaptive_average_internal(cw_tracking_t *tracking, int initial);
 static void cw_update_adaptive_average_internal(cw_tracking_t *tracking, int element_usec);
 static int cw_get_adaptive_average_internal(cw_tracking_t *tracking);
 
+
+
+
+
 /**
- * Moving average functions for smoothed tracking of dot and dash lengths.
- */
+   \brief Reset tracking data structure
+
+   Moving average function for smoothed tracking of dot and dash lengths.
+
+   \param tracking - tracking data structure
+   \param initial - initial value to be put in table of tracking data structure
+*/
 void cw_reset_adaptive_average_internal(cw_tracking_t *tracking, int initial)
 {
-  int element;
+	for (int i  = 0; i < AVERAGE_ARRAY_LENGTH; i++) {
+		tracking->buffer[i] = initial;
+	}
 
-  for (element = 0; element < AVERAGE_ARRAY_LENGTH; element++)
-    tracking->buffer[element] = initial;
-  tracking->sum = initial * AVERAGE_ARRAY_LENGTH;
-  tracking->cursor = 0;
+	tracking->sum = initial * AVERAGE_ARRAY_LENGTH;
+	tracking->cursor = 0;
+
+	return;
 }
 
 
@@ -4598,13 +4722,20 @@ void cw_reset_adaptive_average_internal(cw_tracking_t *tracking, int initial)
 
 
 /**
-   See documentation of cw_reset_adaptive_average_internal() for more information
+   \brief Add new element to tracking data structure
+
+   Moving average function for smoothed tracking of dot and dash lengths.
+
+   \param tracking - tracking data structure
+   \param element_usec - new element to add to tracking data
 */
 void cw_update_adaptive_average_internal(cw_tracking_t *tracking, int element_usec)
 {
-  tracking->sum += element_usec - tracking->buffer[tracking->cursor];
-  tracking->buffer[tracking->cursor++] = element_usec;
-  tracking->cursor %= AVERAGE_ARRAY_LENGTH;
+	tracking->sum += element_usec - tracking->buffer[tracking->cursor];
+	tracking->buffer[tracking->cursor++] = element_usec;
+	tracking->cursor %= AVERAGE_ARRAY_LENGTH;
+
+	return;
 }
 
 
@@ -4612,138 +4743,171 @@ void cw_update_adaptive_average_internal(cw_tracking_t *tracking, int element_us
 
 
 /**
-   See documentation of cw_reset_adaptive_average_internal() for more information
+   \brief Get average sum from tracking data structure
+
+   \param tracking - tracking data structure
+
+   \return average sum
 */
 int cw_get_adaptive_average_internal(cw_tracking_t *tracking)
 {
-  return tracking->sum / AVERAGE_ARRAY_LENGTH;
+	return tracking->sum / AVERAGE_ARRAY_LENGTH;
 }
 
 
 
 
 
-/*
- * Receive timing statistics.  A circular buffer of entries indicating the
- * difference between the actual and the ideal timing for a receive element,
- * tagged with the type of statistic held, and a circular buffer pointer.
- * STAT_NONE must be zero so that the statistics buffer is initially empty.
- */
-typedef enum
-{ STAT_NONE = 0, STAT_DOT, STAT_DASH, STAT_END_ELEMENT, STAT_END_CHARACTER
+/* Receive timing statistics.
+   A circular buffer of entries indicating the difference between the
+   actual and the ideal timing for a receive element, tagged with the
+   type of statistic held, and a circular buffer pointer.
+   STAT_NONE must be zero so that the statistics buffer is initially empty. */
+typedef enum {
+	STAT_NONE = 0,
+	STAT_DOT,
+	STAT_DASH,
+	STAT_END_ELEMENT,
+	STAT_END_CHARACTER
 } stat_type_t;
 
+
 typedef struct {
-  stat_type_t type;  /* Record type */
-  int delta;         /* Difference between actual and ideal timing */
+	stat_type_t type;  /* Record type */
+	int delta;         /* Difference between actual and ideal timing */
 } cw_statistics_t;
 
+
 enum { STATISTICS_ARRAY_LENGTH = 256 };
-static cw_statistics_t
-  cw_receive_statistics[STATISTICS_ARRAY_LENGTH] = { {0, 0} };
+
+static cw_statistics_t cw_receive_statistics[STATISTICS_ARRAY_LENGTH] = { {0, 0} };
 static int cw_statistics_cursor = 0;
 
 static void cw_add_receive_statistic_internal(stat_type_t type, int usecs);
 static double cw_get_receive_statistic_internal(stat_type_t type);
 
+
+
+
+
 /**
- * Add an element timing with a given statistic type to the circular
- * statistics buffer.  The buffer stores only the delta from the ideal value;
- * the ideal is inferred from the type passed in.
- */
+   \brief Add an element timing to statistics
+
+   Add an element timing with a given statistic type to the circular
+   statistics buffer.  The buffer stores only the delta from the ideal
+   value; the ideal is inferred from the type passed in.
+
+   \param type - element type
+   \param usecs - timing of an element
+*/
 void cw_add_receive_statistic_internal(stat_type_t type, int usecs)
 {
-  int delta;
+	/* Synchronize low-level timings if required. */
+	cw_sync_parameters_internal(generator);
 
-  /* Synchronize low-level timings if required. */
-  cw_sync_parameters_internal (generator);
+	/* Calculate delta as difference between usec and the ideal value. */
+	int delta = usecs - ((type == STAT_DOT) ? cw_receive_dot_length
+			     : (type == STAT_DASH) ? cw_receive_dash_length
+			     : (type == STAT_END_ELEMENT) ? cw_eoe_range_ideal
+			     : (type == STAT_END_CHARACTER) ? cw_eoc_range_ideal : usecs);
 
-  /* Calculate delta as difference between usec and the ideal value. */
-  delta = usecs - ((type == STAT_DOT) ? cw_receive_dot_length
-                 : (type == STAT_DASH) ? cw_receive_dash_length
-                 : (type == STAT_END_ELEMENT) ? cw_eoe_range_ideal
-                 : (type == STAT_END_CHARACTER) ? cw_eoc_range_ideal : usecs);
+	/* Add this statistic to the buffer. */
+	cw_receive_statistics[cw_statistics_cursor].type = type;
+	cw_receive_statistics[cw_statistics_cursor++].delta = delta;
+	cw_statistics_cursor %= STATISTICS_ARRAY_LENGTH;
 
-  /* Add this statistic to the buffer. */
-  cw_receive_statistics[cw_statistics_cursor].type = type;
-  cw_receive_statistics[cw_statistics_cursor++].delta = delta;
-  cw_statistics_cursor %= STATISTICS_ARRAY_LENGTH;
+	return;
 }
 
 
+
+
+
 /**
- * Calculate and return one given timing statistic type.  If no records of
- * that type were found, return 0.0.
- */
+   \brief Calculate and return one given timing statistic type
+
+   \return 0.0 if no record of given type were found
+   \return timing statistics otherwise
+*/
 double cw_get_receive_statistic_internal(stat_type_t type)
 {
-  double sum_of_squares;
-  int count, cursor;
+	/* Sum and count elements matching the given type.  A cleared
+	   buffer always begins refilling at element zero, so to optimize
+	   we can stop on the first unoccupied slot in the circular buffer. */
+	double sum_of_squares = 0.0;
+	int count = 0;
+	for (int cursor = 0; cursor < STATISTICS_ARRAY_LENGTH; cursor++) {
+		if (cw_receive_statistics[cursor].type == type) {
+			int delta = cw_receive_statistics[cursor].delta;
+			sum_of_squares += (double) delta * (double) delta;
+			count++;
+		} else if (cw_receive_statistics[cursor].type == STAT_NONE) {
+			break;
+		}
+	}
 
-  /*
-   * Sum and count elements matching the given type.  A cleared buffer always
-   * begins refilling at element zero, so to optimize we can stop on the first
-   * unoccupied slot in the circular buffer.
-   */
-  sum_of_squares = 0.0;
-  count = 0;
-  for (cursor = 0; cursor < STATISTICS_ARRAY_LENGTH; cursor++)
-    {
-      if (cw_receive_statistics[cursor].type == type)
-        {
-          int delta;
-
-          delta = cw_receive_statistics[cursor].delta;
-          sum_of_squares += (double) delta * (double) delta;
-          count++;
-        }
-      else if (cw_receive_statistics[cursor].type == STAT_NONE)
-        break;
-    }
-
-  /* Return the standard deviation, or zero if no matching elements. */
-  return count > 0 ? sqrt (sum_of_squares / (double) count) : 0.0;
+	/* Return the standard deviation, or zero if no matching elements. */
+	return count > 0 ? sqrt (sum_of_squares / (double) count) : 0.0;
 }
 
 
+
+
+
 /**
- * Calculate and return receive timing statistics.  These statistics may be
- * used to obtain a measure of the accuracy of received CW.  The values
- * dot_sd and dash_sd contain the standard deviation of dot and dash lengths
- * from the ideal values, and element_end_sd and character_end_sd the
- * deviations for inter element and inter character spacing.  Statistics are
- * held for all timings in a 256 element circular buffer.  If any statistic
- * cannot be calculated, because no records for it exist, the returned value
- * is 0.0.  Use NULL for the pointer argument to any statistic not required.
- */
+   \brief Calculate and return receive timing statistics
+
+   These statistics may be used to obtain a measure of the accuracy of
+   received CW.  The values \p dot_sd and \p dash_sd contain the standard
+   deviation of dot and dash lengths from the ideal values, and
+   \p element_end_sd and \p character_end_sd the deviations for inter
+   element and inter character spacing.  Statistics are held for all
+   timings in a 256 element circular buffer.  If any statistic cannot
+   be calculated, because no records for it exist, the returned value
+   is 0.0.  Use NULL for the pointer argument to any statistic not required.
+
+   \param dot_sd
+   \param dash_sd
+   \param element_end_sd
+   \param character_end_sd
+*/
 void cw_get_receive_statistics(double *dot_sd, double *dash_sd,
 			       double *element_end_sd, double *character_end_sd)
 {
-  if (dot_sd)
-    *dot_sd = cw_get_receive_statistic_internal (STAT_DOT);
-  if (dash_sd)
-    *dash_sd = cw_get_receive_statistic_internal (STAT_DASH);
-  if (element_end_sd)
-    *element_end_sd = cw_get_receive_statistic_internal (STAT_END_ELEMENT);
-  if (character_end_sd)
-    *character_end_sd = cw_get_receive_statistic_internal (STAT_END_CHARACTER);
+	if (dot_sd) {
+		*dot_sd = cw_get_receive_statistic_internal(STAT_DOT);
+	}
+	if (dash_sd) {
+		*dash_sd = cw_get_receive_statistic_internal(STAT_DASH);
+	}
+	if (element_end_sd) {
+		*element_end_sd = cw_get_receive_statistic_internal(STAT_END_ELEMENT);
+	}
+	if (character_end_sd) {
+		*character_end_sd = cw_get_receive_statistic_internal(STAT_END_CHARACTER);
+	}
+	return;
 }
 
 
+
+
+
 /**
- * Clear the receive statistics buffer, removing all records from it and
- * returning it to its initial default state.
- */
+   \brief Clear the receive statistics buffer
+
+   Clear the receive statistics buffer by removing all records from it and
+   returning it to its initial default state.
+*/
 void cw_reset_receive_statistics(void)
 {
-  int cursor;
+	for (int i  = 0; i < STATISTICS_ARRAY_LENGTH; i++) {
+		cw_receive_statistics[i].type = STAT_NONE;
+		cw_receive_statistics[i].delta = 0;
+	}
+	cw_statistics_cursor = 0;
 
-  for (cursor = 0; cursor < STATISTICS_ARRAY_LENGTH; cursor++)
-    {
-      cw_receive_statistics[cursor].type = STAT_NONE;
-      cw_receive_statistics[cursor].delta = 0;
-    }
-  cw_statistics_cursor = 0;
+	return;
 }
 
 
@@ -4758,67 +4922,77 @@ void cw_reset_receive_statistics(void)
 
 
 
-/*
- * Receive buffering.  This is a fixed-length representation, filled in
- * as tone on/off timings are taken.  The buffer is vastly longer than
- * any practical representation, and along with it we maintain a cursor
- * indicating the current write position.
- */
+/* Receive buffering.
+   This is a fixed-length representation, filled in as tone on/off
+   timings are taken.  The buffer is vastly longer than any practical
+   representation, and along with it we maintain a cursor indicating
+   the current write position. */
 enum { RECEIVE_CAPACITY = 256 };
 static char cw_receive_representation_buffer[RECEIVE_CAPACITY];
 static int cw_rr_current = 0;
 
 /* Retained tone start and end timestamps. */
 static struct timeval cw_rr_start_timestamp = {0, 0},
-                      cw_rr_end_timestamp = {0, 0};
+                      cw_rr_end_timestamp   = {0, 0};
+
+
+
+
 
 /**
- * Set the value of the flag that controls whether, on receive, the receive
- * functions do fixed speed receive, or track the speed of the received Morse
- * code by adapting to the input stream.
- */
-void cw_set_adaptive_receive_internal(bool flag)
+   \brief Set value of 'adaptive receive enabled' flag
+
+   Set the value of the flag that controls whether, on receive, the
+   receive functions do fixed speed receive, or track the speed of the
+   received Morse code by adapting to the input stream.
+
+   \brief flag - intended flag value
+*/
+void cw_receive_set_adaptive_internal(bool flag)
 {
-  /* Look for change of adaptive receive state. */
-  if ((cw_is_adaptive_receive_enabled && !flag)
-      || (!cw_is_adaptive_receive_enabled && flag))
-    {
-      cw_is_adaptive_receive_enabled = flag;
+	/* Look for change of adaptive receive state. */
+	if ((cw_is_adaptive_receive_enabled && !flag)
+	    || (!cw_is_adaptive_receive_enabled && flag)) {
 
-      /* Changing the flag forces a change in low-level parameters. */
-      cw_is_in_sync = false;
-      cw_sync_parameters_internal (generator);
+		cw_is_adaptive_receive_enabled = flag;
 
-      /*
-       * If we have just switched to adaptive mode, (re-)initialize the
-       * averages array to the current dot/dash lengths, so that initial
-       * averages match the current speed.
-       */
-      if (cw_is_adaptive_receive_enabled)
-        {
-          cw_reset_adaptive_average_internal (&cw_dot_tracking,
-                                              cw_receive_dot_length);
-          cw_reset_adaptive_average_internal (&cw_dash_tracking,
-                                              cw_receive_dash_length);
-        }
-    }
+		/* Changing the flag forces a change in low-level parameters. */
+		cw_is_in_sync = false;
+		cw_sync_parameters_internal(generator);
+
+		/* If we have just switched to adaptive mode, (re-)initialize
+		   the averages array to the current dot/dash lengths, so
+		   that initial averages match the current speed. */
+		if (cw_is_adaptive_receive_enabled) {
+			cw_reset_adaptive_average_internal(&cw_dot_tracking, cw_receive_dot_length);
+			cw_reset_adaptive_average_internal(&cw_dash_tracking, cw_receive_dash_length);
+		}
+	}
+
+	return;
 }
 
 
+
+
+
 /**
- * Enable/disable/get adaptive receive speeds.  If adaptive speed tracking
- * is enabled, the receive functions will attempt to automatically adjust
- * the receive speed setting to match the speed of the incoming Morse code.
- * If it is disabled, the receive functions will use fixed speed settings,
- * and reject incoming Morse which is not at the expected speed.  The
- * cw_get_adaptive_receive_state function returns true if adaptive speed
- * tracking is enabled, false otherwise.  Adaptive speed tracking uses a
- * moving average of the past four elements as its baseline for tracking
- * speeds.  The default state is adaptive tracking disabled.
- */
+   \brief Enable adaptive receive speeds
+
+   If adaptive speed tracking is enabled, the receive functions will
+   attempt to automatically adjust the receive speed setting to match
+   the speed of the incoming Morse code. If it is disabled, the receive
+   functions will use fixed speed settings, and reject incoming Morse
+   which is not at the expected speed.
+
+   Adaptive speed tracking uses a moving average of the past four elements
+   as its baseline for tracking speeds.  The default state is adaptive
+   tracking disabled.
+*/
 void cw_enable_adaptive_receive(void)
 {
-  cw_set_adaptive_receive_internal (true);
+	cw_receive_set_adaptive_internal(true);
+	return;
 }
 
 
@@ -4826,11 +5000,14 @@ void cw_enable_adaptive_receive(void)
 
 
 /**
+   \brief Disable adaptive receive speeds
+
    See documentation of cw_enable_adaptive_receive() for more information
 */
 void cw_disable_adaptive_receive(void)
 {
-  cw_set_adaptive_receive_internal (false);
+	cw_receive_set_adaptive_internal(false);
+	return;
 }
 
 
@@ -4838,7 +5015,13 @@ void cw_disable_adaptive_receive(void)
 
 
 /**
+   \brief Get adaptive receive speeds flag
+
+   The function returns state of 'adaptive receive enabled' flag.
    See documentation of cw_enable_adaptive_receive() for more information
+
+   \return true if adaptive speed tracking is enabled
+   \return false otherwise
 */
 bool cw_get_adaptive_receive_state(void)
 {
@@ -4850,34 +5033,37 @@ bool cw_get_adaptive_receive_state(void)
 
 
 /**
- * If an input timestamp is given, validate it for correctness, and if valid,
- * copy it into return_timestamp and return true.  If invalid, return false
- * with errno set to EINVAL.  If an input timestamp is not given (NULL), return
- * true with the current system time in return_timestamp.
- */
-int cw_validate_timestamp_internal(const struct timeval *timestamp,
+   \brief Validate timestamp
+
+   If an input timestamp is given, validate it for correctness, and if
+   valid, copy it into return_timestamp and return true.  If invalid,
+   return false with errno set to EINVAL.  If an input timestamp is not
+   given (NULL), return true with the current system time in
+   return_timestamp.
+*/
+int cw_timestamp_validate_internal(const struct timeval *timestamp,
 				   struct timeval *return_timestamp)
 {
-  if (timestamp)
-    {
-      if (timestamp->tv_sec < 0 || timestamp->tv_usec < 0
-          || timestamp->tv_usec >= USECS_PER_SEC)
-        {
-          errno = EINVAL;
-          return CW_FAILURE;
-        }
-      *return_timestamp = *timestamp;
-    }
-  else
-    {
-      if (gettimeofday (return_timestamp, NULL) != 0)
-        {
-          perror ("cw: gettimeofday");
-          return CW_FAILURE;
-        }
-    }
-  return CW_SUCCESS;
+	if (timestamp) {
+		if (timestamp->tv_sec < 0
+		    || timestamp->tv_usec < 0
+		    || timestamp->tv_usec >= USECS_PER_SEC) {
+
+			errno = EINVAL;
+			return CW_FAILURE;
+		}
+		*return_timestamp = *timestamp;
+	} else {
+		if (gettimeofday(return_timestamp, NULL)) {
+			perror ("libcw: gettimeofday");
+			return CW_FAILURE;
+		}
+	}
+	return CW_SUCCESS;
 }
+
+
+
 
 
 /*
@@ -4914,421 +5100,457 @@ int cw_validate_timestamp_internal(const struct timeval *timestamp,
  *     |                                                       | buffer dash)
  *     +-------------------------------------------------------+
  */
-static enum
-{ RS_IDLE, RS_IN_TONE, RS_AFTER_TONE, RS_END_CHAR, RS_END_WORD, RS_ERR_CHAR,
-  RS_ERR_WORD
-}
-cw_receive_state = RS_IDLE;
+static enum {
+	RS_IDLE,
+	RS_IN_TONE,
+	RS_AFTER_TONE,
+	RS_END_CHAR,
+	RS_END_WORD,
+	RS_ERR_CHAR,
+	RS_ERR_WORD
+} cw_receive_state = RS_IDLE;
 
 
 /**
- * Compare two timestamps, and return the difference between them in
- * microseconds, taking care to clamp values which would overflow an int.
- * This routine always returns a positive integer in the range 0 to INT_MAX.
- */
-int cw_compare_timestamps_internal(const struct timeval *earlier,
-				   const struct timeval *later)
+   \brief Compare two timestamps
+
+   Compare two timestamps, and return the difference between them in
+   microseconds, taking care to clamp values which would overflow an int.
+
+   This routine always returns a positive integer in the range 0 to INT_MAX.
+
+   \param earlier - timestamp to compare
+   \param later - timestamp to compare
+
+   \return difference between timestamps (in microseconds)
+*/
+int cw_timestamp_compare_internal(const struct timeval *earlier,
+				  const struct timeval *later)
 {
-  int delta_usec;
 
-  /*
-   * Compare the timestamps, taking care on overflows.
-   *
-   * At 4 WPM, the dash length is 3*(1200000/4)=900,000 usecs, and the word
-   * gap is 2,100,000 usecs.  With the maximum Farnsworth additional delay,
-   * the word gap extends to 20,100,000 usecs.  This fits into an int with a
-   * lot of room to spare, in fact, an int can represent 2,147,483,647 usecs,
-   * or around 33 minutes.  This is way, way longer than we'd ever want to
-   * differentiate, so if by some chance we see timestamps farther apart than
-   * this, and it ought to be very, very unlikely, then we'll clamp the
-   * return value to INT_MAX with a clear conscience.
-   *
-   * Note: passing nonsensical or bogus timevals in may result in unpredict-
-   * able results.  Nonsensical includes timevals with -ve tv_usec, -ve
-   * tv_sec, tv_usec >= 1,000,000, etc.  To help in this, we check all
-   * incoming timestamps for 'well-formedness'.  However, we assume the
-   * gettimeofday() call always returns good timevals.  All in all, timeval
-   * could probably be a better thought-out structure.
-   */
+	/* Compare the timestamps, taking care on overflows.
 
-  /* Calculate an initial delta, possibly with overflow. */
-  delta_usec = (later->tv_sec - earlier->tv_sec) * USECS_PER_SEC
-               + later->tv_usec - earlier->tv_usec;
+	   At 4 WPM, the dash length is 3*(1200000/4)=900,000 usecs, and
+	   the word gap is 2,100,000 usecs.  With the maximum Farnsworth
+	   additional delay, the word gap extends to 20,100,000 usecs.
+	   This fits into an int with a lot of room to spare, in fact, an
+	   int can represent 2,147,483,647 usecs, or around 33 minutes.
+	   This is way, way longer than we'd ever want to differentiate,
+	   so if by some chance we see timestamps farther apart than this,
+	   and it ought to be very, very unlikely, then we'll clamp the
+	   return value to INT_MAX with a clear conscience.
 
-  /* Check specifically for overflow, and clamp if it did. */
-  if ((later->tv_sec - earlier->tv_sec) > (INT_MAX / USECS_PER_SEC) + 1
-      || delta_usec < 0)
-    delta_usec = INT_MAX;
+	   Note: passing nonsensical or bogus timevals in may result in
+	   unpredictable results.  Nonsensical includes timevals with
+	   -ve tv_usec, -ve tv_sec, tv_usec >= 1,000,000, etc.
+	   To help in this, we check all incoming timestamps for
+	   'well-formedness'.  However, we assume the  gettimeofday()
+	   call always returns good timevals.  All in all, timeval could
+	   probably be a better thought-out structure. */
 
-  return delta_usec;
+	/* Calculate an initial delta, possibly with overflow. */
+	int delta_usec = (later->tv_sec - earlier->tv_sec) * USECS_PER_SEC
+		+ later->tv_usec - earlier->tv_usec;
+
+	/* Check specifically for overflow, and clamp if it did. */
+	if ((later->tv_sec - earlier->tv_sec) > (INT_MAX / USECS_PER_SEC) + 1
+	    || delta_usec < 0) {
+
+		delta_usec = INT_MAX;
+	}
+
+	return delta_usec;
 }
 
 
+
+
+
 /**
- * Called on the start of a receive tone.  If the timestamp is NULL, the
- * current time is used.  On success, the routine returns true.   On error,
- * it returns false, with errno set to ERANGE if the call is directly after
- * another cw_start_receive_tone call or if an existing received character
- * has not been cleared from the buffer, or EINVAL if the timestamp passed
- * in is invalid.
+   \brief Mark beginning of receive tone
+
+   Called on the start of a receive tone.  If the \p timestamp is NULL, the
+   current time is used.
+   On error the function returns CW_FAILURE, with errno set to ERANGE if
+   the call is directly after another cw_start_receive_tone() call or if
+   an existing received character has not been cleared from the buffer,
+   or EINVAL if the timestamp passed in is invalid.
+
+   \param timestamp
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE otherwise (with errno set)
  */
 int cw_start_receive_tone(const struct timeval *timestamp)
 {
-  /*
-   * If the receive state is not idle or after a tone, this is a state error.
-   * A receive tone start can only happen while we are idle, or in the middle
-   * of a character.
-   */
-  if (cw_receive_state != RS_IDLE && cw_receive_state != RS_AFTER_TONE)
-    {
-      errno = ERANGE;
-      return CW_FAILURE;
-    }
+	/* If the receive state is not idle or after a tone, this is
+	   a state error.  A receive tone start can only happen while
+	   we are idle, or in the middle of a character. */
+	if (cw_receive_state != RS_IDLE && cw_receive_state != RS_AFTER_TONE) {
+		errno = ERANGE;
+		return CW_FAILURE;
+	}
 
-  /* Validate and save the timestamp, or get one and then save it. */
-  if (!cw_validate_timestamp_internal (timestamp, &cw_rr_start_timestamp))
-    return CW_FAILURE;
+	/* Validate and save the timestamp, or get one and then save it. */
+	if (!cw_timestamp_validate_internal(timestamp, &cw_rr_start_timestamp)) {
+		return CW_FAILURE;
+	}
 
-  /*
-   * If we are in the after tone state, we can measure the inter-element
-   * gap by comparing the start timestamp with the last end one, guaranteed
-   * set by getting to the after tone state via cw_end_receive tone, or in
-   * extreme cases, by cw_receive_buffer_element_internal.
-   *
-   * Do that, then, and update the relevant statistics.
-   */
-  if (cw_receive_state == RS_AFTER_TONE)
-    {
-      int space_usec;
+	/* If we are in the after tone state, we can measure the
+	   inter-element gap by comparing the start timestamp with the
+	   last end one, guaranteed set by getting to the after tone
+	   state via cw_end_receive tone(), or in extreme cases, by
+	   cw_receive_add_element_internal().
 
-      space_usec = cw_compare_timestamps_internal (&cw_rr_end_timestamp,
-                                                   &cw_rr_start_timestamp);
-      cw_add_receive_statistic_internal (STAT_END_ELEMENT, space_usec);
-    }
+	   Do that, then, and update the relevant statistics. */
+	if (cw_receive_state == RS_AFTER_TONE) {
+		int space_usec = cw_timestamp_compare_internal(&cw_rr_end_timestamp,
+							       &cw_rr_start_timestamp);
+		cw_add_receive_statistic_internal(STAT_END_ELEMENT, space_usec);
+	}
 
-  /* Set state to indicate we are inside a tone. */
-  cw_receive_state = RS_IN_TONE;
+	/* Set state to indicate we are inside a tone. */
+	cw_receive_state = RS_IN_TONE;
 
-  cw_debug (CW_DEBUG_RECEIVE_STATES, "receive state ->%d", cw_receive_state);
+	cw_debug (CW_DEBUG_RECEIVE_STATES, "receive state ->%d", cw_receive_state);
 
-  return CW_SUCCESS;
+	return CW_SUCCESS;
 }
 
 
+
+
+
 /**
- * Analyses a tone using the ranges provided by the low level timing
- * parameters.  On success, it returns true and sends back either a dot or
- * a dash in representation.  On error, it returns false with errno set to
- * ENOENT if the tone is not recognizable as either a dot or a dash,
- * and sets the receive state to one of the error states, depending on
- * the tone length passed in.
- *
- * Note; for adaptive timing, the tone should _always_ be recognized as
- * a dot or a dash, because the ranges will have been set to cover 0 to
- * INT_MAX.
- */
-int cw_identify_receive_tone_internal(int element_usec, char *representation)
+   \brief Analyze and identify a tone
+
+   Analyses a tone using the ranges provided by the low level timing
+   parameters.  On success, it returns true and sends back either a dot or
+   a dash in representation.  On error, it returns false with errno set to
+   ENOENT if the tone is not recognizable as either a dot or a dash,
+   and sets the receive state to one of the error states, depending on
+   the tone length passed in.
+
+   Note; for adaptive timing, the tone should _always_ be recognized as
+   a dot or a dash, because the ranges will have been set to cover 0 to
+   INT_MAX.
+
+   \param element_usec
+   \param representation
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
+int cw_receive_identify_tone_internal(int element_usec, char *representation)
 {
-  /* Synchronize low level timings if required */
-  cw_sync_parameters_internal (generator);
+	/* Synchronize low level timings if required */
+	cw_sync_parameters_internal(generator);
 
-  /* If the timing was, within tolerance, a dot, return dot to the caller.  */
-  if (element_usec >= cw_dot_range_minimum
-      && element_usec <= cw_dot_range_maximum)
-    {
-      *representation = CW_DOT_REPRESENTATION;
-      return CW_SUCCESS;
-    }
+	/* If the timing was, within tolerance, a dot, return dot to the caller.  */
+	if (element_usec >= cw_dot_range_minimum
+	    && element_usec <= cw_dot_range_maximum) {
 
-  /* Do the same for a dash. */
-  if (element_usec >= cw_dash_range_minimum
-      && element_usec <= cw_dash_range_maximum)
-    {
-      *representation = CW_DASH_REPRESENTATION;
-      return CW_SUCCESS;
-    }
+		*representation = CW_DOT_REPRESENTATION;
+		return CW_SUCCESS;
+	}
 
-  /*
-   * This element is not a dot or a dash, so we have an error case.  Depending
-   * on the timestamp difference, we pick which of the error states to move
-   * to, and move to it.  The comparison is against the expected end-of-char
-   * delay.  If it's larger, then fix at word error, otherwise settle on char
-   * error.
-   *
-   * Note that we should never reach here for adaptive timing receive.
-   */
-  cw_receive_state = element_usec > cw_eoc_range_maximum
-                     ? RS_ERR_WORD : RS_ERR_CHAR;
+	/* Do the same for a dash. */
+	if (element_usec >= cw_dash_range_minimum
+	    && element_usec <= cw_dash_range_maximum) {
 
-  cw_debug (CW_DEBUG_RECEIVE_STATES, "receive state ->%d", cw_receive_state);
+		*representation = CW_DASH_REPRESENTATION;
+		return CW_SUCCESS;
+	}
 
-  /* Return ENOENT to the caller. */
-  errno = ENOENT;
-  return CW_FAILURE;
+	/* This element is not a dot or a dash, so we have an error case.
+	   Depending on the timestamp difference, we pick which of the
+	   error states to move to, and move to it.  The comparison is
+	   against the expected end-of-char delay.  If it's larger, then
+	   fix at word error, otherwise settle on char error.
+
+	   Note that we should never reach here for adaptive timing receive. */
+	cw_receive_state = element_usec > cw_eoc_range_maximum
+		? RS_ERR_WORD : RS_ERR_CHAR;
+
+	cw_debug (CW_DEBUG_RECEIVE_STATES, "receive state ->%d", cw_receive_state);
+
+	/* Return ENOENT to the caller. */
+	errno = ENOENT;
+	return CW_FAILURE;
 }
 
 
+
+
+
 /**
- * Updates the averages of dot and dash lengths, and recalculates the
- * adaptive threshold for the next receive tone.
- */
-void cw_update_adaptive_tracking_internal(int element_usec, char element)
+   \brief Update adaptive tracking data
+
+   Function updates the averages of dot and dash lengths, and recalculates
+   the adaptive threshold for the next receive tone.
+
+   \param element_usec
+   \param element
+*/
+void cw_receive_update_adaptive_tracking_internal(int element_usec, char element)
 {
-  int average_dot, average_dash;
+	/* We are not going to tolerate being called in fixed speed mode. */
+	if (!cw_is_adaptive_receive_enabled) {
+		return;
+	}
 
-  /* We are not going to tolerate being called in fixed speed mode. */
-  if (!cw_is_adaptive_receive_enabled)
-    return;
+	/* We will update the information held for either dots or dashes.
+	   Which we pick depends only on what the representation of the
+	   character was identified as earlier. */
+	if (element == CW_DOT_REPRESENTATION) {
+		cw_update_adaptive_average_internal(&cw_dot_tracking, element_usec);
+	}
+	else if (element == CW_DASH_REPRESENTATION) {
+		cw_update_adaptive_average_internal(&cw_dash_tracking, element_usec);
+	}
 
-  /*
-   * We will update the information held for either dots or dashes.  Which we
-   * pick depends only on what the representation of the character was
-   * identified as earlier.
-   */
-  if (element == CW_DOT_REPRESENTATION)
-    cw_update_adaptive_average_internal (&cw_dot_tracking, element_usec);
-  else if (element == CW_DASH_REPRESENTATION)
-    cw_update_adaptive_average_internal (&cw_dash_tracking, element_usec);
+	/* Recalculate the adaptive threshold from the values currently
+	   held in the moving averages.  The threshold is calculated as
+	   (avg dash length - avg dot length) / 2 + avg dot_length. */
+	int average_dot = cw_get_adaptive_average_internal(&cw_dot_tracking);
+	int average_dash = cw_get_adaptive_average_internal(&cw_dash_tracking);
+	cw_adaptive_receive_threshold = (average_dash - average_dot) / 2
+		+ average_dot;
 
-  /*
-   * Recalculate the adaptive threshold from the values currently held in the
-   * moving averages.  The threshold is calculated as (avg dash length -
-   * avg dot length) / 2 + avg dot_length.
-   */
-  average_dot = cw_get_adaptive_average_internal (&cw_dot_tracking);
-  average_dash = cw_get_adaptive_average_internal (&cw_dash_tracking);
-  cw_adaptive_receive_threshold = (average_dash - average_dot) / 2
-                                  + average_dot;
+	/* Resynchronize the low level timing data following recalculation.
+	   If the resultant recalculated speed is outside the limits,
+	   clamp the speed to the limit value and recalculate again.
 
-  /*
-   * Resynchronize the low level timing data following recalculation.  If the
-   * resultant recalculated speed is outside the limits, clamp the speed to
-   * the limit value and recalculate again.
-   *
-   * Resetting the speed directly really means unsetting adaptive mode,
-   * resyncing to calculate the new threshold, which unfortunately recalcu-
-   * lates everything else according to fixed speed; so, we then have to reset
-   * adaptive and resyncing one more time, to get all other timing parameters
-   * back to where they should be.
-   */
-  cw_is_in_sync = false;
-  cw_sync_parameters_internal (generator);
-  if (cw_receive_speed < CW_SPEED_MIN || cw_receive_speed > CW_SPEED_MAX)
-    {
-      cw_receive_speed = cw_receive_speed < CW_SPEED_MIN
-                         ? CW_SPEED_MIN : CW_SPEED_MAX;
-      cw_is_adaptive_receive_enabled = false;
-      cw_is_in_sync = false;
-      cw_sync_parameters_internal (generator);
-      cw_is_adaptive_receive_enabled = true;
-      cw_is_in_sync = false;
-      cw_sync_parameters_internal (generator);
-    }
+	   Resetting the speed directly really means unsetting adaptive mode,
+	   resyncing to calculate the new threshold, which unfortunately
+	   recalculates everything else according to fixed speed; so, we
+	   then have to reset adaptive and resyncing one more time, to get
+	   all other timing parameters back to where they should be. */
+	cw_is_in_sync = false;
+	cw_sync_parameters_internal (generator);
+	if (cw_receive_speed < CW_SPEED_MIN || cw_receive_speed > CW_SPEED_MAX) {
+		cw_receive_speed = cw_receive_speed < CW_SPEED_MIN
+			? CW_SPEED_MIN : CW_SPEED_MAX;
+		cw_is_adaptive_receive_enabled = false;
+		cw_is_in_sync = false;
+		cw_sync_parameters_internal (generator);
+		cw_is_adaptive_receive_enabled = true;
+		cw_is_in_sync = false;
+		cw_sync_parameters_internal (generator);
+	}
+
+	return;
 }
 
 
+
+
+
 /**
- * Called on the end of a receive tone.  If the timestamp is NULL, the
- * current time is used.  On success, the routine adds a dot or dash to
- * the receive representation buffer, and returns true.  On error, it
- * returns false, with errno set to ERANGE if the call was not preceded by
- * a cw_start_receive_tone call, EINVAL if the timestamp passed in is not
- * valid, ENOENT if the tone length was out of bounds for the permissible
- * dot and dash lengths and fixed speed receiving is selected, ENOMEM if
- * the representation buffer is full, or EAGAIN if the tone was shorter
- * than the threshold for noise and was therefore ignored.
- */
+   Called on the end of a receive tone.  If the timestamp is NULL, the
+   current time is used.  On success, the routine adds a dot or dash to
+   the receive representation buffer, and returns true.  On error, it
+   returns false, with errno set to ERANGE if the call was not preceded by
+   a cw_start_receive_tone call, EINVAL if the timestamp passed in is not
+   valid, ENOENT if the tone length was out of bounds for the permissible
+   dot and dash lengths and fixed speed receiving is selected, ENOMEM if
+   the representation buffer is full, or EAGAIN if the tone was shorter
+   than the threshold for noise and was therefore ignored.
+
+   \param timestamp
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
 int cw_end_receive_tone(const struct timeval *timestamp)
 {
-  int status, element_usec;
-  char representation;
-  struct timeval saved_end_timestamp;
 
-  /* The receive state is expected to be inside a tone. */
-  if (cw_receive_state != RS_IN_TONE)
-    {
-      errno = ERANGE;
-      return CW_FAILURE;
-    }
 
-  /*
-   * Take a safe copy of the current end timestamp, in case we need to put
-   * it back if we decide this tone is really just noise.
-   */
-  saved_end_timestamp = cw_rr_end_timestamp;
+	/* The receive state is expected to be inside a tone. */
+	if (cw_receive_state != RS_IN_TONE) {
+		errno = ERANGE;
+		return CW_FAILURE;
+	}
 
-  /* Save the timestamp passed in, or get one. */
-  if (!cw_validate_timestamp_internal (timestamp, &cw_rr_end_timestamp))
-    return CW_FAILURE;
+	/* Take a safe copy of the current end timestamp, in case we need
+	   to put it back if we decide this tone is really just noise. */
+	struct timeval saved_end_timestamp = cw_rr_end_timestamp;
 
-  /* Compare the timestamps to determine the length of the tone. */
-  element_usec = cw_compare_timestamps_internal (&cw_rr_start_timestamp,
-                                                 &cw_rr_end_timestamp);
+	/* Save the timestamp passed in, or get one. */
+	if (!cw_timestamp_validate_internal(timestamp, &cw_rr_end_timestamp)) {
+		return CW_FAILURE;
+	}
 
-  /*
-   * If the tone length is shorter than any noise canceling threshold that
-   * has been set, then ignore this tone.  This means reverting to the state
-   * before the call to cw_start_receive_tone.  Now, by rights, we should use
-   * an extra state, RS_IN_FIRST_TONE, say, so that we know whether to go
-   * back to the idle state, or to after tone.  But to make things a touch
-   * simpler, here we can just look at the current receive buffer pointer.
-   * If it's zero, we came from idle, otherwise we came from after tone.
-   */
-  if (cw_noise_spike_threshold > 0
-      && element_usec <= cw_noise_spike_threshold)
-    {
-      cw_receive_state = cw_rr_current == 0 ? RS_IDLE : RS_AFTER_TONE;
+	/* Compare the timestamps to determine the length of the tone. */
+	int element_usec = cw_timestamp_compare_internal(&cw_rr_start_timestamp,
+							 &cw_rr_end_timestamp);
 
-      /*
-       * Put the end tone timestamp back to how it was when we came in to
-       * the routine.
-       */
-      cw_rr_end_timestamp = saved_end_timestamp;
+	/* If the tone length is shorter than any noise canceling threshold
+	   that has been set, then ignore this tone.  This means reverting
+	   to the state before the call to cw_start_receive_tone.  Now, by
+	   rights, we should use an extra state, RS_IN_FIRST_TONE, say, so
+	   that we know whether to go back to the idle state, or to after
+	   tone.  But to make things a touch simpler, here we can just look
+	   at the current receive buffer pointer. If it's zero, we came from
+	   idle, otherwise we came from after tone. */
+	if (cw_noise_spike_threshold > 0
+	    && element_usec <= cw_noise_spike_threshold) {
+		cw_receive_state = cw_rr_current == 0 ? RS_IDLE : RS_AFTER_TONE;
 
-      cw_debug (CW_DEBUG_RECEIVE_STATES, "receive state ->%d", cw_receive_state);
+		/* Put the end tone timestamp back to how it was when we
+		   came in to the routine. */
+		cw_rr_end_timestamp = saved_end_timestamp;
 
-      errno = EAGAIN;
-      return CW_FAILURE;
-    }
+		cw_debug (CW_DEBUG_RECEIVE_STATES, "receive state ->%d", cw_receive_state);
 
-  /*
-   * At this point, we have to make a decision about the element just
-   * received.  We'll use a routine that compares ranges to tell us what it
-   * thinks this element is.  If it can't decide, it will hand us back an
-   * error which we return to the caller.  Otherwise, it returns a character,
-   * dot or dash, for us to buffer.
-   */
-  status = cw_identify_receive_tone_internal (element_usec, &representation);
-  if (!status)
-    return CW_FAILURE;
+		errno = EAGAIN;
+		return CW_FAILURE;
+	}
 
-  /*
-   * Update the averaging buffers so that the adaptive tracking of received
-   * Morse speed stays up to date.  But only do this if we have set adaptive
-   * receiving; don't fiddle about trying to track for fixed speed receive.
-   */
-  if (cw_is_adaptive_receive_enabled)
-    cw_update_adaptive_tracking_internal (element_usec, representation);
+	char representation;
+	/* At this point, we have to make a decision about the element
+	   just received.  We'll use a routine that compares ranges to
+	   tell us what it thinks this element is.  If it can't decide,
+	   it will hand us back an error which we return to the caller.
+	   Otherwise, it returns a character, dot or dash, for us to buffer. */
+	int status = cw_receive_identify_tone_internal(element_usec, &representation);
+	if (!status) {
+		return CW_FAILURE;
+	}
 
-  /*
-   * Update dot and dash timing statistics.  It may seem odd to do this after
-   * calling cw_update_adaptive_tracking_internal, rather than before, as
-   * this function changes the ideal values we're measuring against.  But if
-   * we're on a speed change slope, the adaptive tracking smoothing will
-   * cause the ideals to lag the observed speeds.  So by doing this here, we
-   * can at least ameliorate this effect, if not eliminate it.
-   */
-  if (representation == CW_DOT_REPRESENTATION)
-    cw_add_receive_statistic_internal (STAT_DOT, element_usec);
-  else
-    cw_add_receive_statistic_internal (STAT_DASH, element_usec);
+	/* Update the averaging buffers so that the adaptive tracking of
+	   received Morse speed stays up to date.  But only do this if we
+	   have set adaptive receiving; don't fiddle about trying to track
+	   for fixed speed receive. */
+	if (cw_is_adaptive_receive_enabled) {
+		cw_receive_update_adaptive_tracking_internal(element_usec, representation);
+	}
 
-  /* Add the representation character to the receive buffer. */
-  cw_receive_representation_buffer[cw_rr_current++] = representation;
+	/* Update dot and dash timing statistics.  It may seem odd to do
+	   this after calling cw_receive_update_adaptive_tracking_internal(),
+	   rather than before, as this function changes the ideal values we're
+	   measuring against.  But if we're on a speed change slope, the
+	   adaptive tracking smoothing will cause the ideals to lag the
+	   observed speeds.  So by doing this here, we can at least
+	   ameliorate this effect, if not eliminate it. */
+	if (representation == CW_DOT_REPRESENTATION) {
+		cw_add_receive_statistic_internal(STAT_DOT, element_usec);
+	} else {
+		cw_add_receive_statistic_internal(STAT_DASH, element_usec);
+	}
 
-  /*
-   * We just added a representation to the receive buffer.  If it's full,
-   * then we have to do something, even though it's unlikely.  What we'll do
-   * is make a unilateral declaration that if we get this far, we go to
-   * end-of-char error state automatically.
-   */
-  if (cw_rr_current == RECEIVE_CAPACITY - 1)
-    {
-      cw_receive_state = RS_ERR_CHAR;
+	/* Add the representation character to the receive buffer. */
+	cw_receive_representation_buffer[cw_rr_current++] = representation;
 
-      cw_debug (CW_DEBUG_RECEIVE_STATES, "receive state ->%d", cw_receive_state);
+	/* We just added a representation to the receive buffer.  If it's
+	   full, then we have to do something, even though it's unlikely.
+	   What we'll do is make a unilateral declaration that if we get
+	   this far, we go to end-of-char error state automatically. */
+	if (cw_rr_current == RECEIVE_CAPACITY - 1) {
+		cw_receive_state = RS_ERR_CHAR;
 
-      errno = ENOMEM;
-      return CW_FAILURE;
-    }
+		cw_debug (CW_DEBUG_RECEIVE_STATES, "receive state ->%d", cw_receive_state);
 
-  /* All is well.  Move to the more normal after-tone state. */
-  cw_receive_state = RS_AFTER_TONE;
+		errno = ENOMEM;
+		return CW_FAILURE;
+	}
 
-  cw_debug (CW_DEBUG_RECEIVE_STATES, "receive state ->%d", cw_receive_state);
+	/* All is well.  Move to the more normal after-tone state. */
+	cw_receive_state = RS_AFTER_TONE;
 
-  return CW_SUCCESS;
+	cw_debug (CW_DEBUG_RECEIVE_STATES, "receive state ->%d", cw_receive_state);
+
+	return CW_SUCCESS;
 }
+
+
+
 
 
 /**
- * Adds either a dot or a dash to the receive representation buffer.  If
- * the timestamp is NULL, the current timestamp is used.  The receive state
- * is updated as if we had just received a call to cw_end_receive_tone.
+   \brief Add dot or dash to receive representation buffer
+
+   Function adds either a dot or a dash to the receive representation
+   buffer.  If the \p timestamp is NULL, the current timestamp is used.
+   The receive state is updated as if we had just received a call to
+   cw_end_receive_tone().
+
+   \param timestamp
+   \param element
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
  */
-int cw_receive_buffer_element_internal(const struct timeval *timestamp,
+int cw_receive_add_element_internal(const struct timeval *timestamp,
 				       char element)
 {
-  /*
-   * The receive state is expected to be idle or after a tone in order to
-   * use this routine.
-   */
-  if (cw_receive_state != RS_IDLE && cw_receive_state != RS_AFTER_TONE)
-    {
-      errno = ERANGE;
-      return CW_FAILURE;
-    }
+	/* The receive state is expected to be idle or after a tone in
+	   order to use this routine. */
+	if (cw_receive_state != RS_IDLE && cw_receive_state != RS_AFTER_TONE) {
+		errno = ERANGE;
+		return CW_FAILURE;
+	}
 
-  /*
-   * This routine functions as if we have just seen a tone end, yet without
-   * really seeing a tone start.  To keep timing information for routines
-   * that come later, we need to make sure that the end of tone timestamp is
-   * set here.  This is because the receive representation routine looks at
-   * the time since the last end of tone to determine whether we are at the
-   * end of a word, or just at the end of a character.  It doesn't matter that
-   * the start of tone timestamp is never set - this is just for timing the
-   * tone length, and we don't need to do that since we've already been told
-   * whether this is a dot or a dash.
-   */
-  if (!cw_validate_timestamp_internal (timestamp, &cw_rr_end_timestamp))
-    return CW_FAILURE;
+	/* This routine functions as if we have just seen a tone end, yet
+	   without really seeing a tone start.  To keep timing information
+	   for routines that come later, we need to make sure that the end
+	   of tone timestamp is set here.  This is because the receive
+	   representation routine looks at the time since the last end of
+	   tone to determine whether we are at the end of a word, or just
+	   at the end of a character.  It doesn't matter that the start of
+	   tone timestamp is never set - this is just for timing the tone
+	   length, and we don't need to do that since we've already been
+	   told whether this is a dot or a dash. */
+	if (!cw_timestamp_validate_internal(timestamp, &cw_rr_end_timestamp)) {
+		return CW_FAILURE;
+	}
 
-  /* Add the element to the receive representation buffer. */
-  cw_receive_representation_buffer[cw_rr_current++] = element;
+	/* Add the element to the receive representation buffer. */
+	cw_receive_representation_buffer[cw_rr_current++] = element;
 
-  /*
-   * We just added an element to the receive buffer.  As above, if it's full,
-   * then we have to do something, even though it's unlikely to actually be
-   * full.
-   */
-  if (cw_rr_current == RECEIVE_CAPACITY - 1)
-    {
-      cw_receive_state = RS_ERR_CHAR;
+	/* We just added an element to the receive buffer.  As above, if
+	   it's full, then we have to do something, even though it's
+	   unlikely to actually be full. */
+	if (cw_rr_current == RECEIVE_CAPACITY - 1) {
+		cw_receive_state = RS_ERR_CHAR;
 
-      cw_debug (CW_DEBUG_RECEIVE_STATES, "receive state ->%d", cw_receive_state);
+		cw_debug (CW_DEBUG_RECEIVE_STATES, "receive state ->%d", cw_receive_state);
 
-      errno = ENOMEM;
-      return CW_FAILURE;
-    }
+		errno = ENOMEM;
+		return CW_FAILURE;
+	}
 
-  /*
-   * Since we effectively just saw the end of a tone, move to the after-tone
-   * state.
-   */
-  cw_receive_state = RS_AFTER_TONE;
+	/* Since we effectively just saw the end of a tone, move to
+	   the after-tone state. */
+	cw_receive_state = RS_AFTER_TONE;
 
-  cw_debug (CW_DEBUG_RECEIVE_STATES, "receive state ->%d", cw_receive_state);
+	cw_debug (CW_DEBUG_RECEIVE_STATES, "receive state ->%d", cw_receive_state);
 
-  return CW_SUCCESS;
+	return CW_SUCCESS;
 }
+
+
+
 
 
 /**
    \brief Add a dot to the receive representation buffer.
 
- * If the timestamp is NULL, the current timestamp is used.  These routines
- * are for callers that have already determined whether a dot or dash was
- * received by a method other than calling the routines cw_start_receive_tone
- * and cw_end_receive_tone.  On success, the relevant element is added to
- * the receive representation buffer.  On error, the routines return false,
- * with errno set to ERANGE if preceded by a cw_start_receive_tone call
- * with no matching cw_end_receive_tone or if an error condition currently
- * exists within the receive buffer, or ENOMEM if the receive representation
- * buffer is full.
- */
+   If the timestamp is NULL, the current timestamp is used.  These routines
+   are for callers that have already determined whether a dot or dash was
+   received by a method other than calling the routines cw_start_receive_tone
+   and cw_end_receive_tone.  On success, the relevant element is added to
+   the receive representation buffer.  On error, the routines return false,
+   with errno set to ERANGE if preceded by a cw_start_receive_tone call
+   with no matching cw_end_receive_tone or if an error condition currently
+   exists within the receive buffer, or ENOMEM if the receive representation
+   buffer is full.
+
+   \param timestamp
+*/
 int cw_receive_buffer_dot(const struct timeval *timestamp)
 {
-  return cw_receive_buffer_element_internal (timestamp, CW_DOT_REPRESENTATION);
+	return cw_receive_add_element_internal(timestamp, CW_DOT_REPRESENTATION);
 }
 
 
@@ -5339,252 +5561,283 @@ int cw_receive_buffer_dot(const struct timeval *timestamp)
    \brief Add a dash to the receive representation buffer.
 
    See documentation of cw_receive_buffer_dot() for more information
+
+   \param timestamp
 */
 int cw_receive_buffer_dash(const struct timeval *timestamp)
 {
-  return cw_receive_buffer_element_internal (timestamp, CW_DASH_REPRESENTATION);
+	return cw_receive_add_element_internal(timestamp, CW_DASH_REPRESENTATION);
 }
 
 
+
+
+
 /**
- * Returns the current buffered representation from the receive buffer.
- * On success, the function returns true, and fills in representation with the
- * contents of the current representation buffer.  On error, it returns false,
- * with errno set to ERANGE if not preceded by a cw_end_receive_tone call,
- * a prior successful cw_receive_representation call, or a prior
- * cw_receive_buffer_dot or cw_receive_buffer_dash, EINVAL if the timestamp
- * passed in is invalid, or EAGAIN if the call is made too early to determine
- * whether a complete representation has yet been placed in the buffer
- * (that is, less than the inter-character gap period elapsed since the last
- * cw_end_receive_tone or cw_receive_buffer_dot/dash call).  is_end_of_word
- * indicates that the delay after the last tone received is longer that the
- * inter-word gap, and is_error indicates that the representation was
- * terminated by an error condition.
- */
+   \brief Get the current buffered representation from the receive buffer
+
+   On success, the function returns true, and fills in representation with the
+   contents of the current representation buffer.  On error, it returns false,
+   with errno set to ERANGE if not preceded by a cw_end_receive_tone call,
+   a prior successful cw_receive_representation call, or a prior
+   cw_receive_buffer_dot or cw_receive_buffer_dash, EINVAL if the timestamp
+   passed in is invalid, or EAGAIN if the call is made too early to determine
+   whether a complete representation has yet been placed in the buffer
+   (that is, less than the inter-character gap period elapsed since the last
+   cw_end_receive_tone or cw_receive_buffer_dot/dash call).  is_end_of_word
+   indicates that the delay after the last tone received is longer that the
+   inter-word gap, and is_error indicates that the representation was
+   terminated by an error condition.
+
+   \param timestamp
+   \param representation
+   \param is_end_of_word
+   \param is_error
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
 int cw_receive_representation(const struct timeval *timestamp,
 			      char *representation, bool *is_end_of_word,
 			      bool *is_error)
 {
-  int space_usec;
-  struct timeval now_timestamp;
+	struct timeval now_timestamp;
 
-  /*
-   * If the the receive state indicates that we have in our possession a
-   * completed representation at the end of word, just [re-]return it.
-   */
-  if (cw_receive_state == RS_END_WORD || cw_receive_state == RS_ERR_WORD)
-    {
-      if (is_end_of_word)
-        *is_end_of_word = true;
-      if (is_error)
-        *is_error = (cw_receive_state == RS_ERR_WORD);
-      *representation = '\0';
-      strncat (representation, cw_receive_representation_buffer, cw_rr_current);
-      return CW_SUCCESS;
-    }
+	/* If the the receive state indicates that we have in our possession
+	   a completed representation at the end of word, just [re-]return it. */
+	if (cw_receive_state == RS_END_WORD || cw_receive_state == RS_ERR_WORD) {
+		if (is_end_of_word) {
+			*is_end_of_word = true;
+		}
+		if (is_error) {
+			*is_error = (cw_receive_state == RS_ERR_WORD);
+		}
+		*representation = '\0';
+		strncat(representation, cw_receive_representation_buffer, cw_rr_current);
+		return CW_SUCCESS;
+	}
 
-  /*
-   * If the receive state is also not end-of-char, and also not after a tone,
-   * then we are idle or in a tone; in these cases, we return ERANGE.
-   */
-  if (cw_receive_state != RS_AFTER_TONE
-      && cw_receive_state != RS_END_CHAR && cw_receive_state != RS_ERR_CHAR)
-    {
-      errno = ERANGE;
-      return CW_FAILURE;
-    }
 
-  /*
-   * We now know the state is after a tone, or end-of-char, perhaps with
-   * error.  For all three of these cases, we're going to [re-]compare the
-   * timestamp with the end of tone timestamp.  This could mean that in the
-   * case of end-of-char, we revise our opinion on later calls to end-of-word.
-   * This is correct, since it models reality.
-   */
+	/* If the receive state is also not end-of-char, and also not after
+	   a tone, then we are idle or in a tone; in these cases, we return
+	   ERANGE. */
+	if (cw_receive_state != RS_AFTER_TONE
+	    && cw_receive_state != RS_END_CHAR
+	    && cw_receive_state != RS_ERR_CHAR) {
 
-  /*
-   * If we weren't supplied with one, get the current timestamp for comparison
-   * against the latest end timestamp.
-   */
-  if (!cw_validate_timestamp_internal (timestamp, &now_timestamp))
-    return CW_FAILURE;
+		errno = ERANGE;
+		return CW_FAILURE;
+	}
 
-  /*
-   * Now we need to compare the timestamps to determine the length of the
-   * inter-tone gap.
-   */
-  space_usec = cw_compare_timestamps_internal (&cw_rr_end_timestamp,
-                                               &now_timestamp);
+	/* We now know the state is after a tone, or end-of-char, perhaps
+	   with error.  For all three of these cases, we're going to
+	   [re-]compare the timestamp with the end of tone timestamp.
+	   This could mean that in the case of end-of-char, we revise
+	   our opinion on later calls to end-of-word. This is correct,
+	   since it models reality. */
 
-  /* Synchronize low level timings if required */
-  cw_sync_parameters_internal (generator);
+	/* If we weren't supplied with one, get the current timestamp
+	   for comparison against the latest end timestamp. */
+	if (!cw_timestamp_validate_internal(timestamp, &now_timestamp)) {
+		return CW_FAILURE;
+	}
 
-  /*
-   * If the timing was, within tolerance, a character space, then that is
-   * what we'll call it.  In this case, we complete the representation and
-   * return it.
-   */
-  if (space_usec >= cw_eoc_range_minimum
-      && space_usec <= cw_eoc_range_maximum)
-    {
-      /*
-       * If state is after tone, we can validly move at this point to end of
-       * char.  If it's not, then we're at end char or at end char with error
-       * already, so leave it.  On moving, update timing statistics for an
-       * identified end of character.
-       */
-      if (cw_receive_state == RS_AFTER_TONE)
-        {
-          cw_add_receive_statistic_internal (STAT_END_CHARACTER, space_usec);
-          cw_receive_state = RS_END_CHAR;
-        }
+	/* Now we need to compare the timestamps to determine the length
+	   of the inter-tone gap. */
+	int space_usec = cw_timestamp_compare_internal(&cw_rr_end_timestamp,
+						       &now_timestamp);
 
-      cw_debug (CW_DEBUG_RECEIVE_STATES, "receive state ->%d", cw_receive_state);
+	/* Synchronize low level timings if required */
+	cw_sync_parameters_internal(generator);
 
-      /* Return the representation buffered. */
-      if (is_end_of_word)
-        *is_end_of_word = false;
-      if (is_error)
-        *is_error = (cw_receive_state == RS_ERR_CHAR);
-      *representation = '\0';
-      strncat (representation, cw_receive_representation_buffer, cw_rr_current);
-      return CW_SUCCESS;
-    }
+	/* If the timing was, within tolerance, a character space, then
+	   that is what we'll call it.  In this case, we complete the
+	   representation and return it. */
+	if (space_usec >= cw_eoc_range_minimum
+	    && space_usec <= cw_eoc_range_maximum) {
 
-  /*
-   * If the timing indicated a word space, again we complete the representation
-   * and return it.  In this case, we also need to inform the client that this
-   * looked like the end of a word, not just a character.  And, we don't care
-   * about the maximum period, only that it exceeds the low end of the range.
-   */
-  if (space_usec > cw_eoc_range_maximum)
-    {
-      /*
-       * In this case, we have a transition to an end of word case.  If we
-       * were sat in an error case, we need to move to the correct end of word
-       * state, otherwise, at after tone, we go safely to the non-error end
-       * of word.
-       */
-      cw_receive_state = cw_receive_state == RS_ERR_CHAR
-                         ? RS_ERR_WORD : RS_END_WORD;
+		/* If state is after tone, we can validly move at this
+		   point to end of char.  If it's not, then we're at end
+		   char or at end char with error already, so leave it.
+		   On moving, update timing statistics for an identified
+		   end of character. */
+		if (cw_receive_state == RS_AFTER_TONE) {
+			cw_add_receive_statistic_internal(STAT_END_CHARACTER, space_usec);
+			cw_receive_state = RS_END_CHAR;
+		}
 
-      cw_debug (CW_DEBUG_RECEIVE_STATES, "receive state ->%d", cw_receive_state);
+		cw_debug (CW_DEBUG_RECEIVE_STATES, "receive state ->%d", cw_receive_state);
 
-      /* Return the representation buffered. */
-      if (is_end_of_word)
-        *is_end_of_word = true;
-      if (is_error)
-        *is_error = (cw_receive_state == RS_ERR_WORD);
-      *representation = '\0';
-      strncat (representation, cw_receive_representation_buffer, cw_rr_current);
-      return CW_SUCCESS;
-    }
+		/* Return the representation buffered. */
+		if (is_end_of_word) {
+			*is_end_of_word = false;
+		}
+		if (is_error) {
+			*is_error = (cw_receive_state == RS_ERR_CHAR);
+		}
+		*representation = '\0';
+		strncat(representation, cw_receive_representation_buffer, cw_rr_current);
+		return CW_SUCCESS;
+	}
 
-  /*
-   * If none of these conditions holds, then we cannot yet make a judgement
-   * on what we have in the buffer, so return EAGAIN.
-   */
-  errno = EAGAIN;
-  return CW_FAILURE;
+	/* If the timing indicated a word space, again we complete the
+	   representation and return it.  In this case, we also need to
+	   inform the client that this looked like the end of a word, not
+	   just a character.  And, we don't care about the maximum period,
+	   only that it exceeds the low end of the range. */
+	if (space_usec > cw_eoc_range_maximum) {
+		/* In this case, we have a transition to an end of word
+		   case.  If we were sat in an error case, we need to move
+		   to the correct end of word state, otherwise, at after
+		   tone, we go safely to the non-error end of word. */
+		cw_receive_state = cw_receive_state == RS_ERR_CHAR
+			? RS_ERR_WORD : RS_END_WORD;
+
+		cw_debug (CW_DEBUG_RECEIVE_STATES, "receive state ->%d", cw_receive_state);
+
+		/* Return the representation buffered. */
+		if (is_end_of_word) {
+			*is_end_of_word = true;
+		}
+		if (is_error) {
+			*is_error = (cw_receive_state == RS_ERR_WORD);
+		}
+		*representation = '\0';
+		strncat(representation, cw_receive_representation_buffer, cw_rr_current);
+		return CW_SUCCESS;
+	}
+
+	/* If none of these conditions holds, then we cannot yet make a
+	   judgement on what we have in the buffer, so return EAGAIN. */
+	errno = EAGAIN;
+	return CW_FAILURE;
 }
 
 
+
+
+
 /**
- * Returns the current buffered character from the representation buffer.
- * On success, the function returns true, and fills char *c with the contents
- * of the current representation buffer, translated into a character.  On
- * error, it returns false, with errno set to ERANGE if not preceded by a
- * cw_end_receive_tone call, a prior successful cw_receive_character
- * call, or a cw_receive_buffer_dot or cw_receive_buffer dash call, EINVAL
- * if the timestamp passed in is invalid, or EAGAIN if the call is made too
- * early to determine whether a complete character has yet been placed in the
- * buffer (that is, less than the inter-character gap period elapsed since
- * the last cw_end_receive_tone or cw_receive_buffer_dot/dash call).
- * is_end_of_word indicates that the delay after the last tone received is
- * longer that the inter-word gap, and is_error indicates that the character
- * was terminated by an error condition.
- */
+   \brief Get a current character
+
+   Returns the current buffered character from the representation buffer.
+   On success, the function returns true, and fills char *c with the contents
+   of the current representation buffer, translated into a character.  On
+   error, it returns false, with errno set to ERANGE if not preceded by a
+   cw_end_receive_tone call, a prior successful cw_receive_character
+   call, or a cw_receive_buffer_dot or cw_receive_buffer dash call, EINVAL
+   if the timestamp passed in is invalid, or EAGAIN if the call is made too
+   early to determine whether a complete character has yet been placed in the
+   buffer (that is, less than the inter-character gap period elapsed since
+   the last cw_end_receive_tone or cw_receive_buffer_dot/dash call).
+   is_end_of_word indicates that the delay after the last tone received is
+   longer that the inter-word gap, and is_error indicates that the character
+   was terminated by an error condition.
+*/
 int cw_receive_character(const struct timeval *timestamp,
 			 char *c, bool *is_end_of_word, bool *is_error)
 {
-  int status;
-  bool end_of_word, error;
-  char character, representation[RECEIVE_CAPACITY + 1];
+	bool end_of_word, error;
+	char representation[RECEIVE_CAPACITY + 1];
 
-  /* See if we can obtain a representation from the receive routines. */
-  status = cw_receive_representation (timestamp, representation,
-                                      &end_of_word, &error);
-  if (!status)
-    return CW_FAILURE;
+	/* See if we can obtain a representation from the receive routines. */
+	int status = cw_receive_representation (timestamp, representation,
+						&end_of_word, &error);
+	if (!status) {
+		return CW_FAILURE;
+	}
 
-  /* Look up the representation using the lookup functions. */
-  character = cw_representation_to_character_internal(representation);
-  if (!character)
-    {
-      errno = ENOENT;
-      return CW_FAILURE;
-    }
+	/* Look up the representation using the lookup functions. */
+	char character = cw_representation_to_character_internal(representation);
+	if (!character) {
+		errno = ENOENT;
+		return CW_FAILURE;
+	}
 
-  /* If we got this far, all is well, so return what we uncovered. */
-  if (c)
-    *c = character;
-  if (is_end_of_word)
-    *is_end_of_word = end_of_word;
-  if (is_error)
-    *is_error = error;
-  return CW_SUCCESS;
+	/* If we got this far, all is well, so return what we uncovered. */
+	if (c) {
+		*c = character;
+	}
+	if (is_end_of_word) {
+		*is_end_of_word = end_of_word;
+	}
+	if (is_error) {
+		*is_error = error;
+	}
+	return CW_SUCCESS;
 }
 
 
+
+
+
 /**
- * Clears the receive representation buffer to receive tones again.  This
- * routine must be called after successful, or terminating,
- * cw_receive_representation or cw_receive_character calls, to clear the
- * states and prepare the buffer to receive more tones.
- */
+   \brief Clear receive representation buffer
+
+   Clears the receive representation buffer to receive tones again.
+   This routine must be called after successful, or terminating,
+   cw_receive_representation() or cw_receive_character() calls, to
+   clear the states and prepare the buffer to receive more tones.
+*/
 void cw_clear_receive_buffer(void)
 {
-  cw_rr_current = 0;
-  cw_receive_state = RS_IDLE;
+	cw_rr_current = 0;
+	cw_receive_state = RS_IDLE;
 
-  cw_debug (CW_DEBUG_RECEIVE_STATES, "receive state ->%d", cw_receive_state);
+	cw_debug (CW_DEBUG_RECEIVE_STATES, "receive state ->%d", cw_receive_state);
+
+	return;
 }
 
 
+
+
+
 /**
- * Returns the number of entries the receive buffer can accommodate.  The
- * maximum number of character written out by cw_receive_representation is
- * the capacity + 1, the extra character being used for the terminating
- * NUL.
- */
+   \brief Get the number of entries the receive buffer can accommodate
+
+   The maximum number of character written out by cw_receive_representation()
+   is the capacity + 1, the extra character being used for the terminating
+   NUL.
+*/
 int cw_get_receive_buffer_capacity(void)
 {
-  return RECEIVE_CAPACITY;
+	return RECEIVE_CAPACITY;
 }
 
 
+
+
+
 /**
- * Returns the number of elements currently pending in the receive buffer.
- */
+   \brief Get the number of elements currently pending in the receive buffer
+*/
 int cw_get_receive_buffer_length(void)
 {
-  return cw_rr_current;
+	return cw_rr_current;
 }
 
 
+
+
+
 /**
- * Clear the receive representation buffer, statistics, and any retained
- * receive state.  This function is suitable for calling from an application
- * exit handler.
- */
+   \brief Clear receive data
+
+   Clear the receive representation buffer, statistics, and any retained
+   receive state.  This function is suitable for calling from an application
+   exit handler.
+*/
 void cw_reset_receive(void)
 {
-  cw_rr_current = 0;
-  cw_receive_state = RS_IDLE;
+	cw_rr_current = 0;
+	cw_receive_state = RS_IDLE;
 
-  cw_reset_receive_statistics ();
+	cw_reset_receive_statistics ();
 
-  cw_debug (CW_DEBUG_RECEIVE_STATES, "receive state ->%d (reset)", cw_receive_state);
+	cw_debug (CW_DEBUG_RECEIVE_STATES, "receive state ->%d (reset)", cw_receive_state);
+
+	return;
 }
 
 
@@ -5599,37 +5852,40 @@ void cw_reset_receive(void)
 
 
 
-/*
- * Iambic keyer status.  The keyer functions maintain the current known state
- * of the paddles, and latch false-to-true transitions while busy, to form the
- * iambic effect.  For Curtis mode B, the keyer also latches any point where
- * both paddle states are true at the same time.
- */
+/* Iambic keyer status.  The keyer functions maintain the current known
+   state of the paddles, and latch false-to-true transitions while busy,
+   to form the iambic effect.  For Curtis mode B, the keyer also latches
+   any point where both paddle states are true at the same time. */
 static volatile bool cw_ik_dot_paddle = false,      /* Dot paddle state */
 	cw_ik_dash_paddle = false,     /* Dash paddle state */
 	cw_ik_dot_latch = false,       /* Dot false->true latch */
 	cw_ik_dash_latch = false,      /* Dash false->true latch */
 	cw_ik_curtis_b_latch = false;  /* Curtis Dot&&Dash latch */
 
-/*
- * Iambic keyer "Curtis" mode A/B selector.  Mode A and mode B timings differ
- * slightly, and some people have a preference for one or the other.  Mode A
- * is a bit less timing-critical, so we'll make that the default.
- */
+/* Iambic keyer "Curtis" mode A/B selector.  Mode A and mode B timings
+   differ slightly, and some people have a preference for one or the other.
+   Mode A is a bit less timing-critical, so we'll make that the default. */
 static volatile bool cw_ik_curtis_mode_b = false;
 
+
+
+
+
 /**
- * Normally, the iambic keying functions will emulate Curtis 8044 Keyer
- * mode A.  In this mode, when both paddles are pressed together, the last
- * dot or dash being sent on release is completed, and nothing else is sent.
- * In mode B, when both paddles are pressed together, the last dot or dash
- * being sent on release is completed, then an opposite element is also sent.
- * Some operators prefer mode B, but timing is more critical in this mode.
- * The default mode is Curtis mode A.
- */
+   \brief Enable iambic Curtis mode B
+
+   Normally, the iambic keying functions will emulate Curtis 8044 Keyer
+   mode A.  In this mode, when both paddles are pressed together, the
+   last dot or dash being sent on release is completed, and nothing else
+   is sent. In mode B, when both paddles are pressed together, the last
+   dot or dash being sent on release is completed, then an opposite
+   element is also sent. Some operators prefer mode B, but timing is
+   more critical in this mode. The default mode is Curtis mode A.
+*/
 void cw_enable_iambic_curtis_mode_b(void)
 {
-  cw_ik_curtis_mode_b = true;
+	cw_ik_curtis_mode_b = true;
+	return;
 }
 
 
@@ -5641,7 +5897,8 @@ void cw_enable_iambic_curtis_mode_b(void)
 */
 void cw_disable_iambic_curtis_mode_b(void)
 {
-  cw_ik_curtis_mode_b = false;
+	cw_ik_curtis_mode_b = false;
+	return;
 }
 
 
@@ -5653,7 +5910,7 @@ void cw_disable_iambic_curtis_mode_b(void)
 */
 int cw_get_iambic_curtis_mode_b_state(void)
 {
-  return cw_ik_curtis_mode_b;
+	return cw_ik_curtis_mode_b;
 }
 
 
@@ -5687,239 +5944,245 @@ int cw_get_iambic_curtis_mode_b_state(void)
  *        |          (all latches clear)                        |
  *        +-----------------------------------------------------+
  */
-static volatile enum
-{ KS_IDLE, KS_IN_DOT_A, KS_IN_DASH_A, KS_AFTER_DOT_A, KS_AFTER_DASH_A,
-  KS_IN_DOT_B, KS_IN_DASH_B, KS_AFTER_DOT_B, KS_AFTER_DASH_B
-}
-cw_keyer_state = KS_IDLE;
+static volatile enum {
+	KS_IDLE,
+	KS_IN_DOT_A,
+	KS_IN_DASH_A,
+	KS_AFTER_DOT_A,
+	KS_AFTER_DASH_A,
+	KS_IN_DOT_B,
+	KS_IN_DASH_B,
+	KS_AFTER_DOT_B,
+	KS_AFTER_DASH_B
+} cw_keyer_state = KS_IDLE;
 
 
 /**
- * Informs the internal keyer states that the itimer expired, and we received
- * SIGALRM.
- */
+   \brief Inform the internal keyer states that the itimer expired, and we received SIGALRM
+*/
 void cw_keyer_clock_internal(void)
 {
-  /* Synchronize low level timing parameters if required. */
-  cw_sync_parameters_internal (generator);
+	/* Synchronize low level timing parameters if required. */
+	cw_sync_parameters_internal (generator);
 
-  /* Decide what to do based on the current state. */
-  switch (cw_keyer_state)
-    {
-    /* Ignore calls if our state is idle. */
-    case KS_IDLE:
-      return;
+	/* Decide what to do based on the current state. */
+	switch (cw_keyer_state) {
+		/* Ignore calls if our state is idle. */
+	case KS_IDLE:
+		return;
 
-    /*
-     * If we were in a dot, turn off tones and begin the after-dot delay.  Do
-     * much the same if we are in a dash.  No routine status checks are made
-     * since we are in a signal handler, and can't readily return error codes
-     * to the client.
-     */
-    case KS_IN_DOT_A:
-    case KS_IN_DOT_B:
-      cw_generator_play_internal(generator, CW_TONE_SILENT);
-      cw_key_control_internal (false);
-      cw_timer_run_with_handler_internal(cw_end_of_ele_delay, NULL);
-      cw_keyer_state = cw_keyer_state == KS_IN_DOT_A
-                       ? KS_AFTER_DOT_A : KS_AFTER_DOT_B;
+		/* If we were in a dot, turn off tones and begin the
+		   after-dot delay.  Do much the same if we are in a dash.
+		   No routine status checks are made since we are in a
+		   signal handler, and can't readily return error codes
+		   to the client. */
+	case KS_IN_DOT_A:
+	case KS_IN_DOT_B:
+		cw_generator_play_internal(generator, CW_TONE_SILENT);
+		cw_key_control_internal(false);
+		cw_timer_run_with_handler_internal(cw_end_of_ele_delay, NULL);
+		cw_keyer_state = cw_keyer_state == KS_IN_DOT_A
+			? KS_AFTER_DOT_A : KS_AFTER_DOT_B;
 
-      cw_debug (CW_DEBUG_KEYER_STATES, "keyer ->%d", cw_keyer_state);
-      break;
+		cw_debug (CW_DEBUG_KEYER_STATES, "keyer ->%d", cw_keyer_state);
+		break;
 
-    case KS_IN_DASH_A:
-    case KS_IN_DASH_B:
-      cw_generator_play_internal(generator, CW_TONE_SILENT);
-      cw_key_control_internal (false);
-      cw_timer_run_with_handler_internal(cw_end_of_ele_delay, NULL);
-      cw_keyer_state = cw_keyer_state == KS_IN_DASH_A
-                       ? KS_AFTER_DASH_A : KS_AFTER_DASH_B;
+	case KS_IN_DASH_A:
+	case KS_IN_DASH_B:
+		cw_generator_play_internal(generator, CW_TONE_SILENT);
+		cw_key_control_internal(false);
+		cw_timer_run_with_handler_internal(cw_end_of_ele_delay, NULL);
+		cw_keyer_state = cw_keyer_state == KS_IN_DASH_A
+			? KS_AFTER_DASH_A : KS_AFTER_DASH_B;
 
-      cw_debug (CW_DEBUG_KEYER_STATES, "keyer ->%d", cw_keyer_state);
-      break;
+		cw_debug (CW_DEBUG_KEYER_STATES, "keyer ->%d", cw_keyer_state);
+		break;
 
-    /*
-     * If we have just finished a dot or a dash and its post-element delay,
-     * then reset the latches as appropriate.  Next, if in a _B state, go
-     * straight to the opposite element state.  If in an _A state, check the
-     * latch states; if the opposite latch is set true, then do the iambic
-     * thing and alternate dots and dashes.  If the same latch is true,
-     * repeat.  And if nothing is true, then revert to idling.
-     */
-    case KS_AFTER_DOT_A:
-    case KS_AFTER_DOT_B:
-      if (!cw_ik_dot_paddle)
-        cw_ik_dot_latch = false;
-      if (cw_keyer_state == KS_AFTER_DOT_B)
-        {
-          cw_generator_play_internal(generator, generator->frequency);
-          cw_key_control_internal (true);
-          cw_timer_run_with_handler_internal(cw_send_dash_length, NULL);
-          cw_keyer_state = KS_IN_DASH_A;
-        }
-      else if (cw_ik_dash_latch)
-        {
-          cw_generator_play_internal(generator, generator->frequency);
-          cw_key_control_internal (true);
-          cw_timer_run_with_handler_internal(cw_send_dash_length, NULL);
-          if (cw_ik_curtis_b_latch)
-            {
-              cw_ik_curtis_b_latch = false;
-              cw_keyer_state = KS_IN_DASH_B;
-            }
-          else
-            cw_keyer_state = KS_IN_DASH_A;
-        }
-      else if (cw_ik_dot_latch)
-        {
-          cw_generator_play_internal(generator, generator->frequency);
-          cw_key_control_internal (true);
-          cw_timer_run_with_handler_internal(cw_send_dot_length, NULL);
-          cw_keyer_state = KS_IN_DOT_A;
-        }
-      else
-        {
-          cw_keyer_state = KS_IDLE;
-          cw_schedule_finalization_internal ();
-        }
+		/* If we have just finished a dot or a dash and its
+		   post-element delay, then reset the latches as
+		   appropriate.  Next, if in a _B state, go straight to
+		   the opposite element state.  If in an _A state, check
+		   the latch states; if the opposite latch is set true,
+		   then do the iambic thing and alternate dots and dashes.
+		   If the same latch is true, repeat.  And if nothing is
+		   true, then revert to idling. */
+	case KS_AFTER_DOT_A:
+	case KS_AFTER_DOT_B:
+		if (!cw_ik_dot_paddle) {
+			cw_ik_dot_latch = false;
+		}
 
-      cw_debug (CW_DEBUG_KEYER_STATES, "keyer ->%d", cw_keyer_state);
-      break;
+		if (cw_keyer_state == KS_AFTER_DOT_B) {
+			cw_generator_play_internal(generator, generator->frequency);
+			cw_key_control_internal(true);
+			cw_timer_run_with_handler_internal(cw_send_dash_length, NULL);
+			cw_keyer_state = KS_IN_DASH_A;
+		} else if (cw_ik_dash_latch) {
+			cw_generator_play_internal(generator, generator->frequency);
+			cw_key_control_internal(true);
+			cw_timer_run_with_handler_internal(cw_send_dash_length, NULL);
+			if (cw_ik_curtis_b_latch){
+				cw_ik_curtis_b_latch = false;
+				cw_keyer_state = KS_IN_DASH_B;
+			} else {
+				cw_keyer_state = KS_IN_DASH_A;
+			}
+		} else if (cw_ik_dot_latch) {
+			cw_generator_play_internal(generator, generator->frequency);
+			cw_key_control_internal(true);
+			cw_timer_run_with_handler_internal(cw_send_dot_length, NULL);
+			cw_keyer_state = KS_IN_DOT_A;
+		} else {
+			cw_keyer_state = KS_IDLE;
+			cw_finalization_schedule_internal();
+		}
 
-    case KS_AFTER_DASH_A:
-    case KS_AFTER_DASH_B:
-      if (!cw_ik_dash_paddle)
-        cw_ik_dash_latch = false;
-      if (cw_keyer_state == KS_AFTER_DASH_B)
-        {
-          cw_generator_play_internal(generator, generator->frequency);
-          cw_key_control_internal (true);
-          cw_timer_run_with_handler_internal(cw_send_dot_length, NULL);
-          cw_keyer_state = KS_IN_DOT_A;
-        }
-      else if (cw_ik_dot_latch)
-        {
-          cw_generator_play_internal(generator, generator->frequency);
-          cw_key_control_internal (true);
-          cw_timer_run_with_handler_internal(cw_send_dot_length, NULL);
-          if (cw_ik_curtis_b_latch)
-            {
-              cw_ik_curtis_b_latch = false;
-              cw_keyer_state = KS_IN_DOT_B;
-            }
-          else
-            cw_keyer_state = KS_IN_DOT_A;
-        }
-      else if (cw_ik_dash_latch)
-        {
-          cw_generator_play_internal(generator, generator->frequency);
-          cw_key_control_internal (true);
-          cw_timer_run_with_handler_internal(cw_send_dash_length, NULL);
-          cw_keyer_state = KS_IN_DASH_A;
-        }
-      else
-        {
-          cw_keyer_state = KS_IDLE;
-          cw_schedule_finalization_internal ();
-        }
+		cw_debug (CW_DEBUG_KEYER_STATES, "keyer ->%d", cw_keyer_state);
+		break;
 
-      cw_debug (CW_DEBUG_KEYER_STATES, "keyer ->%d", cw_keyer_state);
-      break;
-    }
+	case KS_AFTER_DASH_A:
+	case KS_AFTER_DASH_B:
+		if (!cw_ik_dash_paddle) {
+			cw_ik_dash_latch = false;
+		}
+		if (cw_keyer_state == KS_AFTER_DASH_B) {
+			cw_generator_play_internal(generator, generator->frequency);
+			cw_key_control_internal(true);
+			cw_timer_run_with_handler_internal(cw_send_dot_length, NULL);
+			cw_keyer_state = KS_IN_DOT_A;
+		} else if (cw_ik_dot_latch) {
+			cw_generator_play_internal(generator, generator->frequency);
+			cw_key_control_internal(true);
+			cw_timer_run_with_handler_internal(cw_send_dot_length, NULL);
+			if (cw_ik_curtis_b_latch) {
+				cw_ik_curtis_b_latch = false;
+				cw_keyer_state = KS_IN_DOT_B;
+			} else {
+				cw_keyer_state = KS_IN_DOT_A;
+			}
+		} else if (cw_ik_dash_latch) {
+			cw_generator_play_internal(generator, generator->frequency);
+			cw_key_control_internal(true);
+			cw_timer_run_with_handler_internal(cw_send_dash_length, NULL);
+			cw_keyer_state = KS_IN_DASH_A;
+		} else {
+			cw_keyer_state = KS_IDLE;
+			cw_finalization_schedule_internal();
+		}
+
+		cw_debug (CW_DEBUG_KEYER_STATES, "keyer ->%d", cw_keyer_state);
+		break;
+	}
+
+	return;
 }
 
 
+
+
+
 /**
- * Informs the internal keyer states that the keyer paddles have changed
- * state.  The new paddle states are recorded, and if either transition from
- * false to true, paddle latches, for iambic functions, are also set.
- * On success, the routine returns true.  On error, it returns false, with
- * errno set to EBUSY if the tone queue or straight key are using the sound
- * card, console speaker, or keying system.
- *
- * If appropriate, this routine starts the keyer functions sending the
- * relevant element.  Element send and timing occurs in the background, so
- * this routine returns almost immediately.  See cw_keyer_element_wait and
- * cw_keyer_wait for details about how to check the current status of
- * iambic keyer background processing.
- */
+   \brief Inform about changed state of keyer paddles
+
+   Function informs the internal keyer states that the keyer paddles have
+   changed state.  The new paddle states are recorded, and if either
+   transition from false to true, paddle latches, for iambic functions,
+   are also set. On success, the routine returns true.  On error, it returns
+   false, with errno set to EBUSY if the tone queue or straight key are
+   using the sound card, console speaker, or keying system.
+
+   If appropriate, this routine starts the keyer functions sending the
+   relevant element.  Element send and timing occurs in the background,
+   so this routine returns almost immediately.  See cw_keyer_element_wait
+   and cw_keyer_wait for details about how to check the current status of
+   iambic keyer background processing.
+
+   \param dot_paddle_state
+   \param dash_paddle_state
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
 int cw_notify_keyer_paddle_event(int dot_paddle_state,
 				 int dash_paddle_state)
 {
-  /*
-   * If the tone queue or the straight key are busy, this is going to conflict
-   * with our use of the sound card, console sounder, and keying system.  So
-   * return an error status in this case.
-   */
-  if (cw_is_straight_key_busy () || cw_is_tone_busy ())
-    {
-      errno = EBUSY;
-      return CW_FAILURE;
-    }
+	/* If the tone queue or the straight key are busy, this is going to
+	   conflict with our use of the sound card, console sounder, and
+	   keying system.  So return an error status in this case. */
+	if (cw_is_straight_key_busy() || cw_is_tone_busy()) {
+		errno = EBUSY;
+		return CW_FAILURE;
+	}
 
-  /* Clean up and save the paddle states passed in. */
-  cw_ik_dot_paddle = (dot_paddle_state != 0);
-  cw_ik_dash_paddle = (dash_paddle_state != 0);
+	/* Clean up and save the paddle states passed in. */
+	cw_ik_dot_paddle = (dot_paddle_state != 0);
+	cw_ik_dash_paddle = (dash_paddle_state != 0);
 
-  /*
-   * Update the paddle latches if either paddle goes true.  The latches are
-   * checked in the signal handler, so if the paddles go back to false during
-   * this element, the item still gets actioned.  The signal handler is also
-   * responsible for clearing down the latches.
-   */
-  if (cw_ik_dot_paddle)
-    cw_ik_dot_latch = true;
-  if (cw_ik_dash_paddle)
-    cw_ik_dash_latch = true;
+	/* Update the paddle latches if either paddle goes true.
+	   The latches are checked in the signal handler, so if the paddles
+	   go back to false during this element, the item still gets
+	   actioned.  The signal handler is also responsible for clearing
+	   down the latches. */
+	if (cw_ik_dot_paddle) {
+		cw_ik_dot_latch = true;
+	}
+	if (cw_ik_dash_paddle) {
+		cw_ik_dash_latch = true;
+	}
 
-  /*
-   * If in Curtis mode B, make a special check for both paddles true at the
-   * same time.  This flag is checked by the signal handler, to determine
-   * whether to add mode B trailing timing elements.
-   */
-  if (cw_ik_curtis_mode_b && cw_ik_dot_paddle && cw_ik_dash_paddle)
-    cw_ik_curtis_b_latch = true;
+	/* If in Curtis mode B, make a special check for both paddles true
+	   at the same time.  This flag is checked by the signal handler,
+	   to determine whether to add mode B trailing timing elements. */
+	if (cw_ik_curtis_mode_b && cw_ik_dot_paddle && cw_ik_dash_paddle) {
+		cw_ik_curtis_b_latch = true;
+	}
 
-  cw_debug (CW_DEBUG_KEYER_STATES, "keyer paddles %d,%d, latches %d,%d, curtis_b %d",
-	    cw_ik_dot_paddle, cw_ik_dash_paddle,
-	    cw_ik_dot_latch, cw_ik_dash_latch, cw_ik_curtis_b_latch);
+	cw_debug (CW_DEBUG_KEYER_STATES, "keyer paddles %d,%d, latches %d,%d, curtis_b %d",
+		  cw_ik_dot_paddle, cw_ik_dash_paddle,
+		  cw_ik_dot_latch, cw_ik_dash_latch, cw_ik_curtis_b_latch);
 
-  /* If the current state is idle, give the state process a nudge. */
-  if (cw_keyer_state == KS_IDLE)
-    {
-      if (cw_ik_dot_paddle)
-        {
-          /* Pretend we just finished a dash. */
-          cw_keyer_state = cw_ik_curtis_b_latch
-                           ? KS_AFTER_DASH_B : KS_AFTER_DASH_A;
-          cw_timer_run_with_handler_internal(0, cw_keyer_clock_internal);
-        }
-      else if (cw_ik_dash_paddle)
-        {
-          /* Pretend we just finished a dot. */
-          cw_keyer_state = cw_ik_curtis_b_latch
-                           ? KS_AFTER_DOT_B : KS_AFTER_DOT_A;
-          cw_timer_run_with_handler_internal(0, cw_keyer_clock_internal);
-        }
-    }
+	/* If the current state is idle, give the state process a nudge. */
+	if (cw_keyer_state == KS_IDLE) {
+		if (cw_ik_dot_paddle) {
+			/* Pretend we just finished a dash. */
+			cw_keyer_state = cw_ik_curtis_b_latch
+				? KS_AFTER_DASH_B : KS_AFTER_DASH_A;
+			cw_timer_run_with_handler_internal(0, cw_keyer_clock_internal);
+		} else if (cw_ik_dash_paddle) {
+			/* Pretend we just finished a dot. */
+			cw_keyer_state = cw_ik_curtis_b_latch
+				? KS_AFTER_DOT_B : KS_AFTER_DOT_A;
+			cw_timer_run_with_handler_internal(0, cw_keyer_clock_internal);
+		}
+	}
 
-  cw_debug (CW_DEBUG_KEYER_STATES, "keyer ->%d", cw_keyer_state);
+	cw_debug (CW_DEBUG_KEYER_STATES, "keyer ->%d", cw_keyer_state);
 
-  return CW_SUCCESS;
+	return CW_SUCCESS;
 }
+
+
+
 
 
 /**
- * Convenience functions to alter the state of just one of the two iambic
- * keyer paddles.  The other paddle state of the paddle pair remains unchanged.
- *
- * See cw_keyer_paddle_event for details of iambic keyer background processing,
- * and how to check its status.
- */
+   \brief Change state of dot paddle
+
+   Alter the state of just one of the two iambic keyer paddles.
+   The other paddle state of the paddle pair remains unchanged.
+
+   See cw_keyer_paddle_event() for details of iambic keyer background
+   processing, and how to check its status.
+
+   \param dot_paddle_state
+*/
 int cw_notify_keyer_dot_paddle_event(int dot_paddle_state)
 {
-  return cw_notify_keyer_paddle_event (dot_paddle_state, cw_ik_dash_paddle);
+	return cw_notify_keyer_paddle_event(dot_paddle_state, cw_ik_dash_paddle);
 }
+
+
+
 
 
 /**
@@ -5927,34 +6190,55 @@ int cw_notify_keyer_dot_paddle_event(int dot_paddle_state)
 */
 int cw_notify_keyer_dash_paddle_event(int dash_paddle_state)
 {
-  return cw_notify_keyer_paddle_event (cw_ik_dot_paddle, dash_paddle_state);
+	return cw_notify_keyer_paddle_event(cw_ik_dot_paddle, dash_paddle_state);
 }
 
 
+
+
+
 /**
- * Returns the current saved states of the two paddles.
- */
+   \brief Get the current saved states of the two paddles
+
+   \param dot_paddle_state
+   \param dash_paddle_state
+*/
 void cw_get_keyer_paddles(int *dot_paddle_state, int *dash_paddle_state)
 {
-  if (dot_paddle_state)
-    *dot_paddle_state = cw_ik_dot_paddle;
-  if (dash_paddle_state)
-    *dash_paddle_state = cw_ik_dash_paddle;
+	if (dot_paddle_state) {
+		*dot_paddle_state = cw_ik_dot_paddle;
+	}
+	if (dash_paddle_state) {
+		*dash_paddle_state = cw_ik_dash_paddle;
+	}
+	return;
 }
 
 
+
+
+
 /**
- * Returns the current saved states of the two paddle latches.  A paddle
- * latches is set to true when the paddle state becomes true, and is
- * cleared if the paddle state is false when the element finishes sending.
- */
+   \brief Get the current states of paddle latches
+
+   Function returns the current saved states of the two paddle latches.
+   A paddle latches is set to true when the paddle state becomes true,
+   and is cleared if the paddle state is false when the element finishes
+   sending.
+
+   \param dot_paddle_latch_state
+   \param dash_paddle_latch_state
+*/
 void cw_get_keyer_paddle_latches(int *dot_paddle_latch_state,
 				 int *dash_paddle_latch_state)
 {
-  if (dot_paddle_latch_state)
-    *dot_paddle_latch_state = cw_ik_dot_latch;
-  if (dash_paddle_latch_state)
-    *dash_paddle_latch_state = cw_ik_dash_latch;
+	if (dot_paddle_latch_state) {
+		*dot_paddle_latch_state = cw_ik_dot_latch;
+	}
+	if (dash_paddle_latch_state) {
+		*dash_paddle_latch_state = cw_ik_dash_latch;
+	}
+	return;
 }
 
 
@@ -5977,10 +6261,17 @@ bool cw_is_keyer_busy(void)
 
 
 /**
- * Waits until the end of the current element, dot or dash, from the keyer.
- * This routine returns true on success.  On error, it returns false, with
- * errno set to EDEADLK if SIGALRM is blocked.
- */
+   \brief Wait for end of element from the keyer
+
+   Waits until the end of the current element, dot or dash, from the keyer.
+   This routine returns true on success.
+
+   On error the function returns CW_FAILURE, with errno set to
+   EDEADLK if SIGALRM is blocked.
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
 int cw_wait_for_keyer_element(void)
 {
 	if (cw_sigalrm_is_blocked_internal()) {
@@ -5990,38 +6281,47 @@ int cw_wait_for_keyer_element(void)
 		return CW_FAILURE;
 	}
 
-  /*
-   * First wait for the state to move to idle (or just do nothing if it's
-   * not), or to one of the after- states.
-   */
-  while (cw_keyer_state != KS_IDLE
-         && cw_keyer_state != KS_AFTER_DOT_A
-         && cw_keyer_state != KS_AFTER_DOT_B
-         && cw_keyer_state != KS_AFTER_DASH_A
-         && cw_keyer_state != KS_AFTER_DASH_B)
-    cw_signal_wait_internal();
+	/* First wait for the state to move to idle (or just do nothing
+	   if it's not), or to one of the after- states. */
+	while (cw_keyer_state != KS_IDLE
+	       && cw_keyer_state != KS_AFTER_DOT_A
+	       && cw_keyer_state != KS_AFTER_DOT_B
+	       && cw_keyer_state != KS_AFTER_DASH_A
+	       && cw_keyer_state != KS_AFTER_DASH_B) {
 
-  /*
-   * Now wait for the state to move to idle (unless it is, or was, already),
-   * or one of the in- states, at which point we know we're actually at the
-   * end of the element we were in when we entered this routine.
-   */
-  while (cw_keyer_state != KS_IDLE
-         && cw_keyer_state != KS_IN_DOT_A
-         && cw_keyer_state != KS_IN_DOT_B
-         && cw_keyer_state != KS_IN_DASH_A
-         && cw_keyer_state != KS_IN_DASH_B)
-    cw_signal_wait_internal();
+		cw_signal_wait_internal();
+	}
 
-  return CW_SUCCESS;
+	/* Now wait for the state to move to idle (unless it is, or was,
+	   already), or one of the in- states, at which point we know
+	   we're actually at the end of the element we were in when we
+	   entered this routine. */
+	while (cw_keyer_state != KS_IDLE
+	       && cw_keyer_state != KS_IN_DOT_A
+	       && cw_keyer_state != KS_IN_DOT_B
+	       && cw_keyer_state != KS_IN_DASH_A
+	       && cw_keyer_state != KS_IN_DASH_B) {
+
+		cw_signal_wait_internal();
+	}
+
+	return CW_SUCCESS;
 }
 
 
+
+
+
 /**
- * Waits for the current keyer cycle to complete.  The routine returns true on
- * success.  On error, it returns false, with errno set to EDEADLK if SIGALRM
- * is blocked or if either paddle state is true.
- */
+   \brief Wait for the current keyer cycle to complete
+
+   The routine returns CW_SUCCESS on success.  On error, it returns
+   CW_FAILURE, with errno set to EDEADLK if SIGALRM is blocked or if
+   either paddle state is true.
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
 int cw_wait_for_keyer(void)
 {
 	if (cw_sigalrm_is_blocked_internal()) {
@@ -6031,45 +6331,51 @@ int cw_wait_for_keyer(void)
 		return CW_FAILURE;
 	}
 
-  /*
-   * Check that neither paddle is true; if either is, then the signal cycle
-   * is going to continue forever, and we'll never return from this routine.
-   */
-  if (cw_ik_dot_paddle || cw_ik_dash_paddle)
-    {
-      errno = EDEADLK;
-      return CW_FAILURE;
-    }
+	/* Check that neither paddle is true; if either is, then the signal
+	   cycle is going to continue forever, and we'll never return from
+	   this routine. */
+	if (cw_ik_dot_paddle || cw_ik_dash_paddle) {
+		errno = EDEADLK;
+		return CW_FAILURE;
+	}
 
-  /* Wait for the keyer state to go idle. */
-  while (cw_keyer_state != KS_IDLE)
-    cw_signal_wait_internal();
+	/* Wait for the keyer state to go idle. */
+	while (cw_keyer_state != KS_IDLE) {
+		cw_signal_wait_internal();
+	}
 
-  return CW_SUCCESS;
+	return CW_SUCCESS;
 }
 
 
+
+
+
 /**
- * Clear all keyer latches and paddle states, return to Curtis 8044 Keyer
- * mode A, and return to silence.  This function is suitable for calling from
- * an application exit handler.
- */
+   \brief Reset keyer data
+
+   Clear all keyer latches and paddle states, return to Curtis 8044 Keyer
+   mode A, and return to silence.  This function is suitable for calling
+   from an application exit handler.
+*/
 void cw_reset_keyer(void)
 {
-  cw_ik_dot_paddle = false;
-  cw_ik_dash_paddle = false;
-  cw_ik_dot_latch = false;
-  cw_ik_dash_latch = false;
-  cw_ik_curtis_b_latch = false;
-  cw_ik_curtis_mode_b = false;
+	cw_ik_dot_paddle = false;
+	cw_ik_dash_paddle = false;
+	cw_ik_dot_latch = false;
+	cw_ik_dash_latch = false;
+	cw_ik_curtis_b_latch = false;
+	cw_ik_curtis_mode_b = false;
 
-  cw_keyer_state = KS_IDLE;
+	cw_keyer_state = KS_IDLE;
 
-  /* Silence sound and stop any background soundcard tone generation. */
-  cw_generator_play_internal(generator, CW_TONE_SILENT);
-  cw_schedule_finalization_internal ();
+	/* Silence sound and stop any background soundcard tone generation. */
+	cw_generator_play_internal(generator, CW_TONE_SILENT);
+	cw_finalization_schedule_internal();
 
-  cw_debug (CW_DEBUG_KEYER_STATES, "keyer ->%d (reset)", cw_keyer_state);
+	cw_debug (CW_DEBUG_KEYER_STATES, "keyer ->%d (reset)", cw_keyer_state);
+
+	return;
 }
 
 
@@ -6084,127 +6390,149 @@ void cw_reset_keyer(void)
 
 
 
-/*
- * Period of constant tone generation after which we need another timeout,
- * to ensure that the soundcard doesn't run out of data.
- */
+/* Period of constant tone generation after which we need another timeout,
+   to ensure that the soundcard doesn't run out of data. */
 static const int STRAIGHT_KEY_TIMEOUT = 500000;
 
 /* Straight key status; just a key-up or key-down indication. */
 static volatile bool cw_sk_key_down = false;
 
 
+
+
+
 /**
- * Soundcard tone data is only buffered to last about a second on each
- * cw_generate_sound_internal() call, and holding down the straight key for
- * longer than this could cause a soundcard data underrun.  To guard against
- * this, a timeout is generated every half-second or so while the straight
- * key is down.  The timeout generates a chunk of sound data for the soundcard.
- */
+   \brief Generate a tone while straight key is down
+
+   Soundcard tone data is only buffered to last about a second on each
+   cw_generate_sound_internal() call, and holding down the straight key
+   for longer than this could cause a soundcard data underrun.  To guard
+   against this, a timeout is generated every half-second or so while the
+   straight key is down.  The timeout generates a chunk of sound data for
+   the soundcard.
+*/
 void cw_straight_key_clock_internal(void)
 {
-  if (cw_sk_key_down)
-    {
-      /* Generate a quantum of tone data, and request another timeout. */
-      /* cw_generate_sound_internal (); */
-      cw_timer_run_with_handler_internal(STRAIGHT_KEY_TIMEOUT, NULL);
-    }
+	if (cw_sk_key_down) {
+		/* Generate a quantum of tone data, and request another
+		   timeout. */
+		// cw_generate_sound_internal();
+		cw_timer_run_with_handler_internal(STRAIGHT_KEY_TIMEOUT, NULL);
+	}
+
+	return;
 }
 
 
+
+
+
 /**
- * Informs the library that the straight key has changed state.  This routine
- * returns true on success.  On error, it returns false, with errno set to
- * EBUSY if the tone queue or iambic keyer are using the sound card, console
- * speaker, or keying control system.  If key_state indicates no change of
- * state, the call is ignored.
- */
+   \brief Inform the library that the straight key has changed state
+
+   This routine returns true on success.  On error, it returns false,
+   with errno set to EBUSY if the tone queue or iambic keyer are using
+   the sound card, console speaker, or keying control system.  If
+   \p key_state indicates no change of state, the call is ignored.
+
+   \param key_state - state of straight key
+*/
 int cw_notify_straight_key_event(int key_state)
 {
-  /*
-   * If the tone queue or the keyer are busy, we can't use the sound card,
-   * console sounder, or the key control system.
-   */
-  if (cw_is_tone_busy () || cw_is_keyer_busy ())
-    {
-      errno = EBUSY;
-      return CW_FAILURE;
-    }
+	/* If the tone queue or the keyer are busy, we can't use the
+	   sound card, console sounder, or the key control system. */
+	if (cw_is_tone_busy() || cw_is_keyer_busy()) {
+		errno = EBUSY;
+		return CW_FAILURE;
+	}
 
-  /* If the key state did not change, ignore the call. */
-  if ((cw_sk_key_down && !key_state) || (!cw_sk_key_down && key_state))
-    {
-      /* Save the new key state. */
-      cw_sk_key_down = (key_state != 0);
+	/* If the key state did not change, ignore the call. */
+	if ((cw_sk_key_down && !key_state) || (!cw_sk_key_down && key_state)) {
+		/* Save the new key state. */
+		cw_sk_key_down = (key_state != 0);
 
-      cw_debug (CW_DEBUG_STRAIGHT_KEY, "straight key state ->%s", cw_sk_key_down ? "DOWN" : "UP");
+		cw_debug (CW_DEBUG_STRAIGHT_KEY, "straight key state ->%s", cw_sk_key_down ? "DOWN" : "UP");
 
-      /*
-       * Do tones and keying, and set up timeouts and soundcard activities to
-       * match the new key state.
-       */
-      if (cw_sk_key_down)
-        {
-          cw_generator_play_internal(generator, generator->frequency);
-          cw_key_control_internal (true);
+		/* Do tones and keying, and set up timeouts and soundcard
+		   activities to match the new key state. */
+		if (cw_sk_key_down) {
+			cw_generator_play_internal(generator, generator->frequency);
+			cw_key_control_internal(true);
 
-          /* Start timeouts to keep soundcard tones running. */
-          cw_timer_run_with_handler_internal(STRAIGHT_KEY_TIMEOUT,
-					     cw_straight_key_clock_internal);
-        }
-      else
-        {
-          cw_generator_play_internal(generator, CW_TONE_SILENT);
-          cw_key_control_internal (false);
+			/* Start timeouts to keep soundcard tones running. */
+			cw_timer_run_with_handler_internal(STRAIGHT_KEY_TIMEOUT,
+							   cw_straight_key_clock_internal);
+		} else {
+			cw_generator_play_internal(generator, CW_TONE_SILENT);
+			cw_key_control_internal(false);
 
-          /*
-           * Indicate that we have finished with timeouts, and also with the
-           * soundcard too.  There's no way of knowing when straight keying
-           * is completed, so the only thing we can do here is to schedule
-           * release on each key up event.
-           */
-          cw_schedule_finalization_internal ();
-        }
-    }
+			/* Indicate that we have finished with timeouts,
+			   and also with the soundcard too.  There's no way
+			   of knowing when straight keying is completed,
+			   so the only thing we can do here is to schedule
+			   release on each key up event.   */
+			cw_finalization_schedule_internal();
+		}
+	}
 
-  return CW_SUCCESS;
+	return CW_SUCCESS;
 }
 
 
+
+
+
 /**
- * Returns the current saved state of the straight key; true if the key is
- * down, false if up.
- */
+   \brief Get saved state of straight key
+
+   Returns the current saved state of the straight key.
+
+   \return true if the key is down
+   \return false if the key up
+*/
 int cw_get_straight_key_state(void)
 {
-  return cw_sk_key_down;
+	return cw_sk_key_down;
 }
 
 
+
+
+
 /**
- * Returns true if the straight key is busy, false if not.  This routine is
- * just a pseudonym for cw_get_straight_key_state, and exists to fill a hole
- * in the API naming conventions.
- */
+   \brief Check if the straight key is busy
+
+   This routine is just a pseudonym for cw_get_straight_key_state(),
+   and exists to fill a hole in the API naming conventions.
+
+   \return true if the straight key is busy
+   \return false if the straight key is not busy
+*/
 bool cw_is_straight_key_busy(void)
 {
 	return cw_sk_key_down;
 }
 
 
+
+
+
 /**
- * Clears the straight key state, and returns to silence.  This function is
- * suitable for calling from an application exit handler.
- */
+   \brief Clear the straight key state, and return to silence
+
+   This function is suitable for calling from an application exit handler.
+*/
 void cw_reset_straight_key(void)
 {
-  cw_sk_key_down = false;
+	cw_sk_key_down = false;
 
-  /* Silence sound and stop any background soundcard tone generation. */
-  cw_generator_play_internal(generator, CW_TONE_SILENT);
-  cw_schedule_finalization_internal ();
+	/* Silence sound and stop any background soundcard tone generation. */
+	cw_generator_play_internal(generator, CW_TONE_SILENT);
+	cw_finalization_schedule_internal();
 
-  cw_debug (CW_DEBUG_STRAIGHT_KEY, "straight key state ->UP (reset)");
+	cw_debug (CW_DEBUG_STRAIGHT_KEY, "straight key state ->UP (reset)");
+
+	return;
 }
 
 
