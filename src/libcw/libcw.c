@@ -88,6 +88,18 @@
 #endif
 
 
+/* http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=403043 */
+#if defined(NSIG)             /* Debian GNU/Linux: signal.h; Debian kFreeBSD: signal.h (libc0.1-dev_2.13-21_kfreebsd-i386.deb) */
+#define CW_SIG_MAX (NSIG)
+#elif defined(_NSIG)          /* Debian GNU/Linux: asm-generic/signal.h; Debian kFreeBSD: i386-kfreebsd-gnu/bits/signum.h->signal.h (libc0.1-dev_2.13-21_kfreebsd-i386.deb) */
+#define CW_SIG_MAX (_NSIG)
+#elif defined(RTSIG_MAX)      /* Debian GNU/Linux: linux/limits.h */
+#define CW_SIG_MAX ((RTSIG_MAX)+1)
+#else
+#error "unknown number of signals"
+#endif
+
+
 #if defined(LIBCW_WITH_CONSOLE)
 #if   defined(HAVE_SYS_KD_H)
 #       include <sys/kd.h>
@@ -287,7 +299,7 @@ static int  cw_sigalrm_block_internal(bool block);
 static int  cw_sigalrm_restore_internal(void);
 static int  cw_sigalrm_install_top_level_handler_internal(void);
 static int  cw_signal_wait_internal(void);
-
+static void cw_signal_main_handler_internal(int signal_number);
 
 /* Tone queue */
 static int  cw_tone_queue_length_internal(void);
@@ -318,14 +330,14 @@ static void cw_sync_parameters_internal(cw_gen_t *gen);
 
 
 /* Keying control */
-static void cw_key_control_internal(int requested_key_state);
+static void cw_key_set_state_internal(int requested_key_state);
 
 
 /* Finalization and cleanup */
 static void cw_finalization_schedule_internal(void);
 static void cw_finalization_clock_internal(void);
 static void cw_finalization_cancel_internal(void);
-static void cw_interpose_signal_handler_internal(int signal_number);
+
 
 
 /* Receiving */
@@ -1784,7 +1796,7 @@ void cw_get_weighting_limits(int *min_weighting, int *max_weighting)
 
 
 /**
-   \brief Synchronize send\receive parameters of the library
+   \brief Synchronize send/receive parameters of the library
 
    Synchronize the dot, dash, end of element, end of character, and end
    of word timings and ranges to new values of Morse speed, 'Farnsworth'
@@ -1799,136 +1811,137 @@ void cw_get_weighting_limits(int *min_weighting, int *max_weighting)
 void cw_sync_parameters_internal(cw_gen_t *gen)
 {
 	/* Do nothing if we are already synchronized with speed/gap. */
-	if (!cw_is_in_sync) {
-
-		/* Send parameters:
-
-		 Set the length of a Dot to be a Unit with any weighting
-		 adjustment, and the length of a Dash as three Dot lengths.
-		 The weighting adjustment is by adding or subtracting a
-		 length based on 50 % as a neutral weighting. */
-		int unit_length = DOT_CALIBRATION / gen->send_speed;
-		int weighting_length = (2 * (cw_weighting - 50) * unit_length) / 100;
-		cw_send_dot_length = unit_length + weighting_length;
-		cw_send_dash_length = 3 * cw_send_dot_length;
-
-		/* An end of element length is one Unit, perhaps adjusted,
-		   the end of character is three Units total, and end of
-		   word is seven Units total.
-
-		   The end of element length is adjusted by 28/22 times
-		   weighting length to keep PARIS calibration correctly
-		   timed (PARIS has 22 full units, and 28 empty ones).
-		   End of element and end of character delays take
-		   weightings into account. */
-		cw_end_of_ele_delay = unit_length - (28 * weighting_length) / 22;
-		cw_end_of_char_delay = 3 * unit_length - cw_end_of_ele_delay;
-		cw_end_of_word_delay = 7 * unit_length - cw_end_of_char_delay;
-		cw_additional_delay = gen->gap * unit_length;
-
-		/* For 'Farnsworth', there also needs to be an adjustment
-		   delay added to the end of words, otherwise the rhythm is
-		   lost on word end.
-		   I don't know if there is an "official" value for this,
-		   but 2.33 or so times the gap is the correctly scaled
-		   value, and seems to sound okay.
-
-		   Thanks to Michael D. Ivey <ivey@gweezlebur.com> for
-		   identifying this in earlier versions of libcw. */
-		cw_adjustment_delay = (7 * cw_additional_delay) / 3;
-
-		cw_debug (CW_DEBUG_PARAMETERS, "send usec timings <%d>: %d, %d, %d, %d, %d, %d, %d",
-			  gen->send_speed, cw_send_dot_length, cw_send_dash_length,
-			  cw_end_of_ele_delay, cw_end_of_char_delay,
-			  cw_end_of_word_delay, cw_additional_delay, cw_adjustment_delay);
-
-		/*
-		  Receive parameters:
-
-		  First, depending on whether we are set for fixed speed or
-		  adaptive speed, calculate either the threshold from the
-		  receive speed, or the receive speed from the threshold,
-		  knowing that the threshold is always, effectively, two dot
-		  lengths.  Weighting is ignored for receive parameters,
-		  although the core unit length is recalculated for the
-		  receive speed, which may differ from the send speed. */
-		unit_length = DOT_CALIBRATION / cw_receive_speed;
-		if (cw_is_adaptive_receive_enabled) {
-			cw_receive_speed = DOT_CALIBRATION
-				/ (cw_adaptive_receive_threshold / 2);
-		} else {
-			cw_adaptive_receive_threshold = 2 * unit_length;
-		}
-
-		/* Calculate the basic receive dot and dash lengths. */
-		cw_receive_dot_length = unit_length;
-		cw_receive_dash_length = 3 * unit_length;
-
-		/* Set the ranges of respectable timing elements depending
-		   very much on whether we are required to adapt to the
-		   incoming Morse code speeds. */
-		if (cw_is_adaptive_receive_enabled) {
-			/* For adaptive timing, calculate the Dot and
-			   Dash timing ranges as zero to two Dots is a
-			   Dot, and anything, anything at all, larger than
-			   this is a Dash. */
-			cw_dot_range_minimum = 0;
-			cw_dot_range_maximum = 2 * cw_receive_dot_length;
-			cw_dash_range_minimum = cw_dot_range_maximum;
-			cw_dash_range_maximum = INT_MAX;
-
-			/* Make the inter-element gap be anything up to
-			   the adaptive threshold lengths - that is two
-			   Dots.  And the end of character gap is anything
-			   longer than that, and shorter than five dots. */
-			cw_eoe_range_minimum = cw_dot_range_minimum;
-			cw_eoe_range_maximum = cw_dot_range_maximum;
-			cw_eoc_range_minimum = cw_eoe_range_maximum;
-			cw_eoc_range_maximum = 5 * cw_receive_dot_length;
-
-		} else {
-			/* For fixed speed receiving, calculate the Dot
-			   timing range as the Dot length +/- dot*tolerance%,
-			   and the Dash timing range as the Dash length
-			   including +/- dot*tolerance% as well. */
-			int tolerance = (cw_receive_dot_length * cw_tolerance) / 100;
-			cw_dot_range_minimum = cw_receive_dot_length - tolerance;
-			cw_dot_range_maximum = cw_receive_dot_length + tolerance;
-			cw_dash_range_minimum = cw_receive_dash_length - tolerance;
-			cw_dash_range_maximum = cw_receive_dash_length + tolerance;
-
-			/* Make the inter-element gap the same as the Dot
-			   range.  Make the inter-character gap, expected
-			   to be three Dots, the same as Dash range at the
-			   lower end, but make it the same as the Dash range
-			   _plus_ the 'Farnsworth' delay at the top of the
-			   range.
-
-			   Any gap longer than this is by implication
-			   inter-word. */
-			cw_eoe_range_minimum = cw_dot_range_minimum;
-			cw_eoe_range_maximum = cw_dot_range_maximum;
-			cw_eoc_range_minimum = cw_dash_range_minimum;
-			cw_eoc_range_maximum = cw_dash_range_maximum
-				+ cw_additional_delay + cw_adjustment_delay;
-		}
-
-		/* For statistical purposes, calculate the ideal end of
-		   element and end of character timings. */
-		cw_eoe_range_ideal = unit_length;
-		cw_eoc_range_ideal = 3 * unit_length;
-
-		cw_debug (CW_DEBUG_PARAMETERS, "receive usec timings <%d>: %d-%d, %d-%d, %d-%d[%d], %d-%d[%d], %d",
-			  cw_receive_speed,
-			  cw_dot_range_minimum, cw_dot_range_maximum,
-			  cw_dash_range_minimum, cw_dash_range_maximum,
-			  cw_eoe_range_minimum, cw_eoe_range_maximum, cw_eoe_range_ideal,
-			  cw_eoc_range_minimum, cw_eoc_range_maximum, cw_eoc_range_ideal,
-			  cw_adaptive_receive_threshold);
-
-		/* Set the 'parameters in sync' flag. */
-		cw_is_in_sync = true;
+	if (cw_is_in_sync) {
+		return;
 	}
+
+	/* Send parameters:
+
+	   Set the length of a Dot to be a Unit with any weighting
+	   adjustment, and the length of a Dash as three Dot lengths.
+	   The weighting adjustment is by adding or subtracting a
+	   length based on 50 % as a neutral weighting. */
+	int unit_length = DOT_CALIBRATION / gen->send_speed;
+	int weighting_length = (2 * (cw_weighting - 50) * unit_length) / 100;
+	cw_send_dot_length = unit_length + weighting_length;
+	cw_send_dash_length = 3 * cw_send_dot_length;
+
+	/* An end of element length is one Unit, perhaps adjusted,
+	   the end of character is three Units total, and end of
+	   word is seven Units total.
+
+	   The end of element length is adjusted by 28/22 times
+	   weighting length to keep PARIS calibration correctly
+	   timed (PARIS has 22 full units, and 28 empty ones).
+	   End of element and end of character delays take
+	   weightings into account. */
+	cw_end_of_ele_delay = unit_length - (28 * weighting_length) / 22;
+	cw_end_of_char_delay = 3 * unit_length - cw_end_of_ele_delay;
+	cw_end_of_word_delay = 7 * unit_length - cw_end_of_char_delay;
+	cw_additional_delay = gen->gap * unit_length;
+
+	/* For 'Farnsworth', there also needs to be an adjustment
+	   delay added to the end of words, otherwise the rhythm is
+	   lost on word end.
+	   I don't know if there is an "official" value for this,
+	   but 2.33 or so times the gap is the correctly scaled
+	   value, and seems to sound okay.
+
+	   Thanks to Michael D. Ivey <ivey@gweezlebur.com> for
+	   identifying this in earlier versions of libcw. */
+	cw_adjustment_delay = (7 * cw_additional_delay) / 3;
+
+	cw_debug (CW_DEBUG_PARAMETERS, "send usec timings <%d>: %d, %d, %d, %d, %d, %d, %d",
+		  gen->send_speed, cw_send_dot_length, cw_send_dash_length,
+		  cw_end_of_ele_delay, cw_end_of_char_delay,
+		  cw_end_of_word_delay, cw_additional_delay, cw_adjustment_delay);
+
+
+	/* Receive parameters:
+
+	   First, depending on whether we are set for fixed speed or
+	   adaptive speed, calculate either the threshold from the
+	   receive speed, or the receive speed from the threshold,
+	   knowing that the threshold is always, effectively, two dot
+	   lengths.  Weighting is ignored for receive parameters,
+	   although the core unit length is recalculated for the
+	   receive speed, which may differ from the send speed. */
+	unit_length = DOT_CALIBRATION / cw_receive_speed;
+	if (cw_is_adaptive_receive_enabled) {
+		cw_receive_speed = DOT_CALIBRATION
+			/ (cw_adaptive_receive_threshold / 2);
+	} else {
+		cw_adaptive_receive_threshold = 2 * unit_length;
+	}
+
+	/* Calculate the basic receive dot and dash lengths. */
+	cw_receive_dot_length = unit_length;
+	cw_receive_dash_length = 3 * unit_length;
+
+	/* Set the ranges of respectable timing elements depending
+	   very much on whether we are required to adapt to the
+	   incoming Morse code speeds. */
+	if (cw_is_adaptive_receive_enabled) {
+		/* For adaptive timing, calculate the Dot and
+		   Dash timing ranges as zero to two Dots is a
+		   Dot, and anything, anything at all, larger than
+		   this is a Dash. */
+		cw_dot_range_minimum = 0;
+		cw_dot_range_maximum = 2 * cw_receive_dot_length;
+		cw_dash_range_minimum = cw_dot_range_maximum;
+		cw_dash_range_maximum = INT_MAX;
+
+		/* Make the inter-element gap be anything up to
+		   the adaptive threshold lengths - that is two
+		   Dots.  And the end of character gap is anything
+		   longer than that, and shorter than five dots. */
+		cw_eoe_range_minimum = cw_dot_range_minimum;
+		cw_eoe_range_maximum = cw_dot_range_maximum;
+		cw_eoc_range_minimum = cw_eoe_range_maximum;
+		cw_eoc_range_maximum = 5 * cw_receive_dot_length;
+
+	} else {
+		/* For fixed speed receiving, calculate the Dot
+		   timing range as the Dot length +/- dot*tolerance%,
+		   and the Dash timing range as the Dash length
+		   including +/- dot*tolerance% as well. */
+		int tolerance = (cw_receive_dot_length * cw_tolerance) / 100;
+		cw_dot_range_minimum = cw_receive_dot_length - tolerance;
+		cw_dot_range_maximum = cw_receive_dot_length + tolerance;
+		cw_dash_range_minimum = cw_receive_dash_length - tolerance;
+		cw_dash_range_maximum = cw_receive_dash_length + tolerance;
+
+		/* Make the inter-element gap the same as the Dot
+		   range.  Make the inter-character gap, expected
+		   to be three Dots, the same as Dash range at the
+		   lower end, but make it the same as the Dash range
+		   _plus_ the 'Farnsworth' delay at the top of the
+		   range.
+
+		   Any gap longer than this is by implication
+		   inter-word. */
+		cw_eoe_range_minimum = cw_dot_range_minimum;
+		cw_eoe_range_maximum = cw_dot_range_maximum;
+		cw_eoc_range_minimum = cw_dash_range_minimum;
+		cw_eoc_range_maximum = cw_dash_range_maximum
+			+ cw_additional_delay + cw_adjustment_delay;
+	}
+
+	/* For statistical purposes, calculate the ideal end of
+	   element and end of character timings. */
+	cw_eoe_range_ideal = unit_length;
+	cw_eoc_range_ideal = 3 * unit_length;
+
+	cw_debug (CW_DEBUG_PARAMETERS, "receive usec timings <%d>: %d-%d, %d-%d, %d-%d[%d], %d-%d[%d], %d",
+		  cw_receive_speed,
+		  cw_dot_range_minimum, cw_dot_range_maximum,
+		  cw_dash_range_minimum, cw_dash_range_maximum,
+		  cw_eoe_range_minimum, cw_eoe_range_maximum, cw_eoe_range_ideal,
+		  cw_eoc_range_minimum, cw_eoc_range_maximum, cw_eoc_range_ideal,
+		  cw_adaptive_receive_threshold);
+
+	/* Set the 'parameters in sync' flag. */
+	cw_is_in_sync = true;
 
 	return;
 }
@@ -1938,7 +1951,7 @@ void cw_sync_parameters_internal(cw_gen_t *gen)
 
 
 /**
-   \brief Reset send\receive parameters
+   \brief Reset send/receive parameters
 
    Reset the library speed, frequency, volume, gap, tolerance, weighting,
    adaptive receive, and noise spike threshold to their initial default
@@ -1968,24 +1981,18 @@ void cw_reset_send_receive_parameters(void)
 
 
 
+
 /**
- * cw_set_[send_speed|receive_speed|frequency|volume|gap|tolerance|weighting]()
- * cw_get_[send_speed|receive_speed|frequency|volume|gap|tolerance|weighting]()
- *
- * Get and set routines for all the Morse code parameters available to
- * control the library.  Set routines return true on success, or false on
- * failure, with errno set to indicate the problem, usually EINVAL, except for
- * cw_set_receive_speed, which returns EINVAL if the new value is
- * invalid, or EPERM if the receive mode is currently set for adaptive
- * receive speed tracking.  Get routines simply return the current value.
- *
- * The default values of the parameters where none are explicitly set are
- * send/receive speed 12 WPM, volume 70 %, frequency 800 Hz, gap 0 dots,
- * tolerance 50 %, and weighting 50 %.  Note that volume settings are not
- * fully possible for the console speaker; in this case, volume settings
- * greater than zero indicate console speaker sound is on, and setting volume
- * to zero will turn off console speaker sound.
- */
+   \brief Set sending speed
+
+   See libcw.h/CW_SPEED_{INITIAL|MIN|MAX} for initial/minimal/maximal value
+   of send speed.
+
+   errno is set to EINVAL if \p new_value is out of range.
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
 int cw_set_send_speed(int new_value)
 {
 	if (new_value < CW_SPEED_MIN || new_value > CW_SPEED_MAX) {
@@ -2009,7 +2016,17 @@ int cw_set_send_speed(int new_value)
 
 
 /**
+   \brief Set receiving speed
+
    See documentation of cw_set_send_speed() for more information.
+
+   See libcw.h/CW_SPEED_{INITIAL|MIN|MAX} for initial/minimal/maximal
+   value of receive speed.
+   errno is set to EINVAL if \p new_value is out of range.
+   errno is set to EPERM if adaptive receive speed tracking is enabled.
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
 */
 int cw_set_receive_speed(int new_value)
 {
@@ -2044,7 +2061,10 @@ int cw_set_receive_speed(int new_value)
    The frequency must be within limits marked by CW_FREQUENCY_MIN
    and CW_FREQUENCY_MAX.
 
-   The function sets errno to EINVAL on errors.
+   See libcw.h/CW_FREQUENCY_{INITIAL|MIN|MAX} for initial/minimal/maximal
+   value of frequency.
+
+   errno is set to EINVAL if \p new_value is out of range.
 
    \param new_value - new value of frequency to be associated with current generator
 
@@ -2072,7 +2092,14 @@ int cw_set_frequency(int new_value)
    Set volume of sound wave generated by current generator.
    The volume must be within limits marked by CW_VOLUME_MIN and CW_VOLUME_MAX.
 
-   The function sets errno to EINVAL on errors.
+   Note that volume settings are not fully possible for the console speaker.
+   In this case, volume settings greater than zero indicate console speaker
+   sound is on, and setting volume to zero will turn off console speaker
+   sound.
+
+   See libcw.h/CW_VOLUME_{INITIAL|MIN|MAX} for initial/minimal/maximal
+   value of volume.
+   errno is set to EINVAL if \p new_value is out of range.
 
    \param new_value - new value of volume to be associated with current generator
 
@@ -2095,7 +2122,14 @@ int cw_set_volume(int new_value)
 
 
 /**
-   See documentation of cw_set_send_speed() for more information.
+   \brief Set sending gap
+
+   See libcw.h/CW_GAP_{INITIAL|MIN|MAX} for initial/minimal/maximal
+   value of gap.
+   errno is set to EINVAL if \p new_value is out of range.
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
 */
 int cw_set_gap(int new_value)
 {
@@ -2120,7 +2154,14 @@ int cw_set_gap(int new_value)
 
 
 /**
-   See documentation of cw_set_send_speed() for more information.
+   \brief Set tolerance
+
+   See libcw.h/CW_TOLERANCE_{INITIAL|MIN|MAX} for initial/minimal/maximal
+   value of tolerance.
+   errno is set to EINVAL if \p new_value is out of range.
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
 */
 int cw_set_tolerance(int new_value)
 {
@@ -2145,7 +2186,14 @@ int cw_set_tolerance(int new_value)
 
 
 /**
-   See documentation of cw_set_send_speed() for more information.
+   \brief Set sending weighting
+
+   See libcw.h/CW_WEIGHTING_{INITIAL|MIN|MAX} for initial/minimal/maximal
+   value of weighting.
+   errno is set to EINVAL if \p new_value is out of range.
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
 */
 int cw_set_weighting(int new_value)
 {
@@ -2170,7 +2218,9 @@ int cw_set_weighting(int new_value)
 
 
 /**
-   See documentation of cw_set_send_speed() for more information.
+   \brief Get sending speed
+
+   \return current value of the parameter
 */
 int cw_get_send_speed(void)
 {
@@ -2182,7 +2232,9 @@ int cw_get_send_speed(void)
 
 
 /**
-   See documentation of cw_set_send_speed() for more information.
+   \brief Get receiving speed
+
+   \return current value of the parameter
 */
 int cw_get_receive_speed(void)
 {
@@ -2194,7 +2246,7 @@ int cw_get_receive_speed(void)
 
 
 /**
-   \brief Return frequency of current generator
+   \brief Get frequency of current generator
 
    Function returns 'frequency' parameter of current generator,
    even if the generator is stopped, or volume of generated sound is zero.
@@ -2211,7 +2263,7 @@ int cw_get_frequency(void)
 
 
 /**
-   \brief Return volume of current generator
+   \brief Get volume of current generator
 
    Function returns 'volume' parameter of current generator,
    even if the generator is stopped.
@@ -2228,7 +2280,9 @@ int cw_get_volume(void)
 
 
 /**
-   See documentation of cw_set_send_speed() for more information.
+   \brief Get sending gap
+
+   \return current value of the parameter
 */
 int cw_get_gap(void)
 {
@@ -2240,7 +2294,9 @@ int cw_get_gap(void)
 
 
 /**
-   See documentation of cw_set_send_speed() for more information.
+   \brief Get tolerance
+
+   \return current value of the parameter
 */
 int cw_get_tolerance(void)
 {
@@ -2252,7 +2308,9 @@ int cw_get_tolerance(void)
 
 
 /**
-   See documentation of cw_set_send_speed() for more information.
+   \brief Get sending weighting
+
+   \return current value of the parameter
 */
 int cw_get_weighting(void)
 {
@@ -2264,11 +2322,22 @@ int cw_get_weighting(void)
 
 
 /**
- * Return the low-level timing parameters calculated from the speed, gap,
- * tolerance, and weighting set.  Parameter values are returned in
- * microseconds.  Use NULL for the pointer argument to any parameter value
- * not required.
- */
+   \brief Get timing parameters for sending
+
+   Return the low-level timing parameters calculated from the speed, gap,
+   tolerance, and weighting set.  Parameter values are returned in
+   microseconds.
+
+   Use NULL for the pointer argument to any parameter value not required.
+
+   \param dot_usecs
+   \param dash_usecs
+   \param end_of_element_usecs
+   \param end_of_character_usecs
+   \param end_of_word_usecs
+   \param additional_usecs
+   \param adjustment_usecs
+*/
 void cw_get_send_parameters(int *dot_usecs, int *dash_usecs,
 			    int *end_of_element_usecs,
 			    int *end_of_character_usecs, int *end_of_word_usecs,
@@ -2294,7 +2363,27 @@ void cw_get_send_parameters(int *dot_usecs, int *dash_usecs,
 
 
 /**
-   See documentation of cw_get_send_parameters() for more information
+   \brief Get timing parameters for sending, and adaptive threshold
+
+   Return the low-level timing parameters calculated from the speed, gap,
+   tolerance, and weighting set.  Parameter values are returned in
+   microseconds.
+
+   Use NULL for the pointer argument to any parameter value not required.
+
+   \param dot_usecs
+   \param dash_usecs
+   \param dot_min_usecs
+   \param dot_max_usecs
+   \param dash_min_usecs
+   \param dash_max_usecs
+   \param end_of_element_min_usecs
+   \param end_of_element_max_usecs
+   \param end_of_element_ideal_usecs
+   \param end_of_character_min_usecs
+   \param end_of_character_max_usecs
+   \param end_of_character_ideal_usecs
+   \param adaptive_threshold
 */
 void cw_get_receive_parameters(int *dot_usecs, int *dash_usecs,
 			       int *dot_min_usecs, int *dot_max_usecs,
@@ -2333,21 +2422,29 @@ void cw_get_receive_parameters(int *dot_usecs, int *dash_usecs,
 
 
 /**
- * Set and get the period shorter than which, on receive, received tones are
- * ignored.  This allows the receive tone functions to apply noise canceling
- * for very short apparent tones.  For useful results the value should never
- * exceed the dot length of a dot at maximum speed; 20,000 microseconds (the
- * dot length at 60WPM).  Setting a noise threshold of zero turns off receive
- * tone noise canceling.  The default noise spike threshold is 10,000
- * microseconds.
- */
-int cw_set_noise_spike_threshold(int threshold)
+   \brief Set noise spike threshold
+
+   Set the period shorter than which, on receive, received tones are ignored.
+   This allows the receive tone functions to apply noise canceling for very
+   short apparent tones.
+   For useful results the value should never exceed the dot length of a dot at
+   maximum speed: 20,000 microseconds (the dot length at 60WPM).
+   Setting a noise threshold of zero turns off receive tone noise canceling.
+
+   The default noise spike threshold is 10,000 microseconds.
+
+   errno is set to EINVAL if \p new_value is out of range.
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
+int cw_set_noise_spike_threshold(int new_value)
 {
-	if (threshold < 0) {
+	if (new_value < 0) {
 		errno = EINVAL;
 		return CW_FAILURE;
 	}
-	cw_noise_spike_threshold = threshold;
+	cw_noise_spike_threshold = new_value;
 
 	return CW_SUCCESS;
 }
@@ -2357,7 +2454,11 @@ int cw_set_noise_spike_threshold(int threshold)
 
 
 /**
+   \brief Get noise spike threshold
+
    See documentation of cw_set_noise_spike_threshold() for more information
+
+   \return current value of the parameter
 */
 int cw_get_noise_spike_threshold(void)
 {
@@ -2829,6 +2930,191 @@ int cw_signal_wait_internal(void)
 
 
 
+
+
+/* Array of callbacks registered for convenience signal handling.  They're
+   initialized dynamically to SIG_DFL (if SIG_DFL is not NULL, which it
+   seems that it is in most cases). */
+static void (*cw_signal_callbacks[CW_SIG_MAX])(int);
+
+
+
+
+
+/**
+   \brief Generic function calling signal handlers
+
+   Signal handler function registered when cw_register_signal_handler()
+   is called.
+   The function resets the library (with cw_complete_reset()), and then,
+   depending on value of signal handler for given \p signal_number:
+   \li calls exit(EXIT_FAILURE) if signal handler is SIG_DFL, or
+   \li continues without further actions if signal handler is SIG_IGN, or
+   \li calls the signal handler.
+
+   The signal handler for given \p signal_number is either a pre-set, default
+   value, or is a value registered earlier with cw_register_signal_handler().
+
+   \param signal_number
+*/
+void cw_signal_main_handler_internal(int signal_number)
+{
+	cw_debug (CW_DEBUG_FINALIZATION, "caught signal %d", signal_number);
+
+	/* Reset the library and retrieve the signal's handler. */
+	cw_complete_reset();
+	void (*callback_func)(int) = cw_signal_callbacks[signal_number];
+
+	/* The default action is to stop the process; exit(1) seems to cover it. */
+	if (callback_func == SIG_DFL) {
+		exit(EXIT_FAILURE);
+	} else if (callback_func == SIG_IGN) {
+		/* continue */
+	} else {
+		/* invoke any additional handler callback function */
+		(*callback_func)(signal_number);
+	}
+
+	return;
+}
+
+
+
+
+
+/**
+   \brief Register a signal handler and optional callback function for given signal number
+
+   On receipt of that signal, all library features will be reset to their
+   default states.  Following the reset, if \p callback_func is a function
+   pointer, the function is called; if it is SIG_DFL, the library calls
+   exit(); and if it is SIG_IGN, the library returns from the signal handler.
+
+   This is a convenience function for clients that need to clean up library
+   on signals, with either exit, continue, or an additional function call;
+   in effect, a wrapper round a restricted form of sigaction.
+
+   The \p signal_number argument indicates which signal to catch.
+
+   On problems errno is set to EINVAL if \p signal_number is invalid
+   or if a handler is already installed for that signal, or to the
+   sigaction error code.
+
+   \return CW_SUCCESS - if the signal handler installs correctly
+   \return CW_FAILURE - on errors or problems
+*/
+int cw_register_signal_handler(int signal_number, void (*callback_func)(int))
+{
+	static bool is_initialized = false;
+
+	/* On first call, initialize all signal_callbacks to SIG_DFL. */
+	if (!is_initialized) {
+		for (int i = 0; i < CW_SIG_MAX; i++) {
+			cw_signal_callbacks[i] = SIG_DFL;
+		}
+		is_initialized = true;
+	}
+
+	/* Reject invalid signal numbers, and SIGALRM, which we use internally. */
+	if (signal_number < 0
+	    || signal_number >= CW_SIG_MAX
+	    || signal_number == SIGALRM) {
+
+		errno = EINVAL;
+		return CW_FAILURE;
+	}
+
+	/* Install our handler as the actual handler. */
+	struct sigaction action, original_disposition;
+	action.sa_handler = cw_signal_main_handler_internal;
+	action.sa_flags = SA_RESTART;
+	sigemptyset(&action.sa_mask);
+	int status = sigaction(signal_number, &action, &original_disposition);
+	if (status == -1) {
+		perror("libcw: sigaction");
+		return CW_FAILURE;
+	}
+
+	/* If we trampled another handler, replace it and return false. */
+	if (!(original_disposition.sa_handler == cw_signal_main_handler_internal
+	      || original_disposition.sa_handler == SIG_DFL
+	      || original_disposition.sa_handler == SIG_IGN)) {
+
+		status = sigaction(signal_number, &original_disposition, NULL);
+		if (status == -1) {
+			perror("libcw: sigaction");
+			return CW_FAILURE;
+		}
+
+		errno = EINVAL;
+		return CW_FAILURE;
+	}
+
+	/* Save the callback function (it may validly be SIG_DFL or SIG_IGN). */
+	cw_signal_callbacks[signal_number] = callback_func;
+
+	return CW_SUCCESS;
+}
+
+
+
+
+
+/**
+   \brief Unregister a signal handler interception
+
+   Function removes a signal handler interception previously registered
+   with cw_register_signal_handler().
+
+   \return true if the signal handler uninstalls correctly
+   \return false otherwise (with errno set to EINVAL or to the sigaction error code)
+*/
+int cw_unregister_signal_handler(int signal_number)
+{
+	/* Reject unacceptable signal numbers. */
+	if (signal_number < 0
+	    || signal_number >= CW_SIG_MAX
+	    || signal_number == SIGALRM) {
+
+		errno = EINVAL;
+		return CW_FAILURE;
+	}
+
+	/* See if the current handler was put there by us. */
+	struct sigaction original_disposition;
+	int status = sigaction(signal_number, NULL, &original_disposition);
+	if (status == -1) {
+		perror("libcw: sigaction");
+		return CW_FAILURE;
+	}
+
+	if (original_disposition.sa_handler != cw_signal_main_handler_internal) {
+		/* No, it's not our signal handler. Don't touch it. */
+		errno = EINVAL;
+		return CW_FAILURE;
+	}
+
+	/* Remove the signal handler by resetting to SIG_DFL. */
+	struct sigaction action;
+	action.sa_handler = SIG_DFL;
+	action.sa_flags = 0;
+	sigemptyset(&action.sa_mask);
+	status = sigaction(signal_number, &action, NULL);
+	if (status == -1) {
+		perror("libcw: sigaction");
+		return CW_FAILURE;
+	}
+
+	/* Reset the callback entry for tidiness. */
+	cw_signal_callbacks[signal_number] = SIG_DFL;
+
+	return CW_SUCCESS;
+}
+
+
+
+
+
 /* ******************************************************************** */
 /*          General control of console buzzer and of soundcard          */
 /* ******************************************************************** */
@@ -3093,22 +3379,6 @@ static volatile bool cw_is_finalization_locked_out = false;
 
 
 
-/* http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=403043 */
-#if defined(NSIG)             /* Debian GNU/Linux: signal.h; Debian kFreeBSD: signal.h (libc0.1-dev_2.13-21_kfreebsd-i386.deb) */
-#define CW_SIG_MAX (NSIG)
-#elif defined(_NSIG)          /* Debian GNU/Linux: asm-generic/signal.h; Debian kFreeBSD: i386-kfreebsd-gnu/bits/signum.h->signal.h (libc0.1-dev_2.13-21_kfreebsd-i386.deb) */
-#define CW_SIG_MAX (_NSIG)
-#elif defined(RTSIG_MAX)      /* Debian GNU/Linux: linux/limits.h */
-#define CW_SIG_MAX ((RTSIG_MAX)+1)
-#else
-#error "unknown number of signals"
-#endif
-
-
-/* Array of callbacks registered for convenience signal handling.  They're
-   initialized dynamically to SIG_DFL (if SIG_DFL is not NULL, which it
-   seems that it is in most cases). */
-static void (*cw_signal_callbacks[CW_SIG_MAX])(int);
 
 
 
@@ -3237,164 +3507,6 @@ void cw_complete_reset(void)
 
 
 
-/**
-   Signal handler function registered when cw_register_signal_handler is
-   requested.  Resets the library, and then either calls any supplied
-   sub-handler, exits (if SIG_DFL) or continues (if SIG_IGN).
-*/
-void cw_interpose_signal_handler_internal(int signal_number)
-{
-	cw_debug (CW_DEBUG_FINALIZATION, "caught signal %d", signal_number);
-
-	/* Reset the library and retrieve the signal's handler. */
-	cw_complete_reset ();
-	void (*callback_func)(int) = cw_signal_callbacks[signal_number];
-
-	/* The default action is to stop the process; exit(1) seems to cover it. */
-	if (callback_func == SIG_DFL) {
-		exit(EXIT_FAILURE);
-	}
-
-	/* If we didn't exit, invoke any additional handler callback function. */
-	if (callback_func != SIG_IGN) {
-		(*callback_func)(signal_number);
-	}
-
-	return;
-}
-
-
-
-
-
-/**
-   \brief Register a signal handler and optional callback function for signals
-
-   On receipt of that signal, all library features will be reset to their
-   default states.  Following the reset, if \p callback_func is a function
-   pointer, the function is called; if it is SIG_DFL, the library calls
-   exit(); and if it is SIG_IGN, the library returns from the signal handler.
-   This is a convenience function for clients that need to clean up library
-   on signals, with either exit, continue, or an additional function call;
-   in effect, a wrapper round a restricted form of sigaction.
-
-   The \p signal_number argument indicates which signal to catch.
-
-   On problems errno is set to EINVAL if \p signal_number is invalid
-   or if a handler is already installed for that signal, or to the
-   sigaction error code.
-
-   \return true - if the signal handler installs correctly
-   \return false - on errors or problems
-*/
-int cw_register_signal_handler(int signal_number, void (*callback_func)(int))
-{
-	static bool is_initialized = false;
-
-	/* On first call, initialize all signal_callbacks to SIG_DFL. */
-	if (!is_initialized) {
-		for (int i = 0; i < CW_SIG_MAX; i++) {
-			cw_signal_callbacks[i] = SIG_DFL;
-		}
-		is_initialized = true;
-	}
-
-	/* Reject invalid signal numbers, and SIGALRM, which we use internally. */
-	if (signal_number < 0
-	    || signal_number >= CW_SIG_MAX
-	    || signal_number == SIGALRM) {
-
-		errno = EINVAL;
-		return CW_FAILURE;
-	}
-
-	/* Install our handler as the actual handler. */
-	struct sigaction action, original_disposition;
-	action.sa_handler = cw_interpose_signal_handler_internal;
-	action.sa_flags = SA_RESTART;
-	sigemptyset(&action.sa_mask);
-	int status = sigaction(signal_number, &action, &original_disposition);
-	if (status == -1) {
-		perror("libcw: sigaction");
-		return CW_FAILURE;
-	}
-
-	/* If we trampled another handler, replace it and return false. */
-	if (!(original_disposition.sa_handler == cw_interpose_signal_handler_internal
-	      || original_disposition.sa_handler == SIG_DFL
-	      || original_disposition.sa_handler == SIG_IGN)) {
-
-		status = sigaction(signal_number, &original_disposition, NULL);
-		if (status == -1) {
-			perror("libcw: sigaction");
-			return CW_FAILURE;
-		}
-
-		errno = EINVAL;
-		return CW_FAILURE;
-	}
-
-	/* Save the callback function (it may validly be SIG_DFL or SIG_IGN). */
-	cw_signal_callbacks[signal_number] = callback_func;
-
-	return CW_SUCCESS;
-}
-
-
-
-
-
-/**
-   \brief Unregister a signal handler interception
-
-   Function removes a signal handler interception previously registered
-   with cw_register_signal_handler().
-
-   \return true if the signal handler uninstalls correctly
-   \return false otherwise (with errno set to EINVAL or to the sigaction error code)
-*/
-int cw_unregister_signal_handler(int signal_number)
-{
-	/* As above, reject unacceptable signal numbers. */
-	if (signal_number < 0
-	    || signal_number >= CW_SIG_MAX
-	    || signal_number == SIGALRM) {
-
-		errno = EINVAL;
-		return CW_FAILURE;
-	}
-
-	/* See if the current handler was put there by us. */
-	struct sigaction original_disposition;
-	int status = sigaction(signal_number, NULL, &original_disposition);
-	if (status == -1) {
-		perror("libcw: sigaction");
-		return CW_FAILURE;
-	}
-
-	if (original_disposition.sa_handler != cw_interpose_signal_handler_internal) {
-		errno = EINVAL;
-		return CW_FAILURE;
-	}
-
-	/* Remove the signal handler by resetting to SIG_DFL. */
-	struct sigaction action;
-	action.sa_handler = SIG_DFL;
-	action.sa_flags = 0;
-	sigemptyset(&action.sa_mask);
-	status = sigaction(signal_number, &action, NULL);
-	if (status == -1) {
-		perror("libcw: sigaction");
-		return CW_FAILURE;
-	}
-
-	/* Reset the callback entry for tidiness. */
-	cw_signal_callbacks[signal_number] = SIG_DFL;
-
-	return CW_SUCCESS;
-}
-
-
 
 
 
@@ -3402,32 +3514,62 @@ int cw_unregister_signal_handler(int signal_number)
 /*                           Keying control                             */
 /* ******************************************************************** */
 
+/* Code maintaining state of a key, and handling changes of key state.
+   A key can be in two states:
+   \li open - a physical key with electric contacts open, no sound or
+   continuous wave is generated;
+   \li closed - a physical key with electric contacts closed, a sound
+   or continuous wave is generated;
+
+   Key type is not specified. This code maintains state of any type
+   of key: straight key, cootie key, iambic key. All that matters is
+   state of contacts (open/closed).
+
+   The concept of 'key' is extended to a software generator (provided
+   by this library) that generates Morse code wave from text input.
+   This means that key is closed when a tone (element) is generated,
+   and key is open when there is inter-tone (inter-element) space.
+
+   Client code can register - using cw_register_keying_callback() -
+   a client callback function. The function will be called every time the
+   state of a key changes. */
 
 
 
 
-/* External keying function.  It may be useful for a client to have this
-   library control an external keying device, for example, an oscillator,
-   or a transmitter.  Here is where we keep the address of a function that
-   is passed to us for this purpose, and a void* argument for it. */
+/* External 'on key state change' callback function and its argument.
+
+   It may be useful for a client to have this library control an external
+   keying device, for example, an oscillator, or a transmitter.
+   Here is where we keep the address of a function that is passed to us
+   for this purpose, and a void* argument for it. */
 static void (*cw_kk_key_callback)(void*, bool) = NULL;
 static void *cw_kk_key_callback_arg = NULL;
+
+
+
 
 
 /**
    \brief Register external callback function for keying
 
-   Register a function that should be called when a tone state changes from
-   key-up to key-down, or vice-versa.  The first argument passed out to the
-   registered function is the supplied callback_arg, if any.  The second
-   argument passed out is the key state: true for down, false for up.  Calling
-   this routine with an NULL function address disables keying callbacks.  Any
-   callback supplied will be called in signal handler context.
+   Register a \p callback_func function that should be called when a state
+   of a key changes from 'key open' to 'key closed', or vice-versa.
 
-   \param callback_func - callback function to be called on tone state changes
+   The first argument passed to the registered callback function is the
+   supplied \p callback_arg, if any.  The second argument passed to
+   registered callback function is the key state: CW_KEY_STATE_CLOSED
+   (one/true) for 'key closed', and CW_KEY_STATE_OPEN (zero/false) for
+   'key open'.
+
+   Calling this routine with a NULL function address disables keying
+   callbacks.  Any callback supplied will be called in signal handler
+   context (??).
+
+   \param callback_func - callback function to be called on key state changes
    \param callback_arg - first argument to callback_func
 */
-void cw_register_keying_callback(void (*callback_func)(void*, bool),
+void cw_register_keying_callback(void (*callback_func)(void*, int),
 				 void *callback_arg)
 {
 	cw_kk_key_callback = callback_func;
@@ -3447,9 +3589,9 @@ void cw_register_keying_callback(void (*callback_func)(void*, bool),
    is a change of keying state.  This function filters successive key-down
    or key-up actions into a single action.
 
-   \param requested_key_state - current key state
+   \param requested_key_state - current key state to be stored
 */
-void cw_key_control_internal(int requested_key_state)
+void cw_key_set_state_internal(int requested_key_state)
 {
 	static bool current_key_state = false;  /* Maintained key control state */
 
@@ -3613,7 +3755,7 @@ void cw_tone_queue_dequeue_internal(int *usecs, int *frequency)
 			   have been a change of keying state (and then
 			   again, there might not have been -- it will sort
 			   this out for us). */
-			//cw_key_control_internal(*frequency != CW_TONE_SILENT);
+			//cw_key_set_state_internal(*frequency ? CW_KEY_STATE_CLOSED : CW_KEY_STATE_OPEN);
 
 			/* If microseconds is zero, leave it at that.  This
 			   way, a queued tone of 0 usec implies leaving the
@@ -3658,7 +3800,7 @@ void cw_tone_queue_dequeue_internal(int *usecs, int *frequency)
 			*usecs = -1;
 
 			/* Notify the keying control function, as above. */
-			cw_key_control_internal(false);
+			cw_key_set_state_internal(CW_KEY_STATE_OPEN);
 
 			/* Set state to idle, indicating that autonomous
 			   dequeuing has finished for the moment.  We
@@ -3724,7 +3866,7 @@ void cw_tone_queue_dequeue_and_play_internal(void)
 			   have been a change of keying state (and then
 			   again, there might not have been -- it will sort
 			   this out for us). */
-			cw_key_control_internal(frequency != CW_TONE_SILENT);
+			cw_key_set_state_internal(frequency ? CW_KEY_STATE_CLOSED : CW_KEY_STATE_OPEN);
 
 			/* If microseconds is zero, leave it at that.  This
 			   way, a queued tone of 0 usec implies leaving the
@@ -3769,7 +3911,7 @@ void cw_tone_queue_dequeue_and_play_internal(void)
 			cw_generator_play_internal(generator, CW_TONE_SILENT);
 
 			/* Notify the keying control function, as above. */
-			cw_key_control_internal(false);
+			cw_key_set_state_internal(CW_KEY_STATE_OPEN);
 
 			/* Set state to idle, indicating that autonomous
 			   dequeuing has finished for the moment.  We
@@ -4182,7 +4324,8 @@ int cw_queue_tone(int usecs, int frequency)
 	   neverending (0 usecs) tones, if that's what they want to do. */
 	if (usecs < 0
 	    || frequency < 0
-	    || frequency < CW_FREQUENCY_MIN || frequency > CW_FREQUENCY_MAX) {
+	    || frequency < CW_FREQUENCY_MIN
+	    || frequency > CW_FREQUENCY_MAX) {
 
 		errno = EINVAL;
 		return CW_FAILURE;
@@ -5040,6 +5183,9 @@ bool cw_get_adaptive_receive_state(void)
    return false with errno set to EINVAL.  If an input timestamp is not
    given (NULL), return true with the current system time in
    return_timestamp.
+
+   \param timestamp
+   \param return_timestamp
 */
 int cw_timestamp_validate_internal(const struct timeval *timestamp,
 				   struct timeval *return_timestamp)
@@ -5051,15 +5197,18 @@ int cw_timestamp_validate_internal(const struct timeval *timestamp,
 
 			errno = EINVAL;
 			return CW_FAILURE;
+		} else {
+			*return_timestamp = *timestamp;
+			return CW_SUCCESS;
 		}
-		*return_timestamp = *timestamp;
 	} else {
 		if (gettimeofday(return_timestamp, NULL)) {
 			perror ("libcw: gettimeofday");
 			return CW_FAILURE;
+		} else {
+			return CW_SUCCESS;
 		}
 	}
-	return CW_SUCCESS;
 }
 
 
@@ -5482,7 +5631,7 @@ int cw_end_receive_tone(const struct timeval *timestamp)
    \return CW_FAILURE on failure
  */
 int cw_receive_add_element_internal(const struct timeval *timestamp,
-				       char element)
+				    char element)
 {
 	/* The receive state is expected to be idle or after a tone in
 	   order to use this routine. */
@@ -5601,7 +5750,7 @@ int cw_receive_representation(const struct timeval *timestamp,
 			      char *representation, bool *is_end_of_word,
 			      bool *is_error)
 {
-	struct timeval now_timestamp;
+
 
 	/* If the the receive state indicates that we have in our possession
 	   a completed representation at the end of word, just [re-]return it. */
@@ -5638,6 +5787,7 @@ int cw_receive_representation(const struct timeval *timestamp,
 
 	/* If we weren't supplied with one, get the current timestamp
 	   for comparison against the latest end timestamp. */
+	struct timeval now_timestamp;
 	if (!cw_timestamp_validate_internal(timestamp, &now_timestamp)) {
 		return CW_FAILURE;
 	}
@@ -5979,7 +6129,7 @@ void cw_keyer_clock_internal(void)
 	case KS_IN_DOT_A:
 	case KS_IN_DOT_B:
 		cw_generator_play_internal(generator, CW_TONE_SILENT);
-		cw_key_control_internal(false);
+		cw_key_set_state_internal(CW_KEY_STATE_OPEN);
 		cw_timer_run_with_handler_internal(cw_end_of_ele_delay, NULL);
 		cw_keyer_state = cw_keyer_state == KS_IN_DOT_A
 			? KS_AFTER_DOT_A : KS_AFTER_DOT_B;
@@ -5990,7 +6140,7 @@ void cw_keyer_clock_internal(void)
 	case KS_IN_DASH_A:
 	case KS_IN_DASH_B:
 		cw_generator_play_internal(generator, CW_TONE_SILENT);
-		cw_key_control_internal(false);
+		cw_key_set_state_internal(CW_KEY_STATE_OPEN);
 		cw_timer_run_with_handler_internal(cw_end_of_ele_delay, NULL);
 		cw_keyer_state = cw_keyer_state == KS_IN_DASH_A
 			? KS_AFTER_DASH_A : KS_AFTER_DASH_B;
@@ -6014,12 +6164,12 @@ void cw_keyer_clock_internal(void)
 
 		if (cw_keyer_state == KS_AFTER_DOT_B) {
 			cw_generator_play_internal(generator, generator->frequency);
-			cw_key_control_internal(true);
+			cw_key_set_state_internal(CW_KEY_STATE_CLOSED);
 			cw_timer_run_with_handler_internal(cw_send_dash_length, NULL);
 			cw_keyer_state = KS_IN_DASH_A;
 		} else if (cw_ik_dash_latch) {
 			cw_generator_play_internal(generator, generator->frequency);
-			cw_key_control_internal(true);
+			cw_key_set_state_internal(CW_KEY_STATE_CLOSED);
 			cw_timer_run_with_handler_internal(cw_send_dash_length, NULL);
 			if (cw_ik_curtis_b_latch){
 				cw_ik_curtis_b_latch = false;
@@ -6029,7 +6179,7 @@ void cw_keyer_clock_internal(void)
 			}
 		} else if (cw_ik_dot_latch) {
 			cw_generator_play_internal(generator, generator->frequency);
-			cw_key_control_internal(true);
+			cw_key_set_state_internal(CW_KEY_STATE_CLOSED);
 			cw_timer_run_with_handler_internal(cw_send_dot_length, NULL);
 			cw_keyer_state = KS_IN_DOT_A;
 		} else {
@@ -6047,12 +6197,12 @@ void cw_keyer_clock_internal(void)
 		}
 		if (cw_keyer_state == KS_AFTER_DASH_B) {
 			cw_generator_play_internal(generator, generator->frequency);
-			cw_key_control_internal(true);
+			cw_key_set_state_internal(CW_KEY_STATE_CLOSED);
 			cw_timer_run_with_handler_internal(cw_send_dot_length, NULL);
 			cw_keyer_state = KS_IN_DOT_A;
 		} else if (cw_ik_dot_latch) {
 			cw_generator_play_internal(generator, generator->frequency);
-			cw_key_control_internal(true);
+			cw_key_set_state_internal(CW_KEY_STATE_CLOSED);
 			cw_timer_run_with_handler_internal(cw_send_dot_length, NULL);
 			if (cw_ik_curtis_b_latch) {
 				cw_ik_curtis_b_latch = false;
@@ -6062,7 +6212,7 @@ void cw_keyer_clock_internal(void)
 			}
 		} else if (cw_ik_dash_latch) {
 			cw_generator_play_internal(generator, generator->frequency);
-			cw_key_control_internal(true);
+			cw_key_set_state_internal(CW_KEY_STATE_CLOSED);
 			cw_timer_run_with_handler_internal(cw_send_dash_length, NULL);
 			cw_keyer_state = KS_IN_DASH_A;
 		} else {
@@ -6457,14 +6607,14 @@ int cw_notify_straight_key_event(int key_state)
 		   activities to match the new key state. */
 		if (cw_sk_key_down) {
 			cw_generator_play_internal(generator, generator->frequency);
-			cw_key_control_internal(true);
+			cw_key_set_state_internal(CW_KEY_STATE_CLOSED);
 
 			/* Start timeouts to keep soundcard tones running. */
 			cw_timer_run_with_handler_internal(STRAIGHT_KEY_TIMEOUT,
 							   cw_straight_key_clock_internal);
 		} else {
 			cw_generator_play_internal(generator, CW_TONE_SILENT);
-			cw_key_control_internal(false);
+			cw_key_set_state_internal(CW_KEY_STATE_OPEN);
 
 			/* Indicate that we have finished with timeouts,
 			   and also with the soundcard too.  There's no way
