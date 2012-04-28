@@ -165,7 +165,7 @@ Application::Application() : QMainWindow (0)
 //
 // This function is called in signal handler context.
 void
-Application::libcw_keying_event_static (void *, bool key_state)
+Application::libcw_keying_event_static (void *, int key_state)
 {
   const Application *application = libcw_user_application_instance;
 
