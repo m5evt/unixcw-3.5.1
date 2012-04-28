@@ -46,6 +46,11 @@ enum cw_audio_systems {
 	CW_AUDIO_SOUNDCARD /* OSS, ALSA or PulseAudio (PA) */
 };
 
+enum {
+	CW_KEY_STATE_OPEN = 0,  /* key is open, no electrical contact in key, no sound */
+	CW_KEY_STATE_CLOSED     /* key is closed, there is an electrical contact in key, a sound is generated */
+};
+
 
 typedef int16_t cw_sample_t;
 
@@ -193,7 +198,7 @@ extern void cw_get_receive_parameters(int *dot_usecs, int *dash_usecs,
 				      int *end_of_character_max_usecs,
 				      int *end_of_character_ideal_usecs,
 				      int *adaptive_threshold);
-extern int cw_set_noise_spike_threshold(int threshold);
+extern int cw_set_noise_spike_threshold(int new_value);
 extern int cw_get_noise_spike_threshold(void);
 
 
@@ -223,7 +228,7 @@ extern int  cw_unregister_signal_handler(int signal_number);
 
 
 /* Keying control */
-extern void cw_register_keying_callback(void (*callback_func)(void*, bool),
+extern void cw_register_keying_callback(void (*callback_func)(void*, int),
 					void *callback_arg);
 
 
