@@ -151,7 +151,7 @@
 #ifdef LIBCW_WITH_DEV
 #define CW_DEV_MAIN               1  /* enable main() for stand-alone compilation and tests of this file */
 #define CW_DEV_RAW_SINK           1  /* create and use /tmp/cw_file.<audio system>.raw file with audio samples written as raw data */
-#define CW_DEV_EXPERIMENTAL_WRITE 0  /* new implementation of code that generates and writes samples to audio sink - may solve some problems with timing */
+#define CW_DEV_EXPERIMENTAL_WRITE 1  /* new implementation of code that generates and writes samples to audio sink - may solve some problems with timing */
 #endif
 
 
@@ -7073,13 +7073,28 @@ void cw_generator_stop(void)
 */
 int cw_generator_calculate_sine_wave_new_internal(cw_gen_t *gen, int start, int stop)
 {
-	int i = 0;
-	double phase = 0.0;
 	assert (stop <= gen->buffer_n_samples);
 
-	for (i = start; i <= stop; i++) {
-		double phase = (2.0 * M_PI
-				* (double) gen->frequency * (double) i
+	/* We need two separate iterators to correctly generate sine wave:
+	    -- i -- for iterating through output buffer, it can travel
+	            between buffer cells indexed by start and stop;
+	    -- j -- for calculating phase of a sine wave; it always has to
+	            start from zero for every calculated fragment (i.e. for
+		    every call of this function);
+
+	  Initial/starting phase of generated fragment is always retained
+	  in gen->phase_offset, it is the only "memory" of previously
+	  calculated fragment of sine wave (to be precise: it stores phase
+	  of last sample in previously calculated fragment).
+	  Therefore iterator used to calculate phase of sine wave can't have
+	  the memory too. Therefore it has to always start from zero for
+	  every new fragment of sine wave. Therefore j.	*/
+
+	double phase = 0.0;
+	int i = 0, j = 0;
+	for (i = start, j = 0; i <= stop; i++, j++) {
+		phase = (2.0 * M_PI
+				* (double) gen->frequency * (double) j
 				/ (double) gen->sample_rate)
 			+ gen->phase_offset;
 		int amplitude = cw_generator_calculate_amplitude_internal(gen);
@@ -7088,14 +7103,27 @@ int cw_generator_calculate_sine_wave_new_internal(cw_gen_t *gen, int start, int 
 		gen->tone_iterator++;
 	}
 
-	/* Compute the phase of the last generated sample
-	   (or is it phase of first sample in next series?). */
 	phase = (2.0 * M_PI
-		 * (double) gen->frequency * (double) i
+		 * (double) gen->frequency * (double) j
 		 / (double) gen->sample_rate)
 		+ gen->phase_offset;
 
-	/* Extract the normalized phase offset. */
+	/* 'phase' is now phase of the first sample in next fragment to be
+	   calculated.
+	   However, for long fragments this can be a large value, well
+	   beyond <0; 2*Pi) range.
+	   The value of phase may further accumulate in different
+	   calculations, and at some point it may overflow. This would
+	   result in an audible click.
+
+	   Let's bring back the phase from beyond <0; 2*Pi) range into the
+	   <0; 2*Pi) range, in other words lets 'normalize' it. Or, in yet
+	   other words, lets apply modulo operation to the phase.
+
+	   The normalized phase will be used as a phase offset for next
+	   fragment (during next function call). It will be added phase of
+	   every sample calculated in next function call. */
+
 	int n_periods = floor(phase / (2.0 * M_PI));
 	gen->phase_offset = phase - n_periods * 2.0 * M_PI;
 
@@ -8673,12 +8701,29 @@ void main_helper(int audio_system, const char *name, const char *device, predica
 			cw_set_send_speed(15);
 			cw_generator_start();
 
+			int usecs = 500000;
+			int frequency = 440;
+			cw_tone_queue_enqueue_internal(usecs, frequency);
+
+			usecs = 500000;
+			frequency = 1440;
+			cw_tone_queue_enqueue_internal(usecs, frequency);
+
+			usecs = 500000;
+			frequency = 1000;
+			cw_tone_queue_enqueue_internal(usecs, frequency);
+
+			usecs = 500000;
+			frequency = 200;
+			cw_tone_queue_enqueue_internal(usecs, frequency);
+
+
 			//cw_send_string("abcdefghijklmnopqrstuvwyz0123456789");
-			cw_send_string("hh");
+			//cw_send_string("hh");
 			cw_wait_for_tone_queue();
 			sleep(1);
-			cw_set_frequency(440);
-			cw_send_string("oo");
+			//cw_set_frequency(440);
+			//cw_send_string("oo");
 			cw_wait_for_tone_queue();
 
 			cw_generator_stop();
