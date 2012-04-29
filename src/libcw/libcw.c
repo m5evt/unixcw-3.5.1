@@ -192,6 +192,10 @@ struct cw_gen_struct {
 	int sample_rate; /* set to the same value of sample rate as
 			    you have used when configuring sound card */
 
+	struct {
+		int mode;
+		int iterator;
+	} slope_;
 	int slope; /* used to control initial and final phase of
 		      non-zero-amplitude sine wave; slope/attack
 		      makes it possible to start or end a wave
@@ -218,7 +222,6 @@ struct cw_gen_struct {
 
 #if CW_DEV_EXPERIMENTAL_WRITE
 	int tone_n_samples;
-	int tone_iterator;
 #endif
 
 	/* Thread function is used to generate sine wave
@@ -243,15 +246,17 @@ static int   cw_generator_play_with_console_internal(cw_gen_t *gen, int state);
 static int   cw_generator_play_with_soundcard_internal(cw_gen_t *gen, int state);
 static int   cw_generator_release_internal(void);
 static int   cw_generator_set_audio_device_internal(cw_gen_t *gen, const char *device);
+#if !CW_DEV_EXPERIMENTAL_WRITE
 static void *cw_generator_write_sine_wave_oss_internal(void *arg);
+#endif
 
 #if CW_DEV_EXPERIMENTAL_WRITE
 static void *cw_generator_write_sine_wave_internal(void *arg);
 static int   cw_generator_calculate_sine_wave_new_internal(cw_gen_t *gen, int start, int stop);
 #else
 static void *cw_generator_write_sine_wave_alsa_internal(void *arg);
-#endif
 static int   cw_generator_calculate_sine_wave_internal(cw_gen_t *gen);
+#endif
 static int   cw_generator_calculate_amplitude_internal(cw_gen_t *gen);
 
 
@@ -303,12 +308,30 @@ static void cw_signal_main_handler_internal(int signal_number);
 
 /* Tone queue */
 static int  cw_tone_queue_length_internal(void);
+static int  cw_tone_queue_prev_index_internal(int current);
 static int  cw_tone_queue_next_index_internal(int current);
-static void cw_tone_queue_dequeue_and_play_internal(void);
 static int  cw_tone_queue_enqueue_internal(int usecs, int frequency);
 #if CW_DEV_EXPERIMENTAL_WRITE
-static void cw_tone_queue_dequeue_internal(int *usecs, int *frequency);
+static int cw_tone_queue_dequeue_internal(int *usecs, int *frequency);
+#else
+static void cw_tone_queue_dequeue_and_play_internal(void);
 #endif
+
+#define CW_USECS_FOREVER         -100
+#define CW_USECS_RISING_SLOPE    -101
+#define CW_USECS_FALLING_SLOPE   -102
+
+
+#define CW_SLOPE_RISING      1
+#define CW_SLOPE_FALLING     2
+#define CW_SLOPE_NONE        3
+#define CW_SLOPE_STANDARD    4
+
+
+/* return values from cw_tone_queue_dequeue_internal() */
+#define CW_TQ_JUST_EMPTIED 0
+#define CW_TQ_STILL_EMPTY  1
+#define CW_TQ_NONEMPTY     2
 
 
 /* Sending */
@@ -364,7 +387,7 @@ static void cw_straight_key_clock_internal(void);
 static const int          CW_AUDIO_CHANNELS = 1;                /* Sound in mono */
 static const long int     CW_AUDIO_VOLUME_RANGE = (1 << 15);    /* 2^15 = 32768 */
 static const float        CW_AUDIO_GENERATOR_SLOPE_RATIO = 1.0;    /* ~1.0 for 44.1/48 kHz sample rate */
-static const int          CW_AUDIO_GENERATOR_SLOPE_LEN = 100;      /* ~200 for 44.1/48 kHz sample rate */
+static const int          CW_AUDIO_GENERATOR_SLOPE_LEN = 200;      /* ~200 for 44.1/48 kHz sample rate */
 
 
 /* 0Hz = silent 'tone'. */
@@ -3543,7 +3566,7 @@ void cw_complete_reset(void)
    keying device, for example, an oscillator, or a transmitter.
    Here is where we keep the address of a function that is passed to us
    for this purpose, and a void* argument for it. */
-static void (*cw_kk_key_callback)(void*, bool) = NULL;
+static void (*cw_kk_key_callback)(void*, int) = NULL;
 static void *cw_kk_key_callback_arg = NULL;
 
 
@@ -3668,13 +3691,33 @@ int cw_tone_queue_length_internal(void)
 
 
 /**
+   \brief Get previous index to queue
+
+   Calculate index of previous element in queue, relative to given \p index.
+   The function calculates the index taking circular wrapping into
+   consideration.
+
+   \param index - index in relation to which to calculate index of previous element in queue
+
+   \return index of previous element in queue
+*/
+int cw_tone_queue_prev_index_internal(int index)
+{
+	return index - 1 >= 0 ? index - 1 : CW_TONE_QUEUE_CAPACITY - 1;
+}
+
+
+
+
+
+/**
    \brief Get next index to queue
 
    Calculate index of next element in queue, relative to given \p index.
    The function calculates the index taking circular wrapping into
    consideration.
 
-   \param index - index in relation to which calculate index of next element in queue
+   \param index - index in relation to which to calculate index of next element in queue
 
    \return index of next element in queue
 */
@@ -3711,24 +3754,54 @@ static volatile enum { QS_IDLE, QS_BUSY } cw_dequeue_state = QS_IDLE;
 
 
 /**
-   \brief Signal handler for itimer
+   \brief Dequeue a tone from tone queue
 
-   Dequeue a tone request, and call cw_generator_play_internal() to generate the tone.
-   If the queue is empty when we get the signal, then we're at the end of
-   the work list, so set the dequeue state to idle and return.
+   Dequeue a tone from tone queue.
+
+   The queue returns two distinct values when it is empty, and one value
+   when it is not empty:
+   \li CW_TQ_JUST_EMPTIED - when there were no new tones in the queue, but
+       the queue still remembered its 'BUSY' state; this return value
+       is a way of telling client code "I've had tones, but no more, you
+       should probably stop playing any sounds and become silent";
+   \li CW_TQ_STILL_EMPTY - when there were no new tones in the queue, and
+       the queue can't recall if it was 'BUSY' before; this return value
+       is a way of telling client code "I don't have any tones, you should
+       probably stay silent";
+   \li CW_TQ_NONEMPTY - when there was at least one tone in the queue;
+       client code can call the function again, and the function will
+       then return CW_TQ_NONEMPTY (if there is yet another tone), or
+       CW_TQ_JUST_EMPTIED (if the tone from previous call was the last one);
+
+   Information about successfully dequeued tone is returned through
+   function's arguments: \p usecs and \p frequency.
+   The function does not modify the arguments if there are no tones to
+   dequeue.
+
+   If the last tone in queue has duration "CW_USECS_FOREVER", the function
+   won't permanently dequeue it (won't "destroy" it). Instead, it will keep
+   returning (through \p usecs and \p frequency) the tone on every call,
+   until a new tone is added to the queue after the "CW_USECS_FOREVER" tone.
+
+   \param usecs - output, space for duration of dequeued tone
+   \param frequency - output, space for frequency of dequeued tone
+
+   \return CW_TQ_JUST_EMPTIED (see information above)
+   \return CW_TQ_STILL_EMPTY (see information above)
+   \return CW_TQ_NONEMPTY (see information above)
 */
-void cw_tone_queue_dequeue_internal(int *usecs, int *frequency)
+int cw_tone_queue_dequeue_internal(int *usecs, int *frequency)
 {
 	/* Decide what to do based on the current state. */
 	switch (cw_dequeue_state) {
-		/* Ignore calls if our state is idle. */
+
 	case QS_IDLE:
-		*usecs = -1;
-		return;
+		/* Ignore calls if our state is idle. */
+		return CW_TQ_STILL_EMPTY;
 
 	case QS_BUSY:
-		/* If busy, dequeue the next tone, or if no
-		   more tones, go to the idle state. */
+		/* If there are some tones in queue, dequeue the next
+		   tone. If there are no more tones, go to the idle state. */
 		if (cw_tq_head != cw_tq_tail) {
 			/* Get the current queue length.  Later on, we'll
 			   compare with the length after we've scanned
@@ -3740,39 +3813,49 @@ void cw_tone_queue_dequeue_internal(int *usecs, int *frequency)
 			   first tone with a duration of more than zero
 			   usecs, or until the end of the list.
 			   TODO: don't add tones with duration = 0? */
+			int tmp_tq_head = cw_tq_head;
 			do  {
-				cw_tq_head = cw_tone_queue_next_index_internal(cw_tq_head);
-			} while (cw_tq_head != cw_tq_tail
-				 && cw_tone_queue[cw_tq_head].usecs == 0);
+				tmp_tq_head = cw_tone_queue_next_index_internal(tmp_tq_head);
+			} while (tmp_tq_head != cw_tq_tail
+				 && cw_tone_queue[tmp_tq_head].usecs == 0);
 
-			/* Dequeue the next tone to send. */
-			*usecs = cw_tone_queue[cw_tq_head].usecs;
-			*frequency = cw_tone_queue[cw_tq_head].frequency;
+			/* Get parameters of tone to be played */
+			*usecs = cw_tone_queue[tmp_tq_head].usecs;
+			*frequency = cw_tone_queue[tmp_tq_head].frequency;
+
+			if (*usecs == CW_USECS_FOREVER && queue_length == 1) {
+				/* The last tone currently in queue is
+				   CW_USECS_FOREVER, which means that we
+				   should play certain tone until client
+				   code adds next tone (possibly forever).
+
+				   Don't dequeue the 'forever' tone (hence 'prev').	*/
+				cw_tq_head = cw_tone_queue_prev_index_internal(tmp_tq_head);
+			} else {
+				cw_tq_head = tmp_tq_head;
+			}
 
 			cw_debug (CW_DEBUG_TONE_QUEUE, "dequeue tone %d usec, %d Hz", *usecs, *frequency);
+			cw_debug (CW_DEBUG_TONE_QUEUE, "head = %d, tail = %d, length = %d", cw_tq_head, cw_tq_tail, queue_length);
 
 			/* Notify the key control function that there might
 			   have been a change of keying state (and then
 			   again, there might not have been -- it will sort
 			   this out for us). */
-			//cw_key_set_state_internal(*frequency ? CW_KEY_STATE_CLOSED : CW_KEY_STATE_OPEN);
+			cw_key_set_state_internal(*frequency ? CW_KEY_STATE_CLOSED : CW_KEY_STATE_OPEN);
 
+#if 0
 			/* If microseconds is zero, leave it at that.  This
 			   way, a queued tone of 0 usec implies leaving the
 			   sound in this state, and 0 usec and 0 frequency
 			   leaves silence.  */
-			if (*usecs > 0) {
-				/* Request a timeout.  If it fails, there's
-				   little we can do at this point.  But it
-				   shouldn't fail. */
-				//cw_timer_run_with_handler_internal(*usecs, NULL);
-			} else {
+			if (*usecs == 0) {
 				/* Autonomous dequeuing has finished for
 				   the moment. */
 				cw_dequeue_state = QS_IDLE;
 				cw_finalization_schedule_internal();
 			}
-
+#endif
 			/* If there is a low water mark callback registered,
 			   and if we passed under the water mark, call the
 			   callback here.  We want to be sure to call this
@@ -3786,34 +3869,55 @@ void cw_tone_queue_dequeue_internal(int *usecs, int *frequency)
 				   one we have now is below or equal to it,
 				   call the callback. */
 				if (queue_length > cw_tq_low_water_mark
-				    && cw_tone_queue_length_internal()
-				    <= cw_tq_low_water_mark) {
+				    && cw_tone_queue_length_internal() <= cw_tq_low_water_mark
+
+				    /* this expression is to avoid possibly endless calls of callback */
+				    && !(*usecs == CW_USECS_FOREVER && queue_length == 1)
+
+				    ) {
 
 					(*cw_tq_low_water_callback)(cw_tq_low_water_callback_arg);
 				}
 			}
+			return CW_TQ_NONEMPTY;
 		} else { /* cw_tq_head == cw_tq_tail */
-			/* This is the end of the last tone on the queue,
-			   and since we got a signal we know that it had
-			   a usec greater than zero.  So this is the time
-			   to return to silence. */
-			*usecs = -1;
+			/* State of tone queue (as indicated by cw_dequeue_state)
+			   is 'busy', but it turns out that there are no
+			   tones left on the queue to play (head == tail).
 
-			/* Notify the keying control function, as above. */
+			   Time to bring cw_dequeue_state in sync with
+			   head/tail state. Set state to idle, indicating
+			   that autonomous dequeuing has finished for the
+			   moment. */
+			cw_dequeue_state = QS_IDLE;
+
+			/* There is no tone to dequeue, so don't modify
+			   function's arguments. Client code will learn
+			   about 'no tones' state through return value. */
+			/* *usecs = 0; */
+			/* *frequency = 0; */
+
+			/* Notify the keying control function about the silence. */
 			cw_key_set_state_internal(CW_KEY_STATE_OPEN);
 
-			/* Set state to idle, indicating that autonomous
-			   dequeuing has finished for the moment.  We
-			   need this set whenever the queue indexes are
-			   equal and there is no pending itimeout. */
-			cw_dequeue_state = QS_IDLE;
 			cw_finalization_schedule_internal();
+
+			return CW_TQ_JUST_EMPTIED;
 		}
 	}
+
+	/* will never get here as 'queue state' enum has only two values */
+	assert(0);
+	return CW_TQ_STILL_EMPTY;
 }
 
 
-#endif
+
+
+
+#else
+
+
 
 
 
@@ -3927,6 +4031,12 @@ void cw_tone_queue_dequeue_and_play_internal(void)
 
 
 
+#endif
+
+
+
+
+
 #if CW_DEV_EXPERIMENTAL_WRITE
 
 
@@ -3970,7 +4080,7 @@ int cw_tone_queue_enqueue_internal(int usecs, int frequency)
 		return CW_FAILURE;
 	}
 
-	cw_debug (CW_DEBUG_TONE_QUEUE, "enqueue tone %d usec, %d Hz", usecs, frequency);
+	//cw_debug (CW_DEBUG_TONE_QUEUE, "enqueue tone %d usec, %d Hz", usecs, frequency);
 
 	/* Set the new tail index, and enqueue the new tone. */
 	cw_tq_tail = new_tq_tail;
@@ -6761,7 +6871,7 @@ int cw_generator_new(int audio_system, const char *device)
 
 #if CW_DEV_EXPERIMENTAL_WRITE
 	generator->tone_n_samples = 0;
-	generator->tone_iterator = 0;
+	generator->slope_.iterator = 0;
 #endif
 
 #ifdef LIBCW_WITH_PULSEAUDIO
@@ -7100,7 +7210,9 @@ int cw_generator_calculate_sine_wave_new_internal(cw_gen_t *gen, int start, int 
 		int amplitude = cw_generator_calculate_amplitude_internal(gen);
 
 		gen->buffer[i] = amplitude * sin(phase);
-		gen->tone_iterator++;
+		if (gen->slope_.iterator >= 0) {
+			gen->slope_.iterator++;
+		}
 	}
 
 	phase = (2.0 * M_PI
@@ -7134,7 +7246,7 @@ int cw_generator_calculate_sine_wave_new_internal(cw_gen_t *gen, int start, int 
 
 
 
-#endif
+#else
 
 
 
@@ -7188,6 +7300,12 @@ int cw_generator_calculate_sine_wave_internal(cw_gen_t *gen)
 
 
 
+#endif
+
+
+
+
+
 #if CW_DEV_EXPERIMENTAL_WRITE
 
 
@@ -7218,12 +7336,57 @@ int cw_generator_calculate_amplitude_internal(cw_gen_t *gen)
 	return gen->amplitude;
 #endif
 
+#if 1
 	if (gen->frequency > 0) {
-		if (gen->tone_iterator < slope_len) {
-			int i = gen->tone_iterator;
+		if (gen->slope_.mode == CW_SLOPE_RISING) {
+			if (gen->slope_.iterator < slope_len) {
+				int i = gen->slope_.iterator;
+				gen->amplitude = 1.0 * volume * i / slope_len;
+				//cw_dev_debug ("1: slope: %d, amp: %d", gen->slope_.iterator, gen->amplitude);
+			} else {
+				gen->amplitude = volume;
+			}
+
+		} else if (gen->slope_.mode == CW_SLOPE_FALLING) {
+			if (gen->slope_.iterator > gen->tone_n_samples - slope_len + 1) {
+				int i = gen->tone_n_samples - gen->slope_.iterator + 1;
+				gen->amplitude = 1.0 * volume * i / slope_len;
+				//cw_dev_debug ("2: slope: %d, amp: %d", gen->slope_.iterator, gen->amplitude);
+			} else {
+				gen->amplitude = volume;
+			}
+		} else if (gen->slope_.mode == CW_SLOPE_NONE) { /* CW_USECS_FOREVER */
+			gen->amplitude = volume;
+		} else { // gen->slope_.mode == CW_SLOPE_STANDARD
+			if (gen->slope_.iterator < 0) {
+				gen->amplitude = volume;
+			} else if (gen->slope_.iterator < slope_len) {
+				int i = gen->slope_.iterator;
+				gen->amplitude = 1.0 * volume * i / slope_len;
+				//cw_dev_debug ("3: slope: %d, amp: %d", gen->slope_.iterator, gen->amplitude);
+			} else if (gen->slope_.iterator > gen->tone_n_samples - slope_len + 1) {
+				int i = gen->tone_n_samples - gen->slope_.iterator + 1;
+				gen->amplitude = 1.0 * volume * i / slope_len;
+				//cw_dev_debug ("4: slope: %d, amp: %d", gen->slope_.iterator, gen->amplitude);
+			} else {
+				;
+			}
+		}
+	} else {
+		gen->amplitude = 0;
+	}
+
+	assert (gen->amplitude >= 0); /* will fail if calculations above are modified */
+
+#else
+	if (gen->frequency > 0) {
+		if (gen->slope_.iterator < 0) {
+			gen->amplitude = volume;
+		} else if (gen->slope_.iterator < slope_len) {
+			int i = gen->slope_.iterator;
 			gen->amplitude = 1.0 * volume * i / slope_len;
-		} else if (gen->tone_iterator > gen->tone_n_samples - slope_len + 1) {
-			int i = gen->tone_n_samples - gen->tone_iterator + 1;
+		} else if (gen->slope_.iterator > gen->tone_n_samples - slope_len + 1) {
+			int i = gen->tone_n_samples - gen->slope_.iterator + 1;
 			gen->amplitude = 1.0 * volume * i / slope_len;
 		} else {
 			;
@@ -7233,6 +7396,7 @@ int cw_generator_calculate_amplitude_internal(cw_gen_t *gen)
 	}
 
 	assert (gen->amplitude >= 0); /* will fail if calculations above are modified */
+#endif
 
 #if 0 /* no longer necessary since calculation of amplitude,
 	 implemented above guarantees that amplitude won't be
@@ -7829,6 +7993,12 @@ void cw_oss_close_device_internal(cw_gen_t *gen)
 
 
 
+#if !CW_DEV_EXPERIMENTAL_WRITE
+
+
+
+
+
 /**
    \brief Write a constant sine wave to OSS output
 
@@ -7864,6 +8034,12 @@ void *cw_generator_write_sine_wave_oss_internal(void *arg)
 	return NULL;
 #endif // #ifndef LIBCW_WITH_OSS
 }
+
+
+
+
+
+#endif
 
 
 
@@ -8029,10 +8205,10 @@ int cw_dev_debug_raw_sink_write_internal(cw_gen_t *gen, int samples)
 		/* FIXME: this will cause memory access error at
 		   the end, when generator is destroyed in the
 		   other thread */
-		gen->buffer[0] = 0x7fff;
-		gen->buffer[1] = 0x7fff;
-		gen->buffer[samples - 2] = 0x8000;
-		gen->buffer[samples - 1] = 0x8000;
+		//gen->buffer[0] = 0x7fff;
+		//gen->buffer[1] = 0x7fff;
+		//gen->buffer[samples - 2] = 0x8000;
+		//gen->buffer[samples - 1] = 0x8000;
 #endif
 		int n_bytes = sizeof (gen->buffer[0]) * samples;
 		int rv = write(gen->dev_raw_sink, gen->buffer, n_bytes);
@@ -8062,7 +8238,7 @@ int cw_debug_evaluate_alsa_write_internal(cw_gen_t *gen, int rv)
 		snd_pcm_prepare(gen->alsa_handle);
 	} else if (rv < 0) {
 		cw_debug (CW_DEBUG_SYSTEM, "ALSA: writei: %s\n", snd_strerror(rv));
-	}  else if (rv != gen->buffer_n_samples) {
+	} else if (rv != gen->buffer_n_samples) {
 		cw_debug (CW_DEBUG_SYSTEM, "ALSA: short write, %d != %d", rv, gen->buffer_n_samples);
 	} else {
 		return CW_SUCCESS;
@@ -8089,41 +8265,141 @@ int cw_debug_evaluate_alsa_write_internal(cw_gen_t *gen, int rv)
 */
 void *cw_generator_write_sine_wave_internal(void *arg)
 {
+
 #if (defined LIBCW_WITH_ALSA || defined LIBCW_WITH_OSS || defined LIBCW_WITH_PULSEAUDIO)
 	cw_gen_t *gen = (cw_gen_t *) arg;
 	cw_sigalrm_install_top_level_handler_internal();
 
-	int samples_left = 0;
+	int previous_frequency = 0; /* frequency of tone dequeued in previous 'dequeue' operation */
+	int samples_left = 0;       /* how many samples are still left to calculate */
+	int samples_calculated = 0; /* how many samples will be calculated in current round */
 
-	int start = 0, stop = gen->buffer_n_samples - 1;
+	bool inside_forever = false;
+	bool reported_empty = false;
+
+	gen->slope_.mode = CW_SLOPE_STANDARD;
+
+	/* We need two indices to gen->buffer, indicating beginning and end
+	   of a subarea in the buffer.
+	   The subarea is not the same as gen->buffer for variety of reasons:
+	    - buffer length is almost always smaller than length of a dash,
+	      a dot, or inter-element space that we want to produce;
+	    - moreover, length of a dash/dot/space is almost never an exact
+	      multiple of length of a buffer;
+            - as a result, a sound representing a dash/dot/space may start
+	      and end anywhere between beginning and end of the buffer;
+
+	   A workable solution is have a subarea of the buffer, a window,
+	   into which we will write a series of fragments of calculated sound.
+
+	   The subarea won't wrap around boundaries of the buffer. 'stop'
+	   will be no larger than 'gen->buffer_n_samples - 1', and it will
+	   never be smaller than 'stop'.
+
+	   'start' and 'stop' mark beginning and end of the subarea.
+	   Very often (in the middle of the sound), 'start' will be zero,
+	   and 'stop' will be 'gen->buffer_n_samples - 1'.
+
+	   Sine wave (sometimes with amplitude = 0) will be written from
+	   cell 'start' to cell 'stop', inclusive. */
+	int start = 0; /* index of first cell of the subarea */
+	int stop = 0;  /* index of last cell of the subarea */
+
 	while (gen->generate) {
-		//cw_dev_debug ("thread %lu: waiting for signal", gen->thread_id);
-		// cw_signal_wait_internal();
-		//cw_dev_debug ("thread %lu: got signal", gen->thread_id);
+
+		previous_frequency = gen->frequency;
 
 		int usecs;
-		cw_tone_queue_dequeue_internal(&usecs, &(gen->frequency));
+		int q = cw_tone_queue_dequeue_internal(&usecs, &(gen->frequency));
 
-		//cw_timer_run_internal(usecs);
-
-		gen->tone_n_samples = ((gen->sample_rate / 1000) * usecs) / 1000;
-		gen->tone_iterator = 0;
-
-		//cw_dev_debug ("--- %d samples, %d Hz", gen->tone_n_samples, gen->frequency);
-		samples_left = gen->tone_n_samples;
-
-
-		while (samples_left > 0) {
-
-			if (start + samples_left >= gen->buffer_n_samples) {
-				stop = gen->buffer_n_samples - 1;
-			} else {
-				stop = samples_left + start + 1;
+		if (q == CW_TQ_STILL_EMPTY || q == CW_TQ_JUST_EMPTIED) {
+			if (!reported_empty) {
+				/* tone queue is empty */
+				cw_dev_debug ("tone queue is empty: %d", q);
+				reported_empty = true;
+			}
+		} else {
+			if (reported_empty) {
+				cw_dev_debug ("tone queue is not empty anymore");
+				snd_pcm_prepare(gen->alsa_handle);
+				reported_empty = false;
 			}
 
-			int samples = stop - start + 1;
-			//cw_dev_debug ("start: %d, stop: %d, samples: %d", start, stop, samples);
-			samples_left -= samples;
+		}
+
+		if (q == CW_TQ_STILL_EMPTY) {
+			usleep(1000);
+			continue;
+		} else if (q == CW_TQ_JUST_EMPTIED) {
+			/* all tones have been dequeued from tone queue,
+			   but it may happen that not all 'buffer_n_samples'
+			   samples were calculated, only 'samples_calculated'
+			   samples.
+			   We need to fill the buffer until it is full and
+			   ready to be sent to audio sink.
+			   We need to calculate value of samples_left
+			   to proceed. */
+			gen->frequency = 0;
+			samples_left = gen->buffer_n_samples - samples_calculated;
+			gen->slope_.iterator = -1;
+		} else { /* q == CW_TQ_NONEMPTY */
+			if (usecs == CW_USECS_FOREVER) {
+				gen->tone_n_samples = 5000;
+				gen->slope_.mode = CW_SLOPE_NONE;
+				gen->slope_.iterator = -1;
+			} else if (usecs == CW_USECS_RISING_SLOPE) {
+				gen->tone_n_samples = CW_AUDIO_GENERATOR_SLOPE_LEN;
+				gen->slope_.mode = CW_SLOPE_RISING;
+				gen->slope_.iterator = 0;
+			} else if (usecs == CW_USECS_FALLING_SLOPE) {
+				gen->tone_n_samples = CW_AUDIO_GENERATOR_SLOPE_LEN;
+				gen->slope_.mode = CW_SLOPE_FALLING;
+				gen->slope_.iterator = 0;
+			} else {
+				gen->tone_n_samples = ((gen->sample_rate / 1000) * usecs) / 1000;
+				gen->slope_.mode = CW_SLOPE_STANDARD;
+				gen->slope_.iterator = 0;
+			}
+			samples_left = gen->tone_n_samples;
+			//cw_dev_debug ("prev = %d, now = %d, first = %d", previous_frequency, gen->frequency, first_run);
+		}
+
+
+#if 0
+		if ((previous_frequency == 0 && gen->frequency != 0)
+		    || (previous_frequency != 0 && gen->frequency == 0)) {
+
+			gen->slope_.iterator = 0;
+		}
+		if (previous_frequency == gen->frequency) {
+			gen->slope_.iterator = -1;
+		}
+		if (first_run) {
+			first_run = false;
+			gen->slope_.iterator = 0;
+		}
+#else
+		//gen->slope_.iterator = 0;
+#endif
+
+
+		//cw_dev_debug ("--- %d samples, %d Hz", gen->tone_n_samples, gen->frequency);
+		while (samples_left > 0) {
+			if (start + samples_left >= gen->buffer_n_samples) {
+				stop = gen->buffer_n_samples - 1;
+				samples_calculated = stop - start + 1;
+				samples_left -= samples_calculated;
+			} else {
+				stop = start + samples_left - 1;
+				samples_calculated = stop - start + 1;
+				samples_left -= samples_calculated;
+			}
+
+			//cw_dev_debug ("start: %d, stop: %d, calculated: %d, to calculate: %d", start, stop, samples_calculated, samples_left);
+			if (samples_left < 0) {
+				cw_dev_debug ("samples left = %d", samples_left);
+			}
+
 
 			cw_generator_calculate_sine_wave_new_internal(gen, start, stop);
 			if (stop + 1 == gen->buffer_n_samples) {
@@ -8140,22 +8416,22 @@ void *cw_generator_write_sine_wave_internal(void *arg)
 					}
 					cw_dev_debug ("written %d samples with OSS", gen->buffer_n_samples);
 
-				} else
+				}
 #endif
 
 #ifdef LIBCW_WITH_ALSA
-					if (gen->audio_system == CW_AUDIO_ALSA) {
+				if (gen->audio_system == CW_AUDIO_ALSA) {
 					/* we can safely send audio buffer to ALSA:
 					   size of correct and current data in the buffer is the same as
 					   ALSA's period, so there should be no underruns */
 					rv = snd_pcm_writei(gen->alsa_handle, gen->buffer, gen->buffer_n_samples);
 					cw_debug_evaluate_alsa_write_internal(gen, rv);
-					cw_dev_debug ("written %d samples with ALSA", gen->buffer_n_samples);
-				} else
+					cw_dev_debug ("written %d/%d samples with ALSA", rv, gen->buffer_n_samples);
+				}
 #endif
 
 #ifdef LIBCW_WITH_PULSEAUDIO
-					if (gen->audio_system == CW_AUDIO_PA) {
+				if (gen->audio_system == CW_AUDIO_PA) {
 
 					int error = 0;
 					size_t n_bytes = sizeof (gen->buffer[0]) * gen->buffer_n_samples;
@@ -8165,10 +8441,8 @@ void *cw_generator_write_sine_wave_internal(void *arg)
 					} else {
 						cw_dev_debug ("written %d samples with PulseAudio", gen->buffer_n_samples);
 					}
-				} else {
-#endif
-					assert (0);
 				}
+#endif
 
 				start = 0;
 #if CW_DEV_RAW_SINK
@@ -8698,34 +8972,32 @@ void main_helper(int audio_system, const char *name, const char *device, predica
 		rv = cw_generator_new(audio_system, device);
 		if (rv == CW_SUCCESS) {
 			cw_reset_send_receive_parameters();
-			cw_set_send_speed(15);
+			cw_set_send_speed(60);
 			cw_generator_start();
 
-			int usecs = 500000;
-			int frequency = 440;
-			cw_tone_queue_enqueue_internal(usecs, frequency);
+#if 1 // switch between sending strings and queuing tones
 
-			usecs = 500000;
-			frequency = 1440;
-			cw_tone_queue_enqueue_internal(usecs, frequency);
+			//cw_tone_queue_enqueue_internal(500000, 200);
+			cw_tone_queue_enqueue_internal(500000, 0);
 
-			usecs = 500000;
-			frequency = 1000;
-			cw_tone_queue_enqueue_internal(usecs, frequency);
+			cw_tone_queue_enqueue_internal(CW_USECS_RISING_SLOPE, 900);
+			cw_tone_queue_enqueue_internal(CW_USECS_FOREVER, 900);
+			sleep(12);
+			cw_tone_queue_enqueue_internal(CW_USECS_FALLING_SLOPE, 900);
 
-			usecs = 500000;
-			frequency = 200;
-			cw_tone_queue_enqueue_internal(usecs, frequency);
+			cw_tone_queue_enqueue_internal(500000, 0);
+			//cw_tone_queue_enqueue_internal(500000, 2000);
 
-
-			//cw_send_string("abcdefghijklmnopqrstuvwyz0123456789");
-			//cw_send_string("hh");
-			cw_wait_for_tone_queue();
-			sleep(1);
-			//cw_set_frequency(440);
-			//cw_send_string("oo");
+#else
+			cw_send_string("abcdefghijklmnopqrstuvwyz0123456789");
+			cw_send_string("hh");
 			cw_wait_for_tone_queue();
 
+			cw_set_frequency(440);
+			cw_send_string("oo");
+#endif
+
+			cw_wait_for_tone_queue();
 			cw_generator_stop();
 			cw_generator_delete();
 		} else {
@@ -8761,7 +9033,8 @@ void main_helper(int audio_system, const char *name, const char *device, predica
 
 
 static unsigned int test_cw_representation_to_hash_internal(void);
-
+static unsigned int test_cw_tone_queue_prev_index_internal(void);
+static unsigned int test_cw_tone_queue_next_index_internal(void);
 
 
 
@@ -8770,6 +9043,8 @@ int main(void)
 	fprintf(stderr, "libcw unit tests facility\n");
 
 	test_cw_representation_to_hash_internal();
+	test_cw_tone_queue_prev_index_internal();
+	test_cw_tone_queue_next_index_internal();
 
 	/* "make check" facility requires this message to be
 	   printed on stdout; don't localize it */
@@ -8782,11 +9057,12 @@ int main(void)
 
 
 
-
 #define REPRESENTATION_LEN 7
 /* for maximum length of 7, there should be 254 items:
    2^1 + 2^2 + 2^3 + ... * 2^7 */
 #define REPRESENTATION_TABLE_SIZE ((2 << (REPRESENTATION_LEN + 1)) - 1)
+
+
 
 
 
@@ -8797,6 +9073,8 @@ unsigned int test_cw_representation_to_hash_internal(void)
 
 	char input[REPRESENTATION_TABLE_SIZE][REPRESENTATION_LEN + 1];
 
+	/* build table of all valid representations ("valid" as in "build
+	   from dash and dot, no longer than REPRESENTATION_LEN"). */
 	long int i = 0;
 	for (int len = 0; len < REPRESENTATION_LEN; len++) {
 		for (unsigned int binary_representation = 0; binary_representation < (2 << len); binary_representation++) {
@@ -8808,22 +9086,99 @@ unsigned int test_cw_representation_to_hash_internal(void)
 
 			input[i][len + 1] = '\0';
 			// fprintf(stderr, "input[%d] = \"%s\"\n", i, input[i]);
-			fprintf(stderr, "%s\n", input[i]);
+			// fprintf(stderr, "%s\n", input[i]);
 			i++;
 
 		}
 	}
 
+	/* compute hash for every valid representation */
 	for (int j = 0; j < i; j++) {
 		unsigned int hash = cw_representation_to_hash_internal(input[j]);
 		assert(hash);
 	}
 
+	fprintf(stderr, "OK\n");
+
+	return 0;
+}
+
+
+
+
+
+static unsigned int test_cw_tone_queue_prev_index_internal(void)
+{
+	fprintf(stderr, "\ttesting cw_tone_queue_prev_index_internal()... ");
+
+	struct {
+		int arg;
+		int expected;
+	} input[] = {
+		{ CW_TONE_QUEUE_CAPACITY - 4, CW_TONE_QUEUE_CAPACITY - 5 },
+		{ CW_TONE_QUEUE_CAPACITY - 3, CW_TONE_QUEUE_CAPACITY - 4 },
+		{ CW_TONE_QUEUE_CAPACITY - 2, CW_TONE_QUEUE_CAPACITY - 3 },
+		{ CW_TONE_QUEUE_CAPACITY - 1, CW_TONE_QUEUE_CAPACITY - 2 },
+		{                          0, CW_TONE_QUEUE_CAPACITY - 1 },
+		{                          1,                          0 },
+		{                          2,                          1 },
+		{                          3,                          2 },
+		{                          4,                          3 },
+
+		{ -1000, -1000 } /* guard */
+	};
+
+	int i = 0;
+	while (input[i].arg != -1000) {
+		int prev = cw_tone_queue_prev_index_internal(input[i].arg);
+		//fprintf(stderr, "arg = %d, result = %d, expected = %d\n", input[i].arg, prev, input[i].expected);
+		assert (prev == input[i].expected);
+		i++;
+	}
 
 	fprintf(stderr, "OK\n");
 
 	return 0;
 }
+
+
+
+
+
+static unsigned int test_cw_tone_queue_next_index_internal(void)
+{
+	fprintf(stderr, "\ttesting cw_tone_queue_next_index_internal()... ");
+
+	struct {
+		int arg;
+		int expected;
+	} input[] = {
+		{ CW_TONE_QUEUE_CAPACITY - 5, CW_TONE_QUEUE_CAPACITY - 4 },
+		{ CW_TONE_QUEUE_CAPACITY - 4, CW_TONE_QUEUE_CAPACITY - 3 },
+		{ CW_TONE_QUEUE_CAPACITY - 3, CW_TONE_QUEUE_CAPACITY - 2 },
+		{ CW_TONE_QUEUE_CAPACITY - 2, CW_TONE_QUEUE_CAPACITY - 1 },
+		{ CW_TONE_QUEUE_CAPACITY - 1,                          0 },
+		{                          0,                          1 },
+		{                          1,                          2 },
+		{                          2,                          3 },
+		{                          3,                          4 },
+
+		{ -1000, -1000 } /* guard */
+	};
+
+	int i = 0;
+	while (input[i].arg != -1000) {
+		int next = cw_tone_queue_next_index_internal(input[i].arg);
+		//fprintf(stderr, "arg = %d, result = %d, expected = %d\n", input[i].arg, next, input[i].expected);
+		assert (next == input[i].expected);
+		i++;
+	}
+
+	fprintf(stderr, "OK\n");
+
+	return 0;
+}
+
 
 
 #endif /* #ifdef LIBCW_UNIT_TESTS */
