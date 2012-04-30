@@ -240,6 +240,8 @@ typedef struct {
 
 
 
+
+
 /* functions handling generator */
 static int   cw_generator_play_internal(cw_gen_t *gen, int frequency);
 static int   cw_generator_play_with_console_internal(cw_gen_t *gen, int state);
@@ -306,13 +308,83 @@ static int  cw_sigalrm_install_top_level_handler_internal(void);
 static int  cw_signal_wait_internal(void);
 static void cw_signal_main_handler_internal(int signal_number);
 
-/* Tone queue */
-static int  cw_tone_queue_length_internal(void);
+
+
+
+
+/* ******************************************************************** */
+/*                             Tone queue                               */
+/* ******************************************************************** */
+
+/* Tone queue - a circular list of tone durations and frequencies pending,
+   and a pair of indexes, tail (enqueue) and head (dequeue) to manage
+   additions and asynchronous sending.
+
+   The CW tone queue functions implement the following state graph:
+
+                     (queue empty)
+            +-------------------------------+
+            |                               |
+            v    (queue started)            |
+   ----> QS_IDLE ---------------> QS_BUSY --+
+                                  ^     |
+                                  |     |
+                                  +-----+
+                              (queue not empty)
+
+*/
+
+
+enum cw_queue_state {
+	QS_IDLE,
+	QS_BUSY
+};
+
+
+
+enum {
+	CW_TONE_QUEUE_CAPACITY = 3000,        /* ~= 5 minutes at 12 WPM */
+	CW_TONE_QUEUE_HIGH_WATER_MARK = 2900  /* Refuse characters if <100 free */
+};
+
+
+typedef struct {
+	int usecs;      /* Tone duration in usecs */
+	int frequency;  /* Frequency of the tone */
+} cw_queued_tone_t;
+
+
+
+typedef struct {
+	volatile cw_queued_tone_t queue[CW_TONE_QUEUE_CAPACITY];
+	volatile int tail;  /* Tone queue tail index */
+	volatile int head;  /* Tone queue head index */
+
+	volatile enum cw_queue_state state;
+
+	/* It's useful to have the tone queue dequeue function call
+	   a client-supplied callback routine when the amount of data
+	   in the queue drops below a defined low water mark.
+	   This routine can then refill the buffer, as required. */
+	volatile int low_water_mark;
+	void       (*low_water_callback)(void*);
+	void        *low_water_callback_arg;
+
+	pthread_mutex_t mutex;
+} cw_tone_queue_t;
+
+cw_tone_queue_t cw_tone_queue;
+
+
+
+
+static void cw_tone_queue_init_internal(cw_tone_queue_t *tq);
+static int  cw_tone_queue_length_internal(cw_tone_queue_t *tq);
 static int  cw_tone_queue_prev_index_internal(int current);
 static int  cw_tone_queue_next_index_internal(int current);
-static int  cw_tone_queue_enqueue_internal(int usecs, int frequency);
+static int  cw_tone_queue_enqueue_internal(cw_tone_queue_t *tq, int usecs, int frequency);
 #if CW_DEV_EXPERIMENTAL_WRITE
-static int cw_tone_queue_dequeue_internal(int *usecs, int *frequency);
+static int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, int *usecs, int *frequency);
 #else
 static void cw_tone_queue_dequeue_and_play_internal(void);
 #endif
@@ -335,9 +407,9 @@ static void cw_tone_queue_dequeue_and_play_internal(void);
 
 
 /* Sending */
-static int cw_send_element_internal(cw_gen_t *gen, char element);
-static int cw_send_representation_internal(const char *representation, int partial);
-static int cw_send_character_internal(char character, int partial);
+static int cw_send_element_internal(cw_tone_queue_t *tq, cw_gen_t *gen, char element);
+static int cw_send_representation_internal(cw_tone_queue_t *tq, const char *representation, int partial);
+static int cw_send_character_internal(cw_tone_queue_t *tq, char character, int partial);
 
 
 /* Debug */
@@ -3640,35 +3712,30 @@ void cw_key_set_state_internal(int requested_key_state)
 /* ******************************************************************** */
 
 
-/*
-  Tone queue - a circular list of tone durations and frequencies pending,
-  and a pair of indexes, tail (enqueue) and head (dequeue) to manage
-  additions and asynchronous sending. */
-
-enum {
-	CW_TONE_QUEUE_CAPACITY = 3000,        /* ~= 5 minutes at 12 WPM */
-	CW_TONE_QUEUE_HIGH_WATER_MARK = 2900  /* Refuse characters if <100 free */
-};
 
 
-typedef struct {
-	int usecs;      /* Tone duration in usecs */
-	int frequency;  /* Frequency of the tone */
-} cw_queued_tone_t;
 
-static volatile cw_queued_tone_t cw_tone_queue[CW_TONE_QUEUE_CAPACITY];
-static volatile int cw_tq_tail = 0,  /* Tone queue tail index */
-                    cw_tq_head = 0;  /* Tone queue head index */
+/**
+   \brief Initialize a tone queue
 
-/*
- * It's useful to have the tone queue dequeue function call a client-supplied
- * callback routine when the amount of data in the queue drops below a
- * defined low water mark.  This routine can then refill the buffer, as
- * required.
- */
-static volatile int cw_tq_low_water_mark = 0;
-static void (*cw_tq_low_water_callback)(void*) = NULL;
-static void *cw_tq_low_water_callback_arg = NULL;
+   Initialize tone queue structure - \p tq
+
+   \param tq - tone queue to initialize
+*/
+void cw_tone_queue_init_internal(cw_tone_queue_t *tq)
+{
+	tq->tail = 0;
+	tq->head = 0;
+	tq->state = QS_IDLE;
+
+	tq->low_water_mark = 0;
+	tq->low_water_callback = NULL;
+	tq->low_water_callback_arg = NULL;
+
+	int rv = pthread_mutex_init(&tq->mutex, NULL);
+	assert (!rv);
+	return;
+}
 
 
 
@@ -3677,13 +3744,21 @@ static void *cw_tq_low_water_callback_arg = NULL;
 /**
    \brief Return number of items on tone queue
 
+   \param tq - tone queue
+
    \return the count of tones currently held in the circular tone buffer.
 */
-int cw_tone_queue_length_internal(void)
+int cw_tone_queue_length_internal(cw_tone_queue_t *tq)
 {
-	return cw_tq_tail >= cw_tq_head
-		? cw_tq_tail - cw_tq_head
-		: cw_tq_tail - cw_tq_head + CW_TONE_QUEUE_CAPACITY;
+	pthread_mutex_lock(&tq->mutex);
+
+	int len = tq->tail >= tq->head
+		? tq->tail - tq->head
+		: tq->tail - tq->head + CW_TONE_QUEUE_CAPACITY;
+
+	pthread_mutex_unlock(&tq->mutex);
+
+	return len;
 }
 
 
@@ -3730,21 +3805,6 @@ int cw_tone_queue_next_index_internal(int index)
 
 
 
-/*
- * The CW tone queue functions implement the following state graph:
- *
- *          (queue empty)
- *        +-------------------------------+
- *        |                               |
- *        v    (queue started)            |
- * --> QS_IDLE ---------------> QS_BUSY --+
- *                              ^     |
- *                              |     |
- *                              +-----+
- *                          (queue not empty)
- */
-static volatile enum { QS_IDLE, QS_BUSY } cw_dequeue_state = QS_IDLE;
-
 
 
 #if CW_DEV_EXPERIMENTAL_WRITE
@@ -3783,6 +3843,7 @@ static volatile enum { QS_IDLE, QS_BUSY } cw_dequeue_state = QS_IDLE;
    returning (through \p usecs and \p frequency) the tone on every call,
    until a new tone is added to the queue after the "CW_USECS_FOREVER" tone.
 
+   \param tq - tone queue
    \param usecs - output, space for duration of dequeued tone
    \param frequency - output, space for frequency of dequeued tone
 
@@ -3790,10 +3851,10 @@ static volatile enum { QS_IDLE, QS_BUSY } cw_dequeue_state = QS_IDLE;
    \return CW_TQ_STILL_EMPTY (see information above)
    \return CW_TQ_NONEMPTY (see information above)
 */
-int cw_tone_queue_dequeue_internal(int *usecs, int *frequency)
+int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, int *usecs, int *frequency)
 {
 	/* Decide what to do based on the current state. */
-	switch (cw_dequeue_state) {
+	switch (tq->state) {
 
 	case QS_IDLE:
 		/* Ignore calls if our state is idle. */
@@ -3802,26 +3863,28 @@ int cw_tone_queue_dequeue_internal(int *usecs, int *frequency)
 	case QS_BUSY:
 		/* If there are some tones in queue, dequeue the next
 		   tone. If there are no more tones, go to the idle state. */
-		if (cw_tq_head != cw_tq_tail) {
+		if (tq->head != tq->tail) {
 			/* Get the current queue length.  Later on, we'll
 			   compare with the length after we've scanned
 			   over every tone we can omit, and use it to see
 			   if we've crossed the low water mark, if any. */
-			int queue_length = cw_tone_queue_length_internal();
+			int queue_length = cw_tone_queue_length_internal(tq);
 
 			/* Advance over the tones list until we find the
 			   first tone with a duration of more than zero
 			   usecs, or until the end of the list.
 			   TODO: don't add tones with duration = 0? */
-			int tmp_tq_head = cw_tq_head;
+			int tmp_tq_head = tq->head;
 			do  {
 				tmp_tq_head = cw_tone_queue_next_index_internal(tmp_tq_head);
-			} while (tmp_tq_head != cw_tq_tail
-				 && cw_tone_queue[tmp_tq_head].usecs == 0);
+			} while (tmp_tq_head != tq->tail
+				 && tq->queue[tmp_tq_head].usecs == 0);
 
 			/* Get parameters of tone to be played */
-			*usecs = cw_tone_queue[tmp_tq_head].usecs;
-			*frequency = cw_tone_queue[tmp_tq_head].frequency;
+			*usecs = tq->queue[tmp_tq_head].usecs;
+			*frequency = tq->queue[tmp_tq_head].frequency;
+
+			pthread_mutex_lock(&tq->mutex);
 
 			if (*usecs == CW_USECS_FOREVER && queue_length == 1) {
 				/* The last tone currently in queue is
@@ -3830,13 +3893,15 @@ int cw_tone_queue_dequeue_internal(int *usecs, int *frequency)
 				   code adds next tone (possibly forever).
 
 				   Don't dequeue the 'forever' tone (hence 'prev').	*/
-				cw_tq_head = cw_tone_queue_prev_index_internal(tmp_tq_head);
+				tq->head = cw_tone_queue_prev_index_internal(tmp_tq_head);
 			} else {
-				cw_tq_head = tmp_tq_head;
+				tq->head = tmp_tq_head;
 			}
 
+			pthread_mutex_unlock(&tq->mutex);
+
 			cw_debug (CW_DEBUG_TONE_QUEUE, "dequeue tone %d usec, %d Hz", *usecs, *frequency);
-			cw_debug (CW_DEBUG_TONE_QUEUE, "head = %d, tail = %d, length = %d", cw_tq_head, cw_tq_tail, queue_length);
+			cw_debug (CW_DEBUG_TONE_QUEUE, "head = %d, tail = %d, length = %d", tq->head, tq->tail, queue_length);
 
 			/* Notify the key control function that there might
 			   have been a change of keying state (and then
@@ -3852,7 +3917,7 @@ int cw_tone_queue_dequeue_internal(int *usecs, int *frequency)
 			if (*usecs == 0) {
 				/* Autonomous dequeuing has finished for
 				   the moment. */
-				cw_dequeue_state = QS_IDLE;
+				tq->state = QS_IDLE;
 				cw_finalization_schedule_internal();
 			}
 #endif
@@ -3863,33 +3928,33 @@ int cw_tone_queue_dequeue_internal(int *usecs, int *frequency)
 			   the state to idle, since the most likely action
 			   of this routine is to queue tones, and we don't
 			   want to play with the state here after that. */
-			if (cw_tq_low_water_callback) {
+			if (tq->low_water_callback) {
 				/* If the length we originally calculated
 				   was above the low water mark, and the
 				   one we have now is below or equal to it,
 				   call the callback. */
-				if (queue_length > cw_tq_low_water_mark
-				    && cw_tone_queue_length_internal() <= cw_tq_low_water_mark
+				if (queue_length > tq->low_water_mark
+				    && cw_tone_queue_length_internal(tq) <= tq->low_water_mark
 
 				    /* this expression is to avoid possibly endless calls of callback */
 				    && !(*usecs == CW_USECS_FOREVER && queue_length == 1)
 
 				    ) {
 
-					(*cw_tq_low_water_callback)(cw_tq_low_water_callback_arg);
+					(*(tq->low_water_callback))(tq->low_water_callback_arg);
 				}
 			}
 			return CW_TQ_NONEMPTY;
-		} else { /* cw_tq_head == cw_tq_tail */
-			/* State of tone queue (as indicated by cw_dequeue_state)
+		} else { /* tq->head == tq->tail */
+			/* State of tone queue (as indicated by tq->state)
 			   is 'busy', but it turns out that there are no
 			   tones left on the queue to play (head == tail).
 
-			   Time to bring cw_dequeue_state in sync with
+			   Time to bring tq->state in sync with
 			   head/tail state. Set state to idle, indicating
 			   that autonomous dequeuing has finished for the
 			   moment. */
-			cw_dequeue_state = QS_IDLE;
+			tq->state = QS_IDLE;
 
 			/* There is no tone to dequeue, so don't modify
 			   function's arguments. Client code will learn
@@ -3931,7 +3996,7 @@ int cw_tone_queue_dequeue_internal(int *usecs, int *frequency)
 void cw_tone_queue_dequeue_and_play_internal(void)
 {
 	/* Decide what to do based on the current state. */
-	switch (cw_dequeue_state) {
+	switch (tq->state) {
 		/* Ignore calls if our state is idle. */
 	case QS_IDLE:
 		return;
@@ -3939,25 +4004,25 @@ void cw_tone_queue_dequeue_and_play_internal(void)
 	case QS_BUSY:
 		/* If busy, dequeue the next tone, or if no
 		   more tones, go to the idle state. */
-		if (cw_tq_head != cw_tq_tail) {
+		if (tq->head != tq->tail) {
 			/* Get the current queue length.  Later on, we'll
 			   compare with the length after we've scanned
 			   over every tone we can omit, and use it to see
 			   if we've crossed the low water mark, if any. */
-			int queue_length = cw_tone_queue_length_internal();
+			int queue_length = cw_tone_queue_length_internal(tq);
 
 			/* Advance over the tones list until we find the
 			   first tone with a duration of more than zero
 			   usecs, or until the end of the list.
 			   TODO: don't add tones with duration = 0? */
 			do  {
-				cw_tq_head = cw_tone_queue_next_index_internal(cw_tq_head);
-			} while (cw_tq_head != cw_tq_tail
-				 && cw_tone_queue[cw_tq_head].usecs == 0);
+				tq->head = cw_tone_queue_next_index_internal(tq->head);
+			} while (tq->head != tq->tail
+				 && tq->queue[tq->head].usecs == 0);
 
 			/* Dequeue the next tone to send. */
-			int usecs = cw_tone_queue[cw_tq_head].usecs;
-			int frequency = cw_tone_queue[cw_tq_head].frequency;
+			int usecs = tq->queue[tq->head].usecs;
+			int frequency = tq->queue[tq->head].frequency;
 
 			cw_debug (CW_DEBUG_TONE_QUEUE, "dequeue tone %d usec, %d Hz", usecs, frequency);
 
@@ -3984,7 +4049,7 @@ void cw_tone_queue_dequeue_and_play_internal(void)
 			} else {
 				/* Autonomous dequeuing has finished for
 				   the moment. */
-				cw_dequeue_state = QS_IDLE;
+				tq->state = QS_IDLE;
 				cw_finalization_schedule_internal();
 			}
 
@@ -3995,19 +4060,19 @@ void cw_tone_queue_dequeue_and_play_internal(void)
 			   the state to idle, since the most likely action
 			   of this routine is to queue tones, and we don't
 			   want to play with the state here after that. */
-			if (cw_tq_low_water_callback) {
+			if (tq->low_water_callback) {
 				/* If the length we originally calculated
 				   was above the low water mark, and the
 				   one we have now is below or equal to it,
 				   call the callback. */
-				if (queue_length > cw_tq_low_water_mark
-				    && cw_tone_queue_length_internal()
-				    <= cw_tq_low_water_mark) {
+				if (queue_length > tq->low_water_mark
+				    && cw_tone_queue_length_internal(tq)
+				    <= tq->low_water_mark) {
 
-					(*cw_tq_low_water_callback)(cw_tq_low_water_callback_arg);
+					(*(tq->low_water_callback))(tq->low_water_callback_arg);
 				}
 			}
-		} else { /* cw_tq_head == cw_tq_tail */
+		} else { /* tq->head == tq->tail */
 			/* This is the end of the last tone on the queue,
 			   and since we got a signal we know that it had
 			   a usec greater than zero.  So this is the time
@@ -4021,7 +4086,7 @@ void cw_tone_queue_dequeue_and_play_internal(void)
 			   dequeuing has finished for the moment.  We
 			   need this set whenever the queue indexes are
 			   equal and there is no pending itimeout. */
-			cw_dequeue_state = QS_IDLE;
+			tq->state = QS_IDLE;
 			cw_finalization_schedule_internal();
 		}
 	}
@@ -4053,13 +4118,14 @@ void cw_tone_queue_dequeue_and_play_internal(void)
    with errno set to EAGAIN.  If the iambic keyer or straight key are currently
    busy, the routine returns CW_FAILURE, with errno set to EBUSY.
 
+   \param tq - tone queue
    \param usecs - length of added tone
    \param frequency - frequency of added tone
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_tone_queue_enqueue_internal(int usecs, int frequency)
+int cw_tone_queue_enqueue_internal(cw_tone_queue_t *tq, int usecs, int frequency)
 {
 	/* If the keyer or straight key are busy, return an error.
 	   This is because they use the sound card/console tones and key
@@ -4070,12 +4136,13 @@ int cw_tone_queue_enqueue_internal(int usecs, int frequency)
 		return CW_FAILURE;
 	}
 
+	pthread_mutex_lock(&tq->mutex);
 	/* Get the new value of the queue tail index. */
-	int new_tq_tail = cw_tone_queue_next_index_internal(cw_tq_tail);
+	int new_tq_tail = cw_tone_queue_next_index_internal(tq->tail);
 
 	/* If the new value is bumping against the head index, then
 	   the queue is currently full. */
-	if (new_tq_tail == cw_tq_head) {
+	if (new_tq_tail == tq->head) {
 		errno = EAGAIN;
 		return CW_FAILURE;
 	}
@@ -4083,22 +4150,23 @@ int cw_tone_queue_enqueue_internal(int usecs, int frequency)
 	//cw_debug (CW_DEBUG_TONE_QUEUE, "enqueue tone %d usec, %d Hz", usecs, frequency);
 
 	/* Set the new tail index, and enqueue the new tone. */
-	cw_tq_tail = new_tq_tail;
-	cw_tone_queue[cw_tq_tail].usecs = usecs;
-	cw_tone_queue[cw_tq_tail].frequency = frequency;
+	tq->tail = new_tq_tail;
+	tq->queue[tq->tail].usecs = usecs;
+	tq->queue[tq->tail].frequency = frequency;
 
 	/* If there is currently no autonomous dequeue happening, kick
 	   off the itimer process. */
-	if (cw_dequeue_state == QS_IDLE) {
+	if (tq->state == QS_IDLE) {
 		/* There is currently no (external) process that would
 		   remove (dequeue) tones from the queue and (possibly)
 		   play them.
 		   Let's mark that dequeuing is starting, and lets start
 		   such a process using cw_tone_queue_dequeue_and_play_internal(). */
-		cw_dequeue_state = QS_BUSY;
-		cw_dev_debug ("sending initial SIGALRM to generator thread %lu\n", generator->thread_id);
-		pthread_kill(generator->thread_id, SIGALRM);
+		tq->state = QS_BUSY;
+		//cw_dev_debug ("sending initial SIGALRM to generator thread %lu\n", generator->thread_id);
+		//pthread_kill(generator->thread_id, SIGALRM);
 	}
+	pthread_mutex_unlock(&tq->mutex);
 
 	return CW_SUCCESS;
 }
@@ -4123,13 +4191,14 @@ int cw_tone_queue_enqueue_internal(int usecs, int frequency)
    with errno set to EAGAIN.  If the iambic keyer or straight key are currently
    busy, the routine returns CW_FAILURE, with errno set to EBUSY.
 
+   \param tq - tone queue
    \param usecs - length of added tone
    \param frequency - frequency of added tone
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_tone_queue_enqueue_internal(int usecs, int frequency)
+int cw_tone_queue_enqueue_internal(cw_tone_queue_t *tq, int usecs, int frequency)
 {
 	/* If the keyer or straight key are busy, return an error.
 	   This is because they use the sound card/console tones and key
@@ -4141,11 +4210,11 @@ int cw_tone_queue_enqueue_internal(int usecs, int frequency)
 	}
 
 	/* Get the new value of the queue tail index. */
-	int new_tq_tail = cw_tone_queue_next_index_internal(cw_tq_tail);
+	int new_tq_tail = cw_tone_queue_next_index_internal(tq->tail);
 
 	/* If the new value is bumping against the head index, then
 	   the queue is currently full. */
-	if (new_tq_tail == cw_tq_head) {
+	if (new_tq_tail == tq->head) {
 		errno = EAGAIN;
 		return CW_FAILURE;
 	}
@@ -4153,19 +4222,19 @@ int cw_tone_queue_enqueue_internal(int usecs, int frequency)
 	cw_debug (CW_DEBUG_TONE_QUEUE, "enqueue tone %d usec, %d Hz", usecs, frequency);
 
 	/* Set the new tail index, and enqueue the new tone. */
-	cw_tq_tail = new_tq_tail;
-	cw_tone_queue[cw_tq_tail].usecs = usecs;
-	cw_tone_queue[cw_tq_tail].frequency = frequency;
+	tq->tail = new_tq_tail;
+	tq->queue[tq->tail].usecs = usecs;
+	tq->queue[tq->tail].frequency = frequency;
 
 	/* If there is currently no autonomous dequeue happening, kick
 	   off the itimer process. */
-	if (cw_dequeue_state == QS_IDLE) {
+	if (tq->state == QS_IDLE) {
 		/* There is currently no (external) process that would
 		   remove (dequeue) tones from the queue and (possibly)
 		   play them.
 		   Let's mark that dequeuing is starting, and lets start
 		   such a process using cw_tone_queue_dequeue_and_play_internal(). */
-		cw_dequeue_state = QS_BUSY;
+		tq->state = QS_BUSY;
 		cw_timer_run_with_handler_internal(0, cw_tone_queue_dequeue_and_play_internal);
 	}
 
@@ -4208,9 +4277,9 @@ int cw_register_tone_queue_low_callback(void (*callback_func)(void*), void *call
 	}
 
 	/* Store the function and low water mark level. */
-	cw_tq_low_water_mark = level;
-	cw_tq_low_water_callback = callback_func;
-	cw_tq_low_water_callback_arg = callback_arg;
+	cw_tone_queue.low_water_mark = level;
+	cw_tone_queue.low_water_callback = callback_func;
+	cw_tone_queue.low_water_callback_arg = callback_arg;
 
 	return CW_SUCCESS;
 }
@@ -4229,7 +4298,7 @@ int cw_register_tone_queue_low_callback(void (*callback_func)(void*), void *call
 */
 bool cw_is_tone_busy(void)
 {
-	return cw_dequeue_state != QS_IDLE;
+	return cw_tone_queue.state != QS_IDLE;
 }
 
 
@@ -4256,8 +4325,8 @@ int cw_wait_for_tone(void)
 	}
 
 	/* Wait for the tail index to change or the dequeue to go idle. */
-	int check_tq_head = cw_tq_head;
-	while (cw_tq_head == check_tq_head && cw_dequeue_state != QS_IDLE) {
+	int check_tq_head = cw_tone_queue.head;
+	while (cw_tone_queue.head == check_tq_head && cw_tone_queue.state != QS_IDLE) {
 		cw_signal_wait_internal();
 	}
 
@@ -4288,7 +4357,7 @@ int cw_wait_for_tone_queue(void)
 	}
 
 	/* Wait until the dequeue indicates it's hit the end of the queue. */
-	while (cw_dequeue_state != QS_IDLE) {
+	while (cw_tone_queue.state != QS_IDLE) {
 		cw_signal_wait_internal();
 	}
 
@@ -4325,7 +4394,7 @@ int cw_wait_for_tone_queue_critical(int level)
 	}
 
 	/* Wait until the queue length is at or below criticality. */
-	while (cw_tone_queue_length_internal() > level) {
+	while (cw_tone_queue_length_internal(&cw_tone_queue) > level) {
 		cw_signal_wait_internal();
 	}
 
@@ -4345,7 +4414,7 @@ int cw_wait_for_tone_queue_critical(int level)
 bool cw_is_tone_queue_full(void)
 {
 	/* If advancing would meet the tail index, return true. */
-	return cw_tone_queue_next_index_internal(cw_tq_tail) == cw_tq_head;
+	return cw_tone_queue_next_index_internal(cw_tone_queue.tail) == cw_tone_queue.head;
 }
 
 
@@ -4372,7 +4441,7 @@ int cw_get_tone_queue_capacity(void)
 */
 int cw_get_tone_queue_length(void)
 {
-	return cw_tone_queue_length_internal();
+	return cw_tone_queue_length_internal(&cw_tone_queue);
 }
 
 
@@ -4392,7 +4461,7 @@ int cw_get_tone_queue_length(void)
 void cw_flush_tone_queue(void)
 {
 	/* Empty the queue, by setting the head to the tail. */
-	cw_tq_head = cw_tq_tail;
+	cw_tone_queue.head = cw_tone_queue.tail;
 
 	/* If we can, wait until the dequeue goes idle. */
 	if (!cw_sigalrm_is_blocked_internal()) {
@@ -4441,7 +4510,7 @@ int cw_queue_tone(int usecs, int frequency)
 		return CW_FAILURE;
 	}
 
-	return cw_tone_queue_enqueue_internal(usecs, frequency);
+	return cw_tone_queue_enqueue_internal(&cw_tone_queue, usecs, frequency);
 }
 
 
@@ -4456,13 +4525,13 @@ int cw_queue_tone(int usecs, int frequency)
 void cw_reset_tone_queue(void)
 {
 	/* Empty the queue, and force state to idle. */
-	cw_tq_head = cw_tq_tail;
-	cw_dequeue_state = QS_IDLE;
+	cw_tone_queue.head = cw_tone_queue.tail;
+	cw_tone_queue.state = QS_IDLE;
 
 	/* Reset low water mark details to their initial values. */
-	cw_tq_low_water_mark = 0;
-	cw_tq_low_water_callback = NULL;
-	cw_tq_low_water_callback_arg = NULL;
+	cw_tone_queue.low_water_mark = 0;
+	cw_tone_queue.low_water_callback = NULL;
+	cw_tone_queue.low_water_callback_arg = NULL;
 
 	/* Silence sound and stop any background soundcard tone generation. */
 	cw_generator_play_internal(generator, CW_TONE_SILENT);
@@ -4493,13 +4562,14 @@ void cw_reset_tone_queue(void)
    Function also returns failure if adding the element to queue of elements
    failed.
 
+   \param tq - tone queue
    \param gen - current generator
    \param element - element to send - dot (CW_DOT_REPRESENTATION) or dash (CW_DASH_REPRESENTATION)
 
    \return CW_FAILURE on failure
    \return CW_SUCCESS on success
  */
-int cw_send_element_internal(cw_gen_t *gen, char element)
+int cw_send_element_internal(cw_tone_queue_t *tq, cw_gen_t *gen, char element)
 {
 	int status;
 
@@ -4508,9 +4578,9 @@ int cw_send_element_internal(cw_gen_t *gen, char element)
 
 	/* Send either a dot or a dash element, depending on representation. */
 	if (element == CW_DOT_REPRESENTATION) {
-		status = cw_tone_queue_enqueue_internal(cw_send_dot_length, gen->frequency);
+		status = cw_tone_queue_enqueue_internal(tq, cw_send_dot_length, gen->frequency);
 	} else if (element == CW_DASH_REPRESENTATION) {
-		status = cw_tone_queue_enqueue_internal(cw_send_dash_length, gen->frequency);
+		status = cw_tone_queue_enqueue_internal(tq, cw_send_dash_length, gen->frequency);
 	} else {
 		errno = EINVAL;
 		status = CW_FAILURE;
@@ -4521,7 +4591,7 @@ int cw_send_element_internal(cw_gen_t *gen, char element)
 	}
 
 	/* Send the inter-element gap. */
-	if (!cw_tone_queue_enqueue_internal(cw_end_of_ele_delay, CW_TONE_SILENT)) {
+	if (!cw_tone_queue_enqueue_internal(tq, cw_end_of_ele_delay, CW_TONE_SILENT)) {
 		return CW_FAILURE;
 	} else {
 		return CW_SUCCESS;
@@ -4546,7 +4616,7 @@ int cw_send_element_internal(cw_gen_t *gen, char element)
  */
 int cw_send_dot(void)
 {
-	return cw_send_element_internal(generator, CW_DOT_REPRESENTATION);
+	return cw_send_element_internal(&cw_tone_queue, generator, CW_DOT_REPRESENTATION);
 }
 
 
@@ -4558,7 +4628,7 @@ int cw_send_dot(void)
 */
 int cw_send_dash(void)
 {
-	return cw_send_element_internal(generator, CW_DASH_REPRESENTATION);
+	return cw_send_element_internal(&cw_tone_queue, generator, CW_DASH_REPRESENTATION);
 }
 
 
@@ -4575,7 +4645,7 @@ int cw_send_character_space(void)
 
 	/* Delay for the standard end of character period, plus any
 	   additional inter-character gap */
-	return cw_tone_queue_enqueue_internal(cw_end_of_char_delay + cw_additional_delay,
+	return cw_tone_queue_enqueue_internal(&cw_tone_queue, cw_end_of_char_delay + cw_additional_delay,
 					      CW_TONE_SILENT);
 }
 
@@ -4593,7 +4663,7 @@ int cw_send_word_space(void)
 
 	/* Send silence for the word delay period, plus any adjustment
 	   that may be needed at end of word. */
-	return cw_tone_queue_enqueue_internal(cw_end_of_word_delay + cw_adjustment_delay,
+	return cw_tone_queue_enqueue_internal(&cw_tone_queue, cw_end_of_word_delay + cw_adjustment_delay,
 					      CW_TONE_SILENT);
 }
 
@@ -4607,13 +4677,14 @@ int cw_send_word_space(void)
    Function sets EAGAIN if there is not enough space in tone queue to
    enqueue \p representation.
 
+   \param tq - tone queue
    \param representation
    \param partial
 
    \return CW_FAILURE on failure
    \return CW_SUCCESS on success
 */
-int cw_send_representation_internal(const char *representation, int partial)
+int cw_send_representation_internal(cw_tone_queue_t *tq, const char *representation, int partial)
 {
 	/* Before we let this representation loose on tone generation,
 	   we'd really like to know that all of its tones will get queued
@@ -4630,7 +4701,7 @@ int cw_send_representation_internal(const char *representation, int partial)
 	for (int i = 0; representation[i] != '\0'; i++) {
 		/* Send a tone of dot or dash length, followed by the
 		   normal, standard, inter-element gap. */
-		if (!cw_send_element_internal(generator, representation[i])) {
+		if (!cw_send_element_internal(tq, generator, representation[i])) {
 			return CW_FAILURE;
 		}
 	}
@@ -4675,7 +4746,7 @@ int cw_send_representation(const char *representation)
 		errno = EINVAL;
 		return CW_FAILURE;
 	} else {
-		return cw_send_representation_internal(representation, false);
+		return cw_send_representation_internal(&cw_tone_queue, representation, false);
 	}
 }
 
@@ -4703,7 +4774,7 @@ int cw_send_representation_partial(const char *representation)
 		errno = ENOENT;
 		return CW_FAILURE;
 	} else {
-		return cw_send_representation_internal(representation, true);
+		return cw_send_representation_internal(&cw_tone_queue, representation, true);
 	}
 }
 
@@ -4719,13 +4790,14 @@ int cw_send_representation_partial(const char *representation)
 
    Function sets errno to ENOENT if \p character is not a recognized character.
 
+   \param tq - tone queue
    \param character - character to send
    \param partial
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_send_character_internal(char character, int partial)
+int cw_send_character_internal(cw_tone_queue_t *tq, char character, int partial)
 {
 	/* Handle space special case; delay end-of-word and return. */
 	if (character == ' ') {
@@ -4739,7 +4811,7 @@ int cw_send_character_internal(char character, int partial)
 		return CW_FAILURE;
 	}
 
-	if (!cw_send_representation_internal(representation, partial)) {
+	if (!cw_send_representation_internal(tq, representation, partial)) {
 		return CW_FAILURE;
 	} else {
 		return CW_SUCCESS;
@@ -4804,7 +4876,7 @@ int cw_send_character(char c)
 		errno = ENOENT;
 		return CW_FAILURE;
 	} else {
-		return cw_send_character_internal(c, false);
+		return cw_send_character_internal(&cw_tone_queue, c, false);
 	}
 }
 
@@ -4840,7 +4912,7 @@ int cw_send_character_partial(char c)
 		errno = ENOENT;
 		return CW_FAILURE;
 	} else {
-		return cw_send_character_internal(c, true);
+		return cw_send_character_internal(&cw_tone_queue, c, true);
 	}
 }
 
@@ -4909,7 +4981,7 @@ int cw_send_string(const char *string)
 
 	/* Send every character in the string. */
 	for (int i = 0; string[i] != '\0'; i++) {
-		if (!cw_send_character_internal(string[i], false))
+		if (!cw_send_character_internal(&cw_tone_queue, string[i], false))
 			return CW_FAILURE;
 	}
 
@@ -6852,6 +6924,8 @@ const char *cw_generator_get_audio_system_label(void)
 */
 int cw_generator_new(int audio_system, const char *device)
 {
+	cw_tone_queue_init_internal(&cw_tone_queue);
+
 	generator = (cw_gen_t *) malloc(sizeof (cw_gen_t));
 	if (!generator) {
 		cw_debug (CW_DEBUG_SYSTEM, "error: malloc");
@@ -6878,8 +6952,8 @@ int cw_generator_new(int audio_system, const char *device)
 	generator->pa.s = NULL;
 #endif
 
-	pthread_attr_init(&(generator->thread_attr));
-	pthread_attr_setdetachstate(&(generator->thread_attr), PTHREAD_CREATE_DETACHED);
+	pthread_attr_init(&generator->thread_attr);
+	pthread_attr_setdetachstate(&generator->thread_attr, PTHREAD_CREATE_DETACHED);
 	generator->thread_error = 0;
 
 	cw_generator_set_audio_device_internal(generator, device);
@@ -6955,7 +7029,7 @@ void cw_generator_delete(void)
 			cw_dev_debug ("missed audio system %d", generator->audio_system);
 		}
 
-		pthread_attr_destroy(&(generator->thread_attr));
+		pthread_attr_destroy(&generator->thread_attr);
 
 		generator->audio_system = CW_AUDIO_NONE;
 		free(generator);
@@ -7003,7 +7077,7 @@ int cw_generator_start(void)
 		   || generator->audio_system == CW_AUDIO_ALSA
 		   || generator->audio_system == CW_AUDIO_PA) {
 
-		int rv = pthread_create(&(generator->thread_id), &(generator->thread_attr),
+		int rv = pthread_create(&generator->thread_id, &generator->thread_attr,
 					cw_generator_write_sine_wave_internal,
 					(void *) generator);
 		if (rv != 0) {
@@ -7059,7 +7133,7 @@ int cw_generator_start(void)
 	if (generator->audio_system == CW_AUDIO_CONSOLE) {
 		; /* no thread needed for generating sound on console */
 	} else if (generator->audio_system == CW_AUDIO_OSS) {
-		int rv = pthread_create(&(generator->thread_id), &(generator->thread_attr),
+		int rv = pthread_create(&generator->thread_id, &generator->thread_attr,
 					cw_generator_write_sine_wave_oss_internal,
 					(void *) generator);
 		if (rv != 0) {
@@ -7073,7 +7147,7 @@ int cw_generator_start(void)
 			return CW_SUCCESS;
 		}
 	} else if (generator->audio_system == CW_AUDIO_ALSA) {
-		int rv = pthread_create(&(generator->thread_id), &(generator->thread_attr),
+		int rv = pthread_create(&generator->thread_id, &generator->thread_attr,
 					cw_generator_write_sine_wave_alsa_internal,
 					(void *) generator);
 		if (rv != 0) {
@@ -7769,7 +7843,7 @@ int cw_oss_open_device_internal(cw_gen_t *gen)
 		return CW_FAILURE;
         }
 
-	int rv = cw_oss_open_device_ioctls_internal(&soundcard, &(gen->sample_rate));
+	int rv = cw_oss_open_device_ioctls_internal(&soundcard, &gen->sample_rate);
 	if (rv != CW_SUCCESS) {
 		cw_debug (CW_DEBUG_SYSTEM, "error: one or more OSS ioctl() calls failed\n");
 		close(soundcard);
@@ -8105,7 +8179,7 @@ int cw_alsa_open_device_internal(cw_gen_t *gen)
 #ifndef LIBCW_WITH_ALSA
 	return CW_FAILURE;
 #else
-	int rv = snd_pcm_open(&(gen->alsa_handle),
+	int rv = snd_pcm_open(&gen->alsa_handle,
 			      gen->audio_device,       /* name */
 			      SND_PCM_STREAM_PLAYBACK, /* stream (playback/capture) */
 			      0);                      /* mode, 0 | SND_PCM_NONBLOCK | SND_PCM_ASYNC */
@@ -8310,7 +8384,7 @@ void *cw_generator_write_sine_wave_internal(void *arg)
 		previous_frequency = gen->frequency;
 
 		int usecs;
-		int q = cw_tone_queue_dequeue_internal(&usecs, &(gen->frequency));
+		int q = cw_tone_queue_dequeue_internal(&cw_tone_queue, &usecs, &gen->frequency);
 
 		if (q == CW_TQ_STILL_EMPTY || q == CW_TQ_JUST_EMPTIED) {
 			if (!reported_empty) {
@@ -8344,7 +8418,7 @@ void *cw_generator_write_sine_wave_internal(void *arg)
 			gen->slope_.iterator = -1;
 		} else { /* q == CW_TQ_NONEMPTY */
 			if (usecs == CW_USECS_FOREVER) {
-				gen->tone_n_samples = 5000;
+				gen->tone_n_samples = CW_AUDIO_GENERATOR_SLOPE_LEN;
 				gen->slope_.mode = CW_SLOPE_NONE;
 				gen->slope_.iterator = -1;
 			} else if (usecs == CW_USECS_RISING_SLOPE) {
@@ -8856,7 +8930,7 @@ int cw_pa_open_device_internal(cw_gen_t *gen)
 				  PA_STREAM_PLAYBACK,    /* stream direction */
 				  NULL,                  /* device/sink name (NULL for default) */
 				  "playback",            /* stream name, descriptive name for this client (application name, song title, etc.) */
-				  &(gen->pa.ss),         /* sample specification */
+				  &gen->pa.ss,         /* sample specification */
 				  NULL,                  /* channel map (NULL for default) */
 				  NULL,                  /* buffering attributes (NULL for default) */
 				  &error);               /* error buffer (when routine returns NULL) */
@@ -8972,21 +9046,44 @@ void main_helper(int audio_system, const char *name, const char *device, predica
 		rv = cw_generator_new(audio_system, device);
 		if (rv == CW_SUCCESS) {
 			cw_reset_send_receive_parameters();
-			cw_set_send_speed(60);
+			cw_set_send_speed(30);
 			cw_generator_start();
 
 #if 1 // switch between sending strings and queuing tones
 
-			//cw_tone_queue_enqueue_internal(500000, 200);
-			cw_tone_queue_enqueue_internal(500000, 0);
+			//cw_tone_queue_enqueue_internal(&cw_tone_queue, 500000, 200);
+			cw_tone_queue_enqueue_internal(&cw_tone_queue, 500000, 0);
 
-			cw_tone_queue_enqueue_internal(CW_USECS_RISING_SLOPE, 900);
-			cw_tone_queue_enqueue_internal(CW_USECS_FOREVER, 900);
-			sleep(12);
-			cw_tone_queue_enqueue_internal(CW_USECS_FALLING_SLOPE, 900);
+			cw_tone_queue_enqueue_internal(&cw_tone_queue, CW_USECS_RISING_SLOPE, 900);
+			cw_tone_queue_enqueue_internal(&cw_tone_queue, CW_USECS_FOREVER, 900);
+			sleep(2);
+			cw_tone_queue_enqueue_internal(&cw_tone_queue, CW_USECS_FALLING_SLOPE, 900);
+			cw_tone_queue_enqueue_internal(&cw_tone_queue, CW_USECS_FOREVER, 0);
+			sleep(2);
 
-			cw_tone_queue_enqueue_internal(500000, 0);
-			//cw_tone_queue_enqueue_internal(500000, 2000);
+			cw_tone_queue_enqueue_internal(&cw_tone_queue, CW_USECS_RISING_SLOPE, 900);
+			cw_tone_queue_enqueue_internal(&cw_tone_queue, CW_USECS_FOREVER, 900);
+			sleep(2);
+			cw_tone_queue_enqueue_internal(&cw_tone_queue, CW_USECS_FALLING_SLOPE, 900);
+			cw_tone_queue_enqueue_internal(&cw_tone_queue, CW_USECS_FOREVER, 0);
+			sleep(2);
+
+			cw_tone_queue_enqueue_internal(&cw_tone_queue, CW_USECS_RISING_SLOPE, 900);
+			cw_tone_queue_enqueue_internal(&cw_tone_queue, CW_USECS_FOREVER, 900);
+			sleep(2);
+			cw_tone_queue_enqueue_internal(&cw_tone_queue, CW_USECS_FALLING_SLOPE, 900);
+			cw_tone_queue_enqueue_internal(&cw_tone_queue, CW_USECS_FOREVER, 0);
+			sleep(2);
+
+			cw_tone_queue_enqueue_internal(&cw_tone_queue, CW_USECS_RISING_SLOPE, 900);
+			cw_tone_queue_enqueue_internal(&cw_tone_queue, CW_USECS_FOREVER, 900);
+			sleep(2);
+			cw_tone_queue_enqueue_internal(&cw_tone_queue, CW_USECS_FALLING_SLOPE, 900);
+			cw_tone_queue_enqueue_internal(&cw_tone_queue, CW_USECS_FOREVER, 0);
+			sleep(2);
+
+			cw_tone_queue_enqueue_internal(&cw_tone_queue, 500000, 0);
+			//cw_tone_queue_enqueue_internal(&cw_tone_queue, 500000, 2000);
 
 #else
 			cw_send_string("abcdefghijklmnopqrstuvwyz0123456789");
