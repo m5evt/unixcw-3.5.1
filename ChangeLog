@@ -1,4 +1,8 @@
 2012-05-01 Kamil Ignacak
+	* libcw/experimental code: removed code that was disabled when
+	CW_DEV_EXPERIMENTAL_WRITE was set to 1.
+
+2012-05-01 Kamil Ignacak
 	* libcw/audio: more changes in libcw; I'm decreasing dependency
 	on timers, and increasing dependency on tone queue. I could put
 	it that way: there are less places where time periods are dictated
