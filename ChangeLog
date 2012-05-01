@@ -1,3 +1,21 @@
+2012-05-01 Kamil Ignacak
+	* libcw/audio: more changes in libcw; I'm decreasing dependency
+	on timers, and increasing dependency on tone queue. I could put
+	it that way: there are less places where time periods are dictated
+	by itimers, and more places where time periods are measured by
+	audio systems' 'write' functions. This way I am sure that when I'm
+	sending X samples to audio sink, it - given sample rate Y - results
+	in Z microseconds of sound.
+	This seems like a good concept, it works well so far. I think that
+	it will me impossible (and impractical) to get rid of all timers,
+	but for generating audio - it works well.
+	There may be a problem with console buzzer, as there is no audio
+	sink that would accept X samples, but already I have an idea how
+	to solve this.
+	I've been using CW_DEV_EXPERIMENTAL_WRITE definition to enable new,
+	experimental code, and disable old code. Since the new, experimental
+	code works so well, I will completely get rid of the old code soon.
+
 2012-04-25 Kamil Ignacak
 	* libcw/ALSA: the problem described below has been solved, but
 	at a cost of significant changes in how a Morse code sound is
