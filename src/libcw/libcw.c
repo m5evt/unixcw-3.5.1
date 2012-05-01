@@ -155,7 +155,7 @@
 #ifdef LIBCW_WITH_DEV
 #define CW_DEV_MAIN               1  /* enable main() for stand-alone compilation and tests of this file */
 #define CW_DEV_RAW_SINK           1  /* create and use /tmp/cw_file.<audio system>.raw file with audio samples written as raw data */
-#define CW_DEV_EXPERIMENTAL_WRITE 1  /* new implementation of code that generates and writes samples to audio sink - may solve some problems with timing */
+#define CW_DEV_RAW_SINK_MARKERS   0  /* put markers in raw data saved to raw sink */
 #endif
 
 
@@ -164,7 +164,6 @@
 
 /* forward declarations of types */
 typedef struct cw_tone_queue_struct cw_tone_queue_t;
-//typedef struct cw_gen_struct cw_gen_t;
 typedef struct cw_entry_struct cw_entry_t;
 typedef struct cw_tracking_struct cw_tracking_t;
 
@@ -178,7 +177,6 @@ typedef struct cw_tracking_struct cw_tracking_t;
 /* Generic constants - common for all audio systems (or not used in some of systems) */
 static const int        CW_AUDIO_CHANNELS = 1;                /* Sound in mono */
 static const long int   CW_AUDIO_VOLUME_RANGE = (1 << 15);    /* 2^15 = 32768 */
-//static const float      CW_AUDIO_GENERATOR_SLOPE_RATIO = 1.0;    /* ~1.0 for 44.1/48 kHz sample rate */
 static const int        CW_AUDIO_GENERATOR_SLOPE_LEN = 200;      /* ~200 for 44.1/48 kHz sample rate */
 static const int        CW_AUDIO_TONE_SILENT = 0;   /* 0Hz = silent 'tone'. */
 
@@ -188,9 +186,6 @@ static int   cw_generator_play_with_console_internal(cw_gen_t *gen, int state);
 static int   cw_generator_play_with_soundcard_internal(cw_gen_t *gen, int frequency);
 static int   cw_generator_release_internal(void);
 static int   cw_generator_set_audio_device_internal(cw_gen_t *gen, const char *device);
-#if !CW_DEV_EXPERIMENTAL_WRITE
-static void *cw_generator_write_sine_wave_oss_internal(void *arg);
-#endif
 
 
 
@@ -263,9 +258,7 @@ struct cw_gen_struct {
 	double phase_offset;
 	double phase;
 
-#if CW_DEV_EXPERIMENTAL_WRITE
 	int tone_n_samples;
-#endif
 
 	/* Thread function is used to generate sine wave
 	   and write the wave to audio sink. */
@@ -276,13 +269,8 @@ struct cw_gen_struct {
 
 
 
-#if CW_DEV_EXPERIMENTAL_WRITE
 static void *cw_generator_write_sine_wave_internal(void *arg);
-static int   cw_generator_calculate_sine_wave_new_internal(cw_gen_t *gen, int start, int stop);
-#else
-static void *cw_generator_write_sine_wave_alsa_internal(void *arg);
-static int   cw_generator_calculate_sine_wave_internal(cw_gen_t *gen);
-#endif
+static int   cw_generator_calculate_sine_wave_internal(cw_gen_t *gen, int start, int stop);
 static int   cw_generator_calculate_amplitude_internal(cw_gen_t *gen);
 
 
@@ -415,11 +403,7 @@ static int  cw_tone_queue_length_internal(cw_tone_queue_t *tq);
 static int  cw_tone_queue_prev_index_internal(int current);
 static int  cw_tone_queue_next_index_internal(int current);
 static int  cw_tone_queue_enqueue_internal(cw_tone_queue_t *tq, int usecs, int frequency);
-#if CW_DEV_EXPERIMENTAL_WRITE
 static int  cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, int *usecs, int *frequency);
-#else
-static void cw_tone_queue_dequeue_and_play_internal(void);
-#endif
 
 #define CW_USECS_FOREVER         -100
 #define CW_USECS_RISING_SLOPE    -101
@@ -2846,7 +2830,7 @@ int cw_timer_run_with_handler_internal(int usecs, void (*sigalrm_handler)(void))
 	   ourselves SIGALRM right away. */
 	if (usecs <= 0) {
 		/* Send ourselves SIGALRM immediately. */
-#if CW_DEV_EXPERIMENTAL_WRITE
+#if 1
 		if (pthread_kill(generator->thread_id, SIGALRM) != 0) {
 #else
 		if (raise(SIGALRM) != 0) {
@@ -3044,12 +3028,6 @@ void cw_block_callback(int block)
 
 
 
-#if CW_DEV_EXPERIMENTAL_WRITE
-
-
-
-
-
 /**
    \brief Wait for a signal, usually a SIGALRM
 
@@ -3091,62 +3069,6 @@ int cw_signal_wait_internal(void)
 
 	return CW_SUCCESS;
 }
-
-
-
-
-
-#else
-
-
-
-
-
-/**
-   \brief Wait for a signal, usually a SIGALRM
-
-   Function assumes that SIGALRM is not blocked.
-   Function may return CW_FAILURE on failure, i.e. when call to
-   sigemptyset(), sigprocmask() or sigsuspend() fails.
-
-   \return CW_SUCCESS on success
-   \return CW_FAILURE on failure
-*/
-int cw_signal_wait_internal(void)
-{
-	sigset_t empty_set, current_set;
-
-	/* Prepare empty set of signals */
-	int status = sigemptyset(&empty_set);
-	if (status == -1) {
-		cw_debug (CW_DEBUG_SYSTEM, "sigemptyset(): %s\n", strerror(errno));
-		return CW_FAILURE;
-	}
-
-	/* Block an empty set of signals to obtain the current mask. */
-	status = sigprocmask(SIG_BLOCK, &empty_set, &current_set);
-	if (status == -1) {
-		cw_debug (CW_DEBUG_SYSTEM, "sigprocmask(): %s\n", strerror(errno));
-		return CW_FAILURE;
-	}
-
-	/* Wait on the current mask */
-	status = sigsuspend(&current_set);
-	if (status == -1 && errno != EINTR) {
-		cw_debug (CW_DEBUG_SYSTEM, "suspend(): %s\n", strerror(errno));
-		return CW_FAILURE;
-	}
-
-	return CW_SUCCESS;
-}
-
-
-
-
-
-#endif
-
-
 
 
 
@@ -3456,41 +3378,7 @@ int cw_generator_play_with_soundcard_internal(cw_gen_t *gen, int frequency)
 		   problems during development phase */
 		return CW_SUCCESS;
 	}
-#if 0
-	/* TODO:
-	   With this new scheme of producing a sound the sound is
-	   a bit longer than a dot (or a dash) by a time needed to
-	   decrease amplitude of sine wave from 'volume' to zero.
-	   When a timer signals that it's time to stop generating
-	   a sound, the library proceeds to gradually decrease
-	   amplitude of sine wave producing a falling slope. Length
-	   of the slope is inversely proportional to
-	   CW_AUDIO_GENERATOR_SLOPE.
 
-	   This additional time used to generate falling slope is rather
-	   small but cannot be tolerated. Thus I need to come up with
-	   better way of ending a sound. Somehow the slope must appear
-	   (i.e. the amplitude needs to start decreasing) *before*
-	   expected end of sound. */
-
-	/* use 'slope' to control amplitude of sine wave generator:
-	   negative slope decreases amplitude to zero, positive slope
-	   increases amplitude to current volume level */
-
-	/* having slope dependent on volume helps us avoiding shorter
-	   slopes at lower volumes; with constant slope it would take
-	   shorter to switch from zero to max (and from max to zero),
-	   which may result in pops at low volumes */
-	int minimum_slope = 1;
-	int slope = gen->volume_percent ?
-		CW_AUDIO_GENERATOR_SLOPE_RATIO * gen->volume_percent :
-		minimum_slope;
-	if (state == CW_AUDIO_TONE_SILENT) { /* TONE_SILENT == 0, silence the sound */
-		gen->slope_ = -slope;
-	} else {
-		gen->slope_ = slope;
-	}
-#endif
 	if (frequency) {
 		cw_tone_queue_enqueue_internal(gen->tq, CW_USECS_RISING_SLOPE, 700);
 		cw_tone_queue_enqueue_internal(gen->tq, CW_USECS_FOREVER, 700);
@@ -4000,14 +3888,6 @@ int cw_tone_queue_next_index_internal(int index)
 
 
 
-
-
-#if CW_DEV_EXPERIMENTAL_WRITE
-
-
-
-
-
 /**
    \brief Dequeue a tone from tone queue
 
@@ -4175,134 +4055,6 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, int *usecs, int *frequen
 
 
 
-#else
-
-
-
-
-
-/**
-   \brief Signal handler for itimer
-
-   Dequeue a tone request, and call cw_generator_play_internal() to generate the tone.
-   If the queue is empty when we get the signal, then we're at the end of
-   the work list, so set the dequeue state to idle and return.
-*/
-void cw_tone_queue_dequeue_and_play_internal(void)
-{
-	/* Decide what to do based on the current state. */
-	switch (tq->state) {
-		/* Ignore calls if our state is idle. */
-	case QS_IDLE:
-		return;
-
-	case QS_BUSY:
-		/* If busy, dequeue the next tone, or if no
-		   more tones, go to the idle state. */
-		if (tq->head != tq->tail) {
-			/* Get the current queue length.  Later on, we'll
-			   compare with the length after we've scanned
-			   over every tone we can omit, and use it to see
-			   if we've crossed the low water mark, if any. */
-			int queue_length = cw_tone_queue_length_internal(tq);
-
-			/* Advance over the tones list until we find the
-			   first tone with a duration of more than zero
-			   usecs, or until the end of the list.
-			   TODO: don't add tones with duration = 0? */
-			do  {
-				tq->head = cw_tone_queue_next_index_internal(tq->head);
-			} while (tq->head != tq->tail
-				 && tq->queue[tq->head].usecs == 0);
-
-			/* Dequeue the next tone to send. */
-			int usecs = tq->queue[tq->head].usecs;
-			int frequency = tq->queue[tq->head].frequency;
-
-			cw_debug (CW_DEBUG_TONE_QUEUE, "dequeue tone %d usec, %d Hz", usecs, frequency);
-
-			/* Start the tone.  If function generating tone
-			   fails, there's nothing we can do at this point,
-			   in the way of returning error codes. */
-			cw_generator_play_internal(generator, frequency);
-
-			/* Notify the key control function that there might
-			   have been a change of keying state (and then
-			   again, there might not have been -- it will sort
-			   this out for us). */
-			cw_key_set_state_internal(frequency ? CW_KEY_STATE_CLOSED : CW_KEY_STATE_OPEN);
-
-			/* If microseconds is zero, leave it at that.  This
-			   way, a queued tone of 0 usec implies leaving the
-			   sound in this state, and 0 usec and 0 frequency
-			   leaves silence.  */
-			if (usecs > 0) {
-				/* Request a timeout.  If it fails, there's
-				   little we can do at this point.  But it
-				   shouldn't fail. */
-				cw_timer_run_with_handler_internal(usecs, NULL);
-			} else {
-				/* Autonomous dequeuing has finished for
-				   the moment. */
-				tq->state = QS_IDLE;
-				cw_finalization_schedule_internal();
-			}
-
-			/* If there is a low water mark callback registered,
-			   and if we passed under the water mark, call the
-			   callback here.  We want to be sure to call this
-			   late in the processing, especially after setting
-			   the state to idle, since the most likely action
-			   of this routine is to queue tones, and we don't
-			   want to play with the state here after that. */
-			if (tq->low_water_callback) {
-				/* If the length we originally calculated
-				   was above the low water mark, and the
-				   one we have now is below or equal to it,
-				   call the callback. */
-				if (queue_length > tq->low_water_mark
-				    && cw_tone_queue_length_internal(tq)
-				    <= tq->low_water_mark) {
-
-					(*(tq->low_water_callback))(tq->low_water_callback_arg);
-				}
-			}
-		} else { /* tq->head == tq->tail */
-			/* This is the end of the last tone on the queue,
-			   and since we got a signal we know that it had
-			   a usec greater than zero.  So this is the time
-			   to return to silence. */
-			cw_generator_play_internal(generator, CW_AUDIO_TONE_SILENT);
-
-			/* Notify the keying control function, as above. */
-			cw_key_set_state_internal(CW_KEY_STATE_OPEN);
-
-			/* Set state to idle, indicating that autonomous
-			   dequeuing has finished for the moment.  We
-			   need this set whenever the queue indexes are
-			   equal and there is no pending itimeout. */
-			tq->state = QS_IDLE;
-			cw_finalization_schedule_internal();
-		}
-	}
-}
-
-
-
-
-
-#endif
-
-
-
-
-
-#if CW_DEV_EXPERIMENTAL_WRITE
-
-
-
-
-
 /**
    \brief Add tone to tone queue
 
@@ -4366,82 +4118,6 @@ int cw_tone_queue_enqueue_internal(cw_tone_queue_t *tq, int usecs, int frequency
 
 	return CW_SUCCESS;
 }
-
-
-
-
-
-#else
-
-
-
-
-
-/**
-   \brief Add tone to tone queue
-
-   Enqueue a tone for specified frequency and number of microseconds.
-   This routine adds the new tone to the queue, and if necessary starts
-   the itimer process to have the tone sent.  The routine returns CW_SUCCESS
-   on success. If the tone queue is full, the routine returns CW_FAILURE,
-   with errno set to EAGAIN.  If the iambic keyer or straight key are currently
-   busy, the routine returns CW_FAILURE, with errno set to EBUSY.
-
-   \param tq - tone queue
-   \param usecs - length of added tone
-   \param frequency - frequency of added tone
-
-   \return CW_SUCCESS on success
-   \return CW_FAILURE on failure
-*/
-int cw_tone_queue_enqueue_internal(cw_tone_queue_t *tq, int usecs, int frequency)
-{
-	/* If the keyer or straight key are busy, return an error.
-	   This is because they use the sound card/console tones and key
-	   control, and will interfere with us if we try to use them at
-	   the same time. */
-	if (cw_is_keyer_busy() || cw_is_straight_key_busy()) {
-		errno = EBUSY;
-		return CW_FAILURE;
-	}
-
-	/* Get the new value of the queue tail index. */
-	int new_tq_tail = cw_tone_queue_next_index_internal(tq->tail);
-
-	/* If the new value is bumping against the head index, then
-	   the queue is currently full. */
-	if (new_tq_tail == tq->head) {
-		errno = EAGAIN;
-		return CW_FAILURE;
-	}
-
-	cw_debug (CW_DEBUG_TONE_QUEUE, "enqueue tone %d usec, %d Hz", usecs, frequency);
-
-	/* Set the new tail index, and enqueue the new tone. */
-	tq->tail = new_tq_tail;
-	tq->queue[tq->tail].usecs = usecs;
-	tq->queue[tq->tail].frequency = frequency;
-
-	/* If there is currently no autonomous dequeue happening, kick
-	   off the itimer process. */
-	if (tq->state == QS_IDLE) {
-		/* There is currently no (external) process that would
-		   remove (dequeue) tones from the queue and (possibly)
-		   play them.
-		   Let's mark that dequeuing is starting, and lets start
-		   such a process using cw_tone_queue_dequeue_and_play_internal(). */
-		tq->state = QS_BUSY;
-		cw_timer_run_with_handler_internal(0, cw_tone_queue_dequeue_and_play_internal);
-	}
-
-	return CW_SUCCESS;
-}
-
-
-
-
-
-#endif
 
 
 
@@ -7126,10 +6802,8 @@ int cw_generator_new(int audio_system, const char *device)
 	generator->buffer = NULL;
 	generator->buffer_n_samples = -1;
 
-#if CW_DEV_EXPERIMENTAL_WRITE
 	generator->tone_n_samples = 0;
 	generator->slope.iterator = 0;
-#endif
 
 #ifdef LIBCW_WITH_PULSEAUDIO
 	generator->pa.s = NULL;
@@ -7225,12 +6899,6 @@ void cw_generator_delete(void)
 
 
 
-#if CW_DEV_EXPERIMENTAL_WRITE
-
-
-
-
-
 /**
    \brief Start a generator
 
@@ -7274,82 +6942,6 @@ int cw_generator_start(void)
 
 	return CW_SUCCESS;
 }
-
-
-
-
-
-#else
-
-
-
-
-
-/**
-   \brief Start a generator
-
-   Start producing sound using generator created with
-   cw_generator_new().
-
-   \return CW_FAILURE on errors
-   \return CW_SUCCESS on success
-*/
-int cw_generator_start(void)
-{
-	generator->phase_offset = 0.0;
-	generator->phase = 0.0;
-
-	/* both values being zero here means that generator
-	   has started working, but its output is silence;
-	   set .slope to a positive value to start generating
-	   a sound with non-zero amplitude */
-	generator->slope = 0;
-	generator->amplitude = 0;
-
-	generator->generate = 1;
-
-	if (generator->audio_system == CW_AUDIO_CONSOLE) {
-		; /* no thread needed for generating sound on console */
-	} else if (generator->audio_system == CW_AUDIO_OSS) {
-		int rv = pthread_create(&generator->thread_id, &generator->thread_attr,
-					cw_generator_write_sine_wave_oss_internal,
-					(void *) generator);
-		if (rv != 0) {
-			cw_debug (CW_DEBUG_SYSTEM, "error: failed to create OSS generator thread\n");
-			return CW_FAILURE;
-		} else {
-			/* for some yet unknown reason you have to
-			   put usleep() here, otherwise a generator
-			   may work incorrectly */
-			usleep(100000);
-			return CW_SUCCESS;
-		}
-	} else if (generator->audio_system == CW_AUDIO_ALSA) {
-		int rv = pthread_create(&generator->thread_id, &generator->thread_attr,
-					cw_generator_write_sine_wave_alsa_internal,
-					(void *) generator);
-		if (rv != 0) {
-			cw_debug (CW_DEBUG_SYSTEM, "error: failed to create ALSA generator thread\n");
-			return CW_FAILURE;
-		} else {
-			/* for some yet unknown reason you have to
-			   put usleep() here, otherwise a generator
-			   may work incorrectly */
-			usleep(100000);
-			return CW_SUCCESS;
-		}
-	} else {
-		cw_dev_debug ("unsupported audio system %d", generator->audio_system);
-	}
-
-	return CW_SUCCESS;
-}
-
-
-
-
-
-#endif
 
 
 
@@ -7412,12 +7004,6 @@ void cw_generator_stop(void)
 
 
 
-#if CW_DEV_EXPERIMENTAL_WRITE
-
-
-
-
-
 /**
    \brief Calculate a fragment of sine wave
 
@@ -7433,7 +7019,7 @@ void cw_generator_stop(void)
 
    \return position in buffer at which a last sample has been saved
 */
-int cw_generator_calculate_sine_wave_new_internal(cw_gen_t *gen, int start, int stop)
+int cw_generator_calculate_sine_wave_internal(cw_gen_t *gen, int start, int stop)
 {
 	assert (stop <= gen->buffer_n_samples);
 
@@ -7498,72 +7084,6 @@ int cw_generator_calculate_sine_wave_new_internal(cw_gen_t *gen, int start, int 
 
 
 
-#else
-
-
-
-
-
-/**
-   \brief Calculate a fragment of sine wave
-
-   Calculate a fragment of sine wave, as many samples as can be
-   fitted in generator's buffer. There will be gen->buffer_n_samples
-   samples put into gen->buffer, starting from gen->buffer[0].
-
-   The function takes into account all state variables from gen,
-   so initial phase of new fragment of sine wave in the buffer matches
-   ending phase of a sine wave generated in current call.
-
-   \param gen - current generator
-
-   \return CW_SUCCESS
-*/
-int cw_generator_calculate_sine_wave_internal(cw_gen_t *gen)
-{
-	int i = 0;
-	double phase = 0.0;
-
-	for (i = 0; i < gen->buffer_n_samples; i++) {
-		double phase = (2.0 * M_PI
-				* (double) gen->frequency * (double) i
-				/ (double) gen->sample_rate)
-			+ gen->phase_offset;
-		int amplitude = cw_generator_calculate_amplitude_internal(gen);
-
-		gen->buffer[i] = amplitude * sin(phase);
-	}
-
-	/* Compute the phase of the last generated sample
-	   (or is it phase of first sample in next series?). */
-	phase = (2.0 * M_PI
-		 * (double) gen->frequency * (double) i
-		 / (double) gen->sample_rate)
-		+ gen->phase_offset;
-
-	/* Extract the normalized phase offset. */
-	int n_periods = floor(phase / (2.0 * M_PI));
-	gen->phase_offset = phase - n_periods * 2.0 * M_PI;
-
-	return CW_SUCCESS;
-}
-
-
-
-
-
-#endif
-
-
-
-
-
-#if CW_DEV_EXPERIMENTAL_WRITE
-
-
-
-
-
 /**
    \brief Calculate value of a sample of sine wave
 
@@ -7573,7 +7093,6 @@ int cw_generator_calculate_sine_wave_internal(cw_gen_t *gen)
 */
 int cw_generator_calculate_amplitude_internal(cw_gen_t *gen)
 {
-
 #if 0
 	/* blunt algorithm for calculating amplitude;
 	   for debug purposes only */
@@ -7584,7 +7103,7 @@ int cw_generator_calculate_amplitude_internal(cw_gen_t *gen)
 	}
 
 	return gen->amplitude;
-#endif
+#else
 
 #if 1
 	if (gen->frequency > 0) {
@@ -7647,6 +7166,7 @@ int cw_generator_calculate_amplitude_internal(cw_gen_t *gen)
 
 	assert (gen->amplitude >= 0); /* will fail if calculations above are modified */
 #endif
+#endif
 
 #if 0 /* no longer necessary since calculation of amplitude,
 	 implemented above guarantees that amplitude won't be
@@ -7668,68 +7188,6 @@ int cw_generator_calculate_amplitude_internal(cw_gen_t *gen)
 
 	return gen->amplitude;
 }
-
-
-
-
-
-#else
-
-
-
-
-
-/**
-   \brief Calculate value of a sample of sine wave
-
-   \param gen - generator used to generate a sine wave
-
-   \return value of a sample of sine wave, a non-negative number
-*/
-int cw_generator_calculate_amplitude_internal(cw_gen_t *gen)
-{
-	if (gen->slope == 0) {
-		;
-	} else if (gen->slope < 0) {
-		if (gen->amplitude > 0) {
-			gen->amplitude += gen->slope; /* yes, += */
-		} else if (gen->amplitude < 0) {
-			gen->amplitude = 0;
-			gen->slope = 0;
-		} else { /* gen->amplitude == 0 */
-			gen->slope = 0;
-		}
-	} else { /* gen->slope > 0 */
-		if (gen->amplitude < gen->volume_abs) {
-			gen->amplitude += gen->slope;
-		} else if (gen->amplitude > gen->volume_abs) {
-			gen->amplitude = gen->volume_abs;
-			gen->slope = 0;
-		} else { /* gen->amplitude == gen->volume_abs; */
-			gen->slope = 0;
-		}
-	}
-
-	/* because CW_AUDIO_VOLUME_RANGE may not be exact multiple
-	   of gen->slope, gen->amplitude may be sometimes out
-	   of range; this may produce audible clicks;
-	   remove values out of range */
-	if (gen->amplitude > CW_AUDIO_VOLUME_RANGE) {
-		gen->amplitude = CW_AUDIO_VOLUME_RANGE;
-	} else if (gen->amplitude < 0) {
-		gen->amplitude = 0;
-	} else {
-		;
-	}
-
-	return gen->amplitude;
-}
-
-
-
-
-
-#endif
 
 
 
@@ -8247,58 +7705,6 @@ void cw_oss_close_device_internal(cw_gen_t *gen)
 
 
 
-#if !CW_DEV_EXPERIMENTAL_WRITE
-
-
-
-
-
-/**
-   \brief Write a constant sine wave to OSS output
-
-   \param arg - current generator (casted to (void *))
-
-   \return NULL pointer
-*/
-void *cw_generator_write_sine_wave_oss_internal(void *arg)
-{
-#ifndef LIBCW_WITH_OSS
-	return NULL;
-#else
-	cw_gen_t *gen = (cw_gen_t *) arg;
-
-	int n_bytes = sizeof (gen->buffer[0]) * gen->buffer_n_samples;
-	while (gen->generate) {
-		cw_generator_calculate_sine_wave_internal(gen);
-		if (write(gen->audio_sink, gen->buffer, n_bytes) != n_bytes) {
-			gen->thread_error = errno;
-			cw_debug (CW_DEBUG_SYSTEM, "error: audio write (OSS): %s\n", strerror(errno));
-			return NULL;
-		}
-#if CW_DEV_RAW_SINK
-		if (gen->dev_raw_sink != -1) {
-			int rv = write(gen->dev_raw_sink, gen->buffer, n_bytes);
-			if (rv == -1) {
-				cw_dev_debug ("ERROR: write error: %s\n", strerror(errno));
-			}
-		}
-#endif
-	} /* while() */
-
-	return NULL;
-#endif // #ifndef LIBCW_WITH_OSS
-}
-
-
-
-
-
-#endif
-
-
-
-
-
 /* ******************************************************************** */
 /*                 Section:Soundcard output with ALSA                   */
 /* ******************************************************************** */
@@ -8455,14 +7861,14 @@ void cw_alsa_close_device_internal(cw_gen_t *gen)
 int cw_dev_debug_raw_sink_write_internal(cw_gen_t *gen, int samples)
 {
 	if (gen->dev_raw_sink != -1) {
-#if CW_DEV_EXPERIMENTAL_WRITE
+#if CW_DEV_RAW_SINK_MARKERS
 		/* FIXME: this will cause memory access error at
 		   the end, when generator is destroyed in the
 		   other thread */
-		//gen->buffer[0] = 0x7fff;
-		//gen->buffer[1] = 0x7fff;
-		//gen->buffer[samples - 2] = 0x8000;
-		//gen->buffer[samples - 1] = 0x8000;
+		gen->buffer[0] = 0x7fff;
+		gen->buffer[1] = 0x7fff;
+		gen->buffer[samples - 2] = 0x8000;
+		gen->buffer[samples - 1] = 0x8000;
 #endif
 		int n_bytes = sizeof (gen->buffer[0]) * samples;
 		int rv = write(gen->dev_raw_sink, gen->buffer, n_bytes);
@@ -8501,11 +7907,6 @@ int cw_debug_evaluate_alsa_write_internal(cw_gen_t *gen, int rv)
 	return CW_FAILURE;
 }
 
-
-
-
-
-#if CW_DEV_EXPERIMENTAL_WRITE
 
 
 
@@ -8634,7 +8035,7 @@ void *cw_generator_write_sine_wave_internal(void *arg)
 			}
 
 
-			cw_generator_calculate_sine_wave_new_internal(gen, start, stop);
+			cw_generator_calculate_sine_wave_internal(gen, start, stop);
 			if (stop + 1 == gen->buffer_n_samples) {
 
 				int rv = 0;
@@ -8694,47 +8095,6 @@ void *cw_generator_write_sine_wave_internal(void *arg)
 #endif // #if (defined LIBCW_WITH_ALSA || defined LIBCW_WITH_OSS || defined LIBCW_WITH_PULSEAUDIO)
 	return NULL;
 }
-
-
-
-
-
-#else
-
-
-
-
-
-/**
-   \brief Write a constant sine wave to ALSA output
-
-   \param arg - current generator (casted to (void *))
-
-   \return NULL pointer
-*/
-void *cw_generator_write_sine_wave_alsa_internal(void *arg)
-{
-#ifdef LIBCW_WITH_ALSA
-	cw_gen_t *gen = (cw_gen_t *) arg;
-
-	while (gen->generate) {
-		cw_generator_calculate_sine_wave_internal(gen);
-		int rv = snd_pcm_writei(gen->alsa_handle, gen->buffer, gen->buffer_n_samples);
-		cw_debug_evaluate_alsa_write_internal(gen, rv);
-
-#if CW_DEV_RAW_SINK
-		cw_dev_debug_raw_sink_write_internal(gen, rv);
-#endif
-	} /* while() */
-#endif
-	return NULL;
-}
-
-
-
-
-
-#endif
 
 
 
