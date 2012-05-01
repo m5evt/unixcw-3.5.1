@@ -164,7 +164,7 @@
 
 /* forward declarations of types */
 typedef struct cw_tone_queue_struct cw_tone_queue_t;
-typedef struct cw_gen_struct cw_gen_t;
+//typedef struct cw_gen_struct cw_gen_t;
 typedef struct cw_entry_struct cw_entry_t;
 typedef struct cw_tracking_struct cw_tracking_t;
 
@@ -199,6 +199,83 @@ static void *cw_generator_write_sine_wave_oss_internal(void *arg);
 /* ******************************************************************** */
 /*                     Section:Generator - generic                      */
 /* ******************************************************************** */
+
+struct cw_gen_struct {
+
+	cw_tone_queue_t *tq;
+
+	cw_sample_t *buffer;
+	int buffer_n_samples;
+	/* none/console/OSS/ALSA/PulseAudio */
+	int audio_system;
+	/* true/false */
+	int audio_device_open;
+	/* Path to console file, or path to OSS soundcard file,
+	   or ALSA sound device name, or PulseAudio device name
+	   (it may be unused for PulseAudio) */
+	char *audio_device;
+	/* output file descriptor for audio data (console, OSS) */
+	int audio_sink;
+	/* output handle for audio data (ALSA) */
+	snd_pcm_t *alsa_handle;
+
+#ifdef LIBCW_WITH_PULSEAUDIO
+	/* data used by PulseAudio */
+	struct {
+		pa_simple *s;       /* audio handle */
+		pa_sample_spec ss;  /* sample specification */
+	} pa;
+#endif
+
+	/* output file descriptor for debug data (console, OSS, ALSA, PulseAudio) */
+	int dev_raw_sink;
+
+	int send_speed;
+	int gap;
+	int volume_percent; /* level of sound in percents of maximum allowable level */
+	int volume_abs;     /* level of sound in absolute terms; height of PCM samples */
+	int frequency;   /* this is the frequency of sound that you want to generate */
+
+	int sample_rate; /* set to the same value of sample rate as
+			    you have used when configuring sound card */
+
+	/* used to control initial and final phase of non-zero-amplitude
+	   sine wave; slope/attack makes it possible to start and end
+	   a wave without audible clicks; */
+	struct {
+		int mode;
+		int iterator;
+		int len;
+	} slope;
+
+	/* start/stop flag;
+	   set to 1 before creating generator;
+	   set to 0 to stop generator; generator gets "destroyed"
+	   handling the flag is wrapped in cw_oss_start_generator()
+	   and cw_oss_stop_generator() */
+	int generate;
+
+	/* these are generator's internal state variables; */
+	int amplitude; /* current amplitude of generated sine wave
+			  (as in x(t) = A * sin(t)); in fixed/steady state
+			  the amplitude is either zero or .volume */
+
+	double phase_offset;
+	double phase;
+
+#if CW_DEV_EXPERIMENTAL_WRITE
+	int tone_n_samples;
+#endif
+
+	/* Thread function is used to generate sine wave
+	   and write the wave to audio sink. */
+	pthread_t thread_id;
+	pthread_attr_t thread_attr;
+	int thread_error; /* 0 when no problems, errno when some error occurred */
+};
+
+
+
 #if CW_DEV_EXPERIMENTAL_WRITE
 static void *cw_generator_write_sine_wave_internal(void *arg);
 static int   cw_generator_calculate_sine_wave_new_internal(cw_gen_t *gen, int start, int stop);
@@ -6993,82 +7070,6 @@ void cw_reset_straight_key(void)
 /* ******************************************************************** */
 /*                     Section:Generator - generic                      */
 /* ******************************************************************** */
-
-
-struct cw_gen_struct {
-
-	cw_tone_queue_t *tq;
-
-	cw_sample_t *buffer;
-	int buffer_n_samples;
-	/* none/console/OSS/ALSA/PulseAudio */
-	int audio_system;
-	/* true/false */
-	int audio_device_open;
-	/* Path to console file, or path to OSS soundcard file,
-	   or ALSA sound device name, or PulseAudio device name
-	   (it may be unused for PulseAudio) */
-	char *audio_device;
-	/* output file descriptor for audio data (console, OSS) */
-	int audio_sink;
-	/* output handle for audio data (ALSA) */
-	snd_pcm_t *alsa_handle;
-
-#ifdef LIBCW_WITH_PULSEAUDIO
-	/* data used by PulseAudio */
-	struct {
-		pa_simple *s;       /* audio handle */
-		pa_sample_spec ss;  /* sample specification */
-	} pa;
-#endif
-
-	/* output file descriptor for debug data (console, OSS, ALSA, PulseAudio) */
-	int dev_raw_sink;
-
-	int send_speed;
-	int gap;
-	int volume_percent; /* level of sound in percents of maximum allowable level */
-	int volume_abs;     /* level of sound in absolute terms; height of PCM samples */
-	int frequency;   /* this is the frequency of sound that you want to generate */
-
-	int sample_rate; /* set to the same value of sample rate as
-			    you have used when configuring sound card */
-
-	/* used to control initial and final phase of non-zero-amplitude
-	   sine wave; slope/attack makes it possible to start and end
-	   a wave without audible clicks; */
-	struct {
-		int mode;
-		int iterator;
-		int len;
-	} slope;
-
-	/* start/stop flag;
-	   set to 1 before creating generator;
-	   set to 0 to stop generator; generator gets "destroyed"
-	   handling the flag is wrapped in cw_oss_start_generator()
-	   and cw_oss_stop_generator() */
-	int generate;
-
-	/* these are generator's internal state variables; */
-	int amplitude; /* current amplitude of generated sine wave
-			  (as in x(t) = A * sin(t)); in fixed/steady state
-			  the amplitude is either zero or .volume */
-
-	double phase_offset;
-	double phase;
-
-#if CW_DEV_EXPERIMENTAL_WRITE
-	int tone_n_samples;
-#endif
-
-	/* Thread function is used to generate sine wave
-	   and write the wave to audio sink. */
-	pthread_t thread_id;
-	pthread_attr_t thread_attr;
-	int thread_error; /* 0 when no problems, errno when some error occurred */
-};
-
 
 
 
