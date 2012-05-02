@@ -18,7 +18,7 @@
  */
 #define _XOPEN_SOURCE 600 /* signaction() + SA_RESTART */
 
-#include "../config.h"
+#include "config.h"
 
 #include <sys/time.h>
 #include <signal.h>
