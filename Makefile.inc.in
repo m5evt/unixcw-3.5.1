@@ -52,3 +52,8 @@ libdir		= @libdir@
 
 # http://www.gnu.org/s/hello/manual/autoconf/Changed-Directory-Variables.html
 datarootdir = @datarootdir@
+
+
+AM_CPPFLAGS = -I$(top_srcdir)/src/ \
+	    -I$(top_srcdir)/src/libcw/ \
+	    -I$(top_srcdir)/src/cwutils/
