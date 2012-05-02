@@ -53,7 +53,7 @@
 #define _POSIX_SOURCE /* sigaction() */
 #define _POSIX_C_SOURCE 200112L /* pthread_sigmask() */
 
-#include "../config.h"
+#include "config.h"
 
 #include <sys/time.h>
 #include <sys/ioctl.h>
@@ -142,7 +142,7 @@
 #endif
 
 #include "libcw.h"
-#include "../cwutils/copyright.h" /* I will get rid of this access path once I will update build system, promise ;) */
+#include "copyright.h"
 
 
 
@@ -152,8 +152,9 @@
 #define CW_OSS_SET_FRAGMENT       1  /* ioctl(fd, SNDCTL_DSP_SETFRAGMENT, &param) */
 #define CW_OSS_SET_POLICY         0  /* ioctl(fd, SNDCTL_DSP_POLICY, &param) */
 #define CW_ALSA_HW_BUFFER_CONFIG  0  /* set up hw buffer/period parameters; unnecessary and probably harmful */
+//#define LIBCW_WITH_DEV 1
 #ifdef LIBCW_WITH_DEV
-#define CW_DEV_MAIN               1  /* enable main() for stand-alone compilation and tests of this file */
+#define CW_DEV_MAIN               0  /* enable main() for stand-alone compilation and tests of this file */
 #define CW_DEV_RAW_SINK           1  /* create and use /tmp/cw_file.<audio system>.raw file with audio samples written as raw data */
 #define CW_DEV_RAW_SINK_MARKERS   0  /* put markers in raw data saved to raw sink */
 #endif
@@ -482,6 +483,8 @@ static void cw_sync_parameters_internal(cw_gen_t *gen);
    state of a key changes. */
 
 static void cw_key_set_state_internal(int requested_key_state);
+static void cw_key_set_state2_internal(cw_gen_t *gen, int requested_key_state);
+static void cw_key_set_state3_internal(cw_gen_t *gen, int requested_key_state, int usecs);
 
 
 
@@ -526,7 +529,7 @@ static int  cw_timestamp_compare_internal(const struct timeval *earlier, const s
 /* ******************************************************************** */
 /*                        Section:Iambic keyer                          */
 /* ******************************************************************** */
-static void cw_keyer_clock_internal(void);
+static void cw_keyer_update_internal(void);
 
 
 
@@ -608,7 +611,7 @@ static const char *cw_audio_system_labels[] = {
 
 
 
-
+bool lock = false;
 
 
 
@@ -662,7 +665,7 @@ void cw_license(void)
 
 
 /* Current debug flags setting; no debug unless requested. */
-static unsigned int cw_debug_flags = 0; //CW_DEBUG_STRAIGHT_KEY | CW_DEBUG_KEYING | CW_DEBUG_SYSTEM | CW_DEBUG_TONE_QUEUE;
+static unsigned int cw_debug_flags = 0; //CW_DEBUG_KEYER_STATES | CW_DEBUG_KEYER_STATES_VERBOSE | CW_DEBUG_STRAIGHT_KEY | CW_DEBUG_KEYING; // | CW_DEBUG_TONE_QUEUE;
 
 
 
@@ -2722,7 +2725,7 @@ void cw_sigalrm_handlers_caller_internal(__attribute__((unused)) int signal_numb
 	for (int handler = 0;
 	     handler < CW_SIGALRM_HANDLERS_MAX && cw_sigalrm_handlers[handler]; handler++) {
 
-		// cw_dev_debug ("SIGALRM handler #%d", handler);
+		cw_dev_debug ("SIGALRM handler #%d", handler);
 
 		(cw_sigalrm_handlers[handler])();
 	}
@@ -3688,10 +3691,10 @@ void cw_register_keying_callback(void (*callback_func)(void*, int),
 */
 void cw_key_set_state_internal(int requested_key_state)
 {
-	static bool current_key_state = false;  /* Maintained key control state */
+	static int current_key_state = CW_KEY_STATE_OPEN;  /* Maintained key control state */
 
 	if (current_key_state != requested_key_state) {
-		//cw_debug (CW_DEBUG_KEYING, "keying state %d->%d", current_key_state, requested_key_state);
+		cw_debug (CW_DEBUG_KEYING, "keying state %d->%d", current_key_state, requested_key_state);
 
 		/* Set the new keying state, and call any requested callback. */
 		current_key_state = requested_key_state;
@@ -3718,7 +3721,7 @@ void cw_key_set_state_internal(int requested_key_state)
 */
 void cw_key_set_state2_internal(cw_gen_t *gen, int requested_key_state)
 {
-	static bool current_key_state = CW_KEY_STATE_OPEN;  /* Maintained key control state */
+	static int current_key_state = CW_KEY_STATE_OPEN;  /* Maintained key control state */
 
 	if (current_key_state != requested_key_state) {
 		cw_debug (CW_DEBUG_KEYING, "keying state %d->%d", current_key_state, requested_key_state);
@@ -3738,6 +3741,42 @@ void cw_key_set_state2_internal(cw_gen_t *gen, int requested_key_state)
 			cw_dev_debug ("current state = open");
 			cw_tone_queue_enqueue_internal(gen->tq, CW_USECS_FALLING_SLOPE, 440);
 			cw_tone_queue_enqueue_internal(gen->tq, CW_USECS_FOREVER, 0);
+		}
+	}
+
+	return;
+}
+
+
+
+
+
+/**
+   \brief Call external callback function for keying
+
+   Control function that calls any requested keying callback only when there
+   is a change of keying state.  This function filters successive key-down
+   or key-up actions into a single action.
+
+   \param requested_key_state - current key state to be stored
+*/
+void cw_key_set_state3_internal(cw_gen_t *gen, int requested_key_state, int usecs)
+{
+	static int current_key_state = CW_KEY_STATE_OPEN;  /* Maintained key control state */
+
+	if (current_key_state != requested_key_state) {
+		cw_debug (CW_DEBUG_KEYING, "keying state %d->%d", current_key_state, requested_key_state);
+
+		/* Set the new keying state, and call any requested callback. */
+		current_key_state = requested_key_state;
+		if (cw_kk_key_callback) {
+			(*cw_kk_key_callback)(cw_kk_key_callback_arg, current_key_state);
+		}
+
+		if (current_key_state == CW_KEY_STATE_CLOSED) {
+			cw_tone_queue_enqueue_internal(gen->tq, usecs, 440);
+		} else {
+			cw_tone_queue_enqueue_internal(gen->tq, usecs, 0);
 		}
 	}
 
@@ -6158,10 +6197,16 @@ static volatile enum {
 
 
 /**
-   \brief Inform the internal keyer states that the itimer expired, and we received SIGALRM
+   \brief Update state of generic key, update state of iambic keyer, queue tone
 */
-void cw_keyer_clock_internal(void)
+void cw_keyer_update_internal(void)
 {
+	if (lock) {
+		cw_dev_debug ("lock in thread %ld\n", (long) pthread_self());
+		return;
+	}
+	lock = true;
+
 	/* Synchronize low level timing parameters if required. */
 	cw_sync_parameters_internal(generator);
 
@@ -6169,6 +6214,7 @@ void cw_keyer_clock_internal(void)
 	switch (cw_keyer_state) {
 		/* Ignore calls if our state is idle. */
 	case KS_IDLE:
+		lock = false;
 		return;
 
 		/* If we were in a dot, turn off tones and begin the
@@ -6178,9 +6224,8 @@ void cw_keyer_clock_internal(void)
 		   to the client. */
 	case KS_IN_DOT_A:
 	case KS_IN_DOT_B:
-		cw_generator_play_internal(generator, CW_AUDIO_TONE_SILENT);
-		cw_key_set_state_internal(CW_KEY_STATE_OPEN);
-		cw_timer_run_with_handler_internal(cw_end_of_ele_delay, NULL);
+		cw_key_set_state3_internal(generator, CW_KEY_STATE_OPEN, cw_end_of_ele_delay);
+		cw_debug (CW_DEBUG_KEYER_STATES_VERBOSE, "cw_keyer_state: KS_IN_DOT -> KS_AFTER_DOT");
 		cw_keyer_state = cw_keyer_state == KS_IN_DOT_A
 			? KS_AFTER_DOT_A : KS_AFTER_DOT_B;
 
@@ -6189,9 +6234,8 @@ void cw_keyer_clock_internal(void)
 
 	case KS_IN_DASH_A:
 	case KS_IN_DASH_B:
-		cw_generator_play_internal(generator, CW_AUDIO_TONE_SILENT);
-		cw_key_set_state_internal(CW_KEY_STATE_OPEN);
-		cw_timer_run_with_handler_internal(cw_end_of_ele_delay, NULL);
+		cw_key_set_state3_internal(generator, CW_KEY_STATE_OPEN, cw_end_of_ele_delay);
+		cw_debug (CW_DEBUG_KEYER_STATES_VERBOSE, "cw_keyer_state: KS_IN_DASH -> KS_AFTER_DASH");
 		cw_keyer_state = cw_keyer_state == KS_IN_DASH_A
 			? KS_AFTER_DASH_A : KS_AFTER_DASH_B;
 
@@ -6213,26 +6257,25 @@ void cw_keyer_clock_internal(void)
 		}
 
 		if (cw_keyer_state == KS_AFTER_DOT_B) {
-			cw_generator_play_internal(generator, generator->frequency);
-			cw_key_set_state_internal(CW_KEY_STATE_CLOSED);
-			cw_timer_run_with_handler_internal(cw_send_dash_length, NULL);
+			cw_key_set_state3_internal(generator, CW_KEY_STATE_CLOSED, cw_send_dash_length);
+			cw_debug (CW_DEBUG_KEYER_STATES_VERBOSE, "cw_keyer_state: KS_AFTER_DOT -> KS_IN_DASH_A");
 			cw_keyer_state = KS_IN_DASH_A;
 		} else if (cw_ik_dash_latch) {
-			cw_generator_play_internal(generator, generator->frequency);
-			cw_key_set_state_internal(CW_KEY_STATE_CLOSED);
-			cw_timer_run_with_handler_internal(cw_send_dash_length, NULL);
+			cw_key_set_state3_internal(generator, CW_KEY_STATE_CLOSED, cw_send_dash_length);
 			if (cw_ik_curtis_b_latch){
 				cw_ik_curtis_b_latch = false;
+				cw_debug (CW_DEBUG_KEYER_STATES_VERBOSE, "cw_keyer_state: KS_AFTER_DOT -> KS_IN_DASH_B");
 				cw_keyer_state = KS_IN_DASH_B;
 			} else {
+				cw_debug (CW_DEBUG_KEYER_STATES_VERBOSE, "cw_keyer_state: KS_AFTER_DOT -> KS_IN_DASH_A");
 				cw_keyer_state = KS_IN_DASH_A;
 			}
 		} else if (cw_ik_dot_latch) {
-			cw_generator_play_internal(generator, generator->frequency);
-			cw_key_set_state_internal(CW_KEY_STATE_CLOSED);
-			cw_timer_run_with_handler_internal(cw_send_dot_length, NULL);
+			cw_key_set_state3_internal(generator, CW_KEY_STATE_CLOSED, cw_send_dot_length);
+			cw_debug (CW_DEBUG_KEYER_STATES_VERBOSE, "cw_keyer_state: KS_AFTER_DOT -> KS_IN_DOT_A");
 			cw_keyer_state = KS_IN_DOT_A;
 		} else {
+			cw_debug (CW_DEBUG_KEYER_STATES_VERBOSE, "cw_keyer_state: KS_AFTER_DOT -> KS_IDLE");
 			cw_keyer_state = KS_IDLE;
 			cw_finalization_schedule_internal();
 		}
@@ -6246,34 +6289,33 @@ void cw_keyer_clock_internal(void)
 			cw_ik_dash_latch = false;
 		}
 		if (cw_keyer_state == KS_AFTER_DASH_B) {
-			cw_generator_play_internal(generator, generator->frequency);
-			cw_key_set_state_internal(CW_KEY_STATE_CLOSED);
-			cw_timer_run_with_handler_internal(cw_send_dot_length, NULL);
+			cw_key_set_state3_internal(generator, CW_KEY_STATE_CLOSED, cw_send_dot_length);
+			cw_debug (CW_DEBUG_KEYER_STATES_VERBOSE, "cw_keyer_state: KS_AFTER_DASH_B -> IN_DOT_A");
 			cw_keyer_state = KS_IN_DOT_A;
 		} else if (cw_ik_dot_latch) {
-			cw_generator_play_internal(generator, generator->frequency);
-			cw_key_set_state_internal(CW_KEY_STATE_CLOSED);
-			cw_timer_run_with_handler_internal(cw_send_dot_length, NULL);
+			cw_key_set_state3_internal(generator, CW_KEY_STATE_CLOSED, cw_send_dot_length);
 			if (cw_ik_curtis_b_latch) {
 				cw_ik_curtis_b_latch = false;
+				cw_debug (CW_DEBUG_KEYER_STATES_VERBOSE, "cw_keyer_state: KS_AFTER_DASH -> KS_IN_DOT_B");
 				cw_keyer_state = KS_IN_DOT_B;
 			} else {
+				cw_debug (CW_DEBUG_KEYER_STATES_VERBOSE, "cw_keyer_state: KS_AFTER_DASH -> KS_IN_DOT_A");
 				cw_keyer_state = KS_IN_DOT_A;
 			}
 		} else if (cw_ik_dash_latch) {
-			cw_generator_play_internal(generator, generator->frequency);
-			cw_key_set_state_internal(CW_KEY_STATE_CLOSED);
-			cw_timer_run_with_handler_internal(cw_send_dash_length, NULL);
+			cw_key_set_state3_internal(generator, CW_KEY_STATE_CLOSED, cw_send_dash_length);
+			cw_debug (CW_DEBUG_KEYER_STATES_VERBOSE, "cw_keyer_state: KS_AFTER_DASH -> KS_IN_DASH_A");
 			cw_keyer_state = KS_IN_DASH_A;
 		} else {
 			cw_keyer_state = KS_IDLE;
+			cw_debug (CW_DEBUG_KEYER_STATES_VERBOSE, "cw_keyer_state: KS_AFTER_DASH -> KS_STATE");
 			cw_finalization_schedule_internal();
 		}
 
 		cw_debug (CW_DEBUG_KEYER_STATES, "keyer ->%d", cw_keyer_state);
 		break;
 	}
-
+	lock = false;
 	return;
 }
 
@@ -6309,7 +6351,8 @@ int cw_notify_keyer_paddle_event(int dot_paddle_state,
 	/* If the tone queue or the straight key are busy, this is going to
 	   conflict with our use of the sound card, console sounder, and
 	   keying system.  So return an error status in this case. */
-	if (cw_is_straight_key_busy() || cw_is_tone_busy()) {
+	// if (cw_is_straight_key_busy() || cw_is_tone_busy()) {
+	if (0) {
 		errno = EBUSY;
 		return CW_FAILURE;
 	}
@@ -6347,16 +6390,20 @@ int cw_notify_keyer_paddle_event(int dot_paddle_state,
 			/* Pretend we just finished a dash. */
 			cw_keyer_state = cw_ik_curtis_b_latch
 				? KS_AFTER_DASH_B : KS_AFTER_DASH_A;
-			cw_timer_run_with_handler_internal(0, cw_keyer_clock_internal);
+
+			cw_keyer_update_internal();
 		} else if (cw_ik_dash_paddle) {
 			/* Pretend we just finished a dot. */
 			cw_keyer_state = cw_ik_curtis_b_latch
 				? KS_AFTER_DOT_B : KS_AFTER_DOT_A;
-			cw_timer_run_with_handler_internal(0, cw_keyer_clock_internal);
-		}
-	}
 
-	cw_debug (CW_DEBUG_KEYER_STATES, "keyer ->%d", cw_keyer_state);
+			cw_keyer_update_internal();
+		} else {
+			;
+		}
+	} else {
+		;
+	}
 
 	return CW_SUCCESS;
 }
@@ -6567,6 +6614,7 @@ void cw_reset_keyer(void)
 	cw_ik_curtis_b_latch = false;
 	cw_ik_curtis_mode_b = false;
 
+	cw_debug (CW_DEBUG_KEYER_STATES, "assigning to cw_keyer_state %d -> 0 (KS_IDLE)", cw_keyer_state);
 	cw_keyer_state = KS_IDLE;
 
 	/* Silence sound and stop any background soundcard tone generation. */
@@ -6639,12 +6687,10 @@ void cw_straight_key_clock_internal(void)
 */
 int cw_notify_straight_key_event(int key_state)
 {
-	fprintf(stderr, "called with %d\n", key_state);
 	/* If the tone queue or the keyer are busy, we can't use the
 	   sound card, console sounder, or the key control system. */
 	// if (cw_is_tone_busy() || cw_is_keyer_busy()) {
 	if (0) {
-		cw_dev_debug ("busy 1");
 		errno = EBUSY;
 		return CW_FAILURE;
 	}
@@ -6660,14 +6706,8 @@ int cw_notify_straight_key_event(int key_state)
 		/* Do tones and keying, and set up timeouts and soundcard
 		   activities to match the new key state. */
 		if (cw_sk_key_state == CW_KEY_STATE_CLOSED) {
-			//cw_generator_play_internal(generator, generator->frequency);
 			cw_key_set_state2_internal(generator, CW_KEY_STATE_CLOSED);
-
-			/* Start timeouts to keep soundcard tones running. */
-			//cw_timer_run_with_handler_internal(STRAIGHT_KEY_TIMEOUT,
-			//				   cw_straight_key_clock_internal);
 		} else {
-			//cw_generator_play_internal(generator, CW_AUDIO_TONE_SILENT);
 			cw_key_set_state2_internal(generator, CW_KEY_STATE_OPEN);
 
 			/* Indicate that we have finished with timeouts,
@@ -7973,7 +8013,9 @@ void *cw_generator_write_sine_wave_internal(void *arg)
 #ifdef LIBCW_WITH_DEV
 			if (reported_empty) {
 				cw_dev_debug ("tone queue is not empty anymore");
-				snd_pcm_prepare(gen->alsa_handle);
+				if (gen->audio_system == CW_AUDIO_ALSA) {
+					snd_pcm_prepare(gen->alsa_handle);
+				}
 				reported_empty = false;
 			}
 #endif
@@ -8090,6 +8132,7 @@ void *cw_generator_write_sine_wave_internal(void *arg)
 			}
 		}
 
+		cw_keyer_update_internal();
 
 	} /* while(gen->generate) */
 #endif // #if (defined LIBCW_WITH_ALSA || defined LIBCW_WITH_OSS || defined LIBCW_WITH_PULSEAUDIO)
@@ -8291,7 +8334,7 @@ int cw_alsa_set_hw_params_internal(cw_gen_t *gen, snd_pcm_hw_params_t *hw_params
 		for (snd_pcm_uframes_t val = 0; val < 100000; val++) {
 			rv = snd_pcm_hw_params_test_period_size(gen->alsa_handle, hw_params, val, dir);
 			if (rv == 0) {
-				fprintf(stderr, "libcw: accepted period size: %lu\n", val);
+				cw_dev_debug ("libcw: accepted period size: %lu", val);
 				// break;
 			}
 		}
@@ -8303,7 +8346,7 @@ int cw_alsa_set_hw_params_internal(cw_gen_t *gen, snd_pcm_hw_params_t *hw_params
 		for (unsigned int val = 0; val < 100000; val++) {
 			rv = snd_pcm_hw_params_test_buffer_time(gen->alsa_handle, hw_params, val, dir);
 			if (rv == 0) {
-				fprintf(stderr, "libcw: accepted buffer time: %d\n", val);
+				cw_dev_debug ("accepted buffer time: %d", val);
 				// break;
 			}
 		}
