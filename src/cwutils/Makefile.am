@@ -16,6 +16,8 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
+-include $(top_builddir)/Makefile.inc
+
 # no header from this dir should be installed
 # noinst_HEADERS = cmdline.h copyright.h cw_common.h cwwords.h dictionary.h i18n.h memory.h
 

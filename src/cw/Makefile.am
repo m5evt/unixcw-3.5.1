@@ -16,13 +16,15 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
+-include $(top_builddir)/Makefile.inc
+
 # program(s) to be built in current dir
 bin_PROGRAMS = cw
 
 # source code files used to build cw program
 cw_SOURCES = cw.c cw.h
 # target-specific preprocessor flags (#defs and include dirs)
-cw_CPPFLAGS = -I$(top_srcdir)/src/cwutils -I$(top_srcdir)/src/libcw/
+# cw_CPPFLAGS = -I$(top_srcdir)/src/cwutils -I$(top_srcdir)/src/libcw/
 # target-specific linker flags (objects to link)
 cw_LDADD = -L$(top_builddir)/src/libcw/.libs -lcw $(top_builddir)/src/cwutils/lib_cw.a
 

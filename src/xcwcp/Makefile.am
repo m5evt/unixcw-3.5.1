@@ -35,7 +35,7 @@ xcwcp_SOURCES = \
 	sender.cc sender.h
 
 # target-specific preprocessor flags (#defs and include dirs)
-xcwcp_CPPFLAGS = -I$(top_srcdir)/src/cwutils/ -I$(top_srcdir)/src/libcw/ -I$(AC_QT4INC) -I$(AC_QT4INC)/QtCore -I$(AC_QT4INC)/QtGui
+xcwcp_CPPFLAGS = $(AM_CPPFLAGS) -I$(AC_QT4INC) -I$(AC_QT4INC)/QtCore -I$(AC_QT4INC)/QtGui
 # target-specific linker flags (objects to link)
 xcwcp_LDADD = -L$(top_builddir)/src/libcw/.libs -lcw -lQtGui -lQtCore $(top_builddir)/src/cwutils/lib_xcwcp.a
 

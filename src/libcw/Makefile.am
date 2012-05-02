@@ -63,7 +63,7 @@ libcwtest_LDADD = -L./.libs -lcw
 # source code files used to build libcwunittests program
 libcwunittests_SOURCES = libcw.c
 # target-specific preprocessor flags (#defs and include dirs)
-libcwunittests_CPPFLAGS = -DLIBCW_UNIT_TESTS
+libcwunittests_CPPFLAGS = $(AM_CPPFLAGS) -DLIBCW_UNIT_TESTS
 # target-specific linker flags (objects to link)
 libcwunittests_LDADD=-lm -lpthread $(AC_ALSA_LIBS) $(AC_PULSEAUDIO_LIBS)
 

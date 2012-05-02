@@ -16,13 +16,15 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
+-include $(top_builddir)/Makefile.inc
+
 # program(s) to be built in current dir
 bin_PROGRAMS = cwcp
 
 # source code files used to build cwcp program
 cwcp_SOURCES = cwcp.c
 # target-specific preprocessor flags (#defs and include dirs)
-cwcp_CPPFLAGS = -I$(top_srcdir)/src/cwutils/ -I$(top_srcdir)/src/libcw/
+#cwcp_CPPFLAGS = -I$(top_srcdir)/src/cwutils/ -I$(top_srcdir)/src/libcw/
 # target-specific linker flags (objects to link)
 cwcp_LDADD = -lcurses -L$(top_builddir)/src/libcw/.libs -lcw $(top_builddir)/src/cwutils/lib_cwcp.a
 
