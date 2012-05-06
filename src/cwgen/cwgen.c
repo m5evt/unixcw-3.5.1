@@ -228,11 +228,10 @@ print_help (const char *argv0)
 static void
 parse_command_line (int argc, char **argv)
 {
-  const char *argv0;
   int option;
   char *argument;
 
-  argv0 = program_basename (argv[0]);
+  const char *argv0 = cw_program_basename (argv[0]);
   while (get_option (argc, argv,
                      _("g:|groups,n:|groupsize,r:|repeat,x:|limit,c:|charset,"
                      "h|help,v|version"),
