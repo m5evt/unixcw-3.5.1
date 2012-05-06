@@ -17,24 +17,42 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef _CWDICTIONARY_H
-#define _CWDICTIONARY_H
+#ifndef H_CW_DICTIONARY
+#define H_CW_DICTIONARY
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-typedef struct dictionary_s dictionary;
 
-extern void dictionary_unload (void);
-extern int dictionary_load (const char *file);
-extern const dictionary *dictionary_iterate (const dictionary *dict);
-extern int dictionary_write (const char *file);
-extern const char *get_dictionary_description (const dictionary *dict);
-extern int get_dictionary_group_size (const dictionary *dict);
-extern const char *get_dictionary_random_word (const dictionary *dict);
+typedef struct cw_dictionary_s cw_dictionary_t;
+
+extern bool cw_dictionaries_read(const char *file);
+extern void cw_dictionaries_unload(void);
+extern bool cw_dictionaries_write(const char *file);
+
+extern const cw_dictionary_t *cw_dictionaries_iterate(const cw_dictionary_t *dict);
+
+extern const char *cw_dictionary_get_description(const cw_dictionary_t *dict);
+extern int         cw_dictionary_get_group_size(const cw_dictionary_t *dict);
+extern const char *cw_dictionary_get_random_word(const cw_dictionary_t *dict);
+
+
+
+/* Everything below is deprecated. */
+typedef struct cw_dictionary_s dictionary;
+
+extern int  dictionary_load(const char *file)  __attribute__ ((deprecated("Use cw_dictionaries_read()")));
+extern void dictionary_unload(void)            __attribute__ ((deprecated("Use cw_dictionaries_unload()")));
+extern int  dictionary_write(const char *file) __attribute__ ((deprecated("Use cw_dictionaries_write()")));
+
+extern const dictionary *dictionary_iterate(const dictionary *dict) __attribute__ ((deprecated("Use cw_dictionary_iterate()")));
+
+extern const char *get_dictionary_description(const dictionary *dict) __attribute__ ((deprecated("Use cw_dictionary_get_description()")));
+extern int         get_dictionary_group_size(const dictionary *dict)  __attribute__ ((deprecated("Use cw_dictionary_get_group_size()")));
+extern const char *get_dictionary_random_word(const dictionary *dict) __attribute__ ((deprecated("Use cw_dictionary_get_random_word()")));
 
 #if defined(__cplusplus)
 }
 #endif
-#endif  /* _CWDICTIONARY_H */
+#endif  /* H_CW_DICTIONARY */
