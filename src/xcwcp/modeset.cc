@@ -49,12 +49,12 @@ DictionaryMode::get_random_word_group () const
 {
   std::string random_group;
 
-  const int group_size = get_dictionary_group_size (dictionary_);
+  const int group_size = cw_dictionary_get_group_size (dictionary_);
   random_group.resize (group_size);
 
   for (int group = 0; group < group_size; group++)
     {
-      const char *element = get_dictionary_random_word (dictionary_);
+      const char *element = cw_dictionary_get_random_word (dictionary_);
       random_group += element;
     }
 
@@ -92,10 +92,10 @@ class ModeSetHelper {
 ModeSetHelper::ModeSetHelper ()
 {
   // Start the modes with the known dictionaries.
-  for (const dictionary *dict = dictionary_iterate (NULL);
-       dict; dict = dictionary_iterate (dict))
+  for (const cw_dictionary_t *dict = cw_dictionaries_iterate (NULL);
+       dict; dict = cw_dictionaries_iterate (dict))
     {
-      const std::string description = get_dictionary_description (dict);
+      const std::string description = cw_dictionary_get_description (dict);
       modes_.push_back (new DictionaryMode (description, dict));
     }
 

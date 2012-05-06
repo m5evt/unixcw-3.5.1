@@ -22,8 +22,9 @@
 #include <string>
 #include <vector>
 
+#include "dictionary.h"
 // Forward declaration of opaque dictionary.
-typedef struct dictionary_s dictionary;
+//typedef struct dictionary_s dictionary;
 
 
 //-----------------------------------------------------------------------
@@ -64,7 +65,7 @@ class Mode {
 
 class DictionaryMode : public Mode {
  public:
-  DictionaryMode (const std::string &description, const dictionary *dict)
+  DictionaryMode (const std::string &description, const cw_dictionary_t *dict)
     : Mode (description), dictionary_ (dict) { }
 
   std::string get_random_word_group () const;
@@ -72,7 +73,7 @@ class DictionaryMode : public Mode {
   virtual const DictionaryMode *is_dictionary () const;
 
  private:
-  const dictionary *dictionary_;  // Mode dictionary
+  const cw_dictionary_t *dictionary_;  // Mode dictionary
 
   // Prevent unwanted operations.
   DictionaryMode (const DictionaryMode &);
