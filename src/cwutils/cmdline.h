@@ -28,7 +28,7 @@ extern "C" {
 #endif
 
 
-extern const char *program_basename(const char *argv0);
+extern const char *cw_program_basename(const char *argv0);
 extern void combine_arguments(const char *env_variable,
 			      int argc, char *const argv[],
 			      int *new_argc, char **new_argv[]);
