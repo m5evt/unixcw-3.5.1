@@ -42,26 +42,34 @@
 #include "copyright.h"
 
 
-static int cw_process_option(int opt, const char *optarg, cw_config_t *config, const char *argv0);
-static void cw_print_usage(const char *argv0);
+static int cw_process_option(int opt, const char *optarg, cw_config_t *config);
+static void cw_print_usage(const char *program_name);
 
 
 /*---------------------------------------------------------------------*/
 /*  Command line helpers                                               */
 /*---------------------------------------------------------------------*/
 
-/*
- * program_basename()
- *
- * Return the program's base name from the given argv[0].
- */
-const char *
-program_basename (const char *argv0)
-{
-  const char *base;
 
-  base = strrchr (argv0, '/');
-  return base ? base + 1 : argv0;
+
+
+
+/**
+   \brief Return the program's base name from the given argv0
+
+   Function returns pointer to substring in argv[0], so I guess that the
+   pointer is owned by environment (?).
+   Since there is always some non-NULL argv[0], the function always returns
+   non-NULL pointer.
+
+   \param argv0 - first argument to the program, argv[0]
+
+   \return program's name
+*/
+const char *cw_program_basename(const char *argv0)
+{
+	const char *base = strrchr(argv0, '/');
+	return base ? base + 1 : argv0;
 }
 
 
@@ -277,10 +285,10 @@ get_optind (void)
 
 
 
-void cw_print_help(const char *argv0, cw_config_t *config)
+void cw_print_help(cw_config_t *config)
 {
 	/* int format = has_longopts() */
-	fprintf(stderr, _("Usage: %s [options...]\n"), argv0);
+	fprintf(stderr, _("Usage: %s [options...]\n"), config->program_name);
 
 	if (!has_longopts()) {
 		fprintf(stderr, _("Long format of options is not supported on your system\n\n"));
@@ -295,7 +303,7 @@ void cw_print_help(const char *argv0, cw_config_t *config)
 	fprintf(stderr, _("        'oss': use OSS output\n"));
 	fprintf(stderr, _("        'alsa' use ALSA output\n"));
 	fprintf(stderr, _("        'pulseaudio' use PulseAudio output\n"));
-	fprintf(stderr, _("        'soundcard': use either OSS or ALSA\n"));
+	fprintf(stderr, _("        'soundcard': use either PulseAudio, OSS or ALSA\n"));
 	fprintf(stderr, _("        default sound system: 'pulseaudio'->'oss'->'alsa'\n\n"));
 	fprintf(stderr, _("  -d, --device=DEVICE\n"));
 	fprintf(stderr, _("        use DEVICE as output device instead of default one;\n"));
@@ -360,20 +368,18 @@ void cw_print_help(const char *argv0, cw_config_t *config)
 
 int cw_process_argv(int argc, char *const argv[], const char *options, cw_config_t *config)
 {
-	const char *argv0 = program_basename(argv[0]);
-
 	int option;
 	char *argument;
 
 	while (get_option(argc, argv, options, &option, &argument)) {
-		if (!cw_process_option(option, argument, config, argv0)) {
+		if (!cw_process_option(option, argument, config)) {
 			return CW_FAILURE;
 		}
 	}
 
 	if (get_optind() != argc) {
-		fprintf(stderr, "libcw: expected argument after options\n");
-		cw_print_usage(argv0);
+		fprintf(stderr, "%s: expected argument after options\n", config->program_name);
+		cw_print_usage(config->program_name);
 		return CW_FAILURE;
 	} else {
 		return CW_SUCCESS;
@@ -384,7 +390,7 @@ int cw_process_argv(int argc, char *const argv[], const char *options, cw_config
 
 
 
-int cw_process_option(int opt, const char *optarg, cw_config_t *config, const char *argv0)
+int cw_process_option(int opt, const char *optarg, cw_config_t *config)
 {
 	switch (opt) {
 	case 's':
@@ -410,27 +416,27 @@ int cw_process_option(int opt, const char *optarg, cw_config_t *config, const ch
 
 			config->audio_system = CW_AUDIO_SOUNDCARD;
 		} else {
-			fprintf(stderr, "libcw: invalid audio system (option 's'): %s\n", optarg);
+			fprintf(stderr, "%s: invalid audio system (option 's'): %s\n", config->program_name, optarg);
 			return CW_FAILURE;
 		}
 		break;
 
 	case 'd':
-		// fprintf(stderr, "libcw: d:%s\n", optarg);
+		// fprintf(stderr, "%s: d:%s\n", config->program_name, optarg);
 		if (optarg && strlen(optarg)) {
 			config->audio_device = strdup(optarg);
 		} else {
-			fprintf(stderr, "libcw: no device specified for option -d\n");
+			fprintf(stderr, "%s: no device specified for option -d\n", config->program_name);
 			return CW_FAILURE;
 		}
 		break;
 
 	case 'w':
 		{
-			// fprintf(stderr, "libcw: w:%s\n", optarg);
+			// fprintf(stderr, "%s: w:%s\n", config->program_name, optarg);
 			int speed = atoi(optarg);
 			if (speed < CW_SPEED_MIN || speed > CW_SPEED_MAX) {
-				fprintf(stderr, "libcw: speed out of range: %d\n", speed);
+				fprintf(stderr, "%s: speed out of range: %d\n", config->program_name, speed);
 				return CW_FAILURE;
 			} else {
 				config->send_speed = speed;
@@ -440,10 +446,10 @@ int cw_process_option(int opt, const char *optarg, cw_config_t *config, const ch
 
 	case 't':
 		{
-			// fprintf(stderr, "libcw: t:%s\n", optarg);
+			// fprintf(stderr, "%s: t:%s\n", config->program_name, optarg);
 			int frequency = atoi(optarg);
 			if (frequency < CW_FREQUENCY_MIN || frequency > CW_FREQUENCY_MAX) {
-				fprintf(stderr, "libcw: frequency out of range: %d\n", frequency);
+				fprintf(stderr, "%s: frequency out of range: %d\n", config->program_name, frequency);
 				return CW_FAILURE;
 			} else {
 				config->frequency = frequency;
@@ -453,10 +459,10 @@ int cw_process_option(int opt, const char *optarg, cw_config_t *config, const ch
 
 	case 'v':
 		{
-			// fprintf(stderr, "libcw: v:%s\n", optarg);
+			// fprintf(stderr, "%s: v:%s\n", config->program_name, optarg);
 			int volume = atoi(optarg);
 			if (volume < CW_VOLUME_MIN || volume > CW_VOLUME_MAX) {
-				fprintf(stderr, "libcw: volume level out of range: %d\n", volume);
+				fprintf(stderr, "%s: volume level out of range: %d\n", config->program_name, volume);
 				return CW_FAILURE;
 			} else {
 				config->volume = volume;
@@ -466,10 +472,10 @@ int cw_process_option(int opt, const char *optarg, cw_config_t *config, const ch
 
 	case 'g':
 		{
-			// fprintf(stderr, "libcw: g:%s\n", optarg);
+			// fprintf(stderr, "%s: g:%s\n", config->program_name, optarg);
 			int gap = atoi(optarg);
 			if (gap < CW_GAP_MIN || gap > CW_GAP_MAX) {
-				fprintf(stderr, "libcw: gap out of range: %d\n", gap);
+				fprintf(stderr, "%s: gap out of range: %d\n", config->program_name, gap);
 				return CW_FAILURE;
 			} else {
 				config->gap = gap;
@@ -479,10 +485,10 @@ int cw_process_option(int opt, const char *optarg, cw_config_t *config, const ch
 
 	case 'k':
 		{
-			// fprintf(stderr, "libcw: k:%s\n", optarg);
+			// fprintf(stderr, "%s: k:%s\n", config->program_name, optarg);
 			int weighting = atoi(optarg);
 			if (weighting < CW_WEIGHTING_MIN || weighting > CW_WEIGHTING_MAX) {
-				fprintf(stderr, "libcw: weighting out of range: %d\n", weighting);
+				fprintf(stderr, "%s: weighting out of range: %d\n", config->program_name, weighting);
 				return CW_FAILURE;
 			} else {
 				config->weighting = weighting;
@@ -492,10 +498,10 @@ int cw_process_option(int opt, const char *optarg, cw_config_t *config, const ch
 
 	case 'T':
 		{
-			// fprintf(stderr, "libcw: T:%s\n", optarg);
+			// fprintf(stderr, "%s: T:%s\n", config->program_name, optarg);
 			int time = atoi(optarg);
 			if (time < 0) {
-				fprintf(stderr, "libcw: practice time is negative\n");
+				fprintf(stderr, "%s: practice time is negative\n", config->program_name);
 				return CW_FAILURE;
 			} else {
 				config->practice_time = time;
@@ -507,7 +513,7 @@ int cw_process_option(int opt, const char *optarg, cw_config_t *config, const ch
 		if (optarg && strlen(optarg)) {
 			config->input_file = strdup(optarg);
 		} else {
-			fprintf(stderr, "libcw: no input file specified for option -f\n");
+			fprintf(stderr, "%s: no input file specified for option -f\n", config->program_name);
 			return CW_FAILURE;
 		}
 		/* TODO: access() */
@@ -517,7 +523,7 @@ int cw_process_option(int opt, const char *optarg, cw_config_t *config, const ch
 		if (optarg && strlen(optarg)) {
 			config->output_file = strdup(optarg);
 		} else {
-			fprintf(stderr, "libcw: no output file specified for option -F\n");
+			fprintf(stderr, "%s: no output file specified for option -F\n", config->program_name);
 			return CW_FAILURE;
 		}
 		/* TODO: access() */
@@ -544,16 +550,15 @@ int cw_process_option(int opt, const char *optarg, cw_config_t *config, const ch
 		break;
 
 	case 'h':
-		cw_print_help(argv0, config);
+		cw_print_help(config);
 		exit(EXIT_SUCCESS);
-
 	case 'V':
-		fprintf(stderr, _("%s version %s\n"), argv0, PACKAGE_VERSION);
+		fprintf(stderr, _("%s version %s\n"), config->program_name, PACKAGE_VERSION);
 		fprintf(stderr, "%s\n", CW_COPYRIGHT);
 		exit(EXIT_SUCCESS);
 	case '?':
 	default: /* '?' */
-		cw_print_usage(argv0);
+		cw_print_usage(config->program_name);
 		return CW_FAILURE;
 	}
 
@@ -563,13 +568,13 @@ int cw_process_option(int opt, const char *optarg, cw_config_t *config, const ch
 
 
 
-void cw_print_usage(const char *argv0)
+void cw_print_usage(const char *program_name)
 {
 	const char *format = has_longopts()
 		? _("Try '%s --help' for more information.\n")
 		: _("Try '%s -h' for more information.\n");
 
-	fprintf(stderr, format, argv0);
+	fprintf(stderr, format, program_name);
 	return;
 }
 
