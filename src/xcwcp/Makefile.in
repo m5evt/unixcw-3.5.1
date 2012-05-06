@@ -250,6 +250,10 @@ EXTRA_DIST = xcwcp.1 \
 	icons/icon_start.xpm \
 	icons/icon_stop.xpm
 
+
+# CLEANFILES extends list of files that need to be removed when
+# calling "make clean"
+CLEANFILES = moc_application.cc
 all: all-am
 
 .SUFFIXES:
@@ -603,6 +607,7 @@ install-strip:
 mostlyclean-generic:
 
 clean-generic:
+	-test -z "$(CLEANFILES)" || rm -f $(CLEANFILES)
 
 distclean-generic:
 	-test -z "$(CONFIG_CLEAN_FILES)" || rm -f $(CONFIG_CLEAN_FILES)

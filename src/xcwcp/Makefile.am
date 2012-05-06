@@ -51,6 +51,12 @@ EXTRA_DIST = xcwcp.1 \
 
 
 
+# CLEANFILES extends list of files that need to be removed when
+# calling "make clean"
+CLEANFILES = moc_application.cc
+
+
+
 # Qt4 magic
 moc_application.cc: application.h
 	$(AC_QT4MOC) $< -o $@
