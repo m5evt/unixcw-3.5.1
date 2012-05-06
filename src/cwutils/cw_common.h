@@ -18,12 +18,16 @@
  */
 
 
-#ifndef _CW_COMMON_H
-#define _CW_COMMON_H
+#ifndef H_CW_COMMON
+#define H_CW_COMMON
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
+
+
+#include <stdbool.h>
+
 
 #define CW_PRACTICE_TIME_MIN        1
 #define CW_PRACTICE_TIME_MAX       99
@@ -32,6 +36,7 @@ extern "C" {
 
 
 typedef struct {
+	char *program_name;
 	int audio_system;
 	char *audio_device;
 	int send_speed;
@@ -65,11 +70,14 @@ typedef struct {
 
 
 
-extern void cw_print_help(const char *program_name, cw_config_t *config);
-extern cw_config_t *cw_config_new(void);
-extern void cw_config_delete(cw_config_t **config);
-extern int cw_config_is_valid(cw_config_t *config);
-extern int cw_generator_new_from_config(cw_config_t *config, const char *argv0);
+extern void cw_print_help(cw_config_t *config);
+
+extern cw_config_t *cw_config_new(const char *program_name);
+extern void         cw_config_delete(cw_config_t **config);
+extern int          cw_config_is_valid(cw_config_t *config);
+
+extern int cw_generator_new_from_config(cw_config_t *config);
+
 extern void cw_start_beep(void);
 extern void cw_end_beep(void);
 
@@ -80,5 +88,5 @@ extern void cw_end_beep(void);
 #endif
 
 
-#endif /* _CW_COMMON_H */
+#endif /* H_CW_COMMON */
 
