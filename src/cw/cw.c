@@ -48,8 +48,6 @@
 /*  Module variables, miscellaneous other stuff                        */
 /*---------------------------------------------------------------------*/
 
-/* Assorted definitions and constants. */
-enum { FALSE = 0, TRUE = !FALSE };
 
 /* Forward declarations for printf-like functions with checkable arguments. */
 #if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ >= 95)
@@ -61,29 +59,18 @@ static void write_to_cw_sender (const char *format, ...)
     __attribute__ ((__format__ (__printf__, 1, 2)));
 #endif
 
-/*
- * Program-specific state variables, settable from the command line, or from
- * embedded input stream commands.  These options may be set by the embedded
- * command parser to values other than strictly TRUE or FALSE; all non-zero
- * values are equivalent to TRUE.
- */
-#if 0
-static int do_echo = TRUE,          /* Echo characters */
-           do_errors = TRUE,        /* Print error messages to stderr */
-           do_commands = TRUE,      /* Execute embedded commands */
-           do_combinations = TRUE,  /* Execute [...] combinations */
-           do_comments = TRUE;      /* Allow {...} as comments */
-#endif
 
-static cw_config_t *config = NULL;
+
+static cw_config_t *config = NULL; /* program-specific configuration */
+static bool generator = false;     /* have we created a generator? */
 static const char *all_options = "s:|system,d:|device,"
 	"w:|wpm,t:|tone,v:|volume,"
 	"g:|gap,k:|weighting,"
 	"f:|infile,"
 	"e|noecho,m|nomessages,c|nocommands,o|nocombinations,p|nocomments,"
 	"h|help,V|version";
-static const char *argv0 = NULL;
 
+static void cw_atexit(void);
 
 
 /*---------------------------------------------------------------------*/
@@ -515,7 +502,7 @@ parse_stream (FILE *stream)
           else if (config->do_commands && c == CW_CMD_ESCAPE)
             parse_stream_command (stream);
           else
-            send_cw_character (c, FALSE);
+            send_cw_character (c, false);
           break;
 
         case COMBINATION:
@@ -570,14 +557,15 @@ parse_stream (FILE *stream)
 
 
 
-/*
- * main()
- *
- * Parse command line args, then produce CW output until end of file.
- */
+/**
+   \brief Parse command line args, then produce CW output until end of file
+
+   \param argc
+   \param argv
+*/
 int main (int argc, char *const argv[])
 {
-	argv0 = program_basename(argv[0]);
+	atexit(cw_atexit);
 
 	/* Set locale and message catalogs. */
 	i18n_initialize();
@@ -587,40 +575,40 @@ int main (int argc, char *const argv[])
 	char **combined_argv;
 	combine_arguments("CW_OPTIONS", argc, argv, &combined_argc, &combined_argv);
 
-	config = cw_config_new();
+	config = cw_config_new(cw_program_basename(argv[0]));
 	if (!config) {
 		return EXIT_FAILURE;
 	}
 	config->is_cw = 1;
 
 	if (!cw_process_argv(argc, argv, all_options, config)) {
-		fprintf(stderr, _("%s: failed to parse command line args\n"), argv0);
+		fprintf(stderr, _("%s: failed to parse command line args\n"), config->program_name);
 		return EXIT_FAILURE;
 	}
 	if (!cw_config_is_valid(config)) {
-		fprintf(stderr, _("%s: inconsistent arguments\n"), argv0);
+		fprintf(stderr, _("%s: inconsistent command line arguments\n"), config->program_name);
 		return EXIT_FAILURE;
 	}
 
 	if (config->input_file) {
 		if (!freopen(config->input_file, "r", stdin)) {
-			fprintf(stderr, _("%s: %s\n"), argv0, strerror(errno));
-			fprintf(stderr, _("%s: error opening input file %s\n"), argv0, config->input_file);
+			fprintf(stderr, _("%s: %s\n"), config->program_name, strerror(errno));
+			fprintf(stderr, _("%s: error opening input file %s\n"), config->program_name, config->input_file);
 			return EXIT_FAILURE;
 		}
 	}
 
-	if (!cw_generator_new_from_config(config, argv0)) {
-		//fprintf(stderr, "%s: failed to create generator with device '%s'\n", argv0, config->audio_device);
+	generator = cw_generator_new_from_config(config);
+	if (!generator) {
+		//fprintf(stderr, "%s: failed to create generator with device '%s'\n", config->program_name, config->audio_device);
 		return EXIT_FAILURE;
 	}
 
 	/* Set up signal handlers to exit on a range of signals. */
-	int index;
 	static const int SIGNALS[] = { SIGHUP, SIGINT, SIGQUIT, SIGPIPE, SIGTERM, 0 };
-	for (index = 0; SIGNALS[index] != 0; index++) {
-		if (!cw_register_signal_handler(SIGNALS[index], SIG_DFL)) {
-			fprintf(stderr, _("%s: can't register signal: %s\n"), argv0, strerror(errno));
+	for (int i = 0; SIGNALS[i]; i++) {
+		if (!cw_register_signal_handler(SIGNALS[i], SIG_DFL)) {
+			fprintf(stderr, _("%s: can't register signal: %s\n"), config->program_name, strerror(errno));
 			return EXIT_FAILURE;
 		}
 	}
@@ -638,7 +626,22 @@ int main (int argc, char *const argv[])
 	cw_generator_stop();
 	cw_generator_delete();
 
-	cw_config_delete(&config);
-
 	return EXIT_SUCCESS;
 }
+
+
+
+
+
+void cw_atexit(void)
+{
+	if (generator) {
+		cw_generator_delete();
+	}
+	if (config) {
+		cw_config_delete(&config);
+	}
+
+	return;
+}
+
