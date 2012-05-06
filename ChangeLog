@@ -1,3 +1,8 @@
+2012-05-06 Kamil Ignacak
+	* cwcp/user interface: fixing small bug in code: till now modifying
+	practice time didn't work correctly, any attempts to do so resulted
+	in resetting the time to zero. Now this is fixed.
+
 2012-05-01 Kamil Ignacak
 	* libcw/experimental code: removed code that was disabled when
 	CW_DEV_EXPERIMENTAL_WRITE was set to 1.
