@@ -45,17 +45,11 @@
 #include "dictionary.h"
 
 
-//-----------------------------------------------------------------------
-//  Command line mechanics
-//-----------------------------------------------------------------------
+void xcwcp_atexit(void);
 
 namespace {
-/*
-bool is_console = false, is_soundcard = true, is_alsa = false;
-std::string console_device, soundcard_device;
-*/
-cw_config_t *config = NULL;
-std::string argv0;
+cw_config_t *config = NULL; /* program-specific configuration */
+bool generator = false;     /* have we created a generator? */
 std::string all_options = "s:|sound,d:|device,"
 	"w:|wpm,t:|tone,v:|volume,"
 	"g:|gap,k:|weighting,"
@@ -65,29 +59,37 @@ std::string all_options = "s:|sound,d:|device,"
 
 
 
-// signal_handler()
-//
-// Signal handler, called by the CW library after its own cleanup.
-void
-signal_handler (int signal_number)
+
+
+
+
+/**
+   \brief Signal handler, called by the CW library after its own cleanup
+
+   \param signal_number
+*/
+void signal_handler(int signal_number)
 {
-  std::clog << _("Caught signal ") << signal_number
-            << _(", exiting...") << std::endl;
-  exit (EXIT_SUCCESS);
+	std::clog << _("Caught signal ") << signal_number
+		  << _(", exiting...") << std::endl;
+	exit(EXIT_SUCCESS);
 }
 
 
 }  // namespace
 
 
-// main()
-//
-// Parse the command line, initialize a few things, then instantiate the
-// Application and wait.
+
+
+
+/**
+   Parse the command line, initialize a few things, then instantiate the
+   Application and wait.
+*/
 int main(int argc, char **argv)
 {
 	try {
-	    	argv0 = program_basename(argv[0]);
+		atexit(xcwcp_atexit);
 
 		/* Set locale and message catalogs. */
 		i18n_initialize();
@@ -100,11 +102,11 @@ int main(int argc, char **argv)
 		// Parse combined environment and command line arguments.  Arguments
 		// are passed to QApplication() first to allow it to extract any Qt
 		// or X11 options.
-		combine_arguments(_("XCWCP_OPTIONS"), argc, argv, &combined_argc, &combined_argv);
+		combine_arguments("XCWCP_OPTIONS", argc, argv, &combined_argc, &combined_argv);
 
 		QApplication q_application (combined_argc, combined_argv);
 
-		config = cw_config_new();
+		config = cw_config_new(cw_program_basename(argv[0]));
 		if (!config) {
 			return EXIT_FAILURE;
 		}
@@ -112,32 +114,33 @@ int main(int argc, char **argv)
 		config->has_infile = false;
 
 		if (!cw_process_argv(argc, argv, all_options.c_str(), config)) {
-			fprintf(stderr, _("%s: failed to parse command line args\n"), argv0.c_str());
+			fprintf(stderr, _("%s: failed to parse command line args\n"), config->program_name);
 			return EXIT_FAILURE;
 		}
 		if (!cw_config_is_valid(config)) {
-			fprintf(stderr, _("%s: inconsistent arguments\n"), argv0.c_str());
+			fprintf(stderr, _("%s: inconsistent arguments\n"), config->program_name);
 			return EXIT_FAILURE;
 		}
 
 		if (config->input_file) {
-			if (!dictionary_load(config->input_file)) {
-				fprintf(stderr, _("%s: %s\n"), argv0.c_str(), strerror(errno));
-				fprintf(stderr, _("%s: can't load dictionary from input file %s\n"), argv0.c_str(), config->input_file);
+			if (!cw_dictionaries_read(config->input_file)) {
+				fprintf(stderr, _("%s: %s\n"), config->program_name, strerror(errno));
+				fprintf(stderr, _("%s: can't load dictionary from input file %s\n"), config->program_name, config->input_file);
 				return EXIT_FAILURE;
 			}
 		}
 
 		if (config->output_file) {
-			if (!dictionary_write(config->output_file)) {
-				fprintf(stderr, _("%s: %s\n"), argv0.c_str(), strerror(errno));
-				fprintf(stderr, _("%s: can't save dictionary to output file  %s\n"), argv0.c_str(), config->input_file);
+			if (!cw_dictionaries_write(config->output_file)) {
+				fprintf(stderr, _("%s: %s\n"), config->program_name, strerror(errno));
+				fprintf(stderr, _("%s: can't save dictionary to output file  %s\n"), config->program_name, config->input_file);
 				return EXIT_FAILURE;
 			}
 		}
 
-		if (!cw_generator_new_from_config(config, argv0.c_str())) {
-			fprintf(stderr, "%s: failed to create generator\n", argv0.c_str());
+		generator = cw_generator_new_from_config(config);
+		if (!generator) {
+			fprintf(stderr, "%s: failed to create generator\n", config->program_name);
 			return EXIT_FAILURE;
 		}
 
@@ -147,12 +150,12 @@ int main(int argc, char **argv)
 		struct sigaction action;
 		action.sa_handler = signal_handler;
 		action.sa_flags = 0;
-		sigemptyset (&action.sa_mask);
+		sigemptyset(&action.sa_mask);
 		static const int SIGNALS[] = { SIGHUP, SIGINT, SIGQUIT, SIGPIPE, SIGTERM, 0 };
-		for (int index = 0; SIGNALS[index] != 0; index++) {
-			if (!cw_register_signal_handler(SIGNALS[index], signal_handler)) {
-				perror("cw_register_signal_handler");
-				abort();
+		for (int i = 0; SIGNALS[i]; i++) {
+			if (!cw_register_signal_handler(SIGNALS[i], signal_handler)) {
+				perror("cw_register_signal_handler()");
+				return EXIT_FAILURE;
 			}
 		}
 
@@ -168,6 +171,7 @@ int main(int argc, char **argv)
 
 		cw_generator_stop();
 		cw_generator_delete();
+
 		return rv;
 	}
 
@@ -181,3 +185,20 @@ int main(int argc, char **argv)
 		return EXIT_FAILURE;
 	}
 }
+
+
+
+
+
+void xcwcp_atexit(void)
+{
+	if (generator) {
+		cw_generator_delete();
+	}
+	if (config) {
+		cw_config_delete(&config);
+	}
+
+	return;
+}
+
