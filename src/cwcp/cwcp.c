@@ -53,11 +53,12 @@
 /*---------------------------------------------------------------------*/
 
 /* Flag set if colors are requested on the user interface. */
-static int do_colors = TRUE;
+static bool do_colors = true;
 
 /* Curses windows used globally. */
 static WINDOW *text_box, *text_display, *timer_display;
-
+static cw_config_t *config = NULL; /* program-specific configuration */
+static bool generator = false;     /* have we created a generator? */
 static const char *all_options = "s:|system,d:|device,"
 	"w:|wpm,t:|tone,v:|volume,"
 	"g:|gap,k:|weighting,"
@@ -65,7 +66,14 @@ static const char *all_options = "s:|system,d:|device,"
 	"T:|time,"
 	/* "c:|colours,c:|colors,m|mono," */
 	"h|help,V|version";
-static cw_config_t *config;
+
+static void cwcp_atexit(void);
+
+static int  timer_get_total_practice_time(void);
+static bool timer_set_total_practice_time(int practice_time);
+static void timer_start(void);
+static bool is_timer_expired(void);
+static void timer_display_update(int elapsed, int total);
 
 /*---------------------------------------------------------------------*/
 /*  Circular character queue                                           */
@@ -84,24 +92,9 @@ static volatile int queue_tail = 0,
  * There are times where we have no data to send.  For these cases, record
  * as idle, so that we know when to wake the sender.
  */
-static volatile int is_queue_idle = TRUE;
+static volatile bool is_queue_idle = true;
 
 
-/* variables storing values of some command line arguments */
-static const char *argv0 = NULL;
-
-
-static int timer_get_practice_time(void);
-static int timer_set_practice_time(int practice_time);
-
-/*
-static int is_console = FALSE;
-static int is_soundcard = TRUE;
-static int is_alsa = FALSE;
-static char *console_device = NULL;
-static char *soundcard_device = NULL;
-static char *mixer_device = NULL;
-*/
 
 
 /*
@@ -154,7 +147,8 @@ queue_display_add_character (void)
 static void
 queue_display_delete_character (void)
 {
-  int y, x, max_y, max_x;
+  int y, x, max_x;
+  __attribute__((unused)) int max_y;
 
   /* Get the text display dimensions and current coordinates. */
   getmaxyx (text_display, max_y, max_x);
@@ -181,7 +175,8 @@ queue_display_delete_character (void)
 static void
 queue_display_highlight_character (int is_highlight)
 {
-  int y, x, max_y, max_x;
+  int y, x, max_x;
+  __attribute__((unused)) int max_y;
 
   /* Get the text display dimensions and current coordinates. */
   getmaxyx (text_display, max_y, max_x);
@@ -224,9 +219,9 @@ queue_discard_contents (void)
 {
   if (!is_queue_idle)
     {
-      queue_display_highlight_character (FALSE);
+      queue_display_highlight_character (false);
       queue_head = queue_tail;
-      is_queue_idle = TRUE;
+      is_queue_idle = true;
     }
 }
 
@@ -244,7 +239,7 @@ queue_dequeue_character (void)
   if (!is_queue_idle)
     {
       /* Unhighlight any previous highlighting, and see if we can dequeue. */
-      queue_display_highlight_character (FALSE);
+      queue_display_highlight_character (false);
       if (queue_get_length () > 0)
         {
           char c;
@@ -256,7 +251,7 @@ queue_dequeue_character (void)
            */
           queue_head = queue_next_index (queue_head);
           c = queue_data[queue_head];
-          queue_display_highlight_character (TRUE);
+          queue_display_highlight_character (true);
 
           if (!cw_send_character (c))
             {
@@ -265,7 +260,7 @@ queue_dequeue_character (void)
             }
         }
       else
-        is_queue_idle = TRUE;
+        is_queue_idle = true;
     }
 }
 
@@ -281,14 +276,12 @@ queue_dequeue_character (void)
 static void
 queue_enqueue_string (const char *word)
 {
-  int is_queue_notify, index;
-
-  is_queue_notify = FALSE;
-  for (index = 0; word[index] != '\0'; index++)
+  bool is_queue_notify = false;
+  for (int i = 0; word[i] != '\0'; i++)
     {
       char c;
 
-      c = toupper (word[index]);
+      c = toupper (word[i]);
       if (cw_check_character (c))
         {
           /*
@@ -302,14 +295,14 @@ queue_enqueue_string (const char *word)
               queue_display_add_character ();
 
               if (is_queue_idle)
-                is_queue_notify = TRUE;
+                is_queue_notify = true;
             }
         }
     }
 
   /* If we queued any character, mark the queue as not idle. */
   if (is_queue_notify)
-    is_queue_idle = FALSE;
+    is_queue_idle = false;
 }
 
 static void
@@ -342,77 +335,119 @@ queue_delete_character (void)
 }
 
 
+
+
+
 /*---------------------------------------------------------------------*/
 /*  Practice timer                                                     */
 /*---------------------------------------------------------------------*/
 
-/* Practice timer limits, timer, and time() value on practice start. */
-static const int TIMER_MIN_TIME = 1, TIMER_MAX_TIME = 99;
-static int timer_practice_time = 15,
-           timer_practice_start = 0;
+static const int TIMER_MIN_TIME = 1, TIMER_MAX_TIME = 99; /* practice timer limits */
+static int timer_total_practice_time = 15; /* total time of practice, from beginning to end */
+static int timer_practice_start = 0;       /* time() value on practice start */
 
 
-/*
- * timer_get_practice_time()
- * timer_set_practice_time()
- * timer_get_practice_time_limits()
- *
- * Accessor, mutator, and limit function for mode practice timer.
- */
-static int
-timer_get_practice_time (void)
+
+
+
+/**
+   \brief Get current value of total time of practice
+*/
+int timer_get_total_practice_time(void)
 {
-  return timer_practice_time;
-}
-
-static int
-timer_set_practice_time (int practice_time)
-{
-  if (practice_time >= TIMER_MIN_TIME && practice_time <= TIMER_MAX_TIME)
-    {
-      timer_practice_time = practice_time;
-      return TRUE;
-    }
-
-  return FALSE;
+	return timer_total_practice_time;
 }
 
 
 
 
 
-/*
- * timer_start()
- *
- * Set the timer practice start time to the current time.
- */
-static void
-timer_start (void)
+/**
+   \brief Set total practice time
+
+   Set total time (total duration) of practice.
+
+   \param practice_time - new value of total practice time
+
+   \return true on success
+   \return false on failure
+*/
+bool timer_set_total_practice_time(int practice_time)
 {
-  timer_practice_start = time (NULL);
+	if (practice_time >= TIMER_MIN_TIME && practice_time <= TIMER_MAX_TIME) {
+		timer_total_practice_time = practice_time;
+		return true;
+	} else {
+		return false;
+	}
 }
 
 
-/*
- * is_timer_expired()
- *
- * Update the practice timer, and return TRUE if the timer expires.
- */
-static int
-is_timer_expired (void)
+
+
+
+/**
+   \brief Set the timer practice start time to the current time
+*/
+void timer_start(void)
 {
-  char buffer[16];
-  int minutes;
-
-  /* Update the display of minutes practiced. */
-  minutes = (time (NULL) - timer_practice_start) / 60;
-  sprintf (buffer, "%2d", minutes);
-  mvwaddstr (timer_display, 0, 2, buffer);
-  wrefresh (timer_display);
-
-  /* Check the time, requesting stop if over practice time. */
-  return minutes >= timer_practice_time;
+	timer_practice_start = time(NULL);
+	return;
 }
+
+
+
+
+
+/**
+   \brief Update the practice timer, and return true if the timer expires
+
+   \return true if timer has expired
+   \return false if timer has not expired yet
+*/
+bool is_timer_expired(void)
+{
+	/* Update the display of minutes practiced. */
+	int elapsed = (time(NULL) - timer_practice_start) / 60;
+	timer_display_update(elapsed, timer_total_practice_time);
+
+	/* Check the time, requesting stop if over practice time. */
+	return elapsed >= timer_total_practice_time;
+}
+
+
+
+
+
+/**
+   \brief Update value of time spent on practicing
+
+   Function updates 'timer display' with one or two values of practice
+   time: time elapsed and time total. Both times are in minutes.
+
+   You can pass a negative value of \p elapsed - function will use
+   previous valid value (which is zero at first time).
+
+   \param elapsed - time elapsed from beginning of practice
+   \param total - total time of practice
+*/
+void timer_display_update(int elapsed, int total)
+{
+	static int el = 0;
+	if (elapsed >= 0) {
+		el = elapsed;
+	}
+
+	char buffer[16];
+	sprintf (buffer, total == 1 ? _("%2d/%2d min ") : _("%2d/%2d mins"), el, total);
+	mvwaddstr(timer_display, 0, 2, buffer);
+	wrefresh(timer_display);
+
+	return;
+}
+
+
+
 
 
 /*---------------------------------------------------------------------*/
@@ -426,9 +461,9 @@ is_timer_expired (void)
 typedef enum { M_DICTIONARY, M_KEYBOARD, M_EXIT } mode_type_t;
 struct mode_s
 {
-  const char *description;  /* Text mode description */
-  mode_type_t type;         /* Mode type; dictionary, keyboard... */
-  const dictionary *dict;   /* Dictionary, if type is dictionary */
+  const char *description;       /* Text mode description */
+  mode_type_t type;              /* Mode type; dictionary, keyboard... */
+  const cw_dictionary_t *dict;   /* Dictionary, if type is dictionary */
 };
 typedef struct mode_s *moderef_t;
 
@@ -441,7 +476,7 @@ static moderef_t modes = NULL,
 static int modes_count = 0;
 
 /* Current sending state, active or idle. */
-static int is_sending_active = FALSE;
+static bool is_sending_active = false;
 
 
 /*
@@ -453,19 +488,16 @@ static int is_sending_active = FALSE;
 static void
 mode_initialize (void)
 {
-  int count;
-  const dictionary *dict;
-
   /* Dispose of any pre-existing modes -- unlikely. */
   free (modes);
   modes = NULL;
 
   /* Start the modes with the known dictionaries. */
-  count = 0;
-  for (dict = dictionary_iterate (NULL); dict; dict = dictionary_iterate (dict))
+  int count = 0;
+  for (const cw_dictionary_t *dict = cw_dictionaries_iterate(NULL); dict; dict = cw_dictionaries_iterate(dict))
     {
       modes = safe_realloc (modes, sizeof (*modes) * (count + 1));
-      modes[count].description = get_dictionary_description (dict);
+      modes[count].description = cw_dictionary_get_description (dict);
       modes[count].type = M_DICTIONARY;
       modes[count++].dict = dict;
     }
@@ -515,7 +547,7 @@ mode_get_description (int index)
   return modes[index].description;
 }
 
-static int
+static bool
 mode_current_is_type (mode_type_t type)
 {
   return current_mode->type == type;
@@ -526,31 +558,31 @@ mode_current_is_type (mode_type_t type)
  * mode_advance_current()
  * mode_regress_current()
  *
- * Advance and regress the current node, returning FALSE if at the limits.
+ * Advance and regress the current node, returning false if at the limits.
  */
-static int
+static bool
 mode_advance_current (void)
 {
   current_mode++;
   if (!current_mode->description)
     {
       current_mode--;
-      return FALSE;
+      return false;
     }
   else
-    return TRUE;
+    return true;
 }
 
-static int
+static bool
 mode_regress_current (void)
 {
   if (current_mode > modes)
     {
       current_mode--;
-      return TRUE;
+      return true;
     }
   else
-    return FALSE;
+    return false;
 }
 
 
@@ -569,7 +601,7 @@ change_state_to_active (void)
       cw_start_beep();
 
       /* Don't set sending_state until after the above warning has completed. */
-      is_sending_active = TRUE;
+      is_sending_active = true;
 
       mvwaddstr (text_box, 0, 1, _("Sending(F9 or Esc to exit)"));
       wnoutrefresh (text_box);
@@ -601,7 +633,7 @@ change_state_to_idle (void)
 {
   if (is_sending_active)
     {
-      is_sending_active = FALSE;
+      is_sending_active = false;
 
       box (text_box, 0, 0);
       mvwaddstr (text_box, 0, 1, _("Start(F9)"));
@@ -626,16 +658,12 @@ change_state_to_idle (void)
 static void
 mode_buffer_random_text (moderef_t mode)
 {
-  const dictionary *dict;
-  int group, group_size;
-
-  dict = mode->dict;
-  group_size = get_dictionary_group_size (dict);
+  int group_size = cw_dictionary_get_group_size (mode->dict);
 
   /* Select and buffer groupsize random wordlist elements. */
   queue_enqueue_character (' ');
-  for (group = 0; group < group_size; group++)
-    queue_enqueue_string (get_dictionary_random_word (dict));
+  for (int group = 0; group < group_size; group++)
+    queue_enqueue_string (cw_dictionary_get_random_word (mode->dict));
 }
 
 
@@ -684,9 +712,9 @@ mode_libcw_poll_sender (void)
 /*
  * mode_is_sending_active()
  *
- * Return TRUE if currently sending, false otherwise.
+ * Return true if currently sending, false otherwise.
  */
-static int
+static bool
 mode_is_sending_active (void)
 {
   return is_sending_active;
@@ -740,7 +768,7 @@ enum
 };
 
 /* User interface event loop running flag. */
-static int is_running = TRUE;
+static bool is_running = true;
 
 /* Color definitions. */
 static const short color_array[] = {
@@ -889,10 +917,9 @@ interface_init_panel (int lines, int columns, int begin_y, int begin_x,
 static void
 interface_initialize (void)
 {
-  static int is_initialized = FALSE;
+  static bool is_initialized = false;
 
-  char buffer[16];
-  int max_y, max_x, index, value;
+  int max_y, max_x;
 
   /* Create the over-arching screen window. */
   screen = interface_init_screen ();
@@ -901,13 +928,13 @@ interface_initialize (void)
   /* Create and box in the mode window. */
   interface_init_panel (max_y - 3, 20, 0, 0, _("Mode(F10v,F11^)"),
                         0, NULL, NULL, &mode_display);
-  for (index = 0; index < mode_get_count (); index++)
+  for (int i = 0; i < mode_get_count (); i++)
     {
-      if (index == mode_get_current ())
+      if (i == mode_get_current ())
         wattron (mode_display, A_REVERSE);
       else
         wattroff (mode_display, A_REVERSE);
-      mvwaddstr (mode_display, index, 0, mode_get_description (index));
+      mvwaddstr (mode_display, i, 0, mode_get_description (i));
     }
   wrefresh (mode_display);
 
@@ -919,13 +946,14 @@ interface_initialize (void)
     {
       waddstr (text_display, _(INTRODUCTION));
       waddstr (text_display, _(INTRODUCTION_CONTINUED));
-      is_initialized = TRUE;
+      is_initialized = true;
     }
   wrefresh (text_display);
-  idlok (text_display, TRUE);
-  immedok (text_display, TRUE);
-  scrollok (text_display, TRUE);
+  idlok (text_display, true);
+  immedok (text_display, true);
+  scrollok (text_display, true);
 
+  char buffer[16];
   /* Create the control feedback boxes. */
   sprintf (buffer, _("%2d WPM"), cw_get_send_speed ());
   interface_init_panel (3, 16, max_y - 3, 0, _("Speed(F1-,F2+)"),
@@ -939,23 +967,22 @@ interface_initialize (void)
   interface_init_panel (3, 16, max_y - 3, 32, _("Vol(F5-,F6+)"),
                         4, buffer, NULL, &volume_display);
 
-  value = cw_get_gap ();
+  int value = cw_get_gap ();
   sprintf (buffer, value == 1 ? _("%2d dot ") : _("%2d dots"), value);
   interface_init_panel (3, 16, max_y - 3, 48, _("Gap(F7-,F8+)"),
                         3, buffer, NULL, &gap_display);
 
-  value = timer_get_practice_time ();
-  sprintf (buffer, value == 1 ? _(" 0/%2d min ") : _(" 0/%2d mins"), value);
   interface_init_panel (3, 16, max_y - 3, 64, _("Time(Dn-,Up+)"),
-                        2, buffer, NULL, &timer_display);
+                        2, "", NULL, &timer_display);
+  timer_display_update(0, timer_get_total_practice_time());
 
   /* Set up curses input mode. */
-  keypad (screen, TRUE);
+  keypad (screen, true);
   noecho ();
   cbreak ();
   curs_set (0);
   raw ();
-  nodelay (screen, FALSE);
+  nodelay (screen, false);
 
   wrefresh (curscr);
 }
@@ -990,7 +1017,7 @@ interface_destroy (void)
  * interface_interpret()
  *
  * Assess a user command, and action it if valid.  If the command turned out
- * to be a valid user interface command, return TRUE, otherwise return FALSE.
+ * to be a valid user interface command, return true, otherwise return false.
  */
 static int
 interface_interpret (int c)
@@ -1002,7 +1029,7 @@ interface_interpret (int c)
   switch (c)
     {
     default:
-      return FALSE;
+      return false;
 
     case ']':
       display_background = (display_background + 1) % COLORS_COUNT;
@@ -1122,23 +1149,15 @@ interface_interpret (int c)
 
     case KEY_NPAGE:
     case PSEUDO_KEYNPAGE:
-      if (timer_set_practice_time (timer_get_practice_time () - CW_PRACTICE_TIME_STEP))
-        goto time_update;
+      if (timer_set_total_practice_time (timer_get_total_practice_time () - CW_PRACTICE_TIME_STEP))
+	timer_display_update(-1, timer_get_total_practice_time());
       break;
 
     case KEY_PPAGE:
     case PSEUDO_KEYPPAGE:
-      if (timer_set_practice_time (timer_get_practice_time () + CW_PRACTICE_TIME_STEP))
-        goto time_update;
+      if (timer_set_total_practice_time (timer_get_total_practice_time () + CW_PRACTICE_TIME_STEP))
+	timer_display_update(-1, timer_get_total_practice_time());
       break;
-
-    time_update:
-      value = cw_get_gap ();
-      sprintf (buffer, value == 1 ? _("%2d min ") : _("%2d mins"), value);
-      mvwaddstr (timer_display, 0, 5, buffer);
-      wrefresh (timer_display);
-      break;
-
 
     case KEY_F (11):
     case PSEUDO_KEYF11:
@@ -1174,7 +1193,7 @@ interface_interpret (int c)
     case PSEUDO_KEYF9:
     case '\n':
       if (mode_current_is_type (M_EXIT))
-        is_running = FALSE;
+        is_running = false;
       else
         {
           if (!mode_is_sending_active ())
@@ -1205,7 +1224,7 @@ interface_interpret (int c)
     case 'C' - CTRL_OFFSET:
       queue_discard_contents ();
       cw_flush_tone_queue ();
-      is_running = FALSE;
+      is_running = false;
       break;
 
     case KEY_RESIZE:
@@ -1216,7 +1235,7 @@ interface_interpret (int c)
     }
 
   /* The command was a recognized interface key. */
-  return TRUE;
+  return true;
 }
 
 
@@ -1325,7 +1344,7 @@ signal_handler (int signal_number)
  */
 int main(int argc, char **argv)
 {
-	argv0 = program_basename(argv[0]);
+	atexit(cwcp_atexit);
 
 	/* Set locale and message catalogs. */
 	i18n_initialize();
@@ -1337,51 +1356,51 @@ int main(int argc, char **argv)
 	/* Parse combined environment and command line arguments. */
 	combine_arguments(_("CWCP_OPTIONS"), argc, argv, &combined_argc, &combined_argv);
 
-	config = cw_config_new();
+	config = cw_config_new(cw_program_basename(argv[0]));
 	if (!config) {
-		return -1;
+		return EXIT_FAILURE;
 	}
-	config->has_practice_time = 1;
-	config->has_outfile = 1;
+	config->has_practice_time = true;
+	config->has_outfile = true;
 
 	if (!cw_process_argv(argc, argv, all_options, config)) {
-		fprintf(stderr, _("%s: failed to parse command line args\n"), argv0);
+		fprintf(stderr, _("%s: failed to parse command line args\n"), config->program_name);
 		return EXIT_FAILURE;
 	}
 	if (!cw_config_is_valid(config)) {
-		fprintf(stderr, _("%s: inconsistent arguments\n"), argv0);
+		fprintf(stderr, _("%s: inconsistent arguments\n"), config->program_name);
 		return EXIT_FAILURE;
 	}
 
 	if (config->input_file) {
-		if (!dictionary_load(config->input_file)) {
-			fprintf(stderr, _("%s: %s\n"), argv0, strerror(errno));
-			fprintf(stderr, _("%s: can't load dictionary from input file %s\n"), argv0, config->input_file);
+		if (!cw_dictionaries_read(config->input_file)) {
+			fprintf(stderr, _("%s: %s\n"), config->program_name, strerror(errno));
+			fprintf(stderr, _("%s: can't load dictionary from input file %s\n"), config->program_name, config->input_file);
 			return EXIT_FAILURE;
 		}
 	}
 
 	if (config->output_file) {
-		if (!dictionary_write(config->output_file)) {
-			fprintf(stderr, _("%s: %s\n"), argv0, strerror(errno));
-			fprintf(stderr, _("%s: can't save dictionary to output file  %s\n"), argv0, config->input_file);
+		if (!cw_dictionaries_write(config->output_file)) {
+			fprintf(stderr, _("%s: %s\n"), config->program_name, strerror(errno));
+			fprintf(stderr, _("%s: can't save dictionary to output file  %s\n"), config->program_name, config->input_file);
 			return EXIT_FAILURE;
 		}
 	}
 
-	if (!cw_generator_new_from_config(config, argv0)) {
-		fprintf(stderr, "%s: failed to create generator\n", argv0);
+	generator = cw_generator_new_from_config(config);
+	if (!generator) {
+		fprintf(stderr, "%s: failed to create generator\n", config->program_name);
 		return EXIT_FAILURE;
 	}
-	timer_set_practice_time(config->practice_time);
+	timer_set_total_practice_time(config->practice_time);
 
 
-	int index;
 	static const int SIGNALS[] = { SIGHUP, SIGINT, SIGQUIT, SIGPIPE, SIGTERM, 0 };
 	/* Set up signal handlers to clear up and exit on a range of signals. */
-	for (index = 0; SIGNALS[index] != 0; index++) {
-		if (!cw_register_signal_handler(SIGNALS[index], signal_handler)) {
-			fprintf(stderr, _("%s: can't register signal: %s\n"), argv0, strerror(errno));
+	for (int i = 0; SIGNALS[i]; i++) {
+		if (!cw_register_signal_handler(SIGNALS[i], signal_handler)) {
+			fprintf(stderr, _("%s: can't register signal: %s\n"), config->program_name, strerror(errno));
 			return EXIT_FAILURE;
 		}
 	}
@@ -1390,7 +1409,7 @@ int main(int argc, char **argv)
 	 * Build our table of modes from dictionaries, augmented with keyboard
 	 * and any other local modes.
 	 */
-	mode_initialize ();
+	mode_initialize();
 
 	/*
 	 * Initialize the curses user interface, then catch and action every
@@ -1412,7 +1431,23 @@ int main(int argc, char **argv)
 	/* Reset to ensure that the mixer volume gets restored. */
 	cw_complete_reset();
 	cw_generator_delete();
-	cw_config_delete(&config);
 
 	return EXIT_SUCCESS;
 }
+
+
+
+
+
+void cwcp_atexit(void)
+{
+	if (generator) {
+		cw_generator_delete();
+	}
+	if (config) {
+		cw_config_delete(&config);
+	}
+
+	return;
+}
+
