@@ -41,30 +41,95 @@
 #include "i18n.h"
 
 
+/**
+   cw dictionaries
+
+   Dictionary is a data structure containing list of "words", grouped
+   together for some specific purpose.
+
+   Every dictionary has a description (dictionary's label), and a list
+   of words that are the body of a dictionary. "words" is used loosely:
+   the words can be real, multi-character words, or just single letters.
+
+   Every dictionary has a 'group size' property, telling if words in
+   a dictionary are only single-character words, or multi-character words.
+
+   Dictionaries can be stored in a text file between two sessions of
+   a program.
+
+   Dictionaries stored in a memory are put on a linked list. There can
+   be only one such list at a time.
+
+   Description of a given dictionary is in first line in square brackets,
+   and in following line is a list of words. Words are separated by space
+   characters. Examples (yes, this looks like contents of .ini file):
+
+   [ Digits ]
+   1 2 3 4 5 6 7 8 9 0
+
+   [ A-K ]
+   A B C D E F G H I J K
+
+   [ My favourite nouns ]
+   coffee C vacation Linux
+
+   Comments in file are allowed (and skipped): lines starting with ';'
+   or '#' characters are considered to be comments.
+
+   Usually an application uses several dictionaries, and a file can also
+   store few dictionaries.
+
+   The module has its own, internal, default list of cw dictionaries.
+   If application doesn't read any dictionaries from text file, the
+   module loads its own dictionaries to memory on first call to
+   cw_dictionaries_iterate().
+
+   The module implements functions providing following functionality:
+   \li loading dictionaries from text file to memory,
+   \li removing dictionaries from memory,
+   \li writing current dictionaries from memory to text file,
+   \li iterating over list of dictionaries in memory,
+   \li getting description of a specified dictionary,
+   \li getting 'group size' information about given dictionary,
+   \li getting a random word from given dictionary.
+*/
+
+
+
+
+static void cw_dictionary_trim(char *buffer);
+static bool cw_dictionary_parse_is_comment(const char *line);
+static bool cw_dictionary_parse_is_section(const char *line, char **name_ptr);
+
+static cw_dictionary_t *cw_dictionaries_create_from_stream(FILE *stream, const char *file);
+static cw_dictionary_t *cw_dictionaries_create_default(void);
+
+
+
+
+
 /*---------------------------------------------------------------------*/
 /*  Dictionary data                                                    */
 /*---------------------------------------------------------------------*/
 
-enum { FALSE = 0, TRUE = !FALSE };
 enum { MAX_LINE = 8192 };
 
 /* Aggregate dictionary data into a structure. */
-struct dictionary_s
-{
-  const char *description;      /* Dictionary description */
-  const char *const *wordlist;  /* Dictionary word list */
-  int wordlist_length;          /* Length of word list */
-  int group_size;               /* Size of a group */
+struct cw_dictionary_s {
+	const char *description;      /* Dictionary description */
+	const char *const *wordlist;  /* Dictionary word list */
+	int wordlist_length;          /* Length of word list */
+	int group_size;               /* Size of a group */
 
-  void *mutable_description;    /* Freeable (aliased) description string */
-  void *mutable_wordlist;       /* Freeable (aliased) word list */
-  void *mutable_wordlist_data;  /* Freeable bulk word list data */
+	void *mutable_description;    /* Freeable (aliased) description string */
+	void *mutable_wordlist;       /* Freeable (aliased) word list */
+	void *mutable_wordlist_data;  /* Freeable bulk word list data */
 
-  dictionary *next;             /* List pointer */
+	dictionary *next;             /* List pointer */
 };
 
-/* Current loaded dictionaries list head. */
-static dictionary *dictionaries_head = NULL;
+/* Head of a list storing currently loaded dictionaries. */
+static cw_dictionary_t *dictionaries_head = NULL;
 
 
 /*---------------------------------------------------------------------*/
@@ -87,13 +152,10 @@ dictionary_new (dictionary *tail,
                 void *mutable_description, void *mutable_wordlist,
                 void *mutable_wordlist_data)
 {
-  dictionary *dict;
-  int words, is_multicharacter, word;
-
   /* Count words in the wordlist, and look for multicharacter entries. */
-  words = 0;
-  is_multicharacter = FALSE;
-  for (word = 0; wordlist[word]; word++)
+  int words = 0;
+  bool is_multicharacter = false;
+  for (int word = 0; wordlist[word]; word++)
     {
       is_multicharacter |= strlen (wordlist[word]) > 1;
       words++;
@@ -103,7 +165,7 @@ dictionary_new (dictionary *tail,
    * Create a new dictionary and fill in the main fields.  Group size is
    * set to one for multicharacter word lists, five otherwise.
    */
-  dict = safe_malloc (sizeof (*dict));
+  dictionary *dict = safe_malloc (sizeof (*dict));
   dict->description = description;
   dict->wordlist = wordlist;
   dict->wordlist_length = words;
@@ -139,42 +201,65 @@ dictionary_new_mutable (dictionary *tail,
 }
 
 
+
+
+
+/**
+   \brief Reset dictionaries state
+
+   Free any allocations from the current dictionaries list, and return
+   list of dictionaries to the initial state (i.e. empty).
+*/
+void cw_dictionaries_unload(void)
+{
+	cw_dictionary_t *next = NULL;
+
+	/* Free each dictionary in the list. */
+	for (cw_dictionary_t *entry = dictionaries_head; entry; entry = next) {
+
+		next = entry->next;
+
+		/* Free allocations held in the dictionary. */
+		free(entry->mutable_wordlist);
+		free(entry->mutable_description);
+		free(entry->mutable_wordlist_data);
+
+		/* Free the dictionary itself. */
+		free(entry);
+	}
+
+	dictionaries_head = NULL;
+
+	return;
+}
+
+
+
+
+
 /*
  * dictionary_unload()
  *
  * Free any allocations from the current dictionary, and return to the
  * initial state.
  */
-void
-dictionary_unload (void)
+void dictionary_unload(void)
 {
-  dictionary *entry, *next;
-
-  /* Free each dictionary in the list. */
-  for (entry = dictionaries_head; entry; entry = next)
-    {
-      next = entry->next;
-
-      /* Free allocations held in the dictionary. */
-      free (entry->mutable_wordlist);
-      free (entry->mutable_description);
-      free (entry->mutable_wordlist_data);
-
-      /* Free the dictionary itself. */
-      free (entry);
-    }
-
-  dictionaries_head = NULL;
+	cw_dictionaries_unload();
+	return;
 }
+
+
+
 
 
 /*
  * dictionary_getline()
  *
- * Helper function for dictionary_load().  Returns the next file line (or
- * FALSE if no more lines), stripped of any trailing nl/cr.
+ * Helper function for cw_dictionaries_read().  Returns the next file line (or
+ * false if no more lines), stripped of any trailing nl/cr.
  */
-static int
+static bool
 dictionary_getline (FILE *stream, char *buffer, int length, int *line_number)
 {
   if (!feof (stream) && fgets (buffer, length, stream))
@@ -186,46 +271,73 @@ dictionary_getline (FILE *stream, char *buffer, int length, int *line_number)
         buffer[--bytes] = '\0';
 
       *line_number += 1;
-      return TRUE;
+      return true;
     }
 
-  return FALSE;
+  return false;
 }
 
 
-/*
- * dictionary_is_parse_comment()
- * dictionary_is_parse_section()
- *
- * Parse helpers, categorize lines and return allocated fields if matched.
- */
-static int
-dictionary_is_parse_comment (const char *line)
+
+
+
+/**
+   \brief Parse a line, check if it is a line with comment
+
+   Function parses given \p line and checks if it looks like a comment.
+
+   A comment is a line starting with ';' or '#' char, or a line consisting
+   entirely of spaces and TAB characters
+
+   \param line - line to parse
+
+   \return true if line is a line with comment
+   \return false otherwise
+*/
+bool cw_dictionary_parse_is_comment(const char *line)
 {
-  size_t index;
-
-  index = strspn (line, " \t");
-  return index == strlen (line) || strchr (";#", line[0]);
+	size_t index = strspn(line, " \t");
+	return index == strlen(line) || strchr(";#", line[0]);
 }
 
-static int
-dictionary_is_parse_section (const char *line, char **name_ptr)
+
+
+
+
+/**
+   \brief Parse a line, check if it is section name
+
+   Function parses given \p line and checks if it looks like a name of
+   a section (a string in square brackets). If it is a section name,
+   then the function stores the name in \p name_ptr and returns true.
+   Otherwise it returns false.
+
+   On success the function allocates memory and sets *name_ptr pointer
+   to this memory.
+
+   \param line - line to parse
+   \param name_ptr - output, place for name of a section
+
+   \return true if line contains section name
+   \return false otherwise
+*/
+bool cw_dictionary_parse_is_section(const char *line, char **name_ptr)
 {
-  char *name, dummy;
-  int count;
+	char *name = safe_malloc(strlen(line) + 1);
 
-  name = safe_malloc (strlen (line) + 1);
+	char dummy;
+	int count = sscanf(line, " [ %[^]] ] %c", name, &dummy);
+	if (count == 1) {
+		*name_ptr = safe_realloc(name, strlen(name) + 1);
+		return true;
+	}
 
-  count = sscanf (line, " [ %[^]] ] %c", name, &dummy);
-  if (count == 1)
-    {
-      *name_ptr = safe_realloc (name, strlen (name) + 1);
-      return TRUE;
-    }
-
-  free (name);
-  return FALSE;
+	free(name);
+	return false;
 }
+
+
+
 
 
 /*
@@ -266,25 +378,36 @@ dictionary_build_wordlist (char *wordlist_data)
 }
 
 
-/*
- * dictionary_trim()
- *
- * Helper functions for dictionary_load().  Trims a line of all leading and
- * trailing whitespace.
- */
-static void
-dictionary_trim (char *buffer)
+
+
+
+/**
+   \brief Trim a line
+
+   Helper functions for cw_dictionaries_read().
+   Trims a line of all leading and trailing whitespace.
+   Trimming is done in-place, content of the \p buffer argument may
+   be modified.
+
+   \param buffer - buffer with string to trim
+*/
+void cw_dictionary_trim(char *buffer)
 {
-  int bytes, index;
+	size_t bytes = strlen(buffer);
+	while (bytes > 0 && isspace(buffer[bytes - 1])) {
+		buffer[--bytes] = '\0';
+	}
 
-  bytes = strlen (buffer);
-  while (bytes > 0 && isspace (buffer[bytes - 1]))
-    buffer[--bytes] = '\0';
+	size_t index = strspn(buffer, " \t");
+	if (index > 0) {
+		memmove(buffer, buffer + index, bytes - index + 1);
+	}
 
-  index = strspn (buffer, " \t");
-  if (index > 0)
-    memmove (buffer, buffer + index, bytes - index + 1);
+	return;
 }
+
+
+
 
 
 /*
@@ -321,174 +444,243 @@ dictionary_check_line (const char *line)
 }
 
 
-/*
- * dictionary_create_from_stream()
- *
- * Create a dictionary list from a stream.  Returns the list head on success,
- * NULL if loading fails.  The file format is expected to be ini-style.
- */
-static dictionary *
-dictionary_create_from_stream (FILE *stream, const char *file)
+
+
+
+/**
+   \brief Create a dictionary list from a stream
+
+   Load dictionaries from a \p stream into memory. The \p stream needs to
+   be already open for reading. \p file is a name of the stream, used in
+   error messages. \p stream should be open and closed by caller of the
+   function.
+
+   The file format is expected to be ini-style.
+
+   This is a lower level function, to be used by cw_dictionaries_read().
+
+   \param stream - stream to read data from
+   \param file - human-readable name of the stream
+
+   \return head of list of loaded dictionaries on success
+   \return NULL if loading fails.
+*/
+cw_dictionary_t *cw_dictionaries_create_from_stream(FILE *stream, const char *file)
 {
-  int line_number;
-  char *line, *name, *content;
-  const char **wordlist;
-  dictionary *head, *tail;
+	const char **wordlist;
 
-  /* Clear the variables used to accumulate stream data. */
-  line = safe_malloc (MAX_LINE);
-  line_number = 0;
-  name = content = NULL;
-  head = tail = NULL;
+	/* Clear the variables used to accumulate stream data. */
+	char *line = safe_malloc(MAX_LINE);
+	int line_number = 0;
+	char *name = NULL;
+	char *content = NULL;
+	dictionary *head = NULL;
+	dictionary *tail = NULL;
 
-  /* Parse input lines to create a new dictionary. */
-  while (dictionary_getline (stream, line, MAX_LINE, &line_number))
-    {
-      char *new_name;
+	/* Parse input lines to create a new dictionary. */
+	while (dictionary_getline(stream, line, MAX_LINE, &line_number)) {
+		char *new_name;
 
-      if (dictionary_is_parse_comment (line))
-        continue;
+		if (cw_dictionary_parse_is_comment(line)) {
+			continue;
+		} else if (cw_dictionary_parse_is_section(line, &new_name)) {
+			/* New section, so handle data accumulated so far.
+			   Or if no data accumulated, forget it. */
+			if (content) {
+				wordlist = dictionary_build_wordlist(content);
+				tail = dictionary_new_mutable(tail, name, wordlist, content);
+				head = head ? head : tail;
+			} else {
+				free(name);
+				name = NULL;
+			}
 
-      else if (dictionary_is_parse_section (line, &new_name))
-        {
-          /*
-           * New section, so handle data accumulated so far.  Or if no data
-           * accumulated, forget it.
-           */
-          if (content)
-            {
-              wordlist = dictionary_build_wordlist (content);
-              tail = dictionary_new_mutable (tail, name, wordlist, content);
-              head = head ? head : tail;
-            }
-          else
-            free (name);
+			/* Start new accumulation of words. */
+			cw_dictionary_trim(new_name);
+			name = new_name;
+			content = NULL;
+		} else if (name) {
+			/* Check the line for unsendable characters. */
+			char *errors = dictionary_check_line(line);
+			if (errors) {
+				fprintf(stderr, "%s:%d: unsendable character found:\n",
+					file, line_number);
+				fprintf(stderr, "%s\n%s\n", line, errors);
+				free(errors);
+			}
 
-          /* Start new accumulation of words. */
-          dictionary_trim (new_name);
-          name = new_name;
-          content = NULL;
-        }
+			/* Accumulate this line into the current content. */
+			cw_dictionary_trim(line);
+			if (content) {
+				content = safe_realloc(content,
+						       strlen(content) + strlen(line) + 2);
+				strcat(content, " ");
+				strcat(content, line);
+			} else {
+				content = safe_malloc(strlen(line) + 1);
+				strcpy(content, line);
+			}
+		} else {
+			fprintf(stderr,
+				"%s:%d: unrecognized line, expected [section] or commentary\n",
+				file, line_number);
+		}
+	}
 
-      else if (name)
-        {
-          char *errors;
+	/* Handle any final accumulated data. */
+	if (content) {
+		wordlist = dictionary_build_wordlist(content);
+		tail = dictionary_new_mutable(tail, name, wordlist, content);
+		head = head ? head : tail;
+	}
 
-          /* Check the line for unsendable characters. */
-          errors = dictionary_check_line (line);
-          if (errors)
-            {
-              fprintf (stderr, "%s:%d: unsendable character found:\n",
-                               file, line_number);
-              fprintf (stderr, "%s\n%s\n", line, errors);
-              free (errors);
-            }
+	if (!head) {
+		fprintf(stderr,
+			"%s:%d: no usable dictionary data found in the file\n",
+			file, line_number);
+	}
 
-          /* Accumulate this line into the current content. */
-          dictionary_trim (line);
-          if (content)
-            {
-              content = safe_realloc (content,
-                                      strlen (content) + strlen (line) + 2);
-              strcat (content, " ");
-              strcat (content, line);
-            }
-          else
-            {
-              content = safe_malloc (strlen (line) + 1);
-              strcpy (content, line);
-            }
-        }
+	free(line);
+	line = NULL;
 
-      else
-        fprintf (stderr, "%s:%d: unrecognized line, expected [section]"
-                         " or commentary\n", file, line_number);
-    }
-
-  /* Handle any final accumulated data. */
-  if (content)
-    {
-      wordlist = dictionary_build_wordlist (content);
-      tail = dictionary_new_mutable (tail, name, wordlist, content);
-      head = head ? head : tail;
-    }
-
-  if (!head)
-    fprintf (stderr, "%s:%d: no usable dictionary data found in"
-                     " the file\n", file, line_number);
-
-  free (line);
-  return head;
+	return head;
 }
 
 
-/*
- * dictionary_create_default()
- *
- * Create a dictionary list from internal data.  Returns the list head.
- */
-static dictionary *
-dictionary_create_default (void)
+
+
+
+/**
+   \brief Create list of default dictionaries
+
+   Create a dictionary list from internal data.
+
+   \return head of the list on success
+   \return NULL on failure
+*/
+cw_dictionary_t *cw_dictionaries_create_default(void)
 {
-  dictionary *head, *tail;
+	cw_dictionary_t *head = NULL, *tail = NULL;
 
-  head = dictionary_new_const (NULL, _("Letter Groups"), CW_ALPHABETIC);
-  tail = dictionary_new_const (head, _("Number Groups"), CW_NUMERIC);
-  tail = dictionary_new_const (tail, _("Alphanum Groups"), CW_ALPHANUMERIC);
-  tail = dictionary_new_const (tail, _("All Char Groups"), CW_ALL_CHARACTERS);
-  tail = dictionary_new_const (tail, _("English Words"), CW_SHORT_WORDS);
-  tail = dictionary_new_const (tail, _("CW Words"), CW_CW_WORDS);
-  tail = dictionary_new_const (tail, _("PARIS Calibrate"), CW_PARIS);
-  tail = dictionary_new_const (tail, _("EISH5 Groups"), CW_EISH5);
-  tail = dictionary_new_const (tail, _("TMO0 Groups"), CW_TMO0);
-  tail = dictionary_new_const (tail, _("AUV4 Groups"), CW_AUV4);
-  tail = dictionary_new_const (tail, _("NDB6 Groups"), CW_NDB6);
-  tail = dictionary_new_const (tail, _("KX=-RP Groups"), CW_KXffRP);
-  tail = dictionary_new_const (tail, _("FLYQC Groups"), CW_FLYQC);
-  tail = dictionary_new_const (tail, _("WJ1GZ Groups"), CW_WJ1GZ);
-  tail = dictionary_new_const (tail, _("23789 Groups"), CW_23789);
-  tail = dictionary_new_const (tail, _(",?.;)/ Groups"), CW_FIGURES_1);
-  tail = dictionary_new_const (tail, _("\"'$(+:_ Groups"), CW_FIGURES_2);
+	head = dictionary_new_const (NULL, _("Letter Groups"), CW_ALPHABETIC);
+	tail = dictionary_new_const (head, _("Number Groups"), CW_NUMERIC);
+	tail = dictionary_new_const (tail, _("Alphanum Groups"), CW_ALPHANUMERIC);
+	tail = dictionary_new_const (tail, _("All Char Groups"), CW_ALL_CHARACTERS);
+	tail = dictionary_new_const (tail, _("English Words"), CW_SHORT_WORDS);
+	tail = dictionary_new_const (tail, _("CW Words"), CW_CW_WORDS);
+	tail = dictionary_new_const (tail, _("PARIS Calibrate"), CW_PARIS);
+	tail = dictionary_new_const (tail, _("EISH5 Groups"), CW_EISH5);
+	tail = dictionary_new_const (tail, _("TMO0 Groups"), CW_TMO0);
+	tail = dictionary_new_const (tail, _("AUV4 Groups"), CW_AUV4);
+	tail = dictionary_new_const (tail, _("NDB6 Groups"), CW_NDB6);
+	tail = dictionary_new_const (tail, _("KX=-RP Groups"), CW_KXffRP);
+	tail = dictionary_new_const (tail, _("FLYQC Groups"), CW_FLYQC);
+	tail = dictionary_new_const (tail, _("WJ1GZ Groups"), CW_WJ1GZ);
+	tail = dictionary_new_const (tail, _("23789 Groups"), CW_23789);
+	tail = dictionary_new_const (tail, _(",?.;)/ Groups"), CW_FIGURES_1);
+	tail = dictionary_new_const (tail, _("\"'$(+:_ Groups"), CW_FIGURES_2);
 
-  return head;
+#if 0
+	/* test code */
+
+	dictionaries_head = head;
+	int i = 0;
+	for (cw_dictionary_t *dict = cw_dictionaries_iterate(NULL);
+	     dict;
+	     dict = cw_dictionaries_iterate(dict)) {
+
+
+
+		i++;
+	}
+
+	fprintf(stderr, "number of default dictionaries = %d (should be 17)\n", i + 1);
+
+	if (i == 17) {
+		return head;
+	} else {
+		cw_dictionaries_unload();
+		return NULL;
+	}
+#else
+	return head;
+#endif
 }
 
 
-/*
- * dictionary_load()
- *
- * Set the main dictionary list to data read from a file.  Returns TRUE on
- * success, FALSE if loading fails.
- */
-int
-dictionary_load (const char *file)
+
+
+
+/**
+   \brief Read dictionaries from given file
+
+   Set the main dictionary list to data read from a file.
+
+   \param file - open file to read from
+
+   \return true on success
+   \return false if loading fails
+*/
+bool cw_dictionaries_read(const char *file)
 {
-  FILE *stream;
-  dictionary *head;
+	/* Open the input stream, or fail if unopenable. */
+	FILE *stream = fopen(file, "r");
+	if (!stream) {
+		fprintf(stderr, "%s: open error: %s\n", file, strerror(errno));
+		return false;
+	}
 
-  /* Open the input stream, or fail if unopenable. */
-  stream = fopen (file, "r");
-  if (!stream)
-    {
-      fprintf (stderr, "%s: open error: %s\n", file, strerror (errno));
-      return FALSE;
-    }
+	/* If we can generate a dictionary list, free any currently
+	   allocated one and store the details of what we loaded into
+	   module variables. */
+	cw_dictionary_t *head = cw_dictionaries_create_from_stream(stream, file);
+	if (head) {
+		cw_dictionaries_unload();
+		dictionaries_head = head;
+	}
 
-  /*
-   * If we can generate a dictionary list, free any currently allocated one
-   * and store the details of what we loaded into module variables.
-   */
-  head = dictionary_create_from_stream (stream, file);
-  if (head)
-    {
-      dictionary_unload ();
-      dictionaries_head = head;
-    }
-
-  /* Close stream and return TRUE if we loaded a dictionary. */
-  fclose (stream);
-  return head != NULL;
+	/* Close stream and return true if we loaded a dictionary. */
+	fclose(stream);
+	return head != NULL;
 }
+
+
+
+
+
+int dictionary_load(const char *file)
+{
+	return cw_dictionaries_read(file);
+}
+
+
+
+
+
+/**
+   \brief Iterate known dictionaries
+
+   Because this is the only way dictionaries can be accessed by callers,
+   this function sets up a default dictionary list if none loaded.
+
+   \param current - current dictionary on list of dictionaries, or NULL if you want to fetch first dictionary from list
+
+   \return the first dictionary if \p current is NULL
+   \return next dictionary is \p current is a dictionary
+   \return NULL if there are no more dictionaries on list
+*/
+const cw_dictionary_t *cw_dictionaries_iterate(const cw_dictionary_t *current)
+{
+	/* If no dictionary list has been loaded, supply a default one. */
+	if (!dictionaries_head) {
+		dictionaries_head = cw_dictionaries_create_default();
+	}
+
+	return current ? current->next : dictionaries_head;
+}
+
+
+
 
 
 /*
@@ -500,64 +692,84 @@ dictionary_load (const char *file)
  * Because this is the only way dictionaries can be accessed by callers,
  * this function sets up a default dictionary list if none loaded.
  */
-const dictionary *
-dictionary_iterate (const dictionary *current)
+const dictionary *dictionary_iterate(const dictionary *current)
 {
-  /* If no dictionary list has been loaded, supply a default one. */
-  if (!dictionaries_head)
-    dictionaries_head = dictionary_create_default ();
-
-  return current ? current->next : dictionaries_head;
+	return cw_dictionaries_iterate(current);
 }
 
 
-/*
- * dictionary_write()
- *
- * Write the currently loaded (or default) dictionary out to a given file.
- * Returns TRUE on success, FALSE if write fails.
- */
-int
-dictionary_write (const char *file)
+
+
+
+/**
+   \brief Write current dictionaries to given file
+
+   Write the currently loaded (or default) dictionaries out to a given file.
+
+   \param file - file to write to
+
+   \return true on success
+   \return false if writing fails
+*/
+bool cw_dictionaries_write(const char *file)
 {
-  FILE *stream;
-  const dictionary *dict;
+	/* Open the output stream, or fail if unopenable. */
+	FILE *stream = fopen(file, "w");
+	if (!stream) {
+		fprintf(stderr, "%s: open error: %s\n", file, strerror(errno));
+		return false;
+	}
 
-  /* Open the output stream, or fail if unopenable. */
-  stream = fopen (file, "w");
-  if (!stream)
-    return FALSE;
+	/* If no dictionary list has been loaded, supply a default one,
+	   then print details of each. */
+	if (!dictionaries_head) {
+		dictionaries_head = cw_dictionaries_create_default();
+	}
 
-  /*
-   * If no dictionary list has been loaded, supply a default one, then
-   * print details of each.
-   */
-  if (!dictionaries_head)
-    dictionaries_head = dictionary_create_default ();
+	for (const cw_dictionary_t *dict = dictionaries_head; dict; dict = dict->next) {
+		fprintf(stream, "[ %s ]\n\n", dict->description);
 
-  for (dict = dictionaries_head; dict; dict = dict->next)
-    {
-      int index, chars;
+		int chars = 0;
+		for (int i = 0; i < dict->wordlist_length; i++) {
+			fprintf(stream, " %s", dict->wordlist[i]);
+			chars += strlen(dict->wordlist[i]) + 1;
+			if (chars > 72) {
+				fprintf(stream, "\n");
+				chars = 0;
+			}
+		}
+		fprintf(stream, chars > 0 ? "\n\n" : "\n");
+	}
 
-      fprintf (stream, "[ %s ]\n\n", dict->description);
-
-      chars = 0;
-      for (index = 0; index < dict->wordlist_length; index++)
-        {
-          fprintf (stream, " %s", dict->wordlist[index]);
-          chars += strlen (dict->wordlist[index]) + 1;
-          if (chars > 72)
-            {
-              fprintf (stream, "\n");
-              chars = 0;
-            }
-        }
-      fprintf (stream, chars > 0 ? "\n\n" : "\n");
-    }
-
-  fclose (stream);
-  return TRUE;
+	fclose(stream);
+	return true;
 }
+
+
+
+
+
+int dictionary_write(const char *file)
+{
+	return cw_dictionaries_write(file);
+}
+
+
+
+
+
+/**
+   \brief Get description of a given dictionary
+
+   \return a string
+*/
+const char *cw_dictionary_get_description(const cw_dictionary_t *dict)
+{
+	return dict->description;
+}
+
+
+
 
 
 /*
@@ -566,16 +778,60 @@ dictionary_write (const char *file)
  *
  * Return the text description and group size for a given dictionary.
  */
-const char *
-get_dictionary_description (const dictionary *dict)
+const char *get_dictionary_description(const dictionary *dict)
 {
-  return dict->description;
+	return dict->description;
 }
 
-int get_dictionary_group_size (const dictionary *dict)
+
+
+
+
+/**
+   \brief Get group size of a given dictionary
+
+   \param dict - dictionary to query
+*/
+int cw_dictionary_get_group_size(const cw_dictionary_t *dict)
 {
-  return dict->group_size;
+	return dict->group_size;
 }
+
+
+
+
+
+int get_dictionary_group_size(const dictionary *dict)
+{
+	return dict->group_size;
+}
+
+
+
+
+
+/**
+   \brief Get a random word from given dictionary
+
+   \param dict - dictionary to query
+
+   \return a string
+*/
+const char *cw_dictionary_get_random_word(const cw_dictionary_t *dict)
+{
+	static bool is_initialized = false;
+
+	/* On the first call, seed the random number generator. */
+	if (!is_initialized) {
+		srand(time(NULL));
+		is_initialized = true;
+	}
+
+	return dict->wordlist[rand() % dict->wordlist_length];
+}
+
+
+
 
 
 /*
@@ -583,18 +839,7 @@ int get_dictionary_group_size (const dictionary *dict)
  *
  * Return a random word from the given dictionary.
  */
-const char *
-get_dictionary_random_word (const dictionary *dict)
+const char *get_dictionary_random_word(const dictionary *dict)
 {
-  static int is_initialized = FALSE;
-
-  /* On the first call, seed the random number generator. */
-  if (!is_initialized)
-    {
-      srand (time (NULL));
-
-      is_initialized = TRUE;
-    }
-
-  return dict->wordlist[rand () % dict->wordlist_length];
+	return cw_dictionary_get_random_word(dict);
 }
