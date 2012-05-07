@@ -1567,7 +1567,7 @@ static int cw_self_test (unsigned int testset)
 		cw_self_test_adaptive_receive,
 		cw_self_test_keyer,
 		cw_self_test_straight_key,
-		cw_self_test_delayed_release,
+		//cw_self_test_delayed_release,
 		//cw_self_test_signal_handling, /* FIXME - not sure why this test fails :( */
 		NULL };
 
