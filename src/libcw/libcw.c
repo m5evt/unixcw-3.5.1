@@ -263,7 +263,8 @@ struct cw_gen_struct {
 
 	/* Thread function is used to generate sine wave
 	   and write the wave to audio sink. */
-	pthread_t thread_id;
+	pthread_t gen_thread_id;
+	pthread_t main_thread_id;
 	pthread_attr_t thread_attr;
 	int thread_error; /* 0 when no problems, errno when some error occurred */
 };
@@ -2834,7 +2835,7 @@ int cw_timer_run_with_handler_internal(int usecs, void (*sigalrm_handler)(void))
 	if (usecs <= 0) {
 		/* Send ourselves SIGALRM immediately. */
 #if 1
-		if (pthread_kill(generator->thread_id, SIGALRM) != 0) {
+		if (pthread_kill(generator->gen_thread_id, SIGALRM) != 0) {
 #else
 		if (raise(SIGALRM) != 0) {
 #endif
@@ -3065,10 +3066,6 @@ int cw_signal_wait_internal(void)
 		cw_debug (CW_DEBUG_SYSTEM, "suspend(): %s\n", strerror(errno));
 		return CW_FAILURE;
 	}
-
-	//cw_dev_debug ("got SIGALRM, forwarding it to generator thread %lu", generator->thread_id);
-	/* forwarding SIGALRM to generator thread */
-	pthread_kill(generator->thread_id, SIGALRM);
 
 	return CW_SUCCESS;
 }
@@ -3387,7 +3384,7 @@ int cw_generator_play_with_soundcard_internal(cw_gen_t *gen, int frequency)
 		cw_tone_queue_enqueue_internal(gen->tq, CW_USECS_FOREVER, 700);
 	} else {
 		cw_tone_queue_enqueue_internal(gen->tq, CW_USECS_FALLING_SLOPE, 700);
-		cw_tone_queue_enqueue_internal(gen->tq, CW_USECS_FOREVER, 0);
+		//cw_tone_queue_enqueue_internal(gen->tq, CW_USECS_FOREVER, 0);
 	}
 
 	return CW_SUCCESS;
@@ -4079,7 +4076,7 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, int *usecs, int *frequen
 			/* Notify the keying control function about the silence. */
 			cw_key_set_state_internal(CW_KEY_STATE_OPEN);
 
-			cw_finalization_schedule_internal();
+			//cw_finalization_schedule_internal();
 
 			return CW_TQ_JUST_EMPTIED;
 		}
@@ -4123,7 +4120,7 @@ int cw_tone_queue_enqueue_internal(cw_tone_queue_t *tq, int usecs, int frequency
 		return CW_FAILURE;
 	}
 
-	pthread_mutex_lock(&tq->mutex);
+	//pthread_mutex_lock(&tq->mutex);
 	/* Get the new value of the queue tail index. */
 	int new_tq_tail = cw_tone_queue_next_index_internal(tq->tail);
 
@@ -4150,10 +4147,8 @@ int cw_tone_queue_enqueue_internal(cw_tone_queue_t *tq, int usecs, int frequency
 		   Let's mark that dequeuing is starting, and lets start
 		   such a process using cw_tone_queue_dequeue_and_play_internal(). */
 		tq->state = QS_BUSY;
-		//cw_dev_debug ("sending initial SIGALRM to generator thread %lu\n", generator->thread_id);
-		//pthread_kill(generator->thread_id, SIGALRM);
 	}
-	pthread_mutex_unlock(&tq->mutex);
+	//pthread_mutex_unlock(&tq->mutex);
 
 	return CW_SUCCESS;
 }
@@ -4382,7 +4377,7 @@ void cw_flush_tone_queue(void)
 	/* Force silence on the speaker anyway, and stop any background
 	   soundcard tone generation. */
 	cw_generator_play_internal(generator, CW_AUDIO_TONE_SILENT);
-	cw_finalization_schedule_internal();
+	//cw_finalization_schedule_internal();
 
 	return;
 }
@@ -4446,7 +4441,7 @@ void cw_reset_tone_queue(void)
 
 	/* Silence sound and stop any background soundcard tone generation. */
 	cw_generator_play_internal(generator, CW_AUDIO_TONE_SILENT);
-	cw_finalization_schedule_internal();
+	//cw_finalization_schedule_internal();
 
 	cw_debug (CW_DEBUG_TONE_QUEUE, "tone queue reset");
 
@@ -6277,7 +6272,7 @@ void cw_keyer_update_internal(void)
 		} else {
 			cw_debug (CW_DEBUG_KEYER_STATES_VERBOSE, "cw_keyer_state: KS_AFTER_DOT -> KS_IDLE");
 			cw_keyer_state = KS_IDLE;
-			cw_finalization_schedule_internal();
+			//cw_finalization_schedule_internal();
 		}
 
 		cw_debug (CW_DEBUG_KEYER_STATES, "keyer ->%d", cw_keyer_state);
@@ -6309,7 +6304,7 @@ void cw_keyer_update_internal(void)
 		} else {
 			cw_keyer_state = KS_IDLE;
 			cw_debug (CW_DEBUG_KEYER_STATES_VERBOSE, "cw_keyer_state: KS_AFTER_DASH -> KS_STATE");
-			cw_finalization_schedule_internal();
+			//cw_finalization_schedule_internal();
 		}
 
 		cw_debug (CW_DEBUG_KEYER_STATES, "keyer ->%d", cw_keyer_state);
@@ -6715,7 +6710,7 @@ int cw_notify_straight_key_event(int key_state)
 			   of knowing when straight keying is completed,
 			   so the only thing we can do here is to schedule
 			   release on each key up event.   */
-			cw_finalization_schedule_internal();
+			//cw_finalization_schedule_internal();
 		}
 	}
 
@@ -6772,7 +6767,7 @@ void cw_reset_straight_key(void)
 
 	/* Silence sound and stop any background soundcard tone generation. */
 	cw_generator_play_internal(generator, CW_AUDIO_TONE_SILENT);
-	cw_finalization_schedule_internal();
+	//cw_finalization_schedule_internal();
 
 	cw_debug (CW_DEBUG_STRAIGHT_KEY, "straight key state ->UP (reset)");
 
@@ -6877,6 +6872,7 @@ int cw_generator_new(int audio_system, const char *device)
 
 		generator->buffer = (cw_sample_t *) malloc(generator->buffer_n_samples * sizeof (cw_sample_t));
 		if (generator->buffer != NULL) {
+			cw_sigalrm_install_top_level_handler_internal();
 			return CW_SUCCESS;
 		} else {
 			cw_debug (CW_DEBUG_SYSTEM, "error: malloc");
@@ -6900,6 +6896,12 @@ int cw_generator_new(int audio_system, const char *device)
 void cw_generator_delete(void)
 {
 	if (generator) {
+
+		if (generator->generate) {
+			cw_dev_debug ("you forgot to call cw_generator_stop()\n");
+			//cw_generator_stop();
+		}
+
 		/* Wait for "write" thread to end accessing output
 		   file descriptor. I have come up with value 500
 		   after doing some experiments. */
@@ -6957,13 +6959,15 @@ int cw_generator_start(void)
 
 	generator->generate = 1;
 
+	generator->main_thread_id = pthread_self();
+
 	if (generator->audio_system == CW_AUDIO_CONSOLE) {
 		; /* no thread needed for generating sound on console */
 	} else if (generator->audio_system == CW_AUDIO_OSS
 		   || generator->audio_system == CW_AUDIO_ALSA
 		   || generator->audio_system == CW_AUDIO_PA) {
 
-		int rv = pthread_create(&generator->thread_id, &generator->thread_attr,
+		int rv = pthread_create(&generator->gen_thread_id, &generator->thread_attr,
 					cw_generator_write_sine_wave_internal,
 					(void *) generator);
 		if (rv != 0) {
@@ -7962,7 +7966,6 @@ void *cw_generator_write_sine_wave_internal(void *arg)
 {
 #if (defined LIBCW_WITH_ALSA || defined LIBCW_WITH_OSS || defined LIBCW_WITH_PULSEAUDIO)
 	cw_gen_t *gen = (cw_gen_t *) arg;
-	//cw_sigalrm_install_top_level_handler_internal();
 
 	int samples_left = 0;       /* how many samples are still left to calculate */
 	int samples_calculated = 0; /* how many samples will be calculated in current round */
@@ -8001,20 +8004,23 @@ void *cw_generator_write_sine_wave_internal(void *arg)
 		int usecs;
 		int q = cw_tone_queue_dequeue_internal(gen->tq, &usecs, &gen->frequency);
 
+		//
 		if (q == CW_TQ_STILL_EMPTY || q == CW_TQ_JUST_EMPTIED) {
+
 #ifdef LIBCW_WITH_DEV
 			if (!reported_empty) {
 				/* tone queue is empty */
-				cw_dev_debug ("tone queue is empty: %d", q);
+				//cw_dev_debug ("tone queue is empty: %d", q);
 				reported_empty = true;
 			}
 #endif
 		} else {
+
 #ifdef LIBCW_WITH_DEV
 			if (reported_empty) {
-				cw_dev_debug ("tone queue is not empty anymore");
+				//cw_dev_debug ("tone queue is not empty anymore");
 				if (gen->audio_system == CW_AUDIO_ALSA) {
-					snd_pcm_prepare(gen->alsa_handle);
+					//snd_pcm_prepare(gen->alsa_handle);
 				}
 				reported_empty = false;
 			}
@@ -8022,7 +8028,7 @@ void *cw_generator_write_sine_wave_internal(void *arg)
 		}
 
 		if (q == CW_TQ_STILL_EMPTY) {
-			usleep(1000);
+			usleep(100);
 			continue;
 		} else if (q == CW_TQ_JUST_EMPTIED) {
 			/* all tones have been dequeued from tone queue,
@@ -8090,7 +8096,7 @@ void *cw_generator_write_sine_wave_internal(void *arg)
 						cw_debug (CW_DEBUG_SYSTEM, "error: audio write (OSS): %s\n", strerror(errno));
 						//return NULL;
 					}
-					cw_dev_debug ("written %d samples with OSS", gen->buffer_n_samples);
+					//cw_dev_debug ("written %d samples with OSS", gen->buffer_n_samples);
 
 				}
 #endif
@@ -8115,7 +8121,7 @@ void *cw_generator_write_sine_wave_internal(void *arg)
 					if (rv < 0) {
 						cw_debug (CW_DEBUG_SYSTEM, "error: pa_simple_write() failed: %s\n", pa_strerror(error));
 					} else {
-						cw_dev_debug ("written %d samples with PulseAudio", gen->buffer_n_samples);
+						//cw_dev_debug ("written %d samples with PulseAudio", gen->buffer_n_samples);
 					}
 				}
 #endif
@@ -8131,6 +8137,8 @@ void *cw_generator_write_sine_wave_internal(void *arg)
 
 			}
 		}
+
+		pthread_kill(gen->main_thread_id, SIGALRM);
 
 		cw_keyer_update_internal();
 
@@ -8506,7 +8514,7 @@ int cw_pa_open_device_internal(cw_gen_t *gen)
 	}
 
 	gen->buffer_n_samples = 512;
-	cw_dev_debug ("ALSA buf size %u", (unsigned int) gen->buffer_n_samples);
+	cw_dev_debug ("PulseAudio buf size %u", (unsigned int) gen->buffer_n_samples);
 	gen->sample_rate = gen->pa.ss.rate;
 
 	pa_usec_t latency;
