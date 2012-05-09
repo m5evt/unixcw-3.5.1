@@ -252,12 +252,7 @@ struct cw_gen_struct {
 	int generate;
 
 	/* these are generator's internal state variables; */
-	int amplitude; /* current amplitude of generated sine wave
-			  (as in x(t) = A * sin(t)); in fixed/steady state
-			  the amplitude is either zero or .volume */
-
 	double phase_offset;
-	double phase;
 
 	int tone_n_samples;
 
@@ -266,14 +261,13 @@ struct cw_gen_struct {
 	pthread_t gen_thread_id;
 	pthread_t main_thread_id;
 	pthread_attr_t thread_attr;
-	int thread_error; /* 0 when no problems, errno when some error occurred */
 };
 
 
 
 static void *cw_generator_write_sine_wave_internal(void *arg);
-static int   cw_generator_calculate_sine_wave_internal(cw_gen_t *gen, int start, int stop);
-static int   cw_generator_calculate_amplitude_internal(cw_gen_t *gen);
+static int   cw_generator_calculate_sine_wave_internal(cw_gen_t *gen, int start, int stop, int frequency);
+static int   cw_generator_calculate_amplitude_internal(cw_gen_t *gen, int frequency);
 
 
 
@@ -443,7 +437,8 @@ static int cw_send_character_internal(cw_gen_t *gen, char character, int partial
 /* ******************************************************************** */
 static bool cw_is_debugging_internal(unsigned int flag);
 #if CW_DEV_RAW_SINK
-static int  cw_dev_debug_raw_sink_write_internal(cw_gen_t *gen, int samples);
+static int  cw_dev_debug_raw_sink_write_internal(cw_gen_t *gen);
+static void cw_dev_debug_print_generator_setup(cw_gen_t *gen);
 #endif
 static int  cw_debug_evaluate_alsa_write_internal(cw_gen_t *gen, int rv);
 
@@ -775,6 +770,23 @@ bool cw_is_debugging_internal(unsigned int flag)
 	}
 #else
 #define cw_dev_debug(...) {}
+#endif
+
+
+
+
+#if LIBCW_WITH_DEV
+void cw_dev_debug_print_generator_setup(cw_gen_t *gen)
+{
+	fprintf(stderr, "audio system:      %s\n",     cw_audio_system_labels[gen->audio_system]);
+	fprintf(stderr, "sample rate:       %d Hz\n",  gen->sample_rate);
+	fprintf(stderr, "send speed:        %d wpm\n", gen->send_speed);
+	fprintf(stderr, "volume:            %d %%\n",  gen->volume_percent);
+	fprintf(stderr, "frequency:         %d Hz\n",  gen->frequency);
+	fprintf(stderr, "audio buffer size: %d\n",     gen->buffer_n_samples);
+
+	return;
+}
 #endif
 
 
@@ -2879,7 +2891,7 @@ int cw_sigalrm_install_top_level_handler_internal(void)
 		}
 
 		cw_is_sigalrm_handlers_caller_installed = true;
-		cw_dev_debug ("installed top level SIGALRM handler");
+		//cw_dev_debug ("installed top level SIGALRM handler");
 	}
 	return CW_SUCCESS;
 }
@@ -3380,11 +3392,11 @@ int cw_generator_play_with_soundcard_internal(cw_gen_t *gen, int frequency)
 	}
 
 	if (frequency) {
-		cw_tone_queue_enqueue_internal(gen->tq, CW_USECS_RISING_SLOPE, 700);
-		cw_tone_queue_enqueue_internal(gen->tq, CW_USECS_FOREVER, 700);
+		cw_tone_queue_enqueue_internal(gen->tq, CW_USECS_RISING_SLOPE, gen->frequency);
+		cw_tone_queue_enqueue_internal(gen->tq, CW_USECS_FOREVER, gen->frequency);
 	} else {
-		cw_tone_queue_enqueue_internal(gen->tq, CW_USECS_FALLING_SLOPE, 700);
-		//cw_tone_queue_enqueue_internal(gen->tq, CW_USECS_FOREVER, 0);
+		cw_tone_queue_enqueue_internal(gen->tq, CW_USECS_FALLING_SLOPE, gen->frequency);
+		//cw_tone_queue_enqueue_internal(gen->tq, CW_USECS_FOREVER, CW_AUDIO_TONE_SILENT);
 	}
 
 	return CW_SUCCESS;
@@ -3730,14 +3742,14 @@ void cw_key_set_state2_internal(cw_gen_t *gen, int requested_key_state)
 		}
 		if (current_key_state == CW_KEY_STATE_CLOSED) {
 			cw_dev_debug ("current state = closed");
-			cw_tone_queue_enqueue_internal(gen->tq, CW_USECS_RISING_SLOPE, 440);
-			cw_tone_queue_enqueue_internal(gen->tq, CW_USECS_FOREVER, 440);
+			cw_tone_queue_enqueue_internal(gen->tq, CW_USECS_RISING_SLOPE, gen->frequency);
+			cw_tone_queue_enqueue_internal(gen->tq, CW_USECS_FOREVER, gen->frequency);
 			int len = cw_tone_queue_length_internal(gen->tq);
 			cw_dev_debug ("len = %d", len);
 		} else {
 			cw_dev_debug ("current state = open");
-			cw_tone_queue_enqueue_internal(gen->tq, CW_USECS_FALLING_SLOPE, 440);
-			cw_tone_queue_enqueue_internal(gen->tq, CW_USECS_FOREVER, 0);
+			cw_tone_queue_enqueue_internal(gen->tq, CW_USECS_FALLING_SLOPE, gen->frequency);
+			//cw_tone_queue_enqueue_internal(gen->tq, CW_USECS_FOREVER, CW_AUDIO_TONE_SILENT);
 		}
 	}
 
@@ -3771,9 +3783,9 @@ void cw_key_set_state3_internal(cw_gen_t *gen, int requested_key_state, int usec
 		}
 
 		if (current_key_state == CW_KEY_STATE_CLOSED) {
-			cw_tone_queue_enqueue_internal(gen->tq, usecs, 440);
+			cw_tone_queue_enqueue_internal(gen->tq, usecs, gen->frequency);
 		} else {
-			cw_tone_queue_enqueue_internal(gen->tq, usecs, 0);
+			cw_tone_queue_enqueue_internal(gen->tq, usecs, CW_AUDIO_TONE_SILENT);
 		}
 	}
 
@@ -4486,9 +4498,9 @@ int cw_send_element_internal(cw_gen_t *gen, char element)
 
 	/* Send either a dot or a dash element, depending on representation. */
 	if (element == CW_DOT_REPRESENTATION) {
-		status = cw_tone_queue_enqueue_internal(gen->tq, cw_send_dot_length, 440);
+		status = cw_tone_queue_enqueue_internal(gen->tq, cw_send_dot_length, gen->frequency);
 	} else if (element == CW_DASH_REPRESENTATION) {
-		status = cw_tone_queue_enqueue_internal(gen->tq, cw_send_dash_length, 440);
+		status = cw_tone_queue_enqueue_internal(gen->tq, cw_send_dash_length, gen->frequency);
 	} else {
 		errno = EINVAL;
 		status = CW_FAILURE;
@@ -6846,7 +6858,6 @@ int cw_generator_new(int audio_system, const char *device)
 
 	pthread_attr_init(&generator->thread_attr);
 	pthread_attr_setdetachstate(&generator->thread_attr, PTHREAD_CREATE_DETACHED);
-	generator->thread_error = 0;
 
 	cw_generator_set_audio_device_internal(generator, device);
 
@@ -6953,9 +6964,6 @@ void cw_generator_delete(void)
 int cw_generator_start(void)
 {
 	generator->phase_offset = 0.0;
-	generator->phase = 0.0;
-
-	generator->amplitude = 0;
 
 	generator->generate = 1;
 
@@ -6978,13 +6986,16 @@ int cw_generator_start(void)
 			   put usleep() here, otherwise a generator
 			   may work incorrectly */
 			usleep(100000);
+#if LIBCW_WITH_DEV
+			cw_dev_debug_print_generator_setup(generator);
+#endif
 			return CW_SUCCESS;
 		}
 	} else {
 		cw_dev_debug ("unsupported audio system %d", generator->audio_system);
 	}
 
-	return CW_SUCCESS;
+	return CW_FAILURE;
 }
 
 
@@ -7063,7 +7074,7 @@ void cw_generator_stop(void)
 
    \return position in buffer at which a last sample has been saved
 */
-int cw_generator_calculate_sine_wave_internal(cw_gen_t *gen, int start, int stop)
+int cw_generator_calculate_sine_wave_internal(cw_gen_t *gen, int start, int stop, int frequency)
 {
 	assert (stop <= gen->buffer_n_samples);
 
@@ -7086,10 +7097,10 @@ int cw_generator_calculate_sine_wave_internal(cw_gen_t *gen, int start, int stop
 	int i = 0, j = 0;
 	for (i = start, j = 0; i <= stop; i++, j++) {
 		phase = (2.0 * M_PI
-				* (double) gen->frequency * (double) j
+				* (double) frequency * (double) j
 				/ (double) gen->sample_rate)
 			+ gen->phase_offset;
-		int amplitude = cw_generator_calculate_amplitude_internal(gen);
+		int amplitude = cw_generator_calculate_amplitude_internal(gen, frequency);
 
 		gen->buffer[i] = amplitude * sin(phase);
 		if (gen->slope.iterator >= 0) {
@@ -7098,7 +7109,7 @@ int cw_generator_calculate_sine_wave_internal(cw_gen_t *gen, int start, int stop
 	}
 
 	phase = (2.0 * M_PI
-		 * (double) gen->frequency * (double) j
+		 * (double) frequency * (double) j
 		 / (double) gen->sample_rate)
 		+ gen->phase_offset;
 
@@ -7135,81 +7146,69 @@ int cw_generator_calculate_sine_wave_internal(cw_gen_t *gen, int start, int stop
 
    \return value of a sample of sine wave, a non-negative number
 */
-int cw_generator_calculate_amplitude_internal(cw_gen_t *gen)
+int cw_generator_calculate_amplitude_internal(cw_gen_t *gen, int frequency)
 {
+	int amplitude = 0;
 #if 0
 	/* blunt algorithm for calculating amplitude;
 	   for debug purposes only */
-	if (gen->frequency) {
-		gen->amplitude = gen->volume_abs;
+	if (frequency) {
+		amplitude = gen->volume_abs;
 	} else {
-		gen->amplitude = 0;
+		amplitude = 0;
 	}
 
-	return gen->amplitude;
+	return amplitude;
 #else
 
-#if 1
-	if (gen->frequency > 0) {
+	if (frequency > 0) {
 		if (gen->slope.mode == CW_SLOPE_RISING) {
 			if (gen->slope.iterator < gen->slope.len) {
 				int i = gen->slope.iterator;
-				gen->amplitude = 1.0 * gen->volume_abs * i / gen->slope.len;
-				//cw_dev_debug ("1: slope: %d, amp: %d", gen->slope.iterator, gen->amplitude);
+				amplitude = 1.0 * gen->volume_abs * i / gen->slope.len;
+				//cw_dev_debug ("1: slope: %d, amp: %d", gen->slope.iterator, amplitude);
 			} else {
-				gen->amplitude = gen->volume_abs;
+				amplitude = gen->volume_abs;
 			}
-
 		} else if (gen->slope.mode == CW_SLOPE_FALLING) {
 			if (gen->slope.iterator > gen->tone_n_samples - gen->slope.len + 1) {
 				int i = gen->tone_n_samples - gen->slope.iterator + 1;
-				gen->amplitude = 1.0 * gen->volume_abs * i / gen->slope.len;
-				//cw_dev_debug ("2: slope: %d, amp: %d", gen->slope.iterator, gen->amplitude);
+				amplitude = 1.0 * gen->volume_abs * i / gen->slope.len;
+				//cw_dev_debug ("2: slope: %d, amp: %d", gen->slope.iterator, amplitude);
 			} else {
-				gen->amplitude = gen->volume_abs;
+				amplitude = gen->volume_abs;
 			}
 		} else if (gen->slope.mode == CW_SLOPE_NONE) { /* CW_USECS_FOREVER */
-			gen->amplitude = gen->volume_abs;
+			amplitude = gen->volume_abs;
 		} else { // gen->slope.mode == CW_SLOPE_STANDARD
-			if (gen->slope.iterator < 0) {
-				gen->amplitude = gen->volume_abs;
-			} else if (gen->slope.iterator < gen->slope.len) {
+			/* standard algorithm for generating slopes:
+			   single, finite tone with:
+			    - rising slope at the beginning,
+			    - a period of wave with constant amplitude,
+			    - falling slope at the end. */
+			if (gen->slope.iterator >= 0 && gen->slope.iterator < gen->slope.len) {
+				/* beginning of tone, produce rising slope */
 				int i = gen->slope.iterator;
-				gen->amplitude = 1.0 * gen->volume_abs * i / gen->slope.len;
-				//cw_dev_debug ("3: slope: %d, amp: %d", gen->slope.iterator, gen->amplitude);
-			} else if (gen->slope.iterator > gen->tone_n_samples - gen->slope.len + 1) {
+				amplitude = 1.0 * gen->volume_abs * i / gen->slope.len;
+				//cw_dev_debug ("rising slope: i = %d, amp = %d", gen->slope.iterator, amplitude);
+			} else if (gen->slope.iterator >= gen->slope.len && gen->slope.iterator < gen->tone_n_samples - gen->slope.len) {
+				/* middle of tone, constant amplitude */
+				amplitude = gen->volume_abs;
+			} else if (gen->slope.iterator >= gen->tone_n_samples - gen->slope.len) {
+				/* falling slope */
 				int i = gen->tone_n_samples - gen->slope.iterator + 1;
-				gen->amplitude = 1.0 * gen->volume_abs * i / gen->slope.len;
-				//cw_dev_debug ("4: slope: %d, amp: %d", gen->slope.iterator, gen->amplitude);
+				amplitude = 1.0 * gen->volume_abs * i / gen->slope.len;
+				//cw_dev_debug ("falling slope: i = %d, amp = %d", gen->slope.iterator, amplitude);
 			} else {
 				;
 			}
 		}
 	} else {
-		gen->amplitude = 0;
+		amplitude = 0;
 	}
 
-	assert (gen->amplitude >= 0); /* will fail if calculations above are modified */
+	assert (amplitude >= 0); /* will fail if calculations above are modified */
 
-#else
-	if (gen->frequency > 0) {
-		if (gen->slope.iterator < 0) {
-			gen->amplitude = gen->volume_abs;
-		} else if (gen->slope.iterator < gen->slope.len) {
-			int i = gen->slope.iterator;
-			gen->amplitude = 1.0 * gen->volume_abs * i / gen->slope.len;
-		} else if (gen->slope.iterator > gen->tone_n_samples - gen->slope.len + 1) {
-			int i = gen->tone_n_samples - gen->slope.iterator + 1;
-			gen->amplitude = 1.0 * gen->volume_abs * i / gen->slope.len;
-		} else {
-			;
-		}
-	} else {
-		gen->amplitude = 0;
-	}
-
-	assert (gen->amplitude >= 0); /* will fail if calculations above are modified */
-#endif
 #endif
 
 #if 0 /* no longer necessary since calculation of amplitude,
@@ -7218,19 +7217,19 @@ int cw_generator_calculate_amplitude_internal(cw_gen_t *gen)
 	 volume is not an issue */
 
 	/* because CW_AUDIO_VOLUME_RANGE may not be exact multiple
-	   of gen->slope, gen->amplitude may be sometimes out
+	   of gen->slope, amplitude may be sometimes out
 	   of range; this may produce audible clicks;
 	   remove values out of range */
-	if (gen->amplitude > CW_AUDIO_VOLUME_RANGE) {
-		gen->amplitude = CW_AUDIO_VOLUME_RANGE;
-	} else if (gen->amplitude < 0) {
-		gen->amplitude = 0;
+	if (amplitude > CW_AUDIO_VOLUME_RANGE) {
+		amplitude = CW_AUDIO_VOLUME_RANGE;
+	} else if (amplitude < 0) {
+		amplitude = 0;
 	} else {
 		;
 	}
 #endif
 
-	return gen->amplitude;
+	return amplitude;
 }
 
 
@@ -7902,8 +7901,14 @@ void cw_alsa_close_device_internal(cw_gen_t *gen)
 
 
 
-int cw_dev_debug_raw_sink_write_internal(cw_gen_t *gen, int samples)
+int cw_dev_debug_raw_sink_write_internal(cw_gen_t *gen)
 {
+	if (gen->audio_system == CW_AUDIO_NONE
+	    || gen->audio_system == CW_AUDIO_CONSOLE) {
+
+		return CW_SUCCESS;
+	}
+
 	if (gen->dev_raw_sink != -1) {
 #if CW_DEV_RAW_SINK_MARKERS
 		/* FIXME: this will cause memory access error at
@@ -7914,7 +7919,9 @@ int cw_dev_debug_raw_sink_write_internal(cw_gen_t *gen, int samples)
 		gen->buffer[samples - 2] = 0x8000;
 		gen->buffer[samples - 1] = 0x8000;
 #endif
-		int n_bytes = sizeof (gen->buffer[0]) * samples;
+
+		int n_bytes = sizeof (gen->buffer[0]) * gen->buffer_n_samples;
+
 		int rv = write(gen->dev_raw_sink, gen->buffer, n_bytes);
 		if (rv == -1) {
 			cw_dev_debug ("ERROR: write error: %s (gen->dev_raw_sink = %ld, gen->buffer = %ld, n_bytes = %d)", strerror(errno), (long) gen->dev_raw_sink, (long) gen->buffer, n_bytes);
@@ -8002,7 +8009,8 @@ void *cw_generator_write_sine_wave_internal(void *arg)
 
 	while (gen->generate) {
 		int usecs;
-		int q = cw_tone_queue_dequeue_internal(gen->tq, &usecs, &gen->frequency);
+		int frequency;
+		int q = cw_tone_queue_dequeue_internal(gen->tq, &usecs, &frequency);
 
 		//
 		if (q == CW_TQ_STILL_EMPTY || q == CW_TQ_JUST_EMPTIED) {
@@ -8039,7 +8047,6 @@ void *cw_generator_write_sine_wave_internal(void *arg)
 			   ready to be sent to audio sink.
 			   We need to calculate value of samples_left
 			   to proceed. */
-			gen->frequency = 0;
 			samples_left = gen->buffer_n_samples - samples_calculated;
 			gen->slope.iterator = -1;
 		} else { /* q == CW_TQ_NONEMPTY */
@@ -8083,7 +8090,7 @@ void *cw_generator_write_sine_wave_internal(void *arg)
 			}
 
 
-			cw_generator_calculate_sine_wave_internal(gen, start, stop);
+			cw_generator_calculate_sine_wave_internal(gen, start, stop, frequency);
 			if (stop + 1 == gen->buffer_n_samples) {
 
 				int rv = 0;
@@ -8092,11 +8099,10 @@ void *cw_generator_write_sine_wave_internal(void *arg)
 					int n_bytes = sizeof (gen->buffer[0]) * gen->buffer_n_samples;
 					rv = write(gen->audio_sink, gen->buffer, n_bytes);
 					if (rv != n_bytes) {
-						gen->thread_error = errno;
 						cw_debug (CW_DEBUG_SYSTEM, "error: audio write (OSS): %s\n", strerror(errno));
 						//return NULL;
 					}
-					//cw_dev_debug ("written %d samples with OSS", gen->buffer_n_samples);
+					// cw_dev_debug ("written %d samples with OSS", gen->buffer_n_samples);
 
 				}
 #endif
@@ -8128,7 +8134,7 @@ void *cw_generator_write_sine_wave_internal(void *arg)
 
 				start = 0;
 #if CW_DEV_RAW_SINK
-				cw_dev_debug_raw_sink_write_internal(gen, rv);
+				cw_dev_debug_raw_sink_write_internal(gen);
 #endif
 			} else {
 				/* there is still some space left in the
@@ -8600,10 +8606,10 @@ static void main_helper(int audio_system, const char *name, const char *device, 
 /* for stand-alone testing */
 int main(void)
 {
-	main_helper(CW_AUDIO_ALSA,    "ALSA",    CW_DEFAULT_ALSA_DEVICE,    cw_is_alsa_possible);
+	//main_helper(CW_AUDIO_ALSA,    "ALSA",    CW_DEFAULT_ALSA_DEVICE,    cw_is_alsa_possible);
 	//main_helper(CW_AUDIO_PA,      "PulseAudio",  CW_DEFAULT_ALSA_DEVICE,    cw_is_pa_possible);
 	//main_helper(CW_AUDIO_CONSOLE, "console", CW_DEFAULT_CONSOLE_DEVICE, cw_is_console_possible);
-	//main_helper(CW_AUDIO_OSS,     "OSS",     CW_DEFAULT_OSS_DEVICE,     cw_is_oss_possible);
+	main_helper(CW_AUDIO_OSS,     "OSS",     CW_DEFAULT_OSS_DEVICE,     cw_is_oss_possible);
 
 	return 0;
 }
@@ -8627,37 +8633,37 @@ void main_helper(int audio_system, const char *name, const char *device, predica
 #if 0 // switch between sending strings and queuing tones
 
 			//cw_tone_queue_enqueue_internal(generator->tq, 500000, 200);
-			cw_tone_queue_enqueue_internal(generator->tq, 500000, 0);
+			cw_tone_queue_enqueue_internal(generator->tq, 500000, CW_AUDIO_TONE_SILENT);
 
-			cw_tone_queue_enqueue_internal(generator->tq, CW_USECS_RISING_SLOPE, 900);
-			cw_tone_queue_enqueue_internal(generator->tq, CW_USECS_FOREVER, 900);
+			cw_tone_queue_enqueue_internal(generator->tq, CW_USECS_RISING_SLOPE, gen->frequency);
+			cw_tone_queue_enqueue_internal(generator->tq, CW_USECS_FOREVER, gen->frequency);
 			sleep(2);
-			cw_tone_queue_enqueue_internal(generator->tq, CW_USECS_FALLING_SLOPE, 900);
-			cw_tone_queue_enqueue_internal(generator->tq, CW_USECS_FOREVER, 0);
-			sleep(2);
-
-			cw_tone_queue_enqueue_internal(generator->tq, CW_USECS_RISING_SLOPE, 900);
-			cw_tone_queue_enqueue_internal(generator->tq, CW_USECS_FOREVER, 900);
-			sleep(2);
-			cw_tone_queue_enqueue_internal(generator->tq, CW_USECS_FALLING_SLOPE, 900);
-			cw_tone_queue_enqueue_internal(generator->tq, CW_USECS_FOREVER, 0);
+			cw_tone_queue_enqueue_internal(generator->tq, CW_USECS_FALLING_SLOPE, gen->frequency);
+			cw_tone_queue_enqueue_internal(generator->tq, CW_USECS_FOREVER, CW_AUDIO_TONE_SILENT);
 			sleep(2);
 
-			cw_tone_queue_enqueue_internal(generator->tq, CW_USECS_RISING_SLOPE, 900);
-			cw_tone_queue_enqueue_internal(generator->tq, CW_USECS_FOREVER, 900);
+			cw_tone_queue_enqueue_internal(generator->tq, CW_USECS_RISING_SLOPE, gen->frequency);
+			cw_tone_queue_enqueue_internal(generator->tq, CW_USECS_FOREVER, gen->frequency);
 			sleep(2);
-			cw_tone_queue_enqueue_internal(generator->tq, CW_USECS_FALLING_SLOPE, 900);
-			cw_tone_queue_enqueue_internal(generator->tq, CW_USECS_FOREVER, 0);
-			sleep(2);
-
-			cw_tone_queue_enqueue_internal(generator->tq, CW_USECS_RISING_SLOPE, 900);
-			cw_tone_queue_enqueue_internal(generator->tq, CW_USECS_FOREVER, 900);
-			sleep(2);
-			cw_tone_queue_enqueue_internal(generator->tq, CW_USECS_FALLING_SLOPE, 900);
-			cw_tone_queue_enqueue_internal(generator->tq, CW_USECS_FOREVER, 0);
+			cw_tone_queue_enqueue_internal(generator->tq, CW_USECS_FALLING_SLOPE, gen->frequency);
+			cw_tone_queue_enqueue_internal(generator->tq, CW_USECS_FOREVER, CW_AUDIO_TONE_SILENT);
 			sleep(2);
 
-			cw_tone_queue_enqueue_internal(generator->tq, 500000, 0);
+			cw_tone_queue_enqueue_internal(generator->tq, CW_USECS_RISING_SLOPE, gen->frequency);
+			cw_tone_queue_enqueue_internal(generator->tq, CW_USECS_FOREVER, gen->frequency);
+			sleep(2);
+			cw_tone_queue_enqueue_internal(generator->tq, CW_USECS_FALLING_SLOPE, gen->frequency);
+			cw_tone_queue_enqueue_internal(generator->tq, CW_USECS_FOREVER, CW_AUDIO_TONE_SILENT);
+			sleep(2);
+
+			cw_tone_queue_enqueue_internal(generator->tq, CW_USECS_RISING_SLOPE, gen->frequency);
+			cw_tone_queue_enqueue_internal(generator->tq, CW_USECS_FOREVER, gen->frequency);
+			sleep(2);
+			cw_tone_queue_enqueue_internal(generator->tq, CW_USECS_FALLING_SLOPE, gen->frequency);
+			cw_tone_queue_enqueue_internal(generator->tq, CW_USECS_FOREVER, CW_AUDIO_TONE_SILENT);
+			sleep(2);
+
+			cw_tone_queue_enqueue_internal(generator->tq, 500000, CW_AUDIO_TONE_SILENT);
 			//cw_tone_queue_enqueue_internal(generator->tq, 500000, 2000);
 #endif
 
