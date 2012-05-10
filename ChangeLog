@@ -1,3 +1,7 @@
+2012-05-10 Kamil Ignacak
+	* libcw/console: Console output now works correctly, playing nicely
+	with queue()/dequeue() and the generator.
+
 2012-05-06 Kamil Ignacak
 	* cwcp/user interface: fixing small bug in code: till now modifying
 	practice time didn't work correctly, any attempts to do so resulted
