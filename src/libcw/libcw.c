@@ -154,7 +154,7 @@
 #define CW_ALSA_HW_BUFFER_CONFIG  0  /* set up hw buffer/period parameters; unnecessary and probably harmful */
 //#define LIBCW_WITH_DEV 1
 #ifdef LIBCW_WITH_DEV
-#define CW_DEV_MAIN               0  /* enable main() for stand-alone compilation and tests of this file */
+#define CW_DEV_MAIN               1  /* enable main() for stand-alone compilation and tests of this file */
 #define CW_DEV_RAW_SINK           1  /* create and use /tmp/cw_file.<audio system>.raw file with audio samples written as raw data */
 #define CW_DEV_RAW_SINK_MARKERS   0  /* put markers in raw data saved to raw sink */
 #endif
@@ -182,9 +182,10 @@ static const int        CW_AUDIO_GENERATOR_SLOPE_LEN = 200;      /* ~200 for 44.
 static const int        CW_AUDIO_TONE_SILENT = 0;   /* 0Hz = silent 'tone'. */
 
 
-static int   cw_generator_play_internal(cw_gen_t *gen, int frequency);
-static int   cw_generator_play_with_console_internal(cw_gen_t *gen, int state);
+static int   cw_generator_silence_internal(cw_gen_t *gen);
+#if 0
 static int   cw_generator_play_with_soundcard_internal(cw_gen_t *gen, int frequency);
+#endif
 static int   cw_generator_release_internal(void);
 static int   cw_generator_set_audio_device_internal(cw_gen_t *gen, const char *device);
 
@@ -278,6 +279,8 @@ static int   cw_generator_calculate_amplitude_internal(cw_gen_t *gen, int freque
 /* ******************************************************************** */
 static int  cw_console_open_device_internal(cw_gen_t *gen);
 static void cw_console_close_device_internal(cw_gen_t *gen);
+static int  cw_console_pseudo_write_internal(cw_gen_t *gen, int usecs, int frequency);
+static int  cw_console_pseudo_write_low_level_internal(cw_gen_t *gen, int state);
 
 
 
@@ -3358,6 +3361,12 @@ const char *cw_get_soundcard_device(void)
 
 
 
+#if 0 /* unused */
+
+
+
+
+
 /**
    \brief Start generating a sound using soundcard
 
@@ -3396,11 +3405,16 @@ int cw_generator_play_with_soundcard_internal(cw_gen_t *gen, int frequency)
 		cw_tone_queue_enqueue_internal(gen->tq, CW_USECS_FOREVER, gen->frequency);
 	} else {
 		cw_tone_queue_enqueue_internal(gen->tq, CW_USECS_FALLING_SLOPE, gen->frequency);
-		//cw_tone_queue_enqueue_internal(gen->tq, CW_USECS_FOREVER, CW_AUDIO_TONE_SILENT);
 	}
 
 	return CW_SUCCESS;
 }
+
+
+
+
+
+#endif
 
 
 
@@ -3427,33 +3441,18 @@ int cw_generator_release_internal(void)
 
 
 /**
-   \brief Start generating a sound
+   \brief Silence the generator
 
-   Start generating sound with frequency depending on state of given
-   \p generator. The function has an argument 'frequency'. The name
-   is old and meaningless, the argument now only toggles between
-   zero volume (frequency == 0, or frequency == CW_TONE_SILENCE),
-   and full volume (frequency > 0).
-
-   Given generator \p gen decides if the sound will be played using
-   soundcard or console buzzer.
-
-   The function only initializes generation, you have to do another
-   function call to change the tone generated.
+   Force the generator \p to go silent.
+   Function stops the generator as well, but does not flush its queue.
 
    \param gen - current generator
-   \param frequency - toggle between full volume and no volume
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on errors
 */
-int cw_generator_play_internal(cw_gen_t *gen, int frequency)
+int cw_generator_silence_internal(cw_gen_t *gen)
 {
-	/* If silence requested, then ignore the call. */
-	if (cw_is_debugging_internal(CW_DEBUG_SILENT)) {
-		return CW_SUCCESS;
-	}
-
 	if (!gen) {
 		/* this may happen because the process of finalizing
 		   usage of libcw is rather complicated; this should
@@ -3462,20 +3461,31 @@ int cw_generator_play_internal(cw_gen_t *gen, int frequency)
 		return CW_SUCCESS;
 	}
 
-
 	int status = CW_SUCCESS;
 
-	if (gen->audio_system == CW_AUDIO_OSS
+	if (gen->audio_system == CW_AUDIO_CONSOLE) {
+		/* sine wave generation should have been stopped
+		   by a code generating dots/dashes, but
+		   just in case... */
+#ifdef LIBCW_WITH_CONSOLE
+		ioctl(gen->audio_sink, KIOCSOUND, 0);
+#else
+		status = CW_FAILURE;
+#endif
+	} else if (gen->audio_system == CW_AUDIO_OSS
 	    || gen->audio_system == CW_AUDIO_ALSA
 	    || gen->audio_system == CW_AUDIO_PA) {
 
-		status = cw_generator_play_with_soundcard_internal(gen, frequency);
-	} else if (gen->audio_system == CW_AUDIO_CONSOLE) {
-		int state = frequency == CW_AUDIO_TONE_SILENT ? 0 : 1;
-		status = cw_generator_play_with_console_internal(gen, state);
+		int usecs = 100;
+		status = cw_tone_queue_enqueue_internal(gen->tq, usecs, CW_AUDIO_TONE_SILENT);
+
+		/* allow some time for playing the last tone */
+		usleep(2 * usecs);
 	} else {
-		;
+		cw_dev_debug ("called silence() function for generator without audio system specified");
 	}
+
+	gen->generate = 0;
 
 	return status;
 }
@@ -4388,7 +4398,7 @@ void cw_flush_tone_queue(void)
 
 	/* Force silence on the speaker anyway, and stop any background
 	   soundcard tone generation. */
-	cw_generator_play_internal(generator, CW_AUDIO_TONE_SILENT);
+	cw_generator_silence_internal(generator);
 	//cw_finalization_schedule_internal();
 
 	return;
@@ -4452,7 +4462,7 @@ void cw_reset_tone_queue(void)
 	cw_tone_queue.low_water_callback_arg = NULL;
 
 	/* Silence sound and stop any background soundcard tone generation. */
-	cw_generator_play_internal(generator, CW_AUDIO_TONE_SILENT);
+	cw_generator_silence_internal(generator);
 	//cw_finalization_schedule_internal();
 
 	cw_debug (CW_DEBUG_TONE_QUEUE, "tone queue reset");
@@ -6625,7 +6635,7 @@ void cw_reset_keyer(void)
 	cw_keyer_state = KS_IDLE;
 
 	/* Silence sound and stop any background soundcard tone generation. */
-	cw_generator_play_internal(generator, CW_AUDIO_TONE_SILENT);
+	cw_generator_silence_internal(generator);
 	cw_finalization_schedule_internal();
 
 	cw_debug (CW_DEBUG_KEYER_STATES, "keyer ->%d (reset)", cw_keyer_state);
@@ -6778,7 +6788,7 @@ void cw_reset_straight_key(void)
 	cw_sk_key_state = CW_KEY_STATE_OPEN;
 
 	/* Silence sound and stop any background soundcard tone generation. */
-	cw_generator_play_internal(generator, CW_AUDIO_TONE_SILENT);
+	cw_generator_silence_internal(generator);
 	//cw_finalization_schedule_internal();
 
 	cw_debug (CW_DEBUG_STRAIGHT_KEY, "straight key state ->UP (reset)");
@@ -6875,22 +6885,24 @@ int cw_generator_new(int audio_system, const char *device)
 		rv = CW_FAILURE;
 	}
 
-	if (rv == CW_SUCCESS) {
-		if (audio_system == CW_AUDIO_CONSOLE) {
-			/* console output does not require audio buffer */
-			return CW_SUCCESS;
+	if (rv == CW_FAILURE) {
+		cw_dev_debug ("failed to open audio device\n");
+		return CW_FAILURE;
 		}
 
-		generator->buffer = (cw_sample_t *) malloc(generator->buffer_n_samples * sizeof (cw_sample_t));
-		if (generator->buffer != NULL) {
-			cw_sigalrm_install_top_level_handler_internal();
-			return CW_SUCCESS;
+	if (audio_system == CW_AUDIO_CONSOLE) {
+		; /* console output does not require audio buffer */
 		} else {
+		generator->buffer = (cw_sample_t *) malloc(generator->buffer_n_samples * sizeof (cw_sample_t));
+		if (!generator->buffer) {
 			cw_debug (CW_DEBUG_SYSTEM, "error: malloc");
+			return CW_FAILURE;
 		}
 	}
 
-	return CW_FAILURE;
+	cw_sigalrm_install_top_level_handler_internal();
+
+	return CW_SUCCESS;
 }
 
 
@@ -6969,9 +6981,8 @@ int cw_generator_start(void)
 
 	generator->main_thread_id = pthread_self();
 
-	if (generator->audio_system == CW_AUDIO_CONSOLE) {
-		; /* no thread needed for generating sound on console */
-	} else if (generator->audio_system == CW_AUDIO_OSS
+	if (generator->audio_system == CW_AUDIO_CONSOLE
+	    || generator->audio_system == CW_AUDIO_OSS
 		   || generator->audio_system == CW_AUDIO_ALSA
 		   || generator->audio_system == CW_AUDIO_PA) {
 
@@ -7016,26 +7027,10 @@ void cw_generator_stop(void)
 		return;
 	}
 
-	if (generator->audio_system == CW_AUDIO_CONSOLE) {
-		/* sine wave generation should have been stopped
-		   by a code generating dots/dashes, but
-		   just in case... */
-#ifdef LIBCW_WITH_CONSOLE
-		ioctl(generator->audio_sink, KIOCSOUND, 0);
-#endif
-	} else if (generator->audio_system == CW_AUDIO_OSS
-		   || generator->audio_system == CW_AUDIO_ALSA
-		   || generator->audio_system == CW_AUDIO_PA) {
+	cw_flush_tone_queue();
 
-		cw_generator_play_with_soundcard_internal(generator, CW_AUDIO_TONE_SILENT);
+	cw_generator_silence_internal(generator);
 
-		/* time needed between initiating stop sequence and
-		   ending write() to device and closing the device */
-		int usleep_time = generator->sample_rate / (2 * generator->buffer_n_samples);
-		usleep_time /= 1000000;
-		usleep(usleep_time * 1.2);
-
-		generator->generate = 0;
 
 		/* Sleep some more to postpone closing a device.
 		   This way we can avoid a situation when 'generate' is set
@@ -7048,9 +7043,6 @@ void cw_generator_stop(void)
 		   happened when writei() tried to write to closed ALSA
 		   handle. */
 		usleep(10000);
-	} else {
-		cw_dev_debug ("called stop() function for generator without audio system specified");
-	}
 
 	return;
 }
@@ -7378,6 +7370,39 @@ void cw_console_close_device_internal(cw_gen_t *gen)
 
 
 /**
+   \brief Pseudo-device for playing sound with console
+
+   Function behaving like a device, to which one does a blocking write.
+   It generates sound with \p frequency and duration \p usecs.
+   After playing \p usecs microseconds of tone it returns. It is intended
+   to behave like a blocking write() function.
+
+   \param gen - current generator
+   \param usecs - duration of tone
+   \param frequency - frequency of tone
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
+int cw_console_pseudo_write_internal(cw_gen_t *gen, int usecs, int frequency)
+{
+	int rv = CW_SUCCESS;
+	if (frequency) {
+		rv = cw_console_pseudo_write_low_level_internal(gen, frequency);
+		usleep(usecs);
+	} else {
+		rv = cw_console_pseudo_write_low_level_internal(gen, CW_AUDIO_TONE_SILENT);
+		usleep(usecs);
+	}
+
+	return rv;
+}
+
+
+
+
+
+/**
    \brief Start generating a sound using console PC speaker
 
    The function calls the KIOCSOUND ioctl to start a particular tone.
@@ -7392,17 +7417,15 @@ void cw_console_close_device_internal(cw_gen_t *gen)
    \return CW_FAILURE on errors
    \return CW_SUCCESS on success
 */
-int cw_generator_play_with_console_internal(cw_gen_t *gen, int state)
+int cw_console_pseudo_write_low_level_internal(cw_gen_t *gen, int state)
 {
 #ifndef LIBCW_WITH_CONSOLE
 	return CW_FAILURE;
 #else
-	/*
-	 * Calculate the correct argument for KIOCSOUND.  There's nothing we
-	 * can do to control the volume, but if we find the volume is set to
-	 * zero, the one thing we can do is to just turn off tones.  A bit
-	 * crude, but perhaps just slightly better than doing nothing.
-	 */
+	/* Calculate the correct argument for KIOCSOUND.  There's nothing we
+	   can do to control the volume, but if we find the volume is set to
+	   zero, the one thing we can do is to just turn off tones.  A bit
+	   crude, but perhaps just slightly better than doing nothing. */
 	int argument = 0;
 	if (gen->volume_percent > 0 && state) {
 		argument = KIOCSOUND_CLOCK_TICK_RATE / gen->frequency;
@@ -7411,7 +7434,6 @@ int cw_generator_play_with_console_internal(cw_gen_t *gen, int state)
 	cw_debug (CW_DEBUG_SOUND, "KIOCSOUND arg = %d (switch: %d, frequency: %d Hz, volume: %d %%)",
 		  argument, state, gen->frequency, gen->volume_percent);
 
-	/* Call the ioctl, and return any error status. */
 	if (ioctl(gen->audio_sink, KIOCSOUND, argument) == -1) {
 		cw_debug (CW_DEBUG_SYSTEM, "error: ioctl KIOCSOUND: \"%s\"\n", strerror(errno));
 		return CW_FAILURE;
@@ -7816,6 +7838,13 @@ int cw_alsa_open_device_internal(cw_gen_t *gen)
 		cw_debug (CW_DEBUG_SYSTEM, "error: can't open ALSA device \"%s\"\n", gen->audio_device);
 		return CW_FAILURE;
 	}
+	/*
+	rv = snd_pcm_nonblock(gen->alsa_handle, 0);
+	if (rv < 0) {
+		cw_debug (CW_DEBUG_SYSTEM, "error: can't set block for ALSA handle\n");
+		return CW_FAILURE;
+	}
+	*/
 
 	/* TODO: move this to cw_alsa_set_hw_params_internal(),
 	   deallocate hw_params */
@@ -8027,13 +8056,11 @@ void *cw_generator_write_sine_wave_internal(void *arg)
 #ifdef LIBCW_WITH_DEV
 			if (reported_empty) {
 				//cw_dev_debug ("tone queue is not empty anymore");
-				if (gen->audio_system == CW_AUDIO_ALSA) {
-					//snd_pcm_prepare(gen->alsa_handle);
-				}
 				reported_empty = false;
 			}
 #endif
 		}
+
 
 		if (q == CW_TQ_STILL_EMPTY) {
 			usleep(100);
@@ -8071,18 +8098,24 @@ void *cw_generator_write_sine_wave_internal(void *arg)
 			gen->slope.len = CW_AUDIO_GENERATOR_SLOPE_LEN;
 		}
 
+		if (gen->audio_system == CW_AUDIO_CONSOLE) {
+			cw_console_pseudo_write_internal(gen, usecs, frequency);
+			pthread_kill(gen->main_thread_id, SIGALRM);
+
+			cw_keyer_update_internal();
+			continue;
+		}
+
 
 		//cw_dev_debug ("--- %d samples, %d Hz", gen->tone_n_samples, gen->frequency);
 		while (samples_left > 0) {
 			if (start + samples_left >= gen->buffer_n_samples) {
 				stop = gen->buffer_n_samples - 1;
-				samples_calculated = stop - start + 1;
-				samples_left -= samples_calculated;
 			} else {
 				stop = start + samples_left - 1;
+			}
 				samples_calculated = stop - start + 1;
 				samples_left -= samples_calculated;
-			}
 
 			//cw_dev_debug ("start: %d, stop: %d, calculated: %d, to calculate: %d", start, stop, samples_calculated, samples_left);
 			if (samples_left < 0) {
@@ -8142,7 +8175,7 @@ void *cw_generator_write_sine_wave_internal(void *arg)
 				start = stop + 1;
 
 			}
-		}
+		} /* while (samples_left > 0) { */
 
 		pthread_kill(gen->main_thread_id, SIGALRM);
 
@@ -8606,9 +8639,9 @@ static void main_helper(int audio_system, const char *name, const char *device, 
 /* for stand-alone testing */
 int main(void)
 {
-	//main_helper(CW_AUDIO_ALSA,    "ALSA",    CW_DEFAULT_ALSA_DEVICE,    cw_is_alsa_possible);
-	//main_helper(CW_AUDIO_PA,      "PulseAudio",  CW_DEFAULT_ALSA_DEVICE,    cw_is_pa_possible);
-	//main_helper(CW_AUDIO_CONSOLE, "console", CW_DEFAULT_CONSOLE_DEVICE, cw_is_console_possible);
+	main_helper(CW_AUDIO_ALSA,    "ALSA",    CW_DEFAULT_ALSA_DEVICE,    cw_is_alsa_possible);
+	main_helper(CW_AUDIO_PA,      "PulseAudio",  CW_DEFAULT_ALSA_DEVICE,    cw_is_pa_possible);
+	main_helper(CW_AUDIO_CONSOLE, "console", CW_DEFAULT_CONSOLE_DEVICE, cw_is_console_possible);
 	main_helper(CW_AUDIO_OSS,     "OSS",     CW_DEFAULT_OSS_DEVICE,     cw_is_oss_possible);
 
 	return 0;
