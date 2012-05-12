@@ -38,6 +38,7 @@
    - Section:Straight key
    - Section:Generator - generic
    - Section:Console buzzer output
+   - Section:Soundcard - generic
    - Section:Soundcard output with OSS
    - Section:Soundcard output with ALSA
    - Section:Soundcard output with PulseAudio
@@ -170,6 +171,93 @@ typedef struct cw_tracking_struct cw_tracking_t;
 
 
 
+typedef struct cw_tone_struct {
+	/* frequency of a tone */
+	int frequency;
+
+	/* duration of a tone, in microseconds */
+	int usecs;
+
+	/* duration of a tone, in samples (is a function of usecs and sample rate) */
+	int n_samples;
+
+	/* We need two indices to gen->buffer, indicating beginning and end
+	   of a subarea in the buffer.
+	   The subarea is not the same as gen->buffer for variety of reasons:
+	    - buffer length is almost always smaller than length of a dash,
+	      a dot, or inter-element space that we want to produce;
+	    - moreover, length of a dash/dot/space is almost never an exact
+	      multiple of length of a buffer;
+            - as a result, a sound representing a dash/dot/space may start
+	      and end anywhere between beginning and end of the buffer;
+
+	   A workable solution is have a subarea of the buffer, a window,
+	   into which we will write a series of fragments of calculated sound.
+
+	   The subarea won't wrap around boundaries of the buffer. 'stop'
+	   will be no larger than 'gen->buffer_n_samples - 1', and it will
+	   never be smaller than 'stop'.
+
+	   'start' and 'stop' mark beginning and end of the subarea.
+	   Very often (in the middle of the sound), 'start' will be zero,
+	   and 'stop' will be 'gen->buffer_n_samples - 1'.
+
+	   Sine wave (sometimes with amplitude = 0) will be calculated for
+	   cells ranging from cell 'start' to cell 'stop', inclusive. */
+	int sub_start;
+	int sub_stop;
+
+	/* a tone can start and/or end abruptly (which may result in
+	   audible clicks), or its beginning and/or end can have form
+	   of slopes (ramps), where amplitude increases/decreases less
+	   abruptly than if there were no slopes;
+
+	   using slopes reduces audible clicks at the beginning/end of
+	   tone, and can be used to shape spectrum of a tone;
+
+	   AFAIK most desired shape of a slope looks like sine wave;
+	   most simple one is just a linear slope;
+
+	   slope area should be integral part of a tone, i.e. it shouldn't
+	   make the tone longer than usecs/n_samples;
+
+	   a tone with rising and falling slope should have this length
+	   (in samples):
+	   slope_n_samples   +   (n_samples - 2 * slope_n_samples)   +   slope_n_samples
+
+	   libcw allows following slope area scenarios (modes):
+	   1. no slopes: tone shouldn't have any slope areas (i.e. tone
+	      with constant amplitude);
+	   1.a. a special case of this mode is silent tone - amplitude
+	        of a tone is zero for whole duration of the tone;
+	   2. tone has nothing more than a single slope area (rising or
+	      falling); there is no area with constant amplitude;
+	   3. a regular tone, with area of rising slope, then area with
+	   constant amplitude, and then falling slope;
+
+	   currently, if a tone has both slopes (rising and falling), both
+	   slope areas have to have the same length; */
+	int slope_iterator;     /* counter of samples in slope area */
+	int slope_mode;         /* mode/scenario of slope */
+	int slope_n_samples;    /* length of slope area */
+} cw_tone_t;
+
+
+
+
+/* allowed values of cw_tone_t.slope_mode */
+#define CW_SLOPE_STANDARD    0
+#define CW_SLOPE_RISING      1
+#define CW_SLOPE_FALLING     2
+#define CW_SLOPE_NONE        3
+
+#define CW_SLOPE_MODE_STANDARD_SLOPES   20
+#define CW_SLOPE_MODE_NO_SLOPES         21
+#define CW_SLOPE_MODE_RISING_SLOPE      22
+#define CW_SLOPE_MODE_FALLING_SLOPE     23
+
+
+
 
 
 /* ******************************************************************** */
@@ -178,14 +266,15 @@ typedef struct cw_tracking_struct cw_tracking_t;
 /* Generic constants - common for all audio systems (or not used in some of systems) */
 static const int        CW_AUDIO_CHANNELS = 1;                /* Sound in mono */
 static const long int   CW_AUDIO_VOLUME_RANGE = (1 << 15);    /* 2^15 = 32768 */
-static const int        CW_AUDIO_GENERATOR_SLOPE_LEN = 200;      /* ~200 for 44.1/48 kHz sample rate */
+static const int        CW_AUDIO_GENERATOR_SLOPE_N_SAMPLES = 200;      /* ~200 for 44.1/48 kHz sample rate */
 static const int        CW_AUDIO_TONE_SILENT = 0;   /* 0Hz = silent 'tone'. */
 
+/* smallest duration of time (in microseconds) that is used by libcw for
+   idle waiting and idle loops; if a libcw function needs to wait for
+   something, or make an idle loop, it should call usleep(N * CW_AUDIO_QUANTUM_USECS) */
+static const int        CW_AUDIO_QUANTUM_USECS = 100;
 
 static int   cw_generator_silence_internal(cw_gen_t *gen);
-#if 0
-static int   cw_generator_play_with_soundcard_internal(cw_gen_t *gen, int frequency);
-#endif
 static int   cw_generator_release_internal(void);
 static int   cw_generator_set_audio_device_internal(cw_gen_t *gen, const char *device);
 
@@ -199,22 +288,72 @@ static int   cw_generator_set_audio_device_internal(cw_gen_t *gen, const char *d
 
 struct cw_gen_struct {
 
+	/* generator can only generate tones that were first put
+	   into queue, and then dequeued */
 	cw_tone_queue_t *tq;
 
+
+
+	/* buffer storing sine wave that is calculated in 'calculate sine
+	   wave' cycles and sent to audio system (OSS, ALSA, PulseAudio);
+
+	   the buffer should be always filled with valid data before sending
+	   it to audio system (to avoid hearing garbage).
+
+	   we should also send exactly buffer_n_samples samples to audio
+	   system, in order to avoid situation when audio system waits for
+	   filling its buffer too long - this would result in errors and
+	   probably audible clicks; */
 	cw_sample_t *buffer;
+
+	/* size of data buffer, in samples;
+
+	   the size may be restricted (min,max) by current audio system
+	   (OSS, ALSA, PulseAudio); the audio system may also accept only
+	   specific values of the size;
+
+	   audio libraries may provide functions that can be used to query
+	   for allowed audio buffer sizes;
+
+	   the smaller the buffer, the more often you have to call function
+	   writing data to audio system, which increases CPU usage;
+
+	   the larger the buffer, the less responsive an application may
+	   be to changes of audio data parameters (depending on application
+	   type); */
 	int buffer_n_samples;
+
+	/* how many samples of audio buffer will be calculated in a given
+	   cycle of 'calculate sine wave' code? */
+	int samples_calculated;
+
+	/* how many samples are still left to calculate to completely
+	   fill audio buffer in given cycle? */
+	int samples_left;
+
+
+	/* depending on sample rate, sending speed, and user preferences,
+	   length of slope of tones generated by generator may vary;
+	   therefore generator should have this parameter */
+	int slope_n_samples;
+
 	/* none/console/OSS/ALSA/PulseAudio */
 	int audio_system;
-	/* true/false */
-	int audio_device_open;
+
+	bool audio_device_is_open;
+
 	/* Path to console file, or path to OSS soundcard file,
 	   or ALSA sound device name, or PulseAudio device name
 	   (it may be unused for PulseAudio) */
 	char *audio_device;
+
 	/* output file descriptor for audio data (console, OSS) */
 	int audio_sink;
+
+#ifdef LIBCW_WITH_ALSA
 	/* output handle for audio data (ALSA) */
 	snd_pcm_t *alsa_handle;
+#endif
 
 #ifdef LIBCW_WITH_PULSEAUDIO
 	/* data used by PulseAudio */
@@ -236,39 +375,32 @@ struct cw_gen_struct {
 	int sample_rate; /* set to the same value of sample rate as
 			    you have used when configuring sound card */
 
-	/* used to control initial and final phase of non-zero-amplitude
-	   sine wave; slope/attack makes it possible to start and end
-	   a wave without audible clicks; */
-	struct {
-		int mode;
-		int iterator;
-		int len;
-	} slope;
-
 	/* start/stop flag;
-	   set to 1 before creating generator;
-	   set to 0 to stop generator; generator gets "destroyed"
-	   handling the flag is wrapped in cw_oss_start_generator()
-	   and cw_oss_stop_generator() */
-	int generate;
+	   set to true before creating generator;
+	   set to false to stop generator; generator is then "destroyed";
+	   usually the flag is set by specific functions */
+	bool generate;
 
-	/* these are generator's internal state variables; */
+	/* used to calculate sine wave;
+	   phase offset needs to be stored between consecutive calls to
+	   function calculating consecutive fragments of sine wave */
 	double phase_offset;
 
-	int tone_n_samples;
+	/* generator thread function is used to generate sine wave
+	   and write the wave to audio sink */
+	pthread_t      gen_thread_id;
+	pthread_attr_t gen_thread_attr;
 
-	/* Thread function is used to generate sine wave
-	   and write the wave to audio sink. */
-	pthread_t gen_thread_id;
+	/* main thread, existing from beginning to end of main process run;
+	   the variable is used to send signals to main app thread; */
 	pthread_t main_thread_id;
-	pthread_attr_t thread_attr;
 };
 
 
 
 static void *cw_generator_write_sine_wave_internal(void *arg);
-static int   cw_generator_calculate_sine_wave_internal(cw_gen_t *gen, int start, int stop, int frequency);
-static int   cw_generator_calculate_amplitude_internal(cw_gen_t *gen, int frequency);
+static int   cw_generator_calculate_sine_wave_internal(cw_gen_t *gen, cw_tone_t *tone);
+static int   cw_generator_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone);
 
 
 
@@ -279,8 +411,17 @@ static int   cw_generator_calculate_amplitude_internal(cw_gen_t *gen, int freque
 /* ******************************************************************** */
 static int  cw_console_open_device_internal(cw_gen_t *gen);
 static void cw_console_close_device_internal(cw_gen_t *gen);
-static int  cw_console_pseudo_write_internal(cw_gen_t *gen, int usecs, int frequency);
-static int  cw_console_pseudo_write_low_level_internal(cw_gen_t *gen, int state);
+static int  cw_console_write_internal(cw_gen_t *gen, cw_tone_t *tone);
+static int  cw_console_write_low_level_internal(cw_gen_t *gen, int state);
+
+
+
+
+
+/* ******************************************************************** */
+/*                    Section:Soundcard - generic                       */
+/* ******************************************************************** */
+static int cw_soudcard_write_internal(cw_gen_t *gen, int queue_state, cw_tone_t *tone);
 
 
 
@@ -409,10 +550,6 @@ static int  cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, int *usecs, int 
 #define CW_USECS_FALLING_SLOPE   -102
 
 
-#define CW_SLOPE_RISING      1
-#define CW_SLOPE_FALLING     2
-#define CW_SLOPE_NONE        3
-#define CW_SLOPE_STANDARD    4
 
 
 /* return values from cw_tone_queue_dequeue_internal() */
@@ -3361,65 +3498,6 @@ const char *cw_get_soundcard_device(void)
 
 
 
-#if 0 /* unused */
-
-
-
-
-
-/**
-   \brief Start generating a sound using soundcard
-
-   Start generating sound on soundcard with frequency depending on
-   state of given generator \p gen. The function has a single argument
-   'state'. The argument toggles between zero volume (state == 0)
-   and full volume (frequency > 0).
-
-   The function only initializes generation, you have to do another
-   function call to change the tone generated.
-
-   \param gen - current generator
-   \param state - toggle between full volume and no volume
-
-   \return CW_SUCCESS on success
-   \return CW_FAILURE on errors
-*/
-int cw_generator_play_with_soundcard_internal(cw_gen_t *gen, int frequency)
-{
-	if (gen->audio_system != CW_AUDIO_OSS
-	    && gen->audio_system != CW_AUDIO_ALSA
-	    && gen->audio_system != CW_AUDIO_PA) {
-
-		cw_dev_debug ("called the function for output other than sound card (%d)",
-			gen->audio_system);
-
-		/* Strictly speaking this should be CW_FAILURE, but this
-		   is not a place and time to do anything more. The above
-		   message printed to stderr should be enough to catch
-		   problems during development phase */
-		return CW_SUCCESS;
-	}
-
-	if (frequency) {
-		cw_tone_queue_enqueue_internal(gen->tq, CW_USECS_RISING_SLOPE, gen->frequency);
-		cw_tone_queue_enqueue_internal(gen->tq, CW_USECS_FOREVER, gen->frequency);
-	} else {
-		cw_tone_queue_enqueue_internal(gen->tq, CW_USECS_FALLING_SLOPE, gen->frequency);
-	}
-
-	return CW_SUCCESS;
-}
-
-
-
-
-
-#endif
-
-
-
-
-
 /**
    \brief Stop and delete generator
 
@@ -3473,19 +3551,19 @@ int cw_generator_silence_internal(cw_gen_t *gen)
 		status = CW_FAILURE;
 #endif
 	} else if (gen->audio_system == CW_AUDIO_OSS
-	    || gen->audio_system == CW_AUDIO_ALSA
-	    || gen->audio_system == CW_AUDIO_PA) {
+		   || gen->audio_system == CW_AUDIO_ALSA
+		   || gen->audio_system == CW_AUDIO_PA) {
 
-		int usecs = 100;
-		status = cw_tone_queue_enqueue_internal(gen->tq, usecs, CW_AUDIO_TONE_SILENT);
+		status = cw_tone_queue_enqueue_internal(gen->tq, CW_AUDIO_QUANTUM_USECS, CW_AUDIO_TONE_SILENT);
 
 		/* allow some time for playing the last tone */
-		usleep(2 * usecs);
+		usleep(2 * CW_AUDIO_QUANTUM_USECS);
 	} else {
 		cw_dev_debug ("called silence() function for generator without audio system specified");
+		status = CW_FAILURE;
 	}
 
-	gen->generate = 0;
+	//gen->generate = false;
 
 	return status;
 }
@@ -3759,7 +3837,6 @@ void cw_key_set_state2_internal(cw_gen_t *gen, int requested_key_state)
 		} else {
 			cw_dev_debug ("current state = open");
 			cw_tone_queue_enqueue_internal(gen->tq, CW_USECS_FALLING_SLOPE, gen->frequency);
-			//cw_tone_queue_enqueue_internal(gen->tq, CW_USECS_FOREVER, CW_AUDIO_TONE_SILENT);
 		}
 	}
 
@@ -3986,10 +4063,19 @@ int cw_tone_queue_next_index_internal(int index)
 */
 int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, int *usecs, int *frequency)
 {
+	static bool reported_empty = false;
+
 	/* Decide what to do based on the current state. */
 	switch (tq->state) {
 
 	case QS_IDLE:
+#ifdef LIBCW_WITH_DEV
+		if (!reported_empty) {
+			/* tone queue is empty */
+			cw_dev_debug ("tone queue is empty");
+			reported_empty = true;
+		}
+#endif
 		/* Ignore calls if our state is idle. */
 		return CW_TQ_STILL_EMPTY;
 
@@ -4077,6 +4163,13 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, int *usecs, int *frequen
 					(*(tq->low_water_callback))(tq->low_water_callback_arg);
 				}
 			}
+
+#ifdef LIBCW_WITH_DEV
+			if (reported_empty) {
+				cw_dev_debug ("tone queue is not empty anymore");
+				reported_empty = false;
+			}
+#endif
 			return CW_TQ_NONEMPTY;
 		} else { /* tq->head == tq->tail */
 			/* State of tone queue (as indicated by tq->state)
@@ -4099,6 +4192,13 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, int *usecs, int *frequen
 			cw_key_set_state_internal(CW_KEY_STATE_OPEN);
 
 			//cw_finalization_schedule_internal();
+
+#ifdef LIBCW_WITH_DEV
+			if (!reported_empty) {
+				cw_dev_debug ("tone queue is empty");
+				reported_empty = true;
+			}
+#endif
 
 			return CW_TQ_JUST_EMPTIED;
 		}
@@ -6849,7 +6949,7 @@ int cw_generator_new(int audio_system, const char *device)
 
 	generator->audio_device = NULL;
 	generator->audio_system = audio_system;
-	generator->audio_device_open = 0;
+	generator->audio_device_is_open = false;
 	generator->dev_raw_sink = -1;
 	generator->send_speed = CW_SPEED_INITIAL,
 	generator->frequency = CW_FREQUENCY_INITIAL;
@@ -6859,15 +6959,15 @@ int cw_generator_new(int audio_system, const char *device)
 	generator->buffer = NULL;
 	generator->buffer_n_samples = -1;
 
-	generator->tone_n_samples = 0;
-	generator->slope.iterator = 0;
+	//generator->tone_n_samples = 0;
+	generator->slope_n_samples = CW_AUDIO_GENERATOR_SLOPE_N_SAMPLES;
 
 #ifdef LIBCW_WITH_PULSEAUDIO
 	generator->pa.s = NULL;
 #endif
 
-	pthread_attr_init(&generator->thread_attr);
-	pthread_attr_setdetachstate(&generator->thread_attr, PTHREAD_CREATE_DETACHED);
+	pthread_attr_init(&generator->gen_thread_attr);
+	pthread_attr_setdetachstate(&generator->gen_thread_attr, PTHREAD_CREATE_DETACHED);
 
 	cw_generator_set_audio_device_internal(generator, device);
 
@@ -6951,7 +7051,7 @@ void cw_generator_delete(void)
 			cw_dev_debug ("missed audio system %d", generator->audio_system);
 		}
 
-		pthread_attr_destroy(&generator->thread_attr);
+		pthread_attr_destroy(&generator->gen_thread_attr);
 
 		generator->audio_system = CW_AUDIO_NONE;
 		free(generator);
@@ -6977,7 +7077,7 @@ int cw_generator_start(void)
 {
 	generator->phase_offset = 0.0;
 
-	generator->generate = 1;
+	generator->generate = true;
 
 	generator->main_thread_id = pthread_self();
 
@@ -6986,7 +7086,7 @@ int cw_generator_start(void)
 		   || generator->audio_system == CW_AUDIO_ALSA
 		   || generator->audio_system == CW_AUDIO_PA) {
 
-		int rv = pthread_create(&generator->gen_thread_id, &generator->thread_attr,
+		int rv = pthread_create(&generator->gen_thread_id, &generator->gen_thread_attr,
 					cw_generator_write_sine_wave_internal,
 					(void *) generator);
 		if (rv != 0) {
@@ -7031,18 +7131,19 @@ void cw_generator_stop(void)
 
 	cw_generator_silence_internal(generator);
 
+	generator->generate = false;
 
-		/* Sleep some more to postpone closing a device.
-		   This way we can avoid a situation when 'generate' is set
-		   to zero and device is being closed while a new buffer is
-		   being prepared, and while write() tries to write this
-		   new buffer to already closed device.
+	/* Sleep some more to postpone closing a device.
+	   This way we can avoid a situation when 'generate' is set
+	   to zero and device is being closed while a new buffer is
+	   being prepared, and while write() tries to write this
+	   new buffer to already closed device.
 
-		   Without this usleep(), writei() from ALSA library may
-		   return "File descriptor in bad state" error - this
-		   happened when writei() tried to write to closed ALSA
-		   handle. */
-		usleep(10000);
+	   Without this usleep(), writei() from ALSA library may
+	   return "File descriptor in bad state" error - this
+	   happened when writei() tried to write to closed ALSA
+	   handle. */
+	usleep(10000);
 
 	return;
 }
@@ -7066,9 +7167,9 @@ void cw_generator_stop(void)
 
    \return position in buffer at which a last sample has been saved
 */
-int cw_generator_calculate_sine_wave_internal(cw_gen_t *gen, int start, int stop, int frequency)
+int cw_generator_calculate_sine_wave_internal(cw_gen_t *gen, cw_tone_t *tone)
 {
-	assert (stop <= gen->buffer_n_samples);
+	assert (tone->sub_stop <= gen->buffer_n_samples);
 
 	/* We need two separate iterators to correctly generate sine wave:
 	    -- i -- for iterating through output buffer, it can travel
@@ -7087,21 +7188,21 @@ int cw_generator_calculate_sine_wave_internal(cw_gen_t *gen, int start, int stop
 
 	double phase = 0.0;
 	int i = 0, j = 0;
-	for (i = start, j = 0; i <= stop; i++, j++) {
+	for (i = tone->sub_start, j = 0; i <= tone->sub_stop; i++, j++) {
 		phase = (2.0 * M_PI
-				* (double) frequency * (double) j
+				* (double) tone->frequency * (double) j
 				/ (double) gen->sample_rate)
 			+ gen->phase_offset;
-		int amplitude = cw_generator_calculate_amplitude_internal(gen, frequency);
+		int amplitude = cw_generator_calculate_amplitude_internal(gen, tone);
 
 		gen->buffer[i] = amplitude * sin(phase);
-		if (gen->slope.iterator >= 0) {
-			gen->slope.iterator++;
+		if (tone->slope_iterator >= 0) {
+			tone->slope_iterator++;
 		}
 	}
 
 	phase = (2.0 * M_PI
-		 * (double) frequency * (double) j
+		 * (double) tone->frequency * (double) j
 		 / (double) gen->sample_rate)
 		+ gen->phase_offset;
 
@@ -7138,7 +7239,7 @@ int cw_generator_calculate_sine_wave_internal(cw_gen_t *gen, int start, int stop
 
    \return value of a sample of sine wave, a non-negative number
 */
-int cw_generator_calculate_amplitude_internal(cw_gen_t *gen, int frequency)
+int cw_generator_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone)
 {
 	int amplitude = 0;
 #if 0
@@ -7153,44 +7254,44 @@ int cw_generator_calculate_amplitude_internal(cw_gen_t *gen, int frequency)
 	return amplitude;
 #else
 
-	if (frequency > 0) {
-		if (gen->slope.mode == CW_SLOPE_RISING) {
-			if (gen->slope.iterator < gen->slope.len) {
-				int i = gen->slope.iterator;
-				amplitude = 1.0 * gen->volume_abs * i / gen->slope.len;
-				//cw_dev_debug ("1: slope: %d, amp: %d", gen->slope.iterator, amplitude);
+	if (tone->frequency > 0) {
+		if (tone->slope_mode == CW_SLOPE_RISING) {
+			if (tone->slope_iterator < tone->slope_n_samples) {
+				int i = tone->slope_iterator;
+				amplitude = 1.0 * gen->volume_abs * i / tone->slope_n_samples;
+				//cw_dev_debug ("1: slope: %d, amp: %d", tone->slope_iterator, amplitude);
 			} else {
 				amplitude = gen->volume_abs;
 			}
-		} else if (gen->slope.mode == CW_SLOPE_FALLING) {
-			if (gen->slope.iterator > gen->tone_n_samples - gen->slope.len + 1) {
-				int i = gen->tone_n_samples - gen->slope.iterator + 1;
-				amplitude = 1.0 * gen->volume_abs * i / gen->slope.len;
-				//cw_dev_debug ("2: slope: %d, amp: %d", gen->slope.iterator, amplitude);
+		} else if (tone->slope_mode == CW_SLOPE_FALLING) {
+			if (tone->slope_iterator > tone->n_samples - tone->slope_n_samples + 1) {
+				int i = tone->n_samples - tone->slope_iterator + 1;
+				amplitude = 1.0 * gen->volume_abs * i / tone->slope_n_samples;
+				//cw_dev_debug ("2: slope: %d, amp: %d", tone->slope_iterator, amplitude);
 			} else {
 				amplitude = gen->volume_abs;
 			}
-		} else if (gen->slope.mode == CW_SLOPE_NONE) { /* CW_USECS_FOREVER */
+		} else if (tone->slope_mode == CW_SLOPE_NONE) { /* CW_USECS_FOREVER */
 			amplitude = gen->volume_abs;
-		} else { // gen->slope.mode == CW_SLOPE_STANDARD
+		} else { // tone->slope_mode == CW_SLOPE_STANDARD
 			/* standard algorithm for generating slopes:
 			   single, finite tone with:
 			    - rising slope at the beginning,
 			    - a period of wave with constant amplitude,
 			    - falling slope at the end. */
-			if (gen->slope.iterator >= 0 && gen->slope.iterator < gen->slope.len) {
+			if (tone->slope_iterator >= 0 && tone->slope_iterator < tone->slope_n_samples) {
 				/* beginning of tone, produce rising slope */
-				int i = gen->slope.iterator;
-				amplitude = 1.0 * gen->volume_abs * i / gen->slope.len;
-				//cw_dev_debug ("rising slope: i = %d, amp = %d", gen->slope.iterator, amplitude);
-			} else if (gen->slope.iterator >= gen->slope.len && gen->slope.iterator < gen->tone_n_samples - gen->slope.len) {
+				int i = tone->slope_iterator;
+				amplitude = 1.0 * gen->volume_abs * i / tone->slope_n_samples;
+				//cw_dev_debug ("rising slope: i = %d, amp = %d", tone->slope_iterator, amplitude);
+			} else if (tone->slope_iterator >= tone->slope_n_samples && tone->slope_iterator < tone->n_samples - tone->slope_n_samples) {
 				/* middle of tone, constant amplitude */
 				amplitude = gen->volume_abs;
-			} else if (gen->slope.iterator >= gen->tone_n_samples - gen->slope.len) {
+			} else if (tone->slope_iterator >= tone->n_samples - tone->slope_n_samples) {
 				/* falling slope */
-				int i = gen->tone_n_samples - gen->slope.iterator + 1;
-				amplitude = 1.0 * gen->volume_abs * i / gen->slope.len;
-				//cw_dev_debug ("falling slope: i = %d, amp = %d", gen->slope.iterator, amplitude);
+				int i = tone->n_samples - tone->slope_iterator + 1;
+				amplitude = 1.0 * gen->volume_abs * i / tone->slope_n_samples;
+				//cw_dev_debug ("falling slope: i = %d, amp = %d", tone->slope_iterator, amplitude);
 			} else {
 				;
 			}
@@ -7323,7 +7424,7 @@ int cw_console_open_device_internal(cw_gen_t *gen)
 #else
 	assert (gen->audio_device);
 
-	if (gen->audio_device_open) {
+	if (gen->audio_device_is_open) {
 		/* Ignore the call if the console device is already open. */
 		return CW_SUCCESS;
 	}
@@ -7337,7 +7438,7 @@ int cw_console_open_device_internal(cw_gen_t *gen)
 	}
 
 	gen->audio_sink = console;
-	gen->audio_device_open = 1;
+	gen->audio_device_is_open = true;
 
 	return CW_SUCCESS;
 #endif // #ifndef LIBCW_WITH_CONSOLE
@@ -7357,7 +7458,7 @@ void cw_console_close_device_internal(cw_gen_t *gen)
 #else
 	close(gen->audio_sink);
 	gen->audio_sink = -1;
-	gen->audio_device_open = 0;
+	gen->audio_device_is_open = false;
 
 	cw_debug (CW_DEBUG_SOUND, "console closed");
 
@@ -7373,26 +7474,26 @@ void cw_console_close_device_internal(cw_gen_t *gen)
    \brief Pseudo-device for playing sound with console
 
    Function behaving like a device, to which one does a blocking write.
-   It generates sound with \p frequency and duration \p usecs.
-   After playing \p usecs microseconds of tone it returns. It is intended
+   It generates sound with parameters (frequency and duration) specified
+   in \p tone..
+   After playing X microseconds of tone it returns. It is intended
    to behave like a blocking write() function.
 
    \param gen - current generator
-   \param usecs - duration of tone
-   \param frequency - frequency of tone
+   \param tone - tone to play with generator
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_console_pseudo_write_internal(cw_gen_t *gen, int usecs, int frequency)
+int cw_console_write_internal(cw_gen_t *gen, cw_tone_t *tone)
 {
 	int rv = CW_SUCCESS;
-	if (frequency) {
-		rv = cw_console_pseudo_write_low_level_internal(gen, frequency);
-		usleep(usecs);
+	if (tone->frequency) {
+		rv = cw_console_write_low_level_internal(gen, tone->frequency);
+		usleep(tone->usecs);
 	} else {
-		rv = cw_console_pseudo_write_low_level_internal(gen, CW_AUDIO_TONE_SILENT);
-		usleep(usecs);
+		rv = cw_console_write_low_level_internal(gen, CW_AUDIO_TONE_SILENT);
+		usleep(tone->usecs);
 	}
 
 	return rv;
@@ -7417,7 +7518,7 @@ int cw_console_pseudo_write_internal(cw_gen_t *gen, int usecs, int frequency)
    \return CW_FAILURE on errors
    \return CW_SUCCESS on success
 */
-int cw_console_pseudo_write_low_level_internal(cw_gen_t *gen, int state)
+int cw_console_write_low_level_internal(cw_gen_t *gen, int state)
 {
 #ifndef LIBCW_WITH_CONSOLE
 	return CW_FAILURE;
@@ -7445,6 +7546,145 @@ int cw_console_pseudo_write_low_level_internal(cw_gen_t *gen, int state)
 
 
 
+
+
+/* ******************************************************************** */
+/*                    Section:Soundcard - generic                       */
+/* ******************************************************************** */
+
+
+
+
+
+int cw_soudcard_write_internal(cw_gen_t *gen, int queue_state, cw_tone_t *tone)
+{
+	assert (queue_state != CW_TQ_STILL_EMPTY);
+
+	if (queue_state == CW_TQ_JUST_EMPTIED) {
+		/* all tones have been dequeued from tone queue,
+		   but it may happen that not all 'buffer_n_samples'
+		   samples were calculated, only 'samples_calculated'
+		   samples.
+		   We need to fill the buffer until it is full and
+		   ready to be sent to audio sink.
+		   We need to calculate value of samples_left
+		   to proceed. */
+		gen->samples_left = gen->buffer_n_samples - gen->samples_calculated;
+		tone->slope_iterator = -1;
+	} else { /* queue_state == CW_TQ_NONEMPTY */
+		if (tone->usecs == CW_USECS_FOREVER) {
+			tone->n_samples = CW_AUDIO_GENERATOR_SLOPE_N_SAMPLES;
+			tone->slope_mode = CW_SLOPE_NONE;
+			tone->slope_iterator = -1;
+		} else if (tone->usecs == CW_USECS_RISING_SLOPE) {
+			tone->n_samples = CW_AUDIO_GENERATOR_SLOPE_N_SAMPLES;
+			tone->slope_mode = CW_SLOPE_RISING;
+			tone->slope_iterator = 0;
+		} else if (tone->usecs == CW_USECS_FALLING_SLOPE) {
+			tone->n_samples = CW_AUDIO_GENERATOR_SLOPE_N_SAMPLES;
+			tone->slope_mode = CW_SLOPE_FALLING;
+			tone->slope_iterator = 0;
+		} else {
+			tone->n_samples = ((gen->sample_rate / 1000) * tone->usecs) / 1000;
+			tone->slope_mode = CW_SLOPE_STANDARD;
+			tone->slope_iterator = 0;
+		}
+
+		gen->samples_left = tone->n_samples;
+		tone->slope_n_samples = CW_AUDIO_GENERATOR_SLOPE_N_SAMPLES;
+# if 0
+		if (tone->slope_mode == CW_SLOPE_MODE_NO_SLOPES) {
+			tone->n_samples = ((gen->sample_rate / 1000) * tone->usecs) / 1000;
+			tone->slope_iterator = -1;
+		} else if (tone->slope_mode == CW_SLOPE_MODE_RISING_SLOPE) {
+			tone->n_samples = CW_AUDIO_GENERATOR_SLOPE_N_SAMPLES;
+			tone->slope_iterator = 0;
+		} else if (tone->slope_mode == CW_SLOPE_MODE_FALLING_SLOPE) {
+			tone->n_samples = CW_AUDIO_GENERATOR_SLOPE_N_SAMPLES;
+			tone->slope_iterator = 0;
+		} else { /* CW_SLOPE_MODE_STANDARD_SLOPES */
+			tone->slope_iterator = 0;
+			tone->n_samples = ((gen->sample_rate / 1000) * tone->usecs) / 1000;
+		}
+#endif
+	}
+
+
+
+	//cw_dev_debug ("--- %d samples, %d Hz", tone->n_samples, gen->frequency);
+	while (gen->samples_left > 0) {
+		if (tone->sub_start + gen->samples_left >= gen->buffer_n_samples) {
+			tone->sub_stop = gen->buffer_n_samples - 1;
+		} else {
+			tone->sub_stop = tone->sub_start + gen->samples_left - 1;
+		}
+		gen->samples_calculated = tone->sub_stop - tone->sub_start + 1;
+		gen->samples_left -= gen->samples_calculated;
+
+		cw_dev_debug ("start: %d, stop: %d, calculated: %d, to calculate: %d", tone->sub_start, tone->sub_stop, gen->samples_calculated, gen->samples_left);
+		if (gen->samples_left < 0) {
+			cw_dev_debug ("samples left = %d", gen->samples_left);
+		}
+
+
+		cw_generator_calculate_sine_wave_internal(gen, tone);
+
+		if (tone->sub_stop + 1 == gen->buffer_n_samples) {
+
+			int rv = 0;
+#ifdef LIBCW_WITH_OSS
+			if (gen->audio_system == CW_AUDIO_OSS) {
+				int n_bytes = sizeof (gen->buffer[0]) * gen->buffer_n_samples;
+				rv = write(gen->audio_sink, gen->buffer, n_bytes);
+				if (rv != n_bytes) {
+					cw_debug (CW_DEBUG_SYSTEM, "error: audio write (OSS): %s\n", strerror(errno));
+					//return NULL;
+				}
+				// cw_dev_debug ("written %d samples with OSS", gen->buffer_n_samples);
+
+			}
+#endif
+
+#ifdef LIBCW_WITH_ALSA
+			if (gen->audio_system == CW_AUDIO_ALSA) {
+				/* we can safely send audio buffer to ALSA:
+				   size of correct and current data in the buffer is the same as
+				   ALSA's period, so there should be no underruns */
+				rv = snd_pcm_writei(gen->alsa_handle, gen->buffer, gen->buffer_n_samples);
+				cw_debug_evaluate_alsa_write_internal(gen, rv);
+				//cw_dev_debug ("written %d/%d samples with ALSA", rv, gen->buffer_n_samples);
+			}
+#endif
+
+#ifdef LIBCW_WITH_PULSEAUDIO
+			if (gen->audio_system == CW_AUDIO_PA) {
+
+				int error = 0;
+				size_t n_bytes = sizeof (gen->buffer[0]) * gen->buffer_n_samples;
+				rv = pa_simple_write(gen->pa.s, gen->buffer, n_bytes, &error);
+				if (rv < 0) {
+					cw_debug (CW_DEBUG_SYSTEM, "error: pa_simple_write() failed: %s\n", pa_strerror(error));
+				} else {
+					//cw_dev_debug ("written %d samples with PulseAudio", gen->buffer_n_samples);
+				}
+			}
+#endif
+
+			tone->sub_start = 0;
+#if CW_DEV_RAW_SINK
+			cw_dev_debug_raw_sink_write_internal(gen);
+#endif
+		} else {
+			/* there is still some space left in the
+			   buffer, go fetch new tone from tone queue */
+			tone->sub_start = tone->sub_stop + 1;
+
+		}
+	} /* while (gen->samples_left > 0) { */
+
+	return 0;
+
+}
 
 
 /* ******************************************************************** */
@@ -7574,7 +7814,7 @@ int cw_oss_open_device_internal(cw_gen_t *gen)
 
 
 	/* Note sound as now open for business. */
-	gen->audio_device_open = 1;
+	gen->audio_device_is_open = true;
 	gen->audio_sink = soundcard;
 
 #if CW_DEV_RAW_SINK
@@ -7753,7 +7993,7 @@ void cw_oss_close_device_internal(cw_gen_t *gen)
 #else
 	close(gen->audio_sink);
 	gen->audio_sink = -1;
-	gen->audio_device_open = 0;
+	gen->audio_device_is_open = false;
 
 #if CW_DEV_RAW_SINK
 	if (gen->dev_raw_sink != -1) {
@@ -7907,7 +8147,7 @@ void cw_alsa_close_device_internal(cw_gen_t *gen)
 	snd_pcm_drain(gen->alsa_handle);
 	snd_pcm_close(gen->alsa_handle);
 
-	gen->audio_device_open = 0;
+	gen->audio_device_is_open = false;
 
 #if CW_DEV_RAW_SINK
 	if (gen->dev_raw_sink != -1) {
@@ -8003,186 +8243,45 @@ void *cw_generator_write_sine_wave_internal(void *arg)
 #if (defined LIBCW_WITH_ALSA || defined LIBCW_WITH_OSS || defined LIBCW_WITH_PULSEAUDIO)
 	cw_gen_t *gen = (cw_gen_t *) arg;
 
-	int samples_left = 0;       /* how many samples are still left to calculate */
-	int samples_calculated = 0; /* how many samples will be calculated in current round */
 
-	bool reported_empty = false;
+	cw_tone_t tone;
+	tone.sub_start = 0; /* index of first cell of the subarea */
+	tone.sub_stop = 0;  /* index of last cell of the subarea */
 
-	gen->slope.mode = CW_SLOPE_STANDARD;
+	tone.n_samples = 0;
 
-	/* We need two indices to gen->buffer, indicating beginning and end
-	   of a subarea in the buffer.
-	   The subarea is not the same as gen->buffer for variety of reasons:
-	    - buffer length is almost always smaller than length of a dash,
-	      a dot, or inter-element space that we want to produce;
-	    - moreover, length of a dash/dot/space is almost never an exact
-	      multiple of length of a buffer;
-            - as a result, a sound representing a dash/dot/space may start
-	      and end anywhere between beginning and end of the buffer;
+	tone.slope_mode = CW_SLOPE_STANDARD;
+	tone.slope_iterator = 0;
 
-	   A workable solution is have a subarea of the buffer, a window,
-	   into which we will write a series of fragments of calculated sound.
+	tone.usecs = 0;
+	tone.frequency = 0;
 
-	   The subarea won't wrap around boundaries of the buffer. 'stop'
-	   will be no larger than 'gen->buffer_n_samples - 1', and it will
-	   never be smaller than 'stop'.
-
-	   'start' and 'stop' mark beginning and end of the subarea.
-	   Very often (in the middle of the sound), 'start' will be zero,
-	   and 'stop' will be 'gen->buffer_n_samples - 1'.
-
-	   Sine wave (sometimes with amplitude = 0) will be calculated for
-	   cells ranging from cell 'start' to cell 'stop', inclusive. */
-	int start = 0; /* index of first cell of the subarea */
-	int stop = 0;  /* index of last cell of the subarea */
+	gen->samples_left = 0;
+	gen->samples_calculated = 0;
 
 	while (gen->generate) {
-		int usecs;
-		int frequency;
-		int q = cw_tone_queue_dequeue_internal(gen->tq, &usecs, &frequency);
-
-		//
-		if (q == CW_TQ_STILL_EMPTY || q == CW_TQ_JUST_EMPTIED) {
-
-#ifdef LIBCW_WITH_DEV
-			if (!reported_empty) {
-				/* tone queue is empty */
-				//cw_dev_debug ("tone queue is empty: %d", q);
-				reported_empty = true;
-			}
-#endif
-		} else {
-
-#ifdef LIBCW_WITH_DEV
-			if (reported_empty) {
-				//cw_dev_debug ("tone queue is not empty anymore");
-				reported_empty = false;
-			}
-#endif
-		}
-
-
+		int q = cw_tone_queue_dequeue_internal(gen->tq, &tone.usecs, &tone.frequency);
 		if (q == CW_TQ_STILL_EMPTY) {
-			usleep(100);
+			usleep(CW_AUDIO_QUANTUM_USECS);
 			continue;
-		} else if (q == CW_TQ_JUST_EMPTIED) {
-			/* all tones have been dequeued from tone queue,
-			   but it may happen that not all 'buffer_n_samples'
-			   samples were calculated, only 'samples_calculated'
-			   samples.
-			   We need to fill the buffer until it is full and
-			   ready to be sent to audio sink.
-			   We need to calculate value of samples_left
-			   to proceed. */
-			samples_left = gen->buffer_n_samples - samples_calculated;
-			gen->slope.iterator = -1;
-		} else { /* q == CW_TQ_NONEMPTY */
-			if (usecs == CW_USECS_FOREVER) {
-				gen->tone_n_samples = CW_AUDIO_GENERATOR_SLOPE_LEN;
-				gen->slope.mode = CW_SLOPE_NONE;
-				gen->slope.iterator = -1;
-			} else if (usecs == CW_USECS_RISING_SLOPE) {
-				gen->tone_n_samples = CW_AUDIO_GENERATOR_SLOPE_LEN;
-				gen->slope.mode = CW_SLOPE_RISING;
-				gen->slope.iterator = 0;
-			} else if (usecs == CW_USECS_FALLING_SLOPE) {
-				gen->tone_n_samples = CW_AUDIO_GENERATOR_SLOPE_LEN;
-				gen->slope.mode = CW_SLOPE_FALLING;
-				gen->slope.iterator = 0;
-			} else {
-				gen->tone_n_samples = ((gen->sample_rate / 1000) * usecs) / 1000;
-				gen->slope.mode = CW_SLOPE_STANDARD;
-				gen->slope.iterator = 0;
-			}
-			samples_left = gen->tone_n_samples;
-			gen->slope.len = CW_AUDIO_GENERATOR_SLOPE_LEN;
 		}
 
 		if (gen->audio_system == CW_AUDIO_CONSOLE) {
-			cw_console_pseudo_write_internal(gen, usecs, frequency);
-			pthread_kill(gen->main_thread_id, SIGALRM);
-
-			cw_keyer_update_internal();
-			continue;
+			cw_console_write_internal(gen, &tone);
+		} else {
+			cw_soudcard_write_internal(gen, q, &tone);
 		}
 
-
-		//cw_dev_debug ("--- %d samples, %d Hz", gen->tone_n_samples, gen->frequency);
-		while (samples_left > 0) {
-			if (start + samples_left >= gen->buffer_n_samples) {
-				stop = gen->buffer_n_samples - 1;
-			} else {
-				stop = start + samples_left - 1;
-			}
-				samples_calculated = stop - start + 1;
-				samples_left -= samples_calculated;
-
-			//cw_dev_debug ("start: %d, stop: %d, calculated: %d, to calculate: %d", start, stop, samples_calculated, samples_left);
-			if (samples_left < 0) {
-				cw_dev_debug ("samples left = %d", samples_left);
-			}
-
-
-			cw_generator_calculate_sine_wave_internal(gen, start, stop, frequency);
-			if (stop + 1 == gen->buffer_n_samples) {
-
-				int rv = 0;
-#ifdef LIBCW_WITH_OSS
-				if (gen->audio_system == CW_AUDIO_OSS) {
-					int n_bytes = sizeof (gen->buffer[0]) * gen->buffer_n_samples;
-					rv = write(gen->audio_sink, gen->buffer, n_bytes);
-					if (rv != n_bytes) {
-						cw_debug (CW_DEBUG_SYSTEM, "error: audio write (OSS): %s\n", strerror(errno));
-						//return NULL;
-					}
-					// cw_dev_debug ("written %d samples with OSS", gen->buffer_n_samples);
-
-				}
-#endif
-
-#ifdef LIBCW_WITH_ALSA
-				if (gen->audio_system == CW_AUDIO_ALSA) {
-					/* we can safely send audio buffer to ALSA:
-					   size of correct and current data in the buffer is the same as
-					   ALSA's period, so there should be no underruns */
-					rv = snd_pcm_writei(gen->alsa_handle, gen->buffer, gen->buffer_n_samples);
-					cw_debug_evaluate_alsa_write_internal(gen, rv);
-					//cw_dev_debug ("written %d/%d samples with ALSA", rv, gen->buffer_n_samples);
-				}
-#endif
-
-#ifdef LIBCW_WITH_PULSEAUDIO
-				if (gen->audio_system == CW_AUDIO_PA) {
-
-					int error = 0;
-					size_t n_bytes = sizeof (gen->buffer[0]) * gen->buffer_n_samples;
-					rv = pa_simple_write(gen->pa.s, gen->buffer, n_bytes, &error);
-					if (rv < 0) {
-						cw_debug (CW_DEBUG_SYSTEM, "error: pa_simple_write() failed: %s\n", pa_strerror(error));
-					} else {
-						//cw_dev_debug ("written %d samples with PulseAudio", gen->buffer_n_samples);
-					}
-				}
-#endif
-
-				start = 0;
-#if CW_DEV_RAW_SINK
-				cw_dev_debug_raw_sink_write_internal(gen);
-#endif
-			} else {
-				/* there is still some space left in the
-				   buffer, go fetch new tone from tone queue */
-				start = stop + 1;
-
-			}
-		} /* while (samples_left > 0) { */
-
 		pthread_kill(gen->main_thread_id, SIGALRM);
+		cw_keyer_update_internal(); /* TODO: follow this function, check if and when it needs to be called */
 
-		cw_keyer_update_internal();
-
+		/* FIXME: why client application hangs at this return? */
+		//return NULL;
 	} /* while(gen->generate) */
 #endif // #if (defined LIBCW_WITH_ALSA || defined LIBCW_WITH_OSS || defined LIBCW_WITH_PULSEAUDIO)
+
+	cw_dev_debug ("generator stopped (gen->generate = %d)\n", gen->generate);
+
 	return NULL;
 }
 
