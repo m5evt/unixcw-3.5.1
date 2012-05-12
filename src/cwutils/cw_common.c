@@ -215,7 +215,9 @@ int cw_generator_new_from_config(cw_config_t *config)
 				fprintf(stderr, "%s: failed to open PulseAudio output\n", config->program_name);
 			}
 		} else {
-			fprintf(stderr, "%s: PulseAudio output not available (device: %s)\n", config->program_name, config->audio_device);
+			fprintf(stderr, "%s: PulseAudio output not available (device: %s)\n",
+				config->program_name,
+				config->audio_device ? config->audio_device : CW_DEFAULT_PA_DEVICE);
 		}
 		/* fall through to try with next audio system type */
 	}
@@ -238,7 +240,9 @@ int cw_generator_new_from_config(cw_config_t *config)
 					config->program_name, cw_get_soundcard_device());
 			}
 		} else {
-			fprintf(stderr, "%s: OSS output not available (device: %s)\n", config->program_name, config->audio_device);
+			fprintf(stderr, "%s: OSS output not available (device: %s)\n",
+				config->program_name,
+				config->audio_device ? config->audio_device : CW_DEFAULT_OSS_DEVICE);
 		}
 		/* fall through to try with next audio system type */
 	}
@@ -262,7 +266,9 @@ int cw_generator_new_from_config(cw_config_t *config)
 					config->program_name, cw_get_soundcard_device());
 			}
 		} else {
-			fprintf(stderr, "%s: ALSA output not available (device: %s)\n", config->program_name, config->audio_device);
+			fprintf(stderr, "%s: ALSA output not available (device: %s)\n",
+				config->program_name,
+				config->audio_device ? config->audio_device : CW_DEFAULT_ALSA_DEVICE);
 		}
 		/* fall through to try with next audio system type */
 	}
@@ -285,7 +291,9 @@ int cw_generator_new_from_config(cw_config_t *config)
 					config->program_name, cw_get_console_device() ? cw_get_console_device() : config->audio_device);
 			}
 		} else {
-			fprintf(stderr, "%s: console output not available (device: %s)\n", config->program_name, config->audio_device);
+			fprintf(stderr, "%s: console output not available (device: %s)\n",
+				config->program_name,
+				config->audio_device ? config->audio_device : CW_DEFAULT_CONSOLE_DEVICE);
 		}
 		/* fall through to try with next audio system type */
 	}
