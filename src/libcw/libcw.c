@@ -153,9 +153,9 @@
 #define CW_OSS_SET_FRAGMENT       1  /* ioctl(fd, SNDCTL_DSP_SETFRAGMENT, &param) */
 #define CW_OSS_SET_POLICY         0  /* ioctl(fd, SNDCTL_DSP_POLICY, &param) */
 #define CW_ALSA_HW_BUFFER_CONFIG  0  /* set up hw buffer/period parameters; unnecessary and probably harmful */
-//#define LIBCW_WITH_DEV 1
+#define LIBCW_WITH_DEV 1
 #ifdef LIBCW_WITH_DEV
-#define CW_DEV_MAIN               1  /* enable main() for stand-alone compilation and tests of this file */
+#define CW_DEV_MAIN               0  /* enable main() for stand-alone compilation and tests of this file */
 #define CW_DEV_RAW_SINK           1  /* create and use /tmp/cw_file.<audio system>.raw file with audio samples written as raw data */
 #define CW_DEV_RAW_SINK_MARKERS   0  /* put markers in raw data saved to raw sink */
 #endif
@@ -245,12 +245,8 @@ typedef struct cw_tone_struct {
 
 
 
-/* allowed values of cw_tone_t.slope_mode */
-#define CW_SLOPE_STANDARD    0
-#define CW_SLOPE_RISING      1
-#define CW_SLOPE_FALLING     2
-#define CW_SLOPE_NONE        3
 
+/* allowed values of cw_tone_t.slope_mode */
 #define CW_SLOPE_MODE_STANDARD_SLOPES   20
 #define CW_SLOPE_MODE_NO_SLOPES         21
 #define CW_SLOPE_MODE_RISING_SLOPE      22
@@ -266,8 +262,8 @@ typedef struct cw_tone_struct {
 /* Generic constants - common for all audio systems (or not used in some of systems) */
 static const int        CW_AUDIO_CHANNELS = 1;                /* Sound in mono */
 static const long int   CW_AUDIO_VOLUME_RANGE = (1 << 15);    /* 2^15 = 32768 */
-static const int        CW_AUDIO_GENERATOR_SLOPE_N_SAMPLES = 200;      /* ~200 for 44.1/48 kHz sample rate */
-static const int        CW_AUDIO_TONE_SILENT = 0;   /* 0Hz = silent 'tone'. */
+static const int        CW_AUDIO_SLOPE_N_SAMPLES = 200;       /* ~200 for 44.1/48 kHz sample rate */
+#define                 CW_AUDIO_CRAZY_TAG (-37)              /* see comments in places where the constant is used */
 
 /* smallest duration of time (in microseconds) that is used by libcw for
    idle waiting and idle loops; if a libcw function needs to wait for
@@ -382,6 +378,7 @@ struct cw_gen_struct {
 	struct {
 		pa_simple *s;       /* audio handle */
 		pa_sample_spec ss;  /* sample specification */
+		pa_usec_t latency_usecs;
 	} pa;
 #endif
 
@@ -638,8 +635,8 @@ static void cw_sync_parameters_internal(cw_gen_t *gen);
    state of a key changes. */
 
 static void cw_key_set_state_internal(int requested_key_state);
-static void cw_key_set_state2_internal(cw_gen_t *gen, int requested_key_state);
-static void cw_key_set_state3_internal(cw_gen_t *gen, int requested_key_state, int usecs);
+static void cw_key_straight_key_generate_internal(cw_gen_t *gen, int requested_key_state);
+static void cw_key_iambic_keyer_generate_internal(cw_gen_t *gen, int requested_key_state, int usecs);
 
 
 
@@ -937,13 +934,16 @@ bool cw_is_debugging_internal(unsigned int flag)
 #if LIBCW_WITH_DEV
 void cw_dev_debug_print_generator_setup(cw_gen_t *gen)
 {
-	fprintf(stderr, "audio system:      %s\n",     cw_audio_system_labels[gen->audio_system]);
-	fprintf(stderr, "audio device:      \"%s\"\n",  gen->audio_device);
-	fprintf(stderr, "sample rate:       %d Hz\n",  gen->sample_rate);
-	fprintf(stderr, "send speed:        %d wpm\n", gen->send_speed);
-	fprintf(stderr, "volume:            %d %%\n",  gen->volume_percent);
-	fprintf(stderr, "frequency:         %d Hz\n",  gen->frequency);
-	fprintf(stderr, "audio buffer size: %d\n",     gen->buffer_n_samples);
+	fprintf(stderr, "audio system:          %s\n",     cw_audio_system_labels[gen->audio_system]);
+	fprintf(stderr, "audio device:         \"%s\"\n",  gen->audio_device);
+	fprintf(stderr, "sample rate:          %d Hz\n",  gen->sample_rate);
+	if (gen->audio_system == CW_AUDIO_PA) {
+		fprintf(stderr, "PulseAudio latency:    %llu us\n", (unsigned long long int) gen->pa.latency_usecs);
+	}
+	fprintf(stderr, "send speed:           %d wpm\n", gen->send_speed);
+	fprintf(stderr, "volume:               %d %%\n",  gen->volume_percent);
+	fprintf(stderr, "frequency:            %d Hz\n",  gen->frequency);
+	fprintf(stderr, "audio buffer size:    %d\n",     gen->buffer_n_samples);
 
 	return;
 }
@@ -3576,7 +3576,7 @@ int cw_generator_silence_internal(cw_gen_t *gen)
 
 		cw_tone_t tone;
 		tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-		tone.frequency = CW_AUDIO_TONE_SILENT;
+		tone.frequency = 0;
 		tone.usecs = CW_AUDIO_QUANTUM_USECS;
 		status = cw_tone_queue_enqueue_internal(gen->tq, &tone);
 
@@ -3727,7 +3727,7 @@ void cw_complete_reset(void)
 	cw_is_finalization_locked_out = true;
 
 	/* Silence sound, and shutdown use of the sound devices. */
-	//cw_sound_soundcard_internal (CW_AUDIO_TONE_SILENT);
+	//cw_sound_soundcard_internal (0);
 	cw_generator_release_internal ();
 	cw_sigalrm_restore_internal ();
 
@@ -3839,34 +3839,45 @@ void cw_key_set_state_internal(int requested_key_state)
 
    \param requested_key_state - current key state to be stored
 */
-void cw_key_set_state2_internal(cw_gen_t *gen, int requested_key_state)
+void cw_key_straight_key_generate_internal(cw_gen_t *gen, int requested_key_state)
 {
 	static int current_key_state = CW_KEY_STATE_OPEN;  /* Maintained key control state */
 
 	if (current_key_state != requested_key_state) {
-		cw_debug (CW_DEBUG_KEYING, "keying state %d->%d", current_key_state, requested_key_state);
+		cw_debug (CW_DEBUG_KEYING, "straight key: keying state %d->%d", current_key_state, requested_key_state);
 
 		/* Set the new keying state, and call any requested callback. */
 		current_key_state = requested_key_state;
 		if (cw_kk_key_callback) {
 			(*cw_kk_key_callback)(cw_kk_key_callback_arg, current_key_state);
 		}
-
-		cw_tone_t tone;
+		/* about CW_AUDIO_CRAZY_TAG: for some reason I can't
+		   just simply assign gen->frequency to tone.frequency;
+		   when I try to do this I get some audible clicks */
 		if (current_key_state == CW_KEY_STATE_CLOSED) {
+			cw_tone_t tone;
+			//tone.usecs =
+			tone.frequency = CW_AUDIO_CRAZY_TAG;
 			tone.slope_mode = CW_SLOPE_MODE_RISING_SLOPE;
-			//tone.usecs = gen->slope_usecs;
-			tone.frequency = gen->frequency;
 			cw_tone_queue_enqueue_internal(gen->tq, &tone);
 
 			tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
 			tone.usecs = CW_AUDIO_FOREVER_USECS;
-			tone.frequency = generator->frequency;
+			tone.frequency = CW_AUDIO_CRAZY_TAG;
 			cw_tone_queue_enqueue_internal(gen->tq, &tone);
+
+			int len = cw_tone_queue_length_internal(gen->tq);
+			cw_dev_debug ("len = %d", len);
 		} else {
+			cw_tone_t tone;
+			//tone.usecs =
+			tone.frequency = CW_AUDIO_CRAZY_TAG;
 			tone.slope_mode = CW_SLOPE_MODE_FALLING_SLOPE;
-			//tone.usecs = gen->slope_usecs;
-			tone.frequency = generator->frequency;
+			cw_tone_queue_enqueue_internal(gen->tq, &tone);
+
+			tone.usecs = CW_AUDIO_FOREVER_USECS;
+			tone.frequency = 0;
+			tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
 			cw_tone_queue_enqueue_internal(gen->tq, &tone);
 		}
 	}
@@ -3887,12 +3898,12 @@ void cw_key_set_state2_internal(cw_gen_t *gen, int requested_key_state)
 
    \param requested_key_state - current key state to be stored
 */
-void cw_key_set_state3_internal(cw_gen_t *gen, int requested_key_state, int usecs)
+void cw_key_iambic_keyer_generate_internal(cw_gen_t *gen, int requested_key_state, int usecs)
 {
 	static int current_key_state = CW_KEY_STATE_OPEN;  /* Maintained key control state */
 
 	if (current_key_state != requested_key_state) {
-		cw_debug (CW_DEBUG_KEYING, "keying state %d->%d", current_key_state, requested_key_state);
+		cw_debug (CW_DEBUG_KEYING, "iambic keyer: keying state %d->%d", current_key_state, requested_key_state);
 
 		/* Set the new keying state, and call any requested callback. */
 		current_key_state = requested_key_state;
@@ -3909,7 +3920,7 @@ void cw_key_set_state3_internal(cw_gen_t *gen, int requested_key_state, int usec
 		} else {
 			tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
 			tone.usecs = usecs;
-			tone.frequency = CW_AUDIO_TONE_SILENT;
+			tone.frequency = 0;
 			cw_tone_queue_enqueue_internal(gen->tq, &tone);
 		}
 	}
@@ -4096,17 +4107,21 @@ int cw_tone_queue_next_index_internal(int index)
 int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 {
 #ifdef LIBCW_WITH_DEV
-	static bool reported_empty = false;
+	static enum {
+		REPORTED_STILL_EMPTY,
+		REPORTED_JUST_EMPTIED,
+		REPORTED_NONEMPTY
+	} tq_report = REPORTED_STILL_EMPTY;
 #endif
 	/* Decide what to do based on the current state. */
 	switch (tq->state) {
 
 	case QS_IDLE:
 #ifdef LIBCW_WITH_DEV
-		if (!reported_empty) {
+		if (tq_report != REPORTED_STILL_EMPTY) {
 			/* tone queue is empty */
-			cw_dev_debug ("tone queue is empty");
-			reported_empty = true;
+			cw_dev_debug ("tone queue: still empty");
+			tq_report = REPORTED_STILL_EMPTY;
 		}
 #endif
 		/* Ignore calls if our state is idle. */
@@ -4199,9 +4214,9 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 			}
 
 #ifdef LIBCW_WITH_DEV
-			if (reported_empty) {
-				cw_dev_debug ("tone queue is not empty anymore");
-				reported_empty = false;
+			if (1 || tq_report != REPORTED_NONEMPTY) {
+				cw_dev_debug ("tone queue: nonempty: usecs = %d, freq = %d, slope = %d", tone->usecs, tone->frequency, tone->slope_mode);
+				tq_report = REPORTED_NONEMPTY;
 			}
 #endif
 			return CW_TQ_NONEMPTY;
@@ -4219,8 +4234,8 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 			/* There is no tone to dequeue, so don't modify
 			   function's arguments. Client code will learn
 			   about 'no tones' state through return value. */
-			/* *usecs = 0; */
-			/* *frequency = 0; */
+			/* tone->usecs = 0; */
+			/* tone->frequency = 0; */
 
 			/* Notify the keying control function about the silence. */
 			cw_key_set_state_internal(CW_KEY_STATE_OPEN);
@@ -4228,9 +4243,9 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 			//cw_finalization_schedule_internal();
 
 #ifdef LIBCW_WITH_DEV
-			if (!reported_empty) {
-				cw_dev_debug ("tone queue is empty");
-				reported_empty = true;
+			if (tq_report != REPORTED_JUST_EMPTIED) {
+				cw_dev_debug ("tone queue: just emptied");
+				tq_report = REPORTED_JUST_EMPTIED;
 			}
 #endif
 
@@ -4298,12 +4313,12 @@ int cw_tone_queue_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 	/* If there is currently no autonomous dequeue happening, kick
 	   off the itimer process. */
 	if (tq->state == QS_IDLE) {
-		/* There is currently no (external) process that would
-		   remove (dequeue) tones from the queue and (possibly)
-		   play them.
-		   Let's mark that dequeuing is starting, and lets start
-		   such a process using cw_tone_queue_dequeue_and_play_internal(). */
 		tq->state = QS_BUSY;
+		/* A loop in write() function may await for the queue
+		   to be filled with new tones to dequeue and play.
+		   It waits for a signal. This is a right place and time
+		   to send such a signal. */
+		pthread_kill(generator->gen_thread_id, SIGALRM);
 	}
 	//pthread_mutex_unlock(&tq->mutex);
 
@@ -4671,7 +4686,7 @@ int cw_send_element_internal(cw_gen_t *gen, char element)
 	cw_tone_t tone;
 	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
 	tone.usecs = cw_end_of_ele_delay;
-	tone.frequency = CW_AUDIO_TONE_SILENT;
+	tone.frequency = 0;
 	if (!cw_tone_queue_enqueue_internal(gen->tq, &tone)) {
 		return CW_FAILURE;
 	} else {
@@ -4729,7 +4744,7 @@ int cw_send_character_space(void)
 	cw_tone_t tone;
 	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
 	tone.usecs = cw_end_of_char_delay + cw_additional_delay;
-	tone.frequency = CW_AUDIO_TONE_SILENT;
+	tone.frequency = 0;
 	return cw_tone_queue_enqueue_internal(generator->tq, &tone);
 }
 
@@ -4750,7 +4765,7 @@ int cw_send_word_space(void)
 	cw_tone_t tone;
 	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
 	tone.usecs = cw_end_of_word_delay + cw_adjustment_delay;
-	tone.frequency = CW_AUDIO_TONE_SILENT;
+	tone.frequency = 0;
 	return cw_tone_queue_enqueue_internal(generator->tq, &tone);
 }
 
@@ -5776,8 +5791,6 @@ void cw_receive_update_adaptive_tracking_internal(int element_usec, char element
 */
 int cw_end_receive_tone(const struct timeval *timestamp)
 {
-
-
 	/* The receive state is expected to be inside a tone. */
 	if (cw_receive_state != RS_IN_TONE) {
 		errno = ERANGE;
@@ -6398,7 +6411,7 @@ void cw_keyer_update_internal(void)
 		   to the client. */
 	case KS_IN_DOT_A:
 	case KS_IN_DOT_B:
-		cw_key_set_state3_internal(generator, CW_KEY_STATE_OPEN, cw_end_of_ele_delay);
+		cw_key_iambic_keyer_generate_internal(generator, CW_KEY_STATE_OPEN, cw_end_of_ele_delay);
 		cw_debug (CW_DEBUG_KEYER_STATES_VERBOSE, "cw_keyer_state: KS_IN_DOT -> KS_AFTER_DOT");
 		cw_keyer_state = cw_keyer_state == KS_IN_DOT_A
 			? KS_AFTER_DOT_A : KS_AFTER_DOT_B;
@@ -6408,7 +6421,7 @@ void cw_keyer_update_internal(void)
 
 	case KS_IN_DASH_A:
 	case KS_IN_DASH_B:
-		cw_key_set_state3_internal(generator, CW_KEY_STATE_OPEN, cw_end_of_ele_delay);
+		cw_key_iambic_keyer_generate_internal(generator, CW_KEY_STATE_OPEN, cw_end_of_ele_delay);
 		cw_debug (CW_DEBUG_KEYER_STATES_VERBOSE, "cw_keyer_state: KS_IN_DASH -> KS_AFTER_DASH");
 		cw_keyer_state = cw_keyer_state == KS_IN_DASH_A
 			? KS_AFTER_DASH_A : KS_AFTER_DASH_B;
@@ -6431,11 +6444,11 @@ void cw_keyer_update_internal(void)
 		}
 
 		if (cw_keyer_state == KS_AFTER_DOT_B) {
-			cw_key_set_state3_internal(generator, CW_KEY_STATE_CLOSED, cw_send_dash_length);
+			cw_key_iambic_keyer_generate_internal(generator, CW_KEY_STATE_CLOSED, cw_send_dash_length);
 			cw_debug (CW_DEBUG_KEYER_STATES_VERBOSE, "cw_keyer_state: KS_AFTER_DOT -> KS_IN_DASH_A");
 			cw_keyer_state = KS_IN_DASH_A;
 		} else if (cw_ik_dash_latch) {
-			cw_key_set_state3_internal(generator, CW_KEY_STATE_CLOSED, cw_send_dash_length);
+			cw_key_iambic_keyer_generate_internal(generator, CW_KEY_STATE_CLOSED, cw_send_dash_length);
 			if (cw_ik_curtis_b_latch){
 				cw_ik_curtis_b_latch = false;
 				cw_debug (CW_DEBUG_KEYER_STATES_VERBOSE, "cw_keyer_state: KS_AFTER_DOT -> KS_IN_DASH_B");
@@ -6445,7 +6458,7 @@ void cw_keyer_update_internal(void)
 				cw_keyer_state = KS_IN_DASH_A;
 			}
 		} else if (cw_ik_dot_latch) {
-			cw_key_set_state3_internal(generator, CW_KEY_STATE_CLOSED, cw_send_dot_length);
+			cw_key_iambic_keyer_generate_internal(generator, CW_KEY_STATE_CLOSED, cw_send_dot_length);
 			cw_debug (CW_DEBUG_KEYER_STATES_VERBOSE, "cw_keyer_state: KS_AFTER_DOT -> KS_IN_DOT_A");
 			cw_keyer_state = KS_IN_DOT_A;
 		} else {
@@ -6463,11 +6476,11 @@ void cw_keyer_update_internal(void)
 			cw_ik_dash_latch = false;
 		}
 		if (cw_keyer_state == KS_AFTER_DASH_B) {
-			cw_key_set_state3_internal(generator, CW_KEY_STATE_CLOSED, cw_send_dot_length);
+			cw_key_iambic_keyer_generate_internal(generator, CW_KEY_STATE_CLOSED, cw_send_dot_length);
 			cw_debug (CW_DEBUG_KEYER_STATES_VERBOSE, "cw_keyer_state: KS_AFTER_DASH_B -> IN_DOT_A");
 			cw_keyer_state = KS_IN_DOT_A;
 		} else if (cw_ik_dot_latch) {
-			cw_key_set_state3_internal(generator, CW_KEY_STATE_CLOSED, cw_send_dot_length);
+			cw_key_iambic_keyer_generate_internal(generator, CW_KEY_STATE_CLOSED, cw_send_dot_length);
 			if (cw_ik_curtis_b_latch) {
 				cw_ik_curtis_b_latch = false;
 				cw_debug (CW_DEBUG_KEYER_STATES_VERBOSE, "cw_keyer_state: KS_AFTER_DASH -> KS_IN_DOT_B");
@@ -6477,7 +6490,7 @@ void cw_keyer_update_internal(void)
 				cw_keyer_state = KS_IN_DOT_A;
 			}
 		} else if (cw_ik_dash_latch) {
-			cw_key_set_state3_internal(generator, CW_KEY_STATE_CLOSED, cw_send_dash_length);
+			cw_key_iambic_keyer_generate_internal(generator, CW_KEY_STATE_CLOSED, cw_send_dash_length);
 			cw_debug (CW_DEBUG_KEYER_STATES_VERBOSE, "cw_keyer_state: KS_AFTER_DASH -> KS_IN_DASH_A");
 			cw_keyer_state = KS_IN_DASH_A;
 		} else {
@@ -6880,9 +6893,9 @@ int cw_notify_straight_key_event(int key_state)
 		/* Do tones and keying, and set up timeouts and soundcard
 		   activities to match the new key state. */
 		if (cw_sk_key_state == CW_KEY_STATE_CLOSED) {
-			cw_key_set_state2_internal(generator, CW_KEY_STATE_CLOSED);
+			cw_key_straight_key_generate_internal(generator, CW_KEY_STATE_CLOSED);
 		} else {
-			cw_key_set_state2_internal(generator, CW_KEY_STATE_OPEN);
+			cw_key_straight_key_generate_internal(generator, CW_KEY_STATE_OPEN);
 
 			/* Indicate that we have finished with timeouts,
 			   and also with the soundcard too.  There's no way
@@ -7017,7 +7030,7 @@ int cw_generator_new(int audio_system, const char *device)
 	generator->buffer_n_samples = -1;
 
 	//generator->tone_n_samples = 0;
-	generator->slope_n_samples = CW_AUDIO_GENERATOR_SLOPE_N_SAMPLES;
+	generator->slope_n_samples = CW_AUDIO_SLOPE_N_SAMPLES;
 
 #ifdef LIBCW_WITH_PULSEAUDIO
 	generator->pa.s = NULL;
@@ -7245,6 +7258,15 @@ int cw_generator_calculate_sine_wave_internal(cw_gen_t *gen, cw_tone_t *tone)
 
 	double phase = 0.0;
 	int i = 0, j = 0;
+
+	/* about CW_AUDIO_CRAZY_TAG: for some reason I can't
+	   just simply assign gen->frequency to tone.frequency
+	   in cw_key_straight_key_generate_internal();
+	   when I try to do this I get some audible clicks  */
+	if (tone->frequency == CW_AUDIO_CRAZY_TAG) {
+		tone->frequency = gen->frequency;
+	}
+
 	for (i = tone->sub_start, j = 0; i <= tone->sub_stop; i++, j++) {
 		phase = (2.0 * M_PI
 				* (double) tone->frequency * (double) j
@@ -7302,7 +7324,7 @@ int cw_generator_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone)
 #if 0
 	/* blunt algorithm for calculating amplitude;
 	   for debug purposes only */
-	if (frequency) {
+	if (tone->frequency) {
 		amplitude = gen->volume_abs;
 	} else {
 		amplitude = 0;
@@ -7312,25 +7334,30 @@ int cw_generator_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone)
 #else
 
 	if (tone->frequency > 0) {
-		if (tone->slope_mode == CW_SLOPE_RISING) {
+		if (tone->slope_mode == CW_SLOPE_MODE_RISING_SLOPE) {
 			if (tone->slope_iterator < tone->slope_n_samples) {
 				int i = tone->slope_iterator;
 				amplitude = 1.0 * gen->volume_abs * i / tone->slope_n_samples;
 				//cw_dev_debug ("1: slope: %d, amp: %d", tone->slope_iterator, amplitude);
 			} else {
 				amplitude = gen->volume_abs;
+				assert (amplitude >= 0);
 			}
-		} else if (tone->slope_mode == CW_SLOPE_FALLING) {
+		} else if (tone->slope_mode == CW_SLOPE_MODE_FALLING_SLOPE) {
 			if (tone->slope_iterator > tone->n_samples - tone->slope_n_samples + 1) {
-				int i = tone->n_samples - tone->slope_iterator + 1;
+				int i = tone->n_samples - tone->slope_iterator - 1;
+				assert (i >= 0);
 				amplitude = 1.0 * gen->volume_abs * i / tone->slope_n_samples;
 				//cw_dev_debug ("2: slope: %d, amp: %d", tone->slope_iterator, amplitude);
+				assert (amplitude >= 0);
 			} else {
 				amplitude = gen->volume_abs;
+				assert (amplitude >= 0);
 			}
-		} else if (tone->slope_mode == CW_SLOPE_NONE) { /* CW_AUDIO_FOREVER_USECS */
+		} else if (tone->slope_mode == CW_SLOPE_MODE_NO_SLOPES) {
 			amplitude = gen->volume_abs;
-		} else { // tone->slope_mode == CW_SLOPE_STANDARD
+			assert (amplitude >= 0);
+		} else { // tone->slope_mode == CW_SLOPE_MODE_STANDARD_SLOPES
 			/* standard algorithm for generating slopes:
 			   single, finite tone with:
 			    - rising slope at the beginning,
@@ -7341,16 +7368,21 @@ int cw_generator_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone)
 				int i = tone->slope_iterator;
 				amplitude = 1.0 * gen->volume_abs * i / tone->slope_n_samples;
 				//cw_dev_debug ("rising slope: i = %d, amp = %d", tone->slope_iterator, amplitude);
+				assert (amplitude >= 0);
 			} else if (tone->slope_iterator >= tone->slope_n_samples && tone->slope_iterator < tone->n_samples - tone->slope_n_samples) {
 				/* middle of tone, constant amplitude */
 				amplitude = gen->volume_abs;
+				assert (amplitude >= 0);
 			} else if (tone->slope_iterator >= tone->n_samples - tone->slope_n_samples) {
 				/* falling slope */
-				int i = tone->n_samples - tone->slope_iterator + 1;
+				int i = tone->n_samples - tone->slope_iterator - 1;
+				assert (i >= 0);
 				amplitude = 1.0 * gen->volume_abs * i / tone->slope_n_samples;
 				//cw_dev_debug ("falling slope: i = %d, amp = %d", tone->slope_iterator, amplitude);
+				assert (amplitude >= 0);
 			} else {
 				;
+				assert (amplitude >= 0);
 			}
 		}
 	} else {
@@ -7549,7 +7581,7 @@ int cw_console_write_internal(cw_gen_t *gen, cw_tone_t *tone)
 		rv = cw_console_write_low_level_internal(gen, tone->frequency);
 		usleep(tone->usecs);
 	} else {
-		rv = cw_console_write_low_level_internal(gen, CW_AUDIO_TONE_SILENT);
+		rv = cw_console_write_low_level_internal(gen, 0);
 		usleep(tone->usecs);
 	}
 
@@ -7627,43 +7659,37 @@ int cw_soundcard_write_internal(cw_gen_t *gen, int queue_state, cw_tone_t *tone)
 		   We need to calculate value of samples_left
 		   to proceed. */
 		gen->samples_left = gen->buffer_n_samples - gen->samples_calculated;
+
 		tone->slope_iterator = -1;
+		tone->slope_mode = CW_SLOPE_MODE_NO_SLOPES;
+		tone->frequency = 0;
+
 	} else { /* queue_state == CW_TQ_NONEMPTY */
-#if 0
-		if (tone->usecs == CW_AUDIO_FOREVER_USECS) {
-			tone->n_samples = CW_AUDIO_GENERATOR_SLOPE_N_SAMPLES;
-			tone->slope_mode = CW_SLOPE_NONE;
-			tone->slope_iterator = -1;
-		} else if (tone->usecs == CW_USECS_RISING_SLOPE) {
-			tone->n_samples = CW_AUDIO_GENERATOR_SLOPE_N_SAMPLES;
-			tone->slope_mode = CW_SLOPE_RISING;
-			tone->slope_iterator = 0;
-		} else if (tone->usecs == CW_USECS_FALLING_SLOPE) {
-			tone->n_samples = CW_AUDIO_GENERATOR_SLOPE_N_SAMPLES;
-			tone->slope_mode = CW_SLOPE_FALLING;
-			tone->slope_iterator = 0;
-		} else {
-			tone->n_samples = ((gen->sample_rate / 1000) * tone->usecs) / 1000;
-			tone->slope_mode = CW_SLOPE_STANDARD;
-			tone->slope_iterator = 0;
-		}
-#else
-		if (tone->slope_mode == CW_SLOPE_MODE_NO_SLOPES) {
-			tone->n_samples = ((gen->sample_rate / 1000) * tone->usecs) / 1000;
-			tone->slope_iterator = -1;
-		} else if (tone->slope_mode == CW_SLOPE_MODE_RISING_SLOPE) {
-			tone->n_samples = CW_AUDIO_GENERATOR_SLOPE_N_SAMPLES;
+		if (tone->slope_mode == CW_SLOPE_MODE_RISING_SLOPE) {
+			tone->n_samples = gen->slope_n_samples;
 			tone->slope_iterator = 0;
 		} else if (tone->slope_mode == CW_SLOPE_MODE_FALLING_SLOPE) {
-			tone->n_samples = CW_AUDIO_GENERATOR_SLOPE_N_SAMPLES;
+			tone->n_samples = gen->slope_n_samples;
 			tone->slope_iterator = 0;
-		} else { /* CW_SLOPE_MODE_STANDARD_SLOPES */
-			tone->slope_iterator = 0;
+		} else if (tone->slope_mode == CW_SLOPE_MODE_STANDARD_SLOPES) {
 			tone->n_samples = ((gen->sample_rate / 1000) * tone->usecs) / 1000;
+			tone->slope_iterator = 0;
+		} else if (tone->slope_mode == CW_SLOPE_MODE_NO_SLOPES) {
+			if (tone->usecs == CW_AUDIO_FOREVER_USECS) {
+				tone->n_samples = gen->slope_n_samples;
+				tone->slope_iterator = -1;
+			} else if (tone->usecs > 0) {
+				tone->n_samples = ((gen->sample_rate / 1000) * tone->usecs) / 1000;
+				tone->slope_iterator = -1;
+			} else {
+				assert (0);
+			}
+		} else {
+			assert (0);
 		}
-#endif
+
 		gen->samples_left = tone->n_samples;
-		tone->slope_n_samples = CW_AUDIO_GENERATOR_SLOPE_N_SAMPLES;
+		tone->slope_n_samples = gen->slope_n_samples;
 	}
 
 
@@ -7678,15 +7704,15 @@ int cw_soundcard_write_internal(cw_gen_t *gen, int queue_state, cw_tone_t *tone)
 		gen->samples_calculated = tone->sub_stop - tone->sub_start + 1;
 		gen->samples_left -= gen->samples_calculated;
 
-		/*
+#if 0
 		cw_dev_debug ("start: %d, stop: %d, calculated: %d, to calculate: %d", tone->sub_start, tone->sub_stop, gen->samples_calculated, gen->samples_left);
 		if (gen->samples_left < 0) {
 			cw_dev_debug ("samples left = %d", gen->samples_left);
 		}
-		*/
+#endif
+
 
 		cw_generator_calculate_sine_wave_internal(gen, tone);
-
 		if (tone->sub_stop + 1 == gen->buffer_n_samples) {
 
 			int rv = 0;
@@ -8310,7 +8336,7 @@ void *cw_generator_write_sine_wave_internal(void *arg)
 		  .sub_stop  = 0,
 
 		  .slope_iterator  = 0,
-		  .slope_mode      = CW_SLOPE_STANDARD,
+		  .slope_mode      = CW_SLOPE_MODE_STANDARD_SLOPES,
 		  .slope_n_samples = 0 };
 
 	gen->samples_left = 0;
@@ -8319,7 +8345,11 @@ void *cw_generator_write_sine_wave_internal(void *arg)
 	while (gen->generate) {
 		int q = cw_tone_queue_dequeue_internal(gen->tq, &tone);
 		if (q == CW_TQ_STILL_EMPTY) {
-			usleep(CW_AUDIO_QUANTUM_USECS);
+			/* wait for signal from enqueue() function
+			   informing that there appeared some tone
+			   on tone queue */
+			cw_signal_wait_internal();
+			//usleep(CW_AUDIO_QUANTUM_USECS);
 			continue;
 		}
 
@@ -8734,12 +8764,10 @@ int cw_pa_open_device_internal(cw_gen_t *gen)
 	cw_dev_debug ("PulseAudio buf size %u", (unsigned int) gen->buffer_n_samples);
 	gen->sample_rate = gen->pa.ss.rate;
 
-	pa_usec_t latency;
-
-	if ((latency = pa_simple_get_latency(gen->pa.s, &error)) == (pa_usec_t) -1) {
+	if ((gen->pa.latency_usecs = pa_simple_get_latency(gen->pa.s, &error)) == (pa_usec_t) -1) {
 		cw_dev_debug ("error: pa_simple_get_latency() failed: %s", pa_strerror(error));
 	} else {
-		cw_dev_debug ("info: latency: %0.0f usec", (float) latency);
+		cw_dev_debug ("info: latency: %llu usec", (unsigned long long int) gen->pa.latency_usecs);
 	}
 
 #if CW_DEV_RAW_SINK
