@@ -1,3 +1,12 @@
+2012-05-14 Kamil Ignacak
+	* libcw/tone queue: cw_generator_write_sine_wave_internal(): using
+	cw_signal_wait_internal() (together with pthread_kill() in enqueue
+	function) instead of usleep() - this should decrease CPU usage in idle
+	state; still needs to be tested and verified, but - overall - good
+	idea; I think that this solution existed in libcw before I've started
+	slaughtering the code, so consider this just rediscovering of a clever
+	code;
+
 2012-05-10 Kamil Ignacak
 	* libcw/console: Console output now works correctly, playing nicely
 	with queue()/dequeue() and the generator.
