@@ -382,6 +382,12 @@ struct cw_gen_struct {
 	} pa;
 #endif
 
+	struct {
+		int x;
+		int y;
+		int z;
+	} oss_version;
+
 	/* output file descriptor for debug data (console, OSS, ALSA, PulseAudio) */
 	int dev_raw_sink;
 
@@ -458,6 +464,7 @@ static const int CW_OSS_SAMPLE_FORMAT = AFMT_S16_NE;  /* Sound format AFMT_S16_N
 static int  cw_oss_open_device_internal(cw_gen_t *gen);
 static void cw_oss_close_device_internal(cw_gen_t *gen);
 static int  cw_oss_open_device_ioctls_internal(int *fd, int *sample_rate);
+static int  cw_oss_get_version_internal(int fd, int *x, int *y, int *z);
 
 
 
@@ -934,7 +941,11 @@ bool cw_is_debugging_internal(unsigned int flag)
 #if LIBCW_WITH_DEV
 void cw_dev_debug_print_generator_setup(cw_gen_t *gen)
 {
-	fprintf(stderr, "audio system:          %s\n",     cw_audio_system_labels[gen->audio_system]);
+	fprintf(stderr, "audio system:         %s\n",     cw_audio_system_labels[gen->audio_system]);
+	if (gen->audio_system == CW_AUDIO_OSS) {
+		fprintf(stderr, "OSS version           %X.%X.%X\n",
+			gen->oss_version.x, gen->oss_version.y, gen->oss_version.z);
+	}
 	fprintf(stderr, "audio device:         \"%s\"\n",  gen->audio_device);
 	fprintf(stderr, "sample rate:          %d Hz\n",  gen->sample_rate);
 	if (gen->audio_system == CW_AUDIO_PA) {
@@ -3856,22 +3867,22 @@ void cw_key_straight_key_generate_internal(cw_gen_t *gen, int requested_key_stat
 		   when I try to do this I get some audible clicks */
 		if (current_key_state == CW_KEY_STATE_CLOSED) {
 			cw_tone_t tone;
-			//tone.usecs =
-			tone.frequency = CW_AUDIO_CRAZY_TAG;
+			tone.usecs = 1; /* dummy value */
+			tone.frequency = gen->frequency;//CW_AUDIO_CRAZY_TAG;
 			tone.slope_mode = CW_SLOPE_MODE_RISING_SLOPE;
 			cw_tone_queue_enqueue_internal(gen->tq, &tone);
 
 			tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
 			tone.usecs = CW_AUDIO_FOREVER_USECS;
-			tone.frequency = CW_AUDIO_CRAZY_TAG;
+			tone.frequency = gen->frequency;//CW_AUDIO_CRAZY_TAG;
 			cw_tone_queue_enqueue_internal(gen->tq, &tone);
 
 			int len = cw_tone_queue_length_internal(gen->tq);
 			cw_dev_debug ("len = %d", len);
 		} else {
 			cw_tone_t tone;
-			//tone.usecs =
-			tone.frequency = CW_AUDIO_CRAZY_TAG;
+			tone.usecs = 1; /* dummy value */
+			tone.frequency = gen->frequency;//CW_AUDIO_CRAZY_TAG;
 			tone.slope_mode = CW_SLOPE_MODE_FALLING_SLOPE;
 			cw_tone_queue_enqueue_internal(gen->tq, &tone);
 
@@ -4214,7 +4225,7 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 			}
 
 #ifdef LIBCW_WITH_DEV
-			if (1 || tq_report != REPORTED_NONEMPTY) {
+			if (tq_report != REPORTED_NONEMPTY) {
 				cw_dev_debug ("tone queue: nonempty: usecs = %d, freq = %d, slope = %d", tone->usecs, tone->frequency, tone->slope_mode);
 				tq_report = REPORTED_NONEMPTY;
 			}
@@ -7029,6 +7040,10 @@ int cw_generator_new(int audio_system, const char *device)
 	generator->buffer = NULL;
 	generator->buffer_n_samples = -1;
 
+	generator->oss_version.x = -1;
+	generator->oss_version.y = -1;
+	generator->oss_version.z = -1;
+
 	//generator->tone_n_samples = 0;
 	generator->slope_n_samples = CW_AUDIO_SLOPE_N_SAMPLES;
 
@@ -7259,6 +7274,7 @@ int cw_generator_calculate_sine_wave_internal(cw_gen_t *gen, cw_tone_t *tone)
 	double phase = 0.0;
 	int i = 0, j = 0;
 
+#if 0
 	/* about CW_AUDIO_CRAZY_TAG: for some reason I can't
 	   just simply assign gen->frequency to tone.frequency
 	   in cw_key_straight_key_generate_internal();
@@ -7266,7 +7282,7 @@ int cw_generator_calculate_sine_wave_internal(cw_gen_t *gen, cw_tone_t *tone)
 	if (tone->frequency == CW_AUDIO_CRAZY_TAG) {
 		tone->frequency = gen->frequency;
 	}
-
+#endif
 	for (i = tone->sub_start, j = 0; i <= tone->sub_stop; i++, j++) {
 		phase = (2.0 * M_PI
 				* (double) tone->frequency * (double) j
@@ -7803,16 +7819,15 @@ bool cw_is_oss_possible(const char *device)
 		return false;
         }
 
-	int parameter = 0;
-	if (ioctl(soundcard, OSS_GETVERSION, &parameter) == -1) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: ioctl OSS_GETVERSION");
-		close(soundcard);
-		return false;
-        } else {
-		cw_dev_debug ("OSS version %X.%X.%X",
-			(parameter & 0xFF0000) >> 16,
-			(parameter & 0x00FF00) >> 8,
-			(parameter & 0x0000FF) >> 0);
+	{
+		int x = 0, y = 0, z = 0;
+		int rv = cw_oss_get_version_internal(soundcard, &x, &y, &z);
+		if (rv == CW_FAILURE) {
+			close(soundcard);
+			return false;
+		} else {
+			cw_dev_debug ("OSS version %X.%X.%X", x, y, z);
+		}
 	}
 
 	/*
@@ -7896,6 +7911,8 @@ int cw_oss_open_device_internal(cw_gen_t *gen)
 	}
 	gen->buffer_n_samples = size;
 
+
+	cw_oss_get_version_internal(soundcard, &gen->oss_version.x, &gen->oss_version.y, &gen->oss_version.z);
 
 	/* Note sound as now open for business. */
 	gen->audio_device_is_open = true;
@@ -8088,6 +8105,26 @@ void cw_oss_close_device_internal(cw_gen_t *gen)
 
 	return;
 #endif // #ifndef LIBCW_WITH_OSS
+}
+
+
+
+
+
+int cw_oss_get_version_internal(int fd, int *x, int *y, int *z)
+{
+	assert (fd);
+
+	int parameter = 0;
+	if (ioctl(fd, OSS_GETVERSION, &parameter) == -1) {
+		cw_debug (CW_DEBUG_SYSTEM, "error: ioctl OSS_GETVERSION");
+		return CW_FAILURE;
+        } else {
+		*x = (parameter & 0xFF0000) >> 16;
+		*y = (parameter & 0x00FF00) >> 8;
+		*z = (parameter & 0x0000FF) >> 0;
+		return CW_SUCCESS;
+	}
 }
 
 
