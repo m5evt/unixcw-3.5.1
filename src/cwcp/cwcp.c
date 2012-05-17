@@ -1424,13 +1424,7 @@ int main(int argc, char **argv)
 		interface_handle_event(getch());
 	}
 
-	/* Clean up and return. */
-	interface_destroy();
 	cw_wait_for_tone_queue();
-	cw_generator_stop();
-	/* Reset to ensure that the mixer volume gets restored. */
-	cw_complete_reset();
-	cw_generator_delete();
 
 	return EXIT_SUCCESS;
 }
@@ -1441,9 +1435,14 @@ int main(int argc, char **argv)
 
 void cwcp_atexit(void)
 {
+	interface_destroy();
+
 	if (generator) {
+		cw_complete_reset();
+		cw_generator_stop();
 		cw_generator_delete();
 	}
+
 	if (config) {
 		cw_config_delete(&config);
 	}
