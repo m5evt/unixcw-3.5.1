@@ -166,8 +166,12 @@ int cw_config_is_valid(cw_config_t *config)
 	/* Deal with odd argument combinations. */
         if (config->audio_device) {
 		if (config->audio_system == CW_AUDIO_SOUNDCARD) {
-			fprintf(stderr, "libcw: a device has been specified for 'soundcard' argument\n");
-			fprintf(stderr, "libcw: a device can be specified only for 'console', 'oss' or 'alsa'\n");
+			fprintf(stderr, "libcw: a device has been specified for 'soundcard' sound system\n");
+			fprintf(stderr, "libcw: a device can be specified only for 'console', 'oss', 'alsa' or 'pulseaudio'\n");
+			return false;
+		} else if (config->audio_system == CW_AUDIO_NULL) {
+			fprintf(stderr, "libcw: a device has been specified for 'null' sound system\n");
+			fprintf(stderr, "libcw: a device can be specified only for 'console', 'oss', 'alsa' or 'pulseaudio'\n");
 			return false;
 		} else {
 			; /* audio_system is one that accepts custom "audio device" */
@@ -178,7 +182,6 @@ int cw_config_is_valid(cw_config_t *config)
 
 	return true;
 }
-
 
 
 
@@ -199,6 +202,25 @@ int cw_config_is_valid(cw_config_t *config)
 */
 int cw_generator_new_from_config(cw_config_t *config)
 {
+	if (config->audio_system == CW_AUDIO_NULL) {
+		if (cw_is_null_possible(config->audio_device)) {
+			if (cw_generator_new(CW_AUDIO_NULL, config->audio_device)) {
+				if (cw_generator_apply_config(config)) {
+					return CW_SUCCESS;
+				} else {
+					fprintf(stderr, "%s: failed to apply configuration\n", config->program_name);
+					return CW_FAILURE;
+				}
+			} else {
+				fprintf(stderr, "%s: failed to open Null output\n", config->program_name);
+			}
+		} else {
+			fprintf(stderr, "%s: Null output not available\n");
+		}
+		/* fall through to try with next audio system type */
+	}
+
+
 	if (config->audio_system == CW_AUDIO_NONE
 	    || config->audio_system == CW_AUDIO_PA
 	    || config->audio_system == CW_AUDIO_SOUNDCARD) {
