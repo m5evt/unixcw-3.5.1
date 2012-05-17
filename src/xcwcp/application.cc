@@ -708,7 +708,8 @@ void Application::make_toolbar(void)
 
 	QLabel *speed_label_ = new QLabel(_("Speed:"), 0, 0);
 	toolbar->addWidget(speed_label_);
-	speed_spin_ = new QSpinBox();
+
+	speed_spin_ = new QSpinBox(toolbar);
 	speed_spin_->setMinimum(CW_SPEED_MIN);
 	speed_spin_->setMaximum(CW_SPEED_MAX);
 	speed_spin_->setSingleStep(CW_SPEED_STEP);
@@ -725,7 +726,8 @@ void Application::make_toolbar(void)
 
 	QLabel *tone_label = new QLabel(_("Tone:"));
 	toolbar->addWidget(tone_label);
-	frequency_spin_ = new QSpinBox(0);
+
+	frequency_spin_ = new QSpinBox(toolbar);
 	frequency_spin_->setMinimum(CW_FREQUENCY_MIN);
 	frequency_spin_->setMaximum(CW_FREQUENCY_MAX);
 	frequency_spin_->setSingleStep(CW_FREQUENCY_STEP);
@@ -742,7 +744,8 @@ void Application::make_toolbar(void)
 
 	QLabel *volume_label = new QLabel(_("Volume:"), 0, 0);
 	toolbar->addWidget(volume_label);
-	volume_spin_ = new QSpinBox(0);
+
+	volume_spin_ = new QSpinBox(toolbar);
 	volume_spin_->setMinimum(CW_VOLUME_MIN);
 	volume_spin_->setMaximum(CW_VOLUME_MAX);
 	volume_spin_->setSingleStep(CW_VOLUME_STEP);
@@ -759,8 +762,8 @@ void Application::make_toolbar(void)
 
 	QLabel *gap_label = new QLabel(_("Gap:"), 0, 0);
 	toolbar->addWidget(gap_label);
-	gap_spin_ = new QSpinBox(0);
-	toolbar->addWidget(gap_spin_);
+
+	gap_spin_ = new QSpinBox(toolbar);
 	gap_spin_->setMinimum(CW_GAP_MIN);
 	gap_spin_->setMaximum(CW_GAP_MAX);
 	gap_spin_->setSingleStep(CW_GAP_STEP);
@@ -769,6 +772,7 @@ void Application::make_toolbar(void)
 	gap_spin_->setWhatsThis(GAP_WHATSTHIS);
 	gap_spin_->setValue(cw_get_gap());
 	connect(gap_spin_, SIGNAL (valueChanged(int)), SLOT (gap_change()));
+	toolbar->addWidget(gap_spin_);
 
 
 	// Finally for the toolbar, add whatsthis.
