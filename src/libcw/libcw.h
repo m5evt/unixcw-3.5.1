@@ -144,7 +144,7 @@ extern int   cw_get_character_count(void);
 extern void  cw_list_characters(char *list);
 extern int   cw_get_maximum_representation_length(void);
 extern char *cw_character_to_representation(int c);
-extern bool  cw_representation_valid(const char *representation);
+extern bool  cw_representation_is_valid(const char *representation);
 extern int   cw_representation_to_character(const char *representation);
 
 
@@ -322,7 +322,7 @@ extern void cw_reset_straight_key(void);
 
 
 /* deprecated functions */
-extern int cw_check_representation(const char *representation) __attribute__ ((deprecated("Use cw_representation_valid()")));
+extern int cw_check_representation(const char *representation) __attribute__ ((deprecated("Use cw_representation_is_valid()")));
 extern int cw_lookup_representation(const char *representation, char *c) __attribute__ ((deprecated("Use cw_representation_to_character()")));
 extern int cw_lookup_character(char c, char *representation) __attribute__ ((deprecated("Use cw_character_to_representation()")));
 
