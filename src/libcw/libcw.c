@@ -379,6 +379,8 @@ struct cw_gen_struct {
 		pa_simple *s;       /* audio handle */
 		pa_sample_spec ss;  /* sample specification */
 		pa_usec_t latency_usecs;
+
+		pa_buffer_attr ba;
 	} pa;
 #endif
 
@@ -411,14 +413,19 @@ struct cw_gen_struct {
 	   function calculating consecutive fragments of sine wave */
 	double phase_offset;
 
-	/* generator thread function is used to generate sine wave
-	   and write the wave to audio sink */
-	pthread_t      gen_thread_id;
-	pthread_attr_t gen_thread_attr;
+	struct {
+		/* generator thread function is used to generate sine wave
+		   and write the wave to audio sink */
+		pthread_t      id;
+		pthread_attr_t attr;
+	} thread;
 
-	/* main thread, existing from beginning to end of main process run;
-	   the variable is used to send signals to main app thread; */
-	pthread_t main_thread_id;
+	struct {
+		/* main thread, existing from beginning to end of main process run;
+		   the variable is used to send signals to main app thread; */
+		pthread_t thread_id;
+		char *name;
+	} client;
 };
 
 
@@ -496,9 +503,11 @@ static int  cw_alsa_print_params_internal(snd_pcm_hw_params_t *hw_params);
 /* Constants specific to PulseAudio audio system configuration */
 static const snd_pcm_format_t CW_PA_SAMPLE_FORMAT = PA_SAMPLE_S16LE; /* Signed 16 bit, Little Endian */
 #endif
+#define CW_AUDIO_PA_BUFFER_N_SAMPLES 1024
 
-static int  cw_pa_open_device_internal(cw_gen_t *gen);
-static void cw_pa_close_device_internal(cw_gen_t *gen);
+static int        cw_pa_open_device_internal(cw_gen_t *gen);
+static void       cw_pa_close_device_internal(cw_gen_t *gen);
+static pa_simple *cw_pa_simple_new_internal(pa_sample_spec *ss, pa_buffer_attr *ba, const char *device, const char *stream_name, int *error);
 
 
 
@@ -688,7 +697,7 @@ static int  cw_timestamp_compare_internal(const struct timeval *earlier, const s
 /* ******************************************************************** */
 /*                        Section:Iambic keyer                          */
 /* ******************************************************************** */
-static void cw_keyer_update_internal(void);
+static int cw_keyer_update_internal(void);
 
 
 
@@ -949,12 +958,46 @@ void cw_dev_debug_print_generator_setup(cw_gen_t *gen)
 	fprintf(stderr, "audio device:         \"%s\"\n",  gen->audio_device);
 	fprintf(stderr, "sample rate:          %d Hz\n",  gen->sample_rate);
 	if (gen->audio_system == CW_AUDIO_PA) {
-		fprintf(stderr, "PulseAudio latency:    %llu us\n", (unsigned long long int) gen->pa.latency_usecs);
+		fprintf(stderr, "PulseAudio latency:   %llu us\n", (unsigned long long int) gen->pa.latency_usecs);
+
+		if (gen->pa.ba.prebuf == (uint32_t) -1) {
+			fprintf(stderr, "PulseAudio prebuf:    (not set)\n");
+		} else {
+			fprintf(stderr, "PulseAudio prebuf:    %u bytes\n", (uint32_t) gen->pa.ba.prebuf);
+		}
+
+		if (gen->pa.ba.tlength == (uint32_t) -1) {
+			fprintf(stderr, "PulseAudio tlength:   (not set)\n");
+		} else {
+			fprintf(stderr, "PulseAudio tlength:   %u bytes\n", (uint32_t) gen->pa.ba.tlength);
+		}
+
+		if (gen->pa.ba.minreq == (uint32_t) -1) {
+			fprintf(stderr, "PulseAudio minreq:    (not set)\n");
+		} else {
+			fprintf(stderr, "PulseAudio minreq:    %u bytes\n", (uint32_t) gen->pa.ba.minreq);
+		}
+
+		if (gen->pa.ba.maxlength == (uint32_t) -1) {
+			fprintf(stderr, "PulseAudio maxlength: (not set)\n");
+		} else {
+			fprintf(stderr, "PulseAudio maxlength: %u bytes\n", (uint32_t) gen->pa.ba.maxlength);
+		}
+#if 0	        /* not relevant to playback */
+		if (gen->pa.ba.fragsize == (uint32_t) -1) {
+			fprintf(stderr, "PulseAudio fragsize:  (not set)\n");
+		} else {
+			fprintf(stderr, "PulseAudio fragsize:  %u bytes\n", (uint32_t) gen->pa.ba.fragsize);
+		}
+#endif
 	}
+
 	fprintf(stderr, "send speed:           %d wpm\n", gen->send_speed);
 	fprintf(stderr, "volume:               %d %%\n",  gen->volume_percent);
 	fprintf(stderr, "frequency:            %d Hz\n",  gen->frequency);
 	fprintf(stderr, "audio buffer size:    %d\n",     gen->buffer_n_samples);
+
+	fprintf(stderr, "debug sink file:      %s\n", gen->dev_raw_sink != -1 ? "yes" : "no");
 
 	return;
 }
@@ -1456,7 +1499,7 @@ bool cw_representation_lookup_init_internal(const cw_entry_t *lookup[])
 /**
    \brief Check if representation of a character is valid
 
-   This function is depreciated, use cw_representation_valid() instead.
+   This function is depreciated, use cw_representation_is_valid() instead.
 
    Check that the given string is a valid Morse representation.
    A valid string is one composed of only '.' and '-' characters.
@@ -1471,7 +1514,7 @@ bool cw_representation_lookup_init_internal(const cw_entry_t *lookup[])
 */
 int cw_check_representation(const char *representation)
 {
-	bool v = cw_representation_valid(representation);
+	bool v = cw_representation_is_valid(representation);
 	return v ? CW_SUCCESS : CW_FAILURE;
 }
 
@@ -1496,7 +1539,7 @@ int cw_check_representation(const char *representation)
    \return true on success
    \return false on failure
 */
-bool cw_representation_valid(const char *representation)
+bool cw_representation_is_valid(const char *representation)
 {
 	/* Check the characters in representation. */
 	for (int i = 0; representation[i]; i++) {
@@ -1541,7 +1584,7 @@ bool cw_representation_valid(const char *representation)
 int cw_lookup_representation(const char *representation, char *c)
 {
 	/* Check the characters in representation. */
-	if (!cw_representation_valid(representation)) {
+	if (!cw_representation_is_valid(representation)) {
 		errno = EINVAL;
 		return CW_FAILURE;
 	}
@@ -1582,7 +1625,7 @@ int cw_lookup_representation(const char *representation, char *c)
 int cw_representation_to_character(const char *representation)
 {
 	/* Check the characters in representation. */
-	if (!cw_representation_valid(representation)) {
+	if (!cw_representation_is_valid(representation)) {
 		errno = EINVAL;
 		return 0;
 	}
@@ -3018,7 +3061,7 @@ int cw_timer_run_with_handler_internal(int usecs, void (*sigalrm_handler)(void))
 	if (usecs <= 0) {
 		/* Send ourselves SIGALRM immediately. */
 #if 1
-		if (pthread_kill(generator->gen_thread_id, SIGALRM) != 0) {
+		if (pthread_kill(generator->thread.id, SIGALRM) != 0) {
 #else
 		if (raise(SIGALRM) != 0) {
 #endif
@@ -4329,7 +4372,7 @@ int cw_tone_queue_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 		   to be filled with new tones to dequeue and play.
 		   It waits for a signal. This is a right place and time
 		   to send such a signal. */
-		pthread_kill(generator->gen_thread_id, SIGALRM);
+		pthread_kill(generator->thread.id, SIGALRM);
 	}
 	//pthread_mutex_unlock(&tq->mutex);
 
@@ -4854,7 +4897,7 @@ int cw_send_representation_internal(cw_gen_t *gen, const char *representation, i
 */
 int cw_send_representation(const char *representation)
 {
-	if (!cw_representation_valid(representation)) {
+	if (!cw_representation_is_valid(representation)) {
 		errno = EINVAL;
 		return CW_FAILURE;
 	} else {
@@ -4882,7 +4925,7 @@ int cw_send_representation(const char *representation)
 */
 int cw_send_representation_partial(const char *representation)
 {
-	if (!cw_representation_valid(representation)) {
+	if (!cw_representation_is_valid(representation)) {
 		errno = ENOENT;
 		return CW_FAILURE;
 	} else {
@@ -6397,11 +6440,11 @@ static volatile enum {
 /**
    \brief Update state of generic key, update state of iambic keyer, queue tone
 */
-void cw_keyer_update_internal(void)
+int cw_keyer_update_internal(void)
 {
 	if (lock) {
 		cw_dev_debug ("lock in thread %ld\n", (long) pthread_self());
-		return;
+		return CW_FAILURE;
 	}
 	lock = true;
 
@@ -6413,7 +6456,7 @@ void cw_keyer_update_internal(void)
 		/* Ignore calls if our state is idle. */
 	case KS_IDLE:
 		lock = false;
-		return;
+		return CW_SUCCESS;
 
 		/* If we were in a dot, turn off tones and begin the
 		   after-dot delay.  Do much the same if we are in a dash.
@@ -6514,7 +6557,7 @@ void cw_keyer_update_internal(void)
 		break;
 	}
 	lock = false;
-	return;
+	return CW_SUCCESS;
 }
 
 
@@ -6589,13 +6632,21 @@ int cw_notify_keyer_paddle_event(int dot_paddle_state,
 			cw_keyer_state = cw_ik_curtis_b_latch
 				? KS_AFTER_DASH_B : KS_AFTER_DASH_A;
 
-			cw_keyer_update_internal();
+			if (!cw_keyer_update_internal()) {
+				/* just try again, once */
+				usleep(1000);
+				cw_keyer_update_internal();
+			}
 		} else if (cw_ik_dash_paddle) {
 			/* Pretend we just finished a dot. */
 			cw_keyer_state = cw_ik_curtis_b_latch
 				? KS_AFTER_DOT_B : KS_AFTER_DOT_A;
 
-			cw_keyer_update_internal();
+			if (!cw_keyer_update_internal()) {
+				/* just try again, once */
+				usleep(1000);
+				cw_keyer_update_internal();
+			}
 		} else {
 			;
 		}
@@ -7044,15 +7095,23 @@ int cw_generator_new(int audio_system, const char *device)
 	generator->oss_version.y = -1;
 	generator->oss_version.z = -1;
 
+	generator->client.name = (char *) NULL;
+
 	//generator->tone_n_samples = 0;
 	generator->slope_n_samples = CW_AUDIO_SLOPE_N_SAMPLES;
 
 #ifdef LIBCW_WITH_PULSEAUDIO
 	generator->pa.s = NULL;
+
+	generator->pa.ba.prebuf    = (uint32_t) -1;
+	generator->pa.ba.tlength   = (uint32_t) -1;
+	generator->pa.ba.minreq    = (uint32_t) -1;
+	generator->pa.ba.maxlength = (uint32_t) -1;
+	generator->pa.ba.fragsize  = (uint32_t) -1;
 #endif
 
-	pthread_attr_init(&generator->gen_thread_attr);
-	pthread_attr_setdetachstate(&generator->gen_thread_attr, PTHREAD_CREATE_DETACHED);
+	pthread_attr_init(&generator->thread.attr);
+	pthread_attr_setdetachstate(&generator->thread.attr, PTHREAD_CREATE_DETACHED);
 
 	cw_generator_set_audio_device_internal(generator, device);
 
@@ -7107,7 +7166,7 @@ void cw_generator_delete(void)
 
 		if (generator->generate) {
 			cw_dev_debug ("you forgot to call cw_generator_stop()\n");
-			//cw_generator_stop();
+			cw_generator_stop();
 		}
 
 		/* Wait for "write" thread to end accessing output
@@ -7136,7 +7195,12 @@ void cw_generator_delete(void)
 			cw_dev_debug ("missed audio system %d", generator->audio_system);
 		}
 
-		pthread_attr_destroy(&generator->gen_thread_attr);
+		pthread_attr_destroy(&generator->thread.attr);
+
+		if (generator->client.name) {
+			free(generator->client.name);
+			generator->client.name = NULL;
+		}
 
 		generator->audio_system = CW_AUDIO_NONE;
 		free(generator);
@@ -7164,14 +7228,14 @@ int cw_generator_start(void)
 
 	generator->generate = true;
 
-	generator->main_thread_id = pthread_self();
+	generator->client.thread_id = pthread_self();
 
 	if (generator->audio_system == CW_AUDIO_CONSOLE
 	    || generator->audio_system == CW_AUDIO_OSS
 		   || generator->audio_system == CW_AUDIO_ALSA
 		   || generator->audio_system == CW_AUDIO_PA) {
 
-		int rv = pthread_create(&generator->gen_thread_id, &generator->gen_thread_attr,
+		int rv = pthread_create(&generator->thread.id, &generator->thread.attr,
 					cw_generator_write_sine_wave_internal,
 					(void *) generator);
 		if (rv != 0) {
@@ -7218,7 +7282,12 @@ void cw_generator_stop(void)
 
 	generator->generate = false;
 
-	/* Sleep some more to postpone closing a device.
+	/* this is to wake up cw_signal_wait_internal() function
+	   that may be waiting for signal in while() loop in thread
+	   function; */
+	pthread_kill(generator->thread.id, SIGALRM);
+
+	/* Sleep a bit to postpone closing a device.
 	   This way we can avoid a situation when 'generate' is set
 	   to zero and device is being closed while a new buffer is
 	   being prepared, and while write() tries to write this
@@ -7227,8 +7296,23 @@ void cw_generator_stop(void)
 	   Without this usleep(), writei() from ALSA library may
 	   return "File descriptor in bad state" error - this
 	   happened when writei() tried to write to closed ALSA
-	   handle. */
-	usleep(10000);
+	   handle.
+
+	   The delay also allows the generator function thread to stop
+	   generating tone and exit before we resort to killing generator
+	   function thread. */
+	while (usleep(300000));
+
+	/* check if generator thread is still there */
+	int rv = pthread_kill(generator->thread.id, 0);
+	if (rv == 0) {
+		/* thread function didn't return yet; let's help it a bit */
+		cw_dev_debug ("EXIT: forcing exit of thread function\n");
+		rv = pthread_kill(generator->thread.id, SIGKILL);
+		cw_dev_debug ("EXIT: pthread_kill() returns %d/%s\n", rv, strerror(rv));
+	} else {
+		cw_dev_debug ("EXIT: seems that thread function exited voluntarily\n");
+	}
 
 	return;
 }
@@ -7920,9 +8004,6 @@ int cw_oss_open_device_internal(cw_gen_t *gen)
 
 #if CW_DEV_RAW_SINK
 	gen->dev_raw_sink = open("/tmp/cw_file.oss.raw", O_WRONLY | O_TRUNC | O_NONBLOCK);
-	if (gen->dev_raw_sink == -1) {
-		cw_dev_debug ("ERROR: failed to open dev raw sink file: %s\n", strerror(errno));
-	}
 #endif
 
 	return CW_SUCCESS;
@@ -8242,13 +8323,9 @@ int cw_alsa_open_device_internal(cw_gen_t *gen)
 	} else {
 		gen->buffer_n_samples = frames;
 	}
-	cw_dev_debug ("ALSA buf size %u", (unsigned int) gen->buffer_n_samples);
 
 #if CW_DEV_RAW_SINK
 	gen->dev_raw_sink = open("/tmp/cw_file.alsa.raw", O_WRONLY | O_TRUNC | O_NONBLOCK);
-	if (gen->dev_raw_sink == -1) {
-		cw_dev_debug ("ERROR: failed to open dev raw sink file: %s\n", strerror(errno));
-	}
 #endif
 
 	return CW_SUCCESS;
@@ -8405,15 +8482,17 @@ void *cw_generator_write_sine_wave_internal(void *arg)
 		   - ...
 
 		 */
-		pthread_kill(gen->main_thread_id, SIGALRM);
-		cw_keyer_update_internal(); /* TODO: follow this function, check if and when it needs to be called */
-
-		/* FIXME: why client application hangs at this return? */
-		//return NULL;
+		pthread_kill(gen->client.thread_id, SIGALRM);
+		if (!cw_keyer_update_internal()) { /* TODO: follow this function, check if and when it needs to be called */
+			/* just try again, once */
+			usleep(1000);
+			cw_keyer_update_internal();
+		}
 	} /* while(gen->generate) */
-#endif // #if (defined LIBCW_WITH_ALSA || defined LIBCW_WITH_OSS || defined LIBCW_WITH_PULSEAUDIO)
 
-	cw_dev_debug ("generator stopped (gen->generate = %d)\n", gen->generate);
+	cw_dev_debug ("EXIT: generator stopped (gen->generate = %d)\n", gen->generate);
+
+#endif // #if (defined LIBCW_WITH_ALSA || defined LIBCW_WITH_OSS || defined LIBCW_WITH_PULSEAUDIO)
 
 	return NULL;
 }
@@ -8716,27 +8795,17 @@ bool cw_is_pa_possible(const char *device)
 	return false;
 #else
 
-	pa_sample_spec ss = {
-		.format = CW_PA_SAMPLE_FORMAT,
-		.rate = 44100,
-		.channels = 1
-	};
-
 	const char *dev = (char *) NULL;
 	if (device && strcmp(device, CW_DEFAULT_PA_DEVICE)) {
 		dev = device;
 	}
 
+	pa_sample_spec ss;
+	pa_buffer_attr ba;
 	int error = 0;
-	pa_simple *s = pa_simple_new(NULL,                  /* server name (NULL for default) */
-				     "libcw",               /* descriptive name of client (application name etc.) */
-				     PA_STREAM_PLAYBACK,    /* stream direction */
-				     dev,                   /* device/sink name (NULL for default) */
-				     "playback",            /* stream name, descriptive name for this client (application name, song title, etc.) */
-				     &ss,                   /* sample specification */
-				     NULL,                  /* channel map (NULL for default) */
-				     NULL,                  /* buffering attributes (NULL for default) */
-				     &error);               /* error buffer (when routine returns NULL) */
+
+	pa_simple *s = cw_pa_simple_new_internal(&ss, &ba, dev, "cw_pa_is_possible()", &error);
+
 	if (!s) {
 		cw_debug (CW_DEBUG_SYSTEM, "error: can't connect to PulseAudio server: %s\n", pa_strerror(error));
 		return false;
@@ -8770,48 +8839,31 @@ int cw_pa_open_device_internal(cw_gen_t *gen)
 	return CW_FAILURE;
 #else
 
-	gen->pa.ss.format = CW_PA_SAMPLE_FORMAT;
-	gen->pa.ss.rate = 44100;
-	gen->pa.ss.channels = 1;
-
-
 	const char *dev = (char *) NULL; /* NULL - let PulseAudio use default device */
 	if (gen->audio_device && strcmp(gen->audio_device, CW_DEFAULT_PA_DEVICE)) {
 		dev = gen->audio_device; /* non-default device */
 	}
 
 	int error = 0;
-	gen->pa.s = pa_simple_new(NULL,                  /* server name (NULL for default) */
-				  "libcw",               /* descriptive name of client (application name etc.) */
-				  PA_STREAM_PLAYBACK,    /* stream direction */
-				  dev,                   /* device/sink name (NULL for default) */
-				  "playback",            /* stream name, descriptive name for this client (application name, song title, etc.) */
-				  &gen->pa.ss,           /* sample specification */
-				  NULL,                  /* channel map (NULL for default) */
-				  NULL,                  /* buffering attributes (NULL for default) */
-				  &error);               /* error buffer (when routine returns NULL) */
-	if (!gen->pa.s) {
+	gen->pa.s = cw_pa_simple_new_internal(&gen->pa.ss, &gen->pa.ba,
+					      dev,
+					      gen->client.name ? gen->client.name : "app",
+					      &error);
+
+ 	if (!gen->pa.s) {
 		cw_dev_debug ("error: can't connect to PulseAudio server: %s\n", pa_strerror(error));
 		return false;
-	} else {
-		cw_dev_debug ("info: successfully connected to PulseAudio server");
 	}
 
-	gen->buffer_n_samples = 512;
-	cw_dev_debug ("PulseAudio buf size %u", (unsigned int) gen->buffer_n_samples);
+	gen->buffer_n_samples = CW_AUDIO_PA_BUFFER_N_SAMPLES;
 	gen->sample_rate = gen->pa.ss.rate;
 
 	if ((gen->pa.latency_usecs = pa_simple_get_latency(gen->pa.s, &error)) == (pa_usec_t) -1) {
 		cw_dev_debug ("error: pa_simple_get_latency() failed: %s", pa_strerror(error));
-	} else {
-		cw_dev_debug ("info: latency: %llu usec", (unsigned long long int) gen->pa.latency_usecs);
 	}
 
 #if CW_DEV_RAW_SINK
 	gen->dev_raw_sink = open("/tmp/cw_file.pa.raw", O_WRONLY | O_TRUNC | O_NONBLOCK);
-	if (gen->dev_raw_sink == -1) {
-		cw_dev_debug ("ERROR: failed to open dev raw sink file: %s\n", strerror(errno));
-	}
 #endif
 	assert (gen && gen->pa.s);
 
@@ -8820,6 +8872,75 @@ int cw_pa_open_device_internal(cw_gen_t *gen)
 #endif // #ifndef LIBCW_WITH_PULSEAUDIO
 }
 
+
+
+
+
+#ifdef LIBCW_WITH_PULSEAUDIO
+
+
+
+
+
+/**
+   \brief Wrapper for pa_simple_new()
+
+   Wrapper for pa_simple_new() and related code. The code block contained
+   in the function is useful in two different places: when first probing
+   if PulseAudio output is available, and when opening PulseAudio output
+   for writing.
+
+   On success the function returns pointer to PulseAudio sink open for
+   writing (playback). The function tries to set up buffering parameters
+   for minimal latency, but it doesn't try too hard.
+
+   The function *does not* set size of audio buffer in libcw's generator.
+
+   \param ss - sample spec data, non-NULL pointer to variable owned by caller
+   \param ba - buffer attributes data, non-NULL pointer to variable owned by caller
+   \param device - name of PulseAudio device to be used, or NULL for default device
+   \param stream_name - descriptive name of client, passed to pa_simple_new
+   \param error - output, pointer to variable storing potential PulseAudio error code
+
+   \return pointer to new PulseAudio sink on success
+   \return NULL on failure
+*/
+pa_simple *cw_pa_simple_new_internal(pa_sample_spec *ss, pa_buffer_attr *ba, const char *device, const char *stream_name, int *error)
+{
+	ss->format = CW_PA_SAMPLE_FORMAT;
+	ss->rate = 44100;
+	ss->channels = 1;
+
+	const char *dev = (char *) NULL; /* NULL - let PulseAudio use default device */
+	if (device && strcmp(device, CW_DEFAULT_PA_DEVICE)) {
+		dev = device; /* non-default device */
+	}
+
+	// http://www.mail-archive.com/pulseaudio-tickets@mail.0pointer.de/msg03295.html
+	ba->tlength = pa_usec_to_bytes(50*1000, ss);
+	ba->minreq = pa_usec_to_bytes(0, ss);
+	ba->maxlength = pa_usec_to_bytes(50*1000, ss);
+	/* ba->prebuf = ; */ /* ? */
+	/* ba->fragsize = sizeof(uint32_t) -1; */ /* not relevant to playback */
+
+	pa_simple *s = pa_simple_new(NULL,                  /* server name (NULL for default) */
+				     "libcw",               /* descriptive name of client (application name etc.) */
+				     PA_STREAM_PLAYBACK,    /* stream direction */
+				     dev,                   /* device/sink name (NULL for default) */
+				     stream_name,           /* stream name, descriptive name for this client (application name, song title, etc.) */
+				     ss,                    /* sample specification */
+				     NULL,                  /* channel map (NULL for default) */
+				     ba,                    /* buffering attributes (NULL for default) */
+				     error);                /* error buffer (when routine returns NULL) */
+
+	return s;
+}
+
+
+
+
+
+#endif // #ifdef LIBCW_WITH_PULSEAUDIO
 
 
 
@@ -8906,84 +9027,6 @@ void main_helper(int audio_system, const char *name, const char *device, predica
 			cw_set_send_speed(12);
 			cw_generator_start();
 
-#if 0 // switch between sending strings and queuing tones
-
-			//cw_tone_queue_enqueue_internal(generator->tq, 500000, 200);
-			cw_tone_queue_enqueue_internal(generator->tq, 500000, CW_AUDIO_TONE_SILENT);
-
-			cw_tone_queue_enqueue_internal(generator->tq, CW_USECS_RISING_SLOPE, gen->frequency);
-			cw_tone_queue_enqueue_internal(generator->tq, CW_AUDIO_FOREVER_USECS, gen->frequency);
-			sleep(2);
-			cw_tone_queue_enqueue_internal(generator->tq, CW_USECS_FALLING_SLOPE, gen->frequency);
-			cw_tone_queue_enqueue_internal(generator->tq, CW_AUDIO_FOREVER_USECS, CW_AUDIO_TONE_SILENT);
-			sleep(2);
-
-			cw_tone_queue_enqueue_internal(generator->tq, CW_USECS_RISING_SLOPE, gen->frequency);
-			cw_tone_queue_enqueue_internal(generator->tq, CW_AUDIO_FOREVER_USECS, gen->frequency);
-			sleep(2);
-			cw_tone_queue_enqueue_internal(generator->tq, CW_USECS_FALLING_SLOPE, gen->frequency);
-			cw_tone_queue_enqueue_internal(generator->tq, CW_AUDIO_FOREVER_USECS, CW_AUDIO_TONE_SILENT);
-			sleep(2);
-
-			cw_tone_queue_enqueue_internal(generator->tq, CW_USECS_RISING_SLOPE, gen->frequency);
-			cw_tone_queue_enqueue_internal(generator->tq, CW_AUDIO_FOREVER_USECS, gen->frequency);
-			sleep(2);
-			cw_tone_queue_enqueue_internal(generator->tq, CW_USECS_FALLING_SLOPE, gen->frequency);
-			cw_tone_queue_enqueue_internal(generator->tq, CW_AUDIO_FOREVER_USECS, CW_AUDIO_TONE_SILENT);
-			sleep(2);
-
-			cw_tone_queue_enqueue_internal(generator->tq, CW_USECS_RISING_SLOPE, gen->frequency);
-			cw_tone_queue_enqueue_internal(generator->tq, CW_AUDIO_FOREVER_USECS, gen->frequency);
-			sleep(2);
-			cw_tone_queue_enqueue_internal(generator->tq, CW_USECS_FALLING_SLOPE, gen->frequency);
-			cw_tone_queue_enqueue_internal(generator->tq, CW_AUDIO_FOREVER_USECS, CW_AUDIO_TONE_SILENT);
-			sleep(2);
-
-			cw_tone_queue_enqueue_internal(generator->tq, 500000, CW_AUDIO_TONE_SILENT);
-			//cw_tone_queue_enqueue_internal(generator->tq, 500000, 2000);
-#endif
-
-#if 0
-			cw_sigalrm_block_internal(true);
-			cw_notify_straight_key_event(CW_KEY_STATE_OPEN);
-			int l = usleep(2000000);
-			cw_dev_debug ("six seconds passed, left: %d", l);
-			cw_notify_straight_key_event(CW_KEY_STATE_CLOSED);
-			l = usleep(2000000);
-			cw_dev_debug ("six seconds passed, left: %d", l);
-
-			cw_notify_straight_key_event(CW_KEY_STATE_OPEN);
-			l = usleep(2000000);
-			cw_dev_debug ("six seconds passed, left: %d", l);
-			cw_notify_straight_key_event(CW_KEY_STATE_CLOSED);
-			l = usleep(2000000);
-			cw_dev_debug ("six seconds passed, left: %d", l);
-
-			cw_notify_straight_key_event(CW_KEY_STATE_OPEN);
-			l = usleep(2000000);
-			cw_dev_debug ("six seconds passed, left: %d", l);
-			cw_notify_straight_key_event(CW_KEY_STATE_CLOSED);
-			l = usleep(2000000);
-			cw_dev_debug ("six seconds passed, left: %d", l);
-
-			cw_notify_straight_key_event(CW_KEY_STATE_OPEN);
-			l = usleep(2000000);
-			cw_dev_debug ("six seconds passed, left: %d", l);
-			cw_notify_straight_key_event(CW_KEY_STATE_CLOSED);
-			l = usleep(2000000);
-			cw_dev_debug ("six seconds passed, left: %d", l);
-
-			cw_notify_straight_key_event(CW_KEY_STATE_OPEN);
-			usleep(2000000);
-			cw_notify_straight_key_event(CW_KEY_STATE_CLOSED);
-			usleep(2000000);
-
-			cw_notify_straight_key_event(CW_KEY_STATE_OPEN);
-			usleep(2000000);
-#endif
-
-#if 1
-
 			//cw_send_string("abcdefghijklmnopqrstuvwyz0123456789");
 			cw_send_string("one");
 			cw_wait_for_tone_queue();
@@ -8993,8 +9036,6 @@ void main_helper(int audio_system, const char *name, const char *device, predica
 
 			cw_send_string("three");
 			cw_wait_for_tone_queue();
-
-#endif
 
 			cw_wait_for_tone_queue();
 			cw_generator_stop();
