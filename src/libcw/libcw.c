@@ -37,6 +37,7 @@
    - Section:Iambic keyer
    - Section:Straight key
    - Section:Generator - generic
+   - Section:Null output
    - Section:Console buzzer output
    - Section:Soundcard - generic
    - Section:Soundcard output with OSS
@@ -295,6 +296,17 @@ static const int        CW_AUDIO_SLOPE_N_SAMPLES = 200;       /* ~200 for 44.1/4
 static int   cw_generator_silence_internal(cw_gen_t *gen);
 static int   cw_generator_release_internal(void);
 static int   cw_generator_set_audio_device_internal(cw_gen_t *gen, const char *device);
+
+
+
+
+
+/* ******************************************************************** */
+/*                          Section:Null output                         */
+/* ******************************************************************** */
+static int  cw_null_open_device_internal(cw_gen_t *gen);
+static void cw_null_close_device_internal(cw_gen_t *gen);
+static void cw_null_write_internal(cw_gen_t *gen, cw_tone_t *tone);
 
 
 
@@ -771,6 +783,7 @@ static const unsigned int cw_supported_sample_rates[] = {
    Indexed by values of 'enum cw_audio_systems'. */
 static const char *cw_audio_system_labels[] = {
 	"None",
+	"Null",
 	"Console",
 	"OSS",
 	"ALSA",
@@ -3615,7 +3628,9 @@ int cw_generator_silence_internal(cw_gen_t *gen)
 
 	int status = CW_SUCCESS;
 
-	if (gen->audio_system == CW_AUDIO_CONSOLE) {
+	if (gen->audio_system == CW_AUDIO_NULL) {
+		; /* pass */
+	} else if (gen->audio_system == CW_AUDIO_CONSOLE) {
 		/* sine wave generation should have been stopped
 		   by a code generating dots/dashes, but
 		   just in case... */
@@ -7116,7 +7131,9 @@ int cw_generator_new(int audio_system, const char *device)
 	cw_generator_set_audio_device_internal(generator, device);
 
 	int rv = CW_FAILURE;
-	if (audio_system == CW_AUDIO_CONSOLE && cw_is_console_possible(device)) {
+	if (audio_system == CW_AUDIO_NULL && cw_is_null_possible(device)) {
+		rv = cw_null_open_device_internal(generator);
+	} else if (audio_system == CW_AUDIO_CONSOLE && cw_is_console_possible(device)) {
 		rv = cw_console_open_device_internal(generator);
 	} else if (audio_system == CW_AUDIO_OSS && cw_is_oss_possible(device)) {
 		rv = cw_oss_open_device_internal(generator);
@@ -7134,8 +7151,10 @@ int cw_generator_new(int audio_system, const char *device)
 		return CW_FAILURE;
 	}
 
-	if (audio_system == CW_AUDIO_CONSOLE) {
-		; /* console output does not require audio buffer */
+	if (audio_system == CW_AUDIO_NULL
+	    || audio_system == CW_AUDIO_CONSOLE) {
+
+		; /* the two types of audio output don't require audio buffer */
 	} else {
 		generator->buffer = (cw_sample_t *) malloc(generator->buffer_n_samples * sizeof (cw_sample_t));
 		if (!generator->buffer) {
@@ -7183,7 +7202,9 @@ void cw_generator_delete(void)
 			generator->buffer = NULL;
 		}
 
-		if (generator->audio_system == CW_AUDIO_CONSOLE) {
+		if (generator->audio_system == CW_AUDIO_NULL) {
+			cw_null_close_device_internal(generator);
+		} else if (generator->audio_system == CW_AUDIO_CONSOLE) {
 			cw_console_close_device_internal(generator);
 		} else if (generator->audio_system == CW_AUDIO_OSS) {
 			cw_oss_close_device_internal(generator);
@@ -7230,10 +7251,11 @@ int cw_generator_start(void)
 
 	generator->client.thread_id = pthread_self();
 
-	if (generator->audio_system == CW_AUDIO_CONSOLE
+	if (generator->audio_system == CW_AUDIO_NULL
+	    || generator->audio_system == CW_AUDIO_CONSOLE
 	    || generator->audio_system == CW_AUDIO_OSS
-		   || generator->audio_system == CW_AUDIO_ALSA
-		   || generator->audio_system == CW_AUDIO_PA) {
+	    || generator->audio_system == CW_AUDIO_ALSA
+	    || generator->audio_system == CW_AUDIO_PA) {
 
 		int rv = pthread_create(&generator->thread.id, &generator->thread.attr,
 					cw_generator_write_sine_wave_internal,
@@ -7512,6 +7534,54 @@ int cw_generator_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone)
 #endif
 
 	return amplitude;
+}
+
+
+
+
+
+/* ******************************************************************** */
+/*                          Section:Null output                         */
+/* ******************************************************************** */
+
+
+
+
+
+bool cw_is_null_possible(__attribute__((unused)) const char *device)
+{
+	return true;
+}
+
+
+
+
+
+int cw_null_open_device_internal(cw_gen_t *gen)
+{
+	gen->audio_device_is_open = true;
+	return CW_SUCCESS;
+}
+
+
+
+
+
+void cw_null_close_device_internal(cw_gen_t *gen)
+{
+	gen->audio_device_is_open = false;
+	return;
+}
+
+
+
+
+
+void cw_null_write_internal(__attribute__((unused)) cw_gen_t *gen, cw_tone_t *tone)
+{
+	usleep(tone->usecs);
+
+	return;
 }
 
 
@@ -8371,6 +8441,7 @@ void cw_alsa_close_device_internal(cw_gen_t *gen)
 int cw_dev_debug_raw_sink_write_internal(cw_gen_t *gen)
 {
 	if (gen->audio_system == CW_AUDIO_NONE
+	    || gen->audio_system == CW_AUDIO_NULL
 	    || gen->audio_system == CW_AUDIO_CONSOLE) {
 
 		return CW_SUCCESS;
@@ -8467,7 +8538,9 @@ void *cw_generator_write_sine_wave_internal(void *arg)
 			continue;
 		}
 
-		if (gen->audio_system == CW_AUDIO_CONSOLE) {
+		if (gen->audio_system == CW_AUDIO_NULL) {
+			cw_null_write_internal(gen, &tone);
+		} else if (gen->audio_system == CW_AUDIO_CONSOLE) {
 			cw_console_write_internal(gen, &tone);
 		} else {
 			cw_soundcard_write_internal(gen, q, &tone);
@@ -9005,6 +9078,7 @@ int main(void)
 {
 	main_helper(CW_AUDIO_ALSA,    "ALSA",        CW_DEFAULT_ALSA_DEVICE,      cw_is_alsa_possible);
 	main_helper(CW_AUDIO_PA,      "PulseAudio",  CW_DEFAULT_PA_DEVICE,        cw_is_pa_possible);
+	main_helper(CW_AUDIO_NULL,    "Null",        CW_DEFAULT_NULL_DEVICE,      cw_is_null_possible);
 	//main_helper(CW_AUDIO_CONSOLE, "console",     CW_DEFAULT_CONSOLE_DEVICE,   cw_is_console_possible);
 	//main_helper(CW_AUDIO_OSS,     "OSS",         CW_DEFAULT_OSS_DEVICE,       cw_is_oss_possible);
 
