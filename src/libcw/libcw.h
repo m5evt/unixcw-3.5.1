@@ -38,12 +38,13 @@ enum cw_return_values {
 
 /* supported audio sound systems */
 enum cw_audio_systems {
-	CW_AUDIO_NONE = 0,
-	CW_AUDIO_CONSOLE,
+	CW_AUDIO_NONE = 0,  /* initial value; this is not the same as CW_AUDIO_NULL */
+	CW_AUDIO_NULL,      /* empty audio output (no sound, just timing); this is not the same as CW_AUDIO_NONE */
+	CW_AUDIO_CONSOLE,   /* console buzzer */
 	CW_AUDIO_OSS,
 	CW_AUDIO_ALSA,
-	CW_AUDIO_PA, /* PulseAudio */
-	CW_AUDIO_SOUNDCARD /* OSS, ALSA or PulseAudio (PA) */
+	CW_AUDIO_PA,        /* PulseAudio */
+	CW_AUDIO_SOUNDCARD  /* OSS, ALSA or PulseAudio (PA) */
 };
 
 enum {
