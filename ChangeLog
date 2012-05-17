@@ -1,3 +1,22 @@
+2012-05-17 Kamil Ignacak
+	* libcw/pulseaudio: some general improvements in PulseAudio code;
+	there may be a slight improvement in responsiveness, as I've added
+	code that configures buffering attribute passed to pa_simple_new().
+	The configuration is very simple (read: code copied from the net),
+	I suspect that it can be improved.
+
+	* libcw/Null: Adding support for Null output.
+	Null output is an empty device that doesn't produce a sound. It
+	doesn't use any physical or logical device to output a sound.
+	Its only function is to provide a timing information: it acts as
+	if it accepts and plays x microseconds of sound, and it returns
+	after the x microseconds.
+	I'm not sure if this will turn out useful, maybe yes, maybe no.
+	Currently it is implemented using single call to usleep(), without
+	any checks of return value. This should be improved.
+	Code from cwutils has been changed to use/provide functionality
+	related to the new output.
+
 2012-05-14 Kamil Ignacak
 	* libcw/tone queue: cw_generator_write_sine_wave_internal(): using
 	cw_signal_wait_internal() (together with pthread_kill() in enqueue
