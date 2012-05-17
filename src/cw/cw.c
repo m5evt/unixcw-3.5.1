@@ -623,9 +623,6 @@ int main (int argc, char *const argv[])
 	/* Await final tone completion before exiting. */
 	cw_wait_for_tone_queue();
 
-	cw_generator_stop();
-	cw_generator_delete();
-
 	return EXIT_SUCCESS;
 }
 
@@ -636,8 +633,11 @@ int main (int argc, char *const argv[])
 void cw_atexit(void)
 {
 	if (generator) {
+		cw_complete_reset();
+		cw_generator_stop();
 		cw_generator_delete();
 	}
+
 	if (config) {
 		cw_config_delete(&config);
 	}
