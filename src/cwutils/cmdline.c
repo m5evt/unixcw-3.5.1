@@ -297,7 +297,8 @@ void cw_print_help(cw_config_t *config)
 	fprintf(stderr, _("Audio system options:\n"));
 	fprintf(stderr, _("  -s, --system=SYSTEM\n"));
 	fprintf(stderr, _("        generate sound using SYSTEM audio system\n"));
-	fprintf(stderr, _("        SYSTEM: {console|oss|alsa|pulseaudio|soundcard}\n"));
+	fprintf(stderr, _("        SYSTEM: {null|console|oss|alsa|pulseaudio|soundcard}\n"));
+	fprintf(stderr, _("        'null': don't use any sound output\n"));
 	fprintf(stderr, _("        'console': use system console/buzzer\n"));
 	fprintf(stderr, _("               this output may require root privileges\n"));
 	fprintf(stderr, _("        'oss': use OSS output\n"));
@@ -307,11 +308,12 @@ void cw_print_help(cw_config_t *config)
 	fprintf(stderr, _("        default sound system: 'pulseaudio'->'oss'->'alsa'\n\n"));
 	fprintf(stderr, _("  -d, --device=DEVICE\n"));
 	fprintf(stderr, _("        use DEVICE as output device instead of default one;\n"));
-	fprintf(stderr, _("        optional for {console|alsa|oss};\n"));
+	fprintf(stderr, _("        optional for {console|oss|alsa|pulseaudio};\n"));
 	fprintf(stderr, _("        default devices are:\n"));
 	fprintf(stderr, _("        'console': \"%s\"\n"), CW_DEFAULT_CONSOLE_DEVICE);
 	fprintf(stderr, _("        'oss': \"%s\"\n"), CW_DEFAULT_OSS_DEVICE);
-	fprintf(stderr, _("        'alsa': \"%s\"\n\n"), CW_DEFAULT_ALSA_DEVICE);
+	fprintf(stderr, _("        'alsa': \"%s\"\n"), CW_DEFAULT_ALSA_DEVICE);
+	fprintf(stderr, _("        'pulseaudio': \"%s\"\n\n"), CW_DEFAULT_PA_DEVICE);
 
 	fprintf(stderr, _("Sending options:\n"));
 
@@ -394,7 +396,11 @@ int cw_process_option(int opt, const char *optarg, cw_config_t *config)
 {
 	switch (opt) {
 	case 's':
-		if (!strcmp(optarg, "alsa")
+		if (!strcmp(optarg, "null")
+		    || !strcmp(optarg, "n")) {
+
+			config->audio_system = CW_AUDIO_NULL;
+		} else if (!strcmp(optarg, "alsa")
 		    || !strcmp(optarg, "a")) {
 
 			config->audio_system = CW_AUDIO_ALSA;
