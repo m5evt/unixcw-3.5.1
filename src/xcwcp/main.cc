@@ -169,8 +169,8 @@ int main(int argc, char **argv)
 		// Enter the application event loop.
 		int rv = q_application.exec();
 
-		cw_generator_stop();
-		cw_generator_delete();
+		fprintf(stderr, "EXIT: QT's exec() returned, xcwcp will now exit\n");
+
 
 		return rv;
 	}
@@ -193,8 +193,11 @@ int main(int argc, char **argv)
 void xcwcp_atexit(void)
 {
 	if (generator) {
+		cw_complete_reset();
+		cw_generator_stop();
 		cw_generator_delete();
 	}
+
 	if (config) {
 		cw_config_delete(&config);
 	}
