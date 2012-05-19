@@ -61,6 +61,7 @@ typedef struct cw_gen_struct cw_gen_t;
 
 /* Default outputs for audio systems. Used by libcw unless
    client code decides otherwise. */
+#define CW_DEFAULT_NULL_DEVICE      ""
 #define CW_DEFAULT_CONSOLE_DEVICE   "/dev/console"
 #define CW_DEFAULT_OSS_DEVICE       "/dev/audio"
 #define CW_DEFAULT_ALSA_DEVICE      "default"
