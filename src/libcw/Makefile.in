@@ -78,7 +78,7 @@ am__installdirs = "$(DESTDIR)$(libdir)" "$(DESTDIR)$(man3dir)" \
 libLTLIBRARIES_INSTALL = $(INSTALL)
 LTLIBRARIES = $(lib_LTLIBRARIES)
 libcw_la_DEPENDENCIES =
-am_libcw_la_OBJECTS = libcw.lo
+am_libcw_la_OBJECTS = libcw_la-libcw.lo
 libcw_la_OBJECTS = $(am_libcw_la_OBJECTS)
 am_libcwtest_OBJECTS = libcwtest.$(OBJEXT)
 libcwtest_OBJECTS = $(am_libcwtest_OBJECTS)
@@ -110,7 +110,6 @@ ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 ACLOCAL = @ACLOCAL@
-ALSA_LIBS = @ALSA_LIBS@
 AMDEP_FALSE = @AMDEP_FALSE@
 AMDEP_TRUE = @AMDEP_TRUE@
 AMTAR = @AMTAR@
@@ -174,7 +173,6 @@ PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
-PULSEAUDIO_LIBS = @PULSEAUDIO_LIBS@
 QT4INC = @QT4INC@
 QT4MOC = @QT4MOC@
 QT4MOC_PATH = @QT4MOC_PATH@
@@ -248,10 +246,13 @@ EXTRA_DIST = include.awk libdoc.awk libfuncs.awk libpc.awk libsigs.awk \
 # source code files used to build libcw shared library
 libcw_la_SOURCES = libcw.c libcw.h
 # target-specific linker flags (objects to link)
-libcw_la_LIBADD = -lm -lpthread $(AC_ALSA_LIBS)  $(AC_PULSEAUDIO_LIBS)
+# libcw_la_LIBADD=-lm -lpthread $(AC_ALSA_LIBS)  $(AC_PULSEAUDIO_LIBS)
+libcw_la_LIBADD = -lm -lpthread -ldl
 # target-specific linker flags (additional flags)
 # http://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html
 libcw_la_LDFLAGS = -version-number 3:1:1
+# target-specific compiler flags
+libcw_la_CFLAGS = -rdynamic
 
 # target: libcwtest, a test program, testing public API of libcw library;
 # main() is defined in libcwtest.c
@@ -270,7 +271,9 @@ libcwunittests_SOURCES = libcw.c
 # target-specific preprocessor flags (#defs and include dirs)
 libcwunittests_CPPFLAGS = $(AM_CPPFLAGS) -DLIBCW_UNIT_TESTS
 # target-specific linker flags (objects to link)
-libcwunittests_LDADD = -lm -lpthread $(AC_ALSA_LIBS) $(AC_PULSEAUDIO_LIBS)
+libcwunittests_LDADD = -lm -lpthread -ldl
+# target-specific compiler flags
+libcwunittests_CFLAGS = -rdynamic
 
 # target: libcw.pc
 pkgconfigdir = $(libdir)/pkgconfig
@@ -366,7 +369,7 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcw.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcw_la-libcw.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcwtest.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcwunittests-libcw.Po@am__quote@
 
@@ -391,19 +394,26 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LTCOMPILE) -c -o $@ $<
 
+libcw_la-libcw.lo: libcw.c
+@am__fastdepCC_TRUE@	if $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libcw_la_CFLAGS) $(CFLAGS) -MT libcw_la-libcw.lo -MD -MP -MF "$(DEPDIR)/libcw_la-libcw.Tpo" -c -o libcw_la-libcw.lo `test -f 'libcw.c' || echo '$(srcdir)/'`libcw.c; \
+@am__fastdepCC_TRUE@	then mv -f "$(DEPDIR)/libcw_la-libcw.Tpo" "$(DEPDIR)/libcw_la-libcw.Plo"; else rm -f "$(DEPDIR)/libcw_la-libcw.Tpo"; exit 1; fi
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='libcw.c' object='libcw_la-libcw.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libcw_la_CFLAGS) $(CFLAGS) -c -o libcw_la-libcw.lo `test -f 'libcw.c' || echo '$(srcdir)/'`libcw.c
+
 libcwunittests-libcw.o: libcw.c
-@am__fastdepCC_TRUE@	if $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcwunittests_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libcwunittests-libcw.o -MD -MP -MF "$(DEPDIR)/libcwunittests-libcw.Tpo" -c -o libcwunittests-libcw.o `test -f 'libcw.c' || echo '$(srcdir)/'`libcw.c; \
+@am__fastdepCC_TRUE@	if $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcwunittests_CPPFLAGS) $(CPPFLAGS) $(libcwunittests_CFLAGS) $(CFLAGS) -MT libcwunittests-libcw.o -MD -MP -MF "$(DEPDIR)/libcwunittests-libcw.Tpo" -c -o libcwunittests-libcw.o `test -f 'libcw.c' || echo '$(srcdir)/'`libcw.c; \
 @am__fastdepCC_TRUE@	then mv -f "$(DEPDIR)/libcwunittests-libcw.Tpo" "$(DEPDIR)/libcwunittests-libcw.Po"; else rm -f "$(DEPDIR)/libcwunittests-libcw.Tpo"; exit 1; fi
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='libcw.c' object='libcwunittests-libcw.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcwunittests_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libcwunittests-libcw.o `test -f 'libcw.c' || echo '$(srcdir)/'`libcw.c
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcwunittests_CPPFLAGS) $(CPPFLAGS) $(libcwunittests_CFLAGS) $(CFLAGS) -c -o libcwunittests-libcw.o `test -f 'libcw.c' || echo '$(srcdir)/'`libcw.c
 
 libcwunittests-libcw.obj: libcw.c
-@am__fastdepCC_TRUE@	if $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcwunittests_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libcwunittests-libcw.obj -MD -MP -MF "$(DEPDIR)/libcwunittests-libcw.Tpo" -c -o libcwunittests-libcw.obj `if test -f 'libcw.c'; then $(CYGPATH_W) 'libcw.c'; else $(CYGPATH_W) '$(srcdir)/libcw.c'; fi`; \
+@am__fastdepCC_TRUE@	if $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcwunittests_CPPFLAGS) $(CPPFLAGS) $(libcwunittests_CFLAGS) $(CFLAGS) -MT libcwunittests-libcw.obj -MD -MP -MF "$(DEPDIR)/libcwunittests-libcw.Tpo" -c -o libcwunittests-libcw.obj `if test -f 'libcw.c'; then $(CYGPATH_W) 'libcw.c'; else $(CYGPATH_W) '$(srcdir)/libcw.c'; fi`; \
 @am__fastdepCC_TRUE@	then mv -f "$(DEPDIR)/libcwunittests-libcw.Tpo" "$(DEPDIR)/libcwunittests-libcw.Po"; else rm -f "$(DEPDIR)/libcwunittests-libcw.Tpo"; exit 1; fi
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='libcw.c' object='libcwunittests-libcw.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcwunittests_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libcwunittests-libcw.obj `if test -f 'libcw.c'; then $(CYGPATH_W) 'libcw.c'; else $(CYGPATH_W) '$(srcdir)/libcw.c'; fi`
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcwunittests_CPPFLAGS) $(CPPFLAGS) $(libcwunittests_CFLAGS) $(CFLAGS) -c -o libcwunittests-libcw.obj `if test -f 'libcw.c'; then $(CYGPATH_W) 'libcw.c'; else $(CYGPATH_W) '$(srcdir)/libcw.c'; fi`
 
 mostlyclean-libtool:
 	-rm -f *.lo
