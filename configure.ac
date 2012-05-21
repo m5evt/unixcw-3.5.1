@@ -246,14 +246,7 @@ fi
 
 if test "$WITH_ALSA" = 'yes' ; then
     AC_DEFINE([LIBCW_WITH_ALSA], [1], [Define as 1 if your build machine can support ALSA.])
-    # to be appended to LIBS in src/libcw/Makefile.am
-    ALSA_LIBS=" -lasound "
-else
-    # to be appended to LIBS in src/libcw/Makefile.am
-    ALSA_LIBS=""
 fi
-
-AC_SUBST(ALSA_LIBS)
 
 
 
@@ -272,14 +265,7 @@ fi
 
 if test "$WITH_PULSEAUDIO" = 'yes' ; then
     AC_DEFINE([LIBCW_WITH_PULSEAUDIO], [1], [Define as 1 if your build machine can support PulseAudio.])
-    # to be appended to LIBS in src/libcw/Makefile.am
-    PULSEAUDIO_LIBS=" -lpulse-simple "
-else
-    # to be appended to LIBS in src/libcw/Makefile.am
-    PULSEAUDIO_LIBS=""
 fi
-
-AC_SUBST(PULSEAUDIO_LIBS)
 
 
 
