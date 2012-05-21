@@ -254,7 +254,7 @@ void Application::start()
 			// Restore button's proper visual appearance
 			// after it has been pressed, but user hasn't
 			// confirmed starting playing in this instance.
-			this->startstop_button_->setDown(false);
+			//this->startstop_button_->setDown(false);
 			return;
 		}
 	}
@@ -292,7 +292,7 @@ void Application::start()
 	action->setIcon(stop_icon);
 	action->setText(_("Stop"));
 	action->setToolTip(_("Stop"));
-	startstop_button_->setDown(true);
+	//startstop_button_->setDown(true);
 	play_ = true;
 
 	display_->clear_status();
@@ -340,7 +340,7 @@ void Application::stop()
 	action->setIcon(start_icon);
 	action->setText(_("Start"));
 	action->setToolTip(_("Start"));
-	startstop_button_->setDown(false);
+	//startstop_button_->setDown(false);
 	play_ = false;
 
 	display_->show_status(_("Ready"));
@@ -683,6 +683,7 @@ void Application::make_toolbar(void)
 	startstop_->setText(_("Start"));
 	startstop_->setToolTip(_("Start"));
 	startstop_->setWhatsThis(STARTSTOP_WHATSTHIS);
+	startstop_->setCheckable(false);
 	connect(startstop_, SIGNAL (triggered(bool)), this, SLOT (startstop()));
 
 
@@ -692,7 +693,7 @@ void Application::make_toolbar(void)
 	// invisible, but it's there.
 	startstop_button_ = new QToolButton(toolbar);
 	startstop_button_->setDefaultAction(startstop_);
-	startstop_button_->setCheckable(true);
+	startstop_button_->setCheckable(false);
 	toolbar->addWidget(startstop_button_);
 
 
