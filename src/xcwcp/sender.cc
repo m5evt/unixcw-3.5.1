@@ -142,16 +142,11 @@ void Sender::dequeue_character()
 	}
 
 	// Update the status bar with the character being sent.
-	// I'm sure there is a way to create QString in one line,
-	// without series of concatenations. For now I'll use C string.
 	// Put the sent char at the end to avoid "jumping" of whole
 	// string when width of glyph of sent char changes at variable
 	// font width.
-	const char *format = _("Sending at %d WPM: '%c'");
-	char c_status[100]; // TODO: dynamic array size in C99 (strlen(format) + 1 + X)
-	snprintf(c_status, strlen(format) + 1, format, cw_get_send_speed(), c);
-	QString status(c_status);
-	display_->show_status(status);
+	QString status = _("Sending at %1 WPM: '%2'");
+	display_->show_status(status.arg(cw_get_send_speed()).arg(c));
 
 	return;
 }
