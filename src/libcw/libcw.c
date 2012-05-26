@@ -4227,6 +4227,15 @@ struct cw_tone_queue_struct {
 
 
 
+#define CW_TONE_QUEUE_LENGTH(m_tq)				\
+	( m_tq->tail >= m_tq->head				\
+	  ? m_tq->tail - m_tq->head				\
+	  : m_tq->tail - m_tq->head + CW_TONE_QUEUE_CAPACITY )	\
+
+
+
+
+
 /**
    \brief Initialize a tone queue
 
@@ -4236,6 +4245,11 @@ struct cw_tone_queue_struct {
 */
 void cw_tone_queue_init_internal(cw_tone_queue_t *tq)
 {
+	int rv = pthread_mutex_init(&generator->tq->mutex, NULL);
+	assert (!rv);
+
+	pthread_mutex_lock(&tq->mutex);
+
 	tq->tail = 0;
 	tq->head = 0;
 	tq->state = QS_IDLE;
@@ -4244,8 +4258,8 @@ void cw_tone_queue_init_internal(cw_tone_queue_t *tq)
 	tq->low_water_callback = NULL;
 	tq->low_water_callback_arg = NULL;
 
-	int rv = pthread_mutex_init(&tq->mutex, NULL);
-	assert (!rv);
+	pthread_mutex_unlock(&tq->mutex);
+
 	return;
 }
 
@@ -4263,11 +4277,7 @@ void cw_tone_queue_init_internal(cw_tone_queue_t *tq)
 int cw_tone_queue_length_internal(cw_tone_queue_t *tq)
 {
 	pthread_mutex_lock(&tq->mutex);
-
-	int len = tq->tail >= tq->head
-		? tq->tail - tq->head
-		: tq->tail - tq->head + CW_TONE_QUEUE_CAPACITY;
-
+	int len = CW_TONE_QUEUE_LENGTH(tq);
 	pthread_mutex_unlock(&tq->mutex);
 
 	return len;
@@ -4357,6 +4367,8 @@ int cw_tone_queue_next_index_internal(int index)
 */
 int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 {
+	pthread_mutex_lock(&tq->mutex);
+
 #ifdef LIBCW_WITH_DEV
 	static enum {
 		REPORTED_STILL_EMPTY,
@@ -4364,6 +4376,8 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 		REPORTED_NONEMPTY
 	} tq_report = REPORTED_STILL_EMPTY;
 #endif
+
+
 	/* Decide what to do based on the current state. */
 	switch (tq->state) {
 
@@ -4375,6 +4389,7 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 			tq_report = REPORTED_STILL_EMPTY;
 		}
 #endif
+		pthread_mutex_unlock(&tq->mutex);
 		/* Ignore calls if our state is idle. */
 		return CW_TQ_STILL_EMPTY;
 
@@ -4386,7 +4401,7 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 			   compare with the length after we've scanned
 			   over every tone we can omit, and use it to see
 			   if we've crossed the low water mark, if any. */
-			int queue_length = cw_tone_queue_length_internal(tq);
+			int queue_length = CW_TONE_QUEUE_LENGTH(tq);
 
 			/* Advance over the tones list until we find the
 			   first tone with a duration of more than zero
@@ -4403,8 +4418,6 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 			tone->frequency = tq->queue[tmp_tq_head].frequency;
 			tone->slope_mode = tq->queue[tmp_tq_head].slope_mode;
 
-			pthread_mutex_lock(&tq->mutex);
-
 			if (tone->usecs == CW_AUDIO_FOREVER_USECS && queue_length == 1) {
 				/* The last tone currently in queue is
 				   CW_AUDIO_FOREVER_USECS, which means that we
@@ -4416,8 +4429,6 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 			} else {
 				tq->head = tmp_tq_head;
 			}
-
-			pthread_mutex_unlock(&tq->mutex);
 
 			cw_debug (CW_DEBUG_TONE_QUEUE, "dequeue tone %d usec, %d Hz", tone->usecs, tone->frequency);
 			cw_debug (CW_DEBUG_TONE_QUEUE, "head = %d, tail = %d, length = %d", tq->head, tq->tail, queue_length);
@@ -4453,7 +4464,7 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 				   one we have now is below or equal to it,
 				   call the callback. */
 				if (queue_length > tq->low_water_mark
-				    && cw_tone_queue_length_internal(tq) <= tq->low_water_mark
+				    && CW_TONE_QUEUE_LENGTH(tq) <= tq->low_water_mark
 
 				    /* this expression is to avoid possibly endless calls of callback */
 				    && !(tone->usecs == CW_AUDIO_FOREVER_USECS && queue_length == 1)
@@ -4470,6 +4481,7 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 				tq_report = REPORTED_NONEMPTY;
 			}
 #endif
+			pthread_mutex_unlock(&tq->mutex);
 			return CW_TQ_NONEMPTY;
 		} else { /* tq->head == tq->tail */
 			/* State of tone queue (as indicated by tq->state)
@@ -4500,10 +4512,12 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 			}
 #endif
 
+			pthread_mutex_unlock(&tq->mutex);
 			return CW_TQ_JUST_EMPTIED;
 		}
 	}
 
+	pthread_mutex_unlock(&tq->mutex);
 	/* will never get here as 'queue state' enum has only two values */
 	assert(0);
 	return CW_TQ_STILL_EMPTY;
@@ -4532,6 +4546,7 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 */
 int cw_tone_queue_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 {
+	pthread_mutex_lock(&tq->mutex);
 	/* If the keyer or straight key are busy, return an error.
 	   This is because they use the sound card/console tones and key
 	   control, and will interfere with us if we try to use them at
@@ -4539,10 +4554,10 @@ int cw_tone_queue_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 	// if (cw_is_keyer_busy() || cw_is_straight_key_busy()) {
 	if (0) {
 		errno = EBUSY;
+		pthread_mutex_unlock(&tq->mutex);
 		return CW_FAILURE;
 	}
 
-	//pthread_mutex_lock(&tq->mutex);
 	/* Get the new value of the queue tail index. */
 	int new_tq_tail = cw_tone_queue_next_index_internal(tq->tail);
 
@@ -4550,6 +4565,7 @@ int cw_tone_queue_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 	   the queue is currently full. */
 	if (new_tq_tail == tq->head) {
 		errno = EAGAIN;
+		pthread_mutex_unlock(&tq->mutex);
 		return CW_FAILURE;
 	}
 
@@ -4571,8 +4587,8 @@ int cw_tone_queue_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 		   to send such a signal. */
 		pthread_kill(generator->thread.id, SIGALRM);
 	}
-	//pthread_mutex_unlock(&tq->mutex);
 
+	pthread_mutex_unlock(&tq->mutex);
 	return CW_SUCCESS;
 }
 
@@ -4789,8 +4805,10 @@ int cw_get_tone_queue_length(void)
 */
 void cw_flush_tone_queue(void)
 {
+	pthread_mutex_lock(&generator->tq->mutex);
 	/* Empty the queue, by setting the head to the tail. */
-	cw_tone_queue.head = cw_tone_queue.tail;
+	generator->tq->head = generator->tq->tail;
+	pthread_mutex_unlock(&generator->tq->mutex);
 
 	/* If we can, wait until the dequeue goes idle. */
 	if (!cw_sigalrm_is_blocked_internal()) {
@@ -7520,7 +7538,8 @@ void cw_generator_stop(void)
 	   The delay also allows the generator function thread to stop
 	   generating tone and exit before we resort to killing generator
 	   function thread. */
-	while (usleep(300000));
+	struct timespec req = { .tv_sec = 1, .tv_nsec = 0 };
+	cw_nanosleep(&req);
 
 	/* check if generator thread is still there */
 	int rv = pthread_kill(generator->thread.id, 0);
@@ -7606,6 +7625,14 @@ void *cw_generator_write_sine_wave_internal(void *arg)
 
 	cw_dev_debug ("EXIT: generator stopped (gen->generate = %d)\n", gen->generate);
 
+	/* Some functions in client thread may be waiting for the last
+	   SIGALRM from the generator thread to continue/finalize their
+	   business. Let's send the SIGALRM right before exiting.
+	   This small delay before sending signal turns out to be helpful. */
+	struct timespec req = { .tv_sec = 0, .tv_nsec = 500000000 };
+	cw_nanosleep(&req);
+
+	pthread_kill(gen->client.thread_id, SIGALRM);
 	return NULL;
 }
 
@@ -9625,7 +9652,7 @@ unsigned int test_cw_representation_to_hash_internal(void)
 	/* build table of all valid representations ("valid" as in "build
 	   from dash and dot, no longer than REPRESENTATION_LEN"). */
 	long int i = 0;
-	for (int len = 0; len < REPRESENTATION_LEN; len++) {
+	for (unsigned int len = 0; len < REPRESENTATION_LEN; len++) {
 		for (unsigned int binary_representation = 0; binary_representation < (2 << len); binary_representation++) {
 			for (int bit_pos = 0; bit_pos <= len; bit_pos++) {
 				int bit = binary_representation & (1 << bit_pos);
