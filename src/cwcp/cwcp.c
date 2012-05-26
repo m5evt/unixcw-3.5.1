@@ -1388,6 +1388,16 @@ int main(int argc, char **argv)
 		}
 	}
 
+	if (config->audio_system == CW_AUDIO_ALSA
+	    && cw_is_pa_possible(NULL)) {
+
+		fprintf(stdout, "Selected audio system is ALSA, but audio on your system is handled by PulseAudio. Expect problems with timing.\n");
+		fprintf(stdout, "In this situation it is recommended to run %s like this:\n", config->program_name);
+		fprintf(stdout, "%s -s p\n\n", config->program_name);
+		fprintf(stdout, "Press Enter key to continue\n");
+		getchar();
+	}
+
 	generator = cw_generator_new_from_config(config);
 	if (!generator) {
 		fprintf(stderr, "%s: failed to create generator\n", config->program_name);
