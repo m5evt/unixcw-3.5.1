@@ -285,14 +285,11 @@ void Receiver::poll_receive_character()
 		is_pending_space_ = true;
 
 		// Update the status bar to show the character received.
-		// I'm sure there is a way to create QString in one
-		// line, without series of concatenations. For now
-		// I'll use C string.
-		const char *format = _("Received '%c' at %d WPM");
-		char c_status[100]; // TODO: dynamic array size in C99 (strlen(format) + 1 + X)
-		snprintf(c_status, strlen(format) + 1, format, c, cw_get_receive_speed());
-		QString status(c_status);
-		display_->show_status(status);
+		// Put the received char at the end to avoid "jumping" of
+		// whole string when width of glyph of sent char changes at
+		// variable font width.
+		QString status = _("Received at %1 WPM: '%2'");
+		display_->show_status(status.arg(cw_get_receive_speed()).arg(c));
 	} else {
 		// Handle receive error detected on trying to read a character.
 		switch (errno) {
@@ -305,14 +302,8 @@ void Receiver::poll_receive_character()
 				cw_clear_receive_buffer();
 				display_->append('?');
 
-				// I'm sure there is a way to create QString in one
-				// line, without series of concatenations. For now
-				// I'll use C string.
-				const char *format = _("Unknown character received at %d WPM");
-				char c_status[100]; // TODO: dynamic array size in C99 (strlen(format) + 1 + X)
-				snprintf(c_status, strlen(format) + 1, format, c, cw_get_receive_speed());
-				QString status(c_status);
-				display_->show_status(status);
+				QString status = _("Unknown character received at %1 WPM");
+				display_->show_status(status.arg(c).arg(cw_get_receive_speed()));
 			}
 			break;
 
