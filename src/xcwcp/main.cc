@@ -166,6 +166,7 @@ int main(int argc, char **argv)
 		q_application.connect(&q_application, SIGNAL (lastWindowClosed ()),
 				      &q_application, SLOT (quit ()));
 
+		application->check_audio_system(config);
 		// Enter the application event loop.
 		int rv = q_application.exec();
 
