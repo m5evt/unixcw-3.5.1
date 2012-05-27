@@ -243,7 +243,11 @@ the console speaker.
 .\"
 .SS AUDIO OUTPUT \- DEFAULTS AND SELECTION
 .\"
-\fBxcwcp\fP first tries to access sound card using OSS audio system
+\fBxcwcp\fP first tries to access sound card using PulseAudio sound system,
+using default device name, unless user specifies other audio device with
+option \fI-d\fP or \fI\-\-device\fP.
+.PP
+\fBxcwcp\fP then tries to access sound card using OSS audio system
 and default OSS audio device name ('/dev/audio'), unless user
 specifies other audio device with option \fI-d\fP or \fI\-\-device\fP.
 .PP

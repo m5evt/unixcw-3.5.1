@@ -34,6 +34,7 @@ cwcp \- curses-based Morse tutor program
 [\-t\ \-\-tone=\fIHZ\fP]
 [\-v\ \-\-volume=\fIPERCENT\fP]
 [\-g\ \-\-gap=\fIGAP\fP]
+[\-k\ \-\-weighting=\fIWEIGHT\fP]
 [\-T\ \-\-time=\fITIME\fP]
 [\-f, \-\-infile=\fIFILE\fP]
 [\-F, \-\-outifile=\fIFILE\fP]
@@ -78,15 +79,18 @@ may not be available in non-LINUX versions.
 .I "\-s, \-\-system=SYSTEM"
 Specifies the way that \fBcwcp\fP generates tones.  Valid values
 are:
+\fInull\fP for no tones, just timings,
 \fIconsole\fP for tones through the console speaker,
 \fIalsa\fP for tones generated through the system sound card using ALSA
 sound system,
 \fIoss\fP for tones generated through system sound card using OSS sound
 system,
+\fIpulseaudio\fP for tones generated through system sound card using
+PulseAudio sound system,
 \fIsoundcard\fP for tones generated through the system sound card, but
 without explicit selection of sound system. These values can be
-shortened to 'c', 'a', 'o', or 's', respectively. The default value
-is 'oss'.
+shortened to 'n', 'c', 'a', 'o', 'p', or 's', respectively. The default value
+is 'pulseaudio'.
 .TP
 .I "\-d, \-\-device=DEVICE"
 Specifies the device file to open for generating a sound.
@@ -94,7 +98,8 @@ Specifies the device file to open for generating a sound.
 devices are:
 \fI/dev/console\fP for sound produced through console,
 \fIdefault\fP for ALSA sound system,
-\fI/dev/audio\fP for OSS sound system.
+\fI/dev/audio\fP for OSS sound system,
+\fIa default device\fP for PulseAudio sound system.
 See also \fINOTES ON USING A SOUND CARD\fP below.
 .TP
 .I "\-w, \-\-wpm=WPM"
@@ -117,6 +122,10 @@ a volume of zero is silent, and all other volume values are simply sounded.
 Sets the initial extra gap, in dot lengths, between characters
 (the 'Farnsworth' delay).  It must be between 0 and 60.  The default
 is 0.
+.TP
+.I "\-k, \-\-weighting=WEIGHT"
+Sets the initial weighting, as a percentage of dot lengths.  It must be
+between 20 and 80.  The default is 50.
 .TP
 .I "\-T, \-\-time=TIME"
 Sets the initial practice time, in minutes.  \fBcwcp\fP stops after
@@ -269,7 +278,8 @@ at startup.  See \fICREATING CONFIGURATION FILES\fP below.
 .\"
 .SS NOTES ON USING A SOUND CARD
 .\"
-By default, \fBcwcp\fP tries to open OSS device "/dev/audio" to access
+By default, \fBcw\fP tries to open default PulseAudio. If PulseAudio
+server is not accessible, cw tries to open OSS device "/dev/audio" to access
 the system sound card.  This is generally the correct device to use,
 but for systems with special requirements, or those with multiple sound
 cards, the option \fI-d\fP or \fI\-\-device\fP, combined with
@@ -311,7 +321,11 @@ the console speaker.
 .\"
 .SS AUDIO OUTPUT \- DEFAULTS AND SELECTION
 .\"
-\fBcwcp\fP first tries to access sound card using OSS audio system
+\fBcwcp\fP first tries to access sound card using PulseAudio sound system,
+using default device name, unless user specifies other audio device with
+option \fI-d\fP or \fI\-\-device\fP.
+.PP
+\fBcwcp\fP then tries to access sound card using OSS audio system
 and default OSS audio device name ('/dev/audio'), unless user
 specifies other audio device with option \fI-d\fP or \fI\-\-device\fP.
 .PP

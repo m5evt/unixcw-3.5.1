@@ -45,6 +45,10 @@ Version 3.0.1 contains small fixes that don't influence core capabilities
 of any application, but are still important. Patches for this release were
 provided mainly by Kamal Mostafa (thanks Kamal!).
 
+Version 3.1.0 adds support for PulseAudio.
+Plenty of other changes in library code improve timings of tones produced
+by the library.
+Few library functions are deprecated, they are replaced by new functions.
 
 
 The heart of the package is 'libcw'.  This is a library which, when built,
@@ -64,7 +68,8 @@ offers the following basic CW services to a caller program:
 
 The library uses signals and threads to create a background task in which to do
 the majority of its work, leaving the main program free to handle other tasks.
-For example, the simplest CW sending program that uses the library looks like:
+For example, the simplest CW sending program that uses the library looks like
+this (compile it with "gcc -lcw example.c")
 
 
 #include <libcw.h>
@@ -72,7 +77,7 @@ For example, the simplest CW sending program that uses the library looks like:
 int main ()
 {
         /* Library initialization */
-        cw_generator_new(CW_AUDIO_ALSA, NULL);
+        cw_generator_new(CW_AUDIO_SOUNDCARD, NULL);
         cw_generator_start();
 
         /* Start the string sending in the background. */
@@ -133,7 +138,7 @@ Qt library (version 4).  This library is fairly standard on Linux systems, as
 it is the basis of KDE, so relying on this should not be too much of a problem.
 
 
-See INSTALLING for details on how to build UnixCW version 3.0 from the
+See INSTALL for details on how to build UnixCW version 3.0 from the
 distributed sources.
 
 UnixCW is distributed under the GNU GPL 2 (or later).  See COPYING for details.

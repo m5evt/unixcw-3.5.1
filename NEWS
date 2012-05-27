@@ -1,3 +1,93 @@
+version X.Y.Z / 2012.XX.YY
+
+  unixcw:
+  - Added support for PulseAudio.
+    All applications from unixcw that produce audio output benefit from
+    this. PulseAudio is the default audio backend on machines with installed
+    and accessible PulseAudio server. If audio backend hasn't been specified
+    by user, the applications try to access different sound backends in
+    following order:
+    PulseAudio -> OSS -> ALSA -> Console.
+
+    The usual restrictions for Console output (root access) still apply.
+
+    Running application with ALSA selected as sound backend while PulseAudio
+    server is running will result in all kinds of different problems.
+    User is warned about such situation by the application.
+
+  - Added 'Null' audio system as an optional audio backend. No sound is
+    being played if this system is selected, libcw is spending its time only
+    on generating tones of proper length and sending it in proper moments
+    to a pseudo-device. Pass '-s n' option to unixcw application to use this
+    'audio' backend.
+
+  - Thanks to changes in libcw, unixcw doesn't 'require' ALSA or PulseAudio
+    libraries, or PulseAudio server on target system, even if support for
+    the two audio backends was compiled in. The two audio backends are now
+    only recommended, thanks to linking to the libraries at run time.
+
+  - Build system now uses libtool. 'libtool' script is in release
+    archive, so there are no new compile-time requirements related to
+    this (at least 'make distcheck' completes successfully with libtool
+    package uninstalled).
+
+  - It is possible to explicitly disable support for audio backends at
+    compile time. Pass --disable-{console|oss|alsa|pulseaudio} to
+    ./configure to do this.
+
+  - It is possible to explicitly disable compilation of cwcp and xcwcp.
+    Pass --disable-{cwcp|xcwcp} to ./configure to do this.
+
+  - Build system now uses Makefile.am files as a basis to generate Makefile
+    files.
+
+  - Build system now supports and correctly builds "make distcheck" target.
+
+
+  libcw:
+  - Added support for PulseAudio.
+    There are still some things to be improved in code implementing support
+    for PulseAudio, but pretty solid basics are there.
+
+  - Added support for Null pseudo-audio-system. Not sure if it will be useful,
+    I just thought that someone would like to use libcw without generating
+    any sound. Perhaps some simple platforms without audio devices, perhaps
+    practicing sending/keying without playback. Who knows. It was easy to do,
+    so I did it.
+
+  - If you compare libcw.c files from this and previous release, you will
+    notice lots of changes. This is because I've changed the algorithm that
+    controls time periods when generating tones (generating sine wave).
+
+    Until now the periods were measured with itimers. The tricky part was to
+    keep two processed in sync: turning sine wave on and off, and sending
+    the content of audio buffer with sine wave to audio backend. I'm calling
+    it 'tricky' because it works fine only for small sizes of audio buffer,
+    as it is in case of OSS (~128 samples). With larger buffer sizes forced
+    by ALSA (~1k samples) the two processes de-synchronize. I had to come up
+    with better design, and the side effect of the design is total rewrite
+    of parts of libcw.c (for my own purposes I call the rewrite a 'butchering',
+    but that is a different story).
+
+    New design relies on blocking writes to audio systems, and their property
+    of being able to play only X samples (Y milliseconds) at a time (with
+    given sample rate).
+
+  - Following functions are deprecated: cw_check_representation(),
+    cw_lookup_representation(), cw_lookup_character().
+    Use cw_representation_is_valid(), cw_representation_to_character() and
+    cw_character_to_representation() (respectively) instead.
+
+  - soname changed from 3.0.1 to 4.0.0
+
+  cwcp:
+  - Fixing small bug in user interface: till now modifying practice time
+    didn't work correctly, any attempts to do so resulted in resetting the
+    time to zero. Now this is fixed.
+
+
+----------------------------------------------------------------------------
+
 version 3.0.1 / 2012.01.08
 
 Thanks to Kamal Mostafa for providing patches that are the reason

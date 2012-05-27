@@ -83,15 +83,19 @@ form options may not be available in non-LINUX versions.
 .I "\-s, \-\-system=SYSTEM"
 Specifies the way that \fBcw\fP generates tones.  Valid values
 are:
+\fInull\fP for no tones, just timings,
 \fIconsole\fP for tones through the console speaker,
 \fIalsa\fP for tones generated through the system sound card using ALSA
 sound system,
 \fIoss\fP for tones generated through system sound card using OSS sound
 system,
+\fIpulseaudio\fP for tones generated through system sound card using
+PulseAudio sound system,
 \fIsoundcard\fP for tones generated through the system sound card, but
 without explicit selection of sound system. These values can be
-shortened to 'c', 'a', 'o', or 's', respectively. The default value
-is 'oss'.
+shortened to 'n', 'c', 'a', 'o', 'p', or 's', respectively. The default
+value is 'pulseaudio' (on systems with PulseAudio installed), followed
+by 'oss'.
 .TP
 .I "\-d, \-\-device=DEVICE"
 Specifies the device file to open for generating a sound.
@@ -99,7 +103,8 @@ Specifies the device file to open for generating a sound.
 devices are:
 \fI/dev/console\fP for sound produced through console,
 \fIdefault\fP for ALSA sound system,
-\fI/dev/audio\fP for OSS sound system.
+\fI/dev/audio\fP for OSS sound system,
+\fIa default device\fP for PulseAudio sound system.
 See also \fINOTES ON USING A SOUND CARD\fP below.
 .TP
 .I "\-w, \-\-wpm=WPM"
@@ -440,7 +445,8 @@ as any other (invalid) input character.
 .\"
 .SS NOTES ON USING A SOUND CARD
 .\"
-By default, \fBcw\fP tries to open OSS device "/dev/audio" to access
+By default, \fBcw\fP tries to open default PulseAudio. If PulseAudio
+server is not accessible, cw tries to open OSS device "/dev/audio" to access
 the system sound card.  This is generally the correct device to use,
 but for systems with special requirements, or those with multiple sound
 cards, the option \fI-d\fP or \fI\-\-device\fP, combined with
@@ -482,7 +488,11 @@ the console speaker.
 .\"
 .SS AUDIO OUTPUT \- DEFAULTS AND SELECTION
 .\"
-\fBcw\fP first tries to access sound card using OSS audio system
+\fBcw\fP first tries to access sound card using PulseAudio sound system,
+using default device name, unless user specifies other audio device with
+option \fI-d\fP or \fI\-\-device\fP.
+.PP
+\fBcw\fP then tries to access sound card using OSS audio system
 and default OSS audio device name ('/dev/audio'), unless user
 specifies other audio device with option \fI-d\fP or \fI\-\-device\fP.
 .PP
