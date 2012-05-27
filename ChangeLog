@@ -1,3 +1,29 @@
+2012-05-27 Kamil Ignacak
+	* libcw: fixing an error with overflowing n_samples. It was spotted
+	during some tests performed when reviewing files before new release.
+	I guess that means that I'm in a phase of final tests of the package.
+	* unixcw: bunch of changes that prepare the package for new release.
+	New release number of unixcw will be 3.1.0, new soname of libcw will
+	be 4:0:0.
+
+2012-05-21 Kamil Ignacak
+	* libcw: Implementing loading of PulseAudio and ALSA libraries at
+	run-time (loading symbols from the two libraries - to be exact),
+	instead of doing it at compile time (load time?).
+	This means that support for PulseAudio and/or ALSA can be enabled
+	during compile time, but user doesn't have to have PulseAudio and/or
+	ALSA installed on target system in order to install libcw. In other
+	words: PulseAudio and ALSA libraries are now recommended, but not
+	required.
+	This does not mean that the two libraries are somehow deprecated by
+	libcw. It just means that installing libcw doesn't have to mean a
+	necessity of installing too much additional packages.
+	OSS - by its nature - doesn't have to be loaded to be used by libcw,
+	it's just open(), write() and close(), so handling OSS is much
+	easier and doesn't involve run time loading (the description is
+	rather simplified, but still OSS is a different story than PulseAudio
+	and ALSA libraries).
+
 2012-05-17 Kamil Ignacak
 	* libcw/pulseaudio: some general improvements in PulseAudio code;
 	there may be a slight improvement in responsiveness, as I've added
