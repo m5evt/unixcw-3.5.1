@@ -1,3 +1,19 @@
+unixcw (3.1.0-1) unstable; urgency=low
+  * Added support for PulseAudio, which should be a good news for users
+    of the package on Ubuntu.
+  * Implemented run-time linking of audio libraries decreases dependency
+    on libasound (and from this release on libpulse) from 'requires' to
+    'recommends'.
+  * Added following flags to configure.ac:
+    --disable-{console|oss|alsa|pulseaudio|cwcp|xcwcp}.
+    "--disable-console" may help to compile unixcw on hurd-i386.
+  * cwcp no longer limits gap to 20, currently the limit (imposed by libcw)
+    is 60. Closes: #237891
+  * It has been tested and confirmed that due to redesign of OSS code, volume
+    mixer is no longer muted at exit of cw or cwcp. Closes: #567394
+
+ -- Kamil Ignacak <acerion@wp.pl>  Mon, 30 Jun 2012 20:08:49 +0100
+
 unixcw (3.0.1-2) unstable; urgency=low
 
   * Debconf templates and debian/control reviewed by the debian-l10n-
