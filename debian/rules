@@ -89,8 +89,8 @@ install-arch:
 	install -m 0644 debian/icon_mini_xcwcp.xpm debian/tmp/usr/share/pixmaps
 	install -m 0644 debian/icon_xcwcp.xpm debian/tmp/usr/share/pixmaps
 
-	install -d debian/tmp/usr/share/doc/libcw3
-	install -d debian/tmp/usr/share/doc/libcw3-dev
+	install -d debian/tmp/usr/share/doc/libcw4
+	install -d debian/tmp/usr/share/doc/libcw4-dev
 	install -d debian/tmp/usr/share/doc/cw
 	install -d debian/tmp/usr/share/doc/cwcp
 	install -d debian/tmp/usr/share/doc/xcwcp
