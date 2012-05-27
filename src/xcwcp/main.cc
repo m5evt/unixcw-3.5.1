@@ -170,9 +170,6 @@ int main(int argc, char **argv)
 		// Enter the application event loop.
 		int rv = q_application.exec();
 
-		fprintf(stderr, "EXIT: QT's exec() returned, xcwcp will now exit\n");
-
-
 		return rv;
 	}
 
