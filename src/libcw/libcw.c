@@ -156,7 +156,7 @@
 #define CW_OSS_SET_FRAGMENT       1  /* ioctl(fd, SNDCTL_DSP_SETFRAGMENT, &param) */
 #define CW_OSS_SET_POLICY         0  /* ioctl(fd, SNDCTL_DSP_POLICY, &param) */
 #define CW_ALSA_HW_BUFFER_CONFIG  0  /* set up hw buffer/period parameters; unnecessary and probably harmful */
-#define LIBCW_WITH_DEV 1
+//#define LIBCW_WITH_DEV 1
 #ifdef LIBCW_WITH_DEV
 #define CW_DEV_MAIN               0  /* enable main() for stand-alone compilation and tests of this file */
 #define CW_DEV_RAW_SINK           1  /* create and use /tmp/cw_file.<audio system>.raw file with audio samples written as raw data */
@@ -182,7 +182,8 @@ typedef struct cw_tone_struct {
 	int usecs;
 
 	/* duration of a tone, in samples (is a function of usecs and sample rate) */
-	int n_samples;
+	/* TODO: come up with thought-out, consistent type system for samples and usecs */
+	int64_t n_samples;
 
 	/* We need two indices to gen->buffer, indicating beginning and end
 	   of a subarea in the buffer.
@@ -299,7 +300,7 @@ static const int        CW_AUDIO_SLOPE_USECS = 5000;          /* length of a sin
 static int cw_generator_silence_internal(cw_gen_t *gen);
 static int cw_generator_release_internal(void);
 static int cw_generator_set_audio_device_internal(cw_gen_t *gen, const char *device);
-
+static int cw_generator_new_open_internal(cw_gen_t *gen, int audio_system, const char *device);
 
 
 
@@ -362,7 +363,7 @@ struct cw_gen_struct {
 
 	/* how many samples are still left to calculate to completely
 	   fill audio buffer in given cycle? */
-	int samples_left;
+	int64_t samples_left;
 
 
 	/* depending on sample rate, sending speed, and user preferences,
@@ -821,12 +822,12 @@ static int cw_keyer_update_internal(void);
 
 
 
-
+#if 0 /* unused */
 /* ******************************************************************** */
 /*                        Section:Straight key                          */
 /* ******************************************************************** */
 static void cw_straight_key_clock_internal(void);
-
+#endif
 
 
 
@@ -4096,8 +4097,7 @@ void cw_key_straight_key_generate_internal(cw_gen_t *gen, int requested_key_stat
 			tone.frequency = gen->frequency;
 			cw_tone_queue_enqueue_internal(gen->tq, &tone);
 
-			int len = cw_tone_queue_length_internal(gen->tq);
-			cw_dev_debug ("len = %d", len);
+			cw_dev_debug ("len = %d", cw_tone_queue_length_internal(gen->tq));
 		} else {
 			cw_tone_t tone;
 			tone.usecs = gen->slope_usecs;
@@ -7113,6 +7113,7 @@ static volatile bool cw_sk_key_state = CW_KEY_STATE_OPEN;
 
 
 
+#if 0 /* unused */
 /**
    \brief Generate a tone while straight key is down
 
@@ -7134,6 +7135,7 @@ void cw_straight_key_clock_internal(void)
 
 	return;
 }
+#endif
 
 
 
@@ -7295,7 +7297,7 @@ int cw_generator_new(int audio_system, const char *device)
 	cw_tone_queue_init_internal(generator->tq);
 
 	generator->audio_device = NULL;
-	generator->audio_system = audio_system;
+	//generator->audio_system = audio_system;
 	generator->audio_device_is_open = false;
 	generator->dev_raw_sink = -1;
 	generator->send_speed = CW_SPEED_INITIAL,
@@ -7329,24 +7331,7 @@ int cw_generator_new(int audio_system, const char *device)
 	pthread_attr_init(&generator->thread.attr);
 	pthread_attr_setdetachstate(&generator->thread.attr, PTHREAD_CREATE_DETACHED);
 
-	cw_generator_set_audio_device_internal(generator, device);
-
-	int rv = CW_FAILURE;
-	if (audio_system == CW_AUDIO_NULL && cw_is_null_possible(device)) {
-		rv = cw_null_open_device_internal(generator);
-	} else if (audio_system == CW_AUDIO_CONSOLE && cw_is_console_possible(device)) {
-		rv = cw_console_open_device_internal(generator);
-	} else if (audio_system == CW_AUDIO_OSS && cw_is_oss_possible(device)) {
-		rv = cw_oss_open_device_internal(generator);
-	} else if (audio_system == CW_AUDIO_ALSA && cw_is_alsa_possible(device)) {
-		rv = cw_alsa_open_device_internal(generator);
-	} else if (audio_system == CW_AUDIO_PA && cw_is_pa_possible(device)) {
-		rv = cw_pa_open_device_internal(generator);
-	} else {
-		cw_dev_debug ("unsupported audio system");
-		rv = CW_FAILURE;
-	}
-
+	int rv = cw_generator_new_open_internal(generator, audio_system, device);
 	if (rv == CW_FAILURE) {
 		cw_dev_debug ("failed to open audio device\n");
 		return CW_FAILURE;
@@ -7367,6 +7352,78 @@ int cw_generator_new(int audio_system, const char *device)
 	cw_sigalrm_install_top_level_handler_internal();
 
 	return CW_SUCCESS;
+}
+
+
+
+
+
+int cw_generator_new_open_internal(cw_gen_t *gen, int audio_system, const char *device)
+{
+	/* FIXME: this functionality is partially duplicated in
+	   src/cwutils/cw_common.c/cw_generator_new_from_config() */
+
+	if (audio_system == CW_AUDIO_NULL) {
+
+		const char *dev = device ? device : default_audio_devices[CW_AUDIO_NULL];
+		if (cw_is_null_possible(dev)) {
+			gen->audio_system = CW_AUDIO_NULL;
+			cw_generator_set_audio_device_internal(gen, dev);
+			return cw_null_open_device_internal(gen);
+		} else {
+			return CW_FAILURE;
+		}
+
+	} else if (audio_system == CW_AUDIO_PA
+		   || audio_system == CW_AUDIO_SOUNDCARD) {
+
+		const char *dev = device ? device : default_audio_devices[CW_AUDIO_PA];
+		if (cw_is_pa_possible(dev)) {
+			gen->audio_system = CW_AUDIO_PA;
+			cw_generator_set_audio_device_internal(gen, dev);
+			return cw_pa_open_device_internal(gen);
+		} else {
+			return CW_FAILURE;
+		}
+
+	} else if (audio_system == CW_AUDIO_OSS
+		   || audio_system == CW_AUDIO_SOUNDCARD) {
+
+		const char *dev = device ? device : default_audio_devices[CW_AUDIO_OSS];
+		if (cw_is_oss_possible(dev)) {
+			gen->audio_system = CW_AUDIO_OSS;
+			cw_generator_set_audio_device_internal(gen, dev);
+			return cw_oss_open_device_internal(gen);
+		} else {
+			return CW_FAILURE;
+		}
+
+	} else if (audio_system == CW_AUDIO_ALSA
+		   || audio_system == CW_AUDIO_SOUNDCARD) {
+
+		const char *dev = device ? device : default_audio_devices[CW_AUDIO_ALSA];
+		if (cw_is_alsa_possible(dev)) {
+			gen->audio_system = CW_AUDIO_ALSA;
+			cw_generator_set_audio_device_internal(gen, dev);
+			return cw_alsa_open_device_internal(gen);
+		} else {
+			return CW_FAILURE;
+		}
+
+	} else if (audio_system == CW_AUDIO_CONSOLE) {
+
+		const char *dev = device ? device : default_audio_devices[CW_AUDIO_CONSOLE];
+		if (cw_is_console_possible(dev)) {
+			gen->audio_system = CW_AUDIO_CONSOLE;
+			cw_generator_set_audio_device_internal(gen, dev);
+			return cw_console_open_device_internal(gen);
+		} else {
+			return CW_FAILURE;
+		}
+	} else {
+		/* there is no next audio system type to try */
+		return CW_FAILURE;
+	}
 }
 
 
@@ -8177,7 +8234,9 @@ int cw_soundcard_write_internal(cw_gen_t *gen, int queue_state, cw_tone_t *tone)
 		      fragment in between.
 		   Either way - a length of dequeued tone, converted from
 		   microseconds to samples. */
-		tone->n_samples = ((gen->sample_rate / 100) * tone->usecs) / 10000;
+		tone->n_samples = gen->sample_rate / 100;
+		tone->n_samples *= tone->usecs;
+		tone->n_samples /= 10000;
 
 		/* Length in samples of a single slope (rising or falling)
 		   in standard tone of limited, known in advance length. */
@@ -8188,7 +8247,7 @@ int cw_soundcard_write_internal(cw_gen_t *gen, int queue_state, cw_tone_t *tone)
 
 
 
-	//cw_dev_debug ("--- %d samples, %d Hz", tone->n_samples, gen->frequency);
+	// cw_dev_debug ("--- %lld samples, %d usecs, %d Hz", tone->n_samples, tone->usecs, gen->frequency);
 	while (gen->samples_left > 0) {
 		if (tone->sub_start + gen->samples_left >= gen->buffer_n_samples) {
 			tone->sub_stop = gen->buffer_n_samples - 1;
