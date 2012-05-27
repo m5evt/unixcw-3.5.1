@@ -21,13 +21,14 @@
 # targets to be built in this directory
 lib_LTLIBRARIES=libcw.la
 check_PROGRAMS=libcwunittests libcwtest
-man_MANS=libcw.3
+man_MANS=libcw.3 cw.7
 pkgconfig_DATA=libcw.pc
 
 
 EXTRA_DIST=include.awk libdoc.awk libfuncs.awk libpc.awk libsigs.awk \
 	libcw.3.m4 \
-	libcw.pc.in
+	libcw.pc.in \
+	cw.7
 
 
 
@@ -41,10 +42,12 @@ libcw_la_SOURCES = libcw.c libcw.h
 libcw_la_LIBADD=-lm -lpthread -ldl
 # target-specific linker flags (additional flags)
 # http://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html
-libcw_la_LDFLAGS = -version-number 3:1:1
+libcw_la_LDFLAGS = -version-number 4:0:0
 # target-specific compiler flags
 libcw_la_CFLAGS = -rdynamic
 
+libcw_includedir=$(includedir)
+libcw_include_HEADERS = libcw.h
 
 
 # target: libcwtest, a test program, testing public API of libcw library;
