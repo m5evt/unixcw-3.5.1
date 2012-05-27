@@ -3,28 +3,29 @@ Section: hamradio
 Priority: optional
 Maintainer: Debian Hamradio Maintainers <debian-hams@lists.debian.org>
 Uploaders: Kamil Ignacak <acerion@wp.pl>, Kamal Mostafa <kamal@whence.com>
-Standards-Version: 3.9.2
-Build-Depends: debhelper (>=7), libasound2-dev, libqt4-dev, libncurses5-dev, po-debconf, autotools-dev, mawk|gawk
+Standards-Version: 3.9.3
+Build-Depends: debhelper (>=7), libasound2-dev, libpulse-dev, libqt4-dev, libncurses5-dev, po-debconf, autotools-dev, mawk|gawk
 Homepage: http://unixcw.sourceforge.net/
 
-Package: libcw3
+Package: libcw4
 Section: libs
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Replaces: unixcw
 Conflicts: unixcw
-Recommends: cw | cwcp | xcwcp
+Recommends: libasound2, libpulse0, cw | cwcp | xcwcp
 Description: Morse code tutor - shared library
  The unixcw project provides support for learning to use Morse code.
  .
  This package provides shared library files to handle Morse code
  signals and to generate sound on the console buzzer or a sound card
- through OSS or ALSA.
+ through OSS, ALSA or PulseAudio.
 
-Package: libcw3-dev
+Package: libcw4-dev
 Section: libdevel
 Architecture: any
-Depends: libcw3 (= ${binary:Version}), ${misc:Depends}, libasound2-dev
+Recommends: libasound2-dev, libpulse-dev
+Depends: libcw4 (= ${binary:Version}), ${misc:Depends}
 Replaces: unixcw-dev
 Conflicts: unixcw-dev
 Description: Morse code tutor - development files
@@ -35,7 +36,7 @@ Description: Morse code tutor - development files
 
 Package: cw
 Architecture: any
-Depends: libcw3, ${shlibs:Depends}, ${misc:Depends}, debconf|debconf-2.0
+Depends: libcw4, ${shlibs:Depends}, ${misc:Depends}, debconf|debconf-2.0
 Description: Morse code tutor - command line user interface
  The unixcw project provides support for learning to use Morse.
  .
@@ -52,7 +53,7 @@ Description: Morse code tutor - command line user interface
 
 Package: cwcp
 Architecture: any
-Depends: libcw3, ${shlibs:Depends}, ${misc:Depends}, debconf|debconf-2.0
+Depends: libcw4, ${shlibs:Depends}, ${misc:Depends}, debconf|debconf-2.0
 Description: Morse code tutor - text user interface
  The unixcw project provides support for learning to use Morse code.
  .
@@ -63,7 +64,7 @@ Description: Morse code tutor - text user interface
 
 Package: xcwcp
 Architecture: any
-Depends: libcw3, ${shlibs:Depends}, ${misc:Depends}, debconf|debconf-2.0
+Depends: libcw4, ${shlibs:Depends}, ${misc:Depends}, debconf|debconf-2.0
 Description: Morse code tutor - graphical user interface
  The unixcw project provides support for learning to use Morse code.
  .
