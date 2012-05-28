@@ -107,6 +107,15 @@ function handle_function_specification()
 		while ($0 !~ /\)$/ && getline) {
 			# read and discard
 		}
+	} else if (name ~ /_internal\(/) {
+		# Internal function, don't allow passing it
+		# to documentation of public API.
+		delete_documentation(output_line - 1)
+		output_line = 0
+
+		while ($0 !~ /\)$/ && getline) {
+			# read and discard
+		}
 	} else {
 		# read and save function's specification
 		# (possibly multi-line)
@@ -136,14 +145,14 @@ function handle_function_documentation()
 		sub(/^ *\\return /, " Returns: ")
 
 		# Handle Doxygen tag:
-		# \param in the body of top-level function comment
-		start = match($0, /\\param ([0-9a-zA-Z_]+)/);
+		# \p in the body of top-level function comment
+		start = match($0, /\\p ([0-9a-zA-Z_]+)/);
 		if (RSTART > 0) {
 			len = RLENGTH
-			# 7 - strlen(\\param )
-			param_name = substr($0, start + 7, len - 7);
+			# 3 - strlen(\\p )
+			param_name = substr($0, start + 3, len - 3);
 			param_name = "\\fB"param_name"\\fP"
-			gsub(/(\\param [0-9a-zA-Z_]+)/, param_name, $0)
+			gsub(/(\\p [0-9a-zA-Z_]+)/, param_name, $0)
 			# print param_name > "/dev/stderr"
 		}
 
