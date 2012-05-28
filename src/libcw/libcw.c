@@ -198,16 +198,16 @@ typedef struct cw_tone_struct {
 	   A workable solution is have a subarea of the buffer, a window,
 	   into which we will write a series of fragments of calculated sound.
 
-	   The subarea won't wrap around boundaries of the buffer. 'stop'
-	   will be no larger than 'gen->buffer_n_samples - 1', and it will
-	   never be smaller than 'stop'.
+	   The subarea won't wrap around boundaries of the buffer. "stop"
+	   will be no larger than "gen->buffer_n_samples - 1", and it will
+	   never be smaller than "stop".
 
-	   'start' and 'stop' mark beginning and end of the subarea.
-	   Very often (in the middle of the sound), 'start' will be zero,
-	   and 'stop' will be 'gen->buffer_n_samples - 1'.
+	   "start" and "stop" mark beginning and end of the subarea.
+	   Very often (in the middle of the sound), "start" will be zero,
+	   and "stop" will be "gen->buffer_n_samples - 1".
 
 	   Sine wave (sometimes with amplitude = 0) will be calculated for
-	   cells ranging from cell 'start' to cell 'stop', inclusive. */
+	   cells ranging from cell "start" to cell "stop", inclusive. */
 	int sub_start;
 	int sub_stop;
 
@@ -275,25 +275,25 @@ static const int        CW_AUDIO_SLOPE_USECS = 5000;          /* length of a sin
    something, or make an idle loop, it should call usleep(N * CW_AUDIO_USECS_QUANTUM) */
 #define CW_AUDIO_QUANTUM_USECS 100
 
-/* this is a marker of 'forever' tone:
+/* this is a marker of "forever" tone:
 
-   if a tone with duration ('usecs') set to this value is a last one on a
+   if a tone with duration ("usecs") set to this value is a last one on a
    tone queue, it should be constantly returned by dequeue function,
    without removing the tone - as long as it is a last tone on queue;
 
-   adding new, 'non-forever' tone to the queue results in permanent
-   dequeuing 'forever' tone and proceeding to newly added tone;
-   adding new, 'non-forever' tone ends generation of 'forever' tone;
+   adding new, "non-forever" tone to the queue results in permanent
+   dequeuing "forever" tone and proceeding to newly added tone;
+   adding new, "non-forever" tone ends generation of "forever" tone;
 
-   the 'forever' tone is useful for generating of tones of length unknown
+   the "forever" tone is useful for generating of tones of length unknown
    in advance; length of the tone will be N * (-CW_AUDIO_FOREVER_USECS),
    where N is number of dequeue operations before a non-forever tone is
    added to the queue;
 
-   dequeue function recognizes the 'forever' tone and acts as described
+   dequeue function recognizes the "forever" tone and acts as described
    above; there is no visible difference between dequeuing N tones of
-   duration '-CW_AUDIO_QUANTUM_USECS', and dequeuing a tone of duration
-   'CW_AUDIO_FOREVER_USECS' N times in a row; */
+   duration "-CW_AUDIO_QUANTUM_USECS", and dequeuing a tone of duration
+   "CW_AUDIO_FOREVER_USECS" N times in a row; */
 #define CW_AUDIO_FOREVER_USECS (-CW_AUDIO_QUANTUM_USECS)
 
 
@@ -328,8 +328,8 @@ struct cw_gen_struct {
 
 
 
-	/* buffer storing sine wave that is calculated in 'calculate sine
-	   wave' cycles and sent to audio system (OSS, ALSA, PulseAudio);
+	/* buffer storing sine wave that is calculated in "calculate sine
+	   wave" cycles and sent to audio system (OSS, ALSA, PulseAudio);
 
 	   the buffer should be always filled with valid data before sending
 	   it to audio system (to avoid hearing garbage).
@@ -358,7 +358,7 @@ struct cw_gen_struct {
 	int buffer_n_samples;
 
 	/* how many samples of audio buffer will be calculated in a given
-	   cycle of 'calculate sine wave' code? */
+	   cycle of "calculate sine wave" code? */
 	int samples_calculated;
 
 	/* how many samples are still left to calculate to completely
@@ -636,7 +636,7 @@ static bool cw_dlopen_internal(const char *name, void **handle);
 /*              Section:Core Morse code data and lookup                 */
 /* ******************************************************************** */
 /* functions handling representation of a character;
-   representation looks like this: ".-" for 'a', "--.." for 'z', etc. */
+   representation looks like this: ".-" for "a", "--.." for "z", etc. */
 static bool         cw_representation_lookup_init_internal(const cw_entry_t *lookup[]);
 static int          cw_representation_to_character_internal(const char *representation);
 static unsigned int cw_representation_to_hash_internal(const char *representation);
@@ -761,7 +761,7 @@ static void cw_sync_parameters_internal(cw_gen_t *gen);
    of key: straight key, cootie key, iambic key. All that matters is
    state of contacts (open/closed).
 
-   The concept of 'key' is extended to a software generator (provided
+   The concept of "key" is extended to a software generator (provided
    by this library) that generates Morse code wave from text input.
    This means that key is closed when a tone (element) is generated,
    and key is open when there is inter-tone (inter-element) space.
@@ -857,7 +857,7 @@ static cw_tone_queue_t cw_tone_queue;
 
 /* Every audio system opens an audio device: a default device, or some
    other device. Default devices have their default names, and here is
-   a list of them. It is indexed by values of 'enum cw_audio_systems'. */
+   a list of them. It is indexed by values of "enum cw_audio_systems". */
 static const char *default_audio_devices[] = {
 	(char *) NULL,          /* CW_AUDIO_NONE */
 	CW_DEFAULT_NULL_DEVICE, /* CW_AUDIO_NULL */
@@ -889,7 +889,7 @@ static const unsigned int cw_supported_sample_rates[] = {
 
 
 /* Human-readable labels of audio systems.
-   Indexed by values of 'enum cw_audio_systems'. */
+   Indexed by values of "enum cw_audio_systems". */
 static const char *cw_audio_system_labels[] = {
 	"None",
 	"Null",
@@ -1200,8 +1200,8 @@ struct cw_entry_struct{
 
 /*
  * Morse code characters table.  This table allows lookup of the Morse shape
- * of a given alphanumeric character.  Shapes are held as a string, with '-'
- * representing dash, and '.' representing dot.  The table ends with a NULL
+ * of a given alphanumeric character.  Shapes are held as a string, with "-"
+ * representing dash, and "." representing dot.  The table ends with a NULL
  * entry.
  */
 
@@ -1412,7 +1412,7 @@ const char *cw_character_to_representation_internal(int c)
 
    The function is depreciated, use cw_character_to_representation() instead.
 
-   Return the string 'shape' of a given Morse code character.  The routine
+   Return the string "shape" of a given Morse code character.  The routine
    returns CW_SUCCESS on success, and fills in the string pointer passed in.
    On error, it returns CW_FAILURE and sets errno to ENOENT, indicating that
    the character could not be found.
@@ -1493,9 +1493,9 @@ char *cw_character_to_representation(int c)
    The routine returns 0 if no valid hash could be made from the string.
 
    This hash algorithm is designed ONLY for valid CW representations; that is,
-   strings composed of only '.' and '-', and in this case, strings no longer
+   strings composed of only "." and "-", and in this case, strings no longer
    than seven characters.  The algorithm simply turns the representation into
-   a 'bitmask', based on occurrences of '.' and '-'.  The first bit set in the
+   a "bitmask", based on occurrences of "." and "-".  The first bit set in the
    mask indicates the start of data (hence the 7-character limit).  This mask
    is viewable as an integer in the range 2 (".") to 255 ("-------"), and can
    be used as an index into a fast lookup array.
@@ -1575,7 +1575,7 @@ int cw_representation_to_character_internal(const char *representation)
 	const cw_entry_t *cw_entry = NULL;
 	/* If the hashed lookup table is complete, we can simply believe any
 	   hash value that came back.  That is, we just use what is at the index
-	   'hash', since this is either the entry we want, or NULL. */
+	   "hash", since this is either the entry we want, or NULL. */
 	if (is_complete) {
 		cw_entry = lookup[hash];
 	} else {
@@ -1676,7 +1676,7 @@ bool cw_representation_lookup_init_internal(const cw_entry_t *lookup[])
    This function is depreciated, use cw_representation_is_valid() instead.
 
    Check that the given string is a valid Morse representation.
-   A valid string is one composed of only '.' and '-' characters.
+   A valid string is one composed of only "." and "-" characters.
 
    If representation is invalid, function returns CW_FAILURE and sets
    errno to EINVAL.
@@ -1700,7 +1700,7 @@ int cw_check_representation(const char *representation)
    \brief Check if representation of a character is valid
 
    Check that the given string is a valid Morse representation.
-   A valid string is one composed of only '.' and '-' characters.
+   A valid string is one composed of only "." and "-" characters.
    This means that the function checks if representation is error-free,
    and not whether the representation represents existing/defined
    character.
@@ -2206,7 +2206,7 @@ static bool cw_is_adaptive_receive_enabled = CW_ADAPTIVE_INITIAL;
    Since they have to be kept in sync, the problem of how to have them
    calculated on first call if none of the above parameters has been
    changed is taken care of with a synchronization flag.  Doing this saves
-   us from otherwise having to have a 'library initialize' function. */
+   us from otherwise having to have a "library initialize" function. */
 static bool cw_is_in_sync = false;       /* Synchronization flag */
 /* Sending parameters: */
 static int cw_send_dot_length = 0,      /* Length of a send Dot, in usec */
@@ -2349,7 +2349,7 @@ void cw_get_gap_limits(int *min_gap, int *max_gap)
 /**
    \brief Get tolerance limits
 
-   Get (through function's arguments) limits on 'tolerance' parameter
+   Get (through function's arguments) limits on "tolerance" parameter
    of current generator.
 
    See CW_TOLERANCE_MIN and CW_TOLERANCE_MAX in libcw.h for values.
@@ -2375,7 +2375,7 @@ void cw_get_tolerance_limits(int *min_tolerance, int *max_tolerance)
 /**
    \brief Get weighting limits
 
-   Get (through function's arguments) limits on 'weighting' parameter
+   Get (through function's arguments) limits on "weighting" parameter
    of current generator.
 
    See CW_WEIGHTING_MIN and CW_WEIGHTING_MAX in libcw.h for values.
@@ -2402,7 +2402,7 @@ void cw_get_weighting_limits(int *min_weighting, int *max_weighting)
    \brief Synchronize send/receive parameters of the library
 
    Synchronize the dot, dash, end of element, end of character, and end
-   of word timings and ranges to new values of Morse speed, 'Farnsworth'
+   of word timings and ranges to new values of Morse speed, "Farnsworth"
    gap, receive tolerance, or weighting.
 
    Part of the parameters is a global variable in the file, and part
@@ -2443,7 +2443,7 @@ void cw_sync_parameters_internal(cw_gen_t *gen)
 	cw_end_of_word_delay = 7 * unit_length - cw_end_of_char_delay;
 	cw_additional_delay = gen->gap * unit_length;
 
-	/* For 'Farnsworth', there also needs to be an adjustment
+	/* For "Farnsworth", there also needs to be an adjustment
 	   delay added to the end of words, otherwise the rhythm is
 	   lost on word end.
 	   I don't know if there is an "official" value for this,
@@ -2518,7 +2518,7 @@ void cw_sync_parameters_internal(cw_gen_t *gen)
 		   range.  Make the inter-character gap, expected
 		   to be three Dots, the same as Dash range at the
 		   lower end, but make it the same as the Dash range
-		   _plus_ the 'Farnsworth' delay at the top of the
+		   _plus_ the "Farnsworth" delay at the top of the
 		   range.
 
 		   Any gap longer than this is by implication
@@ -2543,7 +2543,7 @@ void cw_sync_parameters_internal(cw_gen_t *gen)
 		  cw_eoc_range_minimum, cw_eoc_range_maximum, cw_eoc_range_ideal,
 		  cw_adaptive_receive_threshold);
 
-	/* Set the 'parameters in sync' flag. */
+	/* Set the "parameters in sync" flag. */
 	cw_is_in_sync = true;
 
 	return;
@@ -2853,7 +2853,7 @@ int cw_get_receive_speed(void)
 /**
    \brief Get frequency of current generator
 
-   Function returns 'frequency' parameter of current generator,
+   Function returns "frequency" parameter of current generator,
    even if the generator is stopped, or volume of generated sound is zero.
 
    \return Frequency of current generator
@@ -2870,7 +2870,7 @@ int cw_get_frequency(void)
 /**
    \brief Get volume of current generator
 
-   Function returns 'volume' parameter of current generator,
+   Function returns "volume" parameter of current generator,
    even if the generator is stopped.
 
    \return Volume of current generator
@@ -3988,7 +3988,7 @@ void cw_complete_reset(void)
 
 
 
-/* External 'on key state change' callback function and its argument.
+/* External "on key state change" callback function and its argument.
 
    It may be useful for a client to have this library control an external
    keying device, for example, an oscillator, or a transmitter.
@@ -4005,13 +4005,13 @@ static void *cw_kk_key_callback_arg = NULL;
    \brief Register external callback function for keying
 
    Register a \p callback_func function that should be called when a state
-   of a key changes from 'key open' to 'key closed', or vice-versa.
+   of a key changes from "key open" to "key closed", or vice-versa.
 
    The first argument passed to the registered callback function is the
    supplied \p callback_arg, if any.  The second argument passed to
    registered callback function is the key state: CW_KEY_STATE_CLOSED
-   (one/true) for 'key closed', and CW_KEY_STATE_OPEN (zero/false) for
-   'key open'.
+   (one/true) for "key closed", and CW_KEY_STATE_OPEN (zero/false) for
+   "key open".
 
    Calling this routine with a NULL function address disables keying
    callbacks.  Any callback supplied will be called in signal handler
@@ -4115,13 +4115,13 @@ void cw_key_straight_key_generate_internal(cw_gen_t *gen, int requested_key_stat
 			} else {
 				/* On some occasions, on some platforms, some
 				   sound systems may need to constantly play
-				   'silent' tone. These four lines of code are
+				   "silent" tone. These four lines of code are
 				   just for them.
 
 				   It would be better to avoid queueing silent
-				   'forever' tone because this increases CPU
+				   "forever" tone because this increases CPU
 				   usage. It would be better to simply not to
-				   queue any new tones after 'falling slope'
+				   queue any new tones after "falling slope"
 				   tone. Silence after the last falling slope
 				   would simply last on itself until there is
 				   new tone on queue to play. */
@@ -4335,11 +4335,11 @@ int cw_tone_queue_next_index_internal(int index)
    The queue returns two distinct values when it is empty, and one value
    when it is not empty:
    \li CW_TQ_JUST_EMPTIED - when there were no new tones in the queue, but
-       the queue still remembered its 'BUSY' state; this return value
+       the queue still remembered its "BUSY" state; this return value
        is a way of telling client code "I've had tones, but no more, you
        should probably stop playing any sounds and become silent";
    \li CW_TQ_STILL_EMPTY - when there were no new tones in the queue, and
-       the queue can't recall if it was 'BUSY' before; this return value
+       the queue can't recall if it was "BUSY" before; this return value
        is a way of telling client code "I don't have any tones, you should
        probably stay silent";
    \li CW_TQ_NONEMPTY - when there was at least one tone in the queue;
@@ -4424,7 +4424,7 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 				   should play certain tone until client
 				   code adds next tone (possibly forever).
 
-				   Don't dequeue the 'forever' tone (hence 'prev').	*/
+				   Don't dequeue the "forever" tone (hence "prev").	*/
 				tq->head = cw_tone_queue_prev_index_internal(tmp_tq_head);
 			} else {
 				tq->head = tmp_tq_head;
@@ -4485,7 +4485,7 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 			return CW_TQ_NONEMPTY;
 		} else { /* tq->head == tq->tail */
 			/* State of tone queue (as indicated by tq->state)
-			   is 'busy', but it turns out that there are no
+			   is "busy", but it turns out that there are no
 			   tones left on the queue to play (head == tail).
 
 			   Time to bring tq->state in sync with
@@ -4496,7 +4496,7 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 
 			/* There is no tone to dequeue, so don't modify
 			   function's arguments. Client code will learn
-			   about 'no tones' state through return value. */
+			   about "no tones" state through return value. */
 			/* tone->usecs = 0; */
 			/* tone->frequency = 0; */
 
@@ -4518,7 +4518,7 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 	}
 
 	pthread_mutex_unlock(&tq->mutex);
-	/* will never get here as 'queue state' enum has only two values */
+	/* will never get here as "queue state" enum has only two values */
 	assert(0);
 	return CW_TQ_STILL_EMPTY;
 }
@@ -5076,7 +5076,7 @@ int cw_send_representation_internal(cw_gen_t *gen, const char *representation, i
 		}
 	}
 
-	/* If this representation is stated as being 'partial', then
+	/* If this representation is stated as being "partial", then
 	   suppress any and all end of character delays.*/
 	if (!partial) {
 		if (!cw_send_character_space()) {
@@ -5155,7 +5155,7 @@ int cw_send_representation_partial(const char *representation)
 /**
    \brief Lookup, and send a given ASCII character as Morse code
 
-   If 'partial' is set, the end of character delay is not appended to the
+   If "partial" is set, the end of character delay is not appended to the
    Morse code sent.
 
    Function sets errno to ENOENT if \p character is not a recognized character.
@@ -5257,7 +5257,7 @@ int cw_send_character(char c)
 /**
    \brief Lookup, and send a given ASCII character as Morse code
 
-   'partial' means that the 'end of character' delay is not appended
+   "partial" means that the "end of character" delay is not appended
    to the Morse code sent by the function, to support the formation of
    combination characters.
 
@@ -5630,7 +5630,7 @@ static struct timeval cw_rr_start_timestamp = {0, 0},
 
 
 /**
-   \brief Set value of 'adaptive receive enabled' flag
+   \brief Set value of "adaptive receive enabled" flag
 
    Set the value of the flag that controls whether, on receive, the
    receive functions do fixed speed receive, or track the speed of the
@@ -5707,7 +5707,7 @@ void cw_disable_adaptive_receive(void)
 /**
    \brief Get adaptive receive speeds flag
 
-   The function returns state of 'adaptive receive enabled' flag.
+   The function returns state of "adaptive receive enabled" flag.
    See documentation of cw_enable_adaptive_receive() for more information
 
    \return true if adaptive speed tracking is enabled
@@ -5840,7 +5840,7 @@ int cw_timestamp_compare_internal(const struct timeval *earlier,
 	   unpredictable results.  Nonsensical includes timevals with
 	   -ve tv_usec, -ve tv_sec, tv_usec >= 1,000,000, etc.
 	   To help in this, we check all incoming timestamps for
-	   'well-formedness'.  However, we assume the  gettimeofday()
+	   "well-formedness".  However, we assume the  gettimeofday()
 	   call always returns good timevals.  All in all, timeval could
 	   probably be a better thought-out structure. */
 
@@ -7282,7 +7282,7 @@ const char *cw_generator_get_audio_system_label(void)
    The function does not start the generator (generator does not produce
    a sound), you have to use cw_generator_start() for this.
 
-   \param audio_system - audio system to be used by the generator (console, OSS, ALSA, soundcard, see 'enum cw_audio_systems')
+   \param audio_system - audio system to be used by the generator (console, OSS, ALSA, soundcard, see "enum cw_audio_systems")
    \param device - name of audio device to be used; if NULL then library will use default device.
 */
 int cw_generator_new(int audio_system, const char *device)
@@ -7582,7 +7582,7 @@ void cw_generator_stop(void)
 	pthread_kill(generator->thread.id, SIGALRM);
 
 	/* Sleep a bit to postpone closing a device.
-	   This way we can avoid a situation when 'generate' is set
+	   This way we can avoid a situation when "generate" is set
 	   to zero and device is being closed while a new buffer is
 	   being prepared, and while write() tries to write this
 	   new buffer to already closed device.
@@ -7666,7 +7666,7 @@ void *cw_generator_write_sine_wave_internal(void *arg)
 		/*
 		  When sending text from text input, the signal:
 		   - allows client code to observe moment when state of tone
-		     queue is 'low/critical'; client code then can add more
+		     queue is "low/critical"; client code then can add more
 		     characters to the queue; the observation is done using
 		     cw_wait_for_tone_queue_critical();
 		   - ...
@@ -7752,7 +7752,7 @@ int cw_generator_calculate_sine_wave_internal(cw_gen_t *gen, cw_tone_t *tone)
 		 / (double) gen->sample_rate)
 		+ gen->phase_offset;
 
-	/* 'phase' is now phase of the first sample in next fragment to be
+	/* "phase" is now phase of the first sample in next fragment to be
 	   calculated.
 	   However, for long fragments this can be a large value, well
 	   beyond <0; 2*Pi) range.
@@ -7761,7 +7761,7 @@ int cw_generator_calculate_sine_wave_internal(cw_gen_t *gen, cw_tone_t *tone)
 	   result in an audible click.
 
 	   Let's bring back the phase from beyond <0; 2*Pi) range into the
-	   <0; 2*Pi) range, in other words lets 'normalize' it. Or, in yet
+	   <0; 2*Pi) range, in other words lets "normalize" it. Or, in yet
 	   other words, lets apply modulo operation to the phase.
 
 	   The normalized phase will be used as a phase offset for next
@@ -8107,14 +8107,14 @@ int cw_console_write_internal(cw_gen_t *gen, cw_tone_t *tone)
 
 	if (tone->slope_mode == CW_SLOPE_MODE_FALLING_SLOPE) {
 		/* Falling slope causes the console to produce sound, so at
-		   the end of the slope - the console is left in 'generate'
+		   the end of the slope - the console is left in "generate"
 		   state. We have to explicitly stop generating sound at
 		   the end of falling slope. */
 		rv &= cw_console_write_low_level_internal(gen, false);
 	} else if (tone->slope_mode == CW_SLOPE_MODE_STANDARD_SLOPES) {
 		/* It seems that it's a good idea to turn off the buzzer
 		   after playing standard tone. In theory the buzzer would be
-		   turned off by 'silence' tone coming right after an after
+		   turned off by "silence" tone coming right after an after
 		   audible tone, but in practice it may not be always so.*/
 		rv &= cw_console_write_low_level_internal(gen, false);
 	} else {
@@ -8196,8 +8196,8 @@ int cw_soundcard_write_internal(cw_gen_t *gen, int queue_state, cw_tone_t *tone)
 
 	if (queue_state == CW_TQ_JUST_EMPTIED) {
 		/* all tones have been dequeued from tone queue,
-		   but it may happen that not all 'buffer_n_samples'
-		   samples were calculated, only 'samples_calculated'
+		   but it may happen that not all "buffer_n_samples"
+		   samples were calculated, only "samples_calculated"
 		   samples.
 		   We need to fill the buffer until it is full and
 		   ready to be sent to audio sink.
@@ -8229,8 +8229,8 @@ int cw_soundcard_write_internal(cw_gen_t *gen, int queue_state, cw_tone_t *tone)
 		/* Length of a tone in samples:
 		    - whole standard tone, from rising slope to falling
 		      slope, or
-		    - a part of longer, 'forever' slope, either a fragment
-		      being rising slope, or falling slope, or 'no slopes'
+		    - a part of longer, "forever" slope, either a fragment
+		      being rising slope, or falling slope, or "no slopes"
 		      fragment in between.
 		   Either way - a length of dequeued tone, converted from
 		   microseconds to samples. */
@@ -8887,7 +8887,7 @@ int cw_alsa_set_hw_params_internal(cw_gen_t *gen, snd_pcm_hw_params_t *hw_params
 
 	int dir = 0;
 
-	/* Set the sample rate (may set/influence/modify 'period size') */
+	/* Set the sample rate (may set/influence/modify "period size") */
 	unsigned int rate = 0;
 	bool success = false;
 	for (int i = 0; cw_supported_sample_rates[i]; i++) {
@@ -9021,7 +9021,7 @@ int cw_alsa_set_hw_params_internal(cw_gen_t *gen, snd_pcm_hw_params_t *hw_params
 
 		dir = 0;
 		unsigned int accepted = 0; /* number of periods per buffer */
-		/* this limit should be enough, 'accepted' on my machine is 8 */
+		/* this limit should be enough, "accepted" on my machine is 8 */
 		const unsigned int n_periods_max = 30;
 		for (unsigned int val = 1; val < n_periods_max; val++) {
 			rv = cw_alsa.snd_pcm_hw_params_test_periods(gen->alsa_handle, hw_params, val, dir);
