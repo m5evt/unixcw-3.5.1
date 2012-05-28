@@ -7,10 +7,15 @@ unixcw (3.1.0-1) unstable; urgency=low
   * Added following flags to configure.ac:
     --disable-{console|oss|alsa|pulseaudio|cwcp|xcwcp}.
     "--disable-console" may help to compile unixcw on hurd-i386.
-  * cwcp no longer limits gap to 20, currently the limit (imposed by libcw)
-    is 60. Closes: #237891
-  * It has been tested and confirmed that due to redesign of OSS code, volume
-    mixer is no longer muted at exit of cw or cwcp. Closes: #567394
+  * cwcp no longer limits gap to 20, currently the limit (imposed by
+    libcw) is 60. Closes: #237891
+  * It has been tested and confirmed that after applying available patch,
+    and after redesign of OSS code, volume mixer is no longer muted at
+    exit of cw or cwcp. Closes: #567394
+  * It has been tested and confirmed that after applying available patch,
+    and after redesign of OSS code, unixcw applications no longer use
+    SOUND_MIXER_PCM ioctl, and so the problem described in #567392
+    disappeared. Closes: #567392
 
  -- Kamil Ignacak <acerion@wp.pl>  Mon, 30 Jun 2012 20:08:49 +0100
 
