@@ -22,7 +22,14 @@ DEB_HOST_GNU_TYPE   ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
 DEB_BUILD_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
 
 
-CFLAGS = -Wall -g -std=gnu99
+# Enable hardening.
+# http://wiki.debian.org/Hardening#dpkg-buildflags
+DPKG_EXPORT_BUILDFLAGS = yes
+include /usr/share/dpkg/default.mk
+
+
+
+CFLAGS += -Wall -std=gnu99
 
 ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
 	CFLAGS += -O0
