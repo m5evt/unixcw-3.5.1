@@ -291,75 +291,75 @@ void cw_print_help(cw_config_t *config)
 	fprintf(stderr, _("Usage: %s [options...]\n"), config->program_name);
 
 	if (!has_longopts()) {
-		fprintf(stderr, _("Long format of options is not supported on your system\n\n"));
+		fprintf(stderr, "%s", _("Long format of options is not supported on your system\n\n"));
 	}
 
-	fprintf(stderr, _("Audio system options:\n"));
-	fprintf(stderr, _("  -s, --system=SYSTEM\n"));
-	fprintf(stderr, _("        generate sound using SYSTEM audio system\n"));
-	fprintf(stderr, _("        SYSTEM: {null|console|oss|alsa|pulseaudio|soundcard}\n"));
-	fprintf(stderr, _("        'null': don't use any sound output\n"));
-	fprintf(stderr, _("        'console': use system console/buzzer\n"));
-	fprintf(stderr, _("               this output may require root privileges\n"));
-	fprintf(stderr, _("        'oss': use OSS output\n"));
-	fprintf(stderr, _("        'alsa' use ALSA output\n"));
-	fprintf(stderr, _("        'pulseaudio' use PulseAudio output\n"));
-	fprintf(stderr, _("        'soundcard': use either PulseAudio, OSS or ALSA\n"));
-	fprintf(stderr, _("        default sound system: 'pulseaudio'->'oss'->'alsa'\n\n"));
-	fprintf(stderr, _("  -d, --device=DEVICE\n"));
-	fprintf(stderr, _("        use DEVICE as output device instead of default one;\n"));
-	fprintf(stderr, _("        optional for {console|oss|alsa|pulseaudio};\n"));
-	fprintf(stderr, _("        default devices are:\n"));
-	fprintf(stderr, _("        'console': \"%s\"\n"), CW_DEFAULT_CONSOLE_DEVICE);
-	fprintf(stderr, _("        'oss': \"%s\"\n"), CW_DEFAULT_OSS_DEVICE);
-	fprintf(stderr, _("        'alsa': \"%s\"\n"), CW_DEFAULT_ALSA_DEVICE);
-	fprintf(stderr, _("        'pulseaudio': \"%s\"\n\n"), CW_DEFAULT_PA_DEVICE);
+	fprintf(stderr, "%s", _("Audio system options:\n"));
+	fprintf(stderr, "%s", _("  -s, --system=SYSTEM\n"));
+	fprintf(stderr, "%s", _("        generate sound using SYSTEM audio system\n"));
+	fprintf(stderr, "%s", _("        SYSTEM: {null|console|oss|alsa|pulseaudio|soundcard}\n"));
+	fprintf(stderr, "%s", _("        'null': don't use any sound output\n"));
+	fprintf(stderr, "%s", _("        'console': use system console/buzzer\n"));
+	fprintf(stderr, "%s", _("               this output may require root privileges\n"));
+	fprintf(stderr, "%s", _("        'oss': use OSS output\n"));
+	fprintf(stderr, "%s", _("        'alsa' use ALSA output\n"));
+	fprintf(stderr, "%s", _("        'pulseaudio' use PulseAudio output\n"));
+	fprintf(stderr, "%s", _("        'soundcard': use either PulseAudio, OSS or ALSA\n"));
+	fprintf(stderr, "%s", _("        default sound system: 'pulseaudio'->'oss'->'alsa'\n\n"));
+	fprintf(stderr, "%s", _("  -d, --device=DEVICE\n"));
+	fprintf(stderr, "%s", _("        use DEVICE as output device instead of default one;\n"));
+	fprintf(stderr, "%s", _("        optional for {console|oss|alsa|pulseaudio};\n"));
+	fprintf(stderr, "%s", _("        default devices are:\n"));
+	fprintf(stderr,       _("        'console': \"%s\"\n"), CW_DEFAULT_CONSOLE_DEVICE);
+	fprintf(stderr,       _("        'oss': \"%s\"\n"), CW_DEFAULT_OSS_DEVICE);
+	fprintf(stderr,       _("        'alsa': \"%s\"\n"), CW_DEFAULT_ALSA_DEVICE);
+	fprintf(stderr,       _("        'pulseaudio': \"%s\"\n\n"), CW_DEFAULT_PA_DEVICE);
 
-	fprintf(stderr, _("Sending options:\n"));
+	fprintf(stderr, "%s", _("Sending options:\n"));
 
-	fprintf(stderr, _("  -w, --wpm=WPM          set initial words per minute\n"));
-	fprintf(stderr, _("                         valid values: %d - %d\n"), CW_SPEED_MIN, CW_SPEED_MAX);
-	fprintf(stderr, _("                         default value: %d\n"), CW_SPEED_INITIAL);
-	fprintf(stderr, _("  -t, --tone=HZ          set initial tone to HZ\n"));
-	fprintf(stderr, _("                         valid values: %d - %d\n"), CW_FREQUENCY_MIN, CW_FREQUENCY_MAX);
-	fprintf(stderr, _("                         default value: %d\n"), CW_FREQUENCY_INITIAL);
-	fprintf(stderr, _("  -v, --volume=PERCENT   set initial volume to PERCENT\n"));
-	fprintf(stderr, _("                         valid values: %d - %d\n"), CW_VOLUME_MIN, CW_VOLUME_MAX);
-	fprintf(stderr, _("                         default value: %d\n"), CW_VOLUME_INITIAL);
+	fprintf(stderr, "%s", _("  -w, --wpm=WPM          set initial words per minute\n"));
+	fprintf(stderr,       _("                         valid values: %d - %d\n"), CW_SPEED_MIN, CW_SPEED_MAX);
+	fprintf(stderr,       _("                         default value: %d\n"), CW_SPEED_INITIAL);
+	fprintf(stderr, "%s", _("  -t, --tone=HZ          set initial tone to HZ\n"));
+	fprintf(stderr,       _("                         valid values: %d - %d\n"), CW_FREQUENCY_MIN, CW_FREQUENCY_MAX);
+	fprintf(stderr,       _("                         default value: %d\n"), CW_FREQUENCY_INITIAL);
+	fprintf(stderr, "%s", _("  -v, --volume=PERCENT   set initial volume to PERCENT\n"));
+	fprintf(stderr,       _("                         valid values: %d - %d\n"), CW_VOLUME_MIN, CW_VOLUME_MAX);
+	fprintf(stderr,       _("                         default value: %d\n"), CW_VOLUME_INITIAL);
 
-	fprintf(stderr, _("Dot/dash options:\n"));
-	fprintf(stderr, _("  -g, --gap=GAP          set extra gap between letters\n"));
-	fprintf(stderr, _("                         valid values: %d - %d\n"), CW_GAP_MIN, CW_GAP_MAX);
-	fprintf(stderr, _("                         default value: %d\n"), CW_GAP_INITIAL);
-	fprintf(stderr, _("  -k, --weighting=WEIGHT set weighting to WEIGHT\n"));
-	fprintf(stderr, _("                         valid values: %d - %d\n"), CW_WEIGHTING_MIN, CW_WEIGHTING_MAX);
-	fprintf(stderr, _("                         default value: %d\n"), CW_WEIGHTING_INITIAL);
+	fprintf(stderr, "%s", _("Dot/dash options:\n"));
+	fprintf(stderr, "%s", _("  -g, --gap=GAP          set extra gap between letters\n"));
+	fprintf(stderr,       _("                         valid values: %d - %d\n"), CW_GAP_MIN, CW_GAP_MAX);
+	fprintf(stderr,       _("                         default value: %d\n"), CW_GAP_INITIAL);
+	fprintf(stderr, "%s", _("  -k, --weighting=WEIGHT set weighting to WEIGHT\n"));
+	fprintf(stderr,       _("                         valid values: %d - %d\n"), CW_WEIGHTING_MIN, CW_WEIGHTING_MAX);
+	fprintf(stderr,       _("                         default value: %d\n"), CW_WEIGHTING_INITIAL);
 
-	fprintf(stderr, _("Other options:\n"));
+	fprintf(stderr, "%s",     _("Other options:\n"));
 	if (config->is_cw) {
-		fprintf(stderr, _("  -e, --noecho           disable sending echo to stdout\n"));
-		fprintf(stderr, _("  -m, --nomessages       disable writing messages to stderr\n"));
-		fprintf(stderr, _("  -c, --nocommands       disable executing embedded commands\n"));
-		fprintf(stderr, _("  -o, --nocombinations   disallow [...] combinations\n"));
-		fprintf(stderr, _("  -p, --nocomments       disallow {...} comments\n"));
+		fprintf(stderr, "%s", _("  -e, --noecho           disable sending echo to stdout\n"));
+		fprintf(stderr, "%s", _("  -m, --nomessages       disable writing messages to stderr\n"));
+		fprintf(stderr, "%s", _("  -c, --nocommands       disable executing embedded commands\n"));
+		fprintf(stderr, "%s", _("  -o, --nocombinations   disallow [...] combinations\n"));
+		fprintf(stderr, "%s", _("  -p, --nocomments       disallow {...} comments\n"));
 	}
 	if (config->has_practice_time) {
-		fprintf(stderr, _("  -T, --time=TIME        set initial practice time (in minutes)\n"));
-		fprintf(stderr, _("                         valid values: %d - %d\n"), CW_PRACTICE_TIME_MIN, CW_PRACTICE_TIME_MAX);
-		fprintf(stderr, _("                         default value: %d\n"), CW_PRACTICE_TIME_INITIAL);
+		fprintf(stderr, "%s", _("  -T, --time=TIME        set initial practice time (in minutes)\n"));
+		fprintf(stderr,       _("                         valid values: %d - %d\n"), CW_PRACTICE_TIME_MIN, CW_PRACTICE_TIME_MAX);
+		fprintf(stderr,       _("                         default value: %d\n"), CW_PRACTICE_TIME_INITIAL);
 	}
 	if (config->has_infile) {
-		fprintf(stderr, _("  -f, --infile=FILE      read practice words from FILE\n"));
+		fprintf(stderr, "%s", _("  -f, --infile=FILE      read practice words from FILE\n"));
 	}
 	if (config->has_outfile) {
-		fprintf(stderr, _("  -F, --outfile=FILE     write current practice words to FILE\n"));
+		fprintf(stderr, "%s", _("  -F, --outfile=FILE     write current practice words to FILE\n"));
 	}
 	if (config->is_cw) {
-		fprintf(stderr, _("                         default file: stdin\n"));
+		fprintf(stderr, "%s", _("                         default file: stdin\n"));
 	}
 	fprintf(stderr, "\n");
-	fprintf(stderr, _("  -h, --help             print this message\n"));
-	fprintf(stderr, _("  -V, --version          print version information\n\n"));
+	fprintf(stderr, "%s", _("  -h, --help             print this message\n"));
+	fprintf(stderr, "%s", _("  -V, --version          print version information\n\n"));
 
 	return;
 }
