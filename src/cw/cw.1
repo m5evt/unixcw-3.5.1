@@ -562,12 +562,12 @@ To test itimer timing, first try
 .IP
 X="PARIS PARIS PARIS PARIS "
 .IP
-echo "$X" | time cw -w 4
+echo "$X" | time cw \-w 4
 .PP
 and note the elapsed time, which should be very close to one minute.
 Next, try
 .IP
-echo "$X$X$X$X$X$X$X$X$X$X$X$X" | time cw -w 48
+echo "$X$X$X$X$X$X$X$X$X$X$X$X" | time cw \-w 48
 .PP
 The elapsed time should be the same.  If it has increased, this is the
 effect of system itimers delaying for slightly longer than the specified
