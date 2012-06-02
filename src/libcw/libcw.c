@@ -622,7 +622,7 @@ struct {
 /*                         Section:Utilities                            */
 /* ******************************************************************** */
 static void cw_usecs_to_timespec_internal(struct timespec *t, int usecs);
-static void cw_nanosleep(struct timespec *n);
+static void cw_nanosleep_internal(struct timespec *n);
 
 #if (defined(LIBCW_WITH_ALSA) || defined(LIBCW_WITH_PULSEAUDIO))
 static bool cw_dlopen_internal(const char *name, void **handle);
@@ -6975,7 +6975,6 @@ bool cw_is_keyer_busy(void)
    \brief Wait for end of element from the keyer
 
    Waits until the end of the current element, dot or dash, from the keyer.
-   This routine returns true on success.
 
    On error the function returns CW_FAILURE, with errno set to
    EDEADLK if SIGALRM is blocked.
@@ -7144,7 +7143,7 @@ void cw_straight_key_clock_internal(void)
 /**
    \brief Inform the library that the straight key has changed state
 
-   This routine returns true on success.  On error, it returns false,
+   This routine returns CW_SUCCESS on success.  On error, it returns CW_FAILURE,
    with errno set to EBUSY if the tone queue or iambic keyer are using
    the sound card, console speaker, or keying control system.  If
    \p key_state indicates no change of state, the call is ignored.
@@ -7596,7 +7595,7 @@ void cw_generator_stop(void)
 	   generating tone and exit before we resort to killing generator
 	   function thread. */
 	struct timespec req = { .tv_sec = 1, .tv_nsec = 0 };
-	cw_nanosleep(&req);
+	cw_nanosleep_internal(&req);
 
 	/* check if generator thread is still there */
 	int rv = pthread_kill(generator->thread.id, 0);
@@ -7687,7 +7686,7 @@ void *cw_generator_write_sine_wave_internal(void *arg)
 	   business. Let's send the SIGALRM right before exiting.
 	   This small delay before sending signal turns out to be helpful. */
 	struct timespec req = { .tv_sec = 0, .tv_nsec = 500000000 };
-	cw_nanosleep(&req);
+	cw_nanosleep_internal(&req);
 
 	pthread_kill(gen->client.thread_id, SIGALRM);
 	return NULL;
@@ -7932,7 +7931,7 @@ void cw_null_write_internal(__attribute__((unused)) cw_gen_t *gen, cw_tone_t *to
 	struct timespec n = { .tv_sec = 0, .tv_nsec = 0 };
 	cw_usecs_to_timespec_internal(&n, usecs);
 
-	cw_nanosleep(&n);
+	cw_nanosleep_internal(&n);
 
 	return;
 }
@@ -8103,7 +8102,7 @@ int cw_console_write_internal(cw_gen_t *gen, cw_tone_t *tone)
 	cw_usecs_to_timespec_internal(&n, usecs);
 
 	int rv = cw_console_write_low_level_internal(gen, (bool) tone->frequency);
-	cw_nanosleep(&n);
+	cw_nanosleep_internal(&n);
 
 	if (tone->slope_mode == CW_SLOPE_MODE_FALLING_SLOPE) {
 		/* Falling slope causes the console to produce sound, so at
@@ -9509,7 +9508,7 @@ void cw_usecs_to_timespec_internal(struct timespec *t, int usecs)
 
    \param n - period of time to sleep
 */
-void cw_nanosleep(struct timespec *n)
+void cw_nanosleep_internal(struct timespec *n)
 {
 	struct timespec rem = { .tv_sec = n->tv_sec, .tv_nsec = n->tv_nsec };
 
