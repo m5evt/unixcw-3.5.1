@@ -313,7 +313,7 @@ void cw_print_help(cw_config_t *config)
 	fprintf(stderr,       _("        'console': \"%s\"\n"), CW_DEFAULT_CONSOLE_DEVICE);
 	fprintf(stderr,       _("        'oss': \"%s\"\n"), CW_DEFAULT_OSS_DEVICE);
 	fprintf(stderr,       _("        'alsa': \"%s\"\n"), CW_DEFAULT_ALSA_DEVICE);
-	fprintf(stderr,       _("        'pulseaudio': \"%s\"\n\n"), CW_DEFAULT_PA_DEVICE);
+	fprintf(stderr,       _("        'pulseaudio': %s\n\n"), CW_DEFAULT_PA_DEVICE);
 
 	fprintf(stderr, "%s", _("Sending options:\n"));
 
