@@ -587,11 +587,11 @@ Send a string of characters at 25 WPM, 700Hz, with no extra gaps:
 .IP
 echo "UNIX CW SOUNDER" | cw \-w 25 \-t 700
 .PP
-Send a string at varying speeds and tones on both the sound card and
-the console speaker, specifying a system console device:
+Send a string at varying speeds and tones on the console speaker,
+specifying a system console device:
 .IP
 echo "%W12;%T400;400HZ 12WPM %W25;%T1500;1500HZ 25WPM" |
-cw \-m \-sb \-d /dev/tty2
+cw \-m \-sc \-d /dev/tty2
 .PP
 Send C-cedilla, VA, and a report of the WPM setting, with extra spacing
 at half volume:
