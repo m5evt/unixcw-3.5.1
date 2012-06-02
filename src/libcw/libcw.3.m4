@@ -137,6 +137,16 @@ send and iambic keyer functions.
 .\"
 .\"
 .\"
+.SS RETURN CODES
+.\"
+Some of the library's function return a return code of type int.
+The return code has two values, as defined in libcw.h: \fBCW_SUCCESS\fP
+or \fBCW_FAILURE\fP. The two symbolic constants are guaranteed to be
+identical to boolean \fBtrue\fP and \fBfalse\fP.
+.PP
+.\"
+.\"
+.\"
 .SS FUNCTIONS
 The following list describes the functions available to a \fBlibcw\fP caller:
 include(functions)
