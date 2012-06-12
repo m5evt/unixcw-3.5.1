@@ -946,6 +946,25 @@ void cw_license(void)
 
 
 
+/**
+   \brief Get a readable label of given audio system
+
+   The function returns one of following strings:
+   None, Null, Console, OSS, ALSA, PulseAudio, Soundcard
+
+   \param audio_system - ID of audio system to look up
+
+   \return audio system's label
+*/
+const char *cw_get_audio_system_label(int audio_system)
+{
+	return cw_audio_system_labels[audio_system];
+}
+
+
+
+
+
 /* ******************************************************************** */
 /*                         Section:Debugging                            */
 /* ******************************************************************** */
@@ -7260,13 +7279,13 @@ void cw_reset_straight_key(void)
    \brief Get a readable label of current audio system
 
    The function returns one of following strings:
-   None, Console, OSS, ALSA, Soundcard
+   None, Null, Console, OSS, ALSA, PulseAudio, Soundcard
 
    \return audio system's label
 */
 const char *cw_generator_get_audio_system_label(void)
 {
-	return cw_audio_system_labels[generator->audio_system];
+	return cw_get_audio_system_label(generator->audio_system);
 }
 
 
