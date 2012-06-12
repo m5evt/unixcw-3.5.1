@@ -126,6 +126,7 @@ enum
 /* Functions handling library meta data */
 extern int  cw_version(void);
 extern void cw_license(void);
+extern const char *cw_get_audio_system_label(int audio_system);
 
 
 /* Debugging */
