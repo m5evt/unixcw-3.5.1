@@ -5,7 +5,6 @@ includedir=@includedir@
 
 Name: libcw
 Description: CW (Morse code) library
-Requires: alsa libpulse-simple
-Version: @PACKAGE_VERSION@
+Version: 4.0.0
 Libs: -L${libdir} -lcw
 Cflags: -I${includedir}
