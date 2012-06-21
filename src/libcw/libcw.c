@@ -4462,7 +4462,7 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 			/* If microseconds is zero, leave it at that.  This
 			   way, a queued tone of 0 usec implies leaving the
 			   sound in this state, and 0 usec and 0 frequency
-			   leaves silence.  */
+			   leaves silence.  */ /* TODO: ??? */
 			if (tone->usecs == 0) {
 				/* Autonomous dequeuing has finished for
 				   the moment. */
@@ -4482,10 +4482,18 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 				   was above the low water mark, and the
 				   one we have now is below or equal to it,
 				   call the callback. */
+
+				/* TODO: do we really need the two comparisons
+				   against tq->low_water_mark? I think that
+				   the second expression would be enough. */
 				if (queue_length > tq->low_water_mark
 				    && CW_TONE_QUEUE_LENGTH(tq) <= tq->low_water_mark
 
-				    /* this expression is to avoid possibly endless calls of callback */
+				    /* Avoid endlessly calling the callback
+				       if the only queued tone is 'forever'
+				       tone. Once someone decides to end the
+				       'forever' tone, we will be ready to
+				       call the callback again. */
 				    && !(tone->usecs == CW_AUDIO_FOREVER_USECS && queue_length == 1)
 
 				    ) {
@@ -4619,11 +4627,16 @@ int cw_tone_queue_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
    \brief Register callback for low queue state
 
    Register a function to be called automatically by the dequeue routine
-   whenever the tone queue falls to a given level; callback_arg may be used
-   to give a value passed back on callback calls.  A NULL function pointer
-   suppresses callbacks.  On success, the routine returns CW_SUCCESS.
+   whenever the tone queue falls to a given \p level. To be more precise:
+   the callback is called by queue manager if, after dequeueing a tone,
+   the manager notices that tone queue length has become equal or less
+   than \p level.
 
-   If level is invalid, the routine returns CW_FAILURE with errno set to
+   \p callback_arg may be used to give a value passed back on callback
+   calls.  A NULL function pointer suppresses callbacks.  On success,
+   the routine returns CW_SUCCESS.
+
+   If \p level is invalid, the routine returns CW_FAILURE with errno set to
    EINVAL.  Any callback supplied will be called in signal handler context.
 
    \param callback_func - callback function to be registered
