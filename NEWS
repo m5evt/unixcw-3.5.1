@@ -1,23 +1,26 @@
-version X.Y.Z / 2012.XX.YY
+version 3.1.0 / 2012.06.30
 
   unixcw:
   - Added support for PulseAudio.
+
     All applications from unixcw that produce audio output benefit from
     this. PulseAudio is the default audio backend on machines with installed
     and accessible PulseAudio server. If audio backend hasn't been specified
     by user, the applications try to access different sound backends in
     following order:
-    PulseAudio -> OSS -> ALSA -> Console.
+    PulseAudio -> OSS -> ALSA -> console buzzer.
 
-    The usual restrictions for Console output (root access) still apply.
+    The usual restrictions for console buzzer output (root privileges
+    required) still apply.
 
-    Running application with ALSA selected as sound backend while PulseAudio
-    server is running will result in all kinds of different problems.
-    User is warned about such situation by the application.
+    Running application from unixcw package (cw, cwcp, xcwcp) with
+    ALSA selected as sound backend while PulseAudio server is running
+    will result in all kinds of different problems.  User is warned
+    about such situation by the application.
 
   - Added 'Null' audio system as an optional audio backend. No sound is
     being played if this system is selected, libcw is spending its time only
-    on generating tones of proper length and sending it in proper moments
+    on generating tones of proper length and sending then in proper moments
     to a pseudo-device. Pass '-s n' option to unixcw application to use this
     'audio' backend.
 
@@ -63,7 +66,7 @@ version X.Y.Z / 2012.XX.YY
     keep two processed in sync: turning sine wave on and off, and sending
     the content of audio buffer with sine wave to audio backend. I'm calling
     it 'tricky' because it works fine only for small sizes of audio buffer,
-    as it is in case of OSS (~128 samples). With larger buffer sizes forced
+    as was is in case of OSS (~128 samples). With larger buffer sizes forced
     by ALSA (~1k samples) the two processes de-synchronize. I had to come up
     with better design, and the side effect of the design is total rewrite
     of parts of libcw.c (for my own purposes I call the rewrite a 'butchering',
@@ -73,12 +76,19 @@ version X.Y.Z / 2012.XX.YY
     of being able to play only X samples (Y milliseconds) at a time (with
     given sample rate).
 
-  - Following functions are deprecated: cw_check_representation(),
-    cw_lookup_representation(), cw_lookup_character().
-    Use cw_representation_is_valid(), cw_representation_to_character() and
-    cw_character_to_representation() (respectively) instead.
+  - Following functions are deprecated:
+    cw_check_representation(),
+    cw_lookup_representation(),
+    cw_lookup_character().
 
-  - soname changed from 3.0.1 to 4.0.0
+    Use these instead:
+    cw_representation_is_valid(),
+    cw_representation_to_character(),
+    cw_character_to_representation().
+
+  - library's soname changed from 3.0.1 to 4.0.0
+
+    Library's version becomes independent from version of unixcw.
 
   cwcp:
   - Fixing small bug in user interface: till now modifying practice time
@@ -87,6 +97,25 @@ version X.Y.Z / 2012.XX.YY
 
 
 ----------------------------------------------------------------------------
+
+
+version 3.0.2 / 2012.06.18
+
+New version. You won't find it in git repo, but only in SourceForge download
+area and on Debian webpage.
+This is a special release with two goals related to Debian packaging:
+
+  debian/:
+  - fixing Debian's FTBFS bug #676752
+  - removing debian/ from unixcw_X.Y.Z.orig.tar.gz. Contents of debian/ can be
+    found in separately provided unixcw_X.Y.Z-W.debian.tar.gz
+
+Thanks to Kamal Mostafa for patiently explaining to me some details of
+Debian/Ubuntu packaging.
+
+
+----------------------------------------------------------------------------
+
 
 version 3.0.1 / 2012.01.08
 
