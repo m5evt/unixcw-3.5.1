@@ -175,14 +175,18 @@ typedef struct cw_tracking_struct cw_tracking_t;
 
 
 typedef struct cw_tone_struct {
-	/* frequency of a tone */
+	/* Frequency of a tone. */
 	int frequency;
 
-	/* duration of a tone, in microseconds */
+	/* Duration of a tone, in microseconds. */
 	int usecs;
 
-	/* duration of a tone, in samples (is a function of usecs and sample rate) */
-	/* TODO: come up with thought-out, consistent type system for samples and usecs */
+	/* Duration of a tone, in samples.
+	   This is a derived value, a function of usecs and sample rate. */
+
+	/* TODO: come up with thought-out, consistent type system for
+	   samples and usecs. The type system should take into
+	   consideration very long duration of tones in QRSS. */
 	int64_t n_samples;
 
 	/* We need two indices to gen->buffer, indicating beginning and end
@@ -901,9 +905,11 @@ static const char *cw_audio_system_labels[] = {
 
 
 
-bool lock = false;
+static bool lock = false;
 
 
+/* FIXME: Provide all three parts of library version. */
+static unsigned int major = 4, minor = 0;
 
 
 
@@ -918,9 +924,6 @@ bool lock = false;
 */
 int cw_version(void)
 {
-	unsigned int major = 0, minor = 0;
-
-	sscanf(PACKAGE_VERSION, "%u.%u", &major, &minor);
 	return major << 16 | minor;
 }
 
@@ -936,7 +939,7 @@ int cw_version(void)
 */
 void cw_license(void)
 {
-	printf("libcw version %s\n", PACKAGE_VERSION);
+	printf("libcw version %d.%d\n", major, minor);
 	printf("%s\n", CW_COPYRIGHT);
 
 	return;
