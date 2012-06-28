@@ -1,7 +1,7 @@
 
-The source code for UnixCW version 3.0 comes with a 'configure' file.  Its job
-is to try and decide which features your system offers, and then configure
-UnixCW the best way it can for these features.
+The source code for unixcw comes with a 'configure' file.  Its job is
+to try and decide which features your system offers, and then
+configure unixcw the best way it can for these features.
 
 At minimum, you will need a set of sound card definitions (usually in the file
 soundcard.h) and perhaps also a KIOCSOUND console sound ioctl available on your
