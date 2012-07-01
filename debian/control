@@ -11,9 +11,9 @@ Package: libcw4
 Section: libs
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Replaces: unixcw
-Conflicts: unixcw
-Recommends: libasound2, libpulse0, cw | cwcp | xcwcp
+Replaces: unixcw, libcw3
+Breaks: unixcw, libcw3
+Suggests: cw, cwcp, xcwcp
 Description: Morse code tutor - shared library
  The unixcw project provides support for learning to use Morse code.
  .
@@ -24,10 +24,9 @@ Description: Morse code tutor - shared library
 Package: libcw4-dev
 Section: libdevel
 Architecture: any
-Recommends: libasound2-dev, libpulse-dev
 Depends: libcw4 (= ${binary:Version}), ${misc:Depends}
-Replaces: unixcw-dev
-Conflicts: unixcw-dev
+Replaces: unixcw-dev, libcw3-dev
+Breaks: unixcw-dev, libcw3-dev
 Description: Morse code tutor - development files
  The unixcw project provides support for learning to use Morse code.
  .

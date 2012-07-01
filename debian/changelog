@@ -1,4 +1,12 @@
+unixcw (3.1.0-2) unstable; urgency=low
+
+  * Fixing entries in debian/changelog and debian/control, as
+    suggested by Kamal Mostafa
+
+ -- Kamil Ignacak <acerion@wp.pl>  Sun, 01 Jul 2012 14:14:20 +0100
+
 unixcw (3.1.0-1) unstable; urgency=low
+
   * Added support for PulseAudio, which should be a good news for users
     of the package on Ubuntu.
   * Implemented run-time linking of audio libraries decreases dependency
@@ -17,7 +25,7 @@ unixcw (3.1.0-1) unstable; urgency=low
     SOUND_MIXER_PCM ioctl, and so the problem described in #567392
     disappeared. Closes: #567392
 
- -- Kamil Ignacak <acerion@wp.pl>  Mon, 30 Jun 2012 20:08:49 +0100
+ -- Kamil Ignacak <acerion@wp.pl>  Sat, 30 Jun 2012 20:08:49 +0100
 
 unixcw (3.0.1-2) unstable; urgency=low
 
