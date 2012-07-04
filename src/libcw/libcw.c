@@ -4473,6 +4473,21 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 				cw_finalization_schedule_internal();
 			}
 #endif
+
+
+#ifdef LIBCW_WITH_DEV
+			if (tq_report != REPORTED_NONEMPTY) {
+				cw_dev_debug ("tone queue: nonempty: usecs = %d, freq = %d, slope = %d", tone->usecs, tone->frequency, tone->slope_mode);
+				tq_report = REPORTED_NONEMPTY;
+			}
+#endif
+			pthread_mutex_unlock(&tq->mutex);
+
+			/* Since client's callback can use functions
+			   that call pthread_mutex_lock(), we should
+			   put the callback *after* we release
+			   pthread_mutex_unlock() in this funciton. */
+
 			/* If there is a low water mark callback registered,
 			   and if we passed under the water mark, call the
 			   callback here.  We want to be sure to call this
@@ -4505,13 +4520,6 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 				}
 			}
 
-#ifdef LIBCW_WITH_DEV
-			if (tq_report != REPORTED_NONEMPTY) {
-				cw_dev_debug ("tone queue: nonempty: usecs = %d, freq = %d, slope = %d", tone->usecs, tone->frequency, tone->slope_mode);
-				tq_report = REPORTED_NONEMPTY;
-			}
-#endif
-			pthread_mutex_unlock(&tq->mutex);
 			return CW_TQ_NONEMPTY;
 		} else { /* tq->head == tq->tail */
 			/* State of tone queue (as indicated by tq->state)
