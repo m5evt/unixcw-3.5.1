@@ -1572,10 +1572,20 @@ static int cw_self_test (unsigned int testset)
 		NULL };
 
 	int output = CW_AUDIO_NONE;
-	if (cw_is_oss_possible(NULL)) {
-		output = CW_AUDIO_OSS;
-	} else {
-		fprintf(stderr, "libcw: OSS: soundcard device unavailable: %s\n", strerror(errno));
+	if (output == CW_AUDIO_NONE) {
+		if (cw_is_pa_possible(NULL)) {
+			output = CW_AUDIO_PA;
+		} else {
+			fprintf(stderr, "libcw: pulseaudio device unavailable: %s\n", strerror(errno));
+		}
+	}
+
+	if (output == CW_AUDIO_NONE) {
+		if (cw_is_oss_possible(NULL)) {
+			output = CW_AUDIO_OSS;
+		} else {
+			fprintf(stderr, "libcw: OSS: soundcard device unavailable: %s\n", strerror(errno));
+		}
 	}
 
 	if (output == CW_AUDIO_NONE) {
@@ -1588,7 +1598,7 @@ static int cw_self_test (unsigned int testset)
 
 	if (output == CW_AUDIO_NONE) {
 		if (cw_is_console_possible(NULL)) {
-			output = CW_AUDIO_OSS;
+			output = CW_AUDIO_CONSOLE;
 		} else {
 			fprintf(stderr, "libcw: console device cannot do sound: %s\n", strerror(errno));
 		}
