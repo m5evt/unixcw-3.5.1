@@ -18,9 +18,9 @@
 
 # General initializations.
 AC_PREREQ(2.57)
-AC_INIT(unixcw, 3.1.0, [acerion@wp.pl])
+AC_INIT(unixcw, 3.1.1, [acerion@wp.pl])
 
-AM_INIT_AUTOMAKE(unixcw, 3.1.0)
+AM_INIT_AUTOMAKE(unixcw, 3.1.1)
 
 # Specify a configuration header.
 AC_CONFIG_HEADERS(src/config.h)
