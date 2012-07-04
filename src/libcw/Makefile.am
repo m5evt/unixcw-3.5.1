@@ -42,7 +42,7 @@ libcw_la_SOURCES = libcw.c libcw.h
 libcw_la_LIBADD=-lm -lpthread -ldl
 # target-specific linker flags (additional flags)
 # http://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html
-libcw_la_LDFLAGS = -version-number 4:0:0
+libcw_la_LDFLAGS = -version-number 4:1:1
 # target-specific compiler flags
 libcw_la_CFLAGS = -rdynamic
 
