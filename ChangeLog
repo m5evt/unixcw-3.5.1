@@ -1,3 +1,8 @@
+2012-07-04 Kamil Ignacak
+	* libcw: fixing problem with interlocks in threaded code; since
+	this is an important fix, I will have to prepare new release of
+	unixcw.
+
 2012-05-27 Kamil Ignacak
 	* libcw: fixing an error with overflowing n_samples. It was spotted
 	during some tests performed when reviewing files before new release.
