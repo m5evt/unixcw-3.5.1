@@ -1,3 +1,8 @@
+2012-08-06 Kamil Ignacak
+	* build system configuration: fixing faulty logic checking
+	"--disable-feature" flags in configure.ac. Bug reported by Thomas
+	Beierlein. Thanks Thomas!
+
 2012-07-04 Kamil Ignacak
 	* libcw: fixing problem with interlocks in threaded code; since
 	this is an important fix, I will have to prepare new release of
