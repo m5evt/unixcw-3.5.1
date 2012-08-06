@@ -73,89 +73,82 @@ fi
 # ########################################################################
 
 
-# disable_console - 'no' by default
+# Build support for console buzzer output? Yes by default.
 AC_ARG_ENABLE(console,
-    AS_HELP_STRING([--disable-console], [disable support for console buzzer audio output]),
-    [disable_console=yes],
-    [disable_console=no])
+    AS_HELP_STRING([--disable-console], [disable support for console buzzer audio output]))
+
 AC_MSG_CHECKING([whether to include console buzzer audio suport])
-if test "$disable_console" = "no" ; then
+if test "enable_console" = "yes" ; then
     AC_MSG_RESULT(yes)
 else
     AC_MSG_RESULT(no)
 fi
 
 
-# disable_oss - 'no' by default
+# Build support for OSS audio system? Yes by default.
 AC_ARG_ENABLE(oss,
-    AS_HELP_STRING([--disable-oss], [disable support for OSS audio output]),
-    [disable_oss=yes],
-    [disable_oss=no])
+    AS_HELP_STRING([--disable-oss], [disable support for OSS audio output]))
+
 AC_MSG_CHECKING([whether to include OSS audio support])
-if test "$disable_oss" = "no" ; then
+if test "$enable_oss" = "yes" ; then
     AC_MSG_RESULT(yes)
 else
     AC_MSG_RESULT(no)
 fi
 
 
-# disable_alsa - 'no' by default
+# Build support for ALSA audio system? Yes by default.
 AC_ARG_ENABLE(alsa,
-    AS_HELP_STRING([--disable-alsa], [disable support for ALSA audio output]),
-    [disable_alsa=yes],
-    [disable_alsa=no])
+    AS_HELP_STRING([--disable-alsa], [disable support for ALSA audio output]))
+
 AC_MSG_CHECKING([whether to include ALSA audio support])
-if test "$disable_alsa" = "no" ; then
+if test "$enable_alsa" = "yes" ; then
     AC_MSG_RESULT(yes)
 else
     AC_MSG_RESULT(no)
 fi
 
 
-# disable_pulseaudio - 'no' by default
+# Build support for PulseAudio audio system? Yes by default.
 AC_ARG_ENABLE(pulseaudio,
-    AS_HELP_STRING([--disable-pulseaudio], [disable support for PulseAudio audio output]),
-    [disable_pulseaudio=yes],
-    [disable_pulseaudio=no])
+    AS_HELP_STRING([--disable-pulseaudio], [disable support for PulseAudio audio output]))
+
 AC_MSG_CHECKING([whether to include PulseAudio audio support])
-if test "$disable_pulseaudio" = "no" ; then
+if test "$enable_pulseaudio" = "yes" ; then
     AC_MSG_RESULT(yes)
 else
     AC_MSG_RESULT(no)
 fi
 
 
-# disable_cwcp - 'no' by default
+# Build cwcp? Yes by default.
 AC_ARG_ENABLE(cwcp,
-    AS_HELP_STRING([--disable-cwcp], [do not build cwcp (application with curses user interface)]),
-    [disable_cwcp=yes],
-    [disable_cwcp=no])
+    AS_HELP_STRING([--disable-cwcp], [do not build cwcp (application with curses user interface)]))
+
 AC_MSG_CHECKING([whether to build cwcp])
-if test "$disable_cwcp" = "no" ; then
+if test "$enable_cwcp" = "yes" ; then
     AC_MSG_RESULT(yes)
 else
     AC_MSG_RESULT(no)
 fi
 
 
-# disable_xcwcp - 'no' by default
+# Build xcwcp? Yes by default.
 AC_ARG_ENABLE(xcwcp,
-    AS_HELP_STRING([--disable-xcwcp], [do not build xcwcp (application with Qt4 user interface)]),
-    [disable_xcwcp=yes],
-    [disable_xcwcp=no])
+    AS_HELP_STRING([--disable-xcwcp], [do not build xcwcp (application with Qt4 user interface)]))
+
 AC_MSG_CHECKING([whether to build xcwcp])
-if test "$disable_xcwcp" = "no" ; then
+if test "$enable_xcwcp" = "yes" ; then
     AC_MSG_RESULT(yes)
 else
     AC_MSG_RESULT(no)
 fi
 
 
-# enable_dev - 'no' by default
+# Enable development debugging? No by default.
 AC_ARG_ENABLE(dev,
-    AS_HELP_STRING([--enable-dev], [enable development support (messages/debug code/asserts)]),
-    [enable_dev=yes],
-    [enable_dev=no])
+    AS_HELP_STRING([--enable-dev], [enable development support (messages/debug code/asserts)]))
+
 AC_MSG_CHECKING([whether to enable development support])
 if test "$enable_dev" = "yes" ; then
     AC_MSG_RESULT(yes)
@@ -178,7 +171,7 @@ fi
 # ########################################################################
 
 
-if test "$disable_console" = "yes" ; then
+if test "$enable_console" = "no" ; then
     WITH_CONSOLE='no'
 else
     AC_CHECK_HEADERS([sys/kd.h sys/vtkd.h sys/kbio.h])
@@ -199,7 +192,7 @@ fi
 
 
 
-if test "$disable_oss" = "yes" ; then
+if test "$enable_oss" = "no" ; then
     WITH_OSS='no'
 else
     AC_CHECK_HEADERS([soundcard.h sys/soundcard.h])
@@ -219,7 +212,7 @@ fi
 
 
 
-if test "$disable_alsa" = "yes" ; then
+if test "$enable_alsa" = "no" ; then
     WITH_ALSA='no'
 else
     AC_CHECK_LIB(asound, snd_pcm_open)
@@ -246,7 +239,7 @@ fi
 
 
 
-if test "$disable_pulseaudio" = "yes" ; then
+if test "$enable_pulseaudio" = "no" ; then
     WITH_PULSEAUDIO='no'
 else
     AC_CHECK_LIB(pulse-simple, pa_simple_new)
@@ -265,7 +258,7 @@ fi
 
 
 
-if test "$disable_cwcp" = "yes" ; then
+if test "$enable_cwcp" = "no" ; then
    WITH_CWCP='no'
 else
     AC_CHECK_LIB(curses, initscr)
@@ -279,7 +272,7 @@ fi
 
 
 
-if test "$disable_xcwcp" = "yes" ; then
+if test "$enable_xcwcp" = "no" ; then
     WITH_XCWCP='no'
 else
     # autodetection of Qt4 dependencies
