@@ -15482,17 +15482,16 @@ fi
 # ########################################################################
 
 
-# disable_console - 'no' by default
+# Build support for console buzzer output? Yes by default.
 # Check whether --enable-console was given.
 if test "${enable_console+set}" = set; then :
-  enableval=$enable_console; disable_console=yes
-else
-  disable_console=no
+  enableval=$enable_console;
 fi
+
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether to include console buzzer audio suport" >&5
 $as_echo_n "checking whether to include console buzzer audio suport... " >&6; }
-if test "$disable_console" = "no" ; then
+if test "enable_console" = "yes" ; then
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 else
@@ -15501,17 +15500,16 @@ $as_echo "no" >&6; }
 fi
 
 
-# disable_oss - 'no' by default
+# Build support for OSS audio system? Yes by default.
 # Check whether --enable-oss was given.
 if test "${enable_oss+set}" = set; then :
-  enableval=$enable_oss; disable_oss=yes
-else
-  disable_oss=no
+  enableval=$enable_oss;
 fi
+
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether to include OSS audio support" >&5
 $as_echo_n "checking whether to include OSS audio support... " >&6; }
-if test "$disable_oss" = "no" ; then
+if test "$enable_oss" = "yes" ; then
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 else
@@ -15520,17 +15518,16 @@ $as_echo "no" >&6; }
 fi
 
 
-# disable_alsa - 'no' by default
+# Build support for ALSA audio system? Yes by default.
 # Check whether --enable-alsa was given.
 if test "${enable_alsa+set}" = set; then :
-  enableval=$enable_alsa; disable_alsa=yes
-else
-  disable_alsa=no
+  enableval=$enable_alsa;
 fi
+
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether to include ALSA audio support" >&5
 $as_echo_n "checking whether to include ALSA audio support... " >&6; }
-if test "$disable_alsa" = "no" ; then
+if test "$enable_alsa" = "yes" ; then
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 else
@@ -15539,17 +15536,16 @@ $as_echo "no" >&6; }
 fi
 
 
-# disable_pulseaudio - 'no' by default
+# Build support for PulseAudio audio system? Yes by default.
 # Check whether --enable-pulseaudio was given.
 if test "${enable_pulseaudio+set}" = set; then :
-  enableval=$enable_pulseaudio; disable_pulseaudio=yes
-else
-  disable_pulseaudio=no
+  enableval=$enable_pulseaudio;
 fi
+
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether to include PulseAudio audio support" >&5
 $as_echo_n "checking whether to include PulseAudio audio support... " >&6; }
-if test "$disable_pulseaudio" = "no" ; then
+if test "$enable_pulseaudio" = "yes" ; then
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 else
@@ -15558,17 +15554,16 @@ $as_echo "no" >&6; }
 fi
 
 
-# disable_cwcp - 'no' by default
+# Build cwcp? Yes by default.
 # Check whether --enable-cwcp was given.
 if test "${enable_cwcp+set}" = set; then :
-  enableval=$enable_cwcp; disable_cwcp=yes
-else
-  disable_cwcp=no
+  enableval=$enable_cwcp;
 fi
+
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether to build cwcp" >&5
 $as_echo_n "checking whether to build cwcp... " >&6; }
-if test "$disable_cwcp" = "no" ; then
+if test "$enable_cwcp" = "yes" ; then
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 else
@@ -15577,17 +15572,16 @@ $as_echo "no" >&6; }
 fi
 
 
-# disable_xcwcp - 'no' by default
+# Build xcwcp? Yes by default.
 # Check whether --enable-xcwcp was given.
 if test "${enable_xcwcp+set}" = set; then :
-  enableval=$enable_xcwcp; disable_xcwcp=yes
-else
-  disable_xcwcp=no
+  enableval=$enable_xcwcp;
 fi
+
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether to build xcwcp" >&5
 $as_echo_n "checking whether to build xcwcp... " >&6; }
-if test "$disable_xcwcp" = "no" ; then
+if test "$enable_xcwcp" = "yes" ; then
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 else
@@ -15596,13 +15590,12 @@ $as_echo "no" >&6; }
 fi
 
 
-# enable_dev - 'no' by default
+# Enable development debugging? No by default.
 # Check whether --enable-dev was given.
 if test "${enable_dev+set}" = set; then :
-  enableval=$enable_dev; enable_dev=yes
-else
-  enable_dev=no
+  enableval=$enable_dev;
 fi
+
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether to enable development support" >&5
 $as_echo_n "checking whether to enable development support... " >&6; }
@@ -15629,7 +15622,7 @@ fi
 # ########################################################################
 
 
-if test "$disable_console" = "yes" ; then
+if test "$enable_console" = "no" ; then
     WITH_CONSOLE='no'
 else
     for ac_header in sys/kd.h sys/vtkd.h sys/kbio.h
@@ -15665,7 +15658,7 @@ fi
 
 
 
-if test "$disable_oss" = "yes" ; then
+if test "$enable_oss" = "no" ; then
     WITH_OSS='no'
 else
     for ac_header in soundcard.h sys/soundcard.h
@@ -15700,7 +15693,7 @@ fi
 
 
 
-if test "$disable_alsa" = "yes" ; then
+if test "$enable_alsa" = "no" ; then
     WITH_ALSA='no'
 else
     { $as_echo "$as_me:${as_lineno-$LINENO}: checking for snd_pcm_open in -lasound" >&5
@@ -15785,7 +15778,7 @@ fi
 
 
 
-if test "$disable_pulseaudio" = "yes" ; then
+if test "$enable_pulseaudio" = "no" ; then
     WITH_PULSEAUDIO='no'
 else
     { $as_echo "$as_me:${as_lineno-$LINENO}: checking for pa_simple_new in -lpulse-simple" >&5
@@ -15851,7 +15844,7 @@ fi
 
 
 
-if test "$disable_cwcp" = "yes" ; then
+if test "$enable_cwcp" = "no" ; then
    WITH_CWCP='no'
 else
     { $as_echo "$as_me:${as_lineno-$LINENO}: checking for initscr in -lcurses" >&5
@@ -15910,7 +15903,7 @@ fi
 
 
 
-if test "$disable_xcwcp" = "yes" ; then
+if test "$enable_xcwcp" = "no" ; then
     WITH_XCWCP='no'
 else
     # autodetection of Qt4 dependencies
