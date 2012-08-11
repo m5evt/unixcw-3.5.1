@@ -289,9 +289,13 @@ else
 fi
 
 
-
+# Development support tools.
+AM_CONDITIONAL(LIBCW_WITH_DEV, test "$enable_dev" = "yes")
 if test "$enable_dev" = "yes" ; then
-    AC_DEFINE([LIBCW_WITH_DEV], [1], [Define as 1 if you want to enable development support.])
+   WITH_DEV='yes'
+   AC_DEFINE([LIBCW_WITH_DEV], [1], [Define as 1 if you want to enable development support.])
+else
+   WITH_DEV='no'
 fi
 
 
@@ -492,7 +496,8 @@ AC_MSG_NOTICE([include OSS support:  .........................  $WITH_OSS])
 AC_MSG_NOTICE([include ALSA support:  ........................  $WITH_ALSA])
 AC_MSG_NOTICE([include PulseAudio support:  ..................  $WITH_PULSEAUDIO])
 AC_MSG_NOTICE([----------------------------------------------------])
-
-
+if test "$WITH_DEV" = 'yes' ; then
+   AC_MSG_NOTICE([enable dev support: ...........................  yes])
+fi
 
 AC_OUTPUT
