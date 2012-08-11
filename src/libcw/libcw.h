@@ -99,28 +99,35 @@ typedef struct cw_gen_struct cw_gen_t;
  */
 enum { CW_DOT_REPRESENTATION = '.', CW_DASH_REPRESENTATION = '-' };
 
-/* Debug levels definitions. */
-enum
-{ CW_DEBUG_SILENT = 1 << 0,          /* Suppresses KIOCSOUND ioctls */
-  CW_DEBUG_KEYING = 1 << 1,          /* Print out keying control data */
-  CW_DEBUG_SOUND = 1 << 2,           /* Print out tone generation data */
-  CW_DEBUG_TONE_QUEUE = 1 << 3,      /* Print out tone queue data */
-  CW_DEBUG_PARAMETERS = 1 << 4,      /* Print out timing parameters */
-  CW_DEBUG_RECEIVE_STATES = 1 << 5,  /* Print out receive state changes */
-  CW_DEBUG_KEYER_STATES = 1 << 6,    /* Print out keyer information */
-  CW_DEBUG_STRAIGHT_KEY = 1 << 7,    /* Print out straight key information */
-  CW_DEBUG_LOOKUPS = 1 << 8,         /* Print out table lookup results */
-  CW_DEBUG_FINALIZATION = 1 << 9,    /* Print out finalization actions */
-  CW_DEBUG_SYSTEM = 1 << 10,         /* Print out OS problems (malloc, open,
-					ioctl, etc. Also configuration errors.) */
-  CW_DEBUG_KEYER_STATES_VERBOSE = 1 << 11,    /* Print out more keyer information */
-  CW_DEBUG_MASK = (1 << 12) - 1      /* Bit mask of used debug bits */
 
+
+/* Debugging support. */
+
+/* Definitions of debug flags. */
+enum {
+	/* Revised flags. */
+
+
+	/* Old flags. */
+
+	CW_DEBUG_SILENT               = 1 << 0,        /* Suppresses KIOCSOUND ioctls */
+	CW_DEBUG_KEYING               = 1 << 1,        /* Print out keying control data */
+	CW_DEBUG_SOUND                = 1 << 2,        /* Print out tone generation data */
+	CW_DEBUG_TONE_QUEUE           = 1 << 3,        /* Print out tone queue data */
+	CW_DEBUG_PARAMETERS           = 1 << 4,        /* Print out timing parameters */
+	CW_DEBUG_RECEIVE_STATES       = 1 << 5,        /* Print out receive state changes */
+	CW_DEBUG_KEYER_STATES         = 1 << 6,        /* Print out keyer information */
+	CW_DEBUG_STRAIGHT_KEY         = 1 << 7,        /* Print out straight key information */
+	CW_DEBUG_LOOKUPS              = 1 << 8,        /* Print out table lookup results */
+	CW_DEBUG_FINALIZATION         = 1 << 9,        /* Print out finalization actions */
+	CW_DEBUG_SYSTEM               = 1 << 10,       /* Print out OS problems (malloc, open,
+							  ioctl, etc. Also configuration errors.) */
+	CW_DEBUG_KEYER_STATES_VERBOSE = 1 << 11,       /* Print out more keyer information */
+	CW_DEBUG_MASK                 = (1 << 12) - 1  /* Bit mask of used debug bits */
 };
 
 
 
-/* CW library function prototypes */
 
 
 /* Functions handling library meta data */
