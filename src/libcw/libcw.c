@@ -147,6 +147,7 @@
 
 #include "libcw.h"
 #include "copyright.h"
+#include "libcw_debug.h"
 
 
 
@@ -739,7 +740,7 @@ static void cw_dev_debug_print_generator_setup(cw_gen_t *gen);
 static int  cw_debug_evaluate_alsa_write_internal(cw_gen_t *gen, int rv);
 #endif
 
-
+cw_debug_t *debug2 = NULL;
 
 
 /* ******************************************************************** */
@@ -4407,6 +4408,7 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 #ifdef LIBCW_WITH_DEV
 		if (tq_report != REPORTED_STILL_EMPTY) {
 			/* tone queue is empty */
+			cw_debug2(debug2, 0, CW_DEBUG_EVENT_TQ_STILL_EMPTY);
 			cw_dev_debug ("tone queue: still empty");
 			tq_report = REPORTED_STILL_EMPTY;
 		}
@@ -4477,6 +4479,7 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 
 #ifdef LIBCW_WITH_DEV
 			if (tq_report != REPORTED_NONEMPTY) {
+				cw_debug2(debug2, 0, CW_DEBUG_EVENT_TQ_NONEMPTY);
 				cw_dev_debug ("tone queue: nonempty: usecs = %d, freq = %d, slope = %d", tone->usecs, tone->frequency, tone->slope_mode);
 				tq_report = REPORTED_NONEMPTY;
 			}
@@ -4545,6 +4548,7 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 
 #ifdef LIBCW_WITH_DEV
 			if (tq_report != REPORTED_JUST_EMPTIED) {
+				cw_debug2(debug2, 0, CW_DEBUG_EVENT_TQ_JUST_EMPTIED);
 				cw_dev_debug ("tone queue: just emptied");
 				tq_report = REPORTED_JUST_EMPTIED;
 			}
@@ -7695,6 +7699,10 @@ void *cw_generator_write_sine_wave_internal(void *arg)
 			continue;
 		}
 
+#ifdef LIBCW_WITH_DEV
+		cw_debug2(debug2, 0, tone.frequency ? CW_DEBUG_EVENT_TONE_HIGH : CW_DEBUG_EVENT_TONE_LOW);
+#endif
+
 		if (gen->audio_system == CW_AUDIO_NULL) {
 			cw_null_write_internal(gen, &tone);
 		} else if (gen->audio_system == CW_AUDIO_CONSOLE) {
@@ -7720,6 +7728,11 @@ void *cw_generator_write_sine_wave_internal(void *arg)
 			usleep(1000);
 			cw_keyer_update_internal();
 		}
+
+#ifdef LIBCW_WITH_DEV
+		cw_debug2(debug2, 0, tone.frequency ? CW_DEBUG_EVENT_TONE_LOW : CW_DEBUG_EVENT_TONE_HIGH);
+#endif
+
 	} /* while(gen->generate) */
 
 	cw_dev_debug ("EXIT: generator stopped (gen->generate = %d)\n", gen->generate);
@@ -9635,12 +9648,14 @@ static void main_helper(int audio_system, const char *name, const char *device, 
 /* for stand-alone testing */
 int main(void)
 {
-	main_helper(CW_AUDIO_ALSA,    "ALSA",        CW_DEFAULT_ALSA_DEVICE,      cw_is_alsa_possible);
+	debug2 = cw_debug2_new("stderr");
+	//main_helper(CW_AUDIO_ALSA,    "ALSA",        CW_DEFAULT_ALSA_DEVICE,      cw_is_alsa_possible);
 	main_helper(CW_AUDIO_PA,      "PulseAudio",  CW_DEFAULT_PA_DEVICE,        cw_is_pa_possible);
-	main_helper(CW_AUDIO_NULL,    "Null",        CW_DEFAULT_NULL_DEVICE,      cw_is_null_possible);
+	//main_helper(CW_AUDIO_NULL,    "Null",        CW_DEFAULT_NULL_DEVICE,      cw_is_null_possible);
 	//main_helper(CW_AUDIO_CONSOLE, "console",     CW_DEFAULT_CONSOLE_DEVICE,   cw_is_console_possible);
 	//main_helper(CW_AUDIO_OSS,     "OSS",         CW_DEFAULT_OSS_DEVICE,       cw_is_oss_possible);
 
+	cw_debug2_delete(&debug2);
 	return 0;
 }
 
@@ -9661,7 +9676,7 @@ void main_helper(int audio_system, const char *name, const char *device, predica
 			cw_generator_start();
 
 			//cw_send_string("abcdefghijklmnopqrstuvwyz0123456789");
-			cw_send_string("one");
+			cw_send_string("eish ");
 			cw_wait_for_tone_queue();
 
 			cw_send_string("two");
