@@ -36,13 +36,20 @@ EXTRA_DIST=include.awk libdoc.awk libfuncs.awk libpc.awk libsigs.awk \
 # target: shared library
 
 # source code files used to build libcw shared library
+if LIBCW_WITH_DEV
+libcw_la_SOURCES = libcw.c libcw.h libcw_debug.c libcw_debug.h
+else
 libcw_la_SOURCES = libcw.c libcw.h
+endif
+
 # target-specific linker flags (objects to link)
 # libcw_la_LIBADD=-lm -lpthread $(AC_ALSA_LIBS)  $(AC_PULSEAUDIO_LIBS)
 libcw_la_LIBADD=-lm -lpthread -ldl
+
 # target-specific linker flags (additional flags)
 # http://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html
 libcw_la_LDFLAGS = -version-number 4:1:1
+
 # target-specific compiler flags
 libcw_la_CFLAGS = -rdynamic
 
@@ -50,11 +57,13 @@ libcw_includedir=$(includedir)
 libcw_include_HEADERS = libcw.h
 
 
+
 # target: libcwtest, a test program, testing public API of libcw library;
 # main() is defined in libcwtest.c
 
 # source code files used to build libcwtest program
 libcwtest_SOURCES = libcwtest.c
+
 # target-specific linker flags (objects to link)
 libcwtest_LDADD = -L./.libs -lcw
 
@@ -66,11 +75,18 @@ libcwtest_LDADD = -L./.libs -lcw
 # main() is defined in libcw.c, enabled by a LIBCW_UNIT_TESTS flag
 
 # source code files used to build libcwunittests program
+if LIBCW_WITH_DEV
+libcwunittests_SOURCES = libcw.c libcw_debug.c
+else
 libcwunittests_SOURCES = libcw.c
+endif
+
 # target-specific preprocessor flags (#defs and include dirs)
 libcwunittests_CPPFLAGS = $(AM_CPPFLAGS) -DLIBCW_UNIT_TESTS
+
 # target-specific linker flags (objects to link)
 libcwunittests_LDADD=-lm -lpthread -ldl
+
 # target-specific compiler flags
 libcwunittests_CFLAGS = -rdynamic
 
