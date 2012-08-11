@@ -639,6 +639,8 @@ CC_LINKS_SO
 CFLAG_PIC
 SRC_SUBDIRS
 LIBOBJS
+LIBCW_WITH_DEV_FALSE
+LIBCW_WITH_DEV_TRUE
 QT4MOC
 QT4INC
 QT4MOC_PATH
@@ -16223,11 +16225,22 @@ $as_echo "$as_me: WARNING: Cannot find Qt4 files - unable to build xcwcp" >&2;}
 fi
 
 
+# Development support tools.
+ if test "$enable_dev" = "yes"; then
+  LIBCW_WITH_DEV_TRUE=
+  LIBCW_WITH_DEV_FALSE='#'
+else
+  LIBCW_WITH_DEV_TRUE='#'
+  LIBCW_WITH_DEV_FALSE=
+fi
 
 if test "$enable_dev" = "yes" ; then
+   WITH_DEV='yes'
 
 $as_echo "#define LIBCW_WITH_DEV 1" >>confdefs.h
 
+else
+   WITH_DEV='no'
 fi
 
 
@@ -17196,8 +17209,10 @@ $as_echo "$as_me: include ALSA support:  ........................  $WITH_ALSA" >
 $as_echo "$as_me: include PulseAudio support:  ..................  $WITH_PULSEAUDIO" >&6;}
 { $as_echo "$as_me:${as_lineno-$LINENO}: ----------------------------------------------------" >&5
 $as_echo "$as_me: ----------------------------------------------------" >&6;}
-
-
+if test "$WITH_DEV" = 'yes' ; then
+   { $as_echo "$as_me:${as_lineno-$LINENO}: enable dev support: ...........................  yes" >&5
+$as_echo "$as_me: enable dev support: ...........................  yes" >&6;}
+fi
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -17326,6 +17341,10 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${am__fastdepCXX_TRUE}" && test -z "${am__fastdepCXX_FALSE}"; then
   as_fn_error $? "conditional \"am__fastdepCXX\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${LIBCW_WITH_DEV_TRUE}" && test -z "${LIBCW_WITH_DEV_FALSE}"; then
+  as_fn_error $? "conditional \"LIBCW_WITH_DEV\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 
