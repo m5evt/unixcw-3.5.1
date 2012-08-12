@@ -23,6 +23,8 @@
 #include <stdlib.h>
 #include <time.h>
 #include <errno.h>
+#include <assert.h>
+#include <stdint.h>
 
 #if defined(HAVE_STRING_H)
 # include <string.h>
@@ -38,307 +40,362 @@
 #include "memory.h"
 
 
-/*---------------------------------------------------------------------*/
-/*  Module variables, miscellaneous other stuff                        */
-/*---------------------------------------------------------------------*/
 
-/* Assorted definitions and constants. */
-enum { FALSE = 0, TRUE = !FALSE };
 
-enum
-{ MIN_GROUPS = 1,         /* Lowest number of groups allowed */
-  INITIAL_GROUPS = 128,   /* Default groups */
-  MIN_GROUP_SIZE = 1,     /* Lowest group size allowed */
-  INITIAL_GROUP_SIZE = 5, /* Default group size */
-  INITIAL_REPEAT = 0,     /* Default repeat count */
-  MIN_REPEAT = 0,         /* Lowest repeat count allowed */
-  MIN_LIMIT = 0,          /* Lowest character count limit allowed */
-  INITIAL_LIMIT = 0       /* Default character count limit */
+
+#define MIN_GROUPS             1   /* Lowest number of groups allowed. */
+#define INITIAL_GROUPS       128   /* Default number of groups. */
+#define MIN_GROUP_SIZE         1   /* Lowest group size allowed. */
+#define INITIAL_GROUP_SIZE     5   /* Default group size. */
+#define INITIAL_REPEAT         0   /* Default repeat count. */
+#define MIN_REPEAT             0   /* Lowest repeat count allowed. */
+#define MIN_LIMIT              0   /* Lowest character count limit allowed. */
+#define INITIAL_LIMIT          0   /* Default character count limit. */
+
+
+static const char *const DEFAULT_CHARSET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+
+struct cwgen_config {
+	char *program_name;    /* Program's name (argv[0]) */
+
+	int n_groups;          /* How many unique groups to generate. */
+	int group_size_min;    /* Minimal size (length) of generated groups. */
+	int group_size_max;    /* Maximal size (length) of generated groups. */
+        int n_repeats;         /* How many times in a row to repeat each unique group; zero for no repeats (group will be printed only once). */
+	uint64_t n_chars_max;  /* Maximal number of characters (excluding spaces) to generate in whole set of groups; may be zero - no limit. */
+
+	char *charset;         /* Set of chars to be used to generate groups. */
+} config = {
+	.program_name   = (char *) NULL,
+
+	.n_groups       = INITIAL_GROUPS,
+	.group_size_min = INITIAL_GROUP_SIZE,
+        .group_size_max = INITIAL_GROUP_SIZE,
+        .n_repeats      = INITIAL_REPEAT,
+        .n_chars_max    = INITIAL_LIMIT,
+
+	.charset        = (char *) NULL
 };
-static const char *const DEFAULT_CHARSET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-                                           "0123456789";
-
-/* Global variables. */
-static int groups = INITIAL_GROUPS,
-           group_min  = INITIAL_GROUP_SIZE,
-           group_max  = INITIAL_GROUP_SIZE,
-           repeat  = INITIAL_REPEAT,
-           limit = INITIAL_LIMIT;
-static const char *charset  = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
 
-/*---------------------------------------------------------------------*/
-/*  Character generation                                               */
-/*---------------------------------------------------------------------*/
+static const char *all_options = "g:|groups,n:|groupsize,r:|repeat,x:|limit,c:|charset,h|help,v|version";
 
-/*
- * generate_characters()
- *
- * Generate random characters on stdout, in groups as requested, and up
- * to the requested number of groups.  Characters are selected from the
- * set given at random.
- */
-static void
-generate_characters (int groups, int repeat,
-                     int group_min, int group_max, int limit,
-                     const char *charset)
+static void cwgen_generate_characters(struct cwgen_config *config);
+static void cwgen_print_usage(const char *program_name);
+static void cwgen_print_help(const char *program_name);
+static void cwgen_parse_command_line(int argc, char **argv, struct cwgen_config *config);
+static void cwgen_free_config(struct cwgen_config *config);
+
+
+
+
+/**
+   \brief Generate random characters on stdout
+
+   Generate random characters on stdout, in groups as requested, and up
+   to the requested number of groups.  Characters are selected from the
+   set given at random.
+
+   \param config - program's configuration variable
+*/
+void cwgen_generate_characters(struct cwgen_config *config)
 {
-  static int is_initialized = FALSE;
+	static bool is_initialized = false;
 
-  int charset_length, group, chars;
-  char *buffer;
+	/* On first (usually only) call, seed the random number generator. */
+	if (!is_initialized) {
+		srand(time(NULL));
+		is_initialized = true;
+	}
 
-  /* On first (usually only) call, seed the random number generator. */
-  if (!is_initialized)
-    {
-      srand (time (NULL));
+	/* Allocate the buffer for repeating groups. */
+	char *buffer = (char *) malloc(config->group_size_max);
+	if (!buffer) {
+		fprintf(stderr, "%s: failed to allocate memory\n", config->program_name);
+		exit(EXIT_FAILURE);
+	}
 
-      is_initialized = TRUE;
-    }
+	/* Generate groups up to the number requested or to the character limit. */
+	int charset_length = strlen(config->charset);
+	uint64_t chars = 0;
 
-  /* Allocate the buffer for repeating groups. */
-  buffer = safe_malloc (group_max);
+	for (int group = 0; group < config->n_groups; group++) {
 
-  /* Generate groups up to the number requested or to the character limit. */
-  charset_length = strlen (charset);
-  chars = 0;
-  for (group = 0;
-       group < groups && (limit == 0 || chars < limit); group++)
-    {
-      int size, index, count;
+		/* Randomize the group size between min and max inclusive. */
+		int group_size = config->group_size_min + rand() % (config->group_size_max - config->group_size_min + 1);
 
-      /* Randomize the group size between min and max inclusive. */
-      size = group_min + rand () % (group_max - group_min + 1);
+		/* Create random group. */
+		for (int i = 0; i < group_size; i++) {
+			buffer[i] = config->charset[rand() % charset_length];
+		}
 
-      /* Pick and buffer random characters from the set. */
-      for (index = 0; index < size; index++)
-        buffer[index] = charset[rand () % charset_length];
+		/* Repeatedly print the group as requested.
+		   It's always printed at least once, then repeated
+		   for the desired repeat count.  Break altogether if
+		   we hit any set limit on printed characters. */
+		int repeat = 0;
+		do {
+			for (int i = 0; i < group_size; i++) {
 
-      /*
-       * Repeatedly print the group as requested.  It's always printed once,
-       * then repeated for the desired repeat count.  Break altogether if we
-       * hit any set limit on printed characters.
-       */
-      count = 0;
-      do
-        {
-          for (index = 0;
-               index < size && (limit == 0 || chars < limit);
-               index++, chars++)
-            {
-              /* Print with immediate buffer flush. */
-              putchar (buffer[index]);
-              fflush (stdout);
-            }
+				putchar(buffer[i]);
+				fflush(stdout);
 
-          putchar (' ');
-          fflush (stdout);
-        }
-      while (count++ < repeat && (limit == 0 || chars < limit));
-    }
+				chars++;
 
-  free (buffer);
+				if (config->n_chars_max && chars >= config->n_chars_max) {
+					break;
+				}
+			}
+
+			putchar(' ');
+			fflush(stdout);
+
+			if (config->n_chars_max && chars >= config->n_chars_max) {
+				break;
+			}
+
+		} while (repeat++ < config->n_repeats);
+
+		if (config->n_chars_max && chars >= config->n_chars_max) {
+			break;
+		}
+	}
+
+	free(buffer);
+
+	return;
 }
 
 
-/*---------------------------------------------------------------------*/
-/*  Command line mechanics                                             */
-/*---------------------------------------------------------------------*/
 
-/*
- * print_usage()
- *
- * Print out a brief message directing the user to the help function.
- */
-static void
-print_usage (const char *argv0)
+
+
+/**
+   \brief Print out a brief message directing the user to the help function
+
+   \param program_name - program's name
+*/
+void cwgen_print_usage(const char *program_name)
 {
-  const char *format;
+	const char *format = has_longopts()
+		? _("Try '%s --help' for more information.\n")
+		: _("Try '%s -h' for more information.\n");
 
-  format = has_longopts ()
-    ? _("Try '%s --help' for more information.\n")
-    : _("Try '%s -h' for more information.\n");
-
-  fprintf (stderr, format, argv0);
-  exit (EXIT_FAILURE);
+	fprintf(stderr, format, program_name);
+	return;
 }
 
 
-/*
- * print_help()
- *
- * Print out a brief page of help information.
- */
-static void
-print_help (const char *argv0)
-{
-  const char *format;
 
-  format = has_longopts ()
-    ? _("Usage: %s [options...]\n\n"
-      "  -g, --groups=GROUPS    send GROUPS groups of chars [default %d]\n"
-      "                         GROUPS values may not be lower than %d\n"
-      "  -n, --groupsize=GS     make groups GS chars [default %d]\n"
-      "                         GS values may not be lower than %d, or\n"
-      "  -n, --groupsize=GL-GH  make groups between GL and GH chars\n"
-      "                         valid GL, GH values are as for GS above\n")
-    : _("Usage: %s [options...]\n\n"
-      "  -g GROUPS   send GROUPS groups of chars [default %d]\n"
-      "              GROUPS values may not be lower than %d\n"
-      "  -n GS       make groups GS chars [default %d]\n"
-      "              GS values may not be lower than %d, or\n"
-      "  -n GL-GH    make groups between GL and GH chars\n"
-      "              valid GL, GH values are as for GS above\n");
-
-  printf (format, argv0,
-          INITIAL_GROUPS, MIN_GROUPS,
-          INITIAL_GROUP_SIZE, MIN_GROUP_SIZE);
-
-  format = has_longopts ()
-    ? _("  -r, --repeat=COUNT     repeat each group COUNT times [default %d]\n"
-      "                         COUNT values may not be lower than %d\n"
-      "  -c, --charset=CHARSET  select chars to send from this set\n"
-      "                         [default %s]\n"
-      "  -x, --limit=LIMIT      stop after LIMIT characters [default %d]\n"
-      "                         a LIMIT of zero indicates no set limit\n"
-      "  -h, --help             print this message\n"
-      "  -v, --version          output version information and exit\n\n")
-    : _("  -r COUNT    repeat each group COUNT times [default %d]\n"
-      "              COUNT values may not be lower than %d\n"
-      "  -c CHARSET  select chars to send from this set\n"
-      "              [default %s]\n"
-      "  -x LIMIT    stop after LIMIT characters [default %d]\n"
-      "              a LIMIT of zero indicates no set limit\n"
-      "  -h          print this message\n"
-      "  -v          output version information and exit\n\n");
-
-  printf (format,
-          INITIAL_REPEAT, MIN_REPEAT,
-          DEFAULT_CHARSET, INITIAL_LIMIT);
-  exit (EXIT_SUCCESS);
-}
 
 
 /*
- * parse_command_line()
- *
- * Parse the command line options for initial values for the various
- * global and flag definitions.
- */
-static void
-parse_command_line (int argc, char **argv)
+  \brief Print out a brief page of help information
+
+  \param program_name - program's name
+*/
+static void cwgen_print_help(const char *program_name)
 {
-  int option;
-  char *argument;
+	if (!has_longopts()) {
+		fprintf(stderr, _("Long format of options is not supported on your system\n\n"));
+	}
 
-  const char *argv0 = cw_program_basename (argv[0]);
-  while (get_option (argc, argv,
-                     _("g:|groups,n:|groupsize,r:|repeat,x:|limit,c:|charset,"
-                     "h|help,v|version"),
-                     &option, &argument))
-    {
-      switch (option)
-        {
-        case 'g':
-          if (sscanf (argument, "%d", &groups) != 1
-              || groups < MIN_GROUPS)
-            {
-              fprintf (stderr, _("%s: invalid groups value\n"), argv0);
-              exit (EXIT_FAILURE);
-            }
-          break;
+	printf(_("Usage: %s [options...]\n\n"), program_name);
 
-        case 'n':
-          if (sscanf (argument, "%d-%d", &group_min, &group_max) == 2)
-            {
-              if (group_min < MIN_GROUP_SIZE || group_max < MIN_GROUP_SIZE
-                  || group_min > group_max)
-                {
-                  fprintf (stderr, _("%s: invalid groupsize range\n"), argv0);
-                  exit (EXIT_FAILURE);
-                }
-            }
-          else if (sscanf (argument, "%d", &group_min) == 1)
-            {
-              if (group_min < MIN_GROUP_SIZE)
-                {
-                  fprintf (stderr, _("%s: invalid groupsize value\n"), argv0);
-                  exit (EXIT_FAILURE);
-                }
-              group_max = group_min;
-            }
-          break;
+	printf(_("  -g, --groups=GROUPS    send GROUPS groups of chars [default %d]\n"), INITIAL_GROUPS);
+	printf(_("                         GROUPS values may not be lower than %d\n"), MIN_GROUPS);
+	printf(_("  -n, --groupsize=GS     make groups GS chars [default %d]\n"), INITIAL_GROUP_SIZE);
+	printf(_("                         GS values may not be lower than %d, or\n"), MIN_GROUP_SIZE);
+	printf(_("  -n, --groupsize=GL-GH  make groups between GL and GH chars\n"));
+	printf(_("                         valid GL, GH values are as for GS above\n"));
+	printf(_("  -r, --repeat=COUNT     repeat each group COUNT times [default %d]\n"), INITIAL_REPEAT);
+	printf(_("                         COUNT values may not be lower than %d\n"), MIN_REPEAT);
+	printf(_("  -c, --charset=CHARSET  select chars to send from this set\n"));
+	printf(_("                         [default %s]\n"), DEFAULT_CHARSET);
+	printf(_("  -x, --limit=LIMIT      stop after LIMIT characters [default %d]\n"), INITIAL_LIMIT);
+	printf(_("                         a LIMIT of zero indicates no set limit\n"));
+	printf(_("  -h, --help             print this message\n"));
+	printf(_("  -v, --version          output version information and exit\n\n"));
 
-        case 'r':
-          if (sscanf (argument, "%d", &repeat) != 1
-              || repeat < MIN_REPEAT)
-            {
-              fprintf (stderr, _("%s: invalid repeat value\n"), argv0);
-              exit (EXIT_FAILURE);
-            }
-          break;
-
-        case 'x':
-          if (sscanf (argument, "%d", &limit) != 1
-              || limit < MIN_LIMIT)
-            {
-              fprintf (stderr, _("%s: invalid limit value\n"), argv0);
-              exit (EXIT_FAILURE);
-            }
-          break;
-
-        case 'c':
-          if (strlen (argument) == 0)
-            {
-              fprintf (stderr, _("%s: charset cannot be empty\n"), argv0);
-              exit (EXIT_FAILURE);
-            }
-          charset = argument;
-          break;
-
-        case 'h':
-          print_help (argv0);
-
-        case 'v':
-          printf (_("%s version %s\n%s\n"),
-                  argv0, PACKAGE_VERSION, _(CW_COPYRIGHT));
-          exit (EXIT_SUCCESS);
-
-        case '?':
-          print_usage (argv0);
-
-        default:
-          fprintf (stderr, _("%s: getopts returned %c\n"), argv0, option);
-          exit (EXIT_FAILURE);
-        }
-    }
-  if (get_optind () != argc)
-    print_usage (argv0);
+	exit(EXIT_SUCCESS);
 }
 
 
-/*
- * main()
- *
- * Parse the command line options, then generate the characters requested.
- */
-int
-main (int argc, char **argv)
+
+
+
+/**
+   \brief Parse command line options
+
+   Parse the command line options for initial values for the various
+   global and flag definitions.
+
+   \param argc - main()'s argc
+   \param argv - main()'s argv
+   \param config - program's configuration variable
+*/
+void cwgen_parse_command_line(int argc, char **argv, struct cwgen_config *config)
 {
-  int combined_argc;
-  char **combined_argv;
+	int option;
+	char *argument;
 
-  /* Set locale and message catalogs. */
-  i18n_initialize ();
+	config->program_name = strdup(cw_program_basename(argv[0]));
+	if (!config->program_name) {
+		fprintf(stderr, "%s: failed to allocate memory\n", argv[0]);
+		exit(EXIT_FAILURE);
+	}
 
-  /* Parse combined environment and command line arguments. */
-  combine_arguments (_("CWGEN_OPTIONS"),
-                     argc, argv, &combined_argc, &combined_argv);
-  parse_command_line (combined_argc, combined_argv);
+	while (get_option(argc, argv, all_options,
+			  &option, &argument)) {
 
-  /* Generate the character groups as requested. */
-  generate_characters (groups, repeat, group_min, group_max, limit, charset);
-  putchar ('\n');
+		switch (option) {
+		case 'g':
+			if (sscanf(argument, "%d", &(config->n_groups)) != 1
+			    || config->n_groups < MIN_GROUPS) {
 
-  return EXIT_SUCCESS;
+				fprintf(stderr, _("%s: invalid groups value: '%s'\n"), config->program_name, argument);
+				exit(EXIT_FAILURE);
+			}
+			break;
+
+		case 'n':
+			if (sscanf(argument, "%d-%d", &(config->group_size_min), &(config->group_size_max)) == 2) {
+				if (config->group_size_min < MIN_GROUP_SIZE
+				    || config->group_size_max < MIN_GROUP_SIZE
+				    || config->group_size_min > config->group_size_max) {
+
+					fprintf(stderr, _("%s: invalid groupsize range: '%s'\n"), config->program_name, argument);
+					exit(EXIT_FAILURE);
+				}
+			} else if (sscanf(argument, "%d", &(config->group_size_min)) == 1) {
+				if (config->group_size_min < MIN_GROUP_SIZE) {
+
+					fprintf(stderr, _("%s: invalid groupsize value\n"), config->program_name);
+					exit(EXIT_FAILURE);
+				}
+				config->group_size_max = config->group_size_min;
+			}
+			break;
+
+		case 'r':
+			if (sscanf(argument, "%d", &(config->n_repeats)) != 1
+			    || config->n_repeats < MIN_REPEAT) {
+
+				fprintf(stderr, _("%s: invalid repeat value: '%s'\n"), config->program_name, argument);
+				exit(EXIT_FAILURE);
+			}
+			break;
+
+		case 'x':
+			if (sscanf(argument, "%llu", &(config->n_chars_max)) != 1
+			    || strstr(argument, "-")) {
+
+				fprintf(stderr, _("%s: invalid limit value: %s\n"), config->program_name, argument);
+				exit(EXIT_FAILURE);
+			}
+			fprintf(stderr, _("%s: valid limit value: %s\n"), config->program_name, argument);
+			break;
+
+		case 'c':
+			if (strlen(argument) == 0) {
+				fprintf(stderr, _("%s: charset cannot be empty\n"), config->program_name);
+				exit(EXIT_FAILURE);
+			}
+			assert(!config->charset);
+			config->charset = strdup(argument);
+			if (!config->charset) {
+				fprintf(stderr, _("%s: failed to allocate memory\n"), config->program_name);
+				exit(EXIT_FAILURE);
+			}
+			break;
+
+		case 'h':
+			cwgen_print_help(config->program_name);
+
+		case 'v':
+			printf(_("%s version %s\n%s\n"),
+			       config->program_name, PACKAGE_VERSION, _(CW_COPYRIGHT));
+			exit(EXIT_SUCCESS);
+
+		case '?':
+			cwgen_print_usage(config->program_name);
+			exit(EXIT_FAILURE);
+
+		default:
+			fprintf(stderr, _("%s: getopts returned %c\n"), config->program_name, option);
+			exit(EXIT_FAILURE);
+		}
+	}
+
+	if (get_optind() != argc) {
+		cwgen_print_usage(config->program_name);
+		exit(EXIT_FAILURE);
+	}
+
+	return;
 }
+
+
+
+
+
+/**
+   \brief Parse the command line options, then generate the characters requested
+*/
+int main(int argc, char **argv)
+{
+	int combined_argc;
+	char **combined_argv;
+
+	/* Set locale and message catalogs. */
+	i18n_initialize();
+
+	/* Parse combined environment and command line arguments. */
+	combine_arguments(_("CWGEN_OPTIONS"),
+			  argc, argv, &combined_argc, &combined_argv);
+	cwgen_parse_command_line(combined_argc, combined_argv, &config);
+
+	if (!config.charset) {
+		config.charset = strdup(DEFAULT_CHARSET);
+		if (!config.charset) {
+			fprintf(stderr, _("%s: failed to allocate memory\n"), argv[0]);
+			return EXIT_FAILURE;
+		}
+	}
+
+	/* Generate the character groups as requested. */
+	cwgen_generate_characters(&config);
+	putchar('\n');
+
+	cwgen_free_config(&config);
+
+	return EXIT_SUCCESS;
+}
+
+
+
+
+
+/**
+   \brief Deallocate memory used by fields of config variable
+
+   Function calls free() for all pointers to previously allocated memory.
+
+   \param config - pointer to config variable
+*/
+void cwgen_free_config(struct cwgen_config *config)
+{
+	if (config->charset) {
+		free(config->charset);
+		config->charset = (char *) NULL;
+	}
+
+	if (config->program_name) {
+		free(config->program_name);
+		config->program_name = (char *) NULL;
+	}
+
+	return;
+}
+
