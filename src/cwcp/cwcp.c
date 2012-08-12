@@ -1429,7 +1429,9 @@ int main(int argc, char **argv)
 	 */
 	mode_initialize();
 
+#if defined(LIBCW_WITH_DEV)
 	debug2 = cw_debug2_new("stderr");
+#endif
 
 	/*
 	 * Initialize the curses user interface, then catch and action every
@@ -1467,7 +1469,9 @@ void cwcp_atexit(void)
 		cw_config_delete(&config);
 	}
 
+#if defined(LIBCW_WITH_DEV)
 	cw_debug2_delete(&debug2);
+#endif
 
 	return;
 }
