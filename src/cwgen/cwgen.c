@@ -105,7 +105,7 @@ void cwgen_generate_characters(struct cwgen_config *config)
 
 	/* On first (usually only) call, seed the random number generator. */
 	if (!is_initialized) {
-		srand(time(NULL));
+		srandom(time(NULL));
 		is_initialized = true;
 	}
 
@@ -123,11 +123,11 @@ void cwgen_generate_characters(struct cwgen_config *config)
 	for (int group = 0; group < config->n_groups; group++) {
 
 		/* Randomize the group size between min and max inclusive. */
-		int group_size = config->group_size_min + rand() % (config->group_size_max - config->group_size_min + 1);
+		int group_size = config->group_size_min + random() % (config->group_size_max - config->group_size_min + 1);
 
 		/* Create random group. */
 		for (int i = 0; i < group_size; i++) {
-			buffer[i] = config->charset[rand() % charset_length];
+			buffer[i] = config->charset[random() % charset_length];
 		}
 
 		/* Repeatedly print the group as requested.
