@@ -1,14 +1,20 @@
-<<<<<<< HEAD
+2012-08-15 Kamil Ignacak
+	* tone slopes: libcw now can generate tones with slopes shaped as
+	sine function or as raised cosine function. The 'raised cosine'
+	slope is now default. Until now, shape of slopes has been calculated
+	every time a tone has been generated. Now the shape is calculated
+	only when some parameters of generator (volume, sample rate, length
+	of slope) change.
+
 2012-08-11 Kamil Ignacak
 	* debug: Adding src/libcw/libcw_debug.c module. Currently the module
 	implements only debug events with time stamps, but most probably all
 	debugging facilities will be moved to the module in future.
-=======
+
 2012-08-06 Kamil Ignacak
 	* build system configuration: fixing faulty logic checking
 	"--disable-feature" flags in configure.ac. Bug reported by Thomas
 	Beierlein. Thanks Thomas!
->>>>>>> 2acc71dea44d5c7e0910e0e841873e8f882274ed
 
 2012-07-04 Kamil Ignacak
 	* libcw: fixing problem with interlocks in threaded code; since
