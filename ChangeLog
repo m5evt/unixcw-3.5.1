@@ -4,7 +4,8 @@
 	slope is now default. Until now, shape of slopes has been calculated
 	every time a tone has been generated. Now the shape is calculated
 	only when some parameters of generator (volume, sample rate, length
-	of slope) change.
+	of slope) change. This should improve performance of libcw by one or
+	two percents (no benchmarks were performed :/ ).
 
 2012-08-11 Kamil Ignacak
 	* debug: Adding src/libcw/libcw_debug.c module. Currently the module
