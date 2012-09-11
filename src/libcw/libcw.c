@@ -157,9 +157,15 @@
 #define CW_OSS_SET_FRAGMENT       1  /* ioctl(fd, SNDCTL_DSP_SETFRAGMENT, &param) */
 #define CW_OSS_SET_POLICY         0  /* ioctl(fd, SNDCTL_DSP_POLICY, &param) */
 #define CW_ALSA_HW_BUFFER_CONFIG  0  /* set up hw buffer/period parameters; unnecessary and probably harmful */
-//#define LIBCW_WITH_DEV 1
+
+#ifdef LIBCW_STANDALONE
+#define CW_DEV_MAIN               1  /* enable main() for stand-alone compilation and tests of this file */
+#define LIBCW_WITH_DEV
+#else
+#define CW_DEV_MAIN               0
+#endif
+
 #ifdef LIBCW_WITH_DEV
-#define CW_DEV_MAIN               0  /* enable main() for stand-alone compilation and tests of this file */
 #define CW_DEV_RAW_SINK           1  /* create and use /tmp/cw_file.<audio system>.raw file with audio samples written as raw data */
 #define CW_DEV_RAW_SINK_MARKERS   0  /* put markers in raw data saved to raw sink */
 #endif
