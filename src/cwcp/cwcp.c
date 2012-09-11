@@ -63,6 +63,13 @@ extern cw_debug_t *debug2;
 /* Flag set if colors are requested on the user interface. */
 static bool do_colors = true;
 
+/* Are we at the beginning of buffer displaying played characters? */
+static bool beginning_of_buffer = true;
+/* Current sending state, active or idle. */
+static bool is_sending_active = false;
+
+
+
 /* Curses windows used globally. */
 static WINDOW *text_box, *text_display, *timer_display;
 static cw_config_t *config = NULL; /* program-specific configuration */
@@ -75,13 +82,65 @@ static const char *all_options = "s:|system,d:|device,"
 	/* "c:|colours,c:|colors,m|mono," */
 	"h|help,V|version";
 
+/* Curses windows used by interface functions only. */
+static WINDOW *screen = NULL,
+              *mode_display = NULL, *speed_display = NULL,
+              *tone_display = NULL, *volume_display = NULL,
+              *gap_display = NULL;
+
 static void cwcp_atexit(void);
 
 static int  timer_get_total_practice_time(void);
 static bool timer_set_total_practice_time(int practice_time);
 static void timer_start(void);
-static bool is_timer_expired(void);
+static bool timer_is_expired(void);
 static void timer_display_update(int elapsed, int total);
+
+
+typedef enum { M_DICTIONARY, M_KEYBOARD, M_EXIT } mode_type_t;
+
+static void mode_initialize(void);
+static bool mode_change_to_next(void);
+static bool mode_change_to_previous(void);
+static int  mode_get_current(void);
+static int  mode_get_count(void);
+static const char *mode_get_description(int index);
+static bool mode_current_is_type(mode_type_t type);
+static bool mode_is_sending_active(void);
+
+
+/* Definition of an interface operating mode; its description, related
+   dictionary, and data on how to send for the mode. */
+struct mode_s {
+	const char *description;       /* Text mode description */
+	mode_type_t type;              /* Mode type; {M_DICTIONARY|M_KEYBOARD|M_EXIT} */
+	const cw_dictionary_t *dict;   /* Dictionary, if type is dictionary */
+};
+
+
+typedef struct mode_s *moderef_t;
+
+/*
+ * Modes table, current program mode, and count of modes in the table.
+ * The program is always in one of these modes, indicated by current_mode.
+ */
+static moderef_t modes = NULL,
+                 current_mode = NULL;
+static int modes_count = 0;
+
+
+static void queue_enqueue_random_dictionary_text(moderef_t mode, bool beginning_of_buffer);
+static void queue_transfer_character_to_libcw(void);
+
+static void ui_refresh_main_window(void);
+static void ui_display_state(const char *state);
+static void ui_clear_main_window(void);
+static void ui_poll_user_input(int fd, int usecs);
+static void ui_update_mode_selection(int old_mode, int current_mode);
+
+static void state_change_to_active(void);
+static void state_change_to_idle(void);
+
 
 /*---------------------------------------------------------------------*/
 /*  Circular character queue                                           */
@@ -346,6 +405,95 @@ queue_delete_character (void)
 
 
 
+/**
+   Add a group of elements from current dictionary to cwcp's character queue
+
+   Function adds a group of letters, or a word, to cwcp's character
+   queue. The group or the word is then played and displayed in main
+   window.
+
+   The function also enqueues space separating words/groups if \p
+   beginning is true. You want to pass true only for first call of the
+   function for given mode (only when the program should queue and
+   play first group/word).
+
+   \param mode - mode determining from which dictionary to get elements
+   \param beginning - are we at the beginning of buffer/window?
+*/
+void queue_enqueue_random_dictionary_text(moderef_t mode, bool beginning)
+{
+	if (!beginning) {
+		queue_enqueue_character(' ');
+	}
+
+	/* Size of group of letters that will be printed together
+	   to main window of cwcp. '1' for dictionaries consisting
+	   of multi-character words (so you get single words separated
+	   with spaces), or '5' for single-character words (so you get
+	   5-letter chunks separated with spaces). */
+	int group_size = cw_dictionary_get_group_size(mode->dict);
+
+	/* Select and buffer N random elements selected from dictionary. */
+	for (int group = 0; group < group_size; group++) {
+		/* For dictionaries with size of word in dictionary == 1
+		   this returns single letters. */
+		queue_enqueue_string(cw_dictionary_get_random_word(mode->dict));
+	}
+
+	return;
+}
+
+
+
+
+
+/**
+   Check the libcw's tone queue, and if it is getting low, arrange for
+   more data to be passed in to the libcw's tone queue.
+*/
+void queue_transfer_character_to_libcw(void)
+{
+	if (cw_get_tone_queue_length () > 1) {
+		return;
+	}
+
+	if (!is_sending_active) {
+		return;
+	}
+
+	/* Arrange more data for libcw.  The source for this data is
+	   dependent on the mode.  If in dictionary modes, update and
+	   check the timer, then add more random data if the queue is
+	   empty.  If in keyboard mode, just dequeue anything
+	   currently on the character queue. */
+
+	if (current_mode->type == M_DICTIONARY) {
+		if (timer_is_expired()) {
+			state_change_to_idle();
+			return;
+		}
+
+		if (queue_get_length() == 0) {
+			queue_enqueue_random_dictionary_text(current_mode, beginning_of_buffer);
+			if (beginning_of_buffer) {
+				beginning_of_buffer = false;
+			}
+		}
+	}
+
+	if (current_mode->type == M_DICTIONARY
+	    || current_mode->type == M_KEYBOARD) {
+
+		queue_dequeue_character();
+	}
+
+	return;
+}
+
+
+
+
+
 /*---------------------------------------------------------------------*/
 /*  Practice timer                                                     */
 /*---------------------------------------------------------------------*/
@@ -413,7 +561,7 @@ void timer_start(void)
    \return true if timer has expired
    \return false if timer has not expired yet
 */
-bool is_timer_expired(void)
+bool timer_is_expired(void)
 {
 	/* Update the display of minutes practiced. */
 	int elapsed = (time(NULL) - timer_practice_start) / 60;
@@ -462,271 +610,230 @@ void timer_display_update(int elapsed, int total)
 /*  General program state and mode control                             */
 /*---------------------------------------------------------------------*/
 
+
+
+
+
+/**
+   \brief Initialize modes
+
+   Build up the modes from the known dictionaries, then add non-dictionary
+   modes.
+*/
+void mode_initialize(void)
+{
+	if (modes) {
+		/* Dispose of any pre-existing modes -- unlikely. */
+		free(modes);
+		modes = NULL;
+	}
+
+	/* Start the modes with the known dictionaries. */
+	int count = 0;
+	for (const cw_dictionary_t *dict = cw_dictionaries_iterate(NULL);
+	     dict;
+	     dict = cw_dictionaries_iterate(dict)) {
+
+		modes = safe_realloc(modes, sizeof (*modes) * (count + 1));
+		modes[count].description = cw_dictionary_get_description(dict);
+		modes[count].type = M_DICTIONARY;
+		modes[count++].dict = dict;
+	}
+
+	/* Add keyboard, exit, and null sentinel. */
+	modes = safe_realloc(modes, sizeof (*modes) * (count + 3));
+	modes[count].description = _("Keyboard");
+	modes[count].type = M_KEYBOARD;
+	modes[count++].dict = NULL;
+
+	modes[count].description = _("Exit (F12)");
+	modes[count].type = M_EXIT;
+	modes[count++].dict = NULL;
+
+	memset(modes + count, 0, sizeof (*modes));
+
+	/* Initialize the current mode to be the first listed, and set count. */
+	current_mode = modes;
+	modes_count = count;
+
+	return;
+}
+
+
+
+
+
+/**
+   \brief Get count of modes
+*/
+int mode_get_count(void)
+{
+	return modes_count;
+}
+
+
+
+
+
+/**
+   \brief Get index of the current mode
+*/
+int mode_get_current(void)
+{
+	return current_mode - modes;
+}
+
+
+
+
+
+/**
+   \brief Get description of a mode at given index
+*/
+const char *mode_get_description(int index)
+{
+	return modes[index].description;
+}
+
+
+
+
+
+/**
+   \brief Get result of a type comparison for the current mode
+*/
+bool mode_current_is_type(mode_type_t type)
+{
+	return current_mode->type == type;
+}
+
+
+
+
+
+/**
+   \brief Change the mode to next one
+
+   Advance the current node, returning false if at the limit.
+
+   \return true if mode has been changed
+   \return false if mode has not been changed because it was the last on list
+*/
+bool mode_change_to_next(void)
+{
+	current_mode++;
+	if (!current_mode->description) {
+		current_mode--;
+		return false;
+	} else {
+		return true;
+	}
+}
+
+
+
+
+
+/**
+   \brief Change the mode to previous one
+
+   Regress the current node, returning false if at the limit.
+
+   \return true if mode has been changed
+   \return false if mode has not been changed because it was the first on list
+*/
+bool mode_change_to_previous(void)
+{
+	if (current_mode > modes) {
+		current_mode--;
+		return true;
+	} else {
+		return false;
+	}
+}
+
+
+
+
+
 /*
- * Definition of an interface operating mode; its description, related
- * dictionary, and data on how to send for the mode.
- */
-typedef enum { M_DICTIONARY, M_KEYBOARD, M_EXIT } mode_type_t;
-struct mode_s
-{
-  const char *description;       /* Text mode description */
-  mode_type_t type;              /* Mode type; dictionary, keyboard... */
-  const cw_dictionary_t *dict;   /* Dictionary, if type is dictionary */
-};
-typedef struct mode_s *moderef_t;
-
-/*
- * Modes table, current program mode, and count of modes in the table.
- * The program is always in one of these modes, indicated by current_mode.
- */
-static moderef_t modes = NULL,
-                 current_mode = NULL;
-static int modes_count = 0;
-
-/* Current sending state, active or idle. */
-static bool is_sending_active = false;
-
-
-/*
- * mode_initialize()
- *
- * Build up the modes from the known dictionaries, then add non-dictionary
- * modes.
- */
-static void
-mode_initialize (void)
-{
-  /* Dispose of any pre-existing modes -- unlikely. */
-  free (modes);
-  modes = NULL;
-
-  /* Start the modes with the known dictionaries. */
-  int count = 0;
-  for (const cw_dictionary_t *dict = cw_dictionaries_iterate(NULL); dict; dict = cw_dictionaries_iterate(dict))
-    {
-      modes = safe_realloc (modes, sizeof (*modes) * (count + 1));
-      modes[count].description = cw_dictionary_get_description (dict);
-      modes[count].type = M_DICTIONARY;
-      modes[count++].dict = dict;
-    }
-
-  /* Add keyboard, exit, and null sentinel. */
-  modes = safe_realloc (modes, sizeof (*modes) * (count + 3));
-  modes[count].description = _("Keyboard");
-  modes[count].type = M_KEYBOARD;
-  modes[count++].dict = NULL;
-
-  modes[count].description = _("Exit (F12)");
-  modes[count].type = M_EXIT;
-  modes[count++].dict = NULL;
-
-  memset (modes + count, 0, sizeof (*modes));
-
-  /* Initialize the current mode to be the first listed, and set count. */
-  current_mode = modes;
-  modes_count = count;
-}
-
-
-/*
- * mode_get_count()
- * mode_get_current()
- * mode_get_description()
- * mode_current_is_type()
- *
- * Get the count of modes, the index of the current mode, a description of the
- * mode at a given index, and a type comparison for the current mode.
- */
-static int
-mode_get_count (void)
-{
-  return modes_count;
-}
-
-static int
-mode_get_current (void)
-{
-  return current_mode - modes;
-}
-
-static const char *
-mode_get_description (int index)
-{
-  return modes[index].description;
-}
-
-static bool
-mode_current_is_type (mode_type_t type)
-{
-  return current_mode->type == type;
-}
-
-
-/*
- * mode_advance_current()
- * mode_regress_current()
- *
- * Advance and regress the current node, returning false if at the limits.
- */
-static bool
-mode_advance_current (void)
-{
-  current_mode++;
-  if (!current_mode->description)
-    {
-      current_mode--;
-      return false;
-    }
-  else
-    return true;
-}
-
-static bool
-mode_regress_current (void)
-{
-  if (current_mode > modes)
-    {
-      current_mode--;
-      return true;
-    }
-  else
-    return false;
-}
-
-
-/*
- * change_state_to_active()
  *
  * Change the state of the program from idle to actively sending.
  */
-static void
-change_state_to_active (void)
+void state_change_to_active (void)
 {
-  static moderef_t last_mode = NULL;  /* Detect changes of mode */
+	static moderef_t last_mode = NULL;  /* Detect changes of mode */
 
-  if (!is_sending_active)
-    {
-      cw_start_beep();
+	if (is_sending_active) {
+		return;
+	}
 
-      /* Don't set sending_state until after the above warning has completed. */
-      is_sending_active = true;
+	cw_start_beep();
 
-      mvwaddstr (text_box, 0, 1, _("Sending(F9 or Esc to exit)"));
-      wnoutrefresh (text_box);
-      doupdate ();
+	is_sending_active = true;
 
-      if (current_mode != last_mode)
-        {
-          /* If the mode changed, clear the display window. */
-          werase (text_display);
-          wmove (text_display, 0, 0);
-          wrefresh (text_display);
+	ui_display_state(_("Sending(F9 or Esc to exit)"));
 
-          /* And if we are starting something new, start the timer. */
-          timer_start ();
+	if (current_mode != last_mode) {
+		ui_clear_main_window();
+		timer_start();
 
-          last_mode = current_mode;
+		/* Don't allow a space at the beginning of buffer. */
+		beginning_of_buffer = true;
+
+		last_mode = current_mode;
         }
-   }
+
+	ui_refresh_main_window();
+
+	return;
 }
 
 
-/*
- * change_state_to_idle()
- *
- * Change the state of the program from actively sending to idle.
- */
-static void
-change_state_to_idle (void)
+
+
+
+/**
+   Change the state of the program from actively sending to idle.
+*/
+void state_change_to_idle(void)
 {
-  if (is_sending_active)
-    {
-      is_sending_active = false;
+	if (!is_sending_active) {
+		return;
+	}
 
-      box (text_box, 0, 0);
-      mvwaddstr (text_box, 0, 1, _("Start(F9)"));
-      wnoutrefresh (text_box);
-      touchwin (text_display);
-      wnoutrefresh (text_display);
-      doupdate ();
+	is_sending_active = false;
 
-      /* Remove everything in the outgoing character queue. */
-      queue_discard_contents ();
+	ui_display_state(_("Start(F9)"));
+	touchwin(text_display);
+	wnoutrefresh(text_display);
+	doupdate();
 
-      cw_end_beep();
-    }
+	/* Remove everything in the outgoing character queue. */
+	queue_discard_contents();
+
+	cw_end_beep();
+
+	return;
 }
 
 
-/*
- * mode_buffer_random_text()
- *
- * Add a group of elements, based on the given mode, to the character queue.
- */
-static void
-mode_buffer_random_text (moderef_t mode)
+
+
+
+/**
+   \brief Check if sending is active
+
+   \return true if currently sending
+   \return false otherwise
+*/
+bool mode_is_sending_active(void)
 {
-  int group_size = cw_dictionary_get_group_size (mode->dict);
-
-  /* Select and buffer groupsize random wordlist elements. */
-  queue_enqueue_character (' ');
-  for (int group = 0; group < group_size; group++)
-    queue_enqueue_string (cw_dictionary_get_random_word (mode->dict));
+	return is_sending_active;
 }
 
 
-/*
- * mode_libcw_poll_sender()
- *
- * Poll the CW library tone queue, and if it is getting low, arrange for
- * more data to be passed in to the sender.
- */
-static void
-mode_libcw_poll_sender (void)
-{
-  if (cw_get_tone_queue_length () <= 1)
-    {
-      /*
-       * If sending is active, arrange more data for libcw.  The source for
-       * this data is dependent on the mode.  If in dictionary modes, update
-       * and check the timer, then add more random data if the queue is empty.
-       * If in keyboard mode, just dequeue anything currently on the character
-       * queue.
-       */
-      if (is_sending_active)
-        {
-          if (current_mode->type == M_DICTIONARY)
-            {
-              if (is_timer_expired ())
-                {
-                  change_state_to_idle ();
-                  return;
-                }
 
-              if (queue_get_length () == 0)
-                mode_buffer_random_text (current_mode);
-            }
-
-          if (current_mode->type == M_DICTIONARY
-              || current_mode->type == M_KEYBOARD)
-            {
-              queue_dequeue_character ();
-            }
-        }
-    }
-}
-
-
-/*
- * mode_is_sending_active()
- *
- * Return true if currently sending, false otherwise.
- */
-static bool
-mode_is_sending_active (void)
-{
-  return is_sending_active;
-}
 
 
 /*---------------------------------------------------------------------*/
@@ -800,11 +907,7 @@ static int display_foreground = DISPLAY_FOREGROUND,  /* White foreground */
            box_foreground = BOX_FOREGROUND,          /* White foreground */
            box_background = BOX_BACKGROUND;          /* Black background */
 
-/* Curses windows used by interface functions only. */
-static WINDOW *screen = NULL,
-              *mode_display = NULL, *speed_display = NULL,
-              *tone_display = NULL, *volume_display = NULL,
-              *gap_display = NULL;
+
 
 /*
  * interface_init_screen()
@@ -1031,7 +1134,7 @@ static int
 interface_interpret (int c)
 {
   char buffer[16];
-  int previous_mode, value;
+  int value;
 
   /* Interpret the command passed in */
   switch (c)
@@ -1170,32 +1273,26 @@ interface_interpret (int c)
     case KEY_F (11):
     case PSEUDO_KEYF11:
     case KEY_UP:
-      change_state_to_idle ();
-      previous_mode = mode_get_current ();
-      if (mode_regress_current ())
-        goto mode_update;
-      break;
+	    {
+		    state_change_to_idle();
+		    int old_mode = mode_get_current();
+		    if (mode_change_to_previous()) {
+			    ui_update_mode_selection(old_mode, mode_get_current());
+		    }
+	    }
+	    break;
 
     case KEY_F (10):
     case PSEUDO_KEYF10:
     case KEY_DOWN:
-      change_state_to_idle ();
-      previous_mode = mode_get_current ();
-      if (mode_advance_current ())
-        goto mode_update;
-      break;
-
-    mode_update:
-      wattroff (mode_display, A_REVERSE);
-      mvwaddstr (mode_display,
-                 previous_mode, 0, mode_get_description (previous_mode));
-      wattron (mode_display, A_REVERSE);
-      mvwaddstr (mode_display,
-                 mode_get_current (), 0,
-                 mode_get_description (mode_get_current ()));
-      wrefresh (mode_display);
-      break;
-
+	    {
+		    state_change_to_idle();
+		    int old_mode = mode_get_current();
+		    if (mode_change_to_next()) {
+			    ui_update_mode_selection(old_mode, mode_get_current());
+		    }
+	    }
+	    break;
 
     case KEY_F (9):
     case PSEUDO_KEYF9:
@@ -1205,26 +1302,23 @@ interface_interpret (int c)
       else
         {
           if (!mode_is_sending_active ())
-            change_state_to_active ();
+            state_change_to_active ();
           else
             if (c != '\n')
-              change_state_to_idle ();
+              state_change_to_idle ();
         }
       break;
 
     case KEY_CLEAR:
     case 'V' - CTRL_OFFSET:
-      if (!mode_is_sending_active ())
-        {
-          werase (text_display);
-          wmove (text_display, 0, 0);
-          wrefresh (text_display);
-        }
+	    if (!mode_is_sending_active()) {
+		    ui_clear_main_window();
+	    }
       break;
 
     case '[' - CTRL_OFFSET:
     case 'Z' - CTRL_OFFSET:
-      change_state_to_idle ();
+      state_change_to_idle ();
       break;
 
     case KEY_F (12):
@@ -1236,7 +1330,7 @@ interface_interpret (int c)
       break;
 
     case KEY_RESIZE:
-      change_state_to_idle ();
+      state_change_to_idle ();
       interface_destroy ();
       interface_initialize ();
       break;
@@ -1286,45 +1380,122 @@ interface_handle_event (int c)
 
 
 
-/*
- * poll_until_keypress_ready()
- *
- * Calls our sender polling function at regular intervals, and returns only
- * when data is available to getch(), so that it will not block.
- */
-static void
-poll_until_keypress_ready (int fd, int usecs)
+/**
+   \brief Check for keyboard input from user
+
+   Calls our sender polling function at regular intervals, and returns only
+   when data is available to getch(), so that it will not block.
+
+   Opportunistically on every poll check if we need to update queue
+   of elements to play/display, and if so, do update the queue.
+
+   \param fd - file to pool for new keys from the user
+   \param usecs - pooling interval
+*/
+void ui_poll_user_input(int fd, int usecs)
 {
-  int fd_count;
+	int fd_count;
 
-  /* Poll until the select indicates data on the file descriptor. */
-  do
-    {
-      fd_set read_set;
-      struct timeval timeout;
+	/* Poll until the select indicates data on the file descriptor. */
+	do {
+		fd_set read_set;
+		struct timeval timeout;
 
-      /* Set up a the file descriptor set and timeout information. */
-      FD_ZERO (&read_set);
-      FD_SET (fd, &read_set);
-      timeout.tv_sec = usecs / 1000000;
-      timeout.tv_usec = usecs % 1000000;
+		/* Set up a the file descriptor set and timeout information. */
+		FD_ZERO(&read_set);
+		FD_SET(fd, &read_set);
+		timeout.tv_sec = usecs / 1000000;
+		timeout.tv_usec = usecs % 1000000;
 
-      /*
-       * Wait until timeout, data, or a signal.  If a signal interrupts
-       * select, we can just treat it as another timeout.
-       */
-      fd_count = select (fd + 1, &read_set, NULL, NULL, &timeout);
-      if (fd_count == -1 && errno != EINTR)
-        {
-          perror ("select");
-          abort ();
-        }
+		/* Wait until timeout, data, or a signal.
+		   If a signal interrupts select, we can just treat it as
+		   another timeout. */
+		fd_count = select(fd + 1, &read_set, NULL, NULL, &timeout);
+		if (fd_count == -1 && errno != EINTR) {
+			perror("select");
+			exit(EXIT_FAILURE);
+		}
 
-      /* Poll the sender on timeouts and on reads; it's just easier. */
-      mode_libcw_poll_sender ();
-    }
-  while (fd_count != 1);
+		/* Make this call on timeouts and on reads; it's just easier. */
+		queue_transfer_character_to_libcw();
+	} while (fd_count != 1);
+
+	return;
 }
+
+
+
+
+
+void ui_clear_main_window(void)
+{
+	werase(text_display);
+	wmove(text_display, 0, 0);
+	wrefresh(text_display);
+
+	return;
+}
+
+
+
+
+
+void ui_refresh_main_window(void)
+{
+	touchwin(text_display);
+	wnoutrefresh(text_display);
+	doupdate();
+
+	return;
+}
+
+
+
+
+
+void ui_display_state(const char *state)
+{
+	box(text_box, 0, 0);
+	mvwaddstr(text_box, 0, 1, state);
+	wnoutrefresh(text_box);
+	doupdate();
+
+	return;
+}
+
+
+
+
+
+/**
+   Change appearance of list of modes, indicating current mode
+
+   Change an entry in list of modes, indicating which mode is
+   currently selected. un-highlight \p old_mode, highlight
+   \p current_mode.
+
+   \param old_mode - index of old mode
+   \param current_mode - index of currently selected mode
+*/
+void ui_update_mode_selection(int old_mode, int current_mode)
+{
+      wattroff(mode_display, A_REVERSE);
+      mvwaddstr(mode_display,
+		old_mode, 0,
+		mode_get_description(old_mode));
+
+      wattron(mode_display, A_REVERSE);
+      mvwaddstr(mode_display,
+		current_mode, 0,
+		mode_get_description(current_mode));
+
+      wrefresh(mode_display);
+
+      return;
+}
+
+
+
 
 
 /*
@@ -1442,7 +1613,7 @@ int main(int argc, char **argv)
 	interface_initialize ();
 	cw_generator_start();
 	while (is_running) {
-		poll_until_keypress_ready(fileno(stdin), 10000);
+		ui_poll_user_input(fileno(stdin), 10000);
 		interface_handle_event(getch());
 	}
 
