@@ -992,6 +992,9 @@ libcw.3: libcw.3.m4 libcw.c
 	$(AC_AWK) -f $(top_srcdir)/src/libcw/libdoc.awk  < $(top_srcdir)/src/libcw/libcw.c | $(AC_AWK) -f $(top_srcdir)/src/libcw/libfuncs.awk > functions
 	$(AC_AWK) -f $(top_srcdir)/src/libcw/include.awk < $(top_srcdir)/src/libcw/libcw.3.m4 >libcw.3
 	rm -f signatures functions
+
+standalone:
+	gcc libcw.c libcw_debug.c -lm -ldl -lpthread -std=c99 -I../ -I../cwutils -DLIBCW_WITH_DEV -DLIBCW_STANDALONE
 greptest.sh:
 	echo './libcwunittests | grep "test result: success"' > greptest.sh
 	chmod +x greptest.sh
