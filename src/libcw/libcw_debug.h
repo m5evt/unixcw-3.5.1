@@ -43,7 +43,8 @@ typedef struct {
 		long long usec;   /* Time of registering the event - microsecond. */
 	} events[CW_DEBUG_N_EVENTS_MAX];
 
-	int n;  /* Event counter. */
+	int n;       /* Event counter. */
+	int n_max;   /* Flush threshold. */
 } cw_debug_t;
 
 
@@ -56,13 +57,13 @@ void        cw_debug2_flush(cw_debug_t *debug);
 
 
 enum {
-	CW_DEBUG_EVENT_TONE_LOW = 0,    /* Tone with non-zero frequency. */
-	CW_DEBUG_EVENT_TONE_MID,        /* A state between LOW and HIGH, probably unused. */
-	CW_DEBUG_EVENT_TONE_HIGH,       /* Tone with zero frequency. */
+	CW_DEBUG_EVENT_TONE_LOW  = 0,         /* Tone with non-zero frequency. */
+	CW_DEBUG_EVENT_TONE_MID,              /* A state between LOW and HIGH, probably unused. */
+	CW_DEBUG_EVENT_TONE_HIGH,             /* Tone with zero frequency. */
 
-	CW_DEBUG_EVENT_TQ_JUST_EMPTIED, /* A last tone from libcw's queue of tones has been dequeued, making the queue empty. */
-	CW_DEBUG_EVENT_TQ_NONEMPTY,     /* A tone from libcw's queue of tones has been dequeued, but the queue is still non-empty. */
-	CW_DEBUG_EVENT_TQ_STILL_EMPTY   /* libcw's queue of tones has been asked for tone, but there were no tones on the queue. */
+	CW_DEBUG_EVENT_TQ_JUST_EMPTIED,       /* A last tone from libcw's queue of tones has been dequeued, making the queue empty. */
+	CW_DEBUG_EVENT_TQ_NONEMPTY,           /* A tone from libcw's queue of tones has been dequeued, but the queue is still non-empty. */
+	CW_DEBUG_EVENT_TQ_STILL_EMPTY         /* libcw's queue of tones has been asked for tone, but there were no tones on the queue. */
 };
 
 
