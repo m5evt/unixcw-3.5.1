@@ -90,6 +90,7 @@ cw_debug_t *cw_debug2_new(const char *filename)
 	}
 
 	debug->n = 0;
+	debug->n_max = CW_DEBUG_N_EVENTS_MAX;
 	debug->flags = 0;
 
 	return debug;
@@ -162,7 +163,7 @@ void cw_debug2(cw_debug_t *debug, int flag, int event)
 
 	debug->n++;
 
-	if (debug->n >= CW_DEBUG_N_EVENTS_MAX) {
+	if (debug->n >= debug->n_max) {
 		cw_debug2_flush(debug);
 		debug->n = 0;
 	}
@@ -196,7 +197,7 @@ void cw_debug2_flush(cw_debug_t *debug)
 
 	fprintf(debug->file, "FLUSH START\n");
 	for (int i = 0; i < debug->n; i++) {
-		fprintf(debug->file, "%06lld %06lld %s\n",
+		fprintf(debug->file, "libcwevent:\t%06lld%06lld\t%s\n",
 			debug->events[i].sec - diff, debug->events[i].usec,
 			cw_debug_events[debug->events[i].event].message);
 	}
