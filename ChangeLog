@@ -1,3 +1,14 @@
+2012-09-11 Kamil Ignacak
+	* debug: adding src/libcw/libcw_debug.py - a tool that transforms
+	timing information that may be printed by debugged libcw
+	applications.  The transformed timing information may be then
+	plotted by plotting programs to gain insight into inner workings
+	and time dependencies of different parts of libcw applications.
+	The tool is rather imperfect and may need manual adjustments for
+	every new situation, but hopefully it will turn out to be useful.
+	* cwcp: refactoring cwcp.c, adding comments, fixing one small
+	annoyance.
+
 2012-08-15 Kamil Ignacak
 	* tone slopes: libcw now can generate tones with slopes shaped as
 	sine function or as raised cosine function. The 'raised cosine'
