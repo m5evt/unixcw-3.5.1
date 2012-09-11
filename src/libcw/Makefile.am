@@ -100,6 +100,9 @@ libcw.3: libcw.3.m4 libcw.c
 
 
 
+standalone:
+	gcc libcw.c libcw_debug.c -lm -ldl -lpthread -std=c99 -I../ -I../cwutils -DLIBCW_WITH_DEV -DLIBCW_STANDALONE
+
 
 # target: libcw.pc
 pkgconfigdir = $(libdir)/pkgconfig
