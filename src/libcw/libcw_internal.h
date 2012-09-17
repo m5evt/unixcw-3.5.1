@@ -151,8 +151,8 @@ typedef struct cw_tone_struct {
 
 
 
-typedef struct cw_tone_queue_struct cw_tone_queue_t;
-typedef struct cw_gen_struct cw_gen_t;
+//typedef struct cw_tone_queue_struct cw_tone_queue_t;
+//typedef struct cw_gen_struct cw_gen_t;
 
 struct cw_gen_struct {
 
