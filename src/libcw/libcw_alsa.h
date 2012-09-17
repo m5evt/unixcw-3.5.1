@@ -14,7 +14,6 @@
 
 
 
-bool cw_is_alsa_possible(const char *device);
 int  cw_alsa_configure(cw_gen_t *gen, const char *device);
 void cw_alsa_drop(cw_gen_t *gen);
 

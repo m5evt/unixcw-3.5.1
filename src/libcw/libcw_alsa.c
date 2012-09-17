@@ -660,7 +660,17 @@ void cw_alsa_drop(cw_gen_t *gen)
 
 
 
-#else
+
+
+#else // #ifdef LIBCW_WITH_ALSA
+
+
+
+
+
+#include <stdbool.h>
+#include "libcw_alsa.h"
+#include "libcw_internal.h"
 
 
 
