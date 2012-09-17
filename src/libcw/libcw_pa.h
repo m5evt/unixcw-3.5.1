@@ -25,11 +25,10 @@ typedef struct cw_pa_data_struct {
 	pa_buffer_attr ba;
 } cw_pa_data_t;
 
+#include "libcw_internal.h"
+//typedef struct cw_gen_struct cw_gen_t;
 
-typedef struct cw_gen_struct cw_gen_t;
 
-
-bool cw_is_pa_possible(const char *device);
 int  cw_pa_configure(cw_gen_t *gen, const char *device);
 
 
