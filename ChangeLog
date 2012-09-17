@@ -1,3 +1,10 @@
+2012-09-17 Kamil Ignacak
+	* libcw: code implementing support for various audio backends has
+	been moved from libcw.c to new files. That way we have less mess
+	in libcw.c, better separation of modules, and cleaner space for
+	improvements in code implementing support for audio backends (e.g.
+	advanced API of PulseAudio).
+
 2012-09-11 Kamil Ignacak
 	* debug: adding src/libcw/libcw_debug.py - a tool that transforms
 	timing information that may be printed by debugged libcw
