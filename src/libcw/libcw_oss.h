@@ -12,8 +12,7 @@
 
 #include "libcw.h"
 
-bool cw_is_oss_possible(const char *device);
-int  cw_oss_configure(cw_gen_t *gen, const char *device);
+int cw_oss_configure(cw_gen_t *gen, const char *device);
 
 
 #endif //#if defined(LIBCW_WITH_OSS)
