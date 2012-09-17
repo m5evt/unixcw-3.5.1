@@ -36,11 +36,7 @@ EXTRA_DIST=include.awk libdoc.awk libfuncs.awk libpc.awk libsigs.awk \
 # target: shared library
 
 # source code files used to build libcw shared library
-if LIBCW_WITH_DEV
-libcw_la_SOURCES = libcw.c libcw.h libcw_debug.c libcw_debug.h
-else
-libcw_la_SOURCES = libcw.c libcw.h
-endif
+libcw_la_SOURCES = libcw.c libcw_null.c libcw_console.c libcw_pa.c libcw_oss.c libcw_alsa.c libcw_debug.c
 
 # target-specific linker flags (objects to link)
 # libcw_la_LIBADD=-lm -lpthread $(AC_ALSA_LIBS)  $(AC_PULSEAUDIO_LIBS)
@@ -75,11 +71,7 @@ libcwtest_LDADD = -L./.libs -lcw
 # main() is defined in libcw.c, enabled by a LIBCW_UNIT_TESTS flag
 
 # source code files used to build libcwunittests program
-if LIBCW_WITH_DEV
-libcwunittests_SOURCES = libcw.c libcw_debug.c
-else
-libcwunittests_SOURCES = libcw.c
-endif
+libcwunittests_SOURCES = libcw.c libcw_null.c libcw_console.c libcw_pa.c libcw_oss.c libcw_alsa.c libcw_debug.c
 
 # target-specific preprocessor flags (#defs and include dirs)
 libcwunittests_CPPFLAGS = $(AM_CPPFLAGS) -DLIBCW_UNIT_TESTS
@@ -101,7 +93,7 @@ libcw.3: libcw.3.m4 libcw.c
 
 
 standalone:
-	gcc libcw.c libcw_debug.c -lm -ldl -lpthread -std=c99 -I../ -I../cwutils -DLIBCW_WITH_DEV -DLIBCW_STANDALONE
+	gcc -O0 -g libcw.c libcw_console.c libcw_null.c libcw_pa.c libcw_debug.c libcw_oss.c libcw_alsa.c -lm -ldl -lpthread -std=c99 -I../ -I../cwutils -DLIBCW_WITH_DEV -DLIBCW_STANDALONE -DLIBCW_WITH_PULSEAUDIO -DLIBCW_WITH_OSS -DLIBCW_WITH_ALSA -DLIBCW_WITH_CONSOLE
 
 
 # target: libcw.pc
@@ -130,5 +122,6 @@ greptest.sh:
 #
 # source of snippet related to "check_SCRIPTS" and greptests.sh:
 # http://www.freesoftwaremagazine.com/books/agaal/automatically_writing_makefiles_with_autotools
+
 
 
