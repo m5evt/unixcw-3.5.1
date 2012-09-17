@@ -27,14 +27,22 @@
 
 */
 
+#define _BSD_SOURCE   /* usleep() */
+#define _POSIX_SOURCE /* sigaction() */
+#define _POSIX_C_SOURCE 200112L /* pthread_sigmask() */
+
 
 #include <stdio.h>
 #include <sys/time.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "libcw_internal.h"
 #include "libcw_debug.h"
 
+
+
+extern const char *cw_audio_system_labels[];
 
 struct {
 	int flag;
@@ -207,5 +215,210 @@ void cw_debug2_flush(cw_debug_t *debug)
 
 	return;
 }
+
+
+
+
+
+/* Current debug flags setting; no debug unless requested. */
+unsigned int cw_debug_flags = 0; //CW_DEBUG_TONE_QUEUE; //CW_DEBUG_KEYER_STATES | CW_DEBUG_KEYER_STATES_VERBOSE | CW_DEBUG_STRAIGHT_KEY | CW_DEBUG_KEYING; // | CW_DEBUG_TONE_QUEUE;
+
+
+
+
+
+/**
+   \brief Set a value of internal debug flags variable
+
+   Assign specified value to library's internal debug flags variable.
+   Note that this function doesn't *append* given flag to the variable,
+   it erases existing value and assigns new one. Use cw_get_debug_flags()
+   if you want to OR new flag with existing ones.
+
+   \param new_value - new value to be assigned to the library
+*/
+void cw_set_debug_flags(unsigned int new_value)
+{
+	cw_debug_flags = new_value;
+	return;
+}
+
+
+
+
+
+/**
+   \brief Get current library's debug flags
+
+   Function returns value of library's internal debug variable.
+
+   \return value of library's debug flags variable
+*/
+unsigned int cw_get_debug_flags(void)
+{
+	/* TODO: extract reading LIBCW_DEBUG env
+	   variable to separate function. */
+
+	static bool is_initialized = false;
+
+	if (!is_initialized) {
+		/* Do not overwrite any debug flags already set. */
+		if (cw_debug_flags == 0) {
+
+			/*
+			 * Set the debug flags from LIBCW_DEBUG.  If it is an invalid
+			 * numeric, treat it as 0; there is no error checking.
+			 */
+			const char *debug_value = getenv("LIBCW_DEBUG");
+			if (debug_value) {
+				cw_debug_flags = strtoul(debug_value, NULL, 0);
+			}
+		}
+
+		is_initialized = true;
+	}
+
+	return cw_debug_flags;
+}
+
+
+
+
+
+/**
+   \brief Check if given debug flag is set
+
+   Function checks if a specified debug flag is set in internal
+   variable of libcw library.
+
+   \param flag - flag to be checked.
+
+   \return true if given flag is set
+   \return false if given flag is not set
+*/
+bool cw_is_debugging_internal(unsigned int flag)
+{
+	return cw_get_debug_flags() & flag;
+}
+
+
+
+
+
+
+
+
+
+
+#ifdef LIBCW_WITH_DEV
+
+
+
+
+
+void cw_dev_debug_print_generator_setup(cw_gen_t *gen)
+{
+	fprintf(stderr, "audio system:         %s\n",     cw_audio_system_labels[gen->audio_system]);
+	if (gen->audio_system == CW_AUDIO_OSS) {
+		fprintf(stderr, "OSS version           %X.%X.%X\n",
+			gen->oss_version.x, gen->oss_version.y, gen->oss_version.z);
+	}
+	fprintf(stderr, "audio device:         \"%s\"\n",  gen->audio_device);
+	fprintf(stderr, "sample rate:          %d Hz\n",  gen->sample_rate);
+
+#ifdef LIBCW_WITH_PULSEAUDIO
+	if (gen->audio_system == CW_AUDIO_PA) {
+		fprintf(stderr, "PulseAudio latency:   %llu us\n", (unsigned long long int) gen->pa.latency_usecs);
+
+		if (gen->pa.ba.prebuf == (uint32_t) -1) {
+			fprintf(stderr, "PulseAudio prebuf:    (not set)\n");
+		} else {
+			fprintf(stderr, "PulseAudio prebuf:    %u bytes\n", (uint32_t) gen->pa.ba.prebuf);
+		}
+
+		if (gen->pa.ba.tlength == (uint32_t) -1) {
+			fprintf(stderr, "PulseAudio tlength:   (not set)\n");
+		} else {
+			fprintf(stderr, "PulseAudio tlength:   %u bytes\n", (uint32_t) gen->pa.ba.tlength);
+		}
+
+		if (gen->pa.ba.minreq == (uint32_t) -1) {
+			fprintf(stderr, "PulseAudio minreq:    (not set)\n");
+		} else {
+			fprintf(stderr, "PulseAudio minreq:    %u bytes\n", (uint32_t) gen->pa.ba.minreq);
+		}
+
+		if (gen->pa.ba.maxlength == (uint32_t) -1) {
+			fprintf(stderr, "PulseAudio maxlength: (not set)\n");
+		} else {
+			fprintf(stderr, "PulseAudio maxlength: %u bytes\n", (uint32_t) gen->pa.ba.maxlength);
+		}
+
+#if 0	        /* not relevant to playback */
+		if (gen->pa.ba.fragsize == (uint32_t) -1) {
+			fprintf(stderr, "PulseAudio fragsize:  (not set)\n");
+		} else {
+			fprintf(stderr, "PulseAudio fragsize:  %u bytes\n", (uint32_t) gen->pa.ba.fragsize);
+		}
+#endif
+
+	}
+#endif // #ifdef LIBCW_WITH_PULSEAUDIO
+
+	fprintf(stderr, "send speed:           %d wpm\n", gen->send_speed);
+	fprintf(stderr, "volume:               %d %%\n",  gen->volume_percent);
+	fprintf(stderr, "frequency:            %d Hz\n",  gen->frequency);
+	fprintf(stderr, "audio buffer size:    %d\n",     gen->buffer_n_samples);
+
+	fprintf(stderr, "debug sink file:      %s\n", gen->dev_raw_sink != -1 ? "yes" : "no");
+
+	return;
+}
+
+
+
+
+
+int cw_dev_debug_raw_sink_write_internal(cw_gen_t *gen)
+{
+	if (gen->audio_system == CW_AUDIO_NONE
+	    || gen->audio_system == CW_AUDIO_NULL
+	    || gen->audio_system == CW_AUDIO_CONSOLE) {
+
+		return CW_SUCCESS;
+	}
+
+	if (gen->dev_raw_sink != -1) {
+#if CW_DEV_RAW_SINK_MARKERS
+		/* FIXME: this will cause memory access error at
+		   the end, when generator is destroyed in the
+		   other thread */
+		gen->buffer[0] = 0x7fff;
+		gen->buffer[1] = 0x7fff;
+		gen->buffer[samples - 2] = 0x8000;
+		gen->buffer[samples - 1] = 0x8000;
+#endif
+
+		int n_bytes = sizeof (gen->buffer[0]) * gen->buffer_n_samples;
+
+		int rv = write(gen->dev_raw_sink, gen->buffer, n_bytes);
+		if (rv == -1) {
+			cw_dev_debug ("ERROR: write error: %s (gen->dev_raw_sink = %ld, gen->buffer = %ld, n_bytes = %d)", strerror(errno), (long) gen->dev_raw_sink, (long) gen->buffer, n_bytes);
+			return CW_FAILURE;
+		}
+	}
+
+	return CW_SUCCESS;
+}
+
+
+
+
+
+#endif // #ifdef LIBCW_WITH_DEV
+
+
+
+
 
 
