@@ -26,6 +26,29 @@
 #include <pthread.h>
 #include <stdbool.h>
 
+//#include "libcw_pa.h"
+
+#include <sys/time.h>
+#include <sys/ioctl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/param.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <signal.h>
+#include <ctype.h>
+#include <limits.h>
+#include <stdio.h>
+#include <errno.h>
+#include <assert.h>
+#include <stdbool.h>
+#include <math.h>
+
+
+static const int        CW_AUDIO_CHANNELS = 1;                /* Sound in mono */
+
+
 #if defined(__cplusplus)
 extern "C"
 {
@@ -55,8 +78,6 @@ enum {
 
 typedef int16_t cw_sample_t;
 
-struct cw_gen_struct; /* Forward declaration, struct is defined in libcw.c. */
-typedef struct cw_gen_struct cw_gen_t;
 
 
 /* Default outputs for audio systems. Used by libcw unless
@@ -147,8 +168,7 @@ enum {
 	CW_TONE_SLOPE_SHAPE_RECTANGULAR      /* Slope changes from zero for sample n, to full amplitude of tone in sample n+1. */
 };
 
-
-
+typedef struct cw_gen_struct cw_gen_t;
 
 
 /* Functions handling library meta data */
