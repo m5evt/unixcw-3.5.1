@@ -11,7 +11,6 @@
 #include "libcw_internal.h"
 
 
-bool cw_is_null_possible(const char *device);
 int  cw_null_configure(cw_gen_t *gen, const char *device);
 void cw_null_write(cw_gen_t *gen, cw_tone_t *tone);
 
