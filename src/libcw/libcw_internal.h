@@ -1,29 +1,33 @@
-#ifndef H_CW_INTERNAL
-#define H_CW_INTERNAL
+#ifndef H_LIBCW_INTERNAL
+#define H_LIBCW_INTERNAL
+
 
 #include <stdbool.h>
 
+
+#include "config.h"
 #include "libcw.h"
-
-#if defined(LIBCW_WITH_ALSA)
-#include <alsa/asoundlib.h>
-#endif
-
+#include "libcw_alsa.h"
 #include "libcw_pa.h"
-
-//struct cw_pa_data_struct;
-
-
-/* forward declarations of types */
-typedef struct cw_tone_queue_struct cw_tone_queue_t;
-typedef struct cw_entry_struct cw_entry_t;
-typedef struct cw_tracking_struct cw_tracking_t;
 
 
 #ifndef M_PI  /* C99 may not define M_PI */
 #define M_PI  3.14159265358979323846
 #endif
 
+
+#ifdef LIBCW_STANDALONE
+#define LIBCW_WITH_DEV
+#endif
+
+
+#ifdef LIBCW_WITH_DEV
+#define CW_DEV_RAW_SINK           1  /* Create and use /tmp/cw_file.<audio system>.raw file with audio samples written as raw data. */
+#define CW_DEV_RAW_SINK_MARKERS   0  /* Put markers in raw data saved to raw sink. */
+#else
+#define CW_DEV_RAW_SINK           0
+#define CW_DEV_RAW_SINK_MARKERS   0
+#endif
 
 
 /* Allowed values of cw_tone_t.slope_mode.  This is to decide whether
@@ -38,7 +42,6 @@ typedef struct cw_tracking_struct cw_tracking_t;
 #define CW_SLOPE_MODE_FALLING_SLOPE     23
 
 
-
 /* Generic constants - common for all audio systems (or not used in some of systems) */
 
 static const long int   CW_AUDIO_VOLUME_RANGE = (1 << 15);    /* 2^15 = 32768 */
@@ -49,6 +52,7 @@ static const int        CW_AUDIO_SLOPE_USECS = 5000;          /* length of a sin
    idle waiting and idle loops; if a libcw function needs to wait for
    something, or make an idle loop, it should call usleep(N * CW_AUDIO_USECS_QUANTUM) */
 #define CW_AUDIO_QUANTUM_USECS 100
+
 
 /* this is a marker of "forever" tone:
 
@@ -72,7 +76,13 @@ static const int        CW_AUDIO_SLOPE_USECS = 5000;          /* length of a sin
 #define CW_AUDIO_FOREVER_USECS (-CW_AUDIO_QUANTUM_USECS)
 
 
-typedef struct cw_tone_struct {
+typedef struct cw_tone_struct cw_tone_t;
+typedef struct cw_tone_queue_struct cw_tone_queue_t;
+typedef struct cw_entry_struct cw_entry_t;
+typedef struct cw_tracking_struct cw_tracking_t;
+
+
+struct cw_tone_struct {
 	/* Frequency of a tone. */
 	int frequency;
 
@@ -146,13 +156,8 @@ typedef struct cw_tone_struct {
 	int slope_iterator;     /* counter of samples in slope area */
 	int slope_mode;         /* mode/scenario of slope */
 	int slope_n_samples;    /* length of slope area */
-} cw_tone_t;
+};
 
-
-
-
-//typedef struct cw_tone_queue_struct cw_tone_queue_t;
-//typedef struct cw_gen_struct cw_gen_t;
 
 struct cw_gen_struct {
 
@@ -231,13 +236,13 @@ struct cw_gen_struct {
 	int audio_sink;
 
 #ifdef LIBCW_WITH_ALSA
-	/* output handle for audio data (ALSA) */
-	snd_pcm_t *alsa_handle;
+	/* Data used by ALSA. */
+	cw_alsa_data_t alsa_data;
 #endif
 
 #ifdef LIBCW_WITH_PULSEAUDIO
 	/* Data used by PulseAudio. */
-	cw_pa_data_t pa;
+	cw_pa_data_t pa_data;
 #endif
 
 	struct {
@@ -294,4 +299,4 @@ void cw_usecs_to_timespec_internal(struct timespec *t, int usecs);
 void cw_nanosleep_internal(struct timespec *n);
 
 
-#endif //#ifndef H_CW_INTERNAL
+#endif /* #ifndef H_LIBCW_INTERNAL */
