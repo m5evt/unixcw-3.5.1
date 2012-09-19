@@ -4,21 +4,31 @@
 */
 
 
-#ifndef H_CW_ALSA
-#define H_CW_ALSA
+#ifndef H_LIBCW_ALSA
+#define H_LIBCW_ALSA
 
-#if defined(LIBCW_WITH_ALSA)
+
+#include "config.h"
+
+
+#ifdef LIBCW_WITH_ALSA
+
+#include <alsa/asoundlib.h>
+
+
+typedef struct cw_alsa_data_struct {
+	snd_pcm_t *handle; /* Output handle for audio data. */
+} cw_alsa_data_t;
+
+
+#endif /* #ifdef LIBCW_WITH_ALSA */
 
 
 #include "libcw_internal.h"
-
 
 
 int  cw_alsa_configure(cw_gen_t *gen, const char *device);
 void cw_alsa_drop(cw_gen_t *gen);
 
 
-
-#endif // #if defined(LIBCW_WITH_ALSA)
-
-#endif // #ifndef H_CW_ALSA
+#endif /* #ifndef H_LIBCW_ALSA */
