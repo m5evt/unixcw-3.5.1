@@ -27,6 +27,10 @@
 
 */
 
+
+#include "config.h"
+
+
 #define _BSD_SOURCE   /* usleep() */
 #define _POSIX_SOURCE /* sigaction() */
 #define _POSIX_C_SOURCE 200112L /* pthread_sigmask() */
@@ -35,7 +39,10 @@
 #include <stdio.h>
 #include <sys/time.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
+#include <errno.h>
+
 
 #include "libcw_internal.h"
 #include "libcw_debug.h"
@@ -221,7 +228,7 @@ void cw_debug2_flush(cw_debug_t *debug)
 
 
 /* Current debug flags setting; no debug unless requested. */
-unsigned int cw_debug_flags = 0; //CW_DEBUG_TONE_QUEUE; //CW_DEBUG_KEYER_STATES | CW_DEBUG_KEYER_STATES_VERBOSE | CW_DEBUG_STRAIGHT_KEY | CW_DEBUG_KEYING; // | CW_DEBUG_TONE_QUEUE;
+unsigned int cw_debug_flags = CW_DEBUG_SYSTEM; //CW_DEBUG_TONE_QUEUE; //CW_DEBUG_KEYER_STATES | CW_DEBUG_KEYER_STATES_VERBOSE | CW_DEBUG_STRAIGHT_KEY | CW_DEBUG_KEYING; // | CW_DEBUG_TONE_QUEUE;
 
 
 
@@ -305,11 +312,6 @@ bool cw_is_debugging_internal(unsigned int flag)
 
 
 
-
-
-
-
-
 #ifdef LIBCW_WITH_DEV
 
 
@@ -328,37 +330,37 @@ void cw_dev_debug_print_generator_setup(cw_gen_t *gen)
 
 #ifdef LIBCW_WITH_PULSEAUDIO
 	if (gen->audio_system == CW_AUDIO_PA) {
-		fprintf(stderr, "PulseAudio latency:   %llu us\n", (unsigned long long int) gen->pa.latency_usecs);
+		fprintf(stderr, "PulseAudio latency:   %llu us\n", (unsigned long long int) gen->pa_data.latency_usecs);
 
-		if (gen->pa.ba.prebuf == (uint32_t) -1) {
+		if (gen->pa_data.ba.prebuf == (uint32_t) -1) {
 			fprintf(stderr, "PulseAudio prebuf:    (not set)\n");
 		} else {
-			fprintf(stderr, "PulseAudio prebuf:    %u bytes\n", (uint32_t) gen->pa.ba.prebuf);
+			fprintf(stderr, "PulseAudio prebuf:    %u bytes\n", (uint32_t) gen->pa_data.ba.prebuf);
 		}
 
-		if (gen->pa.ba.tlength == (uint32_t) -1) {
+		if (gen->pa_data.ba.tlength == (uint32_t) -1) {
 			fprintf(stderr, "PulseAudio tlength:   (not set)\n");
 		} else {
-			fprintf(stderr, "PulseAudio tlength:   %u bytes\n", (uint32_t) gen->pa.ba.tlength);
+			fprintf(stderr, "PulseAudio tlength:   %u bytes\n", (uint32_t) gen->pa_data.ba.tlength);
 		}
 
-		if (gen->pa.ba.minreq == (uint32_t) -1) {
+		if (gen->pa_data.ba.minreq == (uint32_t) -1) {
 			fprintf(stderr, "PulseAudio minreq:    (not set)\n");
 		} else {
-			fprintf(stderr, "PulseAudio minreq:    %u bytes\n", (uint32_t) gen->pa.ba.minreq);
+			fprintf(stderr, "PulseAudio minreq:    %u bytes\n", (uint32_t) gen->pa_data.ba.minreq);
 		}
 
-		if (gen->pa.ba.maxlength == (uint32_t) -1) {
+		if (gen->pa_data.ba.maxlength == (uint32_t) -1) {
 			fprintf(stderr, "PulseAudio maxlength: (not set)\n");
 		} else {
-			fprintf(stderr, "PulseAudio maxlength: %u bytes\n", (uint32_t) gen->pa.ba.maxlength);
+			fprintf(stderr, "PulseAudio maxlength: %u bytes\n", (uint32_t) gen->pa_data.ba.maxlength);
 		}
 
 #if 0	        /* not relevant to playback */
-		if (gen->pa.ba.fragsize == (uint32_t) -1) {
+		if (gen->pa_data.ba.fragsize == (uint32_t) -1) {
 			fprintf(stderr, "PulseAudio fragsize:  (not set)\n");
 		} else {
-			fprintf(stderr, "PulseAudio fragsize:  %u bytes\n", (uint32_t) gen->pa.ba.fragsize);
+			fprintf(stderr, "PulseAudio fragsize:  %u bytes\n", (uint32_t) gen->pa_data.ba.fragsize);
 		}
 #endif
 
@@ -415,7 +417,7 @@ int cw_dev_debug_raw_sink_write_internal(cw_gen_t *gen)
 
 
 
-#endif // #ifdef LIBCW_WITH_DEV
+#endif /* #ifdef LIBCW_WITH_DEV */
 
 
 

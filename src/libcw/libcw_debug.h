@@ -17,10 +17,15 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef _LIBCW_DEBUG_H
-#define _LIBCW_DEBUG_H
+
+#ifndef H_LIBCW_DEBUG
+#define H_LIBCW_DEBUG
+
 
 #include <stdbool.h>
+
+
+#include "libcw_internal.h"
 
 
 #if defined(__cplusplus)
@@ -101,4 +106,4 @@ void cw_dev_debug_print_generator_setup(cw_gen_t *gen);
 }
 #endif
 
-#endif  /* _LIBCW_DEBUG_H */
+#endif  /* H_LIBCW_DEBUG */
