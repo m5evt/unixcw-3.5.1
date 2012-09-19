@@ -44,13 +44,13 @@
 */
 
 
+#include "config.h"
 
 
 #define _BSD_SOURCE   /* usleep() */
 #define _POSIX_SOURCE /* sigaction() */
 #define _POSIX_C_SOURCE 200112L /* pthread_sigmask() */
 
-#include "config.h"
 
 #include <sys/time.h>
 #include <sys/ioctl.h>
@@ -107,29 +107,13 @@
 
 #include "libcw.h"
 
+#include "libcw_internal.h"
 #include "libcw_null.h"
 #include "libcw_console.h"
 #include "libcw_oss.h"
-#include "libcw_alsa.h"
 
 #include "copyright.h"
 #include "libcw_debug.h"
-
-
-
-
-
-#ifdef LIBCW_STANDALONE
-#define CW_DEV_MAIN               1  /* enable main() for stand-alone compilation and tests of this file */
-#define LIBCW_WITH_DEV
-#else
-#define CW_DEV_MAIN               0
-#endif
-
-#ifdef LIBCW_WITH_DEV
-#define CW_DEV_RAW_SINK           1  /* create and use /tmp/cw_file.<audio system>.raw file with audio samples written as raw data */
-#define CW_DEV_RAW_SINK_MARKERS   0  /* put markers in raw data saved to raw sink */
-#endif
 
 
 
@@ -6666,13 +6650,13 @@ int cw_generator_new(int audio_system, const char *device)
 	generator->tone_slope.n_amplitudes = 0;
 
 #ifdef LIBCW_WITH_PULSEAUDIO
-	generator->pa.s = NULL;
+	generator->pa_data.s = NULL;
 
-	generator->pa.ba.prebuf    = (uint32_t) -1;
-	generator->pa.ba.tlength   = (uint32_t) -1;
-	generator->pa.ba.minreq    = (uint32_t) -1;
-	generator->pa.ba.maxlength = (uint32_t) -1;
-	generator->pa.ba.fragsize  = (uint32_t) -1;
+	generator->pa_data.ba.prebuf    = (uint32_t) -1;
+	generator->pa_data.ba.tlength   = (uint32_t) -1;
+	generator->pa_data.ba.minreq    = (uint32_t) -1;
+	generator->pa_data.ba.maxlength = (uint32_t) -1;
+	generator->pa_data.ba.fragsize  = (uint32_t) -1;
 #endif
 
 	pthread_attr_init(&generator->thread.attr);
@@ -7576,7 +7560,8 @@ bool cw_dlopen_internal(const char *name, void **handle)
 
 
 
-#if CW_DEV_MAIN
+
+#ifdef LIBCW_STANDALONE
 
 
 
@@ -7662,7 +7647,11 @@ void main_helper(int audio_system, const char *name, const char *device, predica
 	}
 }
 
-#endif
+
+
+
+
+#endif // #if LIBCW_STANDALONE
 
 
 
