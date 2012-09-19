@@ -26,25 +26,6 @@
 #include <pthread.h>
 #include <stdbool.h>
 
-//#include "libcw_pa.h"
-
-#include <sys/time.h>
-#include <sys/ioctl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/param.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <signal.h>
-#include <ctype.h>
-#include <limits.h>
-#include <stdio.h>
-#include <errno.h>
-#include <assert.h>
-#include <stdbool.h>
-#include <math.h>
-
 
 static const int        CW_AUDIO_CHANNELS = 1;                /* Sound in mono */
 
