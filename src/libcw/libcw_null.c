@@ -18,16 +18,18 @@
 */
 
 
+#include "config.h"
+
 
 #define _BSD_SOURCE   /* usleep() */
 #define _POSIX_SOURCE /* sigaction() */
 
 
-#include "config.h"
-
-#include <sys/time.h>
 #include <stdio.h>
+#include <assert.h>
+#include <sys/time.h>
 #include <stdbool.h>
+
 
 #include "libcw_null.h"
 
@@ -86,7 +88,7 @@ void cw_null_close_device_internal(cw_gen_t *gen)
 void cw_null_write(__attribute__((unused)) cw_gen_t *gen, cw_tone_t *tone)
 {
 	assert (gen);
-	assert (gen->audio_system == CW_AUDIO_CONSOLE);
+	assert (gen->audio_system == CW_AUDIO_NULL);
 
 	int usecs = tone->usecs;
 	if (usecs == CW_AUDIO_FOREVER_USECS) {

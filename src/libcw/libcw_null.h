@@ -4,8 +4,8 @@
 */
 
 
-#ifndef H_CW_NULL
-#define H_CW_NULL
+#ifndef H_LIBCW_NULL
+#define H_LIBCW_NULL
 
 
 #include "libcw_internal.h"
@@ -15,4 +15,4 @@ int  cw_null_configure(cw_gen_t *gen, const char *device);
 void cw_null_write(cw_gen_t *gen, cw_tone_t *tone);
 
 
-#endif //#ifndef H_CW_NULL
+#endif /* #ifndef H_LIBCW_NULL */
