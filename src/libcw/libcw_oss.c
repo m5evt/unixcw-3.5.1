@@ -18,7 +18,10 @@
 */
 
 
-#if defined(LIBCW_WITH_OSS)
+#include "config.h"
+
+
+#ifdef LIBCW_WITH_OSS
 
 
 #define _BSD_SOURCE   /* usleep() */
@@ -48,20 +51,19 @@
 #include <stdbool.h>
 #include <math.h>
 
+
 #include "libcw_internal.h"
 #include "libcw_oss.h"
 #include "libcw_debug.h"
 
 
-
-//#if   defined(HAVE_SYS_SOUNDCARD_H)
+#if   defined(HAVE_SYS_SOUNDCARD_H)
 #       include <sys/soundcard.h>
-//#elif defined(HAVE_SOUNDCARD_H)
-//#       include <soundcard.h>
-//#else
+#elif defined(HAVE_SOUNDCARD_H)
+#       include <soundcard.h>
+#else
 #
-//#endif
-
+#endif
 
 
 
@@ -188,6 +190,9 @@ int cw_oss_write_internal(cw_gen_t *gen)
 
 	return CW_SUCCESS;
 }
+
+
+
 
 
 /**
@@ -445,7 +450,7 @@ int cw_oss_get_version_internal(int fd, int *x, int *y, int *z)
 
 
 
-#else
+#else /* #ifdef LIBCW_WITH_OSS */
 
 
 
@@ -474,5 +479,7 @@ int  cw_oss_configure(__attribute__((unused)) cw_gen_t *gen, __attribute__((unus
 
 
 
-#endif // #ifdef LIBCW_WITH_OSS
+
+
+#endif /* #ifdef LIBCW_WITH_OSS */
 

@@ -18,15 +18,16 @@
 */
 
 
-#ifdef LIBCW_WITH_CONSOLE
+#include "config.h"
 
+
+#ifdef LIBCW_WITH_CONSOLE
 
 
 #define _BSD_SOURCE   /* usleep() */
 #define _POSIX_SOURCE /* sigaction() */
 #define _POSIX_C_SOURCE 200112L /* pthread_sigmask() */
 
-#include "config.h"
 
 #include <sys/time.h>
 #include <sys/ioctl.h>
@@ -34,15 +35,12 @@
 #include <stdbool.h>
 
 
-
-#if defined(LIBCW_WITH_CONSOLE)
 #if   defined(HAVE_SYS_KD_H)
 #       include <sys/kd.h>
 #elif defined(HAVE_SYS_VTKD_H)
 #       include <sys/vtkd.h>
 #elif defined(HAVE_SYS_KBIO_H)
 #       include <sys/kbio.h>
-#endif
 #endif
 
 
@@ -302,7 +300,7 @@ int cw_console_configure(cw_gen_t *gen, const char *device)
 
 
 
-#else
+#else /* #ifdef LIBCW_WITH_CONSOLE */
 
 
 
@@ -340,7 +338,7 @@ int cw_console_write(__attribute__((unused)) cw_gen_t *gen, __attribute__((unuse
 
 
 
-void cw_console_silence(cw_gen_t *gen)
+void cw_console_silence(__attribute__((unused)) cw_gen_t *gen)
 {
 	return;
 }
@@ -349,5 +347,5 @@ void cw_console_silence(cw_gen_t *gen)
 
 
 
-#endif //#ifdef LIBCW_WITH_CONSOLE
+#endif /* #ifdef LIBCW_WITH_CONSOLE */
 

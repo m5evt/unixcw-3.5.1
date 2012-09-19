@@ -4,17 +4,14 @@
 */
 
 
-#ifndef H_CW_OSS
-#define H_CW_OSS
-
-#if defined(LIBCW_WITH_OSS)
+#ifndef H_LIBCW_OSS
+#define H_LIBCW_OSS
 
 
 #include "libcw.h"
 
+
 int cw_oss_configure(cw_gen_t *gen, const char *device);
 
 
-#endif //#if defined(LIBCW_WITH_OSS)
-
-#endif //#ifndef H_CW_OSS
+#endif /* #ifndef H_LIBCW_OSS */

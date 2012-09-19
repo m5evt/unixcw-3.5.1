@@ -4,17 +4,18 @@
 */
 
 
-#ifndef H_CW_PA
-#define H_CW_PA
+#ifndef H_LIBCW_PA
+#define H_LIBCW_PA
 
-#if defined(LIBCW_WITH_PULSEAUDIO)
+
+#include "config.h"
+
+
+#ifdef LIBCW_WITH_PULSEAUDIO
 
 
 #include <pulse/simple.h>
 #include <pulse/error.h>
-
-
-
 
 
 typedef struct cw_pa_data_struct {
@@ -25,13 +26,14 @@ typedef struct cw_pa_data_struct {
 	pa_buffer_attr ba;
 } cw_pa_data_t;
 
+
+#endif /* #ifdef LIBCW_WITH_PULSEAUDIO */
+
+
 #include "libcw_internal.h"
-//typedef struct cw_gen_struct cw_gen_t;
 
 
-int  cw_pa_configure(cw_gen_t *gen, const char *device);
+int cw_pa_configure(cw_gen_t *gen, const char *device);
 
 
-#endif // #ifdef LIBCW_WITH_PULSEAUDIO
-
-#endif // #ifndef H_CW_PA
+#endif /* #ifndef H_LIBCW_PA */

@@ -18,8 +18,10 @@
 */
 
 
+#include "config.h"
 
-#if defined(LIBCW_WITH_PULSEAUDIO)
+
+#ifdef LIBCW_WITH_PULSEAUDIO
 
 
 #define _BSD_SOURCE   /* usleep() */
@@ -31,13 +33,13 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdbool.h>
-
 #include <dlfcn.h> /* dlopen() and related symbols */
+
 
 #include "libcw.h"
 #include "libcw_pa.h"
 #include "libcw_debug.h"
-#include "libcw_internal.h"
+
 
 
 static pa_simple *cw_pa_simple_new_internal(pa_sample_spec *ss, pa_buffer_attr *ba, const char *device, const char *stream_name, int *error);
@@ -159,7 +161,7 @@ int cw_pa_write_internal(cw_gen_t *gen)
 
 	int error = 0;
 	size_t n_bytes = sizeof (gen->buffer[0]) * gen->buffer_n_samples;
-	int rv = cw_pa.pa_simple_write(gen->pa.s, gen->buffer, n_bytes, &error);
+	int rv = cw_pa.pa_simple_write(gen->pa_data.s, gen->buffer, n_bytes, &error);
 	if (rv < 0) {
 		cw_debug (CW_DEBUG_SYSTEM, "error: pa_simple_write() failed: %s\n", cw_pa.pa_strerror(error));
 	} else {
@@ -236,7 +238,7 @@ pa_simple *cw_pa_simple_new_internal(pa_sample_spec *ss, pa_buffer_attr *ba, con
    \brief Resolve/get symbols from PulseAudio library
 
    Function resolves/gets addresses of few PulseAudio functions used by
-   libcw and stores them in cw_alsa global variable.
+   libcw and stores them in cw_pa global variable.
 
    On failure the function returns negative value, different for every
    symbol that the funciton failed to resolve. Function stops and returns
@@ -290,27 +292,27 @@ int cw_pa_open_device_internal(cw_gen_t *gen)
 	}
 
 	int error = 0;
-	gen->pa.s = cw_pa_simple_new_internal(&gen->pa.ss, &gen->pa.ba,
-					      dev,
-					      gen->client.name ? gen->client.name : "app",
-					      &error);
+	gen->pa_data.s = cw_pa_simple_new_internal(&gen->pa_data.ss, &gen->pa_data.ba,
+						   dev,
+						   gen->client.name ? gen->client.name : "app",
+						   &error);
 
- 	if (!gen->pa.s) {
+ 	if (!gen->pa_data.s) {
 		cw_dev_debug ("error: can't connect to PulseAudio server: %s\n", cw_pa.pa_strerror(error));
 		return false;
 	}
 
 	gen->buffer_n_samples = CW_AUDIO_PA_BUFFER_N_SAMPLES;
-	gen->sample_rate = gen->pa.ss.rate;
+	gen->sample_rate = gen->pa_data.ss.rate;
 
-	if ((gen->pa.latency_usecs = cw_pa.pa_simple_get_latency(gen->pa.s, &error)) == (pa_usec_t) -1) {
+	if ((gen->pa_data.latency_usecs = cw_pa.pa_simple_get_latency(gen->pa_data.s, &error)) == (pa_usec_t) -1) {
 		cw_dev_debug ("error: pa_simple_get_latency() failed: %s", cw_pa.pa_strerror(error));
 	}
 
 #if CW_DEV_RAW_SINK
 	gen->dev_raw_sink = open("/tmp/cw_file.pa.raw", O_WRONLY | O_TRUNC | O_NONBLOCK);
 #endif
-	assert (gen && gen->pa.s);
+	assert (gen && gen->pa_data.s);
 
 	return CW_SUCCESS;
 }
@@ -324,14 +326,14 @@ int cw_pa_open_device_internal(cw_gen_t *gen)
 */
 void cw_pa_close_device_internal(cw_gen_t *gen)
 {
-	if (gen->pa.s) {
+	if (gen->pa_data.s) {
 		/* Make sure that every single sample was played */
 		int error;
-		if (cw_pa.pa_simple_drain(gen->pa.s, &error) < 0) {
+		if (cw_pa.pa_simple_drain(gen->pa_data.s, &error) < 0) {
 			cw_dev_debug ("error pa_simple_drain() failed: %s", cw_pa.pa_strerror(error));
 		}
-		cw_pa.pa_simple_free(gen->pa.s);
-		gen->pa.s = NULL;
+		cw_pa.pa_simple_free(gen->pa_data.s);
+		gen->pa_data.s = NULL;
 	} else {
 		cw_dev_debug ("warning: called the function for NULL PA sink");
 	}
@@ -353,7 +355,7 @@ void cw_pa_close_device_internal(cw_gen_t *gen)
 
 
 
-#else //#if defined(LIBCW_WITH_PULSEAUDIO)
+#else /* #ifdef LIBCW_WITH_PULSEAUDIO */
 
 
 
@@ -361,7 +363,6 @@ void cw_pa_close_device_internal(cw_gen_t *gen)
 
 #include <stdbool.h>
 #include "libcw_pa.h"
-#include "libcw_internal.h"
 
 
 
@@ -384,7 +385,8 @@ int  cw_pa_configure(__attribute__((unused)) cw_gen_t *gen, __attribute__((unuse
 
 
 
-#endif //#if defined(LIBCW_WITH_PULSEAUDIO)
+
+#endif /* #ifdef LIBCW_WITH_PULSEAUDIO */
 
 
 
