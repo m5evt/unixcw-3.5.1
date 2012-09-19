@@ -74,11 +74,13 @@ fi
 
 
 # Build support for console buzzer output? Yes by default.
-AC_ARG_ENABLE(console,
-    AS_HELP_STRING([--disable-console], [disable support for console buzzer audio output]))
+AC_ARG_ENABLE([console],
+    AS_HELP_STRING([--disable-console], [disable support for console buzzer audio output]),
+    [],
+    [enable_console=yes])
 
 AC_MSG_CHECKING([whether to include console buzzer audio suport])
-if test "enable_console" = "yes" ; then
+if test "$enable_console" = "yes" ; then
     AC_MSG_RESULT(yes)
 else
     AC_MSG_RESULT(no)
@@ -86,8 +88,10 @@ fi
 
 
 # Build support for OSS audio system? Yes by default.
-AC_ARG_ENABLE(oss,
-    AS_HELP_STRING([--disable-oss], [disable support for OSS audio output]))
+AC_ARG_ENABLE([oss],
+    AS_HELP_STRING([--disable-oss], [disable support for OSS audio output]),
+    [],
+    [enable_oss=yes])
 
 AC_MSG_CHECKING([whether to include OSS audio support])
 if test "$enable_oss" = "yes" ; then
@@ -98,8 +102,10 @@ fi
 
 
 # Build support for ALSA audio system? Yes by default.
-AC_ARG_ENABLE(alsa,
-    AS_HELP_STRING([--disable-alsa], [disable support for ALSA audio output]))
+AC_ARG_ENABLE([alsa],
+    AS_HELP_STRING([--disable-alsa], [disable support for ALSA audio output]),
+    [],
+    [enable_alsa=yes])
 
 AC_MSG_CHECKING([whether to include ALSA audio support])
 if test "$enable_alsa" = "yes" ; then
@@ -111,7 +117,9 @@ fi
 
 # Build support for PulseAudio audio system? Yes by default.
 AC_ARG_ENABLE(pulseaudio,
-    AS_HELP_STRING([--disable-pulseaudio], [disable support for PulseAudio audio output]))
+    AS_HELP_STRING([--disable-pulseaudio], [disable support for PulseAudio audio output]),
+    [],
+    [enable_pulseaudio=yes])
 
 AC_MSG_CHECKING([whether to include PulseAudio audio support])
 if test "$enable_pulseaudio" = "yes" ; then
@@ -123,7 +131,9 @@ fi
 
 # Build cwcp? Yes by default.
 AC_ARG_ENABLE(cwcp,
-    AS_HELP_STRING([--disable-cwcp], [do not build cwcp (application with curses user interface)]))
+    AS_HELP_STRING([--disable-cwcp], [do not build cwcp (application with curses user interface)]),
+    [],
+    [enable_cwcp=yes])
 
 AC_MSG_CHECKING([whether to build cwcp])
 if test "$enable_cwcp" = "yes" ; then
@@ -135,7 +145,9 @@ fi
 
 # Build xcwcp? Yes by default.
 AC_ARG_ENABLE(xcwcp,
-    AS_HELP_STRING([--disable-xcwcp], [do not build xcwcp (application with Qt4 user interface)]))
+    AS_HELP_STRING([--disable-xcwcp], [do not build xcwcp (application with Qt4 user interface)]),
+    [],
+    [enable_xcwcp=yes])
 
 AC_MSG_CHECKING([whether to build xcwcp])
 if test "$enable_xcwcp" = "yes" ; then
@@ -147,7 +159,9 @@ fi
 
 # Enable development debugging? No by default.
 AC_ARG_ENABLE(dev,
-    AS_HELP_STRING([--enable-dev], [enable development support (messages/debug code/asserts)]))
+    AS_HELP_STRING([--enable-dev], [enable development support (messages/debug code/asserts)]),
+    [],
+    [enable_dev=no])
 
 AC_MSG_CHECKING([whether to enable development support])
 if test "$enable_dev" = "yes" ; then
