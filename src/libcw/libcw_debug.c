@@ -54,7 +54,7 @@ extern const char *cw_audio_system_labels[];
 struct {
 	int flag;
 	const char *message;
-} cw_debug_events[] = {
+} cw_debug_event_strings[] = {
 	{ CW_DEBUG_EVENT_TONE_LOW,        "CW_DEBUG_EVENT_TONE_LOW"        },
 	{ CW_DEBUG_EVENT_TONE_MID,        "CW_DEBUG_EVENT_TONE_MID"        },
 	{ CW_DEBUG_EVENT_TONE_HIGH,       "CW_DEBUG_EVENT_TONE_HIGH"       },
@@ -63,6 +63,25 @@ struct {
 	{ CW_DEBUG_EVENT_TQ_NONEMPTY,     "CW_DEBUG_EVENT_TQ_NONEMPTY"     },
 	{ CW_DEBUG_EVENT_TQ_STILL_EMPTY,  "CW_DEBUG_EVENT_TQ_STILL_EMPTY"  }
 };
+
+
+
+
+
+cw_debug_t *cw_dbg_msg = NULL;
+cw_debug_t *cw_dbg_dev_ev = NULL;
+cw_debug_t *cw_dbg_dev_msg = NULL;
+
+
+
+
+/* Current debug flags setting; no debug unless requested. */
+unsigned int cw_debug_flags = CW_DEBUG_SYSTEM; //CW_DEBUG_TONE_QUEUE; //CW_DEBUG_KEYER_STATES | CW_DEBUG_KEYER_STATES_VERBOSE | CW_DEBUG_STRAIGHT_KEY | CW_DEBUG_KEYING; // | CW_DEBUG_TONE_QUEUE;
+
+
+
+
+static void cw_debug_flush(cw_debug_t *debug_object);
 
 
 
@@ -79,7 +98,7 @@ struct {
    \return debug object on success
    \return NULL on failure
 */
-cw_debug_t *cw_debug2_new(const char *filename)
+cw_debug_t *cw_debug_new(const char *filename)
 {
 	cw_debug_t *debug = (cw_debug_t *) malloc(sizeof (cw_debug_t));
 	if (!debug) {
@@ -123,7 +142,7 @@ cw_debug_t *cw_debug2_new(const char *filename)
 
    \param debug - pointer to debug object to delete
 */
-void cw_debug2_delete(cw_debug_t **debug)
+void cw_debug_delete(cw_debug_t **debug)
 {
 	if (!debug) {
 		fprintf(stderr, "ERROR: %s(): NULL pointer to debug object\n", __func__);
@@ -135,7 +154,7 @@ void cw_debug2_delete(cw_debug_t **debug)
 		return;
 	}
 
-	cw_debug2_flush(*debug);
+	cw_debug_flush(*debug);
 
 	if ((*debug)->file != 0 && (*debug)->file != stdout && (*debug)->file != stderr) {
 		fclose((*debug)->file);
@@ -159,7 +178,7 @@ void cw_debug2_delete(cw_debug_t **debug)
    \param flag - unused
    \param event - event ID
 */
-void cw_debug2(cw_debug_t *debug, int flag, int event)
+void cw_debug(cw_debug_t *debug, uint32_t flag, uint32_t event)
 {
 	if (!debug) {
 		return;
@@ -179,7 +198,7 @@ void cw_debug2(cw_debug_t *debug, int flag, int event)
 	debug->n++;
 
 	if (debug->n >= debug->n_max) {
-		cw_debug2_flush(debug);
+		cw_debug_flush(debug);
 		debug->n = 0;
 	}
 
@@ -201,7 +220,7 @@ void cw_debug2(cw_debug_t *debug, int flag, int event)
 
    \param debug - debug object
 */
-void cw_debug2_flush(cw_debug_t *debug)
+void cw_debug_flush(cw_debug_t *debug)
 {
 	if (debug->n <= 0) {
 		return;
@@ -214,7 +233,7 @@ void cw_debug2_flush(cw_debug_t *debug)
 	for (int i = 0; i < debug->n; i++) {
 		fprintf(debug->file, "libcwevent:\t%06lld%06lld\t%s\n",
 			debug->events[i].sec - diff, debug->events[i].usec,
-			cw_debug_events[debug->events[i].event].message);
+			cw_debug_event_strings[debug->events[i].event].message);
 	}
 	fprintf(debug->file, "FLUSH END\n");
 
@@ -227,8 +246,6 @@ void cw_debug2_flush(cw_debug_t *debug)
 
 
 
-/* Current debug flags setting; no debug unless requested. */
-unsigned int cw_debug_flags = CW_DEBUG_SYSTEM; //CW_DEBUG_TONE_QUEUE; //CW_DEBUG_KEYER_STATES | CW_DEBUG_KEYER_STATES_VERBOSE | CW_DEBUG_STRAIGHT_KEY | CW_DEBUG_KEYING; // | CW_DEBUG_TONE_QUEUE;
 
 
 
@@ -291,7 +308,7 @@ unsigned int cw_get_debug_flags(void)
 
 
 
-
+#if 0
 /**
    \brief Check if given debug flag is set
 
@@ -303,11 +320,11 @@ unsigned int cw_get_debug_flags(void)
    \return true if given flag is set
    \return false if given flag is not set
 */
-bool cw_is_debugging_internal(unsigned int flag)
+bool cw_is_debugging_internal(uint32_t flag)
 {
 	return cw_get_debug_flags() & flag;
 }
-
+#endif
 
 
 
@@ -414,6 +431,60 @@ int cw_dev_debug_raw_sink_write_internal(cw_gen_t *gen)
 }
 
 
+/**
+   \brief Check if given debug flag is set
+
+   Function checks if a specified debug flag is set in internal
+   variable of libcw library.
+
+   \param flag - flag to be checked.
+
+   \return true if given flag is set
+   \return false if given flag is not set
+*/
+bool cw_debug_has_flag(cw_debug_t *debug_object, uint32_t flag)
+{
+	if (debug_object) {
+		return debug_object->flags & flag;
+	} else {
+		return false;
+	}
+}
+
+
+
+
+void cw_debug_event_internal(cw_debug_t *debug_object, unsigned int flag, int event, const char *func, int line)
+{
+	if (!debug_object) {
+		return;
+	}
+
+	if (!cw_debug_has_flag(debug_object, flag)) {
+		return;
+	}
+
+	debug->events[debug->n].event = event;
+	debug->events[debug->n].sec = (long long int) now.tv_sec;
+	debug->events[debug->n].usec = (long long int) now.tv_usec;
+
+	debug->n++;
+
+	if (debug->n >= debug->n_max) {
+		cw_debug_event_flush(debug);
+		debug->n = 0;
+	}
+
+	return;
+}
+
+
+
+void cw_debug_message_internal(cw_debug_object *debug_object, uint32_t flag, const char *func, int line, ...)
+{
+}
+void cw_debug_event_internal(cw_debug_t *debug_object, flag, event, __func__, __LINE__); \
+	}
 
 
 
