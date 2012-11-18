@@ -40,10 +40,10 @@ typedef struct {
 
 	FILE *file; /* File to which events will be written. */
 
-	int flags;  /* Unused at the moment. */
+	uint32_t flags;  /* Unused at the moment. */
 
 	struct {
-		int event;        /* Event ID. One of values from enum below. */
+		uint32_t event;        /* Event ID. One of values from enum below. */
 		long long sec;    /* Time of registering the event - second. */
 		long long usec;   /* Time of registering the event - microsecond. */
 	} events[CW_DEBUG_N_EVENTS_MAX];
@@ -54,36 +54,41 @@ typedef struct {
 
 
 
-cw_debug_t *cw_debug2_new(const char *filename);
-void        cw_debug2_delete(cw_debug_t **debug);
-void        cw_debug2(cw_debug_t *debug, int flag, int event);
-void        cw_debug2_flush(cw_debug_t *debug);
-bool        cw_is_debugging_internal(unsigned int flag);
+cw_debug_t *cw_debug_new(const char *filename);
+void        cw_debug_delete(cw_debug_t **debug_object);
+void        cw_debug(cw_debug_t *debug, uint32_t flag, uint32_t event);
+void        cw_debug_set_flags(cw_debug_t *debug_object, uint32_t flags);
+uint32_t    cw_debug_get_flags(cw_debug_t *debug_object);
+void        cw_debug_print_flags(cw_debug_t *debug_object);
+bool        cw_debug_has_flag(cw_debug_t *debug_object, uint32_t flag);
+
+void        cw_debug_event_internal(cw_debug_t *debug_object, uint32_t flag,  uint32_t event, const char *func, int line);
 
 
-/* macro supporting multiple arguments */
-#define cw_debug(flag, ...)				\
-	{						\
-		if (cw_is_debugging_internal(flag)) {	\
-			fprintf(stderr, "libcw: ");	\
-			fprintf(stderr, __VA_ARGS__);	\
-			fprintf(stderr, "\n");		\
-		}					\
-	}
 
 
-	/* Debugging message for library developer */
-#ifdef LIBCW_WITH_DEV
-#define cw_dev_debug(...)						\
+
+#define cw_debug_msg(debug_object, flag, ...)				\
 	{								\
-		fprintf(stderr, "libcw: ");				\
-		fprintf(stderr, "%s: %d: ", __func__, __LINE__);	\
-		fprintf(stderr, __VA_ARGS__);				\
-		fprintf(stderr, "\n");					\
+	if (debug_object && (debug_object->flags & flag)) {		\
+	        fprintf(debug_object->file, "libcw: ");			\
+	        fprintf(debug_object->file, "%s: %d: ", __func__, __LINE__); \
+	        fprintf(debug_object->file, __VA_ARGS__);		\
+	        fprintf(debug_object->file, "\n");			\
+	}								\
 	}
-#else
-#define cw_dev_debug(...) {}
-#endif
+
+
+
+
+
+#define cw_debug_ev(debug_object, flag, event)				\
+	{								\
+		cw_debug_event_internal(debug_object, flag, event, __func__, __LINE__); \
+	}
+
+
+
 
 
 enum {
@@ -96,10 +101,16 @@ enum {
 };
 
 
+
+
+
 #if CW_DEV_RAW_SINK
 int  cw_dev_debug_raw_sink_write_internal(cw_gen_t *gen);
 void cw_dev_debug_print_generator_setup(cw_gen_t *gen);
 #endif
+
+
+
 
 
 #if defined(__cplusplus)
