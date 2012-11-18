@@ -124,8 +124,9 @@ enum {
 	CW_DEBUG_FINALIZATION         = 1 << 9,        /* Print out finalization actions */
 	CW_DEBUG_SYSTEM               = 1 << 10,       /* Print out OS problems (malloc, open,
 							  ioctl, etc. Also configuration errors.) */
-	CW_DEBUG_KEYER_STATES_VERBOSE = 1 << 11,       /* Print out more keyer information */
-	CW_DEBUG_MASK                 = (1 << 12) - 1  /* Bit mask of used debug bits */
+	CW_DEBUG_AUDIO_SYSTEM         = 1 << 11,        /* Print out finalization actions */
+	CW_DEBUG_KEYER_STATES_VERBOSE = 1 << 12,       /* Print out more keyer information */
+	CW_DEBUG_MASK                 = (1 << 13) - 1  /* Bit mask of used debug bits */
 };
 
 
