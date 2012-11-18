@@ -329,6 +329,29 @@ bool cw_is_debugging_internal(uint32_t flag)
 
 
 
+/**
+   \brief Check if given debug flag is set
+
+   Function checks if a specified debug flag is set in internal
+   variable of libcw library.
+
+   \param flag - flag to be checked.
+
+   \return true if given flag is set
+   \return false if given flag is not set
+*/
+bool cw_debug_has_flag(cw_debug_t *debug_object, uint32_t flag)
+{
+	if (debug_object) {
+		return debug_object->flags & flag;
+	} else {
+		return false;
+	}
+}
+
+
+
+
 #ifdef LIBCW_WITH_DEV
 
 
@@ -430,26 +453,6 @@ int cw_dev_debug_raw_sink_write_internal(cw_gen_t *gen)
 	return CW_SUCCESS;
 }
 
-
-/**
-   \brief Check if given debug flag is set
-
-   Function checks if a specified debug flag is set in internal
-   variable of libcw library.
-
-   \param flag - flag to be checked.
-
-   \return true if given flag is set
-   \return false if given flag is not set
-*/
-bool cw_debug_has_flag(cw_debug_t *debug_object, uint32_t flag)
-{
-	if (debug_object) {
-		return debug_object->flags & flag;
-	} else {
-		return false;
-	}
-}
 
 
 
