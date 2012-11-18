@@ -41,6 +41,12 @@
 #define CW_ALSA_HW_BUFFER_CONFIG  0  /* set up hw buffer/period parameters; unnecessary and probably harmful */
 
 
+extern cw_debug_t *cw_dbg_msg;
+extern cw_debug_t *cw_dbg_dev_ev;
+extern cw_debug_t *cw_dbg_dev_msg;
+extern unsigned int cw_debug_flags;
+
+
 /* Constants specific to ALSA audio system configuration */
 static const snd_pcm_format_t CW_ALSA_SAMPLE_FORMAT = SND_PCM_FORMAT_S16; /* "Signed 16 bit CPU endian"; I'm guessing that "CPU endian" == "native endianess" */
 
@@ -127,13 +133,13 @@ bool cw_is_alsa_possible(const char *device)
 {
 	const char *library_name = "libasound.so.2";
 	if (!cw_dlopen_internal(library_name, &(cw_alsa.handle))) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: can't access ALSA library \"%s\"\n", library_name);
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: can't access ALSA library \"%s\"\n", library_name);
 		return false;
 	}
 
 	int rv = cw_alsa_dlsym_internal(cw_alsa.handle);
 	if (rv < 0) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: failed to resolve ALSA symbol #%d, can't correctly load ALSA library\n", rv);
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: failed to resolve ALSA symbol #%d, can't correctly load ALSA library\n", rv);
 		dlclose(cw_alsa.handle);
 		return false;
 	}
@@ -145,7 +151,7 @@ bool cw_is_alsa_possible(const char *device)
 				  SND_PCM_STREAM_PLAYBACK, /* stream (playback/capture) */
 				  0);                      /* mode, 0 | SND_PCM_NONBLOCK | SND_PCM_ASYNC */
 	if (rv < 0) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: can't open ALSA device \"%s\"\n", dev);
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: can't open ALSA device \"%s\"\n", dev);
 		dlclose(cw_alsa.handle);
 		return false;
 	} else {
@@ -184,7 +190,7 @@ int cw_alsa_write_internal(cw_gen_t *gen)
 	   ALSA's period, so there should be no underruns */
 	int rv = cw_alsa.snd_pcm_writei(gen->alsa_data.handle, gen->buffer, gen->buffer_n_samples);
 	cw_alsa_debug_evaluate_write_internal(gen, rv);
-	//cw_dev_debug ("written %d/%d samples with ALSA", rv, gen->buffer_n_samples);
+	//cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_SOUND_SYSTEM, "written %d/%d samples with ALSA", rv, gen->buffer_n_samples);
 
 	return CW_SUCCESS;
 
@@ -212,13 +218,13 @@ int cw_alsa_open_device_internal(cw_gen_t *gen)
 				      SND_PCM_STREAM_PLAYBACK, /* stream (playback/capture) */
 				      0);                      /* mode, 0 | SND_PCM_NONBLOCK | SND_PCM_ASYNC */
 	if (rv < 0) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: can't open ALSA device \"%s\"\n", gen->audio_device);
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: can't open ALSA device \"%s\"\n", gen->audio_device);
 		return CW_FAILURE;
 	}
 	/*
 	rv = snd_pcm_nonblock(gen->alsa_data.handle, 0);
 	if (rv < 0) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: can't set block for ALSA handle\n");
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: can't set block for ALSA handle\n");
 		return CW_FAILURE;
 	}
 	*/
@@ -228,19 +234,19 @@ int cw_alsa_open_device_internal(cw_gen_t *gen)
 	snd_pcm_hw_params_t *hw_params = NULL;
 	rv = cw_alsa.snd_pcm_hw_params_malloc(&hw_params);
 	if (rv < 0) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: can't allocate memory for ALSA hw params\n");
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: can't allocate memory for ALSA hw params\n");
 		return CW_FAILURE;
 	}
 
 	rv = cw_alsa_set_hw_params_internal(gen, hw_params);
 	if (rv != CW_SUCCESS) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: can't set ALSA hw params\n");
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: can't set ALSA hw params\n");
 		return CW_FAILURE;
 	}
 
 	rv = cw_alsa.snd_pcm_prepare(gen->alsa_data.handle);
 	if (rv < 0) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: can't prepare ALSA handler\n");
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: can't prepare ALSA handler\n");
 		return CW_FAILURE;
 	}
 
@@ -248,7 +254,7 @@ int cw_alsa_open_device_internal(cw_gen_t *gen)
 	snd_pcm_uframes_t frames; /* period size in frames */
 	int dir = 1;
 	rv = cw_alsa.snd_pcm_hw_params_get_period_size_min(hw_params, &frames, &dir);
-	cw_dev_debug ("rv = %d, ALSA buffer size would be %u frames", rv, (unsigned int) frames);
+	cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_AUDIO_SYSTEM, "rv = %d, ALSA buffer size would be %u frames", rv, (unsigned int) frames);
 
 	/* The linker (?) that I use on Debian links libcw against
 	   old version of get_period_size(), which returns
@@ -301,13 +307,13 @@ void cw_alsa_close_device_internal(cw_gen_t *gen)
 int cw_alsa_debug_evaluate_write_internal(cw_gen_t *gen, int rv)
 {
 	if (rv == -EPIPE) {
-		cw_debug (CW_DEBUG_SYSTEM, "ALSA: underrun");
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "ALSA: underrun");
 		cw_alsa.snd_pcm_prepare(gen->alsa_data.handle);
 	} else if (rv < 0) {
-		cw_debug (CW_DEBUG_SYSTEM, "ALSA: writei: %s\n", cw_alsa.snd_strerror(rv));
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "ALSA: writei: %s\n", cw_alsa.snd_strerror(rv));
 		cw_alsa.snd_pcm_prepare(gen->alsa_data.handle);
 	} else if (rv != gen->buffer_n_samples) {
-		cw_debug (CW_DEBUG_SYSTEM, "ALSA: short write, %d != %d", rv, gen->buffer_n_samples);
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "ALSA: short write, %d != %d", rv, gen->buffer_n_samples);
 	} else {
 		return CW_SUCCESS;
 	}
@@ -333,7 +339,7 @@ int cw_alsa_set_hw_params_internal(cw_gen_t *gen, snd_pcm_hw_params_t *hw_params
 	/* Get current hw configuration. */
 	int rv = cw_alsa.snd_pcm_hw_params_any(gen->alsa_data.handle, hw_params);
 	if (rv < 0) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: can't get current hw params: %s\n", cw_alsa.snd_strerror(rv));
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: can't get current hw params: %s\n", cw_alsa.snd_strerror(rv));
 		return CW_FAILURE;
 	}
 
@@ -341,7 +347,7 @@ int cw_alsa_set_hw_params_internal(cw_gen_t *gen, snd_pcm_hw_params_t *hw_params
 	/* Set the sample format */
 	rv = cw_alsa.snd_pcm_hw_params_set_format(gen->alsa_data.handle, hw_params, CW_ALSA_SAMPLE_FORMAT);
 	if (rv < 0) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: can't set sample format: %s\n", cw_alsa.snd_strerror(rv));
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: can't set sample format: %s\n", cw_alsa.snd_strerror(rv));
 		return CW_FAILURE;
 	}
 
@@ -356,9 +362,9 @@ int cw_alsa_set_hw_params_internal(cw_gen_t *gen, snd_pcm_hw_params_t *hw_params
 		int rv = cw_alsa.snd_pcm_hw_params_set_rate_near(gen->alsa_data.handle, hw_params, &rate, &dir);
 		if (!rv) {
 			if (rate != cw_supported_sample_rates[i]) {
-				cw_dev_debug ("warning: imprecise sample rate:\n");
-				cw_dev_debug ("warning: asked for: %d\n", cw_supported_sample_rates[i]);
-				cw_dev_debug ("warning: got:       %d\n", rate);
+				cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_AUDIO_SYSTEM, "warning: imprecise sample rate:\n");
+				cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_AUDIO_SYSTEM, "warning: asked for: %d\n", cw_supported_sample_rates[i]);
+				cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_AUDIO_SYSTEM, "warning: got:       %d\n", rate);
 			}
 			success = true;
 			gen->sample_rate = rate;
@@ -367,23 +373,23 @@ int cw_alsa_set_hw_params_internal(cw_gen_t *gen, snd_pcm_hw_params_t *hw_params
 	}
 
 	if (!success) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: can't get sample rate: %s\n", cw_alsa.snd_strerror(rv));
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: can't get sample rate: %s\n", cw_alsa.snd_strerror(rv));
 		return CW_FAILURE;
         } else {
-		cw_dev_debug ("sample rate: %d\n", gen->sample_rate);
+		cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_AUDIO_SYSTEM, "sample rate: %d\n", gen->sample_rate);
 	}
 
 	/* Set PCM access type */
 	rv = cw_alsa.snd_pcm_hw_params_set_access(gen->alsa_data.handle, hw_params, SND_PCM_ACCESS_RW_INTERLEAVED);
 	if (rv < 0) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: can't set access type: %s\n", cw_alsa.snd_strerror(rv));
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: can't set access type: %s\n", cw_alsa.snd_strerror(rv));
 		return CW_FAILURE;
 	}
 
 	/* Set number of channels */
 	rv = cw_alsa.snd_pcm_hw_params_set_channels(gen->alsa_data.handle, hw_params, CW_AUDIO_CHANNELS);
 	if (rv < 0) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: can't set number of channels: %s\n", cw_alsa.snd_strerror(rv));
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: can't set number of channels: %s\n", cw_alsa.snd_strerror(rv));
 		return CW_FAILURE;
 	}
 
@@ -460,7 +466,7 @@ int cw_alsa_set_hw_params_internal(cw_gen_t *gen, snd_pcm_hw_params_t *hw_params
 		for (snd_pcm_uframes_t val = 0; val < 10000; val++) {
 			rv = cw_alsa.snd_pcm_hw_params_test_buffer_size(gen->alsa_data.handle, hw_params, val);
 			if (rv == 0) {
-				cw_dev_debug ("accepted buffer size: %u", (unsigned int) accepted);
+				cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_AUDIO_SYSTEM, "accepted buffer size: %u", (unsigned int) accepted);
 				/* Accept only the smallest available buffer size */
 				accepted = val;
 				break;
@@ -470,10 +476,10 @@ int cw_alsa_set_hw_params_internal(cw_gen_t *gen, snd_pcm_hw_params_t *hw_params
 		if (accepted > 0) {
 			rv = cw_alsa.snd_pcm_hw_params_set_buffer_size(gen->alsa_data.handle, hw_params, accepted);
 			if (rv < 0) {
-				cw_debug (CW_DEBUG_SYSTEM, "error: can't set accepted buffer size %u: %s\n", (unsigned int) accepted, cw_alsa.snd_strerror(rv));
+				cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: can't set accepted buffer size %u: %s\n", (unsigned int) accepted, cw_alsa.snd_strerror(rv));
 			}
 		} else {
-			cw_debug (CW_DEBUG_SYSTEM, "error: no accepted buffer size\n");
+			cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: no accepted buffer size\n");
 		}
 	}
 
@@ -488,16 +494,16 @@ int cw_alsa_set_hw_params_internal(cw_gen_t *gen, snd_pcm_hw_params_t *hw_params
 			rv = cw_alsa.snd_pcm_hw_params_test_periods(gen->alsa_data.handle, hw_params, val, dir);
 			if (rv == 0) {
 				accepted = val;
-				cw_dev_debug ("accepted number of periods: %d", accepted);
+				cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_AUDIO_SYSTEM, "accepted number of periods: %d", accepted);
 			}
 		}
 		if (accepted > 0) {
 			rv = cw_alsa.snd_pcm_hw_params_set_periods(gen->alsa_data.handle, hw_params, accepted, dir);
 			if (rv < 0) {
-				cw_dev_debug ("can't set accepted number of periods %d: %s", accepted, cw_alsa.snd_strerror(rv));
+				cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_AUDIO_SYSTEM, "can't set accepted number of periods %d: %s", accepted, cw_alsa.snd_strerror(rv));
 			}
 		} else {
-			cw_debug (CW_DEBUG_SYSTEM, "error: no accepted number of periods\n");
+			cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: no accepted number of periods\n");
 		}
 	}
 
@@ -507,7 +513,7 @@ int cw_alsa_set_hw_params_internal(cw_gen_t *gen, snd_pcm_hw_params_t *hw_params
 		for (snd_pcm_uframes_t val = 0; val < 100000; val++) {
 			rv = cw_alsa.snd_pcm_hw_params_test_period_size(gen->alsa_data.handle, hw_params, val, dir);
 			if (rv == 0) {
-				cw_dev_debug ("libcw: accepted period size: %lu", val);
+				cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_AUDIO_SYSTEM, "libcw: accepted period size: %lu", val);
 				// break;
 			}
 		}
@@ -519,7 +525,7 @@ int cw_alsa_set_hw_params_internal(cw_gen_t *gen, snd_pcm_hw_params_t *hw_params
 		for (unsigned int val = 0; val < 100000; val++) {
 			rv = cw_alsa.snd_pcm_hw_params_test_buffer_time(gen->alsa_data.handle, hw_params, val, dir);
 			if (rv == 0) {
-				cw_dev_debug ("accepted buffer time: %d", val);
+				cw_debug_msg (cw_dbg_dev_msg, "accepted buffer time: %d", val);
 				// break;
 			}
 		}
@@ -529,7 +535,7 @@ int cw_alsa_set_hw_params_internal(cw_gen_t *gen, snd_pcm_hw_params_t *hw_params
 	/* Save hw parameters to device */
 	rv = cw_alsa.snd_pcm_hw_params(gen->alsa_data.handle, hw_params);
 	if (rv < 0) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: can't save hw parameters: %s\n", cw_alsa.snd_strerror(rv));
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: can't save hw parameters: %s\n", cw_alsa.snd_strerror(rv));
 		return CW_FAILURE;
 	} else {
 		return CW_SUCCESS;
@@ -555,25 +561,25 @@ int cw_alsa_print_params_internal(snd_pcm_hw_params_t *hw_params)
 
 	int rv = cw_alsa.snd_pcm_hw_params_get_periods(hw_params, &val, &dir);
 	if (rv < 0) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: can't get 'periods': %s", cw_alsa.snd_strerror(rv));
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: can't get 'periods': %s", cw_alsa.snd_strerror(rv));
 	} else {
-		cw_dev_debug ("'periods' = %u", val);
+		cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_AUDIO_SYSTEM, "'periods' = %u", val);
 	}
 
 	snd_pcm_uframes_t period_size = 0;
 	rv = cw_alsa.snd_pcm_hw_params_get_period_size(hw_params, &period_size, &dir);
 	if (rv < 0) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: can't get 'period size': %s", cw_alsa.snd_strerror(rv));
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: can't get 'period size': %s", cw_alsa.snd_strerror(rv));
 	} else {
-		cw_dev_debug ("'period size' = %u", (unsigned int) period_size);
+		cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_AUDIO_SYSTEM, "'period size' = %u", (unsigned int) period_size);
 	}
 
 	snd_pcm_uframes_t buffer_size;
 	rv = cw_alsa.snd_pcm_hw_params_get_buffer_size(hw_params, &buffer_size);
 	if (rv < 0) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: can't get buffer size: %s", cw_alsa.snd_strerror(rv));
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: can't get buffer size: %s", cw_alsa.snd_strerror(rv));
 	} else {
-		cw_dev_debug ("'buffer size' = %u", (unsigned int) buffer_size);
+		cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_AUDIO_SYSTEM, "'buffer size' = %u", (unsigned int) buffer_size);
 	}
 
 	return CW_SUCCESS;

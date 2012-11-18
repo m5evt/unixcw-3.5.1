@@ -66,7 +66,10 @@
 #endif
 
 
-
+extern cw_debug_t *cw_dbg_msg;
+extern cw_debug_t *cw_dbg_dev_ev;
+extern cw_debug_t *cw_dbg_dev_msg;
+extern unsigned int cw_debug_flags;
 
 
 /* Conditional compilation flags */
@@ -111,7 +114,7 @@ bool cw_is_oss_possible(const char *device)
 	/* Open the given soundcard device file, for write only. */
 	int soundcard = open(dev, O_WRONLY);
 	if (soundcard == -1) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: libcw: open(%s): \"%s\"", dev, strerror(errno));
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: libcw: open(%s): \"%s\"", dev, strerror(errno));
 		return false;
         }
 
@@ -122,7 +125,7 @@ bool cw_is_oss_possible(const char *device)
 			close(soundcard);
 			return false;
 		} else {
-			cw_dev_debug ("OSS version %X.%X.%X", x, y, z);
+			cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_AUDIO_SYSTEM, "OSS version %X.%X.%X", x, y, z);
 		}
 	}
 
@@ -146,7 +149,7 @@ bool cw_is_oss_possible(const char *device)
 	int rv = cw_oss_open_device_ioctls_internal(&soundcard, &dummy);
 	close(soundcard);
 	if (rv != CW_SUCCESS) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: one or more OSS ioctl() calls failed");
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: one or more OSS ioctl() calls failed");
 		return false;
 	} else {
 		fprintf(stderr, "OSS is possible\n");
@@ -182,10 +185,10 @@ int cw_oss_write_internal(cw_gen_t *gen)
 	int n_bytes = sizeof (gen->buffer[0]) * gen->buffer_n_samples;
 	int rv = write(gen->audio_sink, gen->buffer, n_bytes);
 	if (rv != n_bytes) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: audio write (OSS): %s\n", strerror(errno));
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: audio write (OSS): %s\n", strerror(errno));
 		//return NULL;
 	}
-	// cw_dev_debug ("written %d samples with OSS", gen->buffer_n_samples);
+	// cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_AUDIO_SYSTEM, "written %d samples with OSS", gen->buffer_n_samples);
 
 
 	return CW_SUCCESS;
@@ -211,13 +214,13 @@ int cw_oss_open_device_internal(cw_gen_t *gen)
 	/* Open the given soundcard device file, for write only. */
 	int soundcard = open(gen->audio_device, O_WRONLY);
 	if (soundcard == -1) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: open(%s): \"%s\"\n", gen->audio_device, strerror(errno));
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: open(%s): \"%s\"\n", gen->audio_device, strerror(errno));
 		return CW_FAILURE;
         }
 
 	int rv = cw_oss_open_device_ioctls_internal(&soundcard, &gen->sample_rate);
 	if (rv != CW_SUCCESS) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: one or more OSS ioctl() calls failed\n");
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: one or more OSS ioctl() calls failed\n");
 		close(soundcard);
 		return CW_FAILURE;
 	}
@@ -228,18 +231,18 @@ int cw_oss_open_device_internal(cw_gen_t *gen)
 	   with ioctl(..., SNDCTL_DSP_SETFRAGMENT), and, in particular,
 	   can be different than 2^N. */
 	if ((rv = ioctl(soundcard, SNDCTL_DSP_GETBLKSIZE, &size)) == -1) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: ioctl(SNDCTL_DSP_GETBLKSIZE): \"%s\"\n", strerror(errno));
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: ioctl(SNDCTL_DSP_GETBLKSIZE): \"%s\"\n", strerror(errno));
 		close(soundcard);
 		return CW_FAILURE;
         }
 
 	if ((size & 0x0000ffff) != (1 << CW_OSS_SETFRAGMENT)) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: OSS fragment size not set, %d\n", size);
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: OSS fragment size not set, %d\n", size);
 		close(soundcard);
 		/* FIXME */
 		return CW_FAILURE;
         } else {
-		cw_dev_debug ("OSS fragment size = %d", size);
+		cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_AUDIO_SYSTEM, "OSS fragment size = %d", size);
 	}
 	gen->buffer_n_samples = size;
 
@@ -277,35 +280,35 @@ int cw_oss_open_device_ioctls_internal(int *fd, int *sample_rate)
 {
 	int parameter = 0; /* ignored */
 	if (ioctl(*fd, SNDCTL_DSP_SYNC, &parameter) == -1) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: ioctl(SNDCTL_DSP_SYNC): \"%s\"\n", strerror(errno));
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: ioctl(SNDCTL_DSP_SYNC): \"%s\"\n", strerror(errno));
 		return CW_FAILURE;
         }
 
 	parameter = 0; /* ignored */
 	if (ioctl(*fd, SNDCTL_DSP_POST, &parameter) == -1) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: ioctl(SNDCTL_DSP_POST): \"%s\"\n", strerror(errno));
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: ioctl(SNDCTL_DSP_POST): \"%s\"\n", strerror(errno));
 		return CW_FAILURE;
         }
 
 	/* Set the audio format to 8-bit unsigned. */
 	parameter = CW_OSS_SAMPLE_FORMAT;
 	if (ioctl(*fd, SNDCTL_DSP_SETFMT, &parameter) == -1) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: ioctl(SNDCTL_DSP_SETFMT): \"%s\"\n", strerror(errno));
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: ioctl(SNDCTL_DSP_SETFMT): \"%s\"\n", strerror(errno));
 		return CW_FAILURE;
         }
 	if (parameter != CW_OSS_SAMPLE_FORMAT) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: sample format not supported\n");
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: sample format not supported\n");
 		return CW_FAILURE;
         }
 
 	/* Set up mono mode - a single audio channel. */
 	parameter = CW_AUDIO_CHANNELS;
 	if (ioctl(*fd, SNDCTL_DSP_CHANNELS, &parameter) == -1) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: ioctl(SNDCTL_DSP_CHANNELS): \"%s\"\n", strerror(errno));
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: ioctl(SNDCTL_DSP_CHANNELS): \"%s\"\n", strerror(errno));
 		return CW_FAILURE;
         }
 	if (parameter != CW_AUDIO_CHANNELS) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: number of channels not supported\n");
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: number of channels not supported\n");
 		return CW_FAILURE;
         }
 
@@ -317,9 +320,9 @@ int cw_oss_open_device_ioctls_internal(int *fd, int *sample_rate)
 		rate = cw_supported_sample_rates[i];
 		if (!ioctl(*fd, SNDCTL_DSP_SPEED, &rate)) {
 			if (rate != cw_supported_sample_rates[i]) {
-				cw_dev_debug ("warning: imprecise sample rate:\n");
-				cw_dev_debug ("warning: asked for: %d\n", cw_supported_sample_rates[i]);
-				cw_dev_debug ("warning: got:       %d\n", rate);
+				cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_AUDIO_SYSTEM, "warning: imprecise sample rate:\n");
+				cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_AUDIO_SYSTEM, "warning: asked for: %d\n", cw_supported_sample_rates[i]);
+				cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_AUDIO_SYSTEM, "warning: got:       %d\n", rate);
 			}
 			success = true;
 			break;
@@ -327,7 +330,7 @@ int cw_oss_open_device_ioctls_internal(int *fd, int *sample_rate)
 	}
 
 	if (!success) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: ioctl(SNDCTL_DSP_SPEED): \"%s\"\n", strerror(errno));
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: ioctl(SNDCTL_DSP_SPEED): \"%s\"\n", strerror(errno));
 		return CW_FAILURE;
         } else {
 		*sample_rate = rate;
@@ -336,7 +339,7 @@ int cw_oss_open_device_ioctls_internal(int *fd, int *sample_rate)
 
 	audio_buf_info buff;
 	if (ioctl(*fd, SNDCTL_DSP_GETOSPACE, &buff) == -1) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: ioctl(SNDCTL_DSP_GETOSPACE): \"%s\"\n", strerror(errno));
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: ioctl(SNDCTL_DSP_GETOSPACE): \"%s\"\n", strerror(errno));
 		return CW_FAILURE;
         } else {
 		/*
@@ -364,32 +367,32 @@ int cw_oss_open_device_ioctls_internal(int *fd, int *sample_rate)
 	parameter = 0x0032 << 16 | CW_OSS_SETFRAGMENT;
 
 	if (ioctl(*fd, SNDCTL_DSP_SETFRAGMENT, &parameter) == -1) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: ioctl(SNDCTL_DSP_SETFRAGMENT): \"%s\"\n", strerror(errno));
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: ioctl(SNDCTL_DSP_SETFRAGMENT): \"%s\"\n", strerror(errno));
 		return CW_FAILURE;
         }
-	cw_debug (CW_DEBUG_SOUND, "fragment size is %d", parameter & 0x0000ffff);
+	cw_debug_msg (cw_dbg_msg, CW_DEBUG_SOUND, "fragment size is %d", parameter & 0x0000ffff);
 
 	/* Query fragment size just to get the driver buffers set. */
 	if (ioctl(*fd, SNDCTL_DSP_GETBLKSIZE, &parameter) == -1) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: ioctl(SNDCTL_DSP_GETBLKSIZE): \"%s\"\n", strerror(errno));
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: ioctl(SNDCTL_DSP_GETBLKSIZE): \"%s\"\n", strerror(errno));
 		return CW_FAILURE;
         }
 
 	if (parameter != (1 << CW_OSS_SETFRAGMENT)) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: OSS fragment size not set, %d\n", parameter);
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: OSS fragment size not set, %d\n", parameter);
         }
 
 #endif
 #if CW_OSS_SET_POLICY
 	parameter = 5;
 	if (ioctl(*fd, SNDCTL_DSP_POLICY, &parameter) == -1) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: ioctl(SNDCTL_DSP_POLICY): \"%s\"\n", strerror(errno));
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: ioctl(SNDCTL_DSP_POLICY): \"%s\"\n", strerror(errno));
 		return CW_FAILURE;
         }
 #endif
 
 	if (ioctl(*fd, SNDCTL_DSP_GETOSPACE, &buff) == -1) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: ioctl(SNDCTL_GETOSPACE): \"%s\"\n", strerror(errno));
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: ioctl(SNDCTL_GETOSPACE): \"%s\"\n", strerror(errno));
 		return CW_FAILURE;
         } else {
 		/*
@@ -436,7 +439,7 @@ int cw_oss_get_version_internal(int fd, int *x, int *y, int *z)
 
 	int parameter = 0;
 	if (ioctl(fd, OSS_GETVERSION, &parameter) == -1) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: ioctl OSS_GETVERSION");
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: ioctl OSS_GETVERSION");
 		return CW_FAILURE;
         } else {
 		*x = (parameter & 0xFF0000) >> 16;

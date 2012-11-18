@@ -48,6 +48,10 @@
 #include "libcw_debug.h"
 
 
+extern cw_debug_t *cw_dbg_msg;
+extern cw_debug_t *cw_dbg_dev_ev;
+extern cw_debug_t *cw_dbg_dev_msg;
+extern unsigned int cw_debug_flags;
 
 
 
@@ -94,7 +98,7 @@ bool cw_is_console_possible(const char *device)
 
 	int fd = open(dev, O_WRONLY);
 	if (fd == -1) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: open(%s): %s\n", dev, strerror(errno));
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: open(%s): %s\n", dev, strerror(errno));
 		return false;
 	}
 
@@ -140,10 +144,10 @@ int cw_console_open_device_internal(cw_gen_t *gen)
 
 	int console = open(gen->audio_device, O_WRONLY);
 	if (console == -1) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: open(%s): \"%s\"", gen->audio_device, strerror(errno));
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: open(%s): \"%s\"", gen->audio_device, strerror(errno));
 		return CW_FAILURE;
         } else {
-		cw_dev_debug ("open successfully, console = %d", console);
+		cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_SYSTEM, "open successfully, console = %d", console);
 	}
 
 	gen->audio_sink = console;
@@ -175,7 +179,7 @@ void cw_console_close_device_internal(cw_gen_t *gen)
 	gen->audio_sink = -1;
 	gen->audio_device_is_open = false;
 
-	cw_debug (CW_DEBUG_SOUND, "console closed");
+	cw_debug_msg (cw_dbg_msg, CW_DEBUG_SOUND, "console closed");
 
 	return;
 }
@@ -271,11 +275,11 @@ int cw_console_write_low_level_internal(cw_gen_t *gen, bool state)
 		argument = KIOCSOUND_CLOCK_TICK_RATE / gen->frequency;
 	}
 
-	cw_debug (CW_DEBUG_SOUND, "KIOCSOUND arg = %d (switch: %d, frequency: %d Hz, volume: %d %%)",
+	cw_debug_msg (cw_dbg_msg, CW_DEBUG_SOUND, "KIOCSOUND arg = %d (switch: %d, frequency: %d Hz, volume: %d %%)",
 		  argument, local_state, gen->frequency, gen->volume_percent);
 
 	if (ioctl(gen->audio_sink, KIOCSOUND, argument) == -1) {
-		cw_debug (CW_DEBUG_SYSTEM, "error: ioctl KIOCSOUND: \"%s\"\n", strerror(errno));
+		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: ioctl KIOCSOUND: \"%s\"\n", strerror(errno));
 		return CW_FAILURE;
 	} else {
 		return CW_SUCCESS;
