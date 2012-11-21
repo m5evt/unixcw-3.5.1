@@ -40,10 +40,6 @@
 #endif
 
 #include "libcw.h"
-#if defined(LIBCW_WITH_DEV)
-#include "libcw_debug.h"
-#endif
-
 #include "i18n.h"
 #include "cmdline.h"
 #include "copyright.h"
@@ -51,9 +47,7 @@
 #include "memory.h"
 
 
-#if defined(LIBCW_WITH_DEV)
-extern cw_debug_t *debug2;
-#endif
+
 
 
 /*---------------------------------------------------------------------*/
@@ -1600,10 +1594,6 @@ int main(int argc, char **argv)
 	 */
 	mode_initialize();
 
-#if defined(LIBCW_WITH_DEV)
-	debug2 = cw_debug2_new("stderr");
-#endif
-
 	/*
 	 * Initialize the curses user interface, then catch and action every
 	 * keypress we see.  Before calling getch, wait until data is available on
@@ -1639,10 +1629,6 @@ void cwcp_atexit(void)
 	if (config) {
 		cw_config_delete(&config);
 	}
-
-#if defined(LIBCW_WITH_DEV)
-	cw_debug2_delete(&debug2);
-#endif
 
 	return;
 }
