@@ -38,45 +38,49 @@ extern "C"
 
 typedef struct {
 
-	FILE *file; /* File to which events will be written. */
-
 	uint32_t flags;  /* Unused at the moment. */
 
+	int n;       /* Event counter. */
+	int n_max;   /* Flush threshold. */
+
+	/* Current debug level. */
+	int level;
+
+	/* Human-readable labels for debug levels. */
+	const char **level_labels;
+
 	struct {
-		uint32_t event;        /* Event ID. One of values from enum below. */
+		uint32_t event;   /* Event ID. One of values from enum below. */
 		long long sec;    /* Time of registering the event - second. */
 		long long usec;   /* Time of registering the event - microsecond. */
 	} events[CW_DEBUG_N_EVENTS_MAX];
 
-	int n;       /* Event counter. */
-	int n_max;   /* Flush threshold. */
 } cw_debug_t;
 
 
 
-cw_debug_t *cw_debug_new(const char *filename);
-void        cw_debug_delete(cw_debug_t **debug_object);
-void        cw_debug(cw_debug_t *debug, uint32_t flag, uint32_t event);
-void        cw_debug_set_flags(cw_debug_t *debug_object, uint32_t flags);
-uint32_t    cw_debug_get_flags(cw_debug_t *debug_object);
-void        cw_debug_print_flags(cw_debug_t *debug_object);
-bool        cw_debug_has_flag(cw_debug_t *debug_object, uint32_t flag);
-
-void        cw_debug_event_internal(cw_debug_t *debug_object, uint32_t flag,  uint32_t event, const char *func, int line);
+void     cw_debug_set_flags(cw_debug_t *debug_object, uint32_t flags);
+uint32_t cw_debug_get_flags(cw_debug_t *debug_object);
+void     cw_debug_print_flags(cw_debug_t *debug_object);
+bool     cw_debug_has_flag(cw_debug_t *debug_object, uint32_t flag);
+void     cw_debug_event_internal(cw_debug_t *debug_object, uint32_t flag, uint32_t event, const char *func, int line);
 
 
 
 
 
-#define cw_debug_msg(debug_object, flag, ...)				\
-	{								\
-	if (debug_object && (debug_object->flags & flag)) {		\
-	        fprintf(debug_object->file, "libcw: ");			\
-	        fprintf(debug_object->file, "%s: %d: ", __func__, __LINE__); \
-	        fprintf(debug_object->file, __VA_ARGS__);		\
-	        fprintf(debug_object->file, "\n");			\
+#define cw_debug_msg(debug_object, flag, debug_level, ...) {		\
+	if (debug_level >= debug_object->level) {			\
+		if (debug_object->flags & flag) {			\
+			fprintf(stderr, "%s:", debug_object->level_labels[debug_level]); \
+			if (debug_level == CW_DEBUG_DEBUG) {		\
+				fprintf(stderr, "%s: %d: ", __func__, __LINE__); \
+			}						\
+			fprintf(stderr, __VA_ARGS__);			\
+			fprintf(stderr, "\n");				\
+		}							\
 	}								\
-	}
+}
 
 
 
