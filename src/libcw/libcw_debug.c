@@ -68,142 +68,42 @@ struct {
 
 
 
-cw_debug_t *cw_dbg_msg = NULL;
-cw_debug_t *cw_dbg_dev_ev = NULL;
-cw_debug_t *cw_dbg_dev_msg = NULL;
+/* Human-readable labels for debug levels.
+   Other modules can access the table only through pointer in debug
+   object. I don't expose this table (by making it globally visible)
+   to decrease number of 'extern' declarations. */
+static const char *cw_debug_level_labels[] = { "DD", "II", "WW", "EE" };
 
 
 
 
-/* Current debug flags setting; no debug unless requested. */
-unsigned int cw_debug_flags = CW_DEBUG_SYSTEM; //CW_DEBUG_TONE_QUEUE; //CW_DEBUG_KEYER_STATES | CW_DEBUG_KEYER_STATES_VERBOSE | CW_DEBUG_STRAIGHT_KEY | CW_DEBUG_KEYING; // | CW_DEBUG_TONE_QUEUE;
+cw_debug_t cw_debug_object = {
+	.flags = CW_DEBUG_STDLIB | CW_DEBUG_SOUND_SYSTEM, //CW_DEBUG_TONE_QUEUE; //CW_DEBUG_KEYER_STATES | CW_DEBUG_STRAIGHT_KEY | CW_DEBUG_KEYING; // | CW_DEBUG_TONE_QUEUE;,
+	.n = 0,
+	.n_max = 1,
+	.level = CW_DEBUG_INFO,
+	.level_labels = cw_debug_level_labels
+};
 
+cw_debug_t cw_debug_object_dev = {
+	.flags = CW_DEBUG_SOUND_SYSTEM,
+	.n = 0,
+	.n_max = 1,
+	.level = CW_DEBUG_DEBUG,
+	.level_labels = cw_debug_level_labels
+};
+
+cw_debug_t cw_debug_object_ev = {
+	.flags = 0,
+	.n = 0,
+	.n_max = CW_DEBUG_N_EVENTS_MAX,
+	.level = CW_DEBUG_DEBUG,
+	.level_labels = cw_debug_level_labels
+};
 
 
 
 static void cw_debug_flush(cw_debug_t *debug_object);
-
-
-
-
-
-/**
-   \brief Create new debug object
-
-   Function accepts "stdout" and "stderr" as output file names,
-   in addition to regular disk files.
-
-   \param filename - name of output file
-
-   \return debug object on success
-   \return NULL on failure
-*/
-cw_debug_t *cw_debug_new(const char *filename)
-{
-	cw_debug_t *debug = (cw_debug_t *) malloc(sizeof (cw_debug_t));
-	if (!debug) {
-		fprintf(stderr, "ERROR: failed to allocate debug object\n");
-		return (cw_debug_t *) NULL;
-	}
-
-	if (!strcmp(filename, "stderr")) {
-		debug->file = stderr;
-	} else if (!strcmp(filename, "stdout")) {
-		debug->file = stdout;
-	} else if (filename) {
-		debug->file = fopen(filename, "w");
-		if (!debug->file) {
-			fprintf(stderr, "ERROR: failed to open debug file \"%s\"\n", filename);
-			free(debug);
-			debug = (cw_debug_t *) NULL;
-
-			return (cw_debug_t *) NULL;
-		}
-	} else {
-		;
-	}
-
-	debug->n = 0;
-	debug->n_max = CW_DEBUG_N_EVENTS_MAX;
-	debug->flags = 0;
-
-	return debug;
-}
-
-
-
-
-
-/**
-   \brief Delete debug object
-
-   Flush all events still stored in the debug object, and delete the object.
-   Function sets \p *debug to NULL after deleting the object.
-
-   \param debug - pointer to debug object to delete
-*/
-void cw_debug_delete(cw_debug_t **debug)
-{
-	if (!debug) {
-		fprintf(stderr, "ERROR: %s(): NULL pointer to debug object\n", __func__);
-		return;
-	}
-
-	if (!*debug) {
-		fprintf(stderr, "WARNING: %s(): NULL debug object\n", __func__);
-		return;
-	}
-
-	cw_debug_flush(*debug);
-
-	if ((*debug)->file != 0 && (*debug)->file != stdout && (*debug)->file != stderr) {
-		fclose((*debug)->file);
-		(*debug)->file = 0;
-	}
-
-	free(*debug);
-	*debug = (cw_debug_t *) NULL;
-
-	return;
-}
-
-
-
-
-
-/**
-   \brief Store an event in debug object
-
-   \param debug - debug object
-   \param flag - unused
-   \param event - event ID
-*/
-void cw_debug(cw_debug_t *debug, uint32_t flag, uint32_t event)
-{
-	if (!debug) {
-		return;
-	}
-
-	if ((debug->flags & flag) != flag) {
-		return;
-	}
-
-	struct timeval now;
-	gettimeofday(&now, NULL);
-
-	debug->events[debug->n].event = event;
-	debug->events[debug->n].sec = (long long int) now.tv_sec;
-	debug->events[debug->n].usec = (long long int) now.tv_usec;
-
-	debug->n++;
-
-	if (debug->n >= debug->n_max) {
-		cw_debug_flush(debug);
-		debug->n = 0;
-	}
-
-	return;
-}
 
 
 
@@ -229,23 +129,18 @@ void cw_debug_flush(cw_debug_t *debug)
 	long long int diff = debug->events[debug->n - 1].sec - debug->events[0].sec;
 	diff = debug->events[debug->n - 1].sec - diff - 1;
 
-	fprintf(debug->file, "FLUSH START\n");
+	fprintf(stderr, "FLUSH START\n");
 	for (int i = 0; i < debug->n; i++) {
-		fprintf(debug->file, "libcwevent:\t%06lld%06lld\t%s\n",
+		fprintf(stderr, "libcwevent:\t%06lld%06lld\t%s\n",
 			debug->events[i].sec - diff, debug->events[i].usec,
 			cw_debug_event_strings[debug->events[i].event].message);
 	}
-	fprintf(debug->file, "FLUSH END\n");
+	fprintf(stderr, "FLUSH END\n");
 
-	fflush(debug->file);
+	fflush(stderr);
 
 	return;
 }
-
-
-
-
-
 
 
 
@@ -261,9 +156,9 @@ void cw_debug_flush(cw_debug_t *debug)
 
    \param new_value - new value to be assigned to the library
 */
-void cw_set_debug_flags(unsigned int new_value)
+void cw_set_debug_flags(uint32_t flags)
 {
-	cw_debug_flags = new_value;
+	cw_debug_object.flags = flags;
 	return;
 }
 
@@ -278,7 +173,7 @@ void cw_set_debug_flags(unsigned int new_value)
 
    \return value of library's debug flags variable
 */
-unsigned int cw_get_debug_flags(void)
+uint32_t cw_get_debug_flags(void)
 {
 	/* TODO: extract reading LIBCW_DEBUG env
 	   variable to separate function. */
@@ -287,7 +182,7 @@ unsigned int cw_get_debug_flags(void)
 
 	if (!is_initialized) {
 		/* Do not overwrite any debug flags already set. */
-		if (cw_debug_flags == 0) {
+		if (cw_debug_object.flags == 0) {
 
 			/*
 			 * Set the debug flags from LIBCW_DEBUG.  If it is an invalid
@@ -295,36 +190,16 @@ unsigned int cw_get_debug_flags(void)
 			 */
 			const char *debug_value = getenv("LIBCW_DEBUG");
 			if (debug_value) {
-				cw_debug_flags = strtoul(debug_value, NULL, 0);
+				cw_debug_object.flags = strtoul(debug_value, NULL, 0);
 			}
 		}
 
 		is_initialized = true;
 	}
 
-	return cw_debug_flags;
+	return cw_debug_object.flags;
 }
 
-
-
-
-#if 0
-/**
-   \brief Check if given debug flag is set
-
-   Function checks if a specified debug flag is set in internal
-   variable of libcw library.
-
-   \param flag - flag to be checked.
-
-   \return true if given flag is set
-   \return false if given flag is not set
-*/
-bool cw_is_debugging_internal(uint32_t flag)
-{
-	return cw_get_debug_flags() & flag;
-}
-#endif
 
 
 
@@ -348,6 +223,7 @@ bool cw_debug_has_flag(cw_debug_t *debug_object, uint32_t flag)
 		return false;
 	}
 }
+
 
 
 
@@ -445,7 +321,8 @@ int cw_dev_debug_raw_sink_write_internal(cw_gen_t *gen)
 
 		int rv = write(gen->dev_raw_sink, gen->buffer, n_bytes);
 		if (rv == -1) {
-			cw_dev_debug ("ERROR: write error: %s (gen->dev_raw_sink = %ld, gen->buffer = %ld, n_bytes = %d)", strerror(errno), (long) gen->dev_raw_sink, (long) gen->buffer, n_bytes);
+			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+				      "libcw_debug: write error: %s (gen->dev_raw_sink = %ld, gen->buffer = %ld, n_bytes = %d)", strerror(errno), (long) gen->dev_raw_sink, (long) gen->buffer, n_bytes);
 			return CW_FAILURE;
 		}
 	}
@@ -457,7 +334,7 @@ int cw_dev_debug_raw_sink_write_internal(cw_gen_t *gen)
 
 
 
-void cw_debug_event_internal(cw_debug_t *debug_object, unsigned int flag, int event, const char *func, int line)
+void cw_debug_event_internal(cw_debug_t *debug_object, uint32_t flag, uint32_t event, const char *func, int line)
 {
 	if (!debug_object) {
 		return;
@@ -467,27 +344,24 @@ void cw_debug_event_internal(cw_debug_t *debug_object, unsigned int flag, int ev
 		return;
 	}
 
-	debug->events[debug->n].event = event;
-	debug->events[debug->n].sec = (long long int) now.tv_sec;
-	debug->events[debug->n].usec = (long long int) now.tv_usec;
+	struct timeval now;
+	gettimeofday(&now, NULL);
 
-	debug->n++;
+	debug_object->events[debug_object->n].event = event;
+	debug_object->events[debug_object->n].sec = (long long int) now.tv_sec;
+	debug_object->events[debug_object->n].usec = (long long int) now.tv_usec;
 
-	if (debug->n >= debug->n_max) {
-		cw_debug_event_flush(debug);
-		debug->n = 0;
+	debug_object->n++;
+
+	if (debug_object->n >= debug_object->n_max) {
+		cw_debug_flush(debug_object);
+		debug_object->n = 0;
 	}
 
 	return;
 }
 
 
-
-void cw_debug_message_internal(cw_debug_object *debug_object, uint32_t flag, const char *func, int line, ...)
-{
-}
-void cw_debug_event_internal(cw_debug_t *debug_object, flag, event, __func__, __LINE__); \
-	}
 
 
 
