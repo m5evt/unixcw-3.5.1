@@ -24,10 +24,6 @@
 #ifdef LIBCW_WITH_CONSOLE
 
 
-#define _BSD_SOURCE   /* usleep() */
-#define _POSIX_SOURCE /* sigaction() */
-#define _POSIX_C_SOURCE 200112L /* pthread_sigmask() */
-
 
 #include <sys/time.h>
 #include <sys/ioctl.h>
@@ -48,10 +44,9 @@
 #include "libcw_debug.h"
 
 
-extern cw_debug_t *cw_dbg_msg;
-extern cw_debug_t *cw_dbg_dev_ev;
-extern cw_debug_t *cw_dbg_dev_msg;
-extern unsigned int cw_debug_flags;
+extern cw_debug_t cw_debug_object;
+extern cw_debug_t cw_debug_object_ev;
+extern cw_debug_t cw_debug_object_dev;
 
 
 
@@ -98,7 +93,8 @@ bool cw_is_console_possible(const char *device)
 
 	int fd = open(dev, O_WRONLY);
 	if (fd == -1) {
-		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: open(%s): %s\n", dev, strerror(errno));
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
+			      "libcw_console: open(%s): %s", dev, strerror(errno));
 		return false;
 	}
 
@@ -144,10 +140,12 @@ int cw_console_open_device_internal(cw_gen_t *gen)
 
 	int console = open(gen->audio_device, O_WRONLY);
 	if (console == -1) {
-		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: open(%s): \"%s\"", gen->audio_device, strerror(errno));
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
+			      "libcw_console: open(%s): \"%s\"", gen->audio_device, strerror(errno));
 		return CW_FAILURE;
         } else {
-		cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_SYSTEM, "open successfully, console = %d", console);
+		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_INFO,
+			      "libcw_console: open successfully, console = %d", console);
 	}
 
 	gen->audio_sink = console;
@@ -179,7 +177,8 @@ void cw_console_close_device_internal(cw_gen_t *gen)
 	gen->audio_sink = -1;
 	gen->audio_device_is_open = false;
 
-	cw_debug_msg (cw_dbg_msg, CW_DEBUG_SOUND, "console closed");
+	cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_INFO,
+		      "libcw_console: console closed");
 
 	return;
 }
@@ -205,6 +204,9 @@ void cw_console_close_device_internal(cw_gen_t *gen)
 */
 int cw_console_write(cw_gen_t *gen, cw_tone_t *tone)
 {
+	assert (gen);
+	assert (gen->audio_system == CW_AUDIO_CONSOLE);
+
 	int usecs = tone->usecs;
 	if (usecs == CW_AUDIO_FOREVER_USECS) {
 		/* CW_AUDIO_FOREVER_USECS is a negative value, serving as
@@ -275,11 +277,13 @@ int cw_console_write_low_level_internal(cw_gen_t *gen, bool state)
 		argument = KIOCSOUND_CLOCK_TICK_RATE / gen->frequency;
 	}
 
-	cw_debug_msg (cw_dbg_msg, CW_DEBUG_SOUND, "KIOCSOUND arg = %d (switch: %d, frequency: %d Hz, volume: %d %%)",
-		  argument, local_state, gen->frequency, gen->volume_percent);
+	cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_INFO,
+		      "libcw_console: KIOCSOUND arg = %d (switch: %d, frequency: %d Hz, volume: %d %%)",
+		      argument, local_state, gen->frequency, gen->volume_percent);
 
 	if (ioctl(gen->audio_sink, KIOCSOUND, argument) == -1) {
-		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: ioctl KIOCSOUND: \"%s\"\n", strerror(errno));
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
+			      "libcw_console: ioctl KIOCSOUND: \"%s\"", strerror(errno));
 		return CW_FAILURE;
 	} else {
 		return CW_SUCCESS;
@@ -288,14 +292,18 @@ int cw_console_write_low_level_internal(cw_gen_t *gen, bool state)
 
 
 
+
+
 int cw_console_configure(cw_gen_t *gen, const char *device)
 {
+	assert (gen);
+
 	gen->audio_system = CW_AUDIO_CONSOLE;
 	cw_generator_set_audio_device_internal(gen, device);
 
 	gen->open_device  = cw_console_open_device_internal;
 	gen->close_device = cw_console_close_device_internal;
-	//gen->write        = cw_console_write_internal;
+	// gen->write        = cw_console_write; // The function is called in libcw.c directly/explicitly, not through a pointer. */
 
 	return CW_SUCCESS;
 }

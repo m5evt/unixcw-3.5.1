@@ -24,10 +24,6 @@
 #ifdef LIBCW_WITH_PULSEAUDIO
 
 
-#define _BSD_SOURCE   /* usleep() */
-#define _POSIX_SOURCE /* sigaction() */
-#define _POSIX_C_SOURCE 200112L /* pthread_sigmask() */
-
 
 #include <stdio.h>
 #include <unistd.h>
@@ -41,11 +37,9 @@
 #include "libcw_debug.h"
 
 
-extern cw_debug_t *cw_dbg_msg;
-extern cw_debug_t *cw_dbg_dev_ev;
-extern cw_debug_t *cw_dbg_dev_msg;
-extern unsigned int cw_debug_flags;
-
+extern cw_debug_t cw_debug_object;
+extern cw_debug_t cw_debug_object_ev;
+extern cw_debug_t cw_debug_object_dev;
 
 
 static pa_simple *cw_pa_simple_new_internal(pa_sample_spec *ss, pa_buffer_attr *ba, const char *device, const char *stream_name, int *error);
@@ -84,7 +78,7 @@ static struct {
 
 
 static const pa_sample_format_t CW_PA_SAMPLE_FORMAT = PA_SAMPLE_S16LE; /* Signed 16 bit, Little Endian */
-#define CW_AUDIO_PA_BUFFER_N_SAMPLES 1024
+static const int CW_PA_BUFFER_N_SAMPLES = 1024;
 
 
 
@@ -105,13 +99,15 @@ bool cw_is_pa_possible(const char *device)
 {
 	const char *library_name = "libpulse-simple.so";
 	if (!cw_dlopen_internal(library_name, &(cw_pa.handle))) {
-		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: can't access PulseAudio library \"%s\"\n", library_name);
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
+			      "libcw_pa: can't access PulseAudio library \"%s\"", library_name);
 		return false;
 	}
 
 	int rv = cw_pa_dlsym_internal(cw_pa.handle);
 	if (rv < 0) {
-		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: failed to resolve PulseAudio symbol #%d, can't correctly load PulseAudio library\n", rv);
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
+			      "libcw_pa: failed to resolve PulseAudio symbol #%d, can't correctly load PulseAudio library", rv);
 		dlclose(cw_pa.handle);
 		return false;
 	}
@@ -128,7 +124,8 @@ bool cw_is_pa_possible(const char *device)
 	pa_simple *s = cw_pa_simple_new_internal(&ss, &ba, dev, "cw_is_pa_possible()", &error);
 
 	if (!s) {
-		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: can't connect to PulseAudio server: %s\n", cw_pa.pa_strerror(error));
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
+			      "libcw_pa: can't connect to PulseAudio server: %s", cw_pa.pa_strerror(error));
 		if (cw_pa.handle) {
 			dlclose(cw_pa.handle);
 		}
@@ -146,12 +143,14 @@ bool cw_is_pa_possible(const char *device)
 
 int cw_pa_configure(cw_gen_t *gen, const char *dev)
 {
+	assert (gen);
+
 	gen->audio_system = CW_AUDIO_PA;
 	cw_generator_set_audio_device_internal(gen, dev);
 
-	gen->open_device = cw_pa_open_device_internal;
+	gen->open_device  = cw_pa_open_device_internal;
 	gen->close_device = cw_pa_close_device_internal;
-	gen->write = cw_pa_write_internal;
+	gen->write        = cw_pa_write_internal;
 
 	return CW_SUCCESS;
 }
@@ -169,9 +168,10 @@ int cw_pa_write_internal(cw_gen_t *gen)
 	size_t n_bytes = sizeof (gen->buffer[0]) * gen->buffer_n_samples;
 	int rv = cw_pa.pa_simple_write(gen->pa_data.s, gen->buffer, n_bytes, &error);
 	if (rv < 0) {
-		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: pa_simple_write() failed: %s\n", cw_pa.pa_strerror(error));
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
+			      "libcw_pa: pa_simple_write() failed: %s", cw_pa.pa_strerror(error));
 	} else {
-		//cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_AUDIO_SYSTEM, "written %d samples with PulseAudio", gen->buffer_n_samples);
+		//cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_INFO, "libcw_pa: written %d samples with PulseAudio", gen->buffer_n_samples);
 	}
 
 	return CW_SUCCESS;
@@ -304,15 +304,17 @@ int cw_pa_open_device_internal(cw_gen_t *gen)
 						   &error);
 
  	if (!gen->pa_data.s) {
-		cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_AUDIO_SYSTEM, "error: can't connect to PulseAudio server: %s\n", cw_pa.pa_strerror(error));
+		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
+			      "libcw_pa: can't connect to PulseAudio server: %s", cw_pa.pa_strerror(error));
 		return false;
 	}
 
-	gen->buffer_n_samples = CW_AUDIO_PA_BUFFER_N_SAMPLES;
+	gen->buffer_n_samples = CW_PA_BUFFER_N_SAMPLES;
 	gen->sample_rate = gen->pa_data.ss.rate;
 
 	if ((gen->pa_data.latency_usecs = cw_pa.pa_simple_get_latency(gen->pa_data.s, &error)) == (pa_usec_t) -1) {
-		cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_AUDIO_SYSTEM, "error: pa_simple_get_latency() failed: %s", cw_pa.pa_strerror(error));
+		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
+			      "libcw_pa: pa_simple_get_latency() failed: %s", cw_pa.pa_strerror(error));
 	}
 
 #if CW_DEV_RAW_SINK
@@ -336,12 +338,14 @@ void cw_pa_close_device_internal(cw_gen_t *gen)
 		/* Make sure that every single sample was played */
 		int error;
 		if (cw_pa.pa_simple_drain(gen->pa_data.s, &error) < 0) {
-			cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_AUDIO_SYSTEM, "error pa_simple_drain() failed: %s", cw_pa.pa_strerror(error));
+			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
+				      "libcw_pa: pa_simple_drain() failed: %s", cw_pa.pa_strerror(error));
 		}
 		cw_pa.pa_simple_free(gen->pa_data.s);
 		gen->pa_data.s = NULL;
 	} else {
-		cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_AUDIO_SYSTEM, "warning: called the function for NULL PA sink");
+		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_WARNING,
+			      "libcw_pa: called the function for NULL PA sink");
 	}
 
 	if (cw_pa.handle) {
@@ -383,7 +387,7 @@ bool cw_is_pa_possible(__attribute__((unused)) const char *device)
 
 
 
-int  cw_pa_configure(__attribute__((unused)) cw_gen_t *gen, __attribute__((unused)) const char *device)
+int cw_pa_configure(__attribute__((unused)) cw_gen_t *gen, __attribute__((unused)) const char *device)
 {
 	return CW_FAILURE;
 }

@@ -255,10 +255,9 @@ static int cw_send_character_internal(cw_gen_t *gen, char character, int partial
 
 
 
-extern cw_debug_t *cw_dbg_msg;
-extern cw_debug_t *cw_dbg_dev_ev;
-extern cw_debug_t *cw_dbg_dev_msg;
-extern unsigned int cw_debug_flags;
+extern cw_debug_t cw_debug_object;
+extern cw_debug_t cw_debug_object_ev;
+extern cw_debug_t cw_debug_object_dev;
 
 
 
@@ -678,7 +677,8 @@ const char *cw_character_to_representation_internal(int c)
 	/* If this is the first call, set up the fast lookup table to give
 	   direct access to the CW table for a given character. */
 	if (!is_initialized) {
-		cw_debug_msg (cw_dbg_msg, CW_DEBUG_LOOKUPS, "initialize fast lookup table");
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_LOOKUPS, CW_DEBUG_INFO,
+			      "libcw: initialize fast lookup table");
 
 		for (const cw_entry_t *cw_entry = CW_TABLE; cw_entry->character; cw_entry++) {
 			lookup[(unsigned char) cw_entry->character] = cw_entry;
@@ -698,14 +698,14 @@ const char *cw_character_to_representation_internal(int c)
 	   if it's not assigned to in the above loop. */
 	const cw_entry_t *cw_entry = lookup[(unsigned char) c];
 
-	if (cw_debug_has_flag(cw_dbg_msg, CW_DEBUG_LOOKUPS)) {
+	if (cw_debug_has_flag((&cw_debug_object), CW_DEBUG_LOOKUPS)) {
 		if (cw_entry) {
-			fprintf (stderr, "cw: lookup '%c' returned <'%c':\"%s\">\n",
+			fprintf (stderr, "libcw: lookup '%c' returned <'%c':\"%s\">\n",
 				 c, cw_entry->character, cw_entry->representation);
 		} else if (isprint (c)) {
-			fprintf (stderr, "cw: lookup '%c' found nothing\n", c);
+			fprintf (stderr, "libcw: lookup '%c' found nothing\n", c);
 		} else {
-			fprintf (stderr, "cw: lookup 0x%02x found nothing\n",
+			fprintf (stderr, "libcw: lookup 0x%02x found nothing\n",
 				 (unsigned char) c);
 		}
 	}
@@ -874,7 +874,8 @@ int cw_representation_to_character_internal(const char *representation)
 	/* If this is the first call, set up the fast lookup table to give direct
 	   access to the CW table for a hashed representation. */
 	if (!is_initialized) {
-		cw_debug_msg (cw_dbg_msg, CW_DEBUG_LOOKUPS, "initialize hash lookup table");
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_LOOKUPS, CW_DEBUG_INFO,
+			      "libcw: initialize hash lookup table");
 		is_complete = cw_representation_lookup_init_internal(lookup);
 		is_initialized = true;
 	}
@@ -914,13 +915,13 @@ int cw_representation_to_character_internal(const char *representation)
 		}
 	}
 
-	if (cw_debug_has_flag(cw_dbg_msg, CW_DEBUG_LOOKUPS)) {
+	if (cw_debug_has_flag((&cw_debug_object), CW_DEBUG_LOOKUPS)) {
 		if (cw_entry) {
-			fprintf (stderr, "cw: lookup [0x%02x]'%s' returned <'%c':\"%s\">\n",
+			fprintf (stderr, "libcw: lookup [0x%02x]'%s' returned <'%c':\"%s\">\n",
 				 hash, representation,
 				 cw_entry->character, cw_entry->representation);
 		} else {
-			fprintf (stderr, "cw: lookup [0x%02x]'%s' found nothing\n",
+			fprintf (stderr, "libcw: lookup [0x%02x]'%s' found nothing\n",
 				 hash, representation);
 		}
 	}
@@ -970,7 +971,8 @@ bool cw_representation_lookup_init_internal(const cw_entry_t *lookup[])
         }
 
 	if (!is_complete) {
-		cw_debug_msg (cw_dbg_msg, CW_DEBUG_LOOKUPS, "hash lookup table incomplete");
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_LOOKUPS, CW_DEBUG_WARNING,
+			      "libcw: hash lookup table incomplete");
 	}
 
 	return is_complete;
@@ -1279,7 +1281,8 @@ const char *cw_lookup_procedural_character_internal(int c, bool *is_usually_expa
 	   give direct access to the procedural expansions table for
 	   a given character. */
 	if (!is_initialized) {
-		cw_debug_msg (cw_dbg_msg, CW_DEBUG_LOOKUPS, "initialize prosign fast lookup table");
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_LOOKUPS, CW_DEBUG_INFO,
+			      "libcw: initialize prosign fast lookup table");
 
 		for (const cw_prosign_entry_t *e = CW_PROSIGN_TABLE; e->character; e++) {
 			lookup[(unsigned char) e->character] = e;
@@ -1293,15 +1296,15 @@ const char *cw_lookup_procedural_character_internal(int c, bool *is_usually_expa
 	   need to use any uppercase coercion here. */
 	const cw_prosign_entry_t *cw_prosign = lookup[(unsigned char) c];
 
-	if (cw_debug_has_flag(cw_dbg_msg, CW_DEBUG_LOOKUPS)) {
+	if (cw_debug_has_flag((&cw_debug_object), CW_DEBUG_LOOKUPS)) {
 		if (cw_prosign) {
-			fprintf(stderr, "cw: prosign lookup '%c' returned <'%c':\"%s\":%d>\n",
+			fprintf(stderr, "libcw: prosign lookup '%c' returned <'%c':\"%s\":%d>\n",
 				c, cw_prosign->character,
 				cw_prosign->expansion, cw_prosign->is_usually_expanded);
 		} else if (isprint(c)) {
-			fprintf(stderr, "cw: prosign lookup '%c' found nothing\n", c);
+			fprintf(stderr, "libcw: prosign lookup '%c' found nothing\n", c);
 		} else {
-			fprintf(stderr, "cw: prosign lookup 0x%02x found nothing\n",
+			fprintf(stderr, "libcw: prosign lookup 0x%02x found nothing\n",
 				(unsigned char) c);
 		}
 	}
@@ -1764,7 +1767,8 @@ void cw_sync_parameters_internal(cw_gen_t *gen)
 	   identifying this in earlier versions of libcw. */
 	cw_adjustment_delay = (7 * cw_additional_delay) / 3;
 
-	cw_debug_msg (cw_dbg_msg, CW_DEBUG_PARAMETERS, "send usec timings <%d>: %d, %d, %d, %d, %d, %d, %d",
+	cw_debug_msg ((&cw_debug_object), CW_DEBUG_PARAMETERS, CW_DEBUG_INFO,
+		      "libcw: send usec timings <%d>: %d, %d, %d, %d, %d, %d, %d",
 		      gen->send_speed, cw_send_dot_length, cw_send_dash_length,
 		      cw_end_of_ele_delay, cw_end_of_char_delay,
 		      cw_end_of_word_delay, cw_additional_delay, cw_adjustment_delay);
@@ -1845,7 +1849,8 @@ void cw_sync_parameters_internal(cw_gen_t *gen)
 	cw_eoe_range_ideal = unit_length;
 	cw_eoc_range_ideal = 3 * unit_length;
 
-	cw_debug_msg (cw_dbg_msg, CW_DEBUG_PARAMETERS, "receive usec timings <%d>: %d-%d, %d-%d, %d-%d[%d], %d-%d[%d], %d",
+	cw_debug_msg ((&cw_debug_object), CW_DEBUG_PARAMETERS, CW_DEBUG_INFO,
+		      "libcw: receive usec timings <%d>: %d-%d, %d-%d, %d-%d[%d], %d-%d[%d], %d",
 		      cw_receive_speed,
 		      cw_dot_range_minimum, cw_dot_range_maximum,
 		      cw_dash_range_minimum, cw_dash_range_maximum,
@@ -2432,14 +2437,14 @@ static struct sigaction cw_sigalrm_original_disposition;
 */
 void cw_sigalrm_handlers_caller_internal(__attribute__((unused)) int signal_number)
 {
-	// cw_debug_msg (cw_dbg_dev_msg, "calling low level SIGALRM handlers");
 	/* Call the known functions that are interested in SIGALRM signal.
 	   Stop on the first free slot found; valid because the array is
 	   filled in order from index 0, and there are no deletions. */
 	for (int handler = 0;
 	     handler < CW_SIGALRM_HANDLERS_MAX && cw_sigalrm_handlers[handler]; handler++) {
 
-		cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_SYSTEM, "SIGALRM handler #%d", handler);
+		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_INTERNAL, CW_DEBUG_DEBUG,
+			      "libcw: SIGALRM handler #%d", handler);
 
 		(cw_sigalrm_handlers[handler])();
 	}
@@ -2474,7 +2479,8 @@ int cw_timer_run_internal(int usecs)
 	itimer.it_value.tv_usec = usecs % USECS_PER_SEC;
 	int status = setitimer(ITIMER_REAL, &itimer, NULL);
 	if (status == -1) {
-		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "setitimer(%d): %s\n", usecs, strerror(errno));
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+			      "libcw: setitimer(%d): %s", usecs, strerror(errno));
 		return CW_FAILURE;
 	}
 
@@ -2530,7 +2536,8 @@ int cw_timer_run_with_handler_internal(int usecs, void (*sigalrm_handler)(void))
 		if (cw_sigalrm_handlers[handler] != sigalrm_handler) {
 			if (cw_sigalrm_handlers[handler]) {
 				errno = ENOMEM;
-				cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "libc: overflow cw_sigalrm_handlers");
+				cw_debug_msg ((&cw_debug_object), CW_DEBUG_INTERNAL, CW_DEBUG_ERROR,
+					      "libcw: overflow cw_sigalrm_handlers");
 				return CW_FAILURE;
 			} else {
 				cw_sigalrm_handlers[handler] = sigalrm_handler;
@@ -2552,17 +2559,16 @@ int cw_timer_run_with_handler_internal(int usecs, void (*sigalrm_handler)(void))
 #else
 		if (raise(SIGALRM) != 0) {
 #endif
-			cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "libcw: raise");
+			cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+				      "libcw: raise()");
 			return CW_FAILURE;
 		}
-		//cw_debug_msg (cw_dbg_dev_msg, "timer successfully started with time = 0");
 	} else {
 		/* Set the itimer to produce a single interrupt after the
 		   given duration. */
 		if (!cw_timer_run_internal(usecs)) {
 			return CW_FAILURE;
 		}
-		// cw_debug_msg (cw_dbg_dev_msg, "timer successfully started with time = %d", usecs);
 	}
 
 	return CW_SUCCESS;
@@ -2587,12 +2593,12 @@ int cw_sigalrm_install_top_level_handler_internal(void)
 
 		int status = sigaction(SIGALRM, &action, &cw_sigalrm_original_disposition);
 		if (status == -1) {
-			cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "sigaction(): %s\n", strerror(errno));
+			cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+				      "libcw: sigaction(): %s", strerror(errno));
 			return CW_FAILURE;
 		}
 
 		cw_is_sigalrm_handlers_caller_installed = true;
-		//cw_debug_msg (cw_dbg_dev_msg, "installed top level SIGALRM handler");
 	}
 	return CW_SUCCESS;
 }
@@ -2655,14 +2661,16 @@ bool cw_sigalrm_is_blocked_internal(void)
 	/* Prepare empty set of signals */
 	int status = sigemptyset(&empty_set);
 	if (status == -1) {
-		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "sigemptyset(): %s\n", strerror(errno));
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+			      "libcw: sigemptyset(): %s", strerror(errno));
 		return true;
 	}
 
 	/* Block an empty set of signals to obtain the current mask. */
 	status = sigprocmask(SIG_BLOCK, &empty_set, &current_set);
 	if (status == -1) {
-		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "sigprocmask(): %s\n", strerror(errno));
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+			      "libcw: sigprocmask(): %s", strerror(errno));
 		return true;
 	}
 
@@ -2698,21 +2706,24 @@ int cw_sigalrm_block_internal(bool block)
 	/* Prepare empty set of signals */
 	int status = sigemptyset(&set);
 	if (status == -1) {
-		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "sigemptyset(): %s\n", strerror(errno));
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+			      "libcw: sigemptyset(): %s", strerror(errno));
 		return CW_FAILURE;
 	}
 
 	/* Add single signal to the set */
 	status = sigaddset(&set, SIGALRM);
 	if (status == -1) {
-		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "sigaddset(): %s\n", strerror(errno));
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+			      "libcw: sigaddset(): %s", strerror(errno));
 		return CW_FAILURE;
 	}
 
 	/* Block or unblock SIGALRM for the process using the set of signals */
 	status = pthread_sigmask(block ? SIG_BLOCK : SIG_UNBLOCK, &set, NULL);
 	if (status == -1) {
-		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "pthread_sigmask(): %s\n", strerror(errno));
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+			      "libcw: pthread_sigmask(): %s", strerror(errno));
 		return CW_FAILURE;
 	}
 
@@ -2762,21 +2773,24 @@ int cw_signal_wait_internal(void)
 	/* Prepare empty set of signals */
 	int status = sigemptyset(&empty_set);
 	if (status == -1) {
-		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "sigemptyset(): %s\n", strerror(errno));
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+			      "libcw: sigemptyset(): %s", strerror(errno));
 		return CW_FAILURE;
 	}
 
 	/* Block an empty set of signals to obtain the current mask. */
 	status = sigprocmask(SIG_BLOCK, &empty_set, &current_set);
 	if (status == -1) {
-		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "sigprocmask(): %s\n", strerror(errno));
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+			      "libcw: sigprocmask(): %s", strerror(errno));
 		return CW_FAILURE;
 	}
 
 	/* Wait on the current mask */
 	status = sigsuspend(&current_set);
 	if (status == -1 && errno != EINTR) {
-		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "suspend(): %s\n", strerror(errno));
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+			      "libcw: suspend(): %s", strerror(errno));
 		return CW_FAILURE;
 	}
 
@@ -2814,7 +2828,8 @@ static void (*cw_signal_callbacks[CW_SIG_MAX])(int);
 */
 void cw_signal_main_handler_internal(int signal_number)
 {
-	cw_debug_msg (cw_dbg_msg, CW_DEBUG_FINALIZATION, "caught signal %d", signal_number);
+	cw_debug_msg ((&cw_debug_object), CW_DEBUG_FINALIZATION, CW_DEBUG_INFO,
+		      "libcw: caught signal %d", signal_number);
 
 	/* Reset the library and retrieve the signal's handler. */
 	cw_complete_reset();
@@ -3005,7 +3020,8 @@ int cw_generator_set_audio_device_internal(cw_gen_t *gen, const char *device)
 
 	if (gen->audio_system == CW_AUDIO_NONE) {
 		gen->audio_device = (char *) NULL;
-		cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_AUDIO_SYSTEM, "no audio system specified");
+		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
+			      "libcw: no audio system specified");
 		return CW_FAILURE;
 	}
 
@@ -3016,7 +3032,8 @@ int cw_generator_set_audio_device_internal(cw_gen_t *gen, const char *device)
 	}
 
 	if (!gen->audio_device) {
-		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: malloc error\n");
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+			      "libcw: malloc()");
 		return CW_FAILURE;
 	} else {
 		return CW_SUCCESS;
@@ -3096,7 +3113,8 @@ int cw_generator_silence_internal(cw_gen_t *gen)
 		/* this may happen because the process of finalizing
 		   usage of libcw is rather complicated; this should
 		   be somehow resolved */
-		cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_SYSTEM, "called the function for NULL generator");
+		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_WARNING,
+			      "libcw: called the function for NULL generator");
 		return CW_SUCCESS;
 	}
 
@@ -3124,7 +3142,8 @@ int cw_generator_silence_internal(cw_gen_t *gen)
 		/* allow some time for playing the last tone */
 		usleep(2 * CW_AUDIO_QUANTUM_USECS);
 	} else {
-		cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_SYSTEM, "called silence() function for generator without audio system specified");
+		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
+			      "libcw: called silence() function for generator without audio system specified");
 	}
 
 	if (gen->audio_system == CW_AUDIO_ALSA) {
@@ -3178,7 +3197,8 @@ void cw_finalization_clock_internal(void)
 		/* Decrement the timeout countdown, and finalize if we reach zero. */
 		cw_finalization_countdown--;
 		if (cw_finalization_countdown <= 0) {
-			cw_debug_msg (cw_dbg_msg, CW_DEBUG_FINALIZATION, "finalization timeout, closing down");
+			cw_debug_msg ((&cw_debug_object), CW_DEBUG_FINALIZATION, CW_DEBUG_INFO,
+				      "libcw: finalization timeout, closing down");
 
 			cw_sigalrm_restore_internal();
 			// cw_generator_release_internal ();
@@ -3186,7 +3206,8 @@ void cw_finalization_clock_internal(void)
 			cw_is_finalization_pending = false;
 			cw_finalization_countdown = 0;
 		} else {
-			cw_debug_msg (cw_dbg_msg, CW_DEBUG_FINALIZATION, "finalization countdown %d", cw_finalization_countdown);
+			cw_debug_msg ((&cw_debug_object), CW_DEBUG_FINALIZATION, CW_DEBUG_INFO,
+				      "libcw: finalization countdown %d", cw_finalization_countdown);
 
 			/* Request another timeout.  This results in a call to our
 			   cw_finalization_cancel_internal below; to ensure that it doesn't
@@ -3221,7 +3242,8 @@ void cw_finalization_schedule_internal(void)
 		cw_is_finalization_pending = true;
 		cw_finalization_countdown = CW_AUDIO_FINALIZATION_DELAY / USECS_PER_SEC;
 
-		cw_debug_msg (cw_dbg_msg, CW_DEBUG_FINALIZATION, "finalization scheduled");
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_FINALIZATION, CW_DEBUG_INFO,
+			      "libcw: finalization scheduled");
 	}
 
 	return;
@@ -3243,7 +3265,8 @@ void cw_finalization_cancel_internal(void)
 		cw_is_finalization_pending = false;
 		cw_finalization_countdown = 0;
 
-		cw_debug_msg (cw_dbg_msg, CW_DEBUG_FINALIZATION, "finalization canceled");
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_FINALIZATION, CW_DEBUG_INFO,
+			      "libcw: finalization canceled");
 	}
 
 	return;
@@ -3356,7 +3379,8 @@ void cw_key_set_state_internal(int requested_key_state)
 	static int current_key_state = CW_KEY_STATE_OPEN;  /* Maintained key control state */
 
 	if (current_key_state != requested_key_state) {
-		cw_debug_msg (cw_dbg_msg, CW_DEBUG_KEYING, "keying state %d->%d", current_key_state, requested_key_state);
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
+			      "libcw: keying state %d->%d", current_key_state, requested_key_state);
 
 		/* Set the new keying state, and call any requested callback. */
 		current_key_state = requested_key_state;
@@ -3386,7 +3410,8 @@ void cw_key_straight_key_generate_internal(cw_gen_t *gen, int requested_key_stat
 	static int current_key_state = CW_KEY_STATE_OPEN;  /* Maintained key control state */
 
 	if (current_key_state != requested_key_state) {
-		cw_debug_msg (cw_dbg_msg, CW_DEBUG_KEYING, "straight key: keying state %d->%d", current_key_state, requested_key_state);
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
+			      "libcw: straight key: keying state %d->%d", current_key_state, requested_key_state);
 
 		/* Set the new keying state, and call any requested callback. */
 		current_key_state = requested_key_state;
@@ -3406,7 +3431,8 @@ void cw_key_straight_key_generate_internal(cw_gen_t *gen, int requested_key_stat
 			tone.frequency = gen->frequency;
 			cw_tone_queue_enqueue_internal(gen->tq, &tone);
 
-			cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_TONE_QUEUE, "len = %d", cw_tone_queue_length_internal(gen->tq));
+			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
+				      "libcw: tone queue: len = %d", cw_tone_queue_length_internal(gen->tq));
 		} else {
 			cw_tone_t tone;
 			tone.usecs = gen->tone_slope.length_usecs;
@@ -3463,7 +3489,8 @@ void cw_key_iambic_keyer_generate_internal(cw_gen_t *gen, int requested_key_stat
 	static int current_key_state = CW_KEY_STATE_OPEN;  /* Maintained key control state */
 
 	if (current_key_state != requested_key_state) {
-		cw_debug_msg (cw_dbg_msg, CW_DEBUG_KEYING, "iambic keyer: keying state %d->%d", current_key_state, requested_key_state);
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
+			      "libcw: iambic keyer: keying state %d->%d", current_key_state, requested_key_state);
 
 		/* Set the new keying state, and call any requested callback. */
 		current_key_state = requested_key_state;
@@ -3694,8 +3721,9 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 #ifdef LIBCW_WITH_DEV
 		if (tq_report != REPORTED_STILL_EMPTY) {
 			/* tone queue is empty */
-			cw_debug_event (libcw_dbg_ev, 0, CW_DEBUG_EVENT_TQ_STILL_EMPTY);
-			cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_TONE_QUEUE, "tone queue: still empty");
+			cw_debug_ev ((&cw_debug_object_ev), 0, CW_DEBUG_EVENT_TQ_STILL_EMPTY);
+			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
+				      "libcw: tone queue: still empty");
 			tq_report = REPORTED_STILL_EMPTY;
 		}
 #endif
@@ -3740,8 +3768,10 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 				tq->head = tmp_tq_head;
 			}
 
-			cw_debug_msg (cw_dbg_msg, CW_DEBUG_TONE_QUEUE, "dequeue tone %d usec, %d Hz", tone->usecs, tone->frequency);
-			cw_debug_msg (cw_dbg_msg, CW_DEBUG_TONE_QUEUE, "head = %d, tail = %d, length = %d", tq->head, tq->tail, queue_length);
+			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
+				      "libcw: tone queue: dequeue tone %d usec, %d Hz", tone->usecs, tone->frequency);
+			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
+				      "libcw: tone queue: head = %d, tail = %d, length = %d", tq->head, tq->tail, queue_length);
 
 			/* Notify the key control function that there might
 			   have been a change of keying state (and then
@@ -3765,8 +3795,9 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 
 #ifdef LIBCW_WITH_DEV
 			if (tq_report != REPORTED_NONEMPTY) {
-				cw_debug_msg (cw_dbg_ev, CW_DEBUG_TONE_QUEUE, CW_DEBUG_EVENT_TQ_NONEMPTY);
-				cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_TONE_QUEUE, "tone queue: nonempty: usecs = %d, freq = %d, slope = %d", tone->usecs, tone->frequency, tone->slope_mode);
+				cw_debug_ev ((&cw_debug_object_ev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_EVENT_TQ_NONEMPTY);
+				cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
+					      "libcw: tone queue: nonempty: usecs = %d, freq = %d, slope = %d", tone->usecs, tone->frequency, tone->slope_mode);
 				tq_report = REPORTED_NONEMPTY;
 			}
 #endif
@@ -3834,8 +3865,9 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 
 #ifdef LIBCW_WITH_DEV
 			if (tq_report != REPORTED_JUST_EMPTIED) {
-				cw_debug_ev (cw_dbg_ev, CW_DEBUG_TONE_QUEUE, CW_DEBUG_EVENT_TQ_JUST_EMPTIED);
-				cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_TONE_QUEUE, "tone queue: just emptied");
+				cw_debug_ev ((&cw_debug_object_ev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_EVENT_TQ_JUST_EMPTIED);
+				cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
+					      "libcw: tone queue: just emptied");
 				tq_report = REPORTED_JUST_EMPTIED;
 			}
 #endif
@@ -3897,7 +3929,8 @@ int cw_tone_queue_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 		return CW_FAILURE;
 	}
 
-	cw_debug_msg (cw_dbg_msg, CW_DEBUG_TONE_QUEUE, "enqueue tone %d usec, %d Hz", tone->usecs, tone->frequency);
+	cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
+		      "libcw: tone queue: enqueue tone %d usec, %d Hz", tone->usecs, tone->frequency);
 
 	/* Set the new tail index, and enqueue the new tone. */
 	tq->tail = new_tq_tail;
@@ -4221,7 +4254,8 @@ void cw_reset_tone_queue(void)
 	cw_generator_silence_internal(generator);
 	//cw_finalization_schedule_internal();
 
-	cw_debug_msg (cw_dbg_msg, CW_DEBUG_TONE_QUEUE, "tone queue reset");
+	cw_debug_msg ((&cw_debug_object), CW_DEBUG_TONE_QUEUE, CW_DEBUG_INFO,
+		      "libcw: tone queue: reset");
 
 	return;
 }
@@ -5241,7 +5275,8 @@ int cw_start_receive_tone(const struct timeval *timestamp)
 	/* Set state to indicate we are inside a tone. */
 	cw_receive_state = RS_IN_TONE;
 
-	cw_debug_msg (cw_dbg_msg, CW_DEBUG_RECEIVE_STATES, "receive state ->%d", cw_receive_state);
+	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
+		      "libcw: receive state ->%d", cw_receive_state);
 
 	return CW_SUCCESS;
 }
@@ -5301,7 +5336,8 @@ int cw_receive_identify_tone_internal(int element_usec, char *representation)
 	cw_receive_state = element_usec > cw_eoc_range_maximum
 		? RS_ERR_WORD : RS_ERR_CHAR;
 
-	cw_debug_msg (cw_dbg_msg, CW_DEBUG_RECEIVE_STATES, "receive state ->%d", cw_receive_state);
+	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
+		      "libcw: receive state ->%d", cw_receive_state);
 
 	/* Return ENOENT to the caller. */
 	errno = ENOENT;
@@ -5428,7 +5464,8 @@ int cw_end_receive_tone(const struct timeval *timestamp)
 		   came in to the routine. */
 		cw_rr_end_timestamp = saved_end_timestamp;
 
-		cw_debug_msg (cw_dbg_msg, CW_DEBUG_RECEIVE_STATES, "receive state ->%d", cw_receive_state);
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
+			      "libcw: receive state ->%d", cw_receive_state);
 
 		errno = EAGAIN;
 		return CW_FAILURE;
@@ -5476,7 +5513,8 @@ int cw_end_receive_tone(const struct timeval *timestamp)
 	if (cw_rr_current == RECEIVE_CAPACITY - 1) {
 		cw_receive_state = RS_ERR_CHAR;
 
-		cw_debug_msg (cw_dbg_msg, CW_DEBUG_RECEIVE_STATES, "receive state ->%d", cw_receive_state);
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
+			      "libcw: receive state ->%d", cw_receive_state);
 
 		errno = ENOMEM;
 		return CW_FAILURE;
@@ -5485,7 +5523,8 @@ int cw_end_receive_tone(const struct timeval *timestamp)
 	/* All is well.  Move to the more normal after-tone state. */
 	cw_receive_state = RS_AFTER_TONE;
 
-	cw_debug_msg (cw_dbg_msg, CW_DEBUG_RECEIVE_STATES, "receive state ->%d", cw_receive_state);
+	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
+		      "libcw: receive state ->%d", cw_receive_state);
 
 	return CW_SUCCESS;
 }
@@ -5541,7 +5580,8 @@ int cw_receive_add_element_internal(const struct timeval *timestamp,
 	if (cw_rr_current == RECEIVE_CAPACITY - 1) {
 		cw_receive_state = RS_ERR_CHAR;
 
-		cw_debug_msg (cw_dbg_msg, CW_DEBUG_RECEIVE_STATES, "receive state ->%d", cw_receive_state);
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
+			      "libcw: receive state ->%d", cw_receive_state);
 
 		errno = ENOMEM;
 		return CW_FAILURE;
@@ -5551,7 +5591,8 @@ int cw_receive_add_element_internal(const struct timeval *timestamp,
 	   the after-tone state. */
 	cw_receive_state = RS_AFTER_TONE;
 
-	cw_debug_msg (cw_dbg_msg, CW_DEBUG_RECEIVE_STATES, "receive state ->%d", cw_receive_state);
+	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
+		      "libcw: receive state ->%d", cw_receive_state);
 
 	return CW_SUCCESS;
 }
@@ -5694,7 +5735,8 @@ int cw_receive_representation(const struct timeval *timestamp,
 			cw_receive_state = RS_END_CHAR;
 		}
 
-		cw_debug_msg (cw_dbg_msg, CW_DEBUG_RECEIVE_STATES, "receive state ->%d", cw_receive_state);
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
+			      "libcw: receive state ->%d", cw_receive_state);
 
 		/* Return the representation buffered. */
 		if (is_end_of_word) {
@@ -5721,7 +5763,8 @@ int cw_receive_representation(const struct timeval *timestamp,
 		cw_receive_state = cw_receive_state == RS_ERR_CHAR
 			? RS_ERR_WORD : RS_END_WORD;
 
-		cw_debug_msg (cw_dbg_msg, CW_DEBUG_RECEIVE_STATES, "receive state ->%d", cw_receive_state);
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
+			      "libcw: receive state ->%d", cw_receive_state);
 
 		/* Return the representation buffered. */
 		if (is_end_of_word) {
@@ -5812,7 +5855,8 @@ void cw_clear_receive_buffer(void)
 	cw_rr_current = 0;
 	cw_receive_state = RS_IDLE;
 
-	cw_debug_msg (cw_dbg_msg, CW_DEBUG_RECEIVE_STATES, "receive state ->%d", cw_receive_state);
+	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
+		      "libcw: receive state ->%d", cw_receive_state);
 
 	return;
 }
@@ -5863,7 +5907,8 @@ void cw_reset_receive(void)
 
 	cw_reset_receive_statistics ();
 
-	cw_debug_msg (cw_dbg_msg, CW_DEBUG_RECEIVE_STATES, "receive state ->%d (reset)", cw_receive_state);
+	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
+		      "libcw: receive state ->%d (reset)", cw_receive_state);
 
 	return;
 }
@@ -5991,7 +6036,8 @@ static volatile enum {
 int cw_keyer_update_internal(void)
 {
 	if (lock) {
-		cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_SYSTEM, "lock in thread %ld\n", (long) pthread_self());
+		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_INTERNAL, CW_DEBUG_ERROR,
+			      "libcw: lock in thread %ld", (long) pthread_self());
 		return CW_FAILURE;
 	}
 	lock = true;
@@ -6014,21 +6060,25 @@ int cw_keyer_update_internal(void)
 	case KS_IN_DOT_A:
 	case KS_IN_DOT_B:
 		cw_key_iambic_keyer_generate_internal(generator, CW_KEY_STATE_OPEN, cw_end_of_ele_delay);
-		cw_debug_msg (cw_dbg_msg, CW_DEBUG_KEYER_STATES_VERBOSE, "cw_keyer_state: KS_IN_DOT -> KS_AFTER_DOT");
+		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
+			      "libcw: cw_keyer_state: KS_IN_DOT -> KS_AFTER_DOT");
 		cw_keyer_state = cw_keyer_state == KS_IN_DOT_A
 			? KS_AFTER_DOT_A : KS_AFTER_DOT_B;
 
-		cw_debug_msg (cw_dbg_msg, CW_DEBUG_KEYER_STATES, "keyer ->%d", cw_keyer_state);
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYER_STATES, CW_DEBUG_INFO,
+			      "libcw: keyer ->%d", cw_keyer_state);
 		break;
 
 	case KS_IN_DASH_A:
 	case KS_IN_DASH_B:
 		cw_key_iambic_keyer_generate_internal(generator, CW_KEY_STATE_OPEN, cw_end_of_ele_delay);
-		cw_debug_msg (cw_dbg_msg, CW_DEBUG_KEYER_STATES_VERBOSE, "cw_keyer_state: KS_IN_DASH -> KS_AFTER_DASH");
+		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
+			      "libcw: cw_keyer_state: KS_IN_DASH -> KS_AFTER_DASH");
 		cw_keyer_state = cw_keyer_state == KS_IN_DASH_A
 			? KS_AFTER_DASH_A : KS_AFTER_DASH_B;
 
-		cw_debug_msg (cw_dbg_msg, CW_DEBUG_KEYER_STATES, "keyer ->%d", cw_keyer_state);
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYER_STATES, CW_DEBUG_INFO,
+			      "libcw: keyer ->%d", cw_keyer_state);
 		break;
 
 		/* If we have just finished a dot or a dash and its
@@ -6047,29 +6097,35 @@ int cw_keyer_update_internal(void)
 
 		if (cw_keyer_state == KS_AFTER_DOT_B) {
 			cw_key_iambic_keyer_generate_internal(generator, CW_KEY_STATE_CLOSED, cw_send_dash_length);
-			cw_debug_msg (cw_dbg_msg, CW_DEBUG_KEYER_STATES_VERBOSE, "cw_keyer_state: KS_AFTER_DOT -> KS_IN_DASH_A");
+			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
+				      "libcw: cw_keyer_state: KS_AFTER_DOT -> KS_IN_DASH_A");
 			cw_keyer_state = KS_IN_DASH_A;
 		} else if (cw_ik_dash_latch) {
 			cw_key_iambic_keyer_generate_internal(generator, CW_KEY_STATE_CLOSED, cw_send_dash_length);
 			if (cw_ik_curtis_b_latch){
 				cw_ik_curtis_b_latch = false;
-				cw_debug_msg (cw_dbg_msg, CW_DEBUG_KEYER_STATES_VERBOSE, "cw_keyer_state: KS_AFTER_DOT -> KS_IN_DASH_B");
+				cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
+					      "libcw: cw_keyer_state: KS_AFTER_DOT -> KS_IN_DASH_B");
 				cw_keyer_state = KS_IN_DASH_B;
 			} else {
-				cw_debug_msg (cw_dbg_msg, CW_DEBUG_KEYER_STATES_VERBOSE, "cw_keyer_state: KS_AFTER_DOT -> KS_IN_DASH_A");
+				cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
+					      "libcw: cw_keyer_state: KS_AFTER_DOT -> KS_IN_DASH_A");
 				cw_keyer_state = KS_IN_DASH_A;
 			}
 		} else if (cw_ik_dot_latch) {
 			cw_key_iambic_keyer_generate_internal(generator, CW_KEY_STATE_CLOSED, cw_send_dot_length);
-			cw_debug_msg (cw_dbg_msg, CW_DEBUG_KEYER_STATES_VERBOSE, "cw_keyer_state: KS_AFTER_DOT -> KS_IN_DOT_A");
+			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
+				      "libcw: cw_keyer_state: KS_AFTER_DOT -> KS_IN_DOT_A");
 			cw_keyer_state = KS_IN_DOT_A;
 		} else {
-			cw_debug_msg (cw_dbg_msg, CW_DEBUG_KEYER_STATES_VERBOSE, "cw_keyer_state: KS_AFTER_DOT -> KS_IDLE");
+			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
+				      "libcw: cw_keyer_state: KS_AFTER_DOT -> KS_IDLE");
 			cw_keyer_state = KS_IDLE;
 			//cw_finalization_schedule_internal();
 		}
 
-		cw_debug_msg (cw_dbg_msg, CW_DEBUG_KEYER_STATES, "keyer ->%d", cw_keyer_state);
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYER_STATES, CW_DEBUG_INFO,
+			      "libcw: keyer ->%d", cw_keyer_state);
 		break;
 
 	case KS_AFTER_DASH_A:
@@ -6079,29 +6135,35 @@ int cw_keyer_update_internal(void)
 		}
 		if (cw_keyer_state == KS_AFTER_DASH_B) {
 			cw_key_iambic_keyer_generate_internal(generator, CW_KEY_STATE_CLOSED, cw_send_dot_length);
-			cw_debug_msg (cw_dbg_msg, CW_DEBUG_KEYER_STATES_VERBOSE, "cw_keyer_state: KS_AFTER_DASH_B -> IN_DOT_A");
+			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
+				      "libcw: cw_keyer_state: KS_AFTER_DASH_B -> IN_DOT_A");
 			cw_keyer_state = KS_IN_DOT_A;
 		} else if (cw_ik_dot_latch) {
 			cw_key_iambic_keyer_generate_internal(generator, CW_KEY_STATE_CLOSED, cw_send_dot_length);
 			if (cw_ik_curtis_b_latch) {
 				cw_ik_curtis_b_latch = false;
-				cw_debug_msg (cw_dbg_msg, CW_DEBUG_KEYER_STATES_VERBOSE, "cw_keyer_state: KS_AFTER_DASH -> KS_IN_DOT_B");
+				cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
+					      "libcw: cw_keyer_state: KS_AFTER_DASH -> KS_IN_DOT_B");
 				cw_keyer_state = KS_IN_DOT_B;
 			} else {
-				cw_debug_msg (cw_dbg_msg, CW_DEBUG_KEYER_STATES_VERBOSE, "cw_keyer_state: KS_AFTER_DASH -> KS_IN_DOT_A");
+				cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
+					      "libcw: cw_keyer_state: KS_AFTER_DASH -> KS_IN_DOT_A");
 				cw_keyer_state = KS_IN_DOT_A;
 			}
 		} else if (cw_ik_dash_latch) {
 			cw_key_iambic_keyer_generate_internal(generator, CW_KEY_STATE_CLOSED, cw_send_dash_length);
-			cw_debug_msg (cw_dbg_msg, CW_DEBUG_KEYER_STATES_VERBOSE, "cw_keyer_state: KS_AFTER_DASH -> KS_IN_DASH_A");
+			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
+				      "libcw: cw_keyer_state: KS_AFTER_DASH -> KS_IN_DASH_A");
 			cw_keyer_state = KS_IN_DASH_A;
 		} else {
 			cw_keyer_state = KS_IDLE;
-			cw_debug_msg (cw_dbg_msg, CW_DEBUG_KEYER_STATES_VERBOSE, "cw_keyer_state: KS_AFTER_DASH -> KS_STATE");
+			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
+				      "libcw: cw_keyer_state: KS_AFTER_DASH -> KS_STATE");
 			//cw_finalization_schedule_internal();
 		}
 
-		cw_debug_msg (cw_dbg_msg, CW_DEBUG_KEYER_STATES, "keyer ->%d", cw_keyer_state);
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYER_STATES, CW_DEBUG_INFO,
+			      "libcw: keyer ->%d", cw_keyer_state);
 		break;
 	}
 	lock = false;
@@ -6169,9 +6231,10 @@ int cw_notify_keyer_paddle_event(int dot_paddle_state,
 		cw_ik_curtis_b_latch = true;
 	}
 
-	cw_debug_msg (cw_dbg_msg, CW_DEBUG_KEYER_STATES, "keyer paddles %d,%d, latches %d,%d, curtis_b %d",
-		  cw_ik_dot_paddle, cw_ik_dash_paddle,
-		  cw_ik_dot_latch, cw_ik_dash_latch, cw_ik_curtis_b_latch);
+	cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYER_STATES, CW_DEBUG_INFO,
+		      "libcw: keyer paddles %d,%d, latches %d,%d, curtis_b %d",
+		      cw_ik_dot_paddle, cw_ik_dash_paddle,
+		      cw_ik_dot_latch, cw_ik_dash_latch, cw_ik_curtis_b_latch);
 
 	/* If the current state is idle, give the state process a nudge. */
 	if (cw_keyer_state == KS_IDLE) {
@@ -6410,14 +6473,16 @@ void cw_reset_keyer(void)
 	cw_ik_curtis_b_latch = false;
 	cw_ik_curtis_mode_b = false;
 
-	cw_debug_msg (cw_dbg_msg, CW_DEBUG_KEYER_STATES, "assigning to cw_keyer_state %d -> 0 (KS_IDLE)", cw_keyer_state);
+	cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYER_STATES, CW_DEBUG_INFO,
+		      "libcw: assigning to cw_keyer_state %d -> 0 (KS_IDLE)", cw_keyer_state);
 	cw_keyer_state = KS_IDLE;
 
 	/* Silence sound and stop any background soundcard tone generation. */
 	cw_generator_silence_internal(generator);
 	cw_finalization_schedule_internal();
 
-	cw_debug_msg (cw_dbg_msg, CW_DEBUG_KEYER_STATES, "keyer ->%d (reset)", cw_keyer_state);
+	cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYER_STATES, CW_DEBUG_INFO,
+		      "libcw: keyer ->%d (reset)", cw_keyer_state);
 
 	return;
 }
@@ -6499,7 +6564,8 @@ int cw_notify_straight_key_event(int key_state)
 		/* Save the new key state. */
 		cw_sk_key_state = key_state;
 
-		cw_debug_msg (cw_dbg_msg, CW_DEBUG_STRAIGHT_KEY, "straight key state ->%s", cw_sk_key_state == CW_KEY_STATE_CLOSED ? "DOWN" : "UP");
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STRAIGHT_KEY_STATES, CW_DEBUG_INFO,
+			      "libcw: straight key state ->%s", cw_sk_key_state == CW_KEY_STATE_CLOSED ? "DOWN" : "UP");
 
 		/* Do tones and keying, and set up timeouts and soundcard
 		   activities to match the new key state. */
@@ -6572,7 +6638,8 @@ void cw_reset_straight_key(void)
 	cw_generator_silence_internal(generator);
 	//cw_finalization_schedule_internal();
 
-	cw_debug_msg (cw_dbg_msg, CW_DEBUG_STRAIGHT_KEY, "straight key state ->UP (reset)");
+	cw_debug_msg ((&cw_debug_object), CW_DEBUG_STRAIGHT_KEY_STATES, CW_DEBUG_INFO,
+		      "libcw: straight key state ->UP (reset)");
 
 	return;
 }
@@ -6621,7 +6688,8 @@ int cw_generator_new(int audio_system, const char *device)
 {
 	generator = (cw_gen_t *) malloc(sizeof (cw_gen_t));
 	if (!generator) {
-		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: malloc");
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+			      "libcw: malloc()");
 		return CW_FAILURE;
 	}
 
@@ -6666,7 +6734,8 @@ int cw_generator_new(int audio_system, const char *device)
 
 	int rv = cw_generator_new_open_internal(generator, audio_system, device);
 	if (rv == CW_FAILURE) {
-		cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_AUDIO_SYSTEM, "failed to open audio device for audio system '%d' and device '%s'\n", audio_system, device);
+		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
+			      "libcw: failed to open audio device for audio system '%d' and device '%s'", audio_system, device);
 		return CW_FAILURE;
 	}
 
@@ -6677,7 +6746,8 @@ int cw_generator_new(int audio_system, const char *device)
 	} else {
 		generator->buffer = (cw_sample_t *) malloc(generator->buffer_n_samples * sizeof (cw_sample_t));
 		if (!generator->buffer) {
-			cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: malloc");
+			cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+				      "libcw: malloc()");
 			return CW_FAILURE;
 		}
 	}
@@ -6687,7 +6757,8 @@ int cw_generator_new(int audio_system, const char *device)
 	   cw_generator_new_open_internal(). */
 	rv = cw_generator_set_tone_slope(generator, CW_TONE_SLOPE_SHAPE_RAISED_COSINE, CW_AUDIO_SLOPE_USECS);
 	if (rv == CW_FAILURE) {
-		cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_AUDIO_SYSTEM, "failed to set slope\n");
+		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
+			      "libcw: failed to set slope");
 		return CW_FAILURE;
 	}
 
@@ -6779,7 +6850,8 @@ void cw_generator_delete(void)
 	if (generator) {
 
 		if (generator->generate) {
-			cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_AUDIO_SYSTEM, "you forgot to call cw_generator_stop()\n");
+			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG,
+				      "libcw: you forgot to call cw_generator_stop()");
 			cw_generator_stop();
 		}
 
@@ -6849,7 +6921,8 @@ int cw_generator_start(void)
 					cw_generator_write_sine_wave_internal,
 					(void *) generator);
 		if (rv != 0) {
-			cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: failed to create %s generator thread\n", generator->audio_system == CW_AUDIO_OSS ? "OSS" : "ALSA");
+			cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+				      "libcw: failed to create %s generator thread", cw_audio_system_labels[generator->audio_system]);
 			return CW_FAILURE;
 		} else {
 			/* for some yet unknown reason you have to
@@ -6862,7 +6935,8 @@ int cw_generator_start(void)
 			return CW_SUCCESS;
 		}
 	} else {
-		cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_AUDIO_SYSTEM, "unsupported audio system %d", generator->audio_system);
+		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
+			      "libcw: unsupported audio system %d", generator->audio_system);
 	}
 
 	return CW_FAILURE;
@@ -6882,7 +6956,8 @@ int cw_generator_start(void)
 void cw_generator_stop(void)
 {
 	if (!generator) {
-		cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_AUDIO_SYSTEM, "called the function for NULL generator");
+		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_WARNING,
+			      "libcw: called the function for NULL generator");
 		return;
 	}
 
@@ -6918,11 +6993,11 @@ void cw_generator_stop(void)
 	int rv = pthread_kill(generator->thread.id, 0);
 	if (rv == 0) {
 		/* thread function didn't return yet; let's help it a bit */
-		cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_AUDIO_SYSTEM, "EXIT: forcing exit of thread function\n");
+		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_WARNING, "libcw: EXIT: forcing exit of thread function");
 		rv = pthread_kill(generator->thread.id, SIGKILL);
-		cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_AUDIO_SYSTEM, "EXIT: pthread_kill() returns %d/%s\n", rv, strerror(rv));
+		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_WARNING, "libcw: EXIT: pthread_kill() returns %d/%s", rv, strerror(rv));
 	} else {
-		cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_AUDIO_SYSTEM, "EXIT: seems that thread function exited voluntarily\n");
+		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_INFO, "libcw: EXIT: seems that thread function exited voluntarily");
 	}
 
 	return;
@@ -6970,7 +7045,7 @@ void *cw_generator_write_sine_wave_internal(void *arg)
 		}
 
 #ifdef LIBCW_WITH_DEV
-		cw_debug_ev (cw_dbg_ev, 0tone.frequency ? CW_DEBUG_EVENT_TONE_HIGH : CW_DEBUG_EVENT_TONE_LOW);
+		cw_debug_ev ((&cw_debug_object_ev), 0, tone.frequency ? CW_DEBUG_EVENT_TONE_HIGH : CW_DEBUG_EVENT_TONE_LOW);
 #endif
 
 		if (gen->audio_system == CW_AUDIO_NULL) {
@@ -6998,12 +7073,13 @@ void *cw_generator_write_sine_wave_internal(void *arg)
 		}
 
 #ifdef LIBCW_WITH_DEV
-		cw_debug_ev (cw_dbg_ev, 0, tone.frequency ? CW_DEBUG_EVENT_TONE_LOW : CW_DEBUG_EVENT_TONE_HIGH);
+		cw_debug_ev ((&cw_debug_object_ev), 0, tone.frequency ? CW_DEBUG_EVENT_TONE_LOW : CW_DEBUG_EVENT_TONE_HIGH);
 #endif
 
 	} /* while(gen->generate) */
 
-	cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_AUDIO_SYSTEM, "EXIT: generator stopped (gen->generate = %d)\n", gen->generate);
+	cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_INFO,
+		      "libcw: EXIT: generator stopped (gen->generate = %d)", gen->generate);
 
 	/* Some functions in client thread may be waiting for the last
 	   SIGALRM from the generator thread to continue/finalize their
@@ -7129,7 +7205,7 @@ int cw_generator_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone)
 				int i = tone->slope_iterator;
 				//amplitude = 1.0 * gen->volume_abs * i / tone->slope_n_samples;
 				amplitude = gen->tone_slope.amplitudes[i];
-				//cw_debug_msg (cw_dbg_dev_msg, "1: slope: %d, amp: %d", tone->slope_iterator, amplitude);
+				//cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG, "libcw: 1: slope: %d, amp: %d", tone->slope_iterator, amplitude);
 			} else {
 				amplitude = gen->volume_abs;
 				assert (amplitude >= 0);
@@ -7140,7 +7216,7 @@ int cw_generator_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone)
 				assert (i >= 0);
 				//amplitude = 1.0 * gen->volume_abs * i / tone->slope_n_samples;
 				amplitude = gen->tone_slope.amplitudes[i];
-				//cw_debug_msg (cw_dbg_dev_msg, "2: slope: %d, amp: %d", tone->slope_iterator, amplitude);
+				//cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG, "libcw: 2: slope: %d, amp: %d", tone->slope_iterator, amplitude);
 				assert (amplitude >= 0);
 			} else {
 				amplitude = gen->volume_abs;
@@ -7160,7 +7236,7 @@ int cw_generator_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone)
 				int i = tone->slope_iterator;
 				//amplitude = 1.0 * gen->volume_abs * i / tone->slope_n_samples;
 				amplitude = gen->tone_slope.amplitudes[i];
-				//cw_debug_msg (cw_dbg_dev_msg, "rising slope: i = %d, amp = %d", tone->slope_iterator, amplitude);
+				//cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG, "libcw: rising slope: i = %d, amp = %d", tone->slope_iterator, amplitude);
 				assert (amplitude >= 0);
 			} else if (tone->slope_iterator >= tone->slope_n_samples && tone->slope_iterator < tone->n_samples - tone->slope_n_samples) {
 				/* middle of tone, constant amplitude */
@@ -7172,7 +7248,7 @@ int cw_generator_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone)
 				assert (i >= 0);
 				//amplitude = 1.0 * gen->volume_abs * i / tone->slope_n_samples;
 				amplitude = gen->tone_slope.amplitudes[i];
-				//cw_debug_msg (cw_dbg_dev_msg, "falling slope: i = %d, amp = %d", tone->slope_iterator, amplitude);
+				//cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG, "libcw: falling slope: i = %d, amp = %d", tone->slope_iterator, amplitude);
 				assert (amplitude >= 0);
 			} else {
 				;
@@ -7267,7 +7343,8 @@ int cw_generator_set_tone_slope(cw_gen_t *gen, int slope_shape, int slope_usecs)
 
 	 if (slope_usecs == 0) {
 		 if (slope_shape != -1 && slope_shape != CW_TONE_SLOPE_SHAPE_RECTANGULAR) {
-			 cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_AUDIO_SYSTEM, "ERROR: Specified a non-rectangular slope shape, but slope len == 0\n");
+			 cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
+				       "libcw: specified a non-rectangular slope shape, but slope len == 0");
 			 assert (0);
 		 }
 
@@ -7279,7 +7356,8 @@ int cw_generator_set_tone_slope(cw_gen_t *gen, int slope_shape, int slope_usecs)
 
 	 if (slope_shape == CW_TONE_SLOPE_SHAPE_RECTANGULAR) {
 		 if (slope_usecs > 0) {
-			 cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_AUDIO_SYSTEM, "ERROR: Specified a rectangular slope shape, but slope len != 0\n");
+			 cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
+				       "libcw: specified a rectangular slope shape, but slope len != 0");
 			 assert (0);
 		 }
 
@@ -7311,7 +7389,8 @@ int cw_generator_set_tone_slope(cw_gen_t *gen, int slope_shape, int slope_usecs)
 	 if (gen->tone_slope.n_amplitudes != slope_n_samples) {
 		 gen->tone_slope.amplitudes = realloc(gen->tone_slope.amplitudes, sizeof(float) * slope_n_samples);
 		 if (!gen->tone_slope.amplitudes) {
-			 cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_AUDIO_SYSTEM, "ERROR: realloc failure\n");
+			 cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
+				       "libcw: realloc()");
 			 return CW_FAILURE;
 		 }
 		 gen->tone_slope.n_amplitudes = slope_n_samples;
@@ -7408,7 +7487,7 @@ int cw_soundcard_write_internal(cw_gen_t *gen, int queue_state, cw_tone_t *tone)
 
 
 
-	// cw_debug_msg (cw_dbg_dev_msg, "--- %lld samples, %d usecs, %d Hz", tone->n_samples, tone->usecs, gen->frequency);
+	// cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG, "libcw: %lld samples, %d usecs, %d Hz", tone->n_samples, tone->usecs, gen->frequency);
 	while (gen->samples_left > 0) {
 		if (tone->sub_start + gen->samples_left >= gen->buffer_n_samples) {
 			tone->sub_stop = gen->buffer_n_samples - 1;
@@ -7419,9 +7498,10 @@ int cw_soundcard_write_internal(cw_gen_t *gen, int queue_state, cw_tone_t *tone)
 		gen->samples_left -= gen->samples_calculated;
 
 #if 0
-		cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_AUDIO_SYSTEM, "start: %d, stop: %d, calculated: %d, to calculate: %d", tone->sub_start, tone->sub_stop, gen->samples_calculated, gen->samples_left);
+		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG,
+			      "libcw: start: %d, stop: %d, calculated: %d, to calculate: %d", tone->sub_start, tone->sub_stop, gen->samples_calculated, gen->samples_left);
 		if (gen->samples_left < 0) {
-			cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_AUDIO_SYSTEM, "samples left = %d", gen->samples_left);
+			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG, "samples left = %d", gen->samples_left);
 		}
 #endif
 
@@ -7548,12 +7628,14 @@ bool cw_dlopen_internal(const char *name, void **handle)
 	char *e = dlerror();
 
 	if (e) {
-		cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_SYSTEM, "dlopen() fails for %s with error: %s\n", name, e);
+		cw_debug_msg (((&cw_debug_object_dev)), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+			      "libcw: dlopen() fails for %s with error: %s", name, e);
 		return false;
 	} else {
 		*handle = h;
 
-		cw_debug_msg (cw_dbg_dev_msg, CW_DEBUG_SYSTEM, "dlopen() succeeds for %s\n", name);
+		cw_debug_msg (((&cw_debug_object_dev)), CW_DEBUG_STDLIB, CW_DEBUG_DEBUG,
+			      "libcw: dlopen() succeeds for %s", name);
 		return true;
 	}
 }
@@ -7587,7 +7669,6 @@ static void main_helper(int audio_system, const char *name, const char *device, 
 /* for stand-alone testing */
 int main(void)
 {
-	cw_dbg_msg = cw_debug_new("stderr");
 	main_helper(CW_AUDIO_OSS,     "OSS",         CW_DEFAULT_OSS_DEVICE,       cw_is_oss_possible);
 	//main_helper(CW_AUDIO_ALSA,    "ALSA",        CW_DEFAULT_ALSA_DEVICE,      cw_is_alsa_possible);
 	//main_helper(CW_AUDIO_PA,      "PulseAudio",  CW_DEFAULT_PA_DEVICE,        cw_is_pa_possible);
@@ -7595,8 +7676,6 @@ int main(void)
 	//main_helper(CW_AUDIO_CONSOLE, "console",     CW_DEFAULT_CONSOLE_DEVICE,   cw_is_console_possible);
 	sleep(4);
 
-
-	cw_debug_delete(&cw_dbg_msg);
 	return 0;
 }
 
@@ -7610,10 +7689,8 @@ void main_helper(int audio_system, const char *name, const char *device, predica
 
 	rv = predicate(device);
 	if (rv == CW_SUCCESS) {
-		fprintf(stderr, "OSS: A\n");
 		rv = cw_generator_new(audio_system, device);
 		if (rv == CW_SUCCESS) {
-			fprintf(stderr, "OSS: success\n");
 			cw_reset_send_receive_parameters();
 			cw_set_send_speed(12);
 			cw_generator_start();
@@ -7640,12 +7717,12 @@ void main_helper(int audio_system, const char *name, const char *device, predica
 			cw_generator_stop();
 			cw_generator_delete();
 		} else {
-			fprintf(stderr, "OSS: failure\n");
-			cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: can't create %s generator\n", name);
+			cw_debug_msg ((&cw_debug_object), CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
+				      "libcw: can't create %s generator", name);
 		}
 	} else {
-		fprintf(stderr, "OSS: B\n");
-		cw_debug_msg (cw_dbg_msg, CW_DEBUG_SYSTEM, "error: %s output is not available\n", name);
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
+			      "libcw: %s output is not available", name);
 	}
 }
 
