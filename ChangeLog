@@ -1,3 +1,16 @@
+2012-11-21 Kamil Ignacak
+	* debugging: I have reviewed list of CW_DEBUG_* flags. Some of the
+	names of the flags have changed. If you are using any of these flags,
+	you need to review your code.
+
+	debug module now provides updated macro printing debug messages.
+	The macro now accepts 'severity level' flag (debug / info /
+	warning / error).  There are now three permanent debug objects
+	provided by libcw. Two of them are only for debug purposes, the
+	third one is for general use. Behaviour of the objects may be
+	controlled by the severity flag, as well as by debug flags
+	defining areas of code, for which the debugging is active.
+
 2012-09-17 Kamil Ignacak
 	* libcw: code implementing support for various audio backends has
 	been moved from libcw.c to new files. That way we have less mess
