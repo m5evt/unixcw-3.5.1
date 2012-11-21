@@ -21,9 +21,6 @@
 #include "config.h"
 
 
-#define _BSD_SOURCE   /* usleep() */
-#define _POSIX_SOURCE /* sigaction() */
-
 
 #include <stdio.h>
 #include <assert.h>
@@ -41,12 +38,14 @@ static void cw_null_close_device_internal(cw_gen_t *gen);
 
 int cw_null_configure(cw_gen_t *gen, const char *device)
 {
+	assert (gen);
+
 	gen->audio_system = CW_AUDIO_NULL;
 	cw_generator_set_audio_device_internal(gen, device);
 
 	gen->open_device  = cw_null_open_device_internal;
 	gen->close_device = cw_null_close_device_internal;
-	//gen->write        = cw_null_write_internal;
+	// gen->write        = cw_null_write; /* The function is called in libcw.c explicitly/directly, not by a pointer. */
 
 	return CW_SUCCESS;
 }
