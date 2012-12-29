@@ -3821,9 +3821,10 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 				   one we have now is below or equal to it,
 				   call the callback. */
 
-				/* TODO: do we really need the two comparisons
-				   against tq->low_water_mark? I think that
-				   the second expression would be enough. */
+				/* It may seem that the double condition in
+				   'if ()' is redundant, but for some reason
+				   it is necessary. Be very, very careful
+				   when modifying this. */
 				if (queue_length > tq->low_water_mark
 				    && CW_TONE_QUEUE_LENGTH(tq) <= tq->low_water_mark
 
@@ -4398,11 +4399,67 @@ int cw_send_word_space(void)
 
 	/* Send silence for the word delay period, plus any adjustment
 	   that may be needed at end of word. */
+#if 1
+
+	/* Let's say that 'tone queue low watermark' is one element
+	  (i.e. one tone).
+
+	  In order for tone queue to recognize that a 'low tone queue'
+	  callback needs to be called, the level in tq needs to drop
+	  from 2 to 1.
+
+	  Almost every queued character guarantees that there will be
+	  at least two tones, e.g for 'E' it is dash + following
+	  space. But what about a ' ' character?
+
+	  With the code in second branch of '#if', there is only one
+	  tone, and the tone queue manager can't recognize when the
+	  level drops from 2 to 1 (and thus the 'low tone queue'
+	  callback won't be called).
+
+	  The code in first branch of '#if' enqueues ' ' as two tones
+	  (both of them silent). With code in the first branch
+	  active, the tone queue works correctly with 'low tq
+	  watermark' = 1.
+
+	  If tone queue manager could recognize that the only tone
+	  that has been enqueued is a single-tone space, then the code
+	  in first branch would not be necessary. However, this
+	  'recognize a single space character in tq' is a very special
+	  case, and it's hard to justify its implementation.
+
+	  WARNING: queueing two tones instead of one may lead to
+	  additional, unexpected and unwanted delay. This may
+	  negatively influence correctness of timing. */
+
+	/* Queue space character as two separate tones. */
+
+	cw_tone_t tone;
+	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
+	tone.usecs = cw_end_of_word_delay;
+	tone.frequency = 0;
+	int a = cw_tone_queue_enqueue_internal(generator->tq, &tone);
+
+	int b = CW_FAILURE;
+
+	if (a == CW_SUCCESS) {
+		tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
+		tone.usecs = cw_adjustment_delay;
+		tone.frequency = 0;
+		b = cw_tone_queue_enqueue_internal(generator->tq, &tone);
+	}
+
+	return a && b;
+#else
+	/* Queue space character as a single tone. */
+
 	cw_tone_t tone;
 	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
 	tone.usecs = cw_end_of_word_delay + cw_adjustment_delay;
 	tone.frequency = 0;
+
 	return cw_tone_queue_enqueue_internal(generator->tq, &tone);
+#endif
 }
 
 
