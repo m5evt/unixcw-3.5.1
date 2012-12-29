@@ -171,7 +171,8 @@ enum {
 	CW_DEBUG_DEBUG   = 0,
 	CW_DEBUG_INFO    = 1,
 	CW_DEBUG_WARNING = 2,
-	CW_DEBUG_ERROR   = 3
+	CW_DEBUG_ERROR   = 3,
+	CW_DEBUG_NONE    = 4  /* Don't print any debug info. */
 };
 
 
