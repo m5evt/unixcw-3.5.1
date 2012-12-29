@@ -4,6 +4,11 @@
 	space is queued, and tone queue's low watermark is set to 1).
 	This problem has been solved when testing cwdaemon.
 
+	* compilation errors: unixcw/src/libcw/libcw.h: Rewriting three
+	cases of usage of "__attribute__ ((deprecated(msg)))", some
+	versions of gcc may not support "deprecated" with string argument
+	(error reported by user).
+
 2012-11-21 Kamil Ignacak
 	* debugging: I have reviewed list of CW_DEBUG_* flags. Some of the
 	names of the flags have changed. If you are using any of these flags,
