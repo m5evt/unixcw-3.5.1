@@ -47,6 +47,9 @@ int cw_null_configure(cw_gen_t *gen, const char *device)
 	gen->close_device = cw_null_close_device_internal;
 	// gen->write        = cw_null_write; /* The function is called in libcw.c explicitly/directly, not by a pointer. */
 
+	gen->sample_rate = 48000; /* Some asserts may check for non-zero
+				     value of sample rate or its derivatives. */
+
 	return CW_SUCCESS;
 }
 
