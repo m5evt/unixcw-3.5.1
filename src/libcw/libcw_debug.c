@@ -81,7 +81,7 @@ cw_debug_t cw_debug_object = {
 	.flags = CW_DEBUG_STDLIB | CW_DEBUG_SOUND_SYSTEM, //CW_DEBUG_TONE_QUEUE; //CW_DEBUG_KEYER_STATES | CW_DEBUG_STRAIGHT_KEY | CW_DEBUG_KEYING; // | CW_DEBUG_TONE_QUEUE;,
 	.n = 0,
 	.n_max = 1,
-	.level = CW_DEBUG_INFO,
+	.level = CW_DEBUG_NONE,
 	.level_labels = cw_debug_level_labels
 };
 
@@ -89,7 +89,7 @@ cw_debug_t cw_debug_object_dev = {
 	.flags = CW_DEBUG_SOUND_SYSTEM,
 	.n = 0,
 	.n_max = 1,
-	.level = CW_DEBUG_DEBUG,
+	.level = CW_DEBUG_NONE,
 	.level_labels = cw_debug_level_labels
 };
 
@@ -97,7 +97,7 @@ cw_debug_t cw_debug_object_ev = {
 	.flags = 0,
 	.n = 0,
 	.n_max = CW_DEBUG_N_EVENTS_MAX,
-	.level = CW_DEBUG_DEBUG,
+	.level = CW_DEBUG_NONE,
 	.level_labels = cw_debug_level_labels
 };
 
