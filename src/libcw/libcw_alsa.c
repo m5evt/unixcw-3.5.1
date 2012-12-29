@@ -315,15 +315,15 @@ void cw_alsa_close_device_internal(cw_gen_t *gen)
 int cw_alsa_debug_evaluate_write_internal(cw_gen_t *gen, int rv)
 {
 	if (rv == -EPIPE) {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_WARNING,
 			      "cw_alsa: underrun");
 		cw_alsa.snd_pcm_prepare(gen->alsa_data.handle);
 	} else if (rv < 0) {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_WARNING,
 			      "cw_alsa: writei: %s", cw_alsa.snd_strerror(rv));
 		cw_alsa.snd_pcm_prepare(gen->alsa_data.handle);
 	} else if (rv != gen->buffer_n_samples) {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_WARNING,
 			      "cw_alsa: short write, %d != %d", rv, gen->buffer_n_samples);
 	} else {
 		return CW_SUCCESS;
