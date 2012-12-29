@@ -1,3 +1,9 @@
+2012-12-29 Kamil Ignacak
+	* tone queue: improving the method of queuing a space character.
+	This helps me avoid problems in some corner case (when a single
+	space is queued, and tone queue's low watermark is set to 1).
+	This problem has been solved when testing cwdaemon.
+
 2012-11-21 Kamil Ignacak
 	* debugging: I have reviewed list of CW_DEBUG_* flags. Some of the
 	names of the flags have changed. If you are using any of these flags,
