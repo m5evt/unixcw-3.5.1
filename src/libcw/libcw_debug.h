@@ -25,7 +25,6 @@
 #include <stdbool.h>
 
 
-#include "libcw_internal.h"
 
 
 #if defined(__cplusplus)
