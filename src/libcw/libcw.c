@@ -4593,6 +4593,12 @@ int cw_send_representation_partial(const char *representation)
 */
 int cw_send_character_internal(cw_gen_t *gen, char character, int partial)
 {
+	if (!gen) {
+		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
+			      "libcw: no generator available");
+		return CW_FAILURE;
+	}
+
 	/* Handle space special case; delay end-of-word and return. */
 	if (character == ' ') {
 		return cw_send_word_space();
@@ -6926,7 +6932,7 @@ void cw_generator_delete(void)
 			generator->buffer = NULL;
 		}
 
-		generator->close_device(generator);
+			generator->close_device(generator);
 
 		pthread_attr_destroy(&generator->thread.attr);
 
