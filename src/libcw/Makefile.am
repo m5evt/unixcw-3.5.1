@@ -50,7 +50,7 @@ libcw_la_LDFLAGS = -version-number 4:1:1
 libcw_la_CFLAGS = -rdynamic
 
 libcw_includedir=$(includedir)
-libcw_include_HEADERS = libcw.h
+libcw_include_HEADERS = libcw.h libcw_debug.h
 
 
 
