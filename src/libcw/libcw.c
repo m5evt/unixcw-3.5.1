@@ -6792,13 +6792,18 @@ int cw_generator_new(int audio_system, const char *device)
 	generator->pa_data.ba.fragsize  = (uint32_t) -1;
 #endif
 
+	generator->open_device = NULL;
+	generator->close_device = NULL;
+	generator->write = NULL;
+
 	pthread_attr_init(&generator->thread.attr);
 	pthread_attr_setdetachstate(&generator->thread.attr, PTHREAD_CREATE_DETACHED);
 
 	int rv = cw_generator_new_open_internal(generator, audio_system, device);
 	if (rv == CW_FAILURE) {
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
-			      "libcw: failed to open audio device for audio system '%d' and device '%s'", audio_system, device);
+			      "libcw: failed to open audio device for audio system '%s' and device '%s'", cw_get_audio_system_label(audio_system), device);
+		cw_generator_delete();
 		return CW_FAILURE;
 	}
 
@@ -6811,6 +6816,7 @@ int cw_generator_new(int audio_system, const char *device)
 		if (!generator->buffer) {
 			cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
 				      "libcw: malloc()");
+			cw_generator_delete();
 			return CW_FAILURE;
 		}
 	}
@@ -6822,6 +6828,7 @@ int cw_generator_new(int audio_system, const char *device)
 	if (rv == CW_FAILURE) {
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
 			      "libcw: failed to set slope");
+		cw_generator_delete();
 		return CW_FAILURE;
 	}
 
