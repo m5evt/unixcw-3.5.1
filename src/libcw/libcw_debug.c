@@ -166,6 +166,16 @@ void cw_set_debug_flags(uint32_t flags)
 
 
 
+void cw_debug_set_flags(cw_debug_t *debug_object, uint32_t flags)
+{
+	debug_object->flags = flags;
+	return;
+}
+
+
+
+
+
 /**
    \brief Get current library's debug flags
 
@@ -198,6 +208,16 @@ uint32_t cw_get_debug_flags(void)
 	}
 
 	return cw_debug_object.flags;
+}
+
+
+
+
+
+uint32_t cw_debug_get_flags(cw_debug_t *debug_object)
+{
+	/* FIXME: what about initialization? */
+	return debug_object->flags;
 }
 
 
