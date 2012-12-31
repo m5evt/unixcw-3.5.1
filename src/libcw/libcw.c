@@ -6939,7 +6939,11 @@ void cw_generator_delete(void)
 			generator->buffer = NULL;
 		}
 
+		if (generator->close_device) {
 			generator->close_device(generator);
+		} else {
+			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG, "libcw: WARNING: null function pointer, something went wrong");
+		}
 
 		pthread_attr_destroy(&generator->thread.attr);
 
