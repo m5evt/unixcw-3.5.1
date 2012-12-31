@@ -326,7 +326,7 @@ libcw_la_LDFLAGS = -version-number 4:1:1
 # target-specific compiler flags
 libcw_la_CFLAGS = -rdynamic
 libcw_includedir = $(includedir)
-libcw_include_HEADERS = libcw.h
+libcw_include_HEADERS = libcw.h libcw_debug.h
 
 # target: libcwtest, a test program, testing public API of libcw library;
 # main() is defined in libcwtest.c
