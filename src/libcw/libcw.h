@@ -204,10 +204,6 @@ extern void cw_license(void);
 extern const char *cw_get_audio_system_label(int audio_system);
 
 
-/* Debugging */
-extern void cw_set_debug_flags(unsigned int new_value);
-extern unsigned int cw_get_debug_flags(void);
-
 
 /* Functions handling 'generator' */
 extern int  cw_generator_new(int audio_system, const char *device);
