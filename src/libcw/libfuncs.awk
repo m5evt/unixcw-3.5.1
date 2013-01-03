@@ -1,7 +1,7 @@
 #!/bin/awk -f
 #
 # Copyright (C) 2001-2006  Simon Baldwin (simon_baldwin@yahoo.com)
-# Copyright (C) 2011-2012  Kamil Ignacak (acerion@wp.pl)
+# Copyright (C) 2011-2013  Kamil Ignacak (acerion@wp.pl)
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -37,6 +37,9 @@ BEGIN {
 	FUNCTION_TAG      = "F"
 	DOCUMENTATION_TAG = "D"
 	END_TAG           = "E"
+
+	# For handling a series of Doxygen's "\li" tags
+	in_list = 0
 }
 
 
@@ -89,7 +92,29 @@ $1 == DOCUMENTATION_TAG {
 		print(".br")
 	}
 
-	print $0
+	# "\li" list item from Doxygen documentation.
+	if ($0 ~ /^\\li /) {
+		if (in_list == 0) {
+			in_list = 1
+			# Opening indentation mark for a list.
+			print(".RS")
+		}
+		print(".IP \\[bu]")
+		print(substr($0, 4))
+
+	} else {
+		print $0
+	}
+
+	if ($0 == "") {
+		# It is assumed that last item on a list is followed
+		# with empty line.
+		if (in_list == 1) {
+			in_list = 0
+			# Closing indentation mark for a list.
+			print(".RE")
+		}
+	}
 
 	next
 }
