@@ -28,7 +28,8 @@ pkgconfig_DATA=libcw.pc
 EXTRA_DIST=include.awk libdoc.awk libfuncs.awk libpc.awk libsigs.awk \
 	libcw.3.m4 \
 	libcw.pc.in \
-	cw.7
+	cw.7 \
+	libcw_null.h libcw_console.h libcw_pa.h libcw_oss.h libcw_alsa.h libcw_debug.h libcw_internal.h
 
 
 
@@ -44,7 +45,7 @@ libcw_la_LIBADD=-lm -lpthread -ldl
 
 # target-specific linker flags (additional flags)
 # http://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html
-libcw_la_LDFLAGS = -version-number 4:1:1
+libcw_la_LDFLAGS = -version-number 5:0:0
 
 # target-specific compiler flags
 libcw_la_CFLAGS = -rdynamic
