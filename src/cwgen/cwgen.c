@@ -198,7 +198,7 @@ void cwgen_print_usage(const char *program_name)
 static void cwgen_print_help(const char *program_name)
 {
 	if (!has_longopts()) {
-		fprintf(stderr, _("Long format of options is not supported on your system\n\n"));
+		fprintf(stderr, "%s", _("Long format of options is not supported on your system\n\n"));
 	}
 
 	printf(_("Usage: %s [options...]\n\n"), program_name);
@@ -207,16 +207,16 @@ static void cwgen_print_help(const char *program_name)
 	printf(_("                         GROUPS values may not be lower than %d\n"), MIN_GROUPS);
 	printf(_("  -n, --groupsize=GS     make groups GS chars [default %d]\n"), INITIAL_GROUP_SIZE);
 	printf(_("                         GS values may not be lower than %d, or\n"), MIN_GROUP_SIZE);
-	printf(_("  -n, --groupsize=GL-GH  make groups between GL and GH chars\n"));
-	printf(_("                         valid GL, GH values are as for GS above\n"));
+	printf("%s", _("  -n, --groupsize=GL-GH  make groups between GL and GH chars\n"));
+	printf("%s", _("                         valid GL, GH values are as for GS above\n"));
 	printf(_("  -r, --repeat=COUNT     repeat each group COUNT times [default %d]\n"), INITIAL_REPEAT);
 	printf(_("                         COUNT values may not be lower than %d\n"), MIN_REPEAT);
-	printf(_("  -c, --charset=CHARSET  select chars to send from this set\n"));
+	printf("%s", _("  -c, --charset=CHARSET  select chars to send from this set\n"));
 	printf(_("                         [default %s]\n"), DEFAULT_CHARSET);
 	printf(_("  -x, --limit=LIMIT      stop after LIMIT characters [default %d]\n"), INITIAL_LIMIT);
-	printf(_("                         a LIMIT of zero indicates no set limit\n"));
-	printf(_("  -h, --help             print this message\n"));
-	printf(_("  -v, --version          output version information and exit\n\n"));
+	printf("%s", _("                         a LIMIT of zero indicates no set limit\n"));
+	printf("%s", _("  -h, --help             print this message\n"));
+	printf("%s", _("  -v, --version          output version information and exit\n\n"));
 
 	exit(EXIT_SUCCESS);
 }
