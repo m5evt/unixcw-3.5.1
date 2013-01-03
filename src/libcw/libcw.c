@@ -6841,10 +6841,33 @@ int cw_generator_new(int audio_system, const char *device)
 
 
 
+/*
+  \brief Open audio system
+
+  A wrapper for code trying to open audio device specified by
+  \p audio_system.  Open audio system will be assigned to given
+  generator. Caller can also specify audio device to use instead
+  of a default one.
+
+  \param gen - freshly created generator
+  \param audio_system - audio system to open and assign to the generator
+  \param device - name of audio device to be used instead of a default one
+
+  \return CW_SUCCESS on success
+  \return CW_FAILURE otherwise
+*/
 int cw_generator_new_open_internal(cw_gen_t *gen, int audio_system, const char *device)
 {
 	/* FIXME: this functionality is partially duplicated in
 	   src/cwutils/cw_common.c/cw_generator_new_from_config() */
+
+	/* This function deliberately checks all possible values of
+	   audio system name in separate 'if' clauses before it gives
+	   up and returns CW_FAILURE. PA/OSS/ALSA are combined with
+	   SOUNDCARD, so I have to check all three of them (because \p
+	   audio_system may be set to SOUNDCARD). And since I check
+	   the three in separate 'if' clauses, I can check all other
+	   values of audio system as well. */
 
 	if (audio_system == CW_AUDIO_NULL) {
 
@@ -6852,56 +6875,50 @@ int cw_generator_new_open_internal(cw_gen_t *gen, int audio_system, const char *
 		if (cw_is_null_possible(dev)) {
 			cw_null_configure(gen, dev);
 			return gen->open_device(gen);
-		} else {
-			return CW_FAILURE;
 		}
+	}
 
-	} else if (audio_system == CW_AUDIO_PA
-		   || audio_system == CW_AUDIO_SOUNDCARD) {
+	if (audio_system == CW_AUDIO_PA
+	    || audio_system == CW_AUDIO_SOUNDCARD) {
 
 		const char *dev = device ? device : default_audio_devices[CW_AUDIO_PA];
 		if (cw_is_pa_possible(dev)) {
 			cw_pa_configure(gen, dev);
 			return gen->open_device(gen);
-		} else {
-			return CW_FAILURE;
 		}
+	}
 
-	} else if (audio_system == CW_AUDIO_OSS
-		   || audio_system == CW_AUDIO_SOUNDCARD) {
+	if (audio_system == CW_AUDIO_OSS
+	    || audio_system == CW_AUDIO_SOUNDCARD) {
 
 		const char *dev = device ? device : default_audio_devices[CW_AUDIO_OSS];
 		if (cw_is_oss_possible(dev)) {
 			cw_oss_configure(gen, dev);
 			return gen->open_device(gen);
-		} else {
-			return CW_FAILURE;
 		}
+	}
 
-	} else if (audio_system == CW_AUDIO_ALSA
-		   || audio_system == CW_AUDIO_SOUNDCARD) {
+	if (audio_system == CW_AUDIO_ALSA
+	    || audio_system == CW_AUDIO_SOUNDCARD) {
 
 		const char *dev = device ? device : default_audio_devices[CW_AUDIO_ALSA];
 		if (cw_is_alsa_possible(dev)) {
 			cw_alsa_configure(gen, dev);
 			return gen->open_device(gen);
-		} else {
-			return CW_FAILURE;
 		}
+	}
 
-	} else if (audio_system == CW_AUDIO_CONSOLE) {
+	if (audio_system == CW_AUDIO_CONSOLE) {
 
 		const char *dev = device ? device : default_audio_devices[CW_AUDIO_CONSOLE];
 		if (cw_is_console_possible(dev)) {
 			cw_console_configure(gen, dev);
 			return gen->open_device(gen);
-		} else {
-			return CW_FAILURE;
 		}
-	} else {
-		/* there is no next audio system type to try */
-		return CW_FAILURE;
 	}
+
+	/* there is no next audio system type to try */
+	return CW_FAILURE;
 }
 
 
