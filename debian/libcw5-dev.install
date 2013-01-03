@@ -19,5 +19,5 @@ usr/lib/libcw.so
 
 usr/include/libcw.h
 usr/share/man/man3
-usr/share/doc/libcw4-dev
+usr/share/doc/libcw5-dev
 usr/lib/pkgconfig/libcw.pc
