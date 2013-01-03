@@ -1,3 +1,16 @@
+2013-01-03 Kamil Ignacak
+	* fixes: fixing a function in libcw that attempts to open audio
+	device. Simple improvement of logic conditions makes it less
+	possible (under certain circumstances) that the function will fail
+	to open a device.
+	* pre-release: new version of unicw will have version number
+	3.2.0.  New version of libcw will have soname version 5.0.0.
+	Implementing necessary changes related to the two pieces of
+	information. Also attempting to build debian packages from unixcw
+	source package, and fixing bugs and upgrading files in the
+	process. Various other updates of files related to pre-release
+	activities.
+
 2012-12-31 Kamil Ignacak
 	* distribution: src/libcw/libcw_debug.h is now marked as file to
 	be installed along with libcw.h
