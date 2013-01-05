@@ -1,3 +1,37 @@
+version 3.2.0 / 2013.01.XX
+
+  unixcw:
+  - Fixing faulty logic checking "--disable-feature" flags in configure.ac.
+    Bug reported by Thomas Beierlein. Thanks Thomas!
+
+  libcw:
+  - Debugging facilities of the library are being rewritten and have been
+    moved to new file: src/lib/libcw_debug.h. See the file for details of
+    new interface. The interface may still change, and it isn't documented
+    yet. List of CW_DEBUG_* flags has been modified. The old interface is
+    being deprecated.
+  - libcw now can generate tones with slopes shaped as sine function or as
+    raised cosine function. The 'raised cosine' slope is now default.
+  - Rewriting usage of "__attribute__ ((deprecated(msg)))" facility in libcw.h.
+    A user has reported errors related to the attribute when compiling libcw
+    libcw with gcc 4.3.3.
+  - Improving the method of queuing a space character. This helps me avoid
+    problems in some corner case (when a single space is queued, and tone
+    queue's low watermark is set to 1).
+  - Improving behaviour of cw_generator_new(). Under some circumstances it
+    is less likely to fail to create new generator. There was also possibility
+    of causing a client application to crash if the function failed, but
+    this has been fixed.
+  - Library version changed from 4.1.1 to 5.0.0.
+
+  cwcp:
+  - Fixing one small issue: in every new session with cwcp the application
+    printed a space at the beginning of played text. Now this has been fixed :)
+
+
+----------------------------------------------------------------------------
+
+
 version 3.1.1 / 2012.07.04
 
   libcw:

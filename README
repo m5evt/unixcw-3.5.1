@@ -52,6 +52,12 @@ Few library functions are deprecated, they are replaced by new functions.
 
 Version 3.1.1 fixes small problem with interlocks in thread code.
 
+Version 3.2.0 introduces small fixes and improvements in libcw, and
+implements new debug facilities (the old ones are being deprecated).
+It also fixes faulty logic checking "--disable-feature" flags in
+configure.ac.
+
+
 
 The heart of the package is 'libcw'.  This is a library which, when built,
 offers the following basic CW services to a caller program:
