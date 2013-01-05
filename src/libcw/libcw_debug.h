@@ -66,6 +66,9 @@ void     cw_debug_event_internal(cw_debug_t *debug_object, uint32_t flag, uint32
 
 
 
+void     cw_set_debug_flags(uint32_t flags)    __attribute__ ((deprecated));
+uint32_t cw_get_debug_flags(void)              __attribute__ ((deprecated));
+
 
 
 #define cw_debug_msg(debug_object, flag, debug_level, ...) {		\
