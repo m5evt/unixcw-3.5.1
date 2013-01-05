@@ -29,7 +29,7 @@ EXTRA_DIST=include.awk libdoc.awk libfuncs.awk libpc.awk libsigs.awk \
 	libcw.3.m4 \
 	libcw.pc.in \
 	cw.7 \
-	libcw_null.h libcw_console.h libcw_pa.h libcw_oss.h libcw_alsa.h libcw_debug.h libcw_internal.h
+	libcw_null.h libcw_console.h libcw_pa.h libcw_oss.h libcw_alsa.h libcw_internal.h
 
 
 
