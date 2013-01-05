@@ -42,7 +42,7 @@
 #endif
 
 #include "libcw.h"
-
+#include "libcw_debug.h"
 
 /*---------------------------------------------------------------------*/
 /*  Unit tests                                                         */
