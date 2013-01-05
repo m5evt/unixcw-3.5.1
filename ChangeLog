@@ -22,7 +22,7 @@
 	* tone queue: improving the method of queuing a space character.
 	This helps me avoid problems in some corner case (when a single
 	space is queued, and tone queue's low watermark is set to 1).
-	This problem has been solved when testing cwdaemon.
+	This problem has been spotted when testing cwdaemon.
 
 	* compilation errors: unixcw/src/libcw/libcw.h: Rewriting three
 	cases of usage of "__attribute__ ((deprecated(msg)))", some
