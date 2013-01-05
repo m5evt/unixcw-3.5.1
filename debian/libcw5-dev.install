@@ -18,6 +18,7 @@ usr/lib/libcw.a
 usr/lib/libcw.so
 
 usr/include/libcw.h
+usr/include/libcw_debug.h
 usr/share/man/man3
 usr/share/doc/libcw5-dev
 usr/lib/pkgconfig/libcw.pc
