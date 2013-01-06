@@ -215,9 +215,15 @@ PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
+PKG_CONFIG = @PKG_CONFIG@
+PKG_CONFIG_LIBDIR = @PKG_CONFIG_LIBDIR@
+PKG_CONFIG_PATH = @PKG_CONFIG_PATH@
 QT4INC = @QT4INC@
+QT4LIBS = @QT4LIBS@
 QT4MOC = @QT4MOC@
 QT4MOC_PATH = @QT4MOC_PATH@
+QT4_CFLAGS = @QT4_CFLAGS@
+QT4_LIBS = @QT4_LIBS@
 RANLIB = @RANLIB@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
@@ -291,7 +297,7 @@ xcwcp_SOURCES = \
 
 
 # target-specific preprocessor flags (#defs and include dirs)
-xcwcp_CPPFLAGS = $(AM_CPPFLAGS) -I$(AC_QT4INC) -I$(AC_QT4INC)/QtCore -I$(AC_QT4INC)/QtGui
+xcwcp_CPPFLAGS = $(AM_CPPFLAGS) -I$(AC_QT4INC) #-I$(AC_QT4INC)/QtCore -I$(AC_QT4INC)/QtGui
 # target-specific linker flags (objects to link)
 xcwcp_LDADD = -L$(top_builddir)/src/libcw/.libs -lcw -lQtGui -lQtCore $(top_builddir)/src/cwutils/lib_xcwcp.a
 

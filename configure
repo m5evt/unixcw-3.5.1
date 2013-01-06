@@ -642,8 +642,14 @@ LIBOBJS
 LIBCW_WITH_DEV_FALSE
 LIBCW_WITH_DEV_TRUE
 QT4MOC
-QT4INC
 QT4MOC_PATH
+QT4LIBS
+QT4INC
+QT4_LIBS
+QT4_CFLAGS
+PKG_CONFIG_LIBDIR
+PKG_CONFIG_PATH
+PKG_CONFIG
 LDCONFIG
 GZIP
 CXXCPP
@@ -792,7 +798,12 @@ CXX
 CXXFLAGS
 CCC
 CPP
-CXXCPP'
+CXXCPP
+PKG_CONFIG
+PKG_CONFIG_PATH
+PKG_CONFIG_LIBDIR
+QT4_CFLAGS
+QT4_LIBS'
 
 
 # Initialize some variables set by options.
@@ -1450,6 +1461,13 @@ Some influential environment variables:
   CXXFLAGS    C++ compiler flags
   CPP         C preprocessor
   CXXCPP      C++ preprocessor
+  PKG_CONFIG  path to pkg-config utility
+  PKG_CONFIG_PATH
+              directories to add to pkg-config's search path
+  PKG_CONFIG_LIBDIR
+              path overriding pkg-config's built-in search path
+  QT4_CFLAGS  C compiler flags for QT4, overriding pkg-config
+  QT4_LIBS    linker flags for QT4, overriding pkg-config
 
 Use these variables to override the choices made by `configure' or to help
 it to find libraries and programs with nonstandard names/locations.
@@ -15945,19 +15963,11 @@ else
 
 # Script that detects some paths/files necessary to build
 # Qt4 application using autotools.
-# On success, the script sets two variables for build system by making
+# On success, the script sets three variables for build system by making
 # these two calls:
-#    AC_SUBST(QT4INC)
+#    AC_SUBST(QT4INC, $QT4_CFLAGS)
+#    AC_SUBST(QT4LIBS)
 #    AC_SUBST(QT4MOC)
-# so that these two Autoconfigure definitions will be available:
-#    AC_QT4INC	= @QT4INC@
-#    AC_QT4MOC	= @QT4MOC@
-# How these are used / can be used is outside of scope of this text.
-
-# On some occasions the script needs to guess location of Qt4 include dir.
-# It uses list of well-known possible locations of Qt4 headers: QT4HEADER_DIRS.
-# If the script has problems on your system, try to add the include path
-# that is valid on your system.
 
 # You can include this file to your configure.ac file like this:
 
@@ -15966,17 +15976,12 @@ else
 
 
 
-# possible locations of Qt4 headers - you may have to extend this list
-QT4HEADER_DIRS="/usr/include/qt4 \ # Debian
-               /usr/include"       # Arch (?)
-
-
 MOC_MAJOR_EARLIEST=4
 
 
 
 # There are four major tasks performed by this script:
-# Task 1: find Qt4 include directory
+# Task 1: find Qt4 include directory, and for QT4 library
 # Task 2: find Qt4 moc
 # Task 3: make sure that major version of the moc is >= MOC_MAJOR_EARLIEST
 # Task 4: on success set up some build system variables (AC_SUBST)
@@ -15992,23 +15997,201 @@ QT4MOC=""  # full path to Qt4 moc
 
 
 
+# Task 1: find Qt4 include directory, and for QT4 library
 
-# Task 1: find Qt4 include directory
-if [[ $QT4DIR = "" ]] ; then
 
-    # build environment doesn't define $QT4DIR, we have to guess where
-    # Qt4 include files are located; there are only few possible locations,
-    # stored by this script in $QTHEADERS_DIRS
-    for dir in $QT4HEADER_DIRS; do
-	if test -d "$dir/QtGui" && test -d "$dir/QtCore" ; then
-            QT4INC=$dir;
-	fi
-    done
 
+
+
+
+
+if test "x$ac_cv_env_PKG_CONFIG_set" != "xset"; then
+	if test -n "$ac_tool_prefix"; then
+  # Extract the first word of "${ac_tool_prefix}pkg-config", so it can be a program name with args.
+set dummy ${ac_tool_prefix}pkg-config; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_PKG_CONFIG+:} false; then :
+  $as_echo_n "(cached) " >&6
 else
-    QT4INC="$QT4DIR/include" # trivial
+  case $PKG_CONFIG in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_PKG_CONFIG="$PKG_CONFIG" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_PKG_CONFIG="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+PKG_CONFIG=$ac_cv_path_PKG_CONFIG
+if test -n "$PKG_CONFIG"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $PKG_CONFIG" >&5
+$as_echo "$PKG_CONFIG" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
 fi
 
+
+fi
+if test -z "$ac_cv_path_PKG_CONFIG"; then
+  ac_pt_PKG_CONFIG=$PKG_CONFIG
+  # Extract the first word of "pkg-config", so it can be a program name with args.
+set dummy pkg-config; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_ac_pt_PKG_CONFIG+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $ac_pt_PKG_CONFIG in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_ac_pt_PKG_CONFIG="$ac_pt_PKG_CONFIG" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_ac_pt_PKG_CONFIG="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+ac_pt_PKG_CONFIG=$ac_cv_path_ac_pt_PKG_CONFIG
+if test -n "$ac_pt_PKG_CONFIG"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_pt_PKG_CONFIG" >&5
+$as_echo "$ac_pt_PKG_CONFIG" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+  if test "x$ac_pt_PKG_CONFIG" = x; then
+    PKG_CONFIG=""
+  else
+    case $cross_compiling:$ac_tool_warned in
+yes:)
+{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: using cross tools not prefixed with host triplet" >&5
+$as_echo "$as_me: WARNING: using cross tools not prefixed with host triplet" >&2;}
+ac_tool_warned=yes ;;
+esac
+    PKG_CONFIG=$ac_pt_PKG_CONFIG
+  fi
+else
+  PKG_CONFIG="$ac_cv_path_PKG_CONFIG"
+fi
+
+fi
+if test -n "$PKG_CONFIG"; then
+	_pkg_min_version=0.9.0
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking pkg-config is at least version $_pkg_min_version" >&5
+$as_echo_n "checking pkg-config is at least version $_pkg_min_version... " >&6; }
+	if $PKG_CONFIG --atleast-pkgconfig-version $_pkg_min_version; then
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+	else
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+		PKG_CONFIG=""
+	fi
+fi
+
+pkg_failed=no
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for QT4" >&5
+$as_echo_n "checking for QT4... " >&6; }
+
+if test -n "$QT4_CFLAGS"; then
+    pkg_cv_QT4_CFLAGS="$QT4_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \" \"QtCore QtGui\"\""; } >&5
+  ($PKG_CONFIG --exists --print-errors " "QtCore QtGui"") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_QT4_CFLAGS=`$PKG_CONFIG --cflags " "QtCore QtGui"" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+if test -n "$QT4_LIBS"; then
+    pkg_cv_QT4_LIBS="$QT4_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \" \"QtCore QtGui\"\""; } >&5
+  ($PKG_CONFIG --exists --print-errors " "QtCore QtGui"") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_QT4_LIBS=`$PKG_CONFIG --libs " "QtCore QtGui"" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+
+
+
+if test $pkg_failed = yes; then
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+	        QT4_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs " "QtCore QtGui"" 2>&1`
+        else
+	        QT4_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs " "QtCore QtGui"" 2>&1`
+        fi
+	# Put the nasty error message in config.log where it belongs
+	echo "$QT4_PKG_ERRORS" >&5
+
+	 as_fn_error $? "Qt4 libs not found" "$LINENO" 5
+
+elif test $pkg_failed = untried; then
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+	 as_fn_error $? "Qt4 libs not found" "$LINENO" 5
+
+else
+	QT4_CFLAGS=$pkg_cv_QT4_CFLAGS
+	QT4_LIBS=$pkg_cv_QT4_LIBS
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+	 QT4INC=$QT4_CFLAGS
+
+fi
 
 
 
@@ -16178,6 +16361,8 @@ $as_echo "$as_me: WARNING: \"Found moc $MOC_VERSION - unable to build xcwcp\"" >
 $as_echo "$as_me: WARNING: \"xcwcp requires moc version >= $MOC_MAJOR_EARLIEST\"" >&2;}
 	    else
 		QT4MOC=$QT4MOC_PATH
+
+
 	    fi
 	else
 	    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: \"Can't get moc major version - unable to build xcwcp\"" >&5
@@ -16200,9 +16385,6 @@ fi
 if [[ $QT4INC != "" && $QT4MOC != "" ]] ; then
     echo "Qt4 headers dir is $QT4INC"
     echo "Qt4 moc is $QT4MOC"
-
-
-
 
 else
     if [[ $QT4INC = "" ]] ; then
@@ -17208,10 +17390,10 @@ $as_echo "$as_me: build cwcp:  ..................................  $WITH_CWCP" >
 { $as_echo "$as_me:${as_lineno-$LINENO}: build xcwcp:  .................................  $WITH_XCWCP" >&5
 $as_echo "$as_me: build xcwcp:  .................................  $WITH_XCWCP" >&6;}
 if test "$WITH_XCWCP" = 'yes' ; then
-    { $as_echo "$as_me:${as_lineno-$LINENO}:     Qt4 headers dir is $QT4INC\"" >&5
-$as_echo "$as_me:     Qt4 headers dir is $QT4INC\"" >&6;}
-    { $as_echo "$as_me:${as_lineno-$LINENO}:     Qt4 moc is $QT4MOC\"" >&5
-$as_echo "$as_me:     Qt4 moc is $QT4MOC\"" >&6;}
+    { $as_echo "$as_me:${as_lineno-$LINENO}:     Qt4 headers dir is $QT4INC" >&5
+$as_echo "$as_me:     Qt4 headers dir is $QT4INC" >&6;}
+    { $as_echo "$as_me:${as_lineno-$LINENO}:     Qt4 moc is $QT4MOC" >&5
+$as_echo "$as_me:     Qt4 moc is $QT4MOC" >&6;}
 fi
 { $as_echo "$as_me:${as_lineno-$LINENO}: include console buzzer support:  ..............  $WITH_CONSOLE" >&5
 $as_echo "$as_me: include console buzzer support:  ..............  $WITH_CONSOLE" >&6;}
