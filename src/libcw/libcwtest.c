@@ -44,6 +44,14 @@
 #include "libcw.h"
 #include "libcw_debug.h"
 
+
+static int  cw_self_test_run(unsigned int testset);
+static int  cw_self_test_with(int audio_system, unsigned int testset);
+static void cw_self_test_setup(void);
+
+
+
+
 /*---------------------------------------------------------------------*/
 /*  Unit tests                                                         */
 /*---------------------------------------------------------------------*/
@@ -1522,97 +1530,86 @@ cw_self_test_signal_handling (void)
 }
 #endif
 
+
+
+
+
 /*---------------------------------------------------------------------*/
 /*  Unit tests drivers                                                 */
 /*---------------------------------------------------------------------*/
 
-/*
- * cw_self_test_setup()
- *
- * Run before each individual test, to handle setup of common test conditions.
- */
-static void
-cw_self_test_setup (void)
+
+
+
+
+/**
+   \brief Set up common test conditions
+
+   Run before each individual test, to handle setup of common test conditions.
+*/
+void cw_self_test_setup(void)
 {
-  cw_reset_send_receive_parameters ();
-  cw_set_send_speed (30);
-  cw_set_receive_speed (30);
-  cw_disable_adaptive_receive ();
-  cw_reset_receive_statistics ();
-  cw_unregister_signal_handler (SIGUSR1);
-  errno = 0;
+	cw_reset_send_receive_parameters();
+	cw_set_send_speed(30);
+	cw_set_receive_speed(30);
+	cw_disable_adaptive_receive();
+	cw_reset_receive_statistics();
+	cw_unregister_signal_handler(SIGUSR1);
+	errno = 0;
+
+	return;
 }
 
 
-/*
- * cw_self_test()
- *
- * Perform a series of self-tests on library public interfaces.
- */
-static int cw_self_test (unsigned int testset)
+
+
+
+static int (*const TEST_FUNCTIONS[])(void) = {
+	cw_self_test_admin, /* Version, license, debug flags */
+	cw_self_test_limits,
+	cw_self_test_ranges,
+	cw_self_test_tone_parameters,
+	cw_self_test_simple_tones,
+	cw_self_test_complex_tones,
+	cw_self_test_tone_queue,
+	cw_self_test_volumes,
+	cw_self_test_lookups,
+	cw_self_test_prosign_lookups,
+	cw_self_test_phonetic_lookups,
+	cw_self_test_dot_dash,
+	cw_self_test_representations,
+	cw_self_test_characters,
+	cw_self_test_full_send,
+	cw_self_test_fixed_receive,
+	cw_self_test_adaptive_receive,
+	cw_self_test_keyer,
+	cw_self_test_straight_key,
+	//cw_self_test_delayed_release,
+	//cw_self_test_signal_handling, /* FIXME - not sure why this test fails :( */
+	NULL
+};
+
+
+
+
+
+/**
+   \brief Run tests for given audio system.
+
+   Perform a series of self-tests on library public interfaces, using
+   audio system specified with \p audio_system. Range of tests is specified
+   with \p testset.
+
+   \param audio_system - audio system to use for tests
+   \param testset - set of tests to be performed
+
+   \return -1 on failure to set up tests
+   \return 0 if tests were run, and no errors occurred
+   \return 1 if tests were run, and some errors occurred
+*/
+int cw_self_test_with(int audio_system, unsigned int testset)
 {
-	static int (*const TEST_FUNCTIONS[])(void) = {
-		cw_self_test_admin, /* Version, license, debug flags */
-		cw_self_test_limits,
-		cw_self_test_ranges,
-		cw_self_test_tone_parameters,
-		cw_self_test_simple_tones,
-		cw_self_test_complex_tones,
-		cw_self_test_tone_queue,
-		cw_self_test_volumes,
-		cw_self_test_lookups,
-		cw_self_test_prosign_lookups,
-		cw_self_test_phonetic_lookups,
-		cw_self_test_dot_dash,
-		cw_self_test_representations,
-		cw_self_test_characters,
-		cw_self_test_full_send,
-		cw_self_test_fixed_receive,
-		cw_self_test_adaptive_receive,
-		cw_self_test_keyer,
-		cw_self_test_straight_key,
-		//cw_self_test_delayed_release,
-		//cw_self_test_signal_handling, /* FIXME - not sure why this test fails :( */
-		NULL };
-
-	int output = CW_AUDIO_NONE;
-	if (output == CW_AUDIO_NONE) {
-		if (cw_is_pa_possible(NULL)) {
-			output = CW_AUDIO_PA;
-		} else {
-			fprintf(stderr, "libcw: pulseaudio device unavailable: %s\n", strerror(errno));
-		}
-	}
-
-	if (output == CW_AUDIO_NONE) {
-		if (cw_is_oss_possible(NULL)) {
-			output = CW_AUDIO_OSS;
-		} else {
-			fprintf(stderr, "libcw: OSS: soundcard device unavailable: %s\n", strerror(errno));
-		}
-	}
-
-	if (output == CW_AUDIO_NONE) {
-		if (cw_is_alsa_possible(NULL)) {
-			output = CW_AUDIO_ALSA;
-		} else {
-			fprintf(stderr, "libcw: ALSA: soundcard device unavailable: %s\n", strerror(errno));
-		}
-	}
-
-	if (output == CW_AUDIO_NONE) {
-		if (cw_is_console_possible(NULL)) {
-			output = CW_AUDIO_CONSOLE;
-		} else {
-			fprintf(stderr, "libcw: console device cannot do sound: %s\n", strerror(errno));
-		}
-	}
-	if (output == CW_AUDIO_NONE) {
-		fprintf(stderr, "libcw: no audio output available, stopping the test\n");
-		return -1;
-	}
-
-	int rv = cw_generator_new(output, NULL);
+	int rv = cw_generator_new(audio_system, NULL);
 	if (rv != 1) {
 		fprintf(stderr, "libcw: can't create generator, stopping the test\n");
 		return -1;
@@ -1623,7 +1620,6 @@ static int cw_self_test (unsigned int testset)
 		cw_generator_delete();
 		return -1;
 	}
-
 
 	int tests = 0, failures = 0;
 	/* Run each test specified in the testset bit mask,
@@ -1644,29 +1640,97 @@ static int cw_self_test (unsigned int testset)
 	/* All tests done; return success if no failures,
 	   otherwise return an error status code. */
 	if (failures == 0) {
-		fprintf(stderr, "libcw: %d test%c completed SUCCESSFULLY\n",
+		fprintf(stderr, "libcw: %s: %d test%c completed SUCCESSFULLY\n",
+			cw_get_audio_system_label(audio_system),
 			tests, tests == 1 ? ' ' : 's');
 		return 0;
 	} else {
-		fprintf(stderr, "libcw: %d test%c completed with %d ERROR%c\n",
+		fprintf(stderr, "libcw: %s: %d test%c completed with %d ERROR%c\n",
+			cw_get_audio_system_label(audio_system),
 			tests, tests == 1 ? ' ' : 's',
 			failures, failures == 1 ? ' ' : 'S');
+		return 1;
+	}
+
+	return 0;
+}
+
+
+
+
+
+/**
+   \brief Run a series of tests for every available audio system
+
+   Function checks for every possible audio system whether it is available,
+   and if it is, it calls cw_self_test_with() for this audio system.
+
+   \param testset - set of tests to be performed
+*/
+int cw_self_test_run(unsigned int testset)
+{
+	int a = 0, b = 0, c = 0, d = 0, e = 0;
+
+	if (cw_is_null_possible(NULL)) {
+		fprintf(stderr, "========================================\n");
+		fprintf(stderr, "libcw: testing with null output\n");
+		a = cw_self_test_with(CW_AUDIO_NULL, testset);
+	} else {
+		fprintf(stderr, "libcw: null output not available\n");
+	}
+
+	if (cw_is_console_possible(NULL)) {
+		fprintf(stderr, "========================================\n");
+		fprintf(stderr, "libcw: testing with console output\n");
+		b = cw_self_test_with(CW_AUDIO_CONSOLE, testset);
+	} else {
+		fprintf(stderr, "libcw: console output not available\n");
+	}
+
+	if (cw_is_oss_possible(NULL)) {
+		fprintf(stderr, "========================================\n");
+		fprintf(stderr, "libcw: testing with OSS output\n");
+		c = cw_self_test_with(CW_AUDIO_OSS, testset);
+	} else {
+		fprintf(stderr, "libcw: OSS output not available\n");
+	}
+
+	if (cw_is_alsa_possible(NULL)) {
+		fprintf(stderr, "========================================\n");
+		fprintf(stderr, "libcw: testing with Alsa output\n");
+		d = cw_self_test_with(CW_AUDIO_ALSA, testset);
+	} else {
+		fprintf(stderr, "libcw: Alsa output not available\n");
+	}
+
+	if (cw_is_pa_possible(NULL)) {
+		fprintf(stderr, "========================================\n");
+		fprintf(stderr, "libcw: testing with PulseAudio output\n");
+		e = cw_self_test_with(CW_AUDIO_PA, testset);
+	} else {
+		fprintf(stderr, "libcw: PulseAudio output unavailable\n");
+	}
+
+	if (!a && !b && !c && !d && !e) {
+		return 0;
+	} else {
 		return -1;
 	}
 }
 
 
-/*
- * main()
- *
- * Calls the main test function, and exits with EXIT_SUCCESS if all
- * tests complete successfully, otherwise exits with EXIT_FAILURE.
- */
+
+
+
+/**
+   \return EXIT_SUCCESS if all tests complete successfully,
+   \return EXIT_FAILURE otherwise
+*/
 int main(int argc, const char *argv[])
 {
 	static const int SIGNALS[] = { SIGHUP, SIGINT, SIGQUIT, SIGPIPE, SIGTERM, 0 };
 
-	unsigned int testset;
+	unsigned int testset = 0;
 
 	/* Obtain a bitmask of the tests to run from the command line
 	   arguments. If none, then default to ~0, which effectively
@@ -1689,7 +1753,7 @@ int main(int argc, const char *argv[])
 		}
 	}
 	/* Run each requested test. */
-	int rv = cw_self_test(testset);
+	int rv = cw_self_test_run(testset);
 
 	return rv == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }
