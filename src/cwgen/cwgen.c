@@ -25,6 +25,7 @@
 #include <errno.h>
 #include <assert.h>
 #include <stdint.h>
+#include <inttypes.h> /* SCNu64 in sscanf() */
 
 #if defined(HAVE_STRING_H)
 # include <string.h>
@@ -288,7 +289,7 @@ void cwgen_parse_command_line(int argc, char **argv, struct cwgen_config *config
 			break;
 
 		case 'x':
-			if (sscanf(argument, "%llu", &(config->n_chars_max)) != 1
+			if (sscanf(argument, "%" SCNu64, &(config->n_chars_max)) != 1
 			    || strstr(argument, "-")) {
 
 				fprintf(stderr, _("%s: invalid limit value: %s\n"), config->program_name, argument);
