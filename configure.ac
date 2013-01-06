@@ -502,8 +502,8 @@ AC_MSG_NOTICE([build cw & cwgen:  ............................  yes])
 AC_MSG_NOTICE([build cwcp:  ..................................  $WITH_CWCP])
 AC_MSG_NOTICE([build xcwcp:  .................................  $WITH_XCWCP])
 if test "$WITH_XCWCP" = 'yes' ; then
-    AC_MSG_NOTICE([    Qt4 headers dir is $QT4INC"])
-    AC_MSG_NOTICE([    Qt4 moc is $QT4MOC"])
+    AC_MSG_NOTICE([    Qt4 headers dir is $QT4INC])
+    AC_MSG_NOTICE([    Qt4 moc is $QT4MOC])
 fi
 AC_MSG_NOTICE([include console buzzer support:  ..............  $WITH_CONSOLE])
 AC_MSG_NOTICE([include OSS support:  .........................  $WITH_OSS])
