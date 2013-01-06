@@ -20,19 +20,11 @@
 
 # Script that detects some paths/files necessary to build
 # Qt4 application using autotools.
-# On success, the script sets two variables for build system by making
+# On success, the script sets three variables for build system by making
 # these two calls:
-#    AC_SUBST(QT4INC)
+#    AC_SUBST(QT4INC, $QT4_CFLAGS)
+#    AC_SUBST(QT4LIBS)
 #    AC_SUBST(QT4MOC)
-# so that these two Autoconfigure definitions will be available:
-#    AC_QT4INC	= @QT4INC@
-#    AC_QT4MOC	= @QT4MOC@
-# How these are used / can be used is outside of scope of this text.
-
-# On some occasions the script needs to guess location of Qt4 include dir.
-# It uses list of well-known possible locations of Qt4 headers: QT4HEADER_DIRS.
-# If the script has problems on your system, try to add the include path
-# that is valid on your system.
 
 # You can include this file to your configure.ac file like this:
 
@@ -41,17 +33,12 @@
 
 
 
-# possible locations of Qt4 headers - you may have to extend this list
-QT4HEADER_DIRS="/usr/include/qt4 \ # Debian
-               /usr/include"       # Arch (?)
-
-
 MOC_MAJOR_EARLIEST=4
 
 
 
 # There are four major tasks performed by this script:
-# Task 1: find Qt4 include directory
+# Task 1: find Qt4 include directory, and for QT4 library
 # Task 2: find Qt4 moc
 # Task 3: make sure that major version of the moc is >= MOC_MAJOR_EARLIEST
 # Task 4: on success set up some build system variables (AC_SUBST)
@@ -67,23 +54,11 @@ QT4MOC=""  # full path to Qt4 moc
 
 
 
-
-# Task 1: find Qt4 include directory
-if [[[ $QT4DIR = "" ]]] ; then
-
-    # build environment doesn't define $QT4DIR, we have to guess where
-    # Qt4 include files are located; there are only few possible locations,
-    # stored by this script in $QTHEADERS_DIRS
-    for dir in $QT4HEADER_DIRS; do
-	if test -d "$dir/QtGui" && test -d "$dir/QtCore" ; then
-            QT4INC=$dir;
-	fi
-    done
-
-else
-    QT4INC="$QT4DIR/include" # trivial
-fi
-
+# Task 1: find Qt4 include directory, and for QT4 library
+PKG_CHECK_MODULES([QT4], [ "QtCore QtGui"],
+			 [ AC_SUBST(QT4INC, $QT4_CFLAGS) AC_SUBST(QT4LIBS) ],
+			 [ AC_MSG_ERROR([Qt4 libs not found])
+			 ])
 
 
 
@@ -133,6 +108,8 @@ if [[[ "$QT4MOC_PATH" != "" ]]] ; then
 		AC_MSG_WARN(["xcwcp requires moc version >= $MOC_MAJOR_EARLIEST"])
 	    else
 		QT4MOC=$QT4MOC_PATH
+
+		AC_SUBST(QT4MOC)
 	    fi
 	else
 	    AC_MSG_WARN(["Can't get moc major version - unable to build xcwcp"])
@@ -152,9 +129,6 @@ fi
 if [[[ $QT4INC != "" && $QT4MOC != "" ]]] ; then
     echo "Qt4 headers dir is $QT4INC"
     echo "Qt4 moc is $QT4MOC"
-
-    AC_SUBST(QT4INC)
-    AC_SUBST(QT4MOC)
 
 else
     if [[[ $QT4INC = "" ]]] ; then
