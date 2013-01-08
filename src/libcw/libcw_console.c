@@ -148,6 +148,10 @@ int cw_console_open_device_internal(cw_gen_t *gen)
 			      "libcw_console: open successfully, console = %d", console);
 	}
 
+	/* It doesn't have any sense for console, but some code may depend
+	   on non-zero value of sample rate. */
+	gen->sample_rate = 44100;
+
 	gen->audio_sink = console;
 	gen->audio_device_is_open = true;
 
