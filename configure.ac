@@ -374,6 +374,11 @@ AC_SUBST(SRC_SUBDIRS)
 
 
 
+# Used for debug purposes.
+# CFLAGS=`echo "$CFLAGS" | sed 's/-O2/-O0/g'`
+
+
+
 # Add -Wall, -W, -pedantic, and other paranoia to gcc command flags, and -Wall
 # to with a few suppressions to icc command flags, then similarly, though less
 # so, for g++ and icpc.
@@ -515,3 +520,4 @@ if test "$WITH_DEV" = 'yes' ; then
 fi
 
 AC_OUTPUT
+
