@@ -17211,6 +17211,11 @@ fi
 
 
 
+# Used for debug purposes.
+# CFLAGS=`echo "$CFLAGS" | sed 's/-O2/-O0/g'`
+
+
+
 # Add -Wall, -W, -pedantic, and other paranoia to gcc command flags, and -Wall
 # to with a few suppressions to icc command flags, then similarly, though less
 # so, for g++ and icpc.
@@ -20047,4 +20052,5 @@ if test -n "$ac_unrecognized_opts" && test "$enable_option_checking" != no; then
   { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: unrecognized options: $ac_unrecognized_opts" >&5
 $as_echo "$as_me: WARNING: unrecognized options: $ac_unrecognized_opts" >&2;}
 fi
+
 
