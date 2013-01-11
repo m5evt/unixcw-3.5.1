@@ -1,8 +1,9 @@
 unixcw (3.2.0-1) unstable; urgency=low
 
-  * New upstream release fixes some problem in libcw library.
+  * New upstream release fixes some problems in libcw library.
+    The release also adds new header file: libcw_debug.h
 
- -- Kamil Ignacak <acerion@wp.pl>  Thu, 03 Jan 2013 20:48:34 +0100
+ -- Kamil Ignacak <acerion@wp.pl>  Fri, 11 Jan 2013 19:40:30 +0100
 
 unixcw (3.1.1-1) unstable; urgency=low
 
