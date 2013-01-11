@@ -1,4 +1,4 @@
-version 3.2.0 / 2013.01.XX
+version 3.2.0 / 2013.01.11
 
   unixcw:
   - Fixing faulty logic checking "--disable-feature" flags in configure.ac.
@@ -16,8 +16,8 @@ version 3.2.0 / 2013.01.XX
     A user has reported errors related to the attribute when compiling libcw
     libcw with gcc 4.3.3.
   - Improving the method of queuing a space character. This helps me avoid
-    problems in some corner case (when a single space is queued, and tone
-    queue's low watermark is set to 1).
+    problems in some corner cases (e.g. when a single space is queued, and
+    tone queue's low watermark is set to 1).
   - Improving behaviour of cw_generator_new(). Under some circumstances it
     is less likely to fail to create new generator. There was also possibility
     of causing a client application to crash if the function failed, but
@@ -26,7 +26,7 @@ version 3.2.0 / 2013.01.XX
 
   cwcp:
   - Fixing one small issue: in every new session with cwcp the application
-    printed a space at the beginning of played text. Now this has been fixed :)
+    printed a space at the beginning of played text.
 
 
 ----------------------------------------------------------------------------
