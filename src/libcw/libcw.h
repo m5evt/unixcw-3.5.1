@@ -337,8 +337,8 @@ extern int cw_send_character(char c);
 extern int cw_send_character_partial(char c);
 extern int cw_send_string(const char *string);
 
-extern int cw_check_character(char c);
-extern int cw_check_string(const char *string);
+extern bool cw_character_is_valid(char c);
+extern bool cw_string_is_valid(const char *string);
 
 
 
@@ -400,6 +400,9 @@ extern void cw_reset_straight_key(void);
 extern int cw_check_representation(const char *representation)           __attribute__ ((deprecated));   /* Use cw_representation_is_valid(). */
 extern int cw_lookup_representation(const char *representation, char *c) __attribute__ ((deprecated));   /* Use cw_representation_to_character(). */
 extern int cw_lookup_character(char c, char *representation)             __attribute__ ((deprecated));   /* Use cw_character_to_representation(). */
+extern int cw_check_character(char c)                                    __attribute__ ((deprecated));   /* Use cw_character_is_valid(). */
+extern int cw_check_string(const char *string)                           __attribute__ ((deprecated));   /* Use cw_string_is_valid(). */
+
 
 #if defined(__cplusplus)
 }
