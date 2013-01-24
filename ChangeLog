@@ -1,3 +1,12 @@
+2013-01-24 Kamil Ignacak
+	* unit tests: src/libcw/libcwtests.c has been heavily refactored.
+	The work on the file will continue to ensure that public API of
+	libcw is tested as thoroughly as reasonably possible.
+	* new functions: adding new functions: cw_character_is_valid()
+	(replaces cw_check_character()) and cw_string_is_valid()
+	(replaces cw_check_string()). The old functions are still available,
+	but have been marked as deprecated.
+
 2013-01-03 Kamil Ignacak
 	* fixes: fixing a function in libcw that attempts to open audio
 	device. Simple improvement of logic conditions makes it less
