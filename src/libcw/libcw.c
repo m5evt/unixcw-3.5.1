@@ -613,12 +613,12 @@ int cw_get_character_count(void)
 void cw_list_characters(char *list)
 {
 	/* Append each table character to the output string. */
-	int index = 0;
+	int i = 0;
 	for (const cw_entry_t *cw_entry = CW_TABLE; cw_entry->character; cw_entry++) {
-		list[index++] = cw_entry->character;
+		list[i++] = cw_entry->character;
 	}
 
-	list[index] = '\0';
+	list[i] = '\0';
 
 	return;
 }
@@ -1216,12 +1216,12 @@ int cw_get_procedural_character_count(void)
 void cw_list_procedural_characters(char *list)
 {
 	/* Append each table character to the output string. */
-	int index = 0;
+	int i = 0;
 	for (const cw_prosign_entry_t *e = CW_PROSIGN_TABLE; e->character; e++) {
-		list[index++] = e->character;
+		list[i++] = e->character;
 	}
 
-	list[index] = '\0';
+	list[i] = '\0';
 
 	return;
 }
@@ -3626,17 +3626,17 @@ int cw_tone_queue_length_internal(cw_tone_queue_t *tq)
 /**
    \brief Get previous index to queue
 
-   Calculate index of previous element in queue, relative to given \p index.
+   Calculate index of previous element in queue, relative to given \p ind.
    The function calculates the index taking circular wrapping into
    consideration.
 
-   \param index - index in relation to which to calculate index of previous element in queue
+   \param ind - index in relation to which to calculate index of previous element in queue
 
    \return index of previous element in queue
 */
-int cw_tone_queue_prev_index_internal(int index)
+int cw_tone_queue_prev_index_internal(int ind)
 {
-	return index - 1 >= 0 ? index - 1 : CW_TONE_QUEUE_CAPACITY - 1;
+	return ind - 1 >= 0 ? ind - 1 : CW_TONE_QUEUE_CAPACITY - 1;
 }
 
 
@@ -3646,17 +3646,17 @@ int cw_tone_queue_prev_index_internal(int index)
 /**
    \brief Get next index to queue
 
-   Calculate index of next element in queue, relative to given \p index.
+   Calculate index of next element in queue, relative to given \p ind.
    The function calculates the index taking circular wrapping into
    consideration.
 
-   \param index - index in relation to which to calculate index of next element in queue
+   \param ind - index in relation to which to calculate index of next element in queue
 
    \return index of next element in queue
 */
-int cw_tone_queue_next_index_internal(int index)
+int cw_tone_queue_next_index_internal(int ind)
 {
-	return (index + 1) % CW_TONE_QUEUE_CAPACITY;
+	return (ind + 1) % CW_TONE_QUEUE_CAPACITY;
 }
 
 
@@ -4478,7 +4478,7 @@ int cw_send_word_space(void)
    \return CW_FAILURE on failure
    \return CW_SUCCESS on success
 */
-int cw_send_representation_internal(cw_gen_t *gen, const char *representation, int partial)
+int cw_send_representation_internal(cw_gen_t *gen, const char *representation, bool partial)
 {
 	/* Before we let this representation loose on tone generation,
 	   we'd really like to know that all of its tones will get queued
@@ -4632,7 +4632,7 @@ int cw_send_character_internal(cw_gen_t *gen, char character, int partial)
    \return CW_SUCCESS if character is valid
    \return CW_FAILURE if character is invalid
 */
-int cw_check_character(char c)
+bool cw_character_is_valid(char c)
 {
 	/* If the character is the space special-case, or it is in the
 	   lookup table, return success. */
@@ -4644,6 +4644,12 @@ int cw_check_character(char c)
 	}
 }
 
+
+
+int cw_check_character(char c)
+{
+	return (int) cw_character_is_valid(c);
+}
 
 
 
@@ -4730,7 +4736,7 @@ int cw_send_character_partial(char c)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_check_string(const char *string)
+bool cw_string_is_valid(const char *string)
 {
 	/* Check that each character in the string has a Morse
 	   representation, or - as a special case - is a space character. */
@@ -4744,6 +4750,15 @@ int cw_check_string(const char *string)
 	}
 
 	return CW_SUCCESS;
+}
+
+
+
+
+
+int cw_check_string(const char *string)
+{
+	return cw_string_is_valid(string);
 }
 
 
