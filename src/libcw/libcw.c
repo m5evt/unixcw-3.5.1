@@ -4681,7 +4681,7 @@ int cw_check_character(char c)
 */
 int cw_send_character(char c)
 {
-	if (!cw_check_character(c)) {
+	if (!cw_character_is_valid(c)) {
 		errno = ENOENT;
 		return CW_FAILURE;
 	} else {
@@ -4717,7 +4717,7 @@ int cw_send_character(char c)
 */
 int cw_send_character_partial(char c)
 {
-	if (!cw_check_character(c)) {
+	if (!cw_character_is_valid(c)) {
 		errno = ENOENT;
 		return CW_FAILURE;
 	} else {
@@ -4792,7 +4792,7 @@ int cw_check_string(const char *string)
 int cw_send_string(const char *string)
 {
 	/* Check the string is composed of sendable characters. */
-	if (!cw_check_string(string)) {
+	if (!cw_string_is_valid(string)) {
 		errno = ENOENT;
 		return CW_FAILURE;
 	}
