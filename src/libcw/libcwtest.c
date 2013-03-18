@@ -34,6 +34,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <getopt.h>
+#include <assert.h>
 
 
 #if defined(HAVE_STRING_H)
@@ -78,6 +79,7 @@ typedef struct {
 } cw_test_receive_data_t;
 
 static void cw_test_helper_receive_tests(bool adaptive, const cw_test_receive_data_t *data, cw_test_stats_t *stats);
+static void cw_test_helper_tq_callback(void *data);
 
 static void cw_test_version_license(cw_test_stats_t *stats);
 static void cw_test_debug_flags(cw_test_stats_t *stats);
@@ -87,6 +89,7 @@ static void cw_test_tone_parameters(cw_test_stats_t *stats);
 static void cw_test_tone_queue_1(cw_test_stats_t *stats);
 static void cw_test_tone_queue_2(cw_test_stats_t *stats);
 static void cw_test_tone_queue_3(cw_test_stats_t *stats);
+static void cw_test_tone_queue_callback(cw_test_stats_t *stats);
 static void cw_test_volumes(cw_test_stats_t *stats);
 static void cw_test_lookups(cw_test_stats_t *stats);
 static void cw_test_prosign_lookups(cw_test_stats_t *stats);
@@ -992,6 +995,65 @@ void cw_test_tone_queue_3(cw_test_stats_t *stats)
 	}
 
 	printf("libcw: %s(): completed\n\n", __func__);
+
+	return;
+}
+
+
+
+
+
+static int cw_test_tone_queue_callback_data = 999999;
+
+
+
+void cw_test_tone_queue_callback(cw_test_stats_t *stats)
+{
+	for (int i = 1; i < 5; i++) {
+		int level = i;
+		int rv = cw_register_tone_queue_low_callback(cw_test_helper_tq_callback, (void *) &cw_test_tone_queue_callback_data, level);
+		sleep(1);
+
+		if (rv == CW_FAILURE) {
+			printf("libcw: cw_register_tone_queue_low_callback():        failure (%d)\n", level);
+			stats->failures++;
+		} else {
+			printf("libcw: cw_register_tone_queue_low_callback():        success (%d)\n", level);
+			stats->successes++;
+		}
+
+		int duration = 100000;
+		int f = 440;
+
+		for (int i = 0; i < 3 * level; i++) {
+			rv = cw_queue_tone(duration, f);
+			assert (rv);
+		}
+
+		cw_wait_for_tone_queue();
+
+		if (level != cw_test_tone_queue_callback_data) {
+			printf("libcw: tone queue callback:                          failure (%d)\n", level);
+			stats->failures++;
+		} else {
+			printf("libcw: tone queue callback:                          success (%d)\n", level);
+			stats->successes++;
+		}
+
+		cw_reset_tone_queue();
+	}
+
+	return;
+}
+
+
+
+
+
+static void cw_test_helper_tq_callback(void *data)
+{
+	int *d = (int *) data;
+	*d = cw_get_tone_queue_length();
 
 	return;
 }
@@ -2364,6 +2426,7 @@ static void (*const CW_TEST_FUNCTIONS_DEP[])(cw_test_stats_t *) = {
 	cw_test_tone_queue_1,
 	cw_test_tone_queue_2,
 	cw_test_tone_queue_3,
+	cw_test_tone_queue_callback,
 	cw_test_volumes,
 	cw_test_send_primitives,
 	cw_test_representations,
