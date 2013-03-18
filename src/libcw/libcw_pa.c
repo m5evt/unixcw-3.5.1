@@ -30,7 +30,12 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <dlfcn.h> /* dlopen() and related symbols */
+#include <string.h>
+#include <assert.h>
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #include "libcw.h"
 #include "libcw_pa.h"
