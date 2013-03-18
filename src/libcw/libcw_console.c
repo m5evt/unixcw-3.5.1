@@ -29,6 +29,13 @@
 #include <sys/ioctl.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <assert.h>
+#include <unistd.h>
 
 
 #if   defined(HAVE_SYS_KD_H)
