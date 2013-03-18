@@ -1,3 +1,11 @@
+2013-03-18 Kamil Ignacak
+	* fixes: Thomas Beierlein has reported that some combinations of
+	'--enable-*'/'--disable-*' flags result in a code that fails to
+	compile. He also provided a  patch that fixes it. I've created
+	a tool ('unixcw/tools/test_configure_flags.sh') that tests all
+	combinations of configure flags, which also detected one more
+	faulty configuration, in addition to the ones discovered by Thomas.
+
 2013-01-24 Kamil Ignacak
 	* unit tests: src/libcw/libcwtests.c has been heavily refactored.
 	The work on the file will continue to ensure that public API of
