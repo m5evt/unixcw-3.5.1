@@ -151,7 +151,7 @@ else
 	AC_MSG_WARN(["Hint: to build xcwcp make sure that moc is in QT4DIR/bin on your PATH"])
     fi
 
-    AC_MSG_WARN(["Hint: try setting QT4DIR env variable per instructions in unixcw/INSTALLING"])
+    AC_MSG_WARN(["Hint: try setting QT4DIR env variable per instructions in unixcw/INSTALL"])
 
     QT4INC=""
     QT4MOC=""
