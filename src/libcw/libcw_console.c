@@ -46,6 +46,16 @@
 #       include <sys/kbio.h>
 #endif
 
+#if (defined(__unix__) || defined(unix)) && !defined(USG)
+# include <sys/param.h>
+#endif
+
+#ifdef __FreeBSD__
+#include <fcntl.h>
+#include <errno.h>
+#include <assert.h>
+#endif
+
 
 #include "libcw_console.h"
 #include "libcw_debug.h"
