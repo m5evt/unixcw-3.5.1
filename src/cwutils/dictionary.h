@@ -42,15 +42,15 @@ extern const char *cw_dictionary_get_random_word(const cw_dictionary_t *dict);
 /* Everything below is deprecated. */
 typedef struct cw_dictionary_s dictionary;
 
-extern int  dictionary_load(const char *file)  __attribute__ ((deprecated("Use cw_dictionaries_read()")));
-extern void dictionary_unload(void)            __attribute__ ((deprecated("Use cw_dictionaries_unload()")));
-extern int  dictionary_write(const char *file) __attribute__ ((deprecated("Use cw_dictionaries_write()")));
+extern int  dictionary_load(const char *file)  __attribute__ ((deprecated));  /* Use cw_dictionaries_read() */
+extern void dictionary_unload(void)            __attribute__ ((deprecated));  /* Use cw_dictionaries_unload() */
+extern int  dictionary_write(const char *file) __attribute__ ((deprecated));  /* Use cw_dictionaries_write() */
 
-extern const dictionary *dictionary_iterate(const dictionary *dict) __attribute__ ((deprecated("Use cw_dictionary_iterate()")));
+extern const dictionary *dictionary_iterate(const dictionary *dict) __attribute__ ((deprecated));   /* Use cw_dictionary_iterate() */
 
-extern const char *get_dictionary_description(const dictionary *dict) __attribute__ ((deprecated("Use cw_dictionary_get_description()")));
-extern int         get_dictionary_group_size(const dictionary *dict)  __attribute__ ((deprecated("Use cw_dictionary_get_group_size()")));
-extern const char *get_dictionary_random_word(const dictionary *dict) __attribute__ ((deprecated("Use cw_dictionary_get_random_word()")));
+extern const char *get_dictionary_description(const dictionary *dict) __attribute__ ((deprecated)); /* Use cw_dictionary_get_description() */
+extern int         get_dictionary_group_size(const dictionary *dict)  __attribute__ ((deprecated)); /* Use cw_dictionary_get_group_size() */
+extern const char *get_dictionary_random_word(const dictionary *dict) __attribute__ ((deprecated)); /* Use cw_dictionary_get_random_word() */
 
 #if defined(__cplusplus)
 }
