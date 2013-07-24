@@ -27,6 +27,12 @@ to indicate the Qt library directory on your system. On Debian it would be:
 The configure script will then look for the Qt4 'moc' utility on either your
 current $PATH or in $QT4DIR/bin.
 
+Thanks to a patch from Diane Bruce, the ./configure script also
+supports two flags that may be useful when trying to compile
+xcwcp. The flags are:
+    --with-qt-includes=<path>
+    --with-qt-libraries=<path>
+
 UnixCW may port to other platforms, but the primary target systems on which it
 should "just build", perhaps with a bit of tweaking as shown above with
 environment variables, are:
