@@ -1,3 +1,10 @@
+2013-07-24 Kamil Ignacak
+	* FreeBSD patches: applying patches for FreeBSD, provided by Diane
+	Bruce (thank you!). Thanks to the patches the ./configure script
+	now should support two new flags:
+	--with-qt-includes=<path>
+	--with-qt-libraries=<path>
+
 2013-03-18 Kamil Ignacak
 	* fixes: Thomas Beierlein has reported that some combinations of
 	'--enable-*'/'--disable-*' flags result in a code that fails to
