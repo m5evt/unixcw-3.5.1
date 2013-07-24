@@ -293,7 +293,7 @@ else
     # autodetection of Qt4 dependencies
     m4_include([configure.qt.inc])
 
-    if [[[ $QT4INC != "" && $QT4MOC != "" ]]] ; then
+    if [[ "$QT4INC" -a "$QT4MOC" ]] ; then
         # we have moc4 and path to Qt4 include files,
         # so we can build xcwcp
 	WITH_XCWCP='yes'
