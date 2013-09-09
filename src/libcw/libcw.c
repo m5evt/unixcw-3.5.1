@@ -119,7 +119,7 @@
 #include "copyright.h"
 #include "libcw_debug.h"
 
-
+typedef uint64_t cw_tq_len_t;
 
 
 
@@ -222,13 +222,13 @@ static void cw_signal_main_handler_internal(int signal_number);
 */
 
 static int  cw_tone_queue_init_internal(cw_tone_queue_t *tq);
-static uint32_t cw_tone_queue_length_internal(cw_tone_queue_t *tq);
-static int  cw_tone_queue_prev_index_internal(int current);
-static int  cw_tone_queue_next_index_internal(int current);
+static cw_tq_len_t cw_tone_queue_length_internal(cw_tone_queue_t *tq);
+static cw_tq_len_t cw_tone_queue_prev_index_internal(cw_tone_queue_t *tq, cw_tq_len_t current);
+static cw_tq_len_t cw_tone_queue_next_index_internal(cw_tone_queue_t *tq, cw_tq_len_t current);
 static int  cw_tone_queue_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone);
 static int  cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone);
 static bool cw_tone_queue_is_full_internal(cw_tone_queue_t *tq);
-
+static cw_tq_len_t cw_tone_queue_get_capacity_internal(cw_tone_queue_t *tq);
 
 
 
@@ -2559,15 +2559,13 @@ int cw_timer_run_with_handler_internal(int usecs, void (*sigalrm_handler)(void))
 	   ourselves SIGALRM right away. */
 	if (usecs <= 0) {
 		/* Send ourselves SIGALRM immediately. */
-#if 1
 		if (pthread_kill(generator->thread.id, SIGALRM) != 0) {
-#else
-		if (raise(SIGALRM) != 0) {
-#endif
+	        // if (raise(SIGALRM) != 0) {
 			cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
 				      "libcw: raise()");
 			return CW_FAILURE;
 		}
+
 	} else {
 		/* Set the itimer to produce a single interrupt after the
 		   given duration. */
@@ -3489,7 +3487,7 @@ void cw_key_straight_key_generate_internal(cw_gen_t *gen, int requested_key_stat
 
    \param requested_key_state - current key state to be stored
 */
-void cw_key_iambic_keyer_generate_internal(cw_gen_t *gen, int requested_key_state, int usecs)
+ void cw_key_iambic_keyer_generate_internal(cw_gen_t *gen, int requested_key_state, int usecs)
 {
 	static int current_key_state = CW_KEY_STATE_OPEN;  /* Maintained key control state */
 
@@ -3540,24 +3538,36 @@ enum cw_queue_state {
 
 
 enum {
-	CW_TONE_QUEUE_CAPACITY = 3000,        /* ~= 5 minutes at 12 WPM */
-	CW_TONE_QUEUE_HIGH_WATER_MARK = 2900  /* Refuse characters if <100 free */
+  	/* Since the head and tail indexes of tone queue cannot be
+	   equal, the perceived capacity of tone queue for the client
+	   code is always one less than the actual declared queue
+	   size. */
+	/* TODO: create tests that validate correctness of handling of
+	   tone queue capacity. See if we really handle the capacity
+	   correctly. */
+	CW_TONE_QUEUE_CAPACITY_MAX = 3000,        /* ~= 5 minutes at 12 WPM */
+
+	CW_TONE_QUEUE_HIGH_WATER_MARK_MAX = 2900  /* Refuse characters if <100 free */
 };
 
 
 
 struct cw_tone_queue_struct {
-	volatile cw_tone_t queue[CW_TONE_QUEUE_CAPACITY];
-	volatile int tail;  /* Tone queue tail index */
-	volatile int head;  /* Tone queue head index */
+	volatile cw_tone_t queue[CW_TONE_QUEUE_CAPACITY_MAX];
+	volatile cw_tq_len_t tail;  /* Tone queue tail index */
+	volatile cw_tq_len_t head;  /* Tone queue head index */
 
 	volatile enum cw_queue_state state;
+
+
+	cw_tq_len_t capacity;
+	cw_tq_len_t high_water_mark;
 
 	/* It's useful to have the tone queue dequeue function call
 	   a client-supplied callback routine when the amount of data
 	   in the queue drops below a defined low water mark.
 	   This routine can then refill the buffer, as required. */
-	volatile int low_water_mark;
+	volatile cw_tq_len_t low_water_mark;
 	void       (*low_water_callback)(void*);
 	void        *low_water_callback_arg;
 
@@ -3571,7 +3581,7 @@ struct cw_tone_queue_struct {
 #define CW_TONE_QUEUE_LENGTH(m_tq)				\
 	( m_tq->tail >= m_tq->head				\
 	  ? m_tq->tail - m_tq->head				\
-	  : m_tq->tail - m_tq->head + CW_TONE_QUEUE_CAPACITY )	\
+	  : m_tq->tail - m_tq->head + m_tq->capacity )		\
 
 
 
@@ -3601,6 +3611,9 @@ int cw_tone_queue_init_internal(cw_tone_queue_t *tq)
 	tq->low_water_callback = NULL;
 	tq->low_water_callback_arg = NULL;
 
+	tq->capacity = CW_TONE_QUEUE_CAPACITY_MAX;
+	tq->high_water_mark = CW_TONE_QUEUE_HIGH_WATER_MARK_MAX;
+
 	pthread_mutex_unlock(&tq->mutex);
 
 	return CW_SUCCESS;
@@ -3617,10 +3630,10 @@ int cw_tone_queue_init_internal(cw_tone_queue_t *tq)
 
    \return the count of tones currently held in the circular tone buffer.
 */
-uint32_t cw_tone_queue_length_internal(cw_tone_queue_t *tq)
+cw_tq_len_t cw_tone_queue_length_internal(cw_tone_queue_t *tq)
 {
 	pthread_mutex_lock(&tq->mutex);
-	int len = CW_TONE_QUEUE_LENGTH(tq);
+	cw_tq_len_t len = CW_TONE_QUEUE_LENGTH(tq);
 	pthread_mutex_unlock(&tq->mutex);
 
 	return len;
@@ -3637,13 +3650,14 @@ uint32_t cw_tone_queue_length_internal(cw_tone_queue_t *tq)
    The function calculates the index taking circular wrapping into
    consideration.
 
+   \param tq - tone queue for which to calculate index
    \param ind - index in relation to which to calculate index of previous element in queue
 
    \return index of previous element in queue
 */
-int cw_tone_queue_prev_index_internal(int ind)
+cw_tq_len_t cw_tone_queue_prev_index_internal(cw_tone_queue_t *tq, cw_tq_len_t ind)
 {
-	return ind - 1 >= 0 ? ind - 1 : CW_TONE_QUEUE_CAPACITY - 1;
+	return ind == 0 ? tq->capacity - 1 : ind - 1;
 }
 
 
@@ -3657,13 +3671,14 @@ int cw_tone_queue_prev_index_internal(int ind)
    The function calculates the index taking circular wrapping into
    consideration.
 
+   \param tq - tone queue for which to calculate index
    \param ind - index in relation to which to calculate index of next element in queue
 
    \return index of next element in queue
 */
-int cw_tone_queue_next_index_internal(int ind)
+cw_tq_len_t cw_tone_queue_next_index_internal(cw_tone_queue_t *tq, cw_tq_len_t ind)
 {
-	return (ind + 1) % CW_TONE_QUEUE_CAPACITY;
+	return (ind + 1) % tq->capacity;
 }
 
 
@@ -3746,15 +3761,15 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 			   compare with the length after we've scanned
 			   over every tone we can omit, and use it to see
 			   if we've crossed the low water mark, if any. */
-			int queue_length = CW_TONE_QUEUE_LENGTH(tq);
+			cw_tq_len_t queue_length = CW_TONE_QUEUE_LENGTH(tq);
 
 			/* Advance over the tones list until we find the
 			   first tone with a duration of more than zero
 			   usecs, or until the end of the list.
 			   TODO: don't add tones with duration = 0? */
-			int tmp_tq_head = tq->head;
+			cw_tq_len_t tmp_tq_head = tq->head;
 			do  {
-				tmp_tq_head = cw_tone_queue_next_index_internal(tmp_tq_head);
+				tmp_tq_head = cw_tone_queue_next_index_internal(tq, tmp_tq_head);
 			} while (tmp_tq_head != tq->tail
 				 && tq->queue[tmp_tq_head].usecs == 0);
 
@@ -3770,7 +3785,7 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 				   code adds next tone (possibly forever).
 
 				   Don't dequeue the "forever" tone (hence "prev").	*/
-				tq->head = cw_tone_queue_prev_index_internal(tmp_tq_head);
+				tq->head = cw_tone_queue_prev_index_internal(tq, tmp_tq_head);
 			} else {
 				tq->head = tmp_tq_head;
 			}
@@ -3927,7 +3942,7 @@ int cw_tone_queue_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 	}
 
 	/* Get the new value of the queue tail index. */
-	int new_tq_tail = cw_tone_queue_next_index_internal(tq->tail);
+	cw_tq_len_t new_tq_tail = cw_tone_queue_next_index_internal(tq, tq->tail);
 
 	/* If the new value is bumping against the head index, then
 	   the queue is currently full. */
@@ -3990,13 +4005,13 @@ int cw_tone_queue_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 */
 int cw_register_tone_queue_low_callback(void (*callback_func)(void*), void *callback_arg, int level)
 {
-	if (level < 0 || level >= CW_TONE_QUEUE_CAPACITY - 1) {
+	if (level < 0 || level >= (int) cw_tone_queue.capacity - 1) {
 		errno = EINVAL;
 		return CW_FAILURE;
 	}
 
 	/* Store the function and low water mark level. */
-	cw_tone_queue.low_water_mark = level;
+	cw_tone_queue.low_water_mark = (cw_tq_len_t) level;
 	cw_tone_queue.low_water_callback = callback_func;
 	cw_tone_queue.low_water_callback_arg = callback_arg;
 
@@ -4044,7 +4059,7 @@ int cw_wait_for_tone(void)
 	}
 
 	/* Wait for the tail index to change or the dequeue to go idle. */
-	int check_tq_head = cw_tone_queue.head;
+	cw_tq_len_t check_tq_head = cw_tone_queue.head;
 	while (cw_tone_queue.head == check_tq_head && cw_tone_queue.state != QS_IDLE) {
 		cw_signal_wait_internal();
 	}
@@ -4113,7 +4128,7 @@ int cw_wait_for_tone_queue_critical(int level)
 	}
 
 	/* Wait until the queue length is at or below criticality. */
-	while (cw_tone_queue_length_internal(generator->tq) > (uint32_t) level) {
+	while (cw_tone_queue_length_internal(generator->tq) > (cw_tq_len_t) level) {
 		cw_signal_wait_internal();
 	}
 
@@ -4155,7 +4170,7 @@ bool cw_is_tone_queue_full(void)
 bool cw_tone_queue_is_full_internal(cw_tone_queue_t *tq)
 {
 	/* If advancing would meet the tail index, return true. */
-	return cw_tone_queue_next_index_internal(tq->tail) == tq->head;
+	return cw_tone_queue_next_index_internal(tq, tq->tail) == tq->head;
 }
 
 
@@ -4167,10 +4182,21 @@ bool cw_tone_queue_is_full_internal(cw_tone_queue_t *tq)
 */
 int cw_get_tone_queue_capacity(void)
 {
+	return (int) cw_tone_queue_get_capacity_internal(&cw_tone_queue);
+}
+
+
+
+
+/**
+   \brief Return the number of entries the tone queue can accommodate
+*/
+cw_tq_len_t cw_tone_queue_get_capacity_internal(cw_tone_queue_t *tq)
+{
 	/* Since the head and tail indexes cannot be equal, the
 	   perceived capacity for the client is always one less
 	   than the actual declared queue size. */
-	return CW_TONE_QUEUE_CAPACITY - 1;
+	return tq->capacity - 1;
 }
 
 
@@ -4516,7 +4542,7 @@ int cw_send_representation_internal(cw_gen_t *gen, const char *representation, b
 	   number of tones in our representation, then check that the space
 	   exists in the tone queue. However, since the queue is comfortably
 	   long, we can get away with just looking for a high water mark.  */
-	if (cw_get_tone_queue_length() >= CW_TONE_QUEUE_HIGH_WATER_MARK) {
+	if (cw_get_tone_queue_length() >= CW_TONE_QUEUE_HIGH_WATER_MARK_MAX) {
 		errno = EAGAIN;
 		return CW_FAILURE;
 	}
@@ -6802,6 +6828,9 @@ int cw_generator_new(int audio_system, const char *device)
 	}
 
 	generator->tq = &cw_tone_queue;
+	generator->tq->capacity = CW_TONE_QUEUE_CAPACITY_MAX;
+	generator->tq->high_water_mark = CW_TONE_QUEUE_HIGH_WATER_MARK_MAX;
+
 	cw_tone_queue_init_internal(generator->tq);
 
 	generator->audio_device = NULL;
@@ -7871,7 +7900,7 @@ void main_helper(int audio_system, const char *name, const char *device, predica
 
 
 
-#define LIBCW_UNIT_TESTS
+// #define LIBCW_UNIT_TESTS
 #ifdef LIBCW_UNIT_TESTS
 
 
@@ -7897,7 +7926,7 @@ void main_helper(int audio_system, const char *name, const char *device, predica
 static unsigned int test_cw_representation_to_hash_internal(void);
 
 static unsigned int test_cw_tone_queue_init_internal(void);
-static unsigned int test_cw_get_tone_queue_capacity(void);
+static unsigned int test_cw_tone_queue_get_capacity_internal(void);
 static unsigned int test_cw_tone_queue_prev_index_internal(void);
 static unsigned int test_cw_tone_queue_next_index_internal(void);
 static unsigned int test_cw_tone_queue_length_internal(void);
@@ -7914,7 +7943,7 @@ static cw_test_function_t cw_unit_tests[] = {
 	test_cw_representation_to_hash_internal,
 
 	test_cw_tone_queue_init_internal,
-	test_cw_get_tone_queue_capacity,
+	test_cw_tone_queue_get_capacity_internal,
 	test_cw_tone_queue_prev_index_internal,
 	test_cw_tone_queue_next_index_internal,
 	test_cw_tone_queue_length_internal,
@@ -8031,14 +8060,14 @@ static unsigned int test_cw_tone_queue_init_internal(void)
 
 
 /**
-   test::cw_get_tone_queue_capacity()
+   test::cw_tone_queue_get_capacity_internal()
 */
-static unsigned int test_cw_get_tone_queue_capacity(void)
+static unsigned int test_cw_tone_queue_get_capacity_internal(void)
 {
-	fprintf(stderr, "\ttesting cw_get_tone_queue_capacity()...         ");
+	fprintf(stderr, "\ttesting cw_tone_queue_get_capacity_internal()... ");
 
-	int n = cw_get_tone_queue_capacity();
-	assert (n == CW_TONE_QUEUE_CAPACITY - 1);
+	cw_tq_len_t n = cw_tone_queue_get_capacity_internal(&test_tone_queue);
+	assert (n == test_tone_queue.capacity - 1);
 
 	fprintf(stderr, "OK\n");
 
@@ -8058,25 +8087,25 @@ static unsigned int test_cw_tone_queue_prev_index_internal(void)
 
 	struct {
 		int arg;
-		int expected;
+		cw_tq_len_t expected;
 	} input[] = {
-		{ CW_TONE_QUEUE_CAPACITY - 4, CW_TONE_QUEUE_CAPACITY - 5 },
-		{ CW_TONE_QUEUE_CAPACITY - 3, CW_TONE_QUEUE_CAPACITY - 4 },
-		{ CW_TONE_QUEUE_CAPACITY - 2, CW_TONE_QUEUE_CAPACITY - 3 },
-		{ CW_TONE_QUEUE_CAPACITY - 1, CW_TONE_QUEUE_CAPACITY - 2 },
-		{                          0, CW_TONE_QUEUE_CAPACITY - 1 },
-		{                          1,                          0 },
-		{                          2,                          1 },
-		{                          3,                          2 },
-		{                          4,                          3 },
+		{ CW_TONE_QUEUE_CAPACITY_MAX - 4, CW_TONE_QUEUE_CAPACITY_MAX - 5 },
+		{ CW_TONE_QUEUE_CAPACITY_MAX - 3, CW_TONE_QUEUE_CAPACITY_MAX - 4 },
+		{ CW_TONE_QUEUE_CAPACITY_MAX - 2, CW_TONE_QUEUE_CAPACITY_MAX - 3 },
+		{ CW_TONE_QUEUE_CAPACITY_MAX - 1, CW_TONE_QUEUE_CAPACITY_MAX - 2 },
+		{                              0, CW_TONE_QUEUE_CAPACITY_MAX - 1 },
+		{                              1,                              0 },
+		{                              2,                              1 },
+		{                              3,                              2 },
+		{                              4,                              3 },
 
 		{ -1000, -1000 } /* guard */
 	};
 
 	int i = 0;
 	while (input[i].arg != -1000) {
-		int prev = cw_tone_queue_prev_index_internal(input[i].arg);
-		//fprintf(stderr, "arg = %d, result = %d, expected = %d\n", input[i].arg, prev, input[i].expected);
+		cw_tq_len_t prev = cw_tone_queue_prev_index_internal(&test_tone_queue, input[i].arg);
+		fprintf(stderr, "arg = %d, result = %d, expected = %d\n", input[i].arg, prev, input[i].expected);
 		assert (prev == input[i].expected);
 		i++;
 	}
@@ -8099,25 +8128,25 @@ static unsigned int test_cw_tone_queue_next_index_internal(void)
 
 	struct {
 		int arg;
-		int expected;
+		cw_tq_len_t expected;
 	} input[] = {
-		{ CW_TONE_QUEUE_CAPACITY - 5, CW_TONE_QUEUE_CAPACITY - 4 },
-		{ CW_TONE_QUEUE_CAPACITY - 4, CW_TONE_QUEUE_CAPACITY - 3 },
-		{ CW_TONE_QUEUE_CAPACITY - 3, CW_TONE_QUEUE_CAPACITY - 2 },
-		{ CW_TONE_QUEUE_CAPACITY - 2, CW_TONE_QUEUE_CAPACITY - 1 },
-		{ CW_TONE_QUEUE_CAPACITY - 1,                          0 },
-		{                          0,                          1 },
-		{                          1,                          2 },
-		{                          2,                          3 },
-		{                          3,                          4 },
+		{ CW_TONE_QUEUE_CAPACITY_MAX - 5, CW_TONE_QUEUE_CAPACITY_MAX - 4 },
+		{ CW_TONE_QUEUE_CAPACITY_MAX - 4, CW_TONE_QUEUE_CAPACITY_MAX - 3 },
+		{ CW_TONE_QUEUE_CAPACITY_MAX - 3, CW_TONE_QUEUE_CAPACITY_MAX - 2 },
+		{ CW_TONE_QUEUE_CAPACITY_MAX - 2, CW_TONE_QUEUE_CAPACITY_MAX - 1 },
+		{ CW_TONE_QUEUE_CAPACITY_MAX - 1,                              0 },
+		{                              0,                              1 },
+		{                              1,                              2 },
+		{                              2,                              3 },
+		{                              3,                              4 },
 
 		{ -1000, -1000 } /* guard */
 	};
 
 	int i = 0;
 	while (input[i].arg != -1000) {
-		int next = cw_tone_queue_next_index_internal(input[i].arg);
-		//fprintf(stderr, "arg = %d, result = %d, expected = %d\n", input[i].arg, next, input[i].expected);
+		cw_tq_len_t next = cw_tone_queue_next_index_internal(&test_tone_queue, input[i].arg);
+		fprintf(stderr, "arg = %d, result = %d, expected = %d\n", input[i].arg, next, input[i].expected);
 		assert (next == input[i].expected);
 		i++;
 	}
@@ -8154,10 +8183,10 @@ static unsigned int test_cw_tone_queue_length_internal(void)
 	tone.frequency = 1;
 	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
 
-	for (uint32_t i = 0; i < (uint32_t) cw_get_tone_queue_capacity(); i++) {
+	for (cw_tq_len_t i = 0; i < cw_tone_queue_get_capacity_internal(&test_tone_queue); i++) {
 
 		/* Get the new value of the queue tail index. */
-		int new_tq_tail = cw_tone_queue_next_index_internal(test_tone_queue.tail);
+		cw_tq_len_t new_tq_tail = cw_tone_queue_next_index_internal(&test_tone_queue, test_tone_queue.tail);
 
 		/* If the new value is bumping against the head index, then
 		   the queue is currently full. */
@@ -8172,7 +8201,7 @@ static unsigned int test_cw_tone_queue_length_internal(void)
 		test_tone_queue.queue[test_tone_queue.tail].slope_mode = tone.slope_mode;
 
 		/* OK, added a tone, ready to measure length of the queue. */
-		uint32_t len = cw_tone_queue_length_internal(&test_tone_queue);
+		cw_tq_len_t len = cw_tone_queue_length_internal(&test_tone_queue);
 		assert (len == i + 1);
 	}
 
@@ -8204,14 +8233,14 @@ static unsigned int test_cw_tone_queue_enqueue_internal(void)
 	tone.frequency = 1;
 	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
 
-	for (uint32_t i = 0; i < (uint32_t) cw_get_tone_queue_capacity(); i++) {
+	for (cw_tq_len_t i = 0; i < cw_tone_queue_get_capacity_internal(&test_tone_queue); i++) {
 
 		/* This tests for potential problems with function call. */
 		int rv = cw_tone_queue_enqueue_internal(&test_tone_queue, &tone);
 		assert (rv);
 
 		/* This tests for correctness of working of the 'enqueue' function. */
-		uint32_t len = cw_tone_queue_length_internal(&test_tone_queue);
+		cw_tq_len_t len = cw_tone_queue_length_internal(&test_tone_queue);
 		assert (len == i + 1);
 	}
 
@@ -8224,8 +8253,8 @@ static unsigned int test_cw_tone_queue_enqueue_internal(void)
 
 	/* This tests for correctness of working of the 'enqueue'
 	   function.  Full tq should not grow beyond its capacity. */
-	uint32_t len = cw_tone_queue_length_internal(&test_tone_queue);
-	assert (len == (uint32_t) cw_get_tone_queue_capacity());
+	cw_tq_len_t len = cw_tone_queue_length_internal(&test_tone_queue);
+	assert (len == cw_tone_queue_get_capacity_internal(&test_tone_queue));
 
 
 	fprintf(stderr, "OK\n");
@@ -8252,22 +8281,22 @@ static unsigned int test_cw_tone_queue_dequeue_internal(void)
 	   'enqueue' function. */
 
 	/* Just to be sure. */
-	int capacity = cw_get_tone_queue_capacity();
-	uint32_t len_full = cw_tone_queue_length_internal(&test_tone_queue);
-	assert (len_full == (uint32_t) capacity);
+	cw_tq_len_t capacity = cw_tone_queue_get_capacity_internal(&test_tone_queue);
+	cw_tq_len_t len_full = cw_tone_queue_length_internal(&test_tone_queue);
+	assert (len_full == capacity);
 
 
 	cw_tone_t tone;
 	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;;
 
-	for (uint32_t i = capacity; i > 0; i--) {
+	for (cw_tq_len_t i = capacity; i > 0; i--) {
 
 		/* This tests for potential problems with function call. */
 		int rv = cw_tone_queue_dequeue_internal(&test_tone_queue, &tone);
 		assert (rv == CW_TQ_NONEMPTY);
 
 		/* This tests for correctness of working of the 'dequeue' function. */
-		uint32_t len = cw_tone_queue_length_internal(&test_tone_queue);
+		cw_tq_len_t len = cw_tone_queue_length_internal(&test_tone_queue);
 		assert (len == i - 1);
 	}
 
@@ -8279,7 +8308,7 @@ static unsigned int test_cw_tone_queue_dequeue_internal(void)
 
 	/* This tests for correctness of working of the 'dequeue'
 	   function.  Empty tq should stay empty. */
-	uint32_t len = cw_tone_queue_length_internal(&test_tone_queue);
+	cw_tq_len_t len = cw_tone_queue_length_internal(&test_tone_queue);
 	assert (len == 0);
 
 	/* Try removing a tone from empty queue. */
@@ -8320,7 +8349,7 @@ unsigned int test_cw_tone_queue_is_full_internal(void)
 	tone.frequency = 1;
 	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;;
 
-	for (uint32_t i = 0; i < (uint32_t) cw_get_tone_queue_capacity() - 1; i++) {
+	for (cw_tq_len_t i = 0; i < cw_tone_queue_get_capacity_internal(&test_tone_queue) - 1; i++) {
 		int rv = cw_tone_queue_enqueue_internal(&test_tone_queue, &tone);
 		/* The 'enqueue' function has been already tested, but
 		   it won't hurt to check this simple assertion here
@@ -8391,4 +8420,3 @@ unsigned int test_cw_usecs_to_timespec_internal(void)
 
 
 #endif /* #ifdef LIBCW_UNIT_TESTS */
-
