@@ -837,7 +837,7 @@ void cw_test_tone_queue_1(cw_test_stats_t *stats)
 		stats->successes++;
 	}
 
-	printf("libcw: %s(): completed\n\n", __func__);
+	printf("libcw: %s():         completed\n\n", __func__);
 
 	return;
 }
@@ -920,7 +920,8 @@ void cw_test_tone_queue_2(cw_test_stats_t *stats)
 	cw_queue_tone(0, 0);
 	cw_wait_for_tone_queue();
 
-	printf("libcw: %s(): completed\n\n", __func__);
+	printf("libcw: cw_wait_for_tone_queue(): success\n");
+	printf("libcw: %s():  completed\n\n", __func__);
 
 	return;
 }
@@ -1160,7 +1161,7 @@ void cw_test_volumes(cw_test_stats_t *stats)
 	cw_wait_for_tone();
 	cw_flush_tone_queue();
 
-	printf("libcw: %s(): completed\n\n", __func__);
+	printf("libcw: %s():      completed\n\n", __func__);
 	return;
 }
 
@@ -1510,7 +1511,7 @@ void cw_test_send_primitives(cw_test_stats_t *stats)
 	failure = false;
 
 
-	printf("libcw: %s(): completed\n\n", __func__);
+	printf("libcw: %s():  completed\n\n", __func__);
 
 	return;
 }
@@ -1593,7 +1594,7 @@ void cw_test_representations(cw_test_stats_t *stats)
 	cw_wait_for_tone_queue();
 
 
-	printf("libcw: %s(): completed\n\n", __func__);
+	printf("libcw: %s():            completed\n\n", __func__);
 	return;
 }
 
@@ -1853,11 +1854,11 @@ void cw_test_helper_receive_tests(bool adaptive, const cw_test_receive_data_t *d
 		if (cw_get_receive_buffer_length()
 		    != (int) strlen(data[i].representation)) {
 
-			printf("libcw: cw_get_receive_buffer_length():   failure\n");
+			printf("libcw: cw_get_receive_buffer_length():  failure\n");
 			stats->failures++;
 			break;
 		} else {
-			printf("libcw: cw_get_receive_buffer_length():   success\n");
+			printf("libcw: cw_get_receive_buffer_length():  success\n");
 			stats->successes++;
 		}
 
@@ -2765,5 +2766,3 @@ void cw_test_print_stats(void)
 
 	return;
 }
-
-
