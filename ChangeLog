@@ -1,3 +1,13 @@
+2013-09-12 Kamil Ignacak
+	* tone queue: more changes related to "capacity", and additionally
+	"head" and "tail" properties of tone queue. No functionality
+	changed yet, just some minor improvements, comments and tests.
+
+2013-09-09 Kamil Ignacak
+	* tone queue: refactoring code handling "capacity" of tone queue;
+	two purposes: improved "testability" and possibility of assigning
+	non-default capacities of tone queues.
+
 2013-07-24 Kamil Ignacak
 	* FreeBSD patches: applying patches for FreeBSD, provided by Diane
 	Bruce (thank you!). Thanks to the patches the ./configure script
