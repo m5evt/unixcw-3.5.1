@@ -221,15 +221,19 @@ static void cw_signal_main_handler_internal(int signal_number);
                               (queue not empty)
 */
 
-static int  cw_tone_queue_init_internal(cw_tone_queue_t *tq);
-static int  cw_tone_queue_set_capacity_internal(cw_tone_queue_t *tq, cw_tq_len_t capacity, cw_tq_len_t high_water_mark);
+static int         cw_tone_queue_init_internal(cw_tone_queue_t *tq);
+
+/* Some day the following two functions will be made public. */
+static int         cw_tone_queue_set_capacity_internal(cw_tone_queue_t *tq, cw_tq_len_t capacity, cw_tq_len_t high_water_mark);
+static cw_tq_len_t cw_tone_queue_get_high_water_mark_internal(cw_tone_queue_t *tq);
+static cw_tq_len_t cw_tone_queue_get_capacity_internal(cw_tone_queue_t *tq);
+
 static cw_tq_len_t cw_tone_queue_length_internal(cw_tone_queue_t *tq);
 static cw_tq_len_t cw_tone_queue_prev_index_internal(cw_tone_queue_t *tq, cw_tq_len_t current);
 static cw_tq_len_t cw_tone_queue_next_index_internal(cw_tone_queue_t *tq, cw_tq_len_t current);
-static int  cw_tone_queue_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone);
-static int  cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone);
-static bool cw_tone_queue_is_full_internal(cw_tone_queue_t *tq);
-static cw_tq_len_t cw_tone_queue_get_capacity_internal(cw_tone_queue_t *tq);
+static int         cw_tone_queue_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone);
+static int         cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone);
+static bool        cw_tone_queue_is_full_internal(cw_tone_queue_t *tq);
 
 
 
@@ -3635,16 +3639,28 @@ int cw_tone_queue_init_internal(cw_tone_queue_t *tq)
 
 
 
+
 /**
    \brief Set capacity and high water mark for queue
 
    Set two parameters of queue: total capacity of the queue, and high
    water mark. When calling the function, client code must provide
-   valid values of both parameters. \p capacity must be no larger than
-   CW_TONE_QUEUE_CAPACITY_MAX, and \p high_water_mark must be no
-   larger than CW_TONE_QUEUE_HIGH_WATER_MARK_MAX. Both values must be
-   non-negative. Functions set errno to EINVAL if any of the two
-   parameters is invalid.
+   valid values of both parameters.
+
+   Calling the function *by a client code* for a queue is optional, as
+   a queue has these parameters always set to default values
+   (CW_TONE_QUEUE_CAPACITY_MAX and CW_TONE_QUEUE_HIGH_WATER_MARK_MAX)
+   by call to int cw_tone_queue_init_internal().
+
+   \p capacity must be no larger than CW_TONE_QUEUE_CAPACITY_MAX.
+   \p high_water_mark must be no larger than CW_TONE_QUEUE_HIGH_WATER_MARK_MAX.
+
+   Both values must be non-negative (this condition is subject to
+   changes in future revisions of the library).
+
+   \p high_water_mark must be no larger than \p capacity.
+
+   Functions set errno to EINVAL if any of the two parameters is invalid.
 
    \param tq - tone queue to configure
    \param capacity - new capacity of queue
@@ -3662,6 +3678,8 @@ int cw_tone_queue_set_capacity_internal(cw_tone_queue_t *tq, cw_tq_len_t capacit
 	if (capacity > CW_TONE_QUEUE_CAPACITY_MAX
 	    || capacity < 0) {
 
+		/* TODO: should we allow capacity to be zero? */
+
 		errno = EINVAL;
 		return CW_FAILURE;
 	}
@@ -3669,14 +3687,62 @@ int cw_tone_queue_set_capacity_internal(cw_tone_queue_t *tq, cw_tq_len_t capacit
 	if (high_water_mark > CW_TONE_QUEUE_HIGH_WATER_MARK_MAX
 	    || high_water_mark < 0) {
 
+		/* TODO: should we allow high water mark to be zero? */
+
 		errno = EINVAL;
 		return CW_FAILURE;
 	}
+
+	if (high_water_mark > capacity) {
+
+		errno = EINVAL;
+		return CW_FAILURE;
+	}
+
 
 	tq->capacity = capacity;
 	tq->high_water_mark = high_water_mark;
 
 	return CW_SUCCESS;
+}
+
+
+
+
+
+/**
+   \brief Return capacity of a queue
+
+   \param tq - tone queue, for which you want to get capacity
+
+   \return capacity of tone queue
+*/
+cw_tq_len_t cw_tone_queue_get_capacity_internal(cw_tone_queue_t *tq)
+{
+	assert (tq);
+
+	/* Since the head and tail indexes cannot be equal, the
+	   perceived capacity for the client is always one less
+	   than the actual declared queue size. */
+	return tq->capacity - 1;
+}
+
+
+
+
+
+/**
+   \brief Return high water mark of a queue
+
+   \param tq - tone queue, for which you want to get high water mark
+
+   \return high water mark of tone queue
+*/
+cw_tq_len_t cw_tone_queue_get_high_water_mark_internal(cw_tone_queue_t *tq)
+{
+	assert (tq);
+
+	return tq->high_water_mark;
 }
 
 
@@ -3853,7 +3919,7 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
 				      "libcw: tone queue: dequeue tone %d usec, %d Hz", tone->usecs, tone->frequency);
 			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
-				      "libcw: tone queue: head = %d, tail = %d, length = %d", tq->head, tq->tail, queue_length);
+				      "libcw: tone queue: head = %d, tail = %d, length = %d", (int) tq->head, (int) tq->tail, (int) queue_length);
 
 			/* Notify the key control function that there might
 			   have been a change of keying state (and then
@@ -4001,6 +4067,8 @@ int cw_tone_queue_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 		return CW_FAILURE;
 	}
 
+	fprintf(stderr, "Attempting to enqueue tone #%d\n", CW_TONE_QUEUE_LENGTH(tq) + 1);
+
 	/* Get the new value of the queue tail index. */
 	cw_tq_len_t new_tq_tail = cw_tone_queue_next_index_internal(tq, tq->tail);
 
@@ -4008,10 +4076,12 @@ int cw_tone_queue_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 	   the queue is currently full. */
 	if (new_tq_tail == tq->head) {
 		errno = EAGAIN;
-		// fprintf(stderr, "The queue is currently full\n");
+		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_ERROR,
+			      "libcw: tone queue: can't enqueue tone, tq is full");
 		pthread_mutex_unlock(&tq->mutex);
 		return CW_FAILURE;
 	}
+
 
 	cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
 		      "libcw: tone queue: enqueue tone %d usec, %d Hz", tone->usecs, tone->frequency);
@@ -4021,6 +4091,8 @@ int cw_tone_queue_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 	tq->queue[tq->tail].usecs = tone->usecs;
 	tq->queue[tq->tail].frequency = tone->frequency;
 	tq->queue[tq->tail].slope_mode = tone->slope_mode;
+
+	fprintf(stderr, "enqueued %d tones\n", CW_TONE_QUEUE_LENGTH(tq));
 
 	/* If there is currently no autonomous (asynchronous)
 	   dequeueing happening, kick off the itimer process.
@@ -4247,20 +4319,6 @@ bool cw_tone_queue_is_full_internal(cw_tone_queue_t *tq)
 int cw_get_tone_queue_capacity(void)
 {
 	return (int) cw_tone_queue_get_capacity_internal(&cw_tone_queue);
-}
-
-
-
-
-/**
-   \brief Return the number of entries the tone queue can accommodate
-*/
-cw_tq_len_t cw_tone_queue_get_capacity_internal(cw_tone_queue_t *tq)
-{
-	/* Since the head and tail indexes cannot be equal, the
-	   perceived capacity for the client is always one less
-	   than the actual declared queue size. */
-	return tq->capacity - 1;
 }
 
 
@@ -7262,16 +7320,27 @@ void *cw_generator_write_sine_wave_internal(void *arg)
 	gen->samples_left = 0;
 	gen->samples_calculated = 0;
 
+	// int old_state = QS_IDLE;
+
 	while (gen->generate) {
-		int q = cw_tone_queue_dequeue_internal(gen->tq, &tone);
-		if (q == CW_TQ_STILL_EMPTY) {
-			/* wait for signal from enqueue() function
-			   informing that there appeared some tone
-			   on tone queue */
+		int state = cw_tone_queue_dequeue_internal(gen->tq, &tone);
+		if (state == CW_TQ_STILL_EMPTY) {
+		// if (state == QS_IDLE && old_state == QS_IDLE) {
+			/* Tone queue has been totally drained with
+			   previous call to dequeue(). No point in
+			   making next iteration of while() and
+			   calling the function again. So don't call
+			   it, wait for signal from enqueue() function
+			   informing that a new tone appeared in tone
+			   queue. */
+
+			/* TODO: can we / should we specify on which
+			   signal exactly we are waiting for? */
 			cw_signal_wait_internal();
 			//usleep(CW_AUDIO_QUANTUM_USECS);
 			continue;
 		}
+		// old_state = state;
 
 #ifdef LIBCW_WITH_DEV
 		cw_debug_ev ((&cw_debug_object_ev), 0, tone.frequency ? CW_DEBUG_EVENT_TONE_HIGH : CW_DEBUG_EVENT_TONE_LOW);
@@ -7282,7 +7351,7 @@ void *cw_generator_write_sine_wave_internal(void *arg)
 		} else if (gen->audio_system == CW_AUDIO_CONSOLE) {
 			cw_console_write(gen, &tone);
 		} else {
-			cw_soundcard_write_internal(gen, q, &tone);
+			cw_soundcard_write_internal(gen, state, &tone);
 		}
 
 		/*
@@ -7997,7 +8066,8 @@ static unsigned int test_cw_tone_queue_length_internal(void);
 static unsigned int test_cw_tone_queue_enqueue_internal(void);
 static unsigned int test_cw_tone_queue_dequeue_internal(void);
 static unsigned int test_cw_tone_queue_is_full_internal(void);
-static unsigned int test_cw_tone_queue_test_capacity(void);
+static unsigned int test_cw_tone_queue_test_capacity1(void);
+static unsigned int test_cw_tone_queue_test_capacity2(void);
 
 static unsigned int test_cw_usecs_to_timespec_internal(void);
 
@@ -8016,7 +8086,8 @@ static cw_test_function_t cw_unit_tests[] = {
 	test_cw_tone_queue_enqueue_internal,
 	test_cw_tone_queue_dequeue_internal,
 	test_cw_tone_queue_is_full_internal,
-	test_cw_tone_queue_test_capacity,
+	test_cw_tone_queue_test_capacity1,
+	test_cw_tone_queue_test_capacity2,
 
 	test_cw_usecs_to_timespec_internal,
 	NULL
@@ -8028,6 +8099,9 @@ static cw_test_function_t cw_unit_tests[] = {
 int main(void)
 {
 	fprintf(stderr, "libcw unit tests facility\n");
+
+	cw_debug_set_flags(&cw_debug_object_dev, CW_DEBUG_TONE_QUEUE);
+	cw_debug_object_dev.level = CW_DEBUG_ERROR;
 
 	int i = 0;
 	while (cw_unit_tests[i]) {
@@ -8171,7 +8245,7 @@ static unsigned int test_cw_tone_queue_prev_index_internal(void)
 	int i = 0;
 	while (input[i].arg != -1000) {
 		cw_tq_len_t prev = cw_tone_queue_prev_index_internal(&test_tone_queue, input[i].arg);
-		fprintf(stderr, "arg = %d, result = %d, expected = %d\n", input[i].arg, prev, input[i].expected);
+		fprintf(stderr, "arg = %d, result = %d, expected = %d\n", input[i].arg, (int) prev, input[i].expected);
 		assert (prev == input[i].expected);
 		i++;
 	}
@@ -8212,7 +8286,7 @@ static unsigned int test_cw_tone_queue_next_index_internal(void)
 	int i = 0;
 	while (input[i].arg != -1000) {
 		cw_tq_len_t next = cw_tone_queue_next_index_internal(&test_tone_queue, input[i].arg);
-		fprintf(stderr, "arg = %d, result = %d, expected = %d\n", input[i].arg, next, input[i].expected);
+		fprintf(stderr, "arg = %d, result = %d, expected = %d\n", input[i].arg, (int) next, input[i].expected);
 		assert (next == input[i].expected);
 		i++;
 	}
@@ -8442,44 +8516,58 @@ unsigned int test_cw_tone_queue_is_full_internal(void)
 
 
 
-unsigned int test_cw_tone_queue_test_capacity(void)
+unsigned int test_cw_tone_queue_test_capacity1(void)
 {
-	fprintf(stderr, "\ttesting correctness of handling capacity...     ");
+	fprintf(stderr, "\ttesting correctness of handling capacity (1)... ");
 
-	int shifts[] = { 0, 5, 10, 29, -1, 30, -1};
+	/* We don't need to check tq with capacity ==
+	   CW_TONE_QUEUE_CAPACITY_MAX (yet). Let's test a smaller
+	   queue. 30 tones will be enough (for now), and 30-4 is a
+	   good value for high water mark. */
+	cw_tq_len_t capacity = 30;
+	cw_tq_len_t watermark = capacity - 4;
 
+	/* We will do tests of queue with constant capacity, but with
+	   different initial position at which we insert first element
+	   (tone), i.e. different position of queue's head. */
+	int head_shifts[] = { 0, 5, 10, 29, -1, 30, -1};
 	int s = 0;
-	while (shifts[s] != -1) {
 
-		fprintf(stderr, " -- -- -- Testing with shift = %d\n", shifts[s]);
+	while (head_shifts[s] != -1) {
 
-		/* We don't need to check tq with capacity ==
-		   CW_TONE_QUEUE_CAPACITY_MAX (yet). Let's test a smaller
-		   queue. 30 tones will be enough. */
-		int rv = test_cw_tone_queue_capacity_test_init(&test_tone_queue, 30, 26, shifts[s]);
+		fprintf(stderr, "\nTesting with head shift = %d\n", head_shifts[s]);
 
-		for (cw_tq_len_t i = 0; i < test_tone_queue.capacity - 1; i++) {
+		/* For every new test with new head shift we need a
+		   "clean" queue. */
+		int rv = test_cw_tone_queue_capacity_test_init(&test_tone_queue, capacity, watermark, head_shifts[s]);
+
+		/* Fill all positions in queue with tones of known
+		   frequency.  If shift_head != 0, the enqueue
+		   function should make sure that the enqueued tones
+		   are nicely wrapped after end of queue. */
+		for (cw_tq_len_t i = 0; i < cw_tone_queue_get_capacity_internal(&test_tone_queue); i++) {
 			cw_tone_t tone;
 			tone.frequency = (int) i;
-			tone.usecs = 1000000;
+			tone.usecs = 1000;
 			rv = cw_tone_queue_enqueue_internal(&test_tone_queue, &tone);
 			assert (rv == CW_SUCCESS);
-			//fprintf(stderr, "Tone %d enqueued\n", i);
 		}
 
-		for (cw_tq_len_t i = 0; i < test_tone_queue.capacity - 1; i++) {
-			cw_tq_len_t j = (i + shifts[s]) % (test_tone_queue.capacity);
-			fprintf(stderr, "A %d: checking tone %d, expected %d, got %d\n", (int) j, (int) i, (int) i, test_tone_queue.queue[j].frequency);
-			assert (test_tone_queue.queue[j].frequency == (int) i);
-		}
+		/* With the queue filled with valid and known data,
+		   it's time to read back the data and verify that the
+		   tones were placed in correct positions, as
+		   expected. Let's do the readback N times, just for
+		   fun. Every time the results should be the same. */
 
-		/* Run the same loop again on the same queue. Result
-		   should be exactly the same, because content of the
-		   queue is the same. */
-		for (cw_tq_len_t i = 0; i < test_tone_queue.capacity - 1; i++) {
-			cw_tq_len_t j = (i + shifts[s]) % (test_tone_queue.capacity);
-			fprintf(stderr, "B %d: checking tone %d, expected %d, got %d\n", (int) j, (int) i, (int) i, test_tone_queue.queue[j].frequency);
-			assert (test_tone_queue.queue[j].frequency == (int) i);
+		for (int l = 0; l < 3; l++) {
+
+			for (cw_tq_len_t i = 0; i < cw_tone_queue_get_capacity_internal(&test_tone_queue); i++) {
+
+				cw_tq_len_t shifted = (i + head_shifts[s]) % (cw_tone_queue_get_capacity_internal(&test_tone_queue) + 1);
+				fprintf(stderr, "Readback %d: position %d: checking tone %d, expected %d, got %d\n",
+					l, (int) shifted, (int) i, (int) i, test_tone_queue.queue[shifted].frequency);
+				assert (test_tone_queue.queue[shifted].frequency == (int) i);
+			}
 		}
 
 		s++;
@@ -8489,20 +8577,129 @@ unsigned int test_cw_tone_queue_test_capacity(void)
 	fprintf(stderr, "OK\n");
 
 	return 0;
-
-
 }
 
 
 
 
+
+unsigned int test_cw_tone_queue_test_capacity2(void)
+{
+	fprintf(stderr, "\ttesting correctness of handling capacity (1)... ");
+
+	/* We don't need to check tq with capacity ==
+	   CW_TONE_QUEUE_CAPACITY_MAX (yet). Let's test a smaller
+	   queue. 30 tones will be enough (for now), and 30-4 is a
+	   good value for high water mark. */
+	cw_tq_len_t capacity = 30;
+	cw_tq_len_t watermark = capacity - 4;
+
+	/* We will do tests of queue with constant capacity, but with
+	   different initial position at which we insert first element
+	   (tone), i.e. different position of queue's head. */
+	int head_shifts[] = { 0, 5, 10, 29, -1, 30, -1};
+	int s = 0;
+
+	while (head_shifts[s] != -1) {
+
+		fprintf(stderr, "\nTesting with head shift = %d\n", head_shifts[s]);
+
+		/* For every new test with new head shift we need a
+		   "clean" queue. */
+		int rv = test_cw_tone_queue_capacity_test_init(&test_tone_queue, capacity, watermark, head_shifts[s]);
+
+		/* Fill all positions in queue with tones of known
+		   frequency.  If shift_head != 0, the enqueue
+		   function should make sure that the enqueued tones
+		   are nicely wrapped after end of queue. */
+		for (cw_tq_len_t i = 0; i < cw_tone_queue_get_capacity_internal(&test_tone_queue); i++) {
+			cw_tone_t tone;
+			tone.frequency = (int) i;
+			tone.usecs = 1000;
+			rv = cw_tone_queue_enqueue_internal(&test_tone_queue, &tone);
+			assert (rv == CW_SUCCESS);
+			//fprintf(stderr, "Tone %d enqueued\n", i);
+		}
+
+
+
+		/* With the queue filled with valid and known data,
+		   it's time to read back the data and verify that the
+		   tones were placed in correct positions, as
+		   expected.
+
+		   In test_cw_tone_queue_test_capacity1() we did the
+		   readback "manually", this time let's use "dequeue"
+		   function to do the job.
+
+		   Since the "dequeue" function moves queue pointers,
+		   we can do this test only once, so no fun this time. */
+
+		int i = 0;
+
+		do {
+			cw_tone_t tone;
+			rv = cw_tone_queue_dequeue_internal(&test_tone_queue, &tone);
+			if (rv == CW_TQ_NONEMPTY) {
+
+				cw_tq_len_t shifted = (i + head_shifts[s]) % (cw_tone_queue_get_capacity_internal(&test_tone_queue) + 1);
+
+				fprintf(stderr, "Position %d: checking tone %d, expected %d, got %d\n",
+					(int) shifted, (int) i, (int) i, test_tone_queue.queue[shifted].frequency);
+				assert (test_tone_queue.queue[shifted].frequency == (int) i);
+
+				i++;
+			} else {
+				break;
+			}
+		} while (true);
+
+		/* There should be exactly 'capacity - 1' non-empty reads from the queue. */
+		assert (i == cw_tone_queue_get_capacity_internal(&test_tone_queue));
+
+		s++;
+	}
+
+
+	fprintf(stderr, "OK\n");
+
+	return 0;
+}
+
+
+
+
+
+/**
+   \brief Initialize tone queue for tests of capacity
+
+   Initialize given queue for tests of capacity of tone queue, and of
+   related parameters of the tq: head and tail.
+
+   First three function parameters are rather boring. What is
+   interesting is the fourth parameter: \p head_shift.
+
+   In general the behaviour of tone queue (a circular list) should be
+   independent of initial position of queue's head (i.e. from which
+   position in the queue we start adding new elements to the queue).
+
+   By initializing the queue with different initial positions of head
+   pointer, we can test this assertion about irrelevance of initial
+   head position.
+
+   test::cw_tone_queue_set_capacity_internal()
+
+   \param tq - tone queue to test
+   \param capacity - intended capacity of tone queue
+   \param high_water_mark - high water mark to be set for tone queue
+   \param head_shift - position of first element that will be inserted in empty queue
+*/
 int test_cw_tone_queue_capacity_test_init(cw_tone_queue_t *tq, cw_tq_len_t capacity, cw_tq_len_t high_water_mark, int head_shift)
 {
-
-	/* We will need to reset a tone queue for this test. Previous
-	   tests may have modified internals of the queue so that some
-	   assumptions that I make about a tq may be no longer valid
-	   for 'used' tq. */
+	/* Always reset the queue. If it was used previously in
+	   different tests, the tests may have modified internals of
+	   the queue so that some assumptions that I make about a tq
+	   may be no longer valid for 'used' tq. */
 	int rv = cw_tone_queue_init_internal(tq);
 	assert (rv == CW_SUCCESS);
 
@@ -8527,9 +8724,9 @@ int test_cw_tone_queue_capacity_test_init(cw_tone_queue_t *tq, cw_tq_len_t capac
 	   considered as real enqueueing of tones.
 
 	   If I want the first element in queue to be stored in
-	   position 'head_shift', I have to move head and tail of
-	   empty queue one element back. First element will be
-	   inserted at '++head'. */
+	   position 'head_shift', I have to move head (and tail)
+	   pointer of empty queue one element back. First element will
+	   be inserted at '++head'. */
 	tq->tail = cw_tone_queue_prev_index_internal(tq, head_shift);
 	tq->head = tq->tail; /* tail == head -> queue is empty */
 
@@ -8538,6 +8735,8 @@ int test_cw_tone_queue_capacity_test_init(cw_tone_queue_t *tq, cw_tq_len_t capac
 
 	return CW_SUCCESS;
 }
+
+
 
 
 
@@ -8552,6 +8751,7 @@ unsigned int test_cw_usecs_to_timespec_internal(void)
 		int input;
 		struct timespec t;
 	} input_data[] = {
+		/* input in ms    /   expected output seconds : milliseconds */
 		{           0,    {   0,             0 }},
 		{     1000000,    {   1,             0 }},
 		{     1000004,    {   1,          4000 }},
