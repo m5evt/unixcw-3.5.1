@@ -1,3 +1,9 @@
+2013-10-04 Kamil Ignacak
+	* tone queue: still working with capacity, head and tail. Updated
+	data type for the three variables, it will be uint32_t.
+	* debugging: introduced cw_assert() macro that should improve
+	debugging and assertions.
+
 2013-09-12 Kamil Ignacak
 	* tone queue: more changes related to "capacity", and additionally
 	"head" and "tail" properties of tone queue. No functionality
