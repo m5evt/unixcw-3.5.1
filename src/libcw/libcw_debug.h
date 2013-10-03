@@ -21,9 +21,9 @@
 #ifndef H_LIBCW_DEBUG
 #define H_LIBCW_DEBUG
 
-
+#include <stdio.h>
+#include <assert.h>
 #include <stdbool.h>
-
 
 
 
@@ -105,6 +105,54 @@ enum {
 	CW_DEBUG_EVENT_TQ_NONEMPTY,           /* A tone from libcw's queue of tones has been dequeued, but the queue is still non-empty. */
 	CW_DEBUG_EVENT_TQ_STILL_EMPTY         /* libcw's queue of tones has been asked for tone, but there were no tones on the queue. */
 };
+
+
+
+
+
+/**
+   \brief Print debug message - verbose version
+
+   This macro behaves much like fprintf(stderr, ...) function, caller
+   only have to provide format string with converesion specifiers and
+   list of arguments for this format string.
+
+   Each message is preceeded with name of function that called the
+   macro.
+
+   See "C: A Reference Manual", chapter 3.3.10 for more information on
+   variable argument lists in macros (it requires C99).
+
+   Macro copied from my cdw project.
+*/
+#ifndef NDEBUG
+#define cw_vdm(...) fprintf(stderr, "%s():%d: ", __func__, __LINE__); fprintf(stderr, __VA_ARGS__);
+#else
+#define cw_vdm(...)
+#endif
+
+
+
+
+
+/**
+  \brief Assert macro with message
+
+  Macro copied from my cdw project.
+*/
+#ifndef NDEBUG
+#define cw_assert(expr, ...)					\
+	if (! (expr)) {						\
+		fprintf(stderr, "\n\nassertion failed in:\n");	\
+		fprintf(stderr, "file %s\n", __FILE__);		\
+		fprintf(stderr, "line %d\n", __LINE__);		\
+		cw_vdm (__VA_ARGS__);				\
+		fprintf(stderr, "\n\n");			\
+		assert (expr);                                  \
+	}
+#else
+#define cdw_assert(expr, ...)
+#endif
 
 
 
