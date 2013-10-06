@@ -3896,6 +3896,7 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 			   if we've crossed the low water mark, if any. */
 			uint32_t queue_length = CW_TONE_QUEUE_LENGTH(tq);
 
+#if 0
 			/* Advance over the tones list until we find the
 			   first tone with a duration of more than zero
 			   usecs, or until the end of the list.
@@ -3905,6 +3906,8 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 				tmp_tq_head = cw_tone_queue_next_index_internal(tq, tmp_tq_head);
 			} while (tmp_tq_head != tq->tail
 				 && tq->queue[tmp_tq_head].usecs == 0);
+#endif
+			uint32_t tmp_tq_head = cw_tone_queue_next_index_internal(tq, tq->head);
 
 			/* Get parameters of tone to be played */
 			tone->usecs = tq->queue[tmp_tq_head].usecs;
@@ -3917,7 +3920,9 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 				   should play certain tone until client
 				   code adds next tone (possibly forever).
 
-				   Don't dequeue the "forever" tone (hence "prev").	*/
+				   Don't dequeue this "forever"
+				   tone. Call "prev" that will undo
+				   the "next" called above. */
 				tq->head = cw_tone_queue_prev_index_internal(tq, tmp_tq_head);
 			} else {
 				tq->head = tmp_tq_head;
@@ -4053,21 +4058,40 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
    \brief Add tone to tone queue
 
    Enqueue a tone for specified frequency and number of microseconds.
-   This routine adds the new tone to the queue, and if necessary starts
-   the itimer process to have the tone sent.  The routine returns CW_SUCCESS
-   on success. If the tone queue is full, the routine returns CW_FAILURE,
-   with errno set to EAGAIN.  If the iambic keyer or straight key are currently
-   busy, the routine returns CW_FAILURE, with errno set to EBUSY.
+   This routine adds the new tone to the queue, and if necessary
+   starts the itimer process to have the tone sent (TODO: check if the
+   information about itimer is still true).
+
+   The routine returns CW_SUCCESS on success. If the tone queue is
+   full, the routine returns CW_FAILURE, with errno set to EAGAIN.  If
+   the iambic keyer or straight key are currently busy, the routine
+   returns CW_FAILURE, with errno set to EBUSY.
+
+   If length of a tone (tone->usecs) is zero, the function does not
+   add it to tone queue and returns CW_SUCCESS.
+
+   The function does accept tones with negative values of usecs,
+   representing special tones.
 
    \param tq - tone queue
-   \param usecs - length of added tone
-   \param frequency - frequency of added tone
+   \param tone - tone to enqueue
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
 int cw_tone_queue_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 {
+	if (!tone->usecs) {
+		/* Drop empty tone. It won't be played anyway, and for
+		   now there are no other good reasons to enqueue
+		   it. While it may happen in higher-level code to
+		   create such tone, but there is no need to spend
+		   time on it here. */
+		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_INFO,
+			      "libcw: tone queue: dropped tone with usecs == 0");
+		return CW_SUCCESS;
+	}
+
 	pthread_mutex_lock(&tq->mutex);
 	/* If the keyer or straight key are busy, return an error.
 	   This is because they use the sound card/console tones and key
@@ -8094,6 +8118,7 @@ void main_helper(int audio_system, const char *name, const char *device, predica
 #include <assert.h>
 
 static unsigned int test_cw_representation_to_hash_internal(void);
+static unsigned int test_cw_forever(void);
 
 static unsigned int test_cw_tone_queue_init_internal(void);
 static unsigned int test_cw_tone_queue_get_capacity_internal(void);
@@ -8114,6 +8139,7 @@ typedef unsigned int (*cw_test_function_t)(void);
 
 static cw_test_function_t cw_unit_tests[] = {
 	test_cw_representation_to_hash_internal,
+	// test_cw_forever,
 
 	test_cw_tone_queue_init_internal,
 	test_cw_tone_queue_get_capacity_internal,
@@ -8205,6 +8231,49 @@ unsigned int test_cw_representation_to_hash_internal(void)
 	return 0;
 }
 
+
+
+
+
+unsigned int test_cw_forever(void)
+{
+	fprintf(stderr, "\ttesting CW_AUDIO_FOREVER_USECS...        ");
+
+	int rv = cw_generator_new(CW_AUDIO_OSS, NULL);
+	assert (rv);
+
+	cw_generator_start();
+
+	sleep(1);
+
+	cw_tone_t tone;
+
+	tone.usecs = 100;
+	tone.frequency = 500;
+	tone.slope_mode = CW_SLOPE_MODE_RISING_SLOPE;
+	cw_tone_queue_enqueue_internal(generator->tq, &tone);
+
+	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
+	tone.usecs = CW_AUDIO_FOREVER_USECS;
+	tone.frequency = 500;
+	cw_tone_queue_enqueue_internal(generator->tq, &tone);
+
+	cw_wait_for_tone_queue();
+
+	sleep(6);
+
+	tone.usecs = 100;
+	tone.frequency = 500;
+	tone.slope_mode = CW_SLOPE_MODE_FALLING_SLOPE;
+	cw_tone_queue_enqueue_internal(generator->tq, &tone);
+
+	cw_generator_stop();
+	cw_generator_delete();
+
+	fprintf(stderr, "OK\n");
+
+	return 1;
+}
 
 
 
@@ -8793,7 +8862,7 @@ int test_cw_tone_queue_capacity_test_init(cw_tone_queue_t *tq, uint32_t capacity
 	   be 100% sure that all tones in queue table have been
 	   initialized. */
 	for (int i = 0; i < CW_TONE_QUEUE_CAPACITY_MAX; i++) {
-		cw_tone_t tone = { .usecs = 0,
+		cw_tone_t tone = { .usecs = 1,
 				   .frequency = 10000 + i,
 				   .slope_mode = CW_SLOPE_MODE_STANDARD_SLOPES };
 
