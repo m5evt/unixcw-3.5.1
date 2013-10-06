@@ -1,3 +1,12 @@
+2013-10-06 Kamil Ignacak
+	* tone queue: using "len" property to simplify management and
+	monitoring of tone queue and its capacity. Code is now a bit
+	simpler.
+
+2013-10-05 Kamil Ignacak
+	* tone queue: adding "len" property to tone queue. Adding and
+	using it should simplify some aspects of queue management.
+
 2013-10-04 Kamil Ignacak
 	* tone queue: still working with capacity, head and tail. Updated
 	data type for the three variables, it will be uint32_t.
