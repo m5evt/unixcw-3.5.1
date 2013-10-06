@@ -949,7 +949,11 @@ void cw_test_tone_queue_3(cw_test_stats_t *stats)
 		stats->successes++;
 	}
 
+	/* Empty tone queue and make sure that it is really empty
+	   (wait for info from libcw). */
 	cw_flush_tone_queue();
+	cw_wait_for_tone_queue();
+
 	int len_empty = cw_get_tone_queue_length();
 	if (len_empty > 0) {
 		printf("libcw: cw_get_tone_queue_length() when tq empty: %d != 0:          failure\n", len_empty);
@@ -985,7 +989,11 @@ void cw_test_tone_queue_3(cw_test_stats_t *stats)
 		stats->successes++;
 	}
 
+	/* Empty tone queue and make sure that it is really empty
+	   (wait for info from libcw). */
 	cw_flush_tone_queue();
+	cw_wait_for_tone_queue();
+
 	len_empty = cw_get_tone_queue_length();
 	if (len_empty > 0) {
 		printf("libcw: cw_get_tone_queue_length() for empty tq: %d:                failure\n", len_empty);
