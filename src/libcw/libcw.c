@@ -276,6 +276,22 @@ extern cw_debug_t cw_debug_object_dev;
 /* ******************************************************************** */
 /*          Section:Morse code controls and timing parameters           */
 /* ******************************************************************** */
+
+/* Dot length magic number; from PARIS calibration, 1 Dot=1200000/WPM usec. */
+enum { DOT_CALIBRATION = 1200000 };
+
+
+/* Default initial values for library controls. */
+enum {
+	CW_ADAPTIVE_INITIAL  = false,  /* Initial adaptive receive setting */
+	CW_INITIAL_THRESHOLD = (DOT_CALIBRATION / CW_SPEED_INITIAL) * 2,   /* Initial adaptive speed threshold */
+	CW_INITIAL_NOISE_THRESHOLD = (DOT_CALIBRATION / CW_SPEED_MAX) / 2  /* Initial noise filter threshold */
+};
+
+
+
+
+
 static void cw_sync_parameters_internal(cw_gen_t *gen);
 
 
@@ -338,6 +354,79 @@ static int  cw_get_adaptive_average_internal(cw_tracking_t *tracking);
 /* ******************************************************************** */
 /*                           Section:Receiving                          */
 /* ******************************************************************** */
+
+typedef struct {
+	/* State of receiver state machine. */
+	int state;
+
+	int speed;
+
+	int noise_spike_threshold;
+	bool is_adaptive_receive_enabled;
+
+	/* Library variable which is automatically maintained from the Morse input
+	   stream, rather than being settable by the user.
+	   Initially 2-dot threshold for adaptive speed */
+	int adaptive_receive_threshold;
+
+
+	/* Setting this value may trigger a recalculation of some low
+	   level timing parameters. */
+	int tolerance;
+
+	/* Retained tone start and end timestamps. */
+	struct timeval tone_start;
+	struct timeval tone_end;
+
+	/* Buffer for received representation (dots/dashes). This is a
+	   fixed-length buffer, filled in as tone on/off timings are
+	   taken. The buffer is vastly longer than any practical
+	   representation.
+
+	   Along with it we maintain a cursor indicating the current
+	   write position. */
+	char buffer[CW_RECEIVER_CAPACITY];
+	int ind;
+
+} cw_receiver_t;
+
+
+
+
+
+/* "RS" stands for "Receiver State" */
+enum {
+	RS_IDLE,       /* Representation buffer empty, ready to accept data. */
+	RS_IN_TONE,    /* Mark */
+	RS_AFTER_TONE, /* Space */
+	RS_END_CHAR,
+	RS_END_WORD,
+	RS_ERR_CHAR,
+	RS_ERR_WORD
+};
+
+
+
+
+
+static cw_receiver_t receiver = { .state = RS_IDLE,
+
+				  .speed = CW_SPEED_INITIAL,
+
+				  .noise_spike_threshold = CW_INITIAL_NOISE_THRESHOLD,
+				  .is_adaptive_receive_enabled = CW_ADAPTIVE_INITIAL,
+				  .adaptive_receive_threshold = CW_INITIAL_THRESHOLD,
+				  .tolerance = CW_TOLERANCE_INITIAL,
+
+				  .tone_start = { 0, 0 },
+				  .tone_end =   { 0, 0 },
+
+				  .ind = 0 };
+
+
+
+
+
 static void cw_receive_set_adaptive_internal(bool flag);
 static int  cw_receive_identify_tone_internal(int element_usec, char *representation);
 static void cw_receive_update_adaptive_tracking_internal(int element_usec, char element);
@@ -1497,28 +1586,13 @@ int cw_lookup_phonetic(char c, char *phonetic)
 
 
 
-/* Dot length magic number; from PARIS calibration, 1 Dot=1200000/WPM usec. */
-enum { DOT_CALIBRATION = 1200000 };
-
-
-/* Default initial values for library controls. */
-enum {
-	CW_ADAPTIVE_INITIAL  = false,  /* Initial adaptive receive setting */
-	CW_INITIAL_THRESHOLD = (DOT_CALIBRATION / CW_SPEED_INITIAL) * 2,   /* Initial adaptive speed threshold */
-	CW_INITIAL_NOISE_THRESHOLD = (DOT_CALIBRATION / CW_SPEED_MAX) / 2  /* Initial noise filter threshold */
-};
-
-
-
 /* Library variables, indicating the user-selected parameters for generating
    Morse code output and receiving Morse code input.  These values can be
    set by client code; setting them may trigger a recalculation of the low
-   level timing values held and set below. */
-static int cw_receive_speed = CW_SPEED_INITIAL,
-	cw_tolerance = CW_TOLERANCE_INITIAL,
-	cw_weighting = CW_WEIGHTING_INITIAL,
-	cw_noise_spike_threshold = CW_INITIAL_NOISE_THRESHOLD;
-static bool cw_is_adaptive_receive_enabled = CW_ADAPTIVE_INITIAL;
+   level timing values held and set below.
+   TODO: this probably should be a part of generator data type. */
+static int cw_weighting = CW_WEIGHTING_INITIAL;
+
 
 
 /* The following variables must be recalculated each time any of the above
@@ -1552,12 +1626,6 @@ static int cw_send_dot_length = 0,      /* Length of a send Dot, in usec */
            cw_eoc_range_minimum = 0,    /* Shortest end of char allowable */
            cw_eoc_range_maximum = 0,    /* Longest end of char allowable */
            cw_eoc_range_ideal = 0;      /* Ideal end of char, for stats */
-
-
-/* Library variable which is automatically maintained from the Morse input
-   stream, rather than being settable by the user.
-   Initially 2-dot threshold for adaptive speed */
-static int cw_adaptive_receive_threshold = CW_INITIAL_THRESHOLD;
 
 
 
@@ -1793,12 +1861,12 @@ void cw_sync_parameters_internal(cw_gen_t *gen)
 	   lengths.  Weighting is ignored for receive parameters,
 	   although the core unit length is recalculated for the
 	   receive speed, which may differ from the send speed. */
-	unit_length = DOT_CALIBRATION / cw_receive_speed;
-	if (cw_is_adaptive_receive_enabled) {
-		cw_receive_speed = DOT_CALIBRATION
-			/ (cw_adaptive_receive_threshold / 2);
+	unit_length = DOT_CALIBRATION / receiver.speed;
+	if (receiver.is_adaptive_receive_enabled) {
+		receiver.speed = DOT_CALIBRATION
+			/ (receiver.adaptive_receive_threshold / 2);
 	} else {
-		cw_adaptive_receive_threshold = 2 * unit_length;
+		receiver.adaptive_receive_threshold = 2 * unit_length;
 	}
 
 	/* Calculate the basic receive dot and dash lengths. */
@@ -1808,7 +1876,7 @@ void cw_sync_parameters_internal(cw_gen_t *gen)
 	/* Set the ranges of respectable timing elements depending
 	   very much on whether we are required to adapt to the
 	   incoming Morse code speeds. */
-	if (cw_is_adaptive_receive_enabled) {
+	if (receiver.is_adaptive_receive_enabled) {
 		/* For adaptive timing, calculate the Dot and
 		   Dash timing ranges as zero to two Dots is a
 		   Dot, and anything, anything at all, larger than
@@ -1832,7 +1900,7 @@ void cw_sync_parameters_internal(cw_gen_t *gen)
 		   timing range as the Dot length +/- dot*tolerance%,
 		   and the Dash timing range as the Dash length
 		   including +/- dot*tolerance% as well. */
-		int tolerance = (cw_receive_dot_length * cw_tolerance) / 100;
+		int tolerance = (cw_receive_dot_length * receiver.tolerance) / 100;
 		cw_dot_range_minimum = cw_receive_dot_length - tolerance;
 		cw_dot_range_maximum = cw_receive_dot_length + tolerance;
 		cw_dash_range_minimum = cw_receive_dash_length - tolerance;
@@ -1861,12 +1929,12 @@ void cw_sync_parameters_internal(cw_gen_t *gen)
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_PARAMETERS, CW_DEBUG_INFO,
 		      "libcw: receive usec timings <%d>: %d-%d, %d-%d, %d-%d[%d], %d-%d[%d], %d",
-		      cw_receive_speed,
+		      receiver.speed,
 		      cw_dot_range_minimum, cw_dot_range_maximum,
 		      cw_dash_range_minimum, cw_dash_range_maximum,
 		      cw_eoe_range_minimum, cw_eoe_range_maximum, cw_eoe_range_ideal,
 		      cw_eoc_range_minimum, cw_eoc_range_maximum, cw_eoc_range_ideal,
-		      cw_adaptive_receive_threshold);
+		      receiver.adaptive_receive_threshold);
 
 	/* Set the "parameters in sync" flag. */
 	cw_is_in_sync = true;
@@ -1893,16 +1961,16 @@ void cw_reset_send_receive_parameters(void)
 	generator->volume_percent = CW_VOLUME_INITIAL;
 	generator->volume_abs = (generator->volume_percent * CW_AUDIO_VOLUME_RANGE) / 100;
 	generator->gap = CW_GAP_INITIAL;
-
-	cw_receive_speed = CW_SPEED_INITIAL;
-	cw_tolerance = CW_TOLERANCE_INITIAL;
 	cw_weighting = CW_WEIGHTING_INITIAL;
-	cw_is_adaptive_receive_enabled = CW_ADAPTIVE_INITIAL;
-	cw_noise_spike_threshold = CW_INITIAL_NOISE_THRESHOLD;
+
+	receiver.speed = CW_SPEED_INITIAL;
+	receiver.tolerance = CW_TOLERANCE_INITIAL;
+	receiver.is_adaptive_receive_enabled = CW_ADAPTIVE_INITIAL;
+	receiver.noise_spike_threshold = CW_INITIAL_NOISE_THRESHOLD;
 
 	/* Changes require resynchronization. */
 	cw_is_in_sync = false;
-	cw_sync_parameters_internal (generator);
+	cw_sync_parameters_internal(generator);
 
 	return;
 }
@@ -1959,7 +2027,7 @@ int cw_set_send_speed(int new_value)
 */
 int cw_set_receive_speed(int new_value)
 {
-	if (cw_is_adaptive_receive_enabled) {
+	if (receiver.is_adaptive_receive_enabled) {
 		errno = EPERM;
 		return CW_FAILURE;
 	} else {
@@ -1969,8 +2037,8 @@ int cw_set_receive_speed(int new_value)
 		}
 	}
 
-	if (new_value != cw_receive_speed) {
-		cw_receive_speed = new_value;
+	if (new_value != receiver.speed) {
+		receiver.speed = new_value;
 
 		/* Changes of receive speed require resynchronization. */
 		cw_is_in_sync = false;
@@ -2103,8 +2171,8 @@ int cw_set_tolerance(int new_value)
 		return CW_FAILURE;
 	}
 
-	if (new_value != cw_tolerance) {
-		cw_tolerance = new_value;
+	if (new_value != receiver.tolerance) {
+		receiver.tolerance = new_value;
 
 		/* Changes of tolerance require resynchronization. */
 		cw_is_in_sync = false;
@@ -2171,7 +2239,7 @@ int cw_get_send_speed(void)
 */
 int cw_get_receive_speed(void)
 {
-	return cw_receive_speed;
+	return receiver.speed;
 }
 
 
@@ -2233,7 +2301,7 @@ int cw_get_gap(void)
 */
 int cw_get_tolerance(void)
 {
-	return cw_tolerance;
+	return receiver.tolerance;
 }
 
 
@@ -2345,7 +2413,7 @@ void cw_get_receive_parameters(int *dot_usecs, int *dash_usecs,
 	if (end_of_character_max_usecs)   *end_of_character_max_usecs = cw_eoc_range_maximum;
 	if (end_of_character_ideal_usecs) *end_of_character_ideal_usecs = cw_eoc_range_ideal;
 
-	if (adaptive_threshold) *adaptive_threshold = cw_adaptive_receive_threshold;
+	if (adaptive_threshold) *adaptive_threshold = receiver.adaptive_receive_threshold;
 
 	return;
 }
@@ -2377,7 +2445,7 @@ int cw_set_noise_spike_threshold(int new_value)
 		errno = EINVAL;
 		return CW_FAILURE;
 	}
-	cw_noise_spike_threshold = new_value;
+	receiver.noise_spike_threshold = new_value;
 
 	return CW_SUCCESS;
 }
@@ -2395,7 +2463,7 @@ int cw_set_noise_spike_threshold(int new_value)
 */
 int cw_get_noise_spike_threshold(void)
 {
-	return cw_noise_spike_threshold;
+	return receiver.noise_spike_threshold;
 }
 
 
@@ -5264,9 +5332,6 @@ void cw_reset_receive_statistics(void)
 
 
 
-
-
-
 /*
  * The CW receive functions implement the following state graph:
  *
@@ -5306,52 +5371,6 @@ void cw_reset_receive_statistics(void)
 
 
 
-/* "RS" stands for "Receive State" */
-enum {
-	RS_IDLE,
-	RS_IN_TONE,
-	RS_AFTER_TONE,
-	RS_END_CHAR,
-	RS_END_WORD,
-	RS_ERR_CHAR,
-	RS_ERR_WORD
-};
-
-
-
-
-
-typedef struct {
-	/* State of receiver state machine. */
-	int state;
-
-	/* Retained tone start and end timestamps. */
-	struct timeval tone_start;
-	struct timeval tone_end;
-
-	/* Buffer for received representation (dots/dashes). This is a
-	   fixed-length buffer, filled in as tone on/off timings are
-	   taken. The buffer is vastly longer than any practical
-	   representation.
-
-	   Along with it we maintain a cursor indicating the current
-	   write position. */
-	char buffer[CW_RECEIVER_CAPACITY];
-	int ind;
-
-} cw_receiver_t;
-
-static cw_receiver_t receiver = { .state = RS_IDLE,
-
-				  .tone_start = { 0, 0 },
-				  .tone_end =   { 0, 0 },
-
-				  .ind = 0 };
-
-
-
-
-
 /**
    \brief Set value of "adaptive receive enabled" flag
 
@@ -5364,10 +5383,10 @@ static cw_receiver_t receiver = { .state = RS_IDLE,
 void cw_receive_set_adaptive_internal(bool flag)
 {
 	/* Look for change of adaptive receive state. */
-	if ((cw_is_adaptive_receive_enabled && !flag)
-	    || (!cw_is_adaptive_receive_enabled && flag)) {
+	if ((receiver.is_adaptive_receive_enabled && !flag)
+	    || (!receiver.is_adaptive_receive_enabled && flag)) {
 
-		cw_is_adaptive_receive_enabled = flag;
+		receiver.is_adaptive_receive_enabled = flag;
 
 		/* Changing the flag forces a change in low-level parameters. */
 		cw_is_in_sync = false;
@@ -5376,7 +5395,7 @@ void cw_receive_set_adaptive_internal(bool flag)
 		/* If we have just switched to adaptive mode, (re-)initialize
 		   the averages array to the current dot/dash lengths, so
 		   that initial averages match the current speed. */
-		if (cw_is_adaptive_receive_enabled) {
+		if (receiver.is_adaptive_receive_enabled) {
 			cw_reset_adaptive_average_internal(&cw_dot_tracking, cw_receive_dot_length);
 			cw_reset_adaptive_average_internal(&cw_dash_tracking, cw_receive_dash_length);
 		}
@@ -5399,7 +5418,7 @@ void cw_receive_set_adaptive_internal(bool flag)
    which is not at the expected speed.
 
    Adaptive speed tracking uses a moving average of the past four elements
-   as its baseline for tracking speeds.  The default state is adaptive
+   as its baseline for tracking speeds.  The default state is adaptive speed
    tracking disabled.
 */
 void cw_enable_adaptive_receive(void)
@@ -5438,7 +5457,7 @@ void cw_disable_adaptive_receive(void)
 */
 bool cw_get_adaptive_receive_state(void)
 {
-	return cw_is_adaptive_receive_enabled;
+	return receiver.is_adaptive_receive_enabled;
 }
 
 
@@ -5671,7 +5690,7 @@ int cw_receive_identify_tone_internal(int element_usec, char *representation)
 void cw_receive_update_adaptive_tracking_internal(int element_usec, char element)
 {
 	/* We are not going to tolerate being called in fixed speed mode. */
-	if (!cw_is_adaptive_receive_enabled) {
+	if (!receiver.is_adaptive_receive_enabled) {
 		return;
 	}
 
@@ -5690,7 +5709,7 @@ void cw_receive_update_adaptive_tracking_internal(int element_usec, char element
 	   (avg dash length - avg dot length) / 2 + avg dot_length. */
 	int average_dot = cw_get_adaptive_average_internal(&cw_dot_tracking);
 	int average_dash = cw_get_adaptive_average_internal(&cw_dash_tracking);
-	cw_adaptive_receive_threshold = (average_dash - average_dot) / 2
+	receiver.adaptive_receive_threshold = (average_dash - average_dot) / 2
 		+ average_dot;
 
 	/* Resynchronize the low level timing data following recalculation.
@@ -5704,13 +5723,13 @@ void cw_receive_update_adaptive_tracking_internal(int element_usec, char element
 	   all other timing parameters back to where they should be. */
 	cw_is_in_sync = false;
 	cw_sync_parameters_internal (generator);
-	if (cw_receive_speed < CW_SPEED_MIN || cw_receive_speed > CW_SPEED_MAX) {
-		cw_receive_speed = cw_receive_speed < CW_SPEED_MIN
+	if (receiver.speed < CW_SPEED_MIN || receiver.speed > CW_SPEED_MAX) {
+		receiver.speed = receiver.speed < CW_SPEED_MIN
 			? CW_SPEED_MIN : CW_SPEED_MAX;
-		cw_is_adaptive_receive_enabled = false;
+		receiver.is_adaptive_receive_enabled = false;
 		cw_is_in_sync = false;
 		cw_sync_parameters_internal (generator);
-		cw_is_adaptive_receive_enabled = true;
+		receiver.is_adaptive_receive_enabled = true;
 		cw_is_in_sync = false;
 		cw_sync_parameters_internal (generator);
 	}
@@ -5767,8 +5786,8 @@ int cw_end_receive_tone(const struct timeval *timestamp)
 	   tone.  But to make things a touch simpler, here we can just look
 	   at the current receive buffer pointer. If it's zero, we came from
 	   idle, otherwise we came from after tone. */
-	if (cw_noise_spike_threshold > 0
-	    && element_usec <= cw_noise_spike_threshold) {
+	if (receiver.noise_spike_threshold > 0
+	    && element_usec <= receiver.noise_spike_threshold) {
 		receiver.state = receiver.ind == 0 ? RS_IDLE : RS_AFTER_TONE;
 
 		/* Put the end tone timestamp back to how it was when we
@@ -5797,7 +5816,7 @@ int cw_end_receive_tone(const struct timeval *timestamp)
 	   received Morse speed stays up to date.  But only do this if we
 	   have set adaptive receiving; don't fiddle about trying to track
 	   for fixed speed receive. */
-	if (cw_is_adaptive_receive_enabled) {
+	if (receiver.is_adaptive_receive_enabled) {
 		cw_receive_update_adaptive_tracking_internal(element_usec, representation);
 	}
 
