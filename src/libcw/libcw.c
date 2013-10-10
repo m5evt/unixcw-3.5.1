@@ -5320,10 +5320,6 @@ enum {
 
 
 
-enum { RECEIVE_CAPACITY = 256 };
-
-
-
 
 typedef struct {
 	/* State of receiver state machine. */
@@ -5333,12 +5329,14 @@ typedef struct {
 	struct timeval tone_start;
 	struct timeval tone_end;
 
-	/* Receive buffering.
-	   This is a fixed-length representation, filled in as tone
-	   on/off timings are taken.  The buffer is vastly longer than
-	   any practical representation, and along with it we maintain
-	   a cursor indicating the current write position. */
-	char buffer[RECEIVE_CAPACITY];
+	/* Buffer for received representation (dots/dashes). This is a
+	   fixed-length buffer, filled in as tone on/off timings are
+	   taken. The buffer is vastly longer than any practical
+	   representation.
+
+	   Along with it we maintain a cursor indicating the current
+	   write position. */
+	char buffer[CW_RECEIVER_CAPACITY];
 	int ind;
 
 } cw_receiver_t;
@@ -5823,7 +5821,7 @@ int cw_end_receive_tone(const struct timeval *timestamp)
 	   full, then we have to do something, even though it's unlikely.
 	   What we'll do is make a unilateral declaration that if we get
 	   this far, we go to end-of-char error state automatically. */
-	if (receiver.ind == RECEIVE_CAPACITY - 1) {
+	if (receiver.ind == CW_RECEIVER_CAPACITY - 1) {
 		receiver.state = RS_ERR_CHAR;
 
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
@@ -5890,7 +5888,7 @@ int cw_receive_add_element_internal(const struct timeval *timestamp,
 	/* We just added an element to the receive buffer.  As above, if
 	   it's full, then we have to do something, even though it's
 	   unlikely to actually be full. */
-	if (receiver.ind == RECEIVE_CAPACITY - 1) {
+	if (receiver.ind == CW_RECEIVER_CAPACITY - 1) {
 		receiver.state = RS_ERR_CHAR;
 
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
@@ -5957,18 +5955,27 @@ int cw_receive_buffer_dash(const struct timeval *timestamp)
 /**
    \brief Get the current buffered representation from the receive buffer
 
-   On success, the function returns true, and fills in representation with the
-   contents of the current representation buffer.  On error, it returns false,
-   with errno set to ERANGE if not preceded by a cw_end_receive_tone call,
-   a prior successful cw_receive_representation call, or a prior
-   cw_receive_buffer_dot or cw_receive_buffer_dash, EINVAL if the timestamp
-   passed in is invalid, or EAGAIN if the call is made too early to determine
-   whether a complete representation has yet been placed in the buffer
-   (that is, less than the inter-character gap period elapsed since the last
-   cw_end_receive_tone or cw_receive_buffer_dot/dash call).  is_end_of_word
-   indicates that the delay after the last tone received is longer that the
-   inter-word gap, and is_error indicates that the representation was
-   terminated by an error condition.
+   On success the function fills in \p representation with the
+   contents of the current representation buffer and returns
+   CW_SUCCESS.
+
+   On error, it returns CW_FAILURE and sets errno to:
+   ERANGE if not preceded by a cw_end_receive_tone call, a prior
+   successful cw_receive_representation call, or a prior
+   cw_receive_buffer_dot or cw_receive_buffer_dash,
+   EINVAL if the timestamp passed in is invalid,
+   EAGAIN if the call is made too early to determine whether a
+   complete representation has yet been placed in the buffer (that is,
+   less than the inter-character gap period elapsed since the last
+   cw_end_receive_tone or cw_receive_buffer_dot/dash call).
+
+   \p is_end_of_word indicates that the delay after the last tone
+   received is longer that the inter-word gap.
+
+   \p is_error indicates that the representation was terminated by an
+   error condition.
+
+   TODO: the function should be called cw_receiver_get_representation().
 
    \param timestamp
    \param representation
@@ -6122,7 +6129,7 @@ int cw_receive_character(const struct timeval *timestamp,
 			 char *c, bool *is_end_of_word, bool *is_error)
 {
 	bool end_of_word, error;
-	char representation[RECEIVE_CAPACITY + 1];
+	char representation[CW_RECEIVER_CAPACITY + 1];
 
 	/* See if we can obtain a representation from the receive routines. */
 	int status = cw_receive_representation (timestamp, representation,
@@ -6156,9 +6163,11 @@ int cw_receive_character(const struct timeval *timestamp,
 
 
 /**
-   \brief Clear receive representation buffer
+   \brief Clear receiver's representation buffer
 
-   Clears the receive representation buffer to receive tones again.
+   Clears the receiver's representation buffer, resets receiver's
+   internal state. This prepares the receiver to receive tones again.
+
    This routine must be called after successful, or terminating,
    cw_receive_representation() or cw_receive_character() calls, to
    clear the states and prepare the buffer to receive more tones.
@@ -6187,7 +6196,7 @@ void cw_clear_receive_buffer(void)
 */
 int cw_get_receive_buffer_capacity(void)
 {
-	return RECEIVE_CAPACITY;
+	return CW_RECEIVER_CAPACITY;
 }
 
 
@@ -6195,7 +6204,8 @@ int cw_get_receive_buffer_capacity(void)
 
 
 /**
-   \brief Get the number of elements currently pending in the receive buffer
+   \brief Get the number of elements (dots/dashes) currently pending
+   in the receiver buffer
 */
 int cw_get_receive_buffer_length(void)
 {
