@@ -76,6 +76,13 @@ static const int        CW_AUDIO_SLOPE_USECS = 5000;          /* length of a sin
 #define CW_AUDIO_FOREVER_USECS (-CW_AUDIO_QUANTUM_USECS)
 
 
+/* Receiver contains a fixed-length buffer for representation of received data.
+   Capacity of the buffer is vastly longer than any practical representation.
+   Don't know why, a legacy thing. */
+#define CW_RECEIVER_CAPACITY 256
+
+
+
 typedef struct cw_tone_struct cw_tone_t;
 typedef struct cw_tone_queue_struct cw_tone_queue_t;
 typedef struct cw_entry_struct cw_entry_t;
