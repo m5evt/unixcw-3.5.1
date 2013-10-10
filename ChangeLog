@@ -1,3 +1,10 @@
+2013-10-10 Kamil Ignacak
+	* testing: some improvements in code testing receiving functions
+	in libcwtest.c: simplifications, comments, refactoring.
+	* refactoring in libcw.c: moving some free variables related to
+	sending and receiving of Morse code into generator and receiver
+	variables, respectively.
+
 2013-10-06 Kamil Ignacak
 	* tone queue: using "len" property to simplify management and
 	monitoring of tone queue and its capacity. Code is now a bit
