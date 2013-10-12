@@ -313,6 +313,65 @@ struct cw_gen_struct {
 
 
 
+
+
+typedef struct {
+	/* State of receiver state machine. */
+	int state;
+
+	int speed;
+
+	int noise_spike_threshold;
+	bool is_adaptive_receive_enabled;
+
+	/* Library variable which is automatically maintained from the Morse input
+	   stream, rather than being settable by the user.
+	   Initially 2-dot threshold for adaptive speed */
+	int adaptive_receive_threshold;
+
+
+	/* Setting this value may trigger a recalculation of some low
+	   level timing parameters. */
+	int tolerance;
+
+	/* Retained tone start and end timestamps. */
+	struct timeval tone_start;
+	struct timeval tone_end;
+
+	/* Buffer for received representation (dots/dashes). This is a
+	   fixed-length buffer, filled in as tone on/off timings are
+	   taken. The buffer is vastly longer than any practical
+	   representation.
+
+	   Along with it we maintain a cursor indicating the current
+	   write position. */
+	char buffer[CW_RECEIVER_CAPACITY];
+	int ind;
+
+
+
+	/* These are basic timing parameters which should be
+	   recalculated each time client code demands changing some
+	   higher-level parameter of receiver. */
+	int dot_length;           /* Length of a dot, in usec */
+	int dash_length;          /* Length of a dash, in usec */
+	int dot_range_minimum;    /* Shortest dot period allowable */
+	int dot_range_maximum;    /* Longest dot period allowable */
+	int dash_range_minimum;   /* Shortest dot period allowable */
+	int dash_range_maximum;   /* Longest dot period allowable */
+	int eoe_range_minimum;    /* Shortest end of element allowable */
+	int eoe_range_maximum;    /* Longest end of element allowable */
+	int eoe_range_ideal;      /* Ideal end of element, for stats */
+	int eoc_range_minimum;    /* Shortest end of char allowable */
+	int eoc_range_maximum;    /* Longest end of char allowable */
+	int eoc_range_ideal;      /* Ideal end of char, for stats */
+
+} cw_rec_t;
+
+
+
+
+
 #if (defined(LIBCW_WITH_ALSA) || defined(LIBCW_WITH_PULSEAUDIO))
 bool cw_dlopen_internal(const char *name, void **handle);
 #endif
