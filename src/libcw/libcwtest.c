@@ -2051,7 +2051,20 @@ void cw_test_helper_receive_tests(bool adaptive, const cw_test_receive_data_t *d
 		   receiver. Check for errors. */
 
 		bool is_word, is_error;
-		char representation[CW_RECEIVER_CAPACITY];
+		char representation[CW_REC_REPRESENTATION_CAPACITY];
+
+		/* Notice that we call the function with last
+		   timestamp (tv) from input data. The last timestamp
+		   in the input data represents end of final space - a
+		   space ending a character.
+
+		   With this final passing of "end of space" timestamp
+		   to libcw we make a statement, informing libcw about
+		   ??? (TODO: about what?).
+
+		   The space length in input data is (3 x dot +
+		   jitter). In libcw maximum recognizable length of
+		   "end of character" space is 5 x dot. */
 		if (!cw_receive_representation(&tv, representation, &is_word, &is_error)) {
 			printf("libcw: cw_receive_representation():                failure\n");
 			stats->failures++;
