@@ -362,13 +362,13 @@ static int  cw_get_adaptive_average_internal(cw_tracking_t *tracking);
 
 /* "RS" stands for "Receiver State" */
 enum {
-	RS_IDLE,          /* Representation buffer is empty, ready to accept data. */
+	RS_IDLE,          /* Representation buffer is empty and ready to accept data. */
 	RS_IN_TONE,       /* Mark */
 	RS_AFTER_TONE,    /* Space */
-	RS_END_CHAR,
-	RS_END_WORD,
-	RS_ERR_CHAR,
-	RS_ERR_WORD
+	RS_END_CHAR,      /* After receiving a character, without error. */
+	RS_END_WORD,      /* After receiving a word, without error. */
+	RS_ERR_CHAR,      /* TODO: shouldn't it be RS_END_WORD_CHAR, as in, "After receiving a character, but with error"? */
+	RS_ERR_WORD       /* TODO: shouldn't it be RS_END_WORD_ERR, as in, "After receiving a word, but with error"? */
 };
 
 
@@ -407,10 +407,10 @@ static cw_rec_t receiver = { .state = RS_IDLE,
 
 
 
-static void cw_receive_set_adaptive_internal(bool flag);
-static int  cw_receive_identify_tone_internal(int element_usec, char *representation);
-static void cw_receive_update_adaptive_tracking_internal(int element_usec, char element);
-static int  cw_receive_add_element_internal(const struct timeval *timestamp, char element);
+static void cw_receiver_set_adaptive_internal(cw_rec_t *rec, bool flag);
+static int  cw_receiver_identify_tone_internal(cw_rec_t *rec, int element_len_usecs, char *representation);
+static void cw_receiver_update_adaptive_tracking_internal(cw_rec_t *rec, int element_usec, char element);
+static int  cw_receiver_add_element_internal(cw_rec_t *rec, const struct timeval *timestamp, char element);
 static int  cw_timestamp_validate_internal(const struct timeval *timestamp, struct timeval *return_timestamp);
 static int  cw_timestamp_compare_internal(const struct timeval *earlier, const struct timeval *later);
 
@@ -5345,26 +5345,27 @@ void cw_reset_receive_statistics(void)
    receive functions do fixed speed receive, or track the speed of the
    received Morse code by adapting to the input stream.
 
-   \brief flag - intended flag value
+   \param rec - receiver
+   \param flag - intended flag value
 */
-void cw_receive_set_adaptive_internal(bool flag)
+void cw_receiver_set_adaptive_internal(cw_rec_t *rec, bool flag)
 {
 	/* Look for change of adaptive receive state. */
-	if ((receiver.is_adaptive_receive_enabled && !flag)
-	    || (!receiver.is_adaptive_receive_enabled && flag)) {
+	if ((rec->is_adaptive_receive_enabled && !flag)
+	    || (!rec->is_adaptive_receive_enabled && flag)) {
 
-		receiver.is_adaptive_receive_enabled = flag;
+		rec->is_adaptive_receive_enabled = flag;
 
 		/* Changing the flag forces a change in low-level parameters. */
 		cw_is_in_sync = false;
-		cw_sync_parameters_internal(generator, &receiver);
+		cw_sync_parameters_internal(generator, rec);
 
 		/* If we have just switched to adaptive mode, (re-)initialize
 		   the averages array to the current dot/dash lengths, so
 		   that initial averages match the current speed. */
-		if (receiver.is_adaptive_receive_enabled) {
-			cw_reset_adaptive_average_internal(&cw_dot_tracking, receiver.dot_length);
-			cw_reset_adaptive_average_internal(&cw_dash_tracking, receiver.dash_length);
+		if (rec->is_adaptive_receive_enabled) {
+			cw_reset_adaptive_average_internal(&cw_dot_tracking, rec->dot_length);
+			cw_reset_adaptive_average_internal(&cw_dash_tracking, rec->dash_length);
 		}
 	}
 
@@ -5390,7 +5391,7 @@ void cw_receive_set_adaptive_internal(bool flag)
 */
 void cw_enable_adaptive_receive(void)
 {
-	cw_receive_set_adaptive_internal(true);
+	cw_receiver_set_adaptive_internal(&receiver, true);
 	return;
 }
 
@@ -5405,7 +5406,7 @@ void cw_enable_adaptive_receive(void)
 */
 void cw_disable_adaptive_receive(void)
 {
-	cw_receive_set_adaptive_internal(false);
+	cw_receiver_set_adaptive_internal(&receiver, false);
 	return;
 }
 
@@ -5560,7 +5561,7 @@ int cw_start_receive_tone(const struct timeval *timestamp)
 	   inter-element gap by comparing the start timestamp with the
 	   last end one, guaranteed set by getting to the after tone
 	   state via cw_end_receive tone(), or in extreme cases, by
-	   cw_receive_add_element_internal().
+	   cw_receiver_add_element_internal().
 
 	   Do that, then, and update the relevant statistics. */
 	if (receiver.state == RS_AFTER_TONE) {
@@ -5583,58 +5584,74 @@ int cw_start_receive_tone(const struct timeval *timestamp)
 
 
 /**
-   \brief Analyze and identify a tone
+   \brief Analyze a tone and identify it as an element
 
-   Analyses a tone using the ranges provided by the low level timing
-   parameters.  On success, it returns true and sends back either a dot or
-   a dash in representation.  On error, it returns false with errno set to
-   ENOENT if the tone is not recognizable as either a dot or a dash,
-   and sets the receive state to one of the error states, depending on
-   the tone length passed in.
+   Identify an element (dot/dash) represented by a duration of mark.
+   The duration is provided in \p element_len_usecs.
 
-   Note; for adaptive timing, the tone should _always_ be recognized as
-   a dot or a dash, because the ranges will have been set to cover 0 to
-   INT_MAX.
+   Identification is done using the ranges provided by the low level
+   timing parameters.
 
-   \param element_usec
-   \param representation
+   On success function returns CW_SUCCESS and sends back either a dot
+   or a dash in \p representation.
+
+   On error, it returns CW_FAILURE with errno set to ENOENT if the
+   tone is not recognizable as either a dot or a dash, and sets the
+   receiver state to one of the error states, depending on the element
+   length passed in.
+
+   Note: for adaptive timing, the element should _always_ be
+   recognized as a dot or a dash, because the ranges will have been
+   set to cover 0 to INT_MAX.
+
+   \param rec - receiver
+   \param element_len_usecs - length of element to analyze
+   \param representation - variable to store identified element (output variable)
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_receive_identify_tone_internal(int element_usec, char *representation)
+int cw_receiver_identify_tone_internal(cw_rec_t *rec, int element_len_usecs, /* out */ char *representation)
 {
+	cw_assert (representation, "Output parameter is NULL");
+
 	/* Synchronize low level timings if required */
-	cw_sync_parameters_internal(generator, &receiver);
+	cw_sync_parameters_internal(generator, rec);
 
 	/* If the timing was, within tolerance, a dot, return dot to the caller.  */
-	if (element_usec >= receiver.dot_range_minimum
-	    && element_usec <= receiver.dot_range_maximum) {
+	if (element_len_usecs >= rec->dot_range_minimum
+	    && element_len_usecs <= rec->dot_range_maximum) {
 
 		*representation = CW_DOT_REPRESENTATION;
 		return CW_SUCCESS;
 	}
 
 	/* Do the same for a dash. */
-	if (element_usec >= receiver.dash_range_minimum
-	    && element_usec <= receiver.dash_range_maximum) {
+	if (element_len_usecs >= rec->dash_range_minimum
+	    && element_len_usecs <= rec->dash_range_maximum) {
 
 		*representation = CW_DASH_REPRESENTATION;
 		return CW_SUCCESS;
 	}
 
-	/* This element is not a dot or a dash, so we have an error case.
-	   Depending on the timestamp difference, we pick which of the
-	   error states to move to, and move to it.  The comparison is
-	   against the expected end-of-char delay.  If it's larger, then
-	   fix at word error, otherwise settle on char error.
+	/* This element is not a dot or a dash, so we have an error
+	   case.  Depending on the timestamp difference (i.e. on
+	   length of space), we pick which of the error states to move
+	   to, and move to it.  The comparison is against the expected
+	   end-of-char delay.  If it's larger, then fix at word error,
+	   otherwise settle on char error.
 
 	   Note that we should never reach here for adaptive timing receive. */
-	receiver.state = element_usec > receiver.eoc_range_maximum
+	rec->state = element_len_usecs > rec->eoc_range_maximum
 		? RS_ERR_WORD : RS_ERR_CHAR;
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-		      "libcw: receive state ->%d", receiver.state);
+		      "libcw: receive state ->%d", rec->state);
+
+	if (rec->is_adaptive_receive_enabled) {
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
+			      "libcw: unrecognized element in adaptive receive (mark len = %d)", element_len_usecs);
+	}
 
 	/* Return ENOENT to the caller. */
 	errno = ENOENT;
@@ -5651,13 +5668,14 @@ int cw_receive_identify_tone_internal(int element_usec, char *representation)
    Function updates the averages of dot and dash lengths, and recalculates
    the adaptive threshold for the next receive tone.
 
+   \param rec - receiver
    \param element_usec
    \param element
 */
-void cw_receive_update_adaptive_tracking_internal(int element_usec, char element)
+void cw_receiver_update_adaptive_tracking_internal(cw_rec_t *rec, int element_usec, char element)
 {
 	/* We are not going to tolerate being called in fixed speed mode. */
-	if (!receiver.is_adaptive_receive_enabled) {
+	if (!rec->is_adaptive_receive_enabled) {
 		return;
 	}
 
@@ -5676,7 +5694,7 @@ void cw_receive_update_adaptive_tracking_internal(int element_usec, char element
 	   (avg dash length - avg dot length) / 2 + avg dot_length. */
 	int average_dot = cw_get_adaptive_average_internal(&cw_dot_tracking);
 	int average_dash = cw_get_adaptive_average_internal(&cw_dash_tracking);
-	receiver.adaptive_receive_threshold = (average_dash - average_dot) / 2
+	rec->adaptive_receive_threshold = (average_dash - average_dot) / 2
 		+ average_dot;
 
 	/* Resynchronize the low level timing data following recalculation.
@@ -5689,16 +5707,16 @@ void cw_receive_update_adaptive_tracking_internal(int element_usec, char element
 	   then have to reset adaptive and resyncing one more time, to get
 	   all other timing parameters back to where they should be. */
 	cw_is_in_sync = false;
-	cw_sync_parameters_internal(generator, &receiver);
-	if (receiver.speed < CW_SPEED_MIN || receiver.speed > CW_SPEED_MAX) {
-		receiver.speed = receiver.speed < CW_SPEED_MIN
+	cw_sync_parameters_internal(generator, rec);
+	if (rec->speed < CW_SPEED_MIN || rec->speed > CW_SPEED_MAX) {
+		rec->speed = rec->speed < CW_SPEED_MIN
 			? CW_SPEED_MIN : CW_SPEED_MAX;
-		receiver.is_adaptive_receive_enabled = false;
+		rec->is_adaptive_receive_enabled = false;
 		cw_is_in_sync = false;
-		cw_sync_parameters_internal(generator, &receiver);
-		receiver.is_adaptive_receive_enabled = true;
+		cw_sync_parameters_internal(generator, rec);
+		rec->is_adaptive_receive_enabled = true;
 		cw_is_in_sync = false;
-		cw_sync_parameters_internal(generator, &receiver);
+		cw_sync_parameters_internal(generator, rec);
 	}
 
 	return;
@@ -5774,7 +5792,7 @@ int cw_end_receive_tone(const struct timeval *timestamp)
 	   tell us what it thinks this element is.  If it can't decide,
 	   it will hand us back an error which we return to the caller.
 	   Otherwise, it returns a character, dot or dash, for us to buffer. */
-	int status = cw_receive_identify_tone_internal(element_usec, &representation);
+	int status = cw_receiver_identify_tone_internal(&receiver, element_usec, &representation);
 	if (!status) {
 		return CW_FAILURE;
 	}
@@ -5784,11 +5802,11 @@ int cw_end_receive_tone(const struct timeval *timestamp)
 	   have set adaptive receiving; don't fiddle about trying to track
 	   for fixed speed receive. */
 	if (receiver.is_adaptive_receive_enabled) {
-		cw_receive_update_adaptive_tracking_internal(element_usec, representation);
+		cw_receiver_update_adaptive_tracking_internal(&receiver, element_usec, representation);
 	}
 
 	/* Update dot and dash timing statistics.  It may seem odd to do
-	   this after calling cw_receive_update_adaptive_tracking_internal(),
+	   this after calling cw_receiver_update_adaptive_tracking_internal(),
 	   rather than before, as this function changes the ideal values we're
 	   measuring against.  But if we're on a speed change slope, the
 	   adaptive tracking smoothing will cause the ideals to lag the
@@ -5831,54 +5849,63 @@ int cw_end_receive_tone(const struct timeval *timestamp)
 
 
 /**
-   \brief Add dot or dash to receive representation buffer
+   \brief Add dot or dash to receiver's representation buffer
 
-   Function adds either a dot or a dash to the receive representation
-   buffer.  If the \p timestamp is NULL, the current timestamp is used.
-   The receive state is updated as if we had just received a call to
-   cw_end_receive_tone().
+   Function adds an \p element (either a dot or a dash) to the
+   receiver's representation buffer.
 
-   \param timestamp
-   \param element
+   Since we can't add an element to the buffer without any
+   accompanying timing information, the function also accepts
+   \p timestamp of the "end of element" event.  If the \p timestamp
+   is NULL, the timestamp for current time is used.
+
+   The receiver's state is updated as if we had just received a call
+   to cw_end_receive_tone().
+
+   \param rec - receiver
+   \param timestamp - timestamp of "end of element" event
+   \param element - element to be inserted into receiver's representation buffer
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
  */
-int cw_receive_add_element_internal(const struct timeval *timestamp,
-				    char element)
+int cw_receiver_add_element_internal(cw_rec_t *rec, const struct timeval *timestamp, char element)
 {
-	/* The receive state is expected to be idle or after a tone in
+	/* The receiver's state is expected to be idle or after a tone in
 	   order to use this routine. */
-	if (receiver.state != RS_IDLE && receiver.state != RS_AFTER_TONE) {
+	if (rec->state != RS_IDLE && rec->state != RS_AFTER_TONE) {
 		errno = ERANGE;
 		return CW_FAILURE;
 	}
 
 	/* This routine functions as if we have just seen a tone end, yet
 	   without really seeing a tone start.  To keep timing information
-	   for routines that come later, we need to make sure that the end
-	   of tone timestamp is set here.  This is because the receive
+	   for routines that come later, we need to make sure that the "end
+	   of tone" timestamp is set here.  This is because the receiver
 	   representation routine looks at the time since the last end of
 	   tone to determine whether we are at the end of a word, or just
 	   at the end of a character.  It doesn't matter that the start of
 	   tone timestamp is never set - this is just for timing the tone
 	   length, and we don't need to do that since we've already been
 	   told whether this is a dot or a dash. */
-	if (!cw_timestamp_validate_internal(timestamp, &receiver.tone_end)) {
+	if (!cw_timestamp_validate_internal(timestamp, &rec->tone_end)) {
 		return CW_FAILURE;
 	}
 
-	/* Add the element to the receive representation buffer. */
-	receiver.buffer[receiver.ind++] = element;
+	/* Add the element to the receiver's representation buffer. */
+	rec->buffer[rec->ind++] = element;
 
-	/* We just added an element to the receive buffer.  As above, if
-	   it's full, then we have to do something, even though it's
-	   unlikely to actually be full. */
-	if (receiver.ind == CW_RECEIVER_CAPACITY - 1) {
-		receiver.state = RS_ERR_CHAR;
+	/* We just added an element to the receiver's buffer.  As
+	   above, if it's full, then we have to do something, even
+	   though it's unlikely to actually be full. */
+	if (rec->ind == CW_RECEIVER_CAPACITY - 1) {
+		rec->state = RS_ERR_CHAR;
+
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
+			      "libcw: receiver's representation buffer is full");
 
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-			      "libcw: receive state ->%d", receiver.state);
+			      "libcw: receive state ->%d", rec->state);
 
 		errno = ENOMEM;
 		return CW_FAILURE;
@@ -5886,10 +5913,10 @@ int cw_receive_add_element_internal(const struct timeval *timestamp,
 
 	/* Since we effectively just saw the end of a tone, move to
 	   the after-tone state. */
-	receiver.state = RS_AFTER_TONE;
+	rec->state = RS_AFTER_TONE;
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-		      "libcw: receive state ->%d", receiver.state);
+		      "libcw: receive state ->%d", rec->state);
 
 	return CW_SUCCESS;
 }
@@ -5899,23 +5926,36 @@ int cw_receive_add_element_internal(const struct timeval *timestamp,
 
 
 /**
-   \brief Add a dot to the receive representation buffer.
+   \brief Add a dot to the receiver's representation buffer
 
-   If the timestamp is NULL, the current timestamp is used.  These routines
-   are for callers that have already determined whether a dot or dash was
-   received by a method other than calling the routines cw_start_receive_tone
-   and cw_end_receive_tone.  On success, the relevant element is added to
-   the receive representation buffer.  On error, the routines return false,
-   with errno set to ERANGE if preceded by a cw_start_receive_tone call
-   with no matching cw_end_receive_tone or if an error condition currently
-   exists within the receive buffer, or ENOMEM if the receive representation
-   buffer is full.
+   Documentation for both cw_receive_buffer_dot() and cw_receive_buffer_dash():
+
+   Since we can't add an element to the buffer without any
+   accompanying timing information, the functions accepts \p timestamp
+   of the "end of element" event.  If the \p timestamp is NULL, the
+   current timestamp is used.
+
+   These routines are for client code that has already determined
+   whether a dot or dash was received by a method other than calling
+   the routines cw_start_receive_tone() and cw_end_receive_tone().
+
+   On success, the relevant element is added to the receive'rs
+   representation buffer.
+
+   On failure, the routines return CW_FAILURE, with errno set to
+   ERANGE if preceded by a cw_start_receive_tone call with no matching
+   cw_end_receive_tone or if an error condition currently exists
+   within the receiver's buffer, or ENOMEM if the receiver's
+   representation buffer is full.
 
    \param timestamp
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
 */
 int cw_receive_buffer_dot(const struct timeval *timestamp)
 {
-	return cw_receive_add_element_internal(timestamp, CW_DOT_REPRESENTATION);
+	return cw_receiver_add_element_internal(&receiver, timestamp, CW_DOT_REPRESENTATION);
 }
 
 
@@ -5923,15 +5963,18 @@ int cw_receive_buffer_dot(const struct timeval *timestamp)
 
 
 /**
-   \brief Add a dash to the receive representation buffer.
+   \brief Add a dash to the receiver's representation buffer
 
-   See documentation of cw_receive_buffer_dot() for more information
+   See documentation of cw_receive_buffer_dot() for more information.
 
    \param timestamp
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
 */
 int cw_receive_buffer_dash(const struct timeval *timestamp)
 {
-	return cw_receive_add_element_internal(timestamp, CW_DASH_REPRESENTATION);
+	return cw_receiver_add_element_internal(&receiver, timestamp, CW_DASH_REPRESENTATION);
 }
 
 
@@ -5939,7 +5982,7 @@ int cw_receive_buffer_dash(const struct timeval *timestamp)
 
 
 /**
-   \brief Get the current buffered representation from the receive buffer
+   \brief Get the current buffered representation from the receiver's representation buffer
 
    On success the function fills in \p representation with the
    contents of the current representation buffer and returns
@@ -5963,55 +6006,84 @@ int cw_receive_buffer_dash(const struct timeval *timestamp)
 
    TODO: the function should be called cw_receiver_get_representation().
 
-   \param timestamp
-   \param representation
-   \param is_end_of_word
-   \param is_error
+   TODO: why we pass \p timestamp to the function when all we want
+   from it is a representation from representation buffer? It seems
+   that the function can be called with timestamp for last event,
+   i.e. on end of last space. "last space" may mean space after last
+   element (dot/dash) in a character, or a space between two
+   characters, or (a bit different case) a space between
+   words. Timestamp for end of space would be the same timestamp as
+   for beginning of new tone (?).
+
+   \param timestamp - timestamp of event that ends "end-of-character" space or "end-of-word" space
+   \param representation - buffer for representation (output parameter)
+   \param is_end_of_word - buffer for "is end of word" state (output parameter)
+   \param is_error - buffer for "error" state (output parameter)
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
 int cw_receive_representation(const struct timeval *timestamp,
-			      char *representation, bool *is_end_of_word,
-			      bool *is_error)
+			      /* out */ char *representation,
+			      /* out */ bool *is_end_of_word, /* out */ bool *is_error)
 {
 
+	/* If the receiver's state indicates that receiver's
+	   representation buffer stores a completed representation at
+	   the end of word, just return the representation via \p
+	   representation.
 
-	/* If the the receive state indicates that we have in our possession
-	   a completed representation at the end of word, just [re-]return it. */
-	if (receiver.state == RS_END_WORD || receiver.state == RS_ERR_WORD) {
+	   Repeated calls of the function when receiver is in this
+	   state would simply return the same representation over and
+	   over again.
+
+	   Notice that the state of receiver at this point is settled,
+	   so \p timestamp is uninteresting. We don't expect it to
+	   hold any useful information that could influence state of
+	   receiver or content of representation buffer. */
+	if (receiver.state == RS_END_WORD
+	    || receiver.state == RS_ERR_WORD) {
+
 		if (is_end_of_word) {
 			*is_end_of_word = true;
 		}
 		if (is_error) {
 			*is_error = (receiver.state == RS_ERR_WORD);
 		}
-		*representation = '\0';
+		*representation = '\0'; /* TODO: why do this? */
 		strncat(representation, receiver.buffer, receiver.ind);
 		return CW_SUCCESS;
 	}
 
 
-	/* If the receive state is also not end-of-char, and also not after
-	   a tone, then we are idle or in a tone; in these cases, we return
-	   ERANGE. */
-	if (receiver.state != RS_AFTER_TONE
-	    && receiver.state != RS_END_CHAR
-	    && receiver.state != RS_ERR_CHAR) {
+	if (receiver.state == RS_IDLE
+	    || receiver.state == RS_IN_TONE) {
 
+		/* Not a good time to call this function. */
 		errno = ERANGE;
 		return CW_FAILURE;
 	}
 
-	/* We now know the state is after a tone, or end-of-char, perhaps
-	   with error.  For all three of these cases, we're going to
-	   [re-]compare the timestamp with the end of tone timestamp.
+	/* Four receiver states were covered above, so we are left
+	   with these three: */
+	cw_assert (receiver.state == RS_AFTER_TONE
+		   || receiver.state == RS_END_CHAR
+		   || receiver.state == RS_ERR_CHAR,
+
+		   "Unknown receiver state %d", receiver.state);
+
+	/* We now know the state is after a tone, or end-of-char,
+	   perhaps with error.  For all three of these cases, we're
+	   going to [re-]compare the \p timestamp with the tone_end
+	   timestamp saved in receiver.
+
 	   This could mean that in the case of end-of-char, we revise
 	   our opinion on later calls to end-of-word. This is correct,
 	   since it models reality. */
 
 	/* If we weren't supplied with one, get the current timestamp
-	   for comparison against the latest end timestamp. */
+	   for comparison against the tone_end timestamp saved in
+	   receiver. */
 	struct timeval now_timestamp;
 	if (!cw_timestamp_validate_internal(timestamp, &now_timestamp)) {
 		return CW_FAILURE;
@@ -6019,67 +6091,74 @@ int cw_receive_representation(const struct timeval *timestamp,
 
 	/* Now we need to compare the timestamps to determine the length
 	   of the inter-tone gap. */
-	int space_usec = cw_timestamp_compare_internal(&receiver.tone_end,
-						       &now_timestamp);
+	int space_len_usecs = cw_timestamp_compare_internal(&receiver.tone_end,
+							    &now_timestamp);
 
 	/* Synchronize low level timings if required */
 	cw_sync_parameters_internal(generator, &receiver);
 
-	/* If the timing was, within tolerance, a character space, then
-	   that is what we'll call it.  In this case, we complete the
-	   representation and return it. */
-	if (space_usec >= receiver.eoc_range_minimum
-	    && space_usec <= receiver.eoc_range_maximum) {
 
-		/* If state is after tone, we can validly move at this
-		   point to end of char.  If it's not, then we're at end
-		   char or at end char with error already, so leave it.
-		   On moving, update timing statistics for an identified
-		   end of character. */
+	if (space_len_usecs >= receiver.eoc_range_minimum
+	    && space_len_usecs <= receiver.eoc_range_maximum) {
+
+		/* The space is, within tolerance, a character
+		   space. A representation of complete character is
+		   now in representation buffer, we can return the
+		   representation via parameter. */
+
 		if (receiver.state == RS_AFTER_TONE) {
-			cw_add_receive_statistic_internal(STAT_END_CHARACTER, space_usec);
+			/* A character space after a tone means end of
+			   character. Update receiver state. On
+			   updating the state, update timing
+			   statistics for an identified end of
+			   character as well. */
+			cw_add_receive_statistic_internal(STAT_END_CHARACTER, space_len_usecs);
 			receiver.state = RS_END_CHAR;
+		} else {
+			/* We are already in RS_END_CHAR or
+			   RS_ERR_CHAR, so nothing to do. */
 		}
 
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
 			      "libcw: receive state ->%d", receiver.state);
 
-		/* Return the representation buffered. */
+		/* Return the representation from receiver's buffer. */
 		if (is_end_of_word) {
 			*is_end_of_word = false;
 		}
 		if (is_error) {
 			*is_error = (receiver.state == RS_ERR_CHAR);
 		}
-		*representation = '\0';
+		*representation = '\0'; /* TODO: why do this? */
 		strncat(representation, receiver.buffer, receiver.ind);
 		return CW_SUCCESS;
 	}
 
-	/* If the timing indicated a word space, again we complete the
-	   representation and return it.  In this case, we also need to
-	   inform the client that this looked like the end of a word, not
-	   just a character.  And, we don't care about the maximum period,
-	   only that it exceeds the low end of the range. */
-	if (space_usec > receiver.eoc_range_maximum) {
-		/* In this case, we have a transition to an end of word
-		   case.  If we were sat in an error case, we need to move
-		   to the correct end of word state, otherwise, at after
-		   tone, we go safely to the non-error end of word. */
+	/* If the length of space indicated a word space, again we
+	   have a complete representation and can return it.  In this
+	   case, we also need to inform the client that this looked
+	   like the end of a word, not just a character.
+
+	   Any space length longer than eoc_range_maximum is, almost
+	   by definition, an "end of word" space. */
+	if (space_len_usecs > receiver.eoc_range_maximum) {
+
+		/* The space is a word space. Update receiver state,
+		   remember to preserve error state (if any). */
 		receiver.state = receiver.state == RS_ERR_CHAR
 			? RS_ERR_WORD : RS_END_WORD;
 
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
 			      "libcw: receive state ->%d", receiver.state);
 
-		/* Return the representation buffered. */
+		/* Return the representation from receiver's buffer. */
 		if (is_end_of_word) {
 			*is_end_of_word = true;
 		}
 		if (is_error) {
 			*is_error = (receiver.state == RS_ERR_WORD);
 		}
-		*representation = '\0';
+		*representation = '\0'; /* TODO: why do this? */
 		strncat(representation, receiver.buffer, receiver.ind);
 		return CW_SUCCESS;
 	}
@@ -6097,29 +6176,48 @@ int cw_receive_representation(const struct timeval *timestamp,
 /**
    \brief Get a current character
 
-   Returns the current buffered character from the representation buffer.
-   On success, the function returns true, and fills char *c with the contents
-   of the current representation buffer, translated into a character.  On
-   error, it returns false, with errno set to ERANGE if not preceded by a
-   cw_end_receive_tone call, a prior successful cw_receive_character
-   call, or a cw_receive_buffer_dot or cw_receive_buffer dash call, EINVAL
-   if the timestamp passed in is invalid, or EAGAIN if the call is made too
-   early to determine whether a complete character has yet been placed in the
-   buffer (that is, less than the inter-character gap period elapsed since
-   the last cw_end_receive_tone or cw_receive_buffer_dot/dash call).
-   is_end_of_word indicates that the delay after the last tone received is
-   longer that the inter-word gap, and is_error indicates that the character
-   was terminated by an error condition.
+   Function returns the character currently stored in receiver's
+   representation buffer.
+
+   On success the function returns CW_SUCCESS, and fills \p c with the
+   contents of the current representation buffer, translated into a
+   character.
+
+   On failure the function returns CW_FAILURE, with errno set to:
+
+   ERANGE if not preceded by a cw_end_receive_tone() call, a prior
+   successful cw_receive_character() call, or a
+   cw_receive_buffer_dot() or cw_receive_buffer dash() call,
+   EINVAL if the timestamp passed in is invalid, or
+   EAGAIN if the call is made too early to determine whether a
+   complete character has yet been placed in the buffer (that is, less
+   than the inter-character gap period elapsed since the last
+   cw_end_receive_tone() or cw_receive_buffer_dot/dash call).
+
+   \p is_end_of_word indicates that the delay after the last tone
+   received is longer that the inter-word gap.
+
+   \p is_error indicates that the character was terminated by an error
+   condition.
+
+   \param timestamp - timestamp of event that ends "end-of-character" space or "end-of-word" space
+   \param c - buffer for character (output parameter)
+   \param is_end_of_word - buffer for "is end of word" state (output parameter)
+   \param is_error - buffer for "error" state (output parameter)
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
 */
 int cw_receive_character(const struct timeval *timestamp,
-			 char *c, bool *is_end_of_word, bool *is_error)
+			 /* out */ char *c,
+			 /* out */ bool *is_end_of_word, /* out */ bool *is_error)
 {
 	bool end_of_word, error;
 	char representation[CW_RECEIVER_CAPACITY + 1];
 
-	/* See if we can obtain a representation from the receive routines. */
-	int status = cw_receive_representation (timestamp, representation,
-						&end_of_word, &error);
+	/* See if we can obtain a representation from receiver. */
+	int status = cw_receive_representation(timestamp, representation,
+					       &end_of_word, &error);
 	if (!status) {
 		return CW_FAILURE;
 	}
@@ -6131,7 +6229,7 @@ int cw_receive_character(const struct timeval *timestamp,
 		return CW_FAILURE;
 	}
 
-	/* If we got this far, all is well, so return what we uncovered. */
+	/* If we got this far, all is well, so return what we received. */
 	if (c) {
 		*c = character;
 	}
@@ -6174,11 +6272,13 @@ void cw_clear_receive_buffer(void)
 
 
 /**
-   \brief Get the number of entries the receive buffer can accommodate
+   \brief Get the number of elements (dots/dashes) the receiver's buffer can accommodate
 
-   The maximum number of character written out by cw_receive_representation()
+   The maximum number of elements written out by cw_receive_representation()
    is the capacity + 1, the extra character being used for the terminating
    NUL.
+
+   \return number of elements that can be stored in receiver's representation buffer
 */
 int cw_get_receive_buffer_capacity(void)
 {
@@ -6190,8 +6290,9 @@ int cw_get_receive_buffer_capacity(void)
 
 
 /**
-   \brief Get the number of elements (dots/dashes) currently pending
-   in the receiver buffer
+   \brief Get the number of elements (dots/dashes) currently pending in the receiver's representation buffer
+
+   \return number of elements in receiver's representation buffer
 */
 int cw_get_receive_buffer_length(void)
 {
