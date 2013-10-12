@@ -79,7 +79,7 @@ static const int        CW_AUDIO_SLOPE_USECS = 5000;          /* length of a sin
 /* Receiver contains a fixed-length buffer for representation of received data.
    Capacity of the buffer is vastly longer than any practical representation.
    Don't know why, a legacy thing. */
-#define CW_RECEIVER_CAPACITY 256
+enum { CW_REC_REPRESENTATION_CAPACITY = 256 };
 
 
 
@@ -315,6 +315,50 @@ struct cw_gen_struct {
 
 
 
+
+
+/* Receive timing statistics.
+   A circular buffer of entries indicating the difference between the
+   actual and the ideal timing for a receive element, tagged with the
+   type of statistic held, and a circular buffer pointer.
+   STAT_NONE must be zero so that the statistics buffer is initially empty. */
+typedef enum {
+	STAT_NONE = 0,
+	STAT_DOT,
+	STAT_DASH,
+	STAT_END_ELEMENT,
+	STAT_END_CHARACTER
+} stat_type_t;
+
+typedef struct {
+	stat_type_t type;  /* Record type */
+	int delta;         /* Difference between actual and ideal timing */
+} cw_statistics_t;
+
+/* TODO: what is the relationship between this constant and CW_REC_REPRESENTATION_CAPACITY?
+   Both have value of 256. Coincidence? I don't think so. */
+enum { CW_REC_STATISTICS_CAPACITY = 256 };
+
+
+
+
+
+/* Adaptive speed tracking for receiving. */
+enum { CW_REC_AVERAGE_ARRAY_LENGTH = 4 };
+
+/* A moving averages structure, comprising a small array of element
+   lengths, a circular index into the array, and a running sum of
+   elements for efficient calculation of moving averages. */
+struct cw_tracking_struct {
+	int buffer[CW_REC_AVERAGE_ARRAY_LENGTH];  /* Buffered element lengths */
+	int cursor;                               /* Circular buffer cursor */
+	int sum;                                  /* Running sum */
+}; /* typedef cw_tracking_t */
+
+
+
+
+
 typedef struct {
 	/* State of receiver state machine. */
 	int state;
@@ -345,11 +389,12 @@ typedef struct {
 
 	   Along with it we maintain a cursor indicating the current
 	   write position. */
-	char buffer[CW_RECEIVER_CAPACITY];
-	int ind;
+	char representation[CW_REC_REPRESENTATION_CAPACITY];
+	int representation_ind;
 
 
 
+	/* Receiver timing parameters */
 	/* These are basic timing parameters which should be
 	   recalculated each time client code demands changing some
 	   higher-level parameter of receiver. */
@@ -365,6 +410,16 @@ typedef struct {
 	int eoc_range_minimum;    /* Shortest end of char allowable */
 	int eoc_range_maximum;    /* Longest end of char allowable */
 	int eoc_range_ideal;      /* Ideal end of char, for stats */
+
+
+	/* Receiver statistics */
+	cw_statistics_t statistics[CW_REC_STATISTICS_CAPACITY];
+	int statistics_ind;
+
+
+	/* Receiver speed tracking */
+	cw_tracking_t dot_tracking;
+	cw_tracking_t dash_tracking;
 
 } cw_rec_t;
 
