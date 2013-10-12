@@ -294,6 +294,22 @@ struct cw_gen_struct {
 		pthread_t thread_id;
 		char *name;
 	} client;
+
+
+	int weighting;            /* Dot/dash weighting */
+
+	/* These are basic timing parameters which should be
+	   recalculated each time client code demands changing some
+	   higher-level parameter of generator (e.g. changing of
+	   sending speed). */
+	int dot_length;           /* Length of a dot, in usec */
+        int dash_length;          /* Length of a dash, in usec */
+        int end_of_ele_delay;     /* Extra delay at the end of element */
+	int end_of_char_delay;    /* Extra delay at the end of a char */
+	int additional_delay;     /* More delay at the end of a char */
+	int end_of_word_delay;    /* Extra delay at the end of a word */
+	int adjustment_delay;     /* More delay at the end of a word */
+
 };
 
 
