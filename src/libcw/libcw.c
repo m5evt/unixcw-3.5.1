@@ -292,7 +292,7 @@ enum {
 
 
 
-static void cw_sync_parameters_internal(cw_gen_t *gen);
+static void cw_sync_parameters_internal(cw_gen_t *gen, cw_rec_t *rec);
 
 
 
@@ -355,58 +355,6 @@ static int  cw_get_adaptive_average_internal(cw_tracking_t *tracking);
 /*                           Section:Receiving                          */
 /* ******************************************************************** */
 
-typedef struct {
-	/* State of receiver state machine. */
-	int state;
-
-	int speed;
-
-	int noise_spike_threshold;
-	bool is_adaptive_receive_enabled;
-
-	/* Library variable which is automatically maintained from the Morse input
-	   stream, rather than being settable by the user.
-	   Initially 2-dot threshold for adaptive speed */
-	int adaptive_receive_threshold;
-
-
-	/* Setting this value may trigger a recalculation of some low
-	   level timing parameters. */
-	int tolerance;
-
-	/* Retained tone start and end timestamps. */
-	struct timeval tone_start;
-	struct timeval tone_end;
-
-	/* Buffer for received representation (dots/dashes). This is a
-	   fixed-length buffer, filled in as tone on/off timings are
-	   taken. The buffer is vastly longer than any practical
-	   representation.
-
-	   Along with it we maintain a cursor indicating the current
-	   write position. */
-	char buffer[CW_RECEIVER_CAPACITY];
-	int ind;
-
-
-
-	/* These are basic timing parameters which should be
-	   recalculated each time client code demands changing some
-	   higher-level parameter of receiver. */
-	int dot_length;           /* Length of a dot, in usec */
-	int dash_length;          /* Length of a dash, in usec */
-	int dot_range_minimum;    /* Shortest dot period allowable */
-	int dot_range_maximum;    /* Longest dot period allowable */
-	int dash_range_minimum;   /* Shortest dot period allowable */
-	int dash_range_maximum;   /* Longest dot period allowable */
-	int eoe_range_minimum;    /* Shortest end of element allowable */
-	int eoe_range_maximum;    /* Longest end of element allowable */
-	int eoe_range_ideal;      /* Ideal end of element, for stats */
-	int eoc_range_minimum;    /* Shortest end of char allowable */
-	int eoc_range_maximum;    /* Longest end of char allowable */
-	int eoc_range_ideal;      /* Ideal end of char, for stats */
-
-} cw_rec_t;
 
 
 
@@ -414,9 +362,9 @@ typedef struct {
 
 /* "RS" stands for "Receiver State" */
 enum {
-	RS_IDLE,       /* Representation buffer empty, ready to accept data. */
-	RS_IN_TONE,    /* Mark */
-	RS_AFTER_TONE, /* Space */
+	RS_IDLE,          /* Representation buffer is empty, ready to accept data. */
+	RS_IN_TONE,       /* Mark */
+	RS_AFTER_TONE,    /* Space */
 	RS_END_CHAR,
 	RS_END_WORD,
 	RS_ERR_CHAR,
@@ -1803,22 +1751,24 @@ void cw_get_weighting_limits(int *min_weighting, int *max_weighting)
    of word timings and ranges to new values of Morse speed, "Farnsworth"
    gap, receive tolerance, or weighting.
 
-   Part of the parameters is a global variable in the file, and part
-   of them is stored in \p gen variable (which, at this moment, is also
-   a global variable).
+   All the timing parameters are stored in \p gen and \p rec. The
+   parameters for generator and receiver are almost completely
+   independent.
 
-   \param gen - variable storing some of the parameters
+   \param gen - generator variable, storing generation parameters
+   \param rec - receiver variable, storing receiving parameters
 */
-void cw_sync_parameters_internal(cw_gen_t *gen)
+void cw_sync_parameters_internal(cw_gen_t *gen, cw_rec_t *rec)
 {
 	/* Do nothing if we are already synchronized with speed/gap. */
 	if (cw_is_in_sync) {
 		return;
 	}
 
-	/* Send parameters:
 
-	   Set the length of a Dot to be a Unit with any weighting
+	/* Generator parameters */
+
+	/* Set the length of a Dot to be a Unit with any weighting
 	   adjustment, and the length of a Dash as three Dot lengths.
 	   The weighting adjustment is by adding or subtracting a
 	   length based on 50 % as a neutral weighting. */
@@ -1859,59 +1809,62 @@ void cw_sync_parameters_internal(cw_gen_t *gen)
 		      gen->eow_delay, gen->additional_delay, gen->adjustment_delay);
 
 
-	/* Receive parameters:
 
-	   First, depending on whether we are set for fixed speed or
+
+
+	/* Receiver parameters */
+
+	/* First, depending on whether we are set for fixed speed or
 	   adaptive speed, calculate either the threshold from the
 	   receive speed, or the receive speed from the threshold,
 	   knowing that the threshold is always, effectively, two dot
 	   lengths.  Weighting is ignored for receive parameters,
 	   although the core unit length is recalculated for the
 	   receive speed, which may differ from the send speed. */
-	unit_length = DOT_CALIBRATION / receiver.speed;
-	if (receiver.is_adaptive_receive_enabled) {
-		receiver.speed = DOT_CALIBRATION
-			/ (receiver.adaptive_receive_threshold / 2);
+	unit_length = DOT_CALIBRATION / rec->speed;
+	if (rec->is_adaptive_receive_enabled) {
+		rec->speed = DOT_CALIBRATION
+			/ (rec->adaptive_receive_threshold / 2);
 	} else {
-		receiver.adaptive_receive_threshold = 2 * unit_length;
+		rec->adaptive_receive_threshold = 2 * unit_length;
 	}
 
 	/* Calculate the basic receive dot and dash lengths. */
-	receiver.dot_length = unit_length;
-	receiver.dash_length = 3 * unit_length;
+	rec->dot_length = unit_length;
+	rec->dash_length = 3 * unit_length;
 
 	/* Set the ranges of respectable timing elements depending
 	   very much on whether we are required to adapt to the
 	   incoming Morse code speeds. */
-	if (receiver.is_adaptive_receive_enabled) {
+	if (rec->is_adaptive_receive_enabled) {
 		/* For adaptive timing, calculate the Dot and
 		   Dash timing ranges as zero to two Dots is a
 		   Dot, and anything, anything at all, larger than
 		   this is a Dash. */
-		receiver.dot_range_minimum = 0;
-		receiver.dot_range_maximum = 2 * receiver.dot_length;
-		receiver.dash_range_minimum = receiver.dot_range_maximum;
-		receiver.dash_range_maximum = INT_MAX;
+		rec->dot_range_minimum = 0;
+		rec->dot_range_maximum = 2 * rec->dot_length;
+		rec->dash_range_minimum = rec->dot_range_maximum;
+		rec->dash_range_maximum = INT_MAX;
 
 		/* Make the inter-element gap be anything up to
 		   the adaptive threshold lengths - that is two
 		   Dots.  And the end of character gap is anything
 		   longer than that, and shorter than five dots. */
-		receiver.eoe_range_minimum = receiver.dot_range_minimum;
-		receiver.eoe_range_maximum = receiver.dot_range_maximum;
-		receiver.eoc_range_minimum = receiver.eoe_range_maximum;
-		receiver.eoc_range_maximum = 5 * receiver.dot_length;
+		rec->eoe_range_minimum = rec->dot_range_minimum;
+		rec->eoe_range_maximum = rec->dot_range_maximum;
+		rec->eoc_range_minimum = rec->eoe_range_maximum;
+		rec->eoc_range_maximum = 5 * rec->dot_length;
 
 	} else {
 		/* For fixed speed receiving, calculate the Dot
 		   timing range as the Dot length +/- dot*tolerance%,
 		   and the Dash timing range as the Dash length
 		   including +/- dot*tolerance% as well. */
-		int tolerance = (receiver.dot_length * receiver.tolerance) / 100;
-		receiver.dot_range_minimum = receiver.dot_length - tolerance;
-		receiver.dot_range_maximum = receiver.dot_length + tolerance;
-		receiver.dash_range_minimum = receiver.dash_length - tolerance;
-		receiver.dash_range_maximum = receiver.dash_length + tolerance;
+		int tolerance = (rec->dot_length * rec->tolerance) / 100;
+		rec->dot_range_minimum = rec->dot_length - tolerance;
+		rec->dot_range_maximum = rec->dot_length + tolerance;
+		rec->dash_range_minimum = rec->dash_length - tolerance;
+		rec->dash_range_maximum = rec->dash_length + tolerance;
 
 		/* Make the inter-element gap the same as the Dot
 		   range.  Make the inter-character gap, expected
@@ -1922,26 +1875,33 @@ void cw_sync_parameters_internal(cw_gen_t *gen)
 
 		   Any gap longer than this is by implication
 		   inter-word. */
-		receiver.eoe_range_minimum = receiver.dot_range_minimum;
-		receiver.eoe_range_maximum = receiver.dot_range_maximum;
-		receiver.eoc_range_minimum = receiver.dash_range_minimum;
-		receiver.eoc_range_maximum = receiver.dash_range_maximum
+		rec->eoe_range_minimum = rec->dot_range_minimum;
+		rec->eoe_range_maximum = rec->dot_range_maximum;
+		rec->eoc_range_minimum = rec->dash_range_minimum;
+		rec->eoc_range_maximum = rec->dash_range_maximum
+			/* The only reference to generator variables
+			   in code setting receiver variables.  Maybe
+			   we could/should do a full separation, and
+			   create rec->additional_delay and
+			   rec->adjustment_delay? */
 			+ gen->additional_delay + gen->adjustment_delay;
 	}
 
 	/* For statistical purposes, calculate the ideal end of
 	   element and end of character timings. */
-	receiver.eoe_range_ideal = unit_length;
-	receiver.eoc_range_ideal = 3 * unit_length;
+	rec->eoe_range_ideal = unit_length;
+	rec->eoc_range_ideal = 3 * unit_length;
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_PARAMETERS, CW_DEBUG_INFO,
 		      "libcw: receive usec timings <%d>: %d-%d, %d-%d, %d-%d[%d], %d-%d[%d], %d",
-		      receiver.speed,
-		      receiver.dot_range_minimum, receiver.dot_range_maximum,
-		      receiver.dash_range_minimum, receiver.dash_range_maximum,
-		      receiver.eoe_range_minimum, receiver.eoe_range_maximum, receiver.eoe_range_ideal,
-		      receiver.eoc_range_minimum, receiver.eoc_range_maximum, receiver.eoc_range_ideal,
-		      receiver.adaptive_receive_threshold);
+		      rec->speed,
+		      rec->dot_range_minimum, rec->dot_range_maximum,
+		      rec->dash_range_minimum, rec->dash_range_maximum,
+		      rec->eoe_range_minimum, rec->eoe_range_maximum, rec->eoe_range_ideal,
+		      rec->eoc_range_minimum, rec->eoc_range_maximum, rec->eoc_range_ideal,
+		      rec->adaptive_receive_threshold);
+
+
 
 	/* Set the "parameters in sync" flag. */
 	cw_is_in_sync = true;
@@ -1977,7 +1937,7 @@ void cw_reset_send_receive_parameters(void)
 
 	/* Changes require resynchronization. */
 	cw_is_in_sync = false;
-	cw_sync_parameters_internal(generator);
+	cw_sync_parameters_internal(generator, &receiver);
 
 	return;
 }
@@ -2009,7 +1969,7 @@ int cw_set_send_speed(int new_value)
 
 		/* Changes of send speed require resynchronization. */
 		cw_is_in_sync = false;
-		cw_sync_parameters_internal(generator);
+		cw_sync_parameters_internal(generator, &receiver);
 	}
 
 	return CW_SUCCESS;
@@ -2049,7 +2009,7 @@ int cw_set_receive_speed(int new_value)
 
 		/* Changes of receive speed require resynchronization. */
 		cw_is_in_sync = false;
-		cw_sync_parameters_internal(generator);
+		cw_sync_parameters_internal(generator, &receiver);
 	}
 
 	return CW_SUCCESS;
@@ -2151,7 +2111,7 @@ int cw_set_gap(int new_value)
 
 		/* Changes of gap require resynchronization. */
 		cw_is_in_sync = false;
-		cw_sync_parameters_internal(generator);
+		cw_sync_parameters_internal(generator, &receiver);
 	}
 
 	return CW_SUCCESS;
@@ -2183,7 +2143,7 @@ int cw_set_tolerance(int new_value)
 
 		/* Changes of tolerance require resynchronization. */
 		cw_is_in_sync = false;
-		cw_sync_parameters_internal(generator);
+		cw_sync_parameters_internal(generator, &receiver);
 	}
 
 	return CW_SUCCESS;
@@ -2215,7 +2175,7 @@ int cw_set_weighting(int new_value)
 
 		/* Changes of weighting require resynchronization. */
 		cw_is_in_sync = false;
-		cw_sync_parameters_internal(generator);
+		cw_sync_parameters_internal(generator, &receiver);
 	}
 
 	return CW_SUCCESS;
@@ -2351,7 +2311,7 @@ void cw_get_send_parameters(int *dot_usecs, int *dash_usecs,
 			    int *end_of_character_usecs, int *end_of_word_usecs,
 			    int *additional_usecs, int *adjustment_usecs)
 {
-	cw_sync_parameters_internal(generator);
+	cw_sync_parameters_internal(generator, &receiver);
 
 	if (dot_usecs)   *dot_usecs = generator->dot_length;
 	if (dash_usecs)  *dash_usecs = generator->dash_length;
@@ -2404,7 +2364,7 @@ void cw_get_receive_parameters(int *dot_usecs, int *dash_usecs,
 			       int *end_of_character_ideal_usecs,
 			       int *adaptive_threshold)
 {
-	cw_sync_parameters_internal(generator);
+	cw_sync_parameters_internal(generator, &receiver);
 
 	if (dot_usecs)      *dot_usecs = receiver.dot_length;
 	if (dash_usecs)     *dash_usecs = receiver.dash_length;
@@ -4577,7 +4537,7 @@ int cw_send_element_internal(cw_gen_t *gen, char element)
 	int status;
 
 	/* Synchronize low-level timings if required. */
-	cw_sync_parameters_internal(gen);
+	cw_sync_parameters_internal(gen, &receiver);
 
 	/* Send either a dot or a dash element, depending on representation. */
 	if (element == CW_DOT_REPRESENTATION) {
@@ -4656,7 +4616,7 @@ int cw_send_dash(void)
 int cw_send_character_space(void)
 {
 	/* Synchronize low-level timing parameters. */
-	cw_sync_parameters_internal(generator);
+	cw_sync_parameters_internal(generator, &receiver);
 
 	/* Delay for the standard end of character period, plus any
 	   additional inter-character gap */
@@ -4677,7 +4637,7 @@ int cw_send_character_space(void)
 int cw_send_word_space(void)
 {
 	/* Synchronize low-level timing parameters. */
-	cw_sync_parameters_internal(generator);
+	cw_sync_parameters_internal(generator, &receiver);
 
 	/* Send silence for the word delay period, plus any adjustment
 	   that may be needed at end of word. */
@@ -5220,7 +5180,7 @@ static double cw_get_receive_statistic_internal(stat_type_t type);
 void cw_add_receive_statistic_internal(stat_type_t type, int usecs)
 {
 	/* Synchronize low-level timings if required. */
-	cw_sync_parameters_internal(generator);
+	cw_sync_parameters_internal(generator, &receiver);
 
 	/* Calculate delta as difference between usec and the ideal value. */
 	int delta = usecs - ((type == STAT_DOT) ? receiver.dot_length
@@ -5397,7 +5357,7 @@ void cw_receive_set_adaptive_internal(bool flag)
 
 		/* Changing the flag forces a change in low-level parameters. */
 		cw_is_in_sync = false;
-		cw_sync_parameters_internal(generator);
+		cw_sync_parameters_internal(generator, &receiver);
 
 		/* If we have just switched to adaptive mode, (re-)initialize
 		   the averages array to the current dot/dash lengths, so
@@ -5645,7 +5605,7 @@ int cw_start_receive_tone(const struct timeval *timestamp)
 int cw_receive_identify_tone_internal(int element_usec, char *representation)
 {
 	/* Synchronize low level timings if required */
-	cw_sync_parameters_internal(generator);
+	cw_sync_parameters_internal(generator, &receiver);
 
 	/* If the timing was, within tolerance, a dot, return dot to the caller.  */
 	if (element_usec >= receiver.dot_range_minimum
@@ -5729,16 +5689,16 @@ void cw_receive_update_adaptive_tracking_internal(int element_usec, char element
 	   then have to reset adaptive and resyncing one more time, to get
 	   all other timing parameters back to where they should be. */
 	cw_is_in_sync = false;
-	cw_sync_parameters_internal (generator);
+	cw_sync_parameters_internal(generator, &receiver);
 	if (receiver.speed < CW_SPEED_MIN || receiver.speed > CW_SPEED_MAX) {
 		receiver.speed = receiver.speed < CW_SPEED_MIN
 			? CW_SPEED_MIN : CW_SPEED_MAX;
 		receiver.is_adaptive_receive_enabled = false;
 		cw_is_in_sync = false;
-		cw_sync_parameters_internal (generator);
+		cw_sync_parameters_internal(generator, &receiver);
 		receiver.is_adaptive_receive_enabled = true;
 		cw_is_in_sync = false;
-		cw_sync_parameters_internal (generator);
+		cw_sync_parameters_internal(generator, &receiver);
 	}
 
 	return;
@@ -6063,7 +6023,7 @@ int cw_receive_representation(const struct timeval *timestamp,
 						       &now_timestamp);
 
 	/* Synchronize low level timings if required */
-	cw_sync_parameters_internal(generator);
+	cw_sync_parameters_internal(generator, &receiver);
 
 	/* If the timing was, within tolerance, a character space, then
 	   that is what we'll call it.  In this case, we complete the
@@ -6392,7 +6352,7 @@ int cw_keyer_update_internal(void)
 	lock = true;
 
 	/* Synchronize low level timing parameters if required. */
-	cw_sync_parameters_internal(generator);
+	cw_sync_parameters_internal(generator, &receiver);
 
 	/* Decide what to do based on the current state. */
 	switch (cw_keyer_state) {
