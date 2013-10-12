@@ -138,11 +138,6 @@ static int cw_generator_new_open_internal(cw_gen_t *gen, int audio_system, const
 /* ******************************************************************** */
 /*                     Section:Generator - generic                      */
 /* ******************************************************************** */
-
-
-
-
-
 static void *cw_generator_write_sine_wave_internal(void *arg);
 static int   cw_generator_calculate_sine_wave_internal(cw_gen_t *gen, cw_tone_t *tone);
 static int   cw_generator_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone);
@@ -283,9 +278,9 @@ enum { DOT_CALIBRATION = 1200000 };
 
 /* Default initial values for library controls. */
 enum {
-	CW_ADAPTIVE_INITIAL  = false,  /* Initial adaptive receive setting */
-	CW_INITIAL_THRESHOLD = (DOT_CALIBRATION / CW_SPEED_INITIAL) * 2,   /* Initial adaptive speed threshold */
-	CW_INITIAL_NOISE_THRESHOLD = (DOT_CALIBRATION / CW_SPEED_MAX) / 2  /* Initial noise filter threshold */
+	CW_REC_ADAPTIVE_INITIAL  = false,  /* Initial adaptive receive setting */
+	CW_REC_INITIAL_THRESHOLD = (DOT_CALIBRATION / CW_SPEED_INITIAL) * 2,   /* Initial adaptive speed threshold */
+	CW_REC_INITIAL_NOISE_THRESHOLD = (DOT_CALIBRATION / CW_SPEED_MAX) / 2  /* Initial noise filter threshold */
 };
 
 
@@ -343,6 +338,9 @@ static void cw_finalization_cancel_internal(void);
 /* ******************************************************************** */
 /*            Section:Receive tracking and statistics helpers           */
 /* ******************************************************************** */
+static void   cw_receiver_add_statistic_internal(cw_rec_t *rec, stat_type_t type, int usecs);
+static double cw_receiver_get_statistic_internal(cw_rec_t *rec, stat_type_t type);
+
 static void cw_reset_adaptive_average_internal(cw_tracking_t *tracking, int initial);
 static void cw_update_adaptive_average_internal(cw_tracking_t *tracking, int element_usec);
 static int  cw_get_adaptive_average_internal(cw_tracking_t *tracking);
@@ -354,11 +352,6 @@ static int  cw_get_adaptive_average_internal(cw_tracking_t *tracking);
 /* ******************************************************************** */
 /*                           Section:Receiving                          */
 /* ******************************************************************** */
-
-
-
-
-
 
 /* "RS" stands for "Receiver State" */
 enum {
@@ -379,15 +372,15 @@ static cw_rec_t receiver = { .state = RS_IDLE,
 
 			     .speed = CW_SPEED_INITIAL,
 
-			     .noise_spike_threshold = CW_INITIAL_NOISE_THRESHOLD,
-			     .is_adaptive_receive_enabled = CW_ADAPTIVE_INITIAL,
-			     .adaptive_receive_threshold = CW_INITIAL_THRESHOLD,
+			     .noise_spike_threshold = CW_REC_INITIAL_NOISE_THRESHOLD,
+			     .is_adaptive_receive_enabled = CW_REC_ADAPTIVE_INITIAL,
+			     .adaptive_receive_threshold = CW_REC_INITIAL_THRESHOLD,
 			     .tolerance = CW_TOLERANCE_INITIAL,
 
 			     .tone_start = { 0, 0 },
 			     .tone_end =   { 0, 0 },
 
-			     .ind = 0,
+			     .representation_ind = 0,
 
 			     .dot_length = 0,
 			     .dash_length = 0,
@@ -400,7 +393,13 @@ static cw_rec_t receiver = { .state = RS_IDLE,
 			     .eoe_range_ideal = 0,
 			     .eoc_range_minimum = 0,
 			     .eoc_range_maximum = 0,
-			     .eoc_range_ideal = 0
+			     .eoc_range_ideal = 0,
+
+			     .statistics_ind = 0,
+			     .statistics = { {0, 0} },
+
+			     .dot_tracking  = { {0}, 0, 0 },
+			     .dash_tracking = { {0}, 0, 0 }
 };
 
 
@@ -440,22 +439,26 @@ static void cw_straight_key_clock_internal(void);
 /*                    Section:Global variables                          */
 /* ******************************************************************** */
 
-/* main data container; this is a global variable in library file,
-   so in future the variable must be moved from the file to client code;
+/* Main container for data related to generating audible Morse code.
+   This is a global variable in library file, but in future the
+   variable will be moved from the file to client code.
 
-   this is a global variable that should be converted into
-   a function argument; this pointer should exist only in
-   client's code, should initially be returned by new(), and
-   deleted by delete();
-   TODO: perform the conversion later, when you figure out
-   ins and outs of the library */
+   This is a global variable that should be converted into a function
+   argument; this pointer should exist only in client's code, should
+   initially be returned by new(), and deleted by delete().
+
+   TODO: perform the conversion later, when you figure out ins and
+   outs of the library. */
 static cw_gen_t *generator = NULL;
 
 
-/* Tone queue associated with a generator.
-   Every generator should have a tone queue from which to draw/dequeue
-   tones to play. Since generator is a global variable, so is tone queue
-   (at least for now). */
+/* Tone queue associated with a generator.  Every generator should
+   have a tone queue from which to draw/dequeue tones to play. The
+   library also provides complementary function for enqueueing tones
+   in the tone queue.
+
+   Since generator is a global variable, so is tone queue (at least
+   for now). */
 static cw_tone_queue_t cw_tone_queue;
 
 
@@ -509,7 +512,7 @@ const char *cw_audio_system_labels[] = {
 static bool lock = false;
 
 
-/* FIXME: Provide all three parts of library version. */
+/* TODO: Provide all three parts of library version. */
 static unsigned int major = 4, minor = 0;
 
 
@@ -1932,8 +1935,8 @@ void cw_reset_send_receive_parameters(void)
 
 	receiver.speed = CW_SPEED_INITIAL;
 	receiver.tolerance = CW_TOLERANCE_INITIAL;
-	receiver.is_adaptive_receive_enabled = CW_ADAPTIVE_INITIAL;
-	receiver.noise_spike_threshold = CW_INITIAL_NOISE_THRESHOLD;
+	receiver.is_adaptive_receive_enabled = CW_REC_ADAPTIVE_INITIAL;
+	receiver.noise_spike_threshold = CW_REC_INITIAL_NOISE_THRESHOLD;
 
 	/* Changes require resynchronization. */
 	cw_is_in_sync = false;
@@ -5057,23 +5060,6 @@ int cw_send_string(const char *string)
 
 
 
-/* Receive adaptive speed tracking.  A moving averages structure, comprising
-   a small array of element lengths, a circular index into the array, and
-   a running sum of elements for efficient calculation of moving averages. */
-enum { AVERAGE_ARRAY_LENGTH = 4 };
-struct cw_tracking_struct {
-	int buffer[AVERAGE_ARRAY_LENGTH];  /* Buffered element lengths */
-	int cursor;                        /* Circular buffer cursor */
-	int sum;                           /* Running sum */
-}; /* typedef cw_tracking_t */
-
-static cw_tracking_t cw_dot_tracking  = { {0}, 0, 0 },
-	             cw_dash_tracking = { {0}, 0, 0 };
-
-
-
-
-
 /**
    \brief Reset tracking data structure
 
@@ -5084,11 +5070,11 @@ static cw_tracking_t cw_dot_tracking  = { {0}, 0, 0 },
 */
 void cw_reset_adaptive_average_internal(cw_tracking_t *tracking, int initial)
 {
-	for (int i  = 0; i < AVERAGE_ARRAY_LENGTH; i++) {
+	for (int i = 0; i < CW_REC_AVERAGE_ARRAY_LENGTH; i++) {
 		tracking->buffer[i] = initial;
 	}
 
-	tracking->sum = initial * AVERAGE_ARRAY_LENGTH;
+	tracking->sum = initial * CW_REC_AVERAGE_ARRAY_LENGTH;
 	tracking->cursor = 0;
 
 	return;
@@ -5110,7 +5096,7 @@ void cw_update_adaptive_average_internal(cw_tracking_t *tracking, int element_us
 {
 	tracking->sum += element_usec - tracking->buffer[tracking->cursor];
 	tracking->buffer[tracking->cursor++] = element_usec;
-	tracking->cursor %= AVERAGE_ARRAY_LENGTH;
+	tracking->cursor %= CW_REC_AVERAGE_ARRAY_LENGTH;
 
 	return;
 }
@@ -5128,40 +5114,8 @@ void cw_update_adaptive_average_internal(cw_tracking_t *tracking, int element_us
 */
 int cw_get_adaptive_average_internal(cw_tracking_t *tracking)
 {
-	return tracking->sum / AVERAGE_ARRAY_LENGTH;
+	return tracking->sum / CW_REC_AVERAGE_ARRAY_LENGTH;
 }
-
-
-
-
-
-/* Receive timing statistics.
-   A circular buffer of entries indicating the difference between the
-   actual and the ideal timing for a receive element, tagged with the
-   type of statistic held, and a circular buffer pointer.
-   STAT_NONE must be zero so that the statistics buffer is initially empty. */
-typedef enum {
-	STAT_NONE = 0,
-	STAT_DOT,
-	STAT_DASH,
-	STAT_END_ELEMENT,
-	STAT_END_CHARACTER
-} stat_type_t;
-
-
-typedef struct {
-	stat_type_t type;  /* Record type */
-	int delta;         /* Difference between actual and ideal timing */
-} cw_statistics_t;
-
-
-enum { STATISTICS_ARRAY_LENGTH = 256 };
-
-static cw_statistics_t cw_receive_statistics[STATISTICS_ARRAY_LENGTH] = { {0, 0} };
-static int cw_statistics_cursor = 0;
-
-static void cw_add_receive_statistic_internal(stat_type_t type, int usecs);
-static double cw_get_receive_statistic_internal(stat_type_t type);
 
 
 
@@ -5177,21 +5131,21 @@ static double cw_get_receive_statistic_internal(stat_type_t type);
    \param type - element type
    \param usecs - timing of an element
 */
-void cw_add_receive_statistic_internal(stat_type_t type, int usecs)
+void cw_receiver_add_statistic_internal(cw_rec_t *rec, stat_type_t type, int usecs)
 {
 	/* Synchronize low-level timings if required. */
-	cw_sync_parameters_internal(generator, &receiver);
+	cw_sync_parameters_internal(generator, rec);
 
 	/* Calculate delta as difference between usec and the ideal value. */
-	int delta = usecs - ((type == STAT_DOT) ? receiver.dot_length
-			     : (type == STAT_DASH) ? receiver.dash_length
-			     : (type == STAT_END_ELEMENT) ? receiver.eoe_range_ideal
-			     : (type == STAT_END_CHARACTER) ? receiver.eoc_range_ideal : usecs);
+	int delta = usecs - ((type == STAT_DOT) ? rec->dot_length
+			     : (type == STAT_DASH) ? rec->dash_length
+			     : (type == STAT_END_ELEMENT) ? rec->eoe_range_ideal
+			     : (type == STAT_END_CHARACTER) ? rec->eoc_range_ideal : usecs);
 
 	/* Add this statistic to the buffer. */
-	cw_receive_statistics[cw_statistics_cursor].type = type;
-	cw_receive_statistics[cw_statistics_cursor++].delta = delta;
-	cw_statistics_cursor %= STATISTICS_ARRAY_LENGTH;
+	rec->statistics[rec->statistics_ind].type = type;
+	rec->statistics[rec->statistics_ind++].delta = delta;
+	rec->statistics_ind %= CW_REC_STATISTICS_CAPACITY;
 
 	return;
 }
@@ -5206,19 +5160,19 @@ void cw_add_receive_statistic_internal(stat_type_t type, int usecs)
    \return 0.0 if no record of given type were found
    \return timing statistics otherwise
 */
-double cw_get_receive_statistic_internal(stat_type_t type)
+double cw_receiver_get_statistic_internal(cw_rec_t *rec, stat_type_t type)
 {
 	/* Sum and count elements matching the given type.  A cleared
 	   buffer always begins refilling at element zero, so to optimize
 	   we can stop on the first unoccupied slot in the circular buffer. */
 	double sum_of_squares = 0.0;
 	int count = 0;
-	for (int cursor = 0; cursor < STATISTICS_ARRAY_LENGTH; cursor++) {
-		if (cw_receive_statistics[cursor].type == type) {
-			int delta = cw_receive_statistics[cursor].delta;
+	for (int i = 0; i < CW_REC_STATISTICS_CAPACITY; i++) {
+		if (rec->statistics[i].type == type) {
+			int delta = rec->statistics[i].delta;
 			sum_of_squares += (double) delta * (double) delta;
 			count++;
-		} else if (cw_receive_statistics[cursor].type == STAT_NONE) {
+		} else if (rec->statistics[i].type == STAT_NONE) {
 			break;
 		}
 	}
@@ -5252,16 +5206,16 @@ void cw_get_receive_statistics(double *dot_sd, double *dash_sd,
 			       double *element_end_sd, double *character_end_sd)
 {
 	if (dot_sd) {
-		*dot_sd = cw_get_receive_statistic_internal(STAT_DOT);
+		*dot_sd = cw_receiver_get_statistic_internal(&receiver, STAT_DOT);
 	}
 	if (dash_sd) {
-		*dash_sd = cw_get_receive_statistic_internal(STAT_DASH);
+		*dash_sd = cw_receiver_get_statistic_internal(&receiver, STAT_DASH);
 	}
 	if (element_end_sd) {
-		*element_end_sd = cw_get_receive_statistic_internal(STAT_END_ELEMENT);
+		*element_end_sd = cw_receiver_get_statistic_internal(&receiver, STAT_END_ELEMENT);
 	}
 	if (character_end_sd) {
-		*character_end_sd = cw_get_receive_statistic_internal(STAT_END_CHARACTER);
+		*character_end_sd = cw_receiver_get_statistic_internal(&receiver, STAT_END_CHARACTER);
 	}
 	return;
 }
@@ -5278,11 +5232,11 @@ void cw_get_receive_statistics(double *dot_sd, double *dash_sd,
 */
 void cw_reset_receive_statistics(void)
 {
-	for (int i  = 0; i < STATISTICS_ARRAY_LENGTH; i++) {
-		cw_receive_statistics[i].type = STAT_NONE;
-		cw_receive_statistics[i].delta = 0;
+	for (int i = 0; i < CW_REC_STATISTICS_CAPACITY; i++) {
+		receiver.statistics[i].type = STAT_NONE;
+		receiver.statistics[i].delta = 0;
 	}
-	cw_statistics_cursor = 0;
+	receiver.statistics_ind = 0;
 
 	return;
 }
@@ -5364,8 +5318,8 @@ void cw_receiver_set_adaptive_internal(cw_rec_t *rec, bool flag)
 		   the averages array to the current dot/dash lengths, so
 		   that initial averages match the current speed. */
 		if (rec->is_adaptive_receive_enabled) {
-			cw_reset_adaptive_average_internal(&cw_dot_tracking, rec->dot_length);
-			cw_reset_adaptive_average_internal(&cw_dash_tracking, rec->dash_length);
+			cw_reset_adaptive_average_internal(&rec->dot_tracking, rec->dot_length);
+			cw_reset_adaptive_average_internal(&rec->dash_tracking, rec->dash_length);
 		}
 	}
 
@@ -5567,7 +5521,7 @@ int cw_start_receive_tone(const struct timeval *timestamp)
 	if (receiver.state == RS_AFTER_TONE) {
 		int space_usec = cw_timestamp_compare_internal(&receiver.tone_end,
 							       &receiver.tone_start);
-		cw_add_receive_statistic_internal(STAT_END_ELEMENT, space_usec);
+		cw_receiver_add_statistic_internal(&receiver, STAT_END_ELEMENT, space_usec);
 	}
 
 	/* Set state to indicate we are inside a tone. */
@@ -5683,17 +5637,17 @@ void cw_receiver_update_adaptive_tracking_internal(cw_rec_t *rec, int element_us
 	   Which we pick depends only on what the representation of the
 	   character was identified as earlier. */
 	if (element == CW_DOT_REPRESENTATION) {
-		cw_update_adaptive_average_internal(&cw_dot_tracking, element_usec);
+		cw_update_adaptive_average_internal(&rec->dot_tracking, element_usec);
 	}
 	else if (element == CW_DASH_REPRESENTATION) {
-		cw_update_adaptive_average_internal(&cw_dash_tracking, element_usec);
+		cw_update_adaptive_average_internal(&rec->dash_tracking, element_usec);
 	}
 
 	/* Recalculate the adaptive threshold from the values currently
 	   held in the moving averages.  The threshold is calculated as
 	   (avg dash length - avg dot length) / 2 + avg dot_length. */
-	int average_dot = cw_get_adaptive_average_internal(&cw_dot_tracking);
-	int average_dash = cw_get_adaptive_average_internal(&cw_dash_tracking);
+	int average_dot = cw_get_adaptive_average_internal(&rec->dot_tracking);
+	int average_dash = cw_get_adaptive_average_internal(&rec->dash_tracking);
 	rec->adaptive_receive_threshold = (average_dash - average_dot) / 2
 		+ average_dot;
 
@@ -5773,7 +5727,7 @@ int cw_end_receive_tone(const struct timeval *timestamp)
 	   idle, otherwise we came from after tone. */
 	if (receiver.noise_spike_threshold > 0
 	    && element_usec <= receiver.noise_spike_threshold) {
-		receiver.state = receiver.ind == 0 ? RS_IDLE : RS_AFTER_TONE;
+		receiver.state = receiver.representation_ind == 0 ? RS_IDLE : RS_AFTER_TONE;
 
 		/* Put the end tone timestamp back to how it was when we
 		   came in to the routine. */
@@ -5813,19 +5767,19 @@ int cw_end_receive_tone(const struct timeval *timestamp)
 	   observed speeds.  So by doing this here, we can at least
 	   ameliorate this effect, if not eliminate it. */
 	if (representation == CW_DOT_REPRESENTATION) {
-		cw_add_receive_statistic_internal(STAT_DOT, element_usec);
+		cw_receiver_add_statistic_internal(&receiver, STAT_DOT, element_usec);
 	} else {
-		cw_add_receive_statistic_internal(STAT_DASH, element_usec);
+		cw_receiver_add_statistic_internal(&receiver, STAT_DASH, element_usec);
 	}
 
 	/* Add the representation character to the receive buffer. */
-	receiver.buffer[receiver.ind++] = representation;
+	receiver.representation[receiver.representation_ind++] = representation;
 
 	/* We just added a representation to the receive buffer.  If it's
 	   full, then we have to do something, even though it's unlikely.
 	   What we'll do is make a unilateral declaration that if we get
 	   this far, we go to end-of-char error state automatically. */
-	if (receiver.ind == CW_RECEIVER_CAPACITY - 1) {
+	if (receiver.representation_ind == CW_REC_REPRESENTATION_CAPACITY - 1) {
 		receiver.state = RS_ERR_CHAR;
 
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
@@ -5893,12 +5847,12 @@ int cw_receiver_add_element_internal(cw_rec_t *rec, const struct timeval *timest
 	}
 
 	/* Add the element to the receiver's representation buffer. */
-	rec->buffer[rec->ind++] = element;
+	rec->representation[rec->representation_ind++] = element;
 
 	/* We just added an element to the receiver's buffer.  As
 	   above, if it's full, then we have to do something, even
 	   though it's unlikely to actually be full. */
-	if (rec->ind == CW_RECEIVER_CAPACITY - 1) {
+	if (rec->representation_ind == CW_REC_REPRESENTATION_CAPACITY - 1) {
 		rec->state = RS_ERR_CHAR;
 
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
@@ -6051,7 +6005,7 @@ int cw_receive_representation(const struct timeval *timestamp,
 			*is_error = (receiver.state == RS_ERR_WORD);
 		}
 		*representation = '\0'; /* TODO: why do this? */
-		strncat(representation, receiver.buffer, receiver.ind);
+		strncat(representation, receiver.representation, receiver.representation_ind);
 		return CW_SUCCESS;
 	}
 
@@ -6112,7 +6066,7 @@ int cw_receive_representation(const struct timeval *timestamp,
 			   updating the state, update timing
 			   statistics for an identified end of
 			   character as well. */
-			cw_add_receive_statistic_internal(STAT_END_CHARACTER, space_len_usecs);
+			cw_receiver_add_statistic_internal(&receiver, STAT_END_CHARACTER, space_len_usecs);
 			receiver.state = RS_END_CHAR;
 		} else {
 			/* We are already in RS_END_CHAR or
@@ -6130,7 +6084,7 @@ int cw_receive_representation(const struct timeval *timestamp,
 			*is_error = (receiver.state == RS_ERR_CHAR);
 		}
 		*representation = '\0'; /* TODO: why do this? */
-		strncat(representation, receiver.buffer, receiver.ind);
+		strncat(representation, receiver.representation, receiver.representation_ind);
 		return CW_SUCCESS;
 	}
 
@@ -6159,7 +6113,7 @@ int cw_receive_representation(const struct timeval *timestamp,
 			*is_error = (receiver.state == RS_ERR_WORD);
 		}
 		*representation = '\0'; /* TODO: why do this? */
-		strncat(representation, receiver.buffer, receiver.ind);
+		strncat(representation, receiver.representation, receiver.representation_ind);
 		return CW_SUCCESS;
 	}
 
@@ -6213,7 +6167,7 @@ int cw_receive_character(const struct timeval *timestamp,
 			 /* out */ bool *is_end_of_word, /* out */ bool *is_error)
 {
 	bool end_of_word, error;
-	char representation[CW_RECEIVER_CAPACITY + 1];
+	char representation[CW_REC_REPRESENTATION_CAPACITY + 1];
 
 	/* See if we can obtain a representation from receiver. */
 	int status = cw_receive_representation(timestamp, representation,
@@ -6258,7 +6212,7 @@ int cw_receive_character(const struct timeval *timestamp,
 */
 void cw_clear_receive_buffer(void)
 {
-	receiver.ind = 0;
+	receiver.representation_ind = 0;
 	receiver.state = RS_IDLE;
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
@@ -6282,7 +6236,7 @@ void cw_clear_receive_buffer(void)
 */
 int cw_get_receive_buffer_capacity(void)
 {
-	return CW_RECEIVER_CAPACITY;
+	return CW_REC_REPRESENTATION_CAPACITY;
 }
 
 
@@ -6296,7 +6250,7 @@ int cw_get_receive_buffer_capacity(void)
 */
 int cw_get_receive_buffer_length(void)
 {
-	return receiver.ind;
+	return receiver.representation_ind;
 }
 
 
@@ -6312,7 +6266,7 @@ int cw_get_receive_buffer_length(void)
 */
 void cw_reset_receive(void)
 {
-	receiver.ind = 0;
+	receiver.representation_ind = 0;
 	receiver.state = RS_IDLE;
 
 	cw_reset_receive_statistics ();
