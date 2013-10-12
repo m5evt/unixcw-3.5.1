@@ -1836,9 +1836,9 @@ void cw_sync_parameters_internal(cw_gen_t *gen)
 	   timed (PARIS has 22 full units, and 28 empty ones).
 	   End of element and end of character delays take
 	   weightings into account. */
-	gen->end_of_ele_delay = unit_length - (28 * weighting_length) / 22;
-	gen->end_of_char_delay = 3 * unit_length - gen->end_of_ele_delay;
-	gen->end_of_word_delay = 7 * unit_length - gen->end_of_char_delay;
+	gen->eoe_delay = unit_length - (28 * weighting_length) / 22;
+	gen->eoc_delay = 3 * unit_length - gen->eoe_delay;
+	gen->eow_delay = 7 * unit_length - gen->eoc_delay;
 	gen->additional_delay = gen->gap * unit_length;
 
 	/* For "Farnsworth", there also needs to be an adjustment
@@ -1855,8 +1855,8 @@ void cw_sync_parameters_internal(cw_gen_t *gen)
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_PARAMETERS, CW_DEBUG_INFO,
 		      "libcw: send usec timings <%d>: %d, %d, %d, %d, %d, %d, %d",
 		      gen->send_speed, gen->dot_length, gen->dash_length,
-		      gen->end_of_ele_delay, gen->end_of_char_delay,
-		      gen->end_of_word_delay, gen->additional_delay, gen->adjustment_delay);
+		      gen->eoe_delay, gen->eoc_delay,
+		      gen->eow_delay, gen->additional_delay, gen->adjustment_delay);
 
 
 	/* Receive parameters:
@@ -2356,9 +2356,9 @@ void cw_get_send_parameters(int *dot_usecs, int *dash_usecs,
 	if (dot_usecs)   *dot_usecs = generator->dot_length;
 	if (dash_usecs)  *dash_usecs = generator->dash_length;
 
-	if (end_of_element_usecs)    *end_of_element_usecs = generator->end_of_ele_delay;
-	if (end_of_character_usecs)  *end_of_character_usecs = generator->end_of_char_delay;
-	if (end_of_word_usecs)       *end_of_word_usecs = generator->end_of_word_delay;
+	if (end_of_element_usecs)    *end_of_element_usecs = generator->eoe_delay;
+	if (end_of_character_usecs)  *end_of_character_usecs = generator->eoc_delay;
+	if (end_of_word_usecs)       *end_of_word_usecs = generator->eow_delay;
 
 	if (additional_usecs)    *additional_usecs = generator->additional_delay;
 	if (adjustment_usecs)    *adjustment_usecs = generator->adjustment_delay;
@@ -4604,7 +4604,7 @@ int cw_send_element_internal(cw_gen_t *gen, char element)
 	/* Send the inter-element gap. */
 	cw_tone_t tone;
 	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-	tone.usecs = gen->end_of_ele_delay;
+	tone.usecs = gen->eoe_delay;
 	tone.frequency = 0;
 	if (!cw_tone_queue_enqueue_internal(gen->tq, &tone)) {
 		return CW_FAILURE;
@@ -4662,7 +4662,7 @@ int cw_send_character_space(void)
 	   additional inter-character gap */
 	cw_tone_t tone;
 	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-	tone.usecs = generator->end_of_char_delay + generator->additional_delay;
+	tone.usecs = generator->eoc_delay + generator->additional_delay;
 	tone.frequency = 0;
 	return cw_tone_queue_enqueue_internal(generator->tq, &tone);
 }
@@ -4718,7 +4718,7 @@ int cw_send_word_space(void)
 
 	cw_tone_t tone;
 	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-	tone.usecs = generator->end_of_word_delay;
+	tone.usecs = generator->eow_delay;
 	tone.frequency = 0;
 	int a = cw_tone_queue_enqueue_internal(generator->tq, &tone);
 
@@ -4737,7 +4737,7 @@ int cw_send_word_space(void)
 
 	cw_tone_t tone;
 	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-	tone.usecs = generator->end_of_word_delay + generator->adjustment_delay;
+	tone.usecs = generator->eow_delay + generator->adjustment_delay;
 	tone.frequency = 0;
 
 	return cw_tone_queue_enqueue_internal(generator->tq, &tone);
@@ -6408,7 +6408,7 @@ int cw_keyer_update_internal(void)
 		   to the client. */
 	case KS_IN_DOT_A:
 	case KS_IN_DOT_B:
-		cw_key_iambic_keyer_generate_internal(generator, CW_KEY_STATE_OPEN, generator->end_of_ele_delay);
+		cw_key_iambic_keyer_generate_internal(generator, CW_KEY_STATE_OPEN, generator->eoe_delay);
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
 			      "libcw: cw_keyer_state: KS_IN_DOT -> KS_AFTER_DOT");
 		cw_keyer_state = cw_keyer_state == KS_IN_DOT_A
@@ -6420,7 +6420,7 @@ int cw_keyer_update_internal(void)
 
 	case KS_IN_DASH_A:
 	case KS_IN_DASH_B:
-		cw_key_iambic_keyer_generate_internal(generator, CW_KEY_STATE_OPEN, generator->end_of_ele_delay);
+		cw_key_iambic_keyer_generate_internal(generator, CW_KEY_STATE_OPEN, generator->eoe_delay);
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
 			      "libcw: cw_keyer_state: KS_IN_DASH -> KS_AFTER_DASH");
 		cw_keyer_state = cw_keyer_state == KS_IN_DASH_A
@@ -7089,10 +7089,10 @@ int cw_generator_new(int audio_system, const char *device)
 
 	generator->dot_length = 0;
 	generator->dash_length = 0;
-	generator->end_of_ele_delay = 0;
-	generator->end_of_char_delay = 0;
+	generator->eoe_delay = 0;
+	generator->eoc_delay = 0;
 	generator->additional_delay = 0;
-	generator->end_of_word_delay = 0;
+	generator->eow_delay = 0;
 	generator->adjustment_delay = 0;
 
 	int rv = cw_generator_new_open_internal(generator, audio_system, device);
