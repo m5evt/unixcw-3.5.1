@@ -1,3 +1,11 @@
+2013-10-13 Kamil Ignacak
+	* receiver code: more changes and reviewing of receiver code. Unit
+	tests for two functions in recever section:
+	cw_timestamp_validate_internal() and
+	cw_timestamp_compare_internal().  I've reversed order of arguments
+	for the first function, so the order now matches (output, input)
+	pattern of parameters order.
+
 2013-10-10 Kamil Ignacak
 	* testing: some improvements in code testing receiving functions
 	in libcwtest.c: simplifications, comments, refactoring.
