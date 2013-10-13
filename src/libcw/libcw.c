@@ -410,7 +410,7 @@ static void cw_receiver_set_adaptive_internal(cw_rec_t *rec, bool flag);
 static int  cw_receiver_identify_tone_internal(cw_rec_t *rec, int element_len_usecs, char *representation);
 static void cw_receiver_update_adaptive_tracking_internal(cw_rec_t *rec, int element_usec, char element);
 static int  cw_receiver_add_element_internal(cw_rec_t *rec, const struct timeval *timestamp, char element);
-static int  cw_timestamp_validate_internal(const struct timeval *timestamp, struct timeval *return_timestamp);
+static int  cw_timestamp_validate_internal(struct timeval *out_timestamp, const struct timeval *in_timestamp);
 static int  cw_timestamp_compare_internal(const struct timeval *earlier, const struct timeval *later);
 
 
@@ -5387,33 +5387,44 @@ bool cw_get_adaptive_receive_state(void)
 
 
 /**
-   \brief Validate timestamp
+   \brief Validate and return timestamp
 
-   If an input timestamp is given, validate it for correctness, and if
-   valid, copy it into return_timestamp and return true.  If invalid,
-   return false with errno set to EINVAL.  If an input timestamp is not
-   given (NULL), return true with the current system time in
-   return_timestamp.
+   If an input timestamp \p in_timestamp is given (non-NULL pointer),
+   validate it for correctness, and if valid, copy contents of
+   \p in_timestamp into \p out_timestamp and return CW_SUCCESS.
 
-   \param timestamp
-   \param return_timestamp
+   If \p in_timestamp is non-NULL and the timestamp is invalid, return
+   CW_FAILURE with errno set to EINVAL.
+
+   If \p in_timestamp is not given (NULL), get current time (with
+   gettimeofday()), put it in \p out_timestamp and return
+   CW_SUCCESS. If call to gettimeofday() fails, return CW_FAILURE.
+
+   \p out_timestamp cannot be NULL.
+
+   \param out_timestamp - timestamp to be used by client code after the function call
+   \param in_timestamp - timestamp to be validated
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
 */
-int cw_timestamp_validate_internal(const struct timeval *timestamp,
-				   struct timeval *return_timestamp)
+int cw_timestamp_validate_internal(struct timeval *out_timestamp, const struct timeval *in_timestamp)
 {
-	if (timestamp) {
-		if (timestamp->tv_sec < 0
-		    || timestamp->tv_usec < 0
-		    || timestamp->tv_usec >= USECS_PER_SEC) {
+	cw_assert (out_timestamp, "pointer to output timestamp is NULL");
+
+	if (in_timestamp) {
+		if (in_timestamp->tv_sec < 0
+		    || in_timestamp->tv_usec < 0
+		    || in_timestamp->tv_usec >= USECS_PER_SEC) {
 
 			errno = EINVAL;
 			return CW_FAILURE;
 		} else {
-			*return_timestamp = *timestamp;
+			*out_timestamp = *in_timestamp;
 			return CW_SUCCESS;
 		}
 	} else {
-		if (gettimeofday(return_timestamp, NULL)) {
+		if (gettimeofday(out_timestamp, NULL)) {
 			perror ("libcw: gettimeofday");
 			return CW_FAILURE;
 		} else {
@@ -5507,7 +5518,7 @@ int cw_start_receive_tone(const struct timeval *timestamp)
 	}
 
 	/* Validate and save the timestamp, or get one and then save it. */
-	if (!cw_timestamp_validate_internal(timestamp, &receiver.tone_start)) {
+	if (!cw_timestamp_validate_internal(&receiver.tone_start, timestamp)) {
 		return CW_FAILURE;
 	}
 
@@ -5709,7 +5720,7 @@ int cw_end_receive_tone(const struct timeval *timestamp)
 	struct timeval saved_end_timestamp = receiver.tone_end;
 
 	/* Save the timestamp passed in, or get one. */
-	if (!cw_timestamp_validate_internal(timestamp, &receiver.tone_end)) {
+	if (!cw_timestamp_validate_internal(&receiver.tone_end, timestamp)) {
 		return CW_FAILURE;
 	}
 
@@ -5842,7 +5853,7 @@ int cw_receiver_add_element_internal(cw_rec_t *rec, const struct timeval *timest
 	   tone timestamp is never set - this is just for timing the tone
 	   length, and we don't need to do that since we've already been
 	   told whether this is a dot or a dash. */
-	if (!cw_timestamp_validate_internal(timestamp, &rec->tone_end)) {
+	if (!cw_timestamp_validate_internal(&rec->tone_end, timestamp)) {
 		return CW_FAILURE;
 	}
 
@@ -6039,7 +6050,7 @@ int cw_receive_representation(const struct timeval *timestamp,
 	   for comparison against the tone_end timestamp saved in
 	   receiver. */
 	struct timeval now_timestamp;
-	if (!cw_timestamp_validate_internal(timestamp, &now_timestamp)) {
+	if (!cw_timestamp_validate_internal(&now_timestamp, timestamp)) {
 		return CW_FAILURE;
 	}
 
@@ -8185,6 +8196,9 @@ static unsigned int test_cw_tone_queue_is_full_internal(void);
 static unsigned int test_cw_tone_queue_test_capacity1(void);
 static unsigned int test_cw_tone_queue_test_capacity2(void);
 
+static unsigned int test_cw_timestamp_compare_internal(void);
+static unsigned int test_cw_timestamp_validate_internal(void);
+
 static unsigned int test_cw_usecs_to_timespec_internal(void);
 
 static int test_cw_tone_queue_capacity_test_init(cw_tone_queue_t *tq, uint32_t capacity, uint32_t high_water_mark, int head_shift);
@@ -8205,6 +8219,9 @@ static cw_test_function_t cw_unit_tests[] = {
 	test_cw_tone_queue_is_full_internal,
 	test_cw_tone_queue_test_capacity1,
 	test_cw_tone_queue_test_capacity2,
+
+	test_cw_timestamp_compare_internal,
+	test_cw_timestamp_validate_internal,
 
 	test_cw_usecs_to_timespec_internal,
 	NULL
@@ -8945,6 +8962,142 @@ int test_cw_tone_queue_capacity_test_init(cw_tone_queue_t *tq, uint32_t capacity
 	tq->state = QS_BUSY;
 
 	return CW_SUCCESS;
+}
+
+
+
+
+
+/**
+   test::cw_timestamp_compare_internal()
+*/
+unsigned int test_cw_timestamp_compare_internal(void)
+{
+	fprintf(stderr, "\ttesting cw_timestamp_compare_internal()...      ");
+
+	struct timeval earlier_timestamp;
+	struct timeval later_timestamp;
+
+	int expected_deltas[] = { 0,
+				  1,
+				  1001,
+				  USECS_PER_SEC - 1,
+				  USECS_PER_SEC,
+				  USECS_PER_SEC + 1,
+				  2 * USECS_PER_SEC - 1,
+				  2 * USECS_PER_SEC,
+				  2 * USECS_PER_SEC + 1,
+				  -1 }; /* Guard. */
+
+
+	earlier_timestamp.tv_sec = 3;
+	earlier_timestamp.tv_usec = 567;
+
+	int i = 0;
+	while (expected_deltas[i] != -1) {
+
+		later_timestamp.tv_sec = earlier_timestamp.tv_sec + (expected_deltas[i] / USECS_PER_SEC);
+		later_timestamp.tv_usec = earlier_timestamp.tv_usec + (expected_deltas[i] % USECS_PER_SEC);
+
+		int delta = cw_timestamp_compare_internal(&earlier_timestamp, &later_timestamp);
+		cw_assert (delta == expected_deltas[i], "test #%d: unexpected delta: %d != %d", i, delta, expected_deltas[i]);
+
+		i++;
+	}
+
+	fprintf(stderr, "OK\n");
+	return 0;
+}
+
+
+
+
+
+/**
+   test::cw_timestamp_validate_internal()
+*/
+unsigned int test_cw_timestamp_validate_internal(void)
+{
+	fprintf(stderr, "\ttesting cw_timestamp_validate_internal()...     ");
+
+	struct timeval out_timestamp;
+	struct timeval in_timestamp;
+	struct timeval ref_timestamp; /* Reference timestamp. */
+	int rv = 0;
+
+
+	/* Test 1 - get current time. */
+	out_timestamp.tv_sec = 0;
+	out_timestamp.tv_usec = 0;
+
+	cw_assert (!gettimeofday(&ref_timestamp, NULL), "failed to get reference time");
+
+	rv = cw_timestamp_validate_internal(&out_timestamp, NULL);
+	cw_assert (rv, "test 1: failed to get current timestamp with cw_timestamp_validate_internal(), errno = %d", errno);
+
+#if 0
+	fprintf(stderr, "\nINFO: delay in getting timestamp is %d microseconds\n",
+		cw_timestamp_compare_internal(&ref_timestamp, &out_timestamp));
+#endif
+
+
+
+	/* Test 2 - validate valid input timestamp and copy it to
+	   output timestamp. */
+	out_timestamp.tv_sec = 0;
+	out_timestamp.tv_usec = 0;
+	in_timestamp.tv_sec = 1234;
+	in_timestamp.tv_usec = 987;
+
+	rv = cw_timestamp_validate_internal(&out_timestamp, &in_timestamp);
+	cw_assert (rv, "test 2: failed to validate timestamp with cw_timestamp_validate_internal(), errno = %d", errno);
+	cw_assert (out_timestamp.tv_sec == in_timestamp.tv_sec, "test 2: failed to correctly copy seconds: %d != %d",
+		   (int) out_timestamp.tv_sec, (int) in_timestamp.tv_sec);
+	cw_assert (out_timestamp.tv_usec == in_timestamp.tv_usec, "test 2: failed to correctly copy microseconds: %d != %d",
+		   (int) out_timestamp.tv_usec, (int) in_timestamp.tv_usec);
+
+
+
+	/* Test 3 - detect invalid seconds in input timestamp. */
+	out_timestamp.tv_sec = 0;
+	out_timestamp.tv_usec = 0;
+	in_timestamp.tv_sec = -1;
+	in_timestamp.tv_usec = 987;
+
+	rv = cw_timestamp_validate_internal(&out_timestamp, &in_timestamp);
+	cw_assert (!rv, "test 3: failed to recognize invalid seconds");
+	cw_assert (errno == EINVAL, "failed to properly set errno, errno is %d", errno);
+
+
+
+
+	/* Test 4 - detect invalid microseconds in input timestamp (microseconds too large). */
+	out_timestamp.tv_sec = 0;
+	out_timestamp.tv_usec = 0;
+	in_timestamp.tv_sec = 123;
+	in_timestamp.tv_usec = USECS_PER_SEC + 1;
+
+	rv = cw_timestamp_validate_internal(&out_timestamp, &in_timestamp);
+	cw_assert (!rv, "test 4: failed to recognize invalid microseconds");
+	cw_assert (errno == EINVAL, "test 4: failed to properly set errno, errno is %d", errno);
+
+
+
+
+	/* Test 5 - detect invalid microseconds in input timestamp (microseconds negative). */
+	out_timestamp.tv_sec = 0;
+	out_timestamp.tv_usec = 0;
+	in_timestamp.tv_sec = 123;
+	in_timestamp.tv_usec = -1;
+
+	rv = cw_timestamp_validate_internal(&out_timestamp, &in_timestamp);
+	cw_assert (!rv, "test 5: failed to recognize invalid microseconds");
+	cw_assert (errno == EINVAL, "test 5: failed to properly set errno, errno is %d", errno);
+
+
+
+	fprintf(stderr, "OK\n");
+	return 0;
 }
 
 
