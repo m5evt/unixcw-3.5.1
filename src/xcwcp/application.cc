@@ -598,14 +598,12 @@ void Application::colors()
 // Handle a timer event from the QTimer we set up on initialization.  This
 // timer is used for regular polling for sender tone queue low and completed
 // receive characters.
-void
-Application::poll_timer_event ()
+void Application::poll_timer_event()
 {
-  if (is_using_libcw_)
-    {
-      sender_->poll (modeset_.get_current ());
-      receiver_->poll (modeset_.get_current ());
-    }
+	if (is_using_libcw_) {
+		sender_->poll(modeset_.get_current());
+		receiver_->poll(modeset_.get_current());
+	}
 }
 
 
@@ -1012,4 +1010,3 @@ void Application::check_audio_system(cw_config_t *config)
 
 
 }  // cw namespace
-
