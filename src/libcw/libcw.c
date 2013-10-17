@@ -5496,7 +5496,8 @@ int cw_timestamp_compare_internal(const struct timeval *earlier,
    \brief Mark beginning of receive tone
 
    Called on the start of a receive tone.  If the \p timestamp is NULL, the
-   current time is used.
+   current timestamp is used as beginning of tone.
+
    On error the function returns CW_FAILURE, with errno set to ERANGE if
    the call is directly after another cw_start_receive_tone() call or if
    an existing received character has not been cleared from the buffer,
@@ -5649,9 +5650,12 @@ void cw_receiver_update_adaptive_tracking_internal(cw_rec_t *rec, int element_us
 	   character was identified as earlier. */
 	if (element == CW_DOT_REPRESENTATION) {
 		cw_update_adaptive_average_internal(&rec->dot_tracking, element_usec);
-	}
-	else if (element == CW_DASH_REPRESENTATION) {
+	} else if (element == CW_DASH_REPRESENTATION) {
 		cw_update_adaptive_average_internal(&rec->dash_tracking, element_usec);
+	} else {
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
+			      "Unknown element %d\n", element);
+		return;
 	}
 
 	/* Recalculate the adaptive threshold from the values currently
@@ -5679,6 +5683,7 @@ void cw_receiver_update_adaptive_tracking_internal(cw_rec_t *rec, int element_us
 		rec->is_adaptive_receive_enabled = false;
 		cw_is_in_sync = false;
 		cw_sync_parameters_internal(generator, rec);
+
 		rec->is_adaptive_receive_enabled = true;
 		cw_is_in_sync = false;
 		cw_sync_parameters_internal(generator, rec);
@@ -5692,15 +5697,24 @@ void cw_receiver_update_adaptive_tracking_internal(cw_rec_t *rec, int element_us
 
 
 /**
-   Called on the end of a receive tone.  If the timestamp is NULL, the
-   current time is used.  On success, the routine adds a dot or dash to
-   the receive representation buffer, and returns true.  On error, it
-   returns false, with errno set to ERANGE if the call was not preceded by
-   a cw_start_receive_tone call, EINVAL if the timestamp passed in is not
-   valid, ENOENT if the tone length was out of bounds for the permissible
-   dot and dash lengths and fixed speed receiving is selected, ENOMEM if
-   the representation buffer is full, or EAGAIN if the tone was shorter
-   than the threshold for noise and was therefore ignored.
+   \brief Mark end of tone
+
+   Called on the end of a received tone.
+
+   If the \p timestamp is NULL, the current time is used as timestamp
+   of end of tone.
+
+   On success, the routine adds a dot or dash to the receiver's
+   representation buffer, and returns CW_SUCCESS.
+
+   On failure, it returns CW_FAIURE, with errno set to:
+   ERANGE if the call was not preceded by a cw_start_receive_tone() call,
+   EINVAL if the timestamp passed in is not valid,
+   ENOENT if the tone length was out of bounds for the permissible
+   dot and dash lengths and fixed speed receiving is selected,
+   ENOMEM if the receiver's representation buffer is full,
+   EAGAIN if the tone was shorter than the threshold for noise and was
+   therefore ignored.
 
    \param timestamp
 
@@ -5725,19 +5739,24 @@ int cw_end_receive_tone(const struct timeval *timestamp)
 	}
 
 	/* Compare the timestamps to determine the length of the tone. */
-	int element_usec = cw_timestamp_compare_internal(&receiver.tone_start,
-							 &receiver.tone_end);
+	int element_len_usecs = cw_timestamp_compare_internal(&receiver.tone_start,
+							      &receiver.tone_end);
 
-	/* If the tone length is shorter than any noise canceling threshold
-	   that has been set, then ignore this tone.  This means reverting
-	   to the state before the call to cw_start_receive_tone.  Now, by
-	   rights, we should use an extra state, RS_IN_FIRST_TONE, say, so
-	   that we know whether to go back to the idle state, or to after
-	   tone.  But to make things a touch simpler, here we can just look
-	   at the current receive buffer pointer. If it's zero, we came from
-	   idle, otherwise we came from after tone. */
+
 	if (receiver.noise_spike_threshold > 0
-	    && element_usec <= receiver.noise_spike_threshold) {
+	    && element_len_usecs <= receiver.noise_spike_threshold) {
+
+		/* This pair of start()/stop() calls is just a noise,
+		   ignore it.
+
+		   Revert to state of receiver as it was before
+		   complementary cw_start_receive_tone(). After call
+		   to start() the state was changed to RS_IN_TONE, but
+		   what state it was before call to start()?
+
+		   Check position in representation buffer to see in
+		   which state the receiver was *before* start()
+		   function call, and restore this state. */
 		receiver.state = receiver.representation_ind == 0 ? RS_IDLE : RS_AFTER_TONE;
 
 		/* Put the end tone timestamp back to how it was when we
@@ -5757,7 +5776,7 @@ int cw_end_receive_tone(const struct timeval *timestamp)
 	   tell us what it thinks this element is.  If it can't decide,
 	   it will hand us back an error which we return to the caller.
 	   Otherwise, it returns a character, dot or dash, for us to buffer. */
-	int status = cw_receiver_identify_tone_internal(&receiver, element_usec, &representation);
+	int status = cw_receiver_identify_tone_internal(&receiver, element_len_usecs, &representation);
 	if (!status) {
 		return CW_FAILURE;
 	}
@@ -5767,7 +5786,7 @@ int cw_end_receive_tone(const struct timeval *timestamp)
 	   have set adaptive receiving; don't fiddle about trying to track
 	   for fixed speed receive. */
 	if (receiver.is_adaptive_receive_enabled) {
-		cw_receiver_update_adaptive_tracking_internal(&receiver, element_usec, representation);
+		cw_receiver_update_adaptive_tracking_internal(&receiver, element_len_usecs, representation);
 	}
 
 	/* Update dot and dash timing statistics.  It may seem odd to do
@@ -5778,12 +5797,12 @@ int cw_end_receive_tone(const struct timeval *timestamp)
 	   observed speeds.  So by doing this here, we can at least
 	   ameliorate this effect, if not eliminate it. */
 	if (representation == CW_DOT_REPRESENTATION) {
-		cw_receiver_add_statistic_internal(&receiver, STAT_DOT, element_usec);
+		cw_receiver_add_statistic_internal(&receiver, STAT_DOT, element_len_usecs);
 	} else {
-		cw_receiver_add_statistic_internal(&receiver, STAT_DASH, element_usec);
+		cw_receiver_add_statistic_internal(&receiver, STAT_DASH, element_len_usecs);
 	}
 
-	/* Add the representation character to the receive buffer. */
+	/* Add the representation character to the receiver's buffer. */
 	receiver.representation[receiver.representation_ind++] = representation;
 
 	/* We just added a representation to the receive buffer.  If it's
@@ -5792,6 +5811,9 @@ int cw_end_receive_tone(const struct timeval *timestamp)
 	   this far, we go to end-of-char error state automatically. */
 	if (receiver.representation_ind == CW_REC_REPRESENTATION_CAPACITY - 1) {
 		receiver.state = RS_ERR_CHAR;
+
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
+			      "libcw: receiver's representation buffer is full");
 
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
 			      "libcw: receive state ->%d", receiver.state);
@@ -5843,16 +5865,20 @@ int cw_receiver_add_element_internal(cw_rec_t *rec, const struct timeval *timest
 		return CW_FAILURE;
 	}
 
-	/* This routine functions as if we have just seen a tone end, yet
-	   without really seeing a tone start.  To keep timing information
-	   for routines that come later, we need to make sure that the "end
-	   of tone" timestamp is set here.  This is because the receiver
-	   representation routine looks at the time since the last end of
-	   tone to determine whether we are at the end of a word, or just
-	   at the end of a character.  It doesn't matter that the start of
-	   tone timestamp is never set - this is just for timing the tone
-	   length, and we don't need to do that since we've already been
-	   told whether this is a dot or a dash. */
+	/* This routine functions as if we have just seen a tone end,
+	   yet without really seeing a tone start.
+
+	   It doesn't matter that we don't know timestamp of start of
+	   this tone: start timestamp would be needed only to
+	   determine tone length and element type (dot/dash). But
+	   since the element type has been determined by \p element,
+	   we don't need timestamp for start of element.
+
+	   What does matter is timestamp of end of this tone. This is
+	   because the receiver representation routines that may be
+	   called later look at the time since the last end of tone
+	   to determine whether we are at the end of a word, or just
+	   at the end of a character. */
 	if (!cw_timestamp_validate_internal(&rec->tone_end, timestamp)) {
 		return CW_FAILURE;
 	}
@@ -5904,7 +5930,7 @@ int cw_receiver_add_element_internal(cw_rec_t *rec, const struct timeval *timest
    whether a dot or dash was received by a method other than calling
    the routines cw_start_receive_tone() and cw_end_receive_tone().
 
-   On success, the relevant element is added to the receive'rs
+   On success, the relevant element is added to the receiver's
    representation buffer.
 
    On failure, the routines return CW_FAILURE, with errno set to
@@ -5913,7 +5939,7 @@ int cw_receiver_add_element_internal(cw_rec_t *rec, const struct timeval *timest
    within the receiver's buffer, or ENOMEM if the receiver's
    representation buffer is full.
 
-   \param timestamp
+   \param timestamp - timestamp of "end of dot" event
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
@@ -5932,7 +5958,7 @@ int cw_receive_buffer_dot(const struct timeval *timestamp)
 
    See documentation of cw_receive_buffer_dot() for more information.
 
-   \param timestamp
+   \param timestamp - timestamp of "end of dash" event
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
@@ -5961,7 +5987,9 @@ int cw_receive_buffer_dash(const struct timeval *timestamp)
    EAGAIN if the call is made too early to determine whether a
    complete representation has yet been placed in the buffer (that is,
    less than the inter-character gap period elapsed since the last
-   cw_end_receive_tone or cw_receive_buffer_dot/dash call).
+   cw_end_receive_tone or cw_receive_buffer_dot/dash call). This is
+   not a *hard* error, just an information that the caller should try
+   to get the representation later.
 
    \p is_end_of_word indicates that the delay after the last tone
    received is longer that the inter-word gap.
@@ -6128,8 +6156,11 @@ int cw_receive_representation(const struct timeval *timestamp,
 		return CW_SUCCESS;
 	}
 
-	/* If none of these conditions holds, then we cannot yet make a
-	   judgement on what we have in the buffer, so return EAGAIN. */
+	/* The space - judging by \p timestamp - is neither an
+	   inter-character space, nor inter-word space. If none of
+	   these conditions holds, then we cannot *yet* make a
+	   judgement on what we have in the buffer, so return
+	   EAGAIN. */
 	errno = EAGAIN;
 	return CW_FAILURE;
 }
@@ -6152,12 +6183,13 @@ int cw_receive_representation(const struct timeval *timestamp,
 
    ERANGE if not preceded by a cw_end_receive_tone() call, a prior
    successful cw_receive_character() call, or a
-   cw_receive_buffer_dot() or cw_receive_buffer dash() call,
+   cw_receive_buffer_dot() or cw_receive_buffer_dash() call,
    EINVAL if the timestamp passed in is invalid, or
    EAGAIN if the call is made too early to determine whether a
    complete character has yet been placed in the buffer (that is, less
    than the inter-character gap period elapsed since the last
    cw_end_receive_tone() or cw_receive_buffer_dot/dash call).
+   ENOENT if character stored in receiver cannot be recognized as valid
 
    \p is_end_of_word indicates that the delay after the last tone
    received is longer that the inter-word gap.
@@ -6271,16 +6303,16 @@ int cw_get_receive_buffer_length(void)
 /**
    \brief Clear receive data
 
-   Clear the receive representation buffer, statistics, and any retained
-   receive state.  This function is suitable for calling from an application
-   exit handler.
+   Clear the receiver's representation buffer, statistics, and any
+   retained receiver's state.  This function is suitable for calling
+   from an application exit handler.
 */
 void cw_reset_receive(void)
 {
 	receiver.representation_ind = 0;
 	receiver.state = RS_IDLE;
 
-	cw_reset_receive_statistics ();
+	cw_reset_receive_statistics();
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
 		      "libcw: receive state ->%d (reset)", receiver.state);
@@ -8977,6 +9009,9 @@ unsigned int test_cw_timestamp_compare_internal(void)
 
 	struct timeval earlier_timestamp;
 	struct timeval later_timestamp;
+
+	/* TODO: I think that there may be more tests to perform for
+	   the function, testing handling of overflow. */
 
 	int expected_deltas[] = { 0,
 				  1,
