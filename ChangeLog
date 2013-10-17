@@ -1,3 +1,7 @@
+2013-10-17 Kamil Ignacak
+	* xcwcp: reviewing, commenting and reformatting code in
+	receiver.cc - the file that uses libcw's receiver functionality.
+	
 2013-10-13 Kamil Ignacak
 	* receiver code: more changes and reviewing of receiver code. Unit
 	tests for two functions in recever section:
