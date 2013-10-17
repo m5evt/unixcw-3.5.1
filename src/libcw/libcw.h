@@ -353,7 +353,7 @@ extern void cw_reset_receive_statistics(void);
 extern void cw_enable_adaptive_receive(void);
 extern void cw_disable_adaptive_receive(void);
 extern bool cw_get_adaptive_receive_state(void);
-extern int cw_start_receive_tone (const struct timeval *timestamp);
+extern int cw_start_receive_tone(const struct timeval *timestamp);
 extern int cw_end_receive_tone(const struct timeval *timestamp);
 extern int cw_receive_buffer_dot(const struct timeval *timestamp);
 extern int cw_receive_buffer_dash(const struct timeval *timestamp);
