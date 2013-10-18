@@ -166,6 +166,9 @@ void cw_set_debug_flags(uint32_t flags)
 
 
 
+/**
+   testedin::test_cw_debug_flags()
+*/
 void cw_debug_set_flags(cw_debug_t *debug_object, uint32_t flags)
 {
 	debug_object->flags = flags;
@@ -214,6 +217,9 @@ uint32_t cw_get_debug_flags(void)
 
 
 
+/**
+   testedin::test_cw_debug_flags()
+*/
 uint32_t cw_debug_get_flags(cw_debug_t *debug_object)
 {
 	/* FIXME: what about initialization? */
@@ -386,9 +392,3 @@ void cw_debug_event_internal(cw_debug_t *debug_object, uint32_t flag, uint32_t e
 
 
 #endif /* #ifdef LIBCW_WITH_DEV */
-
-
-
-
-
-

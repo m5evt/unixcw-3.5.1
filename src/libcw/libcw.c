@@ -524,6 +524,8 @@ static unsigned int major = 4, minor = 0;
    Version numbers (major and minor) are returned as an int,
    composed of major_version << 16 | minor_version.
 
+   testedin::test_cw_version()
+
    \return library's major and minor version number encoded as single int
 */
 int cw_version(void)
@@ -537,6 +539,8 @@ int cw_version(void)
 
 /**
    \brief Print libcw's license text to stdout
+
+   testedin::test_cw_license()
 
    Function prints information about libcw version, followed
    by short text presenting libcw's copyright and license notice.
@@ -659,6 +663,8 @@ static const cw_entry_t CW_TABLE[] = {
    The number only includes alphanumeric characters, punctuation, and following
    procedural characters: VA/SK, BK, SN, AS, KA, AL.
 
+   testedin::test_character_lookups()
+
    \return number of known characters
 */
 int cw_get_character_count(void)
@@ -690,10 +696,14 @@ int cw_get_character_count(void)
    least one greater than the number of characters represented in the
    character lookup table, returned by cw_get_character_count().
 
+   testedin::test_character_lookups()
+
    \param list - pointer to space to be filled by function
 */
 void cw_list_characters(char *list)
 {
+	cw_assert (list, "Output pointer is null");
+
 	/* Append each table character to the output string. */
 	int i = 0;
 	for (const cw_entry_t *cw_entry = CW_TABLE; cw_entry->character; cw_entry++) {
@@ -714,6 +724,8 @@ void cw_list_characters(char *list)
 
    Function returns the string length of the longest representation in the
    character lookup table.
+
+   testedin::test_character_lookups()
 
    \return a positive number - length of the longest representation
 */
@@ -850,6 +862,8 @@ int cw_lookup_character(char c, char *representation)
    ENOMEM indicates that character has been found, but function failed
    to strdup() representation.
 
+   testedin::test_character_lookups()
+
    \param c - character to look up
 
    \return pointer to freshly allocated representation on success
@@ -891,6 +905,8 @@ char *cw_character_to_representation(int c)
    mask indicates the start of data (hence the 7-character limit).  This mask
    is viewable as an integer in the range 2 (".") to 255 ("-------"), and can
    be used as an index into a fast lookup array.
+
+   testedin::test_cw_representation_to_hash_internal()
 
    \param representation - string representing a character
 
@@ -1102,6 +1118,8 @@ int cw_check_representation(const char *representation)
    If representation is invalid, function returns false and sets
    errno to EINVAL.
 
+   testedin::test_representations()
+
    \param representation - representation of a character to check
 
    \return true on success
@@ -1185,6 +1203,8 @@ int cw_lookup_representation(const char *representation, char *c)
    character of the representation is invalid, or ENOENT to indicate that
    the representation could not be found.
 
+   testedin::test_character_lookups()
+
    \param representation - representation of a character to look up
 
    \return non-zero character on success
@@ -1262,6 +1282,8 @@ static const cw_prosign_entry_t CW_PROSIGN_TABLE[] = {
 /**
    \brief Get number of procedural signals
 
+   testedin::test_prosign_lookups()
+
    \return the number of characters represented in the procedural signal expansion lookup table
 */
 int cw_get_procedural_character_count(void)
@@ -1293,6 +1315,8 @@ int cw_get_procedural_character_count(void)
 
    \p list is managed by caller
 
+   testedin::test_prosign_lookups()
+
    \param list - space for returned characters
 */
 void cw_list_procedural_characters(char *list)
@@ -1317,6 +1341,8 @@ void cw_list_procedural_characters(char *list)
 
    Function returns the string length of the longest expansion
    in the procedural signal expansion table.
+
+   testedin::test_prosign_lookups()
 
    \return length
 */
@@ -1421,6 +1447,8 @@ const char *cw_lookup_procedural_character_internal(int c, bool *is_usually_expa
    If procedural signal character \p c cannot be found, the function sets
    errno to ENOENT and returns CW_FAILURE.
 
+   testedin::test_prosign_lookups()
+
    \param c - character to look up
    \param expansion - output, space to fill with expansion of the character
    \param is_usually_expanded - visual hint
@@ -1500,6 +1528,8 @@ static const char *const CW_PHONETICS[27] = {
 /**
    \brief Get maximum length of a phonetic
 
+   testedin::test_phonetic_lookups()
+
    \return the string length of the longest phonetic in the phonetics lookup table
  */
 int cw_get_maximum_phonetic_length(void)
@@ -1534,6 +1564,8 @@ int cw_get_maximum_phonetic_length(void)
    cw_get_maximum_phonetic_length().
 
    If character cannot be found, the function sets errno to ENOENT.
+
+   testedin::test_phonetic_lookups()
 
    \param c - character to look up
    \param phonetic - output, space for phonetic of a character
@@ -1597,6 +1629,8 @@ static bool cw_is_in_sync = false;
 
    See CW_SPEED_MIN and CW_SPEED_MAX in libcw.h for values.
 
+   testedin::test_cw_get_x_limits()
+
    \param min_speed - minimal allowed speed
    \param max_speed - maximal allowed speed
 */
@@ -1623,6 +1657,8 @@ void cw_get_speed_limits(int *min_speed, int *max_speed)
    be generated by current generator.
 
    See CW_FREQUENCY_MIN and CW_FREQUENCY_MAX in libcw.h for values.
+
+   testedin::test_cw_get_x_limits()
 
    \param min_frequency - minimal allowed frequency
    \param max_frequency - maximal allowed frequency
@@ -1651,6 +1687,9 @@ void cw_get_frequency_limits(int *min_frequency, int *max_frequency)
 
    See CW_VOLUME_MIN and CW_VOLUME_MAX in libcw.h for values.
 
+   testedin::test_cw_get_x_limits()
+   testedin::test_volume_functions()
+
    \param min_volume - minimal allowed volume
    \param max_volume - maximal allowed volume
 */
@@ -1676,6 +1715,8 @@ void cw_get_volume_limits(int *min_volume, int *max_volume)
    generated by current generator.
 
    See CW_GAP_MIN and CW_GAP_MAX in libcw.h for values.
+
+   testedin::test_cw_get_x_limits()
 
    \param min_gap - minimal allowed gap
    \param max_gap - maximal allowed gap
@@ -1703,6 +1744,8 @@ void cw_get_gap_limits(int *min_gap, int *max_gap)
 
    See CW_TOLERANCE_MIN and CW_TOLERANCE_MAX in libcw.h for values.
 
+   testedin::test_cw_get_x_limits()
+
    \param min_tolerance - minimal allowed tolerance
    \param max_tolerance - maximal allowed tolerance
 */
@@ -1728,6 +1771,8 @@ void cw_get_tolerance_limits(int *min_tolerance, int *max_tolerance)
    of current generator.
 
    See CW_WEIGHTING_MIN and CW_WEIGHTING_MAX in libcw.h for values.
+
+   testedin::test_cw_get_x_limits()
 
    \param min_weighting - minimal allowed weighting
    \param max_weighting - maximal allowed weighting
@@ -1957,6 +2002,8 @@ void cw_reset_send_receive_parameters(void)
 
    errno is set to EINVAL if \p new_value is out of range.
 
+   testedin::test_parameter_ranges()
+
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
@@ -1991,6 +2038,8 @@ int cw_set_send_speed(int new_value)
    value of receive speed.
    errno is set to EINVAL if \p new_value is out of range.
    errno is set to EPERM if adaptive receive speed tracking is enabled.
+
+   testedin::test_parameter_ranges()
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
@@ -2033,6 +2082,8 @@ int cw_set_receive_speed(int new_value)
 
    errno is set to EINVAL if \p new_value is out of range.
 
+   testedin::test_parameter_ranges()
+
    \param new_value - new value of frequency to be associated with current generator
 
    \return CW_SUCCESS on success
@@ -2068,6 +2119,9 @@ int cw_set_frequency(int new_value)
    value of volume.
    errno is set to EINVAL if \p new_value is out of range.
 
+   testedin::test_volume_functions()
+   testedin::test_parameter_ranges()
+
    \param new_value - new value of volume to be associated with current generator
 
    \return CW_SUCCESS on success
@@ -2098,6 +2152,8 @@ int cw_set_volume(int new_value)
    See libcw.h/CW_GAP_{INITIAL|MIN|MAX} for initial/minimal/maximal
    value of gap.
    errno is set to EINVAL if \p new_value is out of range.
+
+   testedin::test_parameter_ranges()
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
@@ -2131,6 +2187,8 @@ int cw_set_gap(int new_value)
    value of tolerance.
    errno is set to EINVAL if \p new_value is out of range.
 
+   testedin::test_parameter_ranges()
+
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
@@ -2163,6 +2221,8 @@ int cw_set_tolerance(int new_value)
    value of weighting.
    errno is set to EINVAL if \p new_value is out of range.
 
+   testedin::test_parameter_ranges()
+
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
@@ -2191,6 +2251,8 @@ int cw_set_weighting(int new_value)
 /**
    \brief Get sending speed
 
+   testedin::test_parameter_ranges()
+
    \return current value of the parameter
 */
 int cw_get_send_speed(void)
@@ -2204,6 +2266,8 @@ int cw_get_send_speed(void)
 
 /**
    \brief Get receiving speed
+
+   testedin::test_parameter_ranges()
 
    \return current value of the parameter
 */
@@ -2222,6 +2286,8 @@ int cw_get_receive_speed(void)
    Function returns "frequency" parameter of current generator,
    even if the generator is stopped, or volume of generated sound is zero.
 
+   testedin::test_parameter_ranges()
+
    \return Frequency of current generator
 */
 int cw_get_frequency(void)
@@ -2239,6 +2305,9 @@ int cw_get_frequency(void)
    Function returns "volume" parameter of current generator,
    even if the generator is stopped.
 
+   testedin::test_volume_functions()
+   testedin::test_parameter_ranges()
+
    \return Volume of current generator
 */
 int cw_get_volume(void)
@@ -2252,6 +2321,8 @@ int cw_get_volume(void)
 
 /**
    \brief Get sending gap
+
+   testedin::test_parameter_ranges()
 
    \return current value of the parameter
 */
@@ -2267,6 +2338,8 @@ int cw_get_gap(void)
 /**
    \brief Get tolerance
 
+   testedin::test_parameter_ranges()
+
    \return current value of the parameter
 */
 int cw_get_tolerance(void)
@@ -2280,6 +2353,8 @@ int cw_get_tolerance(void)
 
 /**
    \brief Get sending weighting
+
+   testedin::test_parameter_ranges()
 
    \return current value of the parameter
 */
@@ -3658,6 +3733,8 @@ struct cw_tone_queue_struct {
 
    Initialize tone queue structure - \p tq
 
+   testedin::test_cw_tone_queue_init_internal()
+
    \param tq - tone queue to initialize
 
    \return CW_SUCCESS on completion
@@ -3712,6 +3789,8 @@ int cw_tone_queue_init_internal(cw_tone_queue_t *tq)
 
    Functions set errno to EINVAL if any of the two parameters is invalid.
 
+   testedin::test_cw_tone_queue_capacity_test_init()
+
    \param tq - tone queue to configure
    \param capacity - new capacity of queue
    \param high_water_mark - high water mark for the queue
@@ -3758,6 +3837,8 @@ int cw_tone_queue_set_capacity_internal(cw_tone_queue_t *tq, uint32_t capacity, 
 /**
    \brief Return capacity of a queue
 
+   testedin::test_cw_tone_queue_get_capacity_internal()
+
    \param tq - tone queue, for which you want to get capacity
 
    \return capacity of tone queue
@@ -3793,6 +3874,8 @@ uint32_t cw_tone_queue_get_high_water_mark_internal(cw_tone_queue_t *tq)
 /**
    \brief Return number of items on tone queue
 
+   testedin::test_cw_tone_queue_length_internal()
+
    \param tq - tone queue
 
    \return the count of tones currently held in the circular tone buffer.
@@ -3817,6 +3900,8 @@ uint32_t cw_tone_queue_length_internal(cw_tone_queue_t *tq)
    The function calculates the index taking circular wrapping into
    consideration.
 
+   testedin::test_cw_tone_queue_prev_index_internal()
+
    \param tq - tone queue for which to calculate index
    \param ind - index in relation to which to calculate index of previous element in queue
 
@@ -3837,6 +3922,8 @@ uint32_t cw_tone_queue_prev_index_internal(cw_tone_queue_t *tq, uint32_t ind)
    Calculate index of next element in queue, relative to given \p ind.
    The function calculates the index taking circular wrapping into
    consideration.
+
+   testedin::test_cw_tone_queue_next_index_internal()
 
    \param tq - tone queue for which to calculate index
    \param ind - index in relation to which to calculate index of next element in queue
@@ -3881,6 +3968,9 @@ uint32_t cw_tone_queue_next_index_internal(cw_tone_queue_t *tq, uint32_t ind)
    won't permanently dequeue it (won't "destroy" it). Instead, it will keep
    returning (through \p usecs and \p frequency) the tone on every call,
    until a new tone is added to the queue after the "CW_AUDIO_FOREVER_USECS" tone.
+
+   testedin::test_cw_tone_queue_dequeue_internal()
+   testedin::test_cw_tone_queue_test_capacity2()
 
    \param tq - tone queue
    \param usecs - output, space for duration of dequeued tone
@@ -4096,6 +4186,10 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
    The function does accept tones with negative values of usecs,
    representing special tones.
 
+   testedin::test_cw_tone_queue_enqueue_internal()
+   testedin::test_cw_tone_queue_test_capacity1()
+   testedin::test_cw_tone_queue_test_capacity2()
+
    \param tq - tone queue
    \param tone - tone to enqueue
 
@@ -4195,6 +4289,8 @@ int cw_tone_queue_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
    If \p level is invalid, the routine returns CW_FAILURE with errno set to
    EINVAL.  Any callback supplied will be called in signal handler context.
 
+   testedin::test_tone_queue_callback()
+
    \param callback_func - callback function to be registered
    \param callback_arg - argument for callback_func to pass return value
    \param level - low level of queue triggering callback call
@@ -4245,6 +4341,9 @@ bool cw_is_tone_busy(void)
    blocked, the routine returns CW_FAILURE, with errno set to EDEADLK,
    to avoid indefinite waits.
 
+   testedin::test_tone_queue_1()
+   testedin::test_tone_queue_2()
+
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
@@ -4278,6 +4377,10 @@ int cw_wait_for_tone(void)
    blocked, the routine returns false, with errno set to EDEADLK,
    to avoid indefinite waits.
 
+   testedin::test_tone_queue_1()
+   testedin::test_tone_queue_2()
+   testedin::test_tone_queue_3()
+
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
@@ -4290,7 +4393,7 @@ int cw_wait_for_tone_queue(void)
 		return CW_FAILURE;
 	}
 
-	/* Wait until the dequeue indicates it's hit the end of the queue. */
+	/* Wait until the dequeue indicates it has hit the end of the queue. */
 	while (cw_tone_queue.state != QS_IDLE) {
 		cw_signal_wait_internal();
 	}
@@ -4342,6 +4445,8 @@ int cw_wait_for_tone_queue_critical(int level)
 /**
    \brief Indicate if the tone queue is full
 
+   testedin::test_cw_tone_queue_is_full_internal()
+
    \return true if tone queue is full
    \return false if tone queue is not full
 */
@@ -4362,6 +4467,8 @@ bool cw_is_tone_queue_full(void)
    queue in unit tests. The 'cw_is_tone_queue_full() works only on
    default tone queue object.
 
+   testedin::test_cw_tone_queue_is_full_internal()
+
    \param tq - tone queue to check
 
    \return true if tone queue is full
@@ -4378,6 +4485,9 @@ bool cw_tone_queue_is_full_internal(cw_tone_queue_t *tq)
 
 /**
    \brief Return the number of entries the tone queue can accommodate
+
+   testedin::test_tone_queue_3()
+   testedin::test_cw_tone_queue_get_capacity_internal()
 */
 int cw_get_tone_queue_capacity(void)
 {
@@ -4390,6 +4500,10 @@ int cw_get_tone_queue_capacity(void)
 
 /**
    \brief Return the number of entries currently pending in the tone queue
+
+   testedin::test_cw_tone_queue_length_internal()
+   testedin::test_tone_queue_1()
+   testedin::test_tone_queue_3()
 */
 int cw_get_tone_queue_length(void)
 {
@@ -4447,6 +4561,11 @@ void cw_flush_tone_queue(void)
    If the sound card, console speaker, or keying function are busy,
    it returns CW_FAILURE  with errno set to EBUSY.  If the tone queue
    is full, it returns false with errno set to EAGAIN.
+
+   testedin::test_tone_queue_0()
+   testedin::test_tone_queue_1()
+   testedin::test_tone_queue_2()
+   testedin::test_tone_queue_3()
 
    \param usecs - duration of queued tone, in microseconds
    \param frequency - frequency of queued tone
@@ -4581,17 +4700,19 @@ int cw_send_element_internal(cw_gen_t *gen, char element)
 
 
 /**
- * cw_send_[dot|dash|character_space|word_space]()
- *
- * Low level primitives, available to send single dots, dashes, character
- * spaces, and word spaces.  The dot and dash routines always append the
- * normal inter-element gap after the tone sent.  The cw_send_character_space
- * routine sends space timed to exclude the expected prior dot/dash
- * inter-element gap.  The cw_send_word_space routine sends space timed to
- * exclude both the expected prior dot/dash inter-element gap and the prior
- * end of character space.  These functions return true on success, or false
- * with errno set to EBUSY or EAGAIN on error.
- */
+   cw_send_[dot|dash|character_space|word_space]()
+
+   Low level primitives, available to send single dots, dashes, character
+   spaces, and word spaces.  The dot and dash routines always append the
+   normal inter-element gap after the tone sent.  The cw_send_character_space
+   routine sends space timed to exclude the expected prior dot/dash
+   inter-element gap.  The cw_send_word_space routine sends space timed to
+   exclude both the expected prior dot/dash inter-element gap and the prior
+   end of character space.  These functions return true on success, or false
+   with errno set to EBUSY or EAGAIN on error.
+
+   testedin::test_send_primitives()
+*/
 int cw_send_dot(void)
 {
 	return cw_send_element_internal(generator, CW_DOT_REPRESENTATION);
@@ -4603,6 +4724,8 @@ int cw_send_dot(void)
 
 /**
    See documentation of cw_send_dot() for more information
+
+   testedin::test_send_primitives()
 */
 int cw_send_dash(void)
 {
@@ -4615,6 +4738,8 @@ int cw_send_dash(void)
 
 /**
    See documentation of cw_send_dot() for more information
+
+   testedin::test_send_primitives()
 */
 int cw_send_character_space(void)
 {
@@ -4636,6 +4761,8 @@ int cw_send_character_space(void)
 
 /**
    See documentation of cw_send_dot() for more information
+
+   testedin::test_send_primitives()
 */
 int cw_send_word_space(void)
 {
@@ -4774,6 +4901,8 @@ int cw_send_representation_internal(cw_gen_t *gen, const char *representation, b
    queue is full, or if there is insufficient space to queue the tones
    or the representation.
 
+   testedin::test_representations()
+
    \param representation - representation to send
 
    \return CW_SUCCESS on success
@@ -4806,6 +4935,8 @@ int cw_send_representation(const char *representation)
    console speaker, or keying system is busy, or EAGAIN if the tone queue
    is full, or if there is insufficient space to queue the tones for
    the representation.
+
+   testedin::test_representations()
 */
 int cw_send_representation_partial(const char *representation)
 {
@@ -4872,6 +5003,8 @@ int cw_send_character_internal(cw_gen_t *gen, char character, int partial)
 
    Function sets errno to ENOENT on failure.
 
+   testedin::test_validate_character_and_string()
+
    \param c - character to check
 
    \return CW_SUCCESS if character is valid
@@ -4915,6 +5048,8 @@ int cw_check_character(char c)
    queued for sending; that is, almost immediately.  The actual sending
    happens in background processing.  See cw_wait_for_tone() and
    cw_wait_for_tone_queue() for ways to check the progress of sending.
+
+   testedin::test_send_character_and_string()
 
    \param c - character to send
 
@@ -4976,6 +5111,8 @@ int cw_send_character_partial(char c)
 
    Function sets errno to EINVAL on failure
 
+   testedin::test_validate_character_and_string()
+
    \param string - string to check
 
    \return CW_SUCCESS on success
@@ -5025,6 +5162,8 @@ int cw_check_string(const char *string)
 
    This routine queues its arguments for background processing.  See
    cw_send_character() for details of how to check the queue status.
+
+   testedin::test_send_character_and_string()
 
    \param string - string to send
 
@@ -5402,6 +5541,8 @@ bool cw_get_adaptive_receive_state(void)
 
    \p out_timestamp cannot be NULL.
 
+   testedin::test_cw_timestamp_validate_internal()
+
    \param out_timestamp - timestamp to be used by client code after the function call
    \param in_timestamp - timestamp to be validated
 
@@ -5444,6 +5585,8 @@ int cw_timestamp_validate_internal(struct timeval *out_timestamp, const struct t
    microseconds, taking care to clamp values which would overflow an int.
 
    This routine always returns a positive integer in the range 0 to INT_MAX.
+
+   testedin::test_cw_timestamp_compare_internal()
 
    \param earlier - timestamp to compare
    \param later - timestamp to compare
@@ -6008,6 +6151,8 @@ int cw_receive_buffer_dash(const struct timeval *timestamp)
    words. Timestamp for end of space would be the same timestamp as
    for beginning of new tone (?).
 
+   testedin::test_helper_receive_tests()
+
    \param timestamp - timestamp of event that ends "end-of-character" space or "end-of-word" space
    \param representation - buffer for representation (output parameter)
    \param is_end_of_word - buffer for "is end of word" state (output parameter)
@@ -6197,6 +6342,8 @@ int cw_receive_representation(const struct timeval *timestamp,
    \p is_error indicates that the character was terminated by an error
    condition.
 
+   testedin::test_helper_receive_tests()
+
    \param timestamp - timestamp of event that ends "end-of-character" space or "end-of-word" space
    \param c - buffer for character (output parameter)
    \param is_end_of_word - buffer for "is end of word" state (output parameter)
@@ -6288,6 +6435,8 @@ int cw_get_receive_buffer_capacity(void)
 
 /**
    \brief Get the number of elements (dots/dashes) currently pending in the receiver's representation buffer
+
+   testedin::test_helper_receive_tests()
 
    \return number of elements in receiver's representation buffer
 */
@@ -6597,6 +6746,8 @@ int cw_keyer_update_internal(void)
    and cw_keyer_wait for details about how to check the current status of
    iambic keyer background processing.
 
+   testedin::test_keyer()
+
    \param dot_paddle_state
    \param dash_paddle_state
 
@@ -6714,6 +6865,8 @@ int cw_notify_keyer_dash_paddle_event(int dash_paddle_state)
 /**
    \brief Get the current saved states of the two paddles
 
+   testedin::test_keyer()
+
    \param dot_paddle_state
    \param dash_paddle_state
 */
@@ -6781,6 +6934,8 @@ bool cw_is_keyer_busy(void)
 
    On error the function returns CW_FAILURE, with errno set to
    EDEADLK if SIGALRM is blocked.
+
+   testedin::test_keyer()
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
@@ -6953,6 +7108,10 @@ void cw_straight_key_clock_internal(void)
    the sound card, console speaker, or keying control system.  If
    \p key_state indicates no change of state, the call is ignored.
 
+   \p key_state may be either CW_KEY_STATE_OPEN (false) or CW_KEY_STATE_CLOSED (true).
+
+   testedin::test_straight_key()
+
    \param key_state - state of straight key
 */
 int cw_notify_straight_key_event(int key_state)
@@ -7002,8 +7161,10 @@ int cw_notify_straight_key_event(int key_state)
 
    Returns the current saved state of the straight key.
 
-   \return true if the key is down
-   \return false if the key up
+   testedin::test_straight_key()
+
+   \return CW_KEY_STATE_CLOSED (true) if the key is down
+   \return CW_KEY_STATE_OPEN (false) if the key up
 */
 int cw_get_straight_key_state(void)
 {
@@ -7019,6 +7180,8 @@ int cw_get_straight_key_state(void)
 
    This routine is just a pseudonym for cw_get_straight_key_state(),
    and exists to fill a hole in the API naming conventions.
+
+   testedin::test_straight_key()
 
    \return true if the straight key is busy
    \return false if the straight key is not busy
@@ -8001,6 +8164,8 @@ int cw_soundcard_write_internal(cw_gen_t *gen, int queue_state, cw_tone_t *tone)
 
    This function is just a simple wrapper for few lines of code.
 
+   testedin::test_cw_usecs_to_timespec_internal()
+
    \param t - pointer to existing struct to be filled with data
    \param usecs - value to convert to timespec
 */
@@ -8295,7 +8460,7 @@ int main(void)
 
 
 /**
-   test::cw_representation_to_hash_internal()
+   tests::cw_representation_to_hash_internal()
 */
 unsigned int test_cw_representation_to_hash_internal(void)
 {
@@ -8388,15 +8553,16 @@ static cw_tone_queue_t test_tone_queue;
 
 
 /**
-   test::cw_tone_queue_init_internal()
+   tests::cw_tone_queue_init_internal()
 */
-static unsigned int test_cw_tone_queue_init_internal(void)
+unsigned int test_cw_tone_queue_init_internal(void)
 {
 	fprintf(stderr, "\ttesting cw_tone_queue_init_internal()...        ");
 	int rv = cw_tone_queue_init_internal(&test_tone_queue);
 	assert (rv == CW_SUCCESS);
 
-	/* this is preparation for other tests that will be performed on the tq. */
+	/* This is preparation for other tests that will be performed
+	   on the global test tq. */
 	test_tone_queue.state = QS_BUSY;
 
 	fprintf(stderr, "OK\n");
@@ -8409,9 +8575,10 @@ static unsigned int test_cw_tone_queue_init_internal(void)
 
 
 /**
-   test::cw_tone_queue_get_capacity_internal()
+   tests::cw_tone_queue_get_capacity_internal()
+   tests::cw_get_tone_queue_capacity()
 */
-static unsigned int test_cw_tone_queue_get_capacity_internal(void)
+unsigned int test_cw_tone_queue_get_capacity_internal(void)
 {
 	fprintf(stderr, "\ttesting cw_tone_queue_get_capacity_internal()... ");
 
@@ -8428,9 +8595,9 @@ static unsigned int test_cw_tone_queue_get_capacity_internal(void)
 
 
 /**
-   test::cw_tone_queue_prev_index_internal()
+   tests::cw_tone_queue_prev_index_internal()
 */
-static unsigned int test_cw_tone_queue_prev_index_internal(void)
+unsigned int test_cw_tone_queue_prev_index_internal(void)
 {
 	fprintf(stderr, "\ttesting cw_tone_queue_prev_index_internal()...  ");
 
@@ -8476,9 +8643,9 @@ static unsigned int test_cw_tone_queue_prev_index_internal(void)
 
 
 /**
-   test::cw_tone_queue_next_index_internal()
+   tests::cw_tone_queue_next_index_internal()
 */
-static unsigned int test_cw_tone_queue_next_index_internal(void)
+unsigned int test_cw_tone_queue_next_index_internal(void)
 {
 	fprintf(stderr, "\ttesting cw_tone_queue_next_index_internal()...  ");
 
@@ -8520,10 +8687,10 @@ static unsigned int test_cw_tone_queue_next_index_internal(void)
    The second function is just a wrapper for the first one, so this
    test case tests both functions at once.
 
-   test::cw_tone_queue_length_internal()
-   test::cw_get_tone_queue_length()
+   tests::cw_tone_queue_length_internal()
+   tests::cw_get_tone_queue_length()
 */
-static unsigned int test_cw_tone_queue_length_internal(void)
+unsigned int test_cw_tone_queue_length_internal(void)
 {
 	fprintf(stderr, "\ttesting cw_tone_queue_length_internal()...      ");
 
@@ -8588,9 +8755,9 @@ static unsigned int test_cw_tone_queue_length_internal(void)
 
 
 /**
-   test::cw_tone_queue_enqueue_internal()
+   tests::cw_tone_queue_enqueue_internal()
 */
-static unsigned int test_cw_tone_queue_enqueue_internal(void)
+unsigned int test_cw_tone_queue_enqueue_internal(void)
 {
 	fprintf(stderr, "\ttesting cw_tone_queue_enqueue_internal()...     ");
 
@@ -8635,9 +8802,9 @@ static unsigned int test_cw_tone_queue_enqueue_internal(void)
 
 
 /**
-   test::cw_tone_queue_dequeue_internal()
+   tests::cw_tone_queue_dequeue_internal()
 */
-static unsigned int test_cw_tone_queue_dequeue_internal(void)
+unsigned int test_cw_tone_queue_dequeue_internal(void)
 {
 	fprintf(stderr, "\ttesting cw_tone_queue_dequeue_internal()...     ");
 
@@ -8705,8 +8872,8 @@ static unsigned int test_cw_tone_queue_dequeue_internal(void)
    The second function is just a wrapper for the first one, so this
    test case tests both functions at once.
 
-   test::cw_tone_queue_is_full_internal()
-   test::cw_is_tone_queue_full()
+   tests::cw_tone_queue_is_full_internal()
+   tests::cw_is_tone_queue_full()
 */
 unsigned int test_cw_tone_queue_is_full_internal(void)
 {
@@ -8765,6 +8932,8 @@ unsigned int test_cw_tone_queue_is_full_internal(void)
    tone queue using cw_tone_queue_enqueue_internal(), and then
    "manually" checking content of tone queue to be sure that all the
    tones are in place.
+
+   tests::cw_tone_queue_enqueue_internal()
 */
 unsigned int test_cw_tone_queue_test_capacity1(void)
 {
@@ -8844,6 +9013,9 @@ unsigned int test_cw_tone_queue_test_capacity1(void)
    tone queue using cw_tone_queue_enqueue_internal(), then dequeueing
    the tones with cw_tone_queue_dequeue_internal() and then checking
    that enqueued tones are the ones that we were expecting to get.
+
+   tests::cw_tone_queue_enqueue_internal()
+   tests::cw_tone_queue_dequeue_internal()
 */
 unsigned int test_cw_tone_queue_test_capacity2(void)
 {
@@ -8949,7 +9121,7 @@ unsigned int test_cw_tone_queue_test_capacity2(void)
    pointer, we can test this assertion about irrelevance of initial
    head position.
 
-   test::cw_tone_queue_set_capacity_internal()
+   tests::cw_tone_queue_set_capacity_internal()
 
    \param tq - tone queue to test
    \param capacity - intended capacity of tone queue
@@ -9001,7 +9173,7 @@ int test_cw_tone_queue_capacity_test_init(cw_tone_queue_t *tq, uint32_t capacity
 
 
 /**
-   test::cw_timestamp_compare_internal()
+   tests::cw_timestamp_compare_internal()
 */
 unsigned int test_cw_timestamp_compare_internal(void)
 {
@@ -9049,7 +9221,7 @@ unsigned int test_cw_timestamp_compare_internal(void)
 
 
 /**
-   test::cw_timestamp_validate_internal()
+   tests::cw_timestamp_validate_internal()
 */
 unsigned int test_cw_timestamp_validate_internal(void)
 {
@@ -9140,7 +9312,7 @@ unsigned int test_cw_timestamp_validate_internal(void)
 
 
 /**
-   test::cw_usecs_to_timespec_internal()
+   tests::cw_usecs_to_timespec_internal()
 */
 unsigned int test_cw_usecs_to_timespec_internal(void)
 {
