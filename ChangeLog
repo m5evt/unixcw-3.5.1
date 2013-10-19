@@ -1,7 +1,14 @@
+2013-10-19 Kamil Ignacak
+	* unit tests: adding "tests::" and "testedin::" markings in
+	functions' top level comments to indicate which functions are
+	tested in which unit tests. Also rewriting parts of bodies of unit
+	tests in libcwtest.c so that printout of test results is a bit
+	cleaner.
+
 2013-10-17 Kamil Ignacak
 	* xcwcp: reviewing, commenting and reformatting code in
 	receiver.cc - the file that uses libcw's receiver functionality.
-	
+
 2013-10-13 Kamil Ignacak
 	* receiver code: more changes and reviewing of receiver code. Unit
 	tests for two functions in recever section:
