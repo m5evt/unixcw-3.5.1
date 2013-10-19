@@ -162,6 +162,7 @@ static int cw_soundcard_write_internal(cw_gen_t *gen, int queue_state, cw_tone_t
    representation looks like this: ".-" for "a", "--.." for "z", etc. */
 static bool         cw_representation_lookup_init_internal(const cw_entry_t *lookup[]);
 static int          cw_representation_to_character_internal(const char *representation);
+static int          cw_representation_to_character_direct_internal(const char *representation);
 static unsigned int cw_representation_to_hash_internal(const char *representation);
 static const char  *cw_character_to_representation_internal(int c);
 
@@ -316,9 +317,9 @@ static void cw_sync_parameters_internal(cw_gen_t *gen, cw_rec_t *rec);
    a client callback function. The function will be called every time the
    state of a key changes. */
 
-static void cw_key_set_state_internal(int requested_key_state);
-static void cw_key_straight_key_generate_internal(cw_gen_t *gen, int requested_key_state);
-static void cw_key_iambic_keyer_generate_internal(cw_gen_t *gen, int requested_key_state, int usecs);
+static void cw_key_set_state_internal(int key_state);
+static void cw_key_straight_key_generate_internal(cw_gen_t *gen, int key_state);
+static void cw_key_iambic_keyer_generate_internal(cw_gen_t *gen, int key_state, int usecs);
 
 
 
@@ -563,6 +564,10 @@ void cw_license(void)
    The function returns one of following strings:
    None, Null, Console, OSS, ALSA, PulseAudio, Soundcard
 
+   Returned pointer is owned and managed by the library.
+
+   TODO: change the declaration to "const char *const cw_get_audio_system_label(...)"?
+
    \param audio_system - ID of audio system to look up
 
    \return audio system's label
@@ -761,7 +766,7 @@ int cw_get_maximum_representation_length(void)
    \param c - character to look up
 
    \return pointer to string with representation of character on success
-   \return NULL on failure
+   \return NULL on failure (when \p c has no representation)
 */
 const char *cw_character_to_representation_internal(int c)
 {
@@ -794,13 +799,13 @@ const char *cw_character_to_representation_internal(int c)
 
 	if (cw_debug_has_flag((&cw_debug_object), CW_DEBUG_LOOKUPS)) {
 		if (cw_entry) {
-			fprintf (stderr, "libcw: lookup '%c' returned <'%c':\"%s\">\n",
-				 c, cw_entry->character, cw_entry->representation);
-		} else if (isprint (c)) {
-			fprintf (stderr, "libcw: lookup '%c' found nothing\n", c);
+			fprintf(stderr, "libcw: lookup '%c' returned <'%c':\"%s\">\n",
+				c, cw_entry->character, cw_entry->representation);
+		} else if (isprint(c)) {
+			fprintf(stderr, "libcw: lookup '%c' found nothing\n", c);
 		} else {
-			fprintf (stderr, "libcw: lookup 0x%02x found nothing\n",
-				 (unsigned char) c);
+			fprintf(stderr, "libcw: lookup 0x%02x found nothing\n",
+				(unsigned char) c);
 		}
 	}
 
@@ -910,7 +915,7 @@ char *cw_character_to_representation(int c)
 
    \param representation - string representing a character
 
-   \return non-zero value for valid representation
+   \return non-zero value of hash of valid representation
    \return zero for invalid representation
 */
 unsigned int cw_representation_to_hash_internal(const char *representation)
@@ -929,15 +934,17 @@ unsigned int cw_representation_to_hash_internal(const char *representation)
 		/* Left-shift everything so far. */
 		hash <<= 1;
 
-		/* If the next element is a dash, OR in another bit.
-		   If it is not a dash or a dot, then there is an error in
-		   the representation string. */
 		if (representation[i] == CW_DASH_REPRESENTATION) {
+			/* Dash is represented by '1' in hash. */
 			hash |= 1;
-		} else if (representation[i] != CW_DOT_REPRESENTATION) {
-			return 0;
-		} else {
+		} else if (representation[i] == CW_DOT_REPRESENTATION) {
+			/* Dot is represented by '0' in hash (we don't
+			   have to do anything at this point, the zero
+			   is already in the hash). */
 			;
+		} else {
+			/* Invalid element in representation string. */
+			return 0;
 		}
 	}
 
@@ -953,6 +960,8 @@ unsigned int cw_representation_to_hash_internal(const char *representation)
 
    Look up the given \p representation, and return the character that it
    represents.
+
+   testedin::test_cw_representation_to_character_internal()
 
    \param representation - representation of a character to look up
 
@@ -988,13 +997,18 @@ int cw_representation_to_character_internal(const char *representation)
 	if (is_complete) {
 		cw_entry = lookup[hash];
 	} else {
-		/* impossible, since test_cw_representation_to_hash_internal()
-		   passes without problems */
-		/* TODO: add debug message */
+		/* Impossible, since test_cw_representation_to_hash_internal()
+		   passes without problems.
 
-		/* If the hashed lookup table is not complete, the lookup
-		   might still have found us the entry we are looking for.
-		   Here, we'll check to see if it did. */
+		   Debug message is already displayed in
+		   cw_representation_lookup_init_internal(). */
+
+		/* The lookup table is incomplete, but it doesn't have
+		   to be that we are missing entry for this particular
+		   hash.
+
+		   Try to find the entry in lookup table anyway, maybe
+		   it exists. */
 		if (hash && lookup[hash] && lookup[hash]->representation
 		    && strcmp(lookup[hash]->representation, representation) == 0) {
 			/* Found it in an incomplete table. */
@@ -1008,21 +1022,67 @@ int cw_representation_to_character_internal(const char *representation)
 				}
 			}
 
-			/* If we got to the end of the table, return zero. */
-			cw_entry = cw_entry->character ? cw_entry : 0;
+			/* If we got to the end of the table, prepare to return zero. */
+			cw_entry = cw_entry->character ? cw_entry : NULL;
 		}
 	}
 
 	if (cw_debug_has_flag((&cw_debug_object), CW_DEBUG_LOOKUPS)) {
 		if (cw_entry) {
-			fprintf (stderr, "libcw: lookup [0x%02x]'%s' returned <'%c':\"%s\">\n",
-				 hash, representation,
-				 cw_entry->character, cw_entry->representation);
+			fprintf(stderr, "libcw: lookup [0x%02x]'%s' returned <'%c':\"%s\">\n",
+				hash, representation,
+				cw_entry->character, cw_entry->representation);
 		} else {
-			fprintf (stderr, "libcw: lookup [0x%02x]'%s' found nothing\n",
-				 hash, representation);
+			fprintf(stderr, "libcw: lookup [0x%02x]'%s' found nothing\n",
+				hash, representation);
 		}
 	}
+
+	return cw_entry ? cw_entry->character : 0;
+}
+
+
+
+
+
+/**
+   \brief Return character corresponding to given representation
+
+   Look up the given \p representation, and return the character that it
+   represents.
+
+   In contrast to cw_representation_to_character_internal(), this
+   function doesn't use fast lookup table.
+
+   The function shouldn't be used in production code.
+
+   Its first purpose is to verify correctness of
+   cw_representation_to_character_internal() (since this direct method
+   is simpler and, well, direct).
+
+   The second purpose is to compare time of execution of the two
+   functions: direct and with lookup table, and see what are the speed
+   advantages of using function with lookup table.
+
+   \param representation - representation of a character to look up
+
+   FIXME: function should be able to return zero as non-error value.
+
+   \return zero if there is no character for given representation
+   \return non-zero character corresponding to given representation otherwise
+*/
+int cw_representation_to_character_direct_internal(const char *representation)
+{
+	/* Search the table entry by entry, sequentially, from top to
+	   bottom. */
+	const cw_entry_t *cw_entry = NULL;
+	for (cw_entry = CW_TABLE; cw_entry->character; cw_entry++) {
+		if (strcmp(cw_entry->representation, representation) == 0) {
+			break;
+		}
+	}
+	/* If we got to the end of the table, prepare to return zero. */
+	cw_entry = cw_entry->character ? cw_entry : NULL;
 
 	return cw_entry ? cw_entry->character : 0;
 }
@@ -1058,7 +1118,23 @@ bool cw_representation_lookup_init_internal(const cw_entry_t *lookup[])
 	   of any entry fails, note that the table is not complete and ignore
 	   that entry for now (for the current lookup table, this should not
 	   happen).  The hashed table speeds up lookups of representations by
-	   a factor of 5-10. */
+	   a factor of 5-10.
+
+	   NOTICE: Notice that the lookup table will be marked as
+	   incomplete only if one or more representations in CW_TABLE
+	   aren't valid (i.e. they are made of anything more than '.'
+	   or '-'). This wouldn't be a logic error, this would be an
+	   error with invalid input. Such invalid input shouldn't
+	   happen in properly built characters table.
+
+	   So perhaps returning "false" tells us more about input
+	   CW_TABLE than about lookup table.
+
+	   Other possibility to consider is that "is_complete = false"
+	   when length of representation is longer than 7
+	   dots/dashes. There is an assumption that no representation
+	   in input CW_TABLE is longer than 7 dots/dashes. */
+
 	for (const cw_entry_t *cw_entry = CW_TABLE; cw_entry->character; cw_entry++) {
 		unsigned int hash = cw_representation_to_hash_internal(cw_entry->representation);
 		if (hash) {
@@ -1374,6 +1450,8 @@ int cw_get_maximum_procedural_expansion_length(void)
    expansion of that procedural character, with a display hint in
    \p is_usually_expanded.
 
+   Returned pointer is owned by library.
+
    \param c - character to look up
    \param is_usually_expanded - output, display hint
 
@@ -1596,16 +1674,6 @@ int cw_lookup_phonetic(char c, char *phonetic)
 /* ******************************************************************** */
 /*          Section:Morse code controls and timing parameters           */
 /* ******************************************************************** */
-
-
-
-
-
-/* Library variables, indicating the user-selected parameters for generating
-   Morse code output and receiving Morse code input.  These values can be
-   set by client code; setting them may trigger a recalculation of the low
-   level timing values held and set below.
-   TODO: this probably should be a part of generator data type. */
 
 
 
@@ -2004,6 +2072,8 @@ void cw_reset_send_receive_parameters(void)
 
    testedin::test_parameter_ranges()
 
+   \param new_value - new value of send speed to be set
+
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
@@ -2040,6 +2110,8 @@ int cw_set_send_speed(int new_value)
    errno is set to EPERM if adaptive receive speed tracking is enabled.
 
    testedin::test_parameter_ranges()
+
+   \param new_value - new value of receive speed to be set
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
@@ -2155,6 +2227,9 @@ int cw_set_volume(int new_value)
 
    testedin::test_parameter_ranges()
 
+   \param new_value - new value of gap to be set
+
+
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
@@ -2189,6 +2264,8 @@ int cw_set_gap(int new_value)
 
    testedin::test_parameter_ranges()
 
+   \param new_value - new value of tolerance to be set
+
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
@@ -2222,6 +2299,8 @@ int cw_set_tolerance(int new_value)
    errno is set to EINVAL if \p new_value is out of range.
 
    testedin::test_parameter_ranges()
+
+   \param new_value - new value of weighting to be set
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
@@ -2480,6 +2559,8 @@ void cw_get_receive_parameters(int *dot_usecs, int *dash_usecs,
    The default noise spike threshold is 10,000 microseconds.
 
    errno is set to EINVAL if \p new_value is out of range.
+
+   \param new_value - new value of noise spike threshold to be set
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
@@ -2991,6 +3072,9 @@ void cw_signal_main_handler_internal(int signal_number)
    or if a handler is already installed for that signal, or to the
    sigaction error code.
 
+   \param signal_number
+   \param callback_func
+
    \return CW_SUCCESS - if the signal handler installs correctly
    \return CW_FAILURE - on errors or problems
 */
@@ -3056,6 +3140,8 @@ int cw_register_signal_handler(int signal_number, void (*callback_func)(int))
 
    Function removes a signal handler interception previously registered
    with cw_register_signal_handler().
+
+   \param signal_number
 
    \return true if the signal handler uninstalls correctly
    \return false otherwise (with errno set to EINVAL or to the sigaction error code)
@@ -3487,24 +3573,32 @@ void cw_register_keying_callback(void (*callback_func)(void*, int),
 
 
 /**
-   \brief Call external callback function for keying
+   \brief Set new key state
 
-   Control function that calls any requested keying callback only when there
-   is a change of keying state.  This function filters successive key-down
-   or key-up actions into a single action.
+   Set new state of a key. Filter successive key-down or key-up
+   actions into a single action (successive calls with the same value
+   of \p key_state don't change internally registered state of key).
 
-   \param requested_key_state - current key state to be stored
+   If and only if the function registers change of key state, an
+   external callback function for keying (if configured) is called.
+
+   Notice that the function is used only in
+   cw_tone_queue_dequeue_internal(). A generator which owns a tone
+   queue is treated as a key, and dequeued tones are treated as key
+   states. Dequeueing tones is treated as manipulating a key.
+
+   \param key_state - key state to be set
 */
-void cw_key_set_state_internal(int requested_key_state)
+void cw_key_set_state_internal(int key_state)
 {
 	static int current_key_state = CW_KEY_STATE_OPEN;  /* Maintained key control state */
 
-	if (current_key_state != requested_key_state) {
+	if (current_key_state != key_state) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
-			      "libcw: keying state %d->%d", current_key_state, requested_key_state);
+			      "libcw: keying state %d->%d", current_key_state, key_state);
 
 		/* Set the new keying state, and call any requested callback. */
-		current_key_state = requested_key_state;
+		current_key_state = key_state;
 		if (cw_kk_key_callback) {
 			(*cw_kk_key_callback)(cw_kk_key_callback_arg, current_key_state);
 		}
@@ -3518,29 +3612,43 @@ void cw_key_set_state_internal(int requested_key_state)
 
 
 /**
-   \brief Call external callback function for keying
+   \brief Set new key state, generate appropriate tone
 
-   Control function that calls any requested keying callback only when there
-   is a change of keying state.  This function filters successive key-down
-   or key-up actions into a single action.
+   Set new state of a key. Filter successive key-down or key-up
+   actions into a single action (successive calls with the same value
+   of \p key_state don't change internally registered state of key).
 
-   \param requested_key_state - current key state to be stored
+   If and only if the function registers change of key state, an
+   external callback function for keying (if configured) is called.
+
+   If and only if the function registers change of key state, a state
+   of related generator \p gen is changed accordingly (a tone is
+   started or stopped).
+
+   \param gen - generator to be used to emit tones as state of key changes
+   \param key_state - key state to be set
 */
-void cw_key_straight_key_generate_internal(cw_gen_t *gen, int requested_key_state)
+void cw_key_straight_key_generate_internal(cw_gen_t *gen, int key_state)
 {
 	static int current_key_state = CW_KEY_STATE_OPEN;  /* Maintained key control state */
 
-	if (current_key_state != requested_key_state) {
+	if (current_key_state != key_state) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
-			      "libcw: straight key: keying state %d->%d", current_key_state, requested_key_state);
+			      "libcw: straight key: keying state %d->%d", current_key_state, key_state);
 
 		/* Set the new keying state, and call any requested callback. */
-		current_key_state = requested_key_state;
+		current_key_state = key_state;
 		if (cw_kk_key_callback) {
 			(*cw_kk_key_callback)(cw_kk_key_callback_arg, current_key_state);
 		}
 
 		if (current_key_state == CW_KEY_STATE_CLOSED) {
+
+			/* First a transient state of rising slope,
+			   then a constant tone. The constant tone
+			   will be played until function receives
+			   CW_KEY_STATE_OPEN key state. */
+
 			cw_tone_t tone;
 			tone.usecs = gen->tone_slope.length_usecs;
 			tone.frequency = gen->frequency;
@@ -3555,20 +3663,24 @@ void cw_key_straight_key_generate_internal(cw_gen_t *gen, int requested_key_stat
 			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
 				      "libcw: tone queue: len = %"PRIu32"", cw_tone_queue_length_internal(gen->tq));
 		} else {
-			cw_tone_t tone;
-			tone.usecs = gen->tone_slope.length_usecs;
-			tone.frequency = gen->frequency;
-			tone.slope_mode = CW_SLOPE_MODE_FALLING_SLOPE;
-			cw_tone_queue_enqueue_internal(gen->tq, &tone);
-
 			if (gen->audio_system == CW_AUDIO_CONSOLE) {
 				/* Play just a bit of silence, just to switch
 				   buzzer from playing a sound to being silent. */
+				cw_tone_t tone;
 				tone.usecs = CW_AUDIO_QUANTUM_USECS;
 				tone.frequency = 0;
 				tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
 				cw_tone_queue_enqueue_internal(gen->tq, &tone);
 			} else {
+				/* For soundcards a falling slope with
+				   volume from max to zero should be
+				   enough, but... */
+				cw_tone_t tone;
+				tone.usecs = gen->tone_slope.length_usecs;
+				tone.frequency = gen->frequency;
+				tone.slope_mode = CW_SLOPE_MODE_FALLING_SLOPE;
+				cw_tone_queue_enqueue_internal(gen->tq, &tone);
+
 				/* On some occasions, on some platforms, some
 				   sound systems may need to constantly play
 				   "silent" tone. These four lines of code are
@@ -3603,18 +3715,20 @@ void cw_key_straight_key_generate_internal(cw_gen_t *gen, int requested_key_stat
    is a change of keying state.  This function filters successive key-down
    or key-up actions into a single action.
 
-   \param requested_key_state - current key state to be stored
+   \param gen - generator
+   \param key_state - key state to be set
+   \param usecs - length of tone to be generated
 */
-void cw_key_iambic_keyer_generate_internal(cw_gen_t *gen, int requested_key_state, int usecs)
+void cw_key_iambic_keyer_generate_internal(cw_gen_t *gen, int key_state, int usecs)
 {
 	static int current_key_state = CW_KEY_STATE_OPEN;  /* Maintained key control state */
 
-	if (current_key_state != requested_key_state) {
+	if (current_key_state != key_state) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
-			      "libcw: iambic keyer: keying state %d->%d", current_key_state, requested_key_state);
+			      "libcw: iambic keyer: keying state %d->%d", current_key_state, key_state);
 
 		/* Set the new keying state, and call any requested callback. */
-		current_key_state = requested_key_state;
+		current_key_state = key_state;
 		if (cw_kk_key_callback) {
 			(*cw_kk_key_callback)(cw_kk_key_callback_arg, current_key_state);
 		}
@@ -3960,27 +4074,26 @@ uint32_t cw_tone_queue_next_index_internal(cw_tone_queue_t *tq, uint32_t ind)
        CW_TQ_JUST_EMPTIED (if the tone from previous call was the last one);
 
    Information about successfully dequeued tone is returned through
-   function's arguments: \p usecs and \p frequency.
+   function's argument \p tone.
    The function does not modify the arguments if there are no tones to
    dequeue.
 
    If the last tone in queue has duration "CW_AUDIO_FOREVER_USECS", the function
    won't permanently dequeue it (won't "destroy" it). Instead, it will keep
-   returning (through \p usecs and \p frequency) the tone on every call,
-   until a new tone is added to the queue after the "CW_AUDIO_FOREVER_USECS" tone.
+   returning (through \p tone) the tone on every call, until a new tone is
+   added to the queue after the "CW_AUDIO_FOREVER_USECS" tone.
 
    testedin::test_cw_tone_queue_dequeue_internal()
    testedin::test_cw_tone_queue_test_capacity2()
 
    \param tq - tone queue
-   \param usecs - output, space for duration of dequeued tone
-   \param frequency - output, space for frequency of dequeued tone
+   \param tone - dequeued tone
 
    \return CW_TQ_JUST_EMPTIED (see information above)
    \return CW_TQ_STILL_EMPTY (see information above)
    \return CW_TQ_NONEMPTY (see information above)
 */
-int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
+int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 {
 	pthread_mutex_lock(&tq->mutex);
 
@@ -4844,6 +4957,7 @@ int cw_send_word_space(void)
    Function sets EAGAIN if there is not enough space in tone queue to
    enqueue \p representation.
 
+   \param gen
    \param representation
    \param partial
 
@@ -4895,7 +5009,7 @@ int cw_send_representation_internal(cw_gen_t *gen, const char *representation, b
    the character is sent.
 
    On success, the routine returns CW_SUCCESS.
-   On error, it returns CW_FAILURE, with errno set to EINVAL if any
+   On failure, it returns CW_FAILURE, with errno set to EINVAL if any
    character of the representation is invalid, EBUSY if the sound card,
    console speaker, or keying system is busy, or EAGAIN if the tone
    queue is full, or if there is insufficient space to queue the tones
@@ -4930,7 +5044,7 @@ int cw_send_representation(const char *representation)
    when the character is sent.
 
    On success, the routine returns CW_SUCCESS.
-   On error, it returns CW_FAILURE, with errno set to EINVAL if any
+   On failure, it returns CW_FAILURE, with errno set to EINVAL if any
    character of the representation is invalid, EBUSY if the sound card,
    console speaker, or keying system is busy, or EAGAIN if the tone queue
    is full, or if there is insufficient space to queue the tones for
@@ -5037,8 +5151,8 @@ int cw_check_character(char c)
 
    The end of character delay is appended to the Morse sent.
 
-   On success, the routine returns true.
-   On error, it returns false, with errno set to ENOENT if the given
+   On success, the routine returns CW_SUCCESS.
+   On failure, it returns CW_FAILURE, with errno set to ENOENT if the given
    character \p c is not a valid Morse character, EBUSY if the sound card,
    console speaker, or keying system is busy, or EAGAIN if the tone queue
    is full, or if there is insufficient space to queue the tones for the
@@ -5107,7 +5221,10 @@ int cw_send_character_partial(char c)
 
 
 /**
-   \brief Check that each character in the given string is validly sendable in Morse
+   \brief Validate a string
+
+   Check that each character in the given string is valid and can be
+   sent by libcw as a Morse character.
 
    Function sets errno to EINVAL on failure
 
@@ -5160,8 +5277,10 @@ int cw_check_string(const char *string)
    is empty before queueing a string, or use cw_send_character() if they
    need finer control.
 
-   This routine queues its arguments for background processing.  See
-   cw_send_character() for details of how to check the queue status.
+   This routine queues its arguments for background processing, the
+   actual sending happens in background processing. See
+   cw_wait_for_tone() and cw_wait_for_tone_queue() for ways to check
+   the progress of sending.
 
    testedin::test_send_character_and_string()
 
@@ -5267,6 +5386,9 @@ int cw_get_adaptive_average_internal(cw_tracking_t *tracking)
    statistics buffer.  The buffer stores only the delta from the ideal
    value; the ideal is inferred from the type passed in.
 
+   \p type may be: STAT_DOT or STAT_DASH or STAT_END_ELEMENT or STAT_END_CHARACTER
+
+   \param rec - receiver
    \param type - element type
    \param usecs - timing of an element
 */
@@ -5295,6 +5417,11 @@ void cw_receiver_add_statistic_internal(cw_rec_t *rec, stat_type_t type, int use
 
 /**
    \brief Calculate and return one given timing statistic type
+
+   \p type may be: STAT_DOT or STAT_DASH or STAT_END_ELEMENT or STAT_END_CHARACTER
+
+   \param rec - receiver
+   \param type - type of statistics
 
    \return 0.0 if no record of given type were found
    \return timing statistics otherwise
@@ -5432,20 +5559,19 @@ void cw_reset_receive_statistics(void)
 
 
 /**
-   \brief Set value of "adaptive receive enabled" flag
+   \brief Set value of "adaptive receive enabled" flag for a receiver
 
-   Set the value of the flag that controls whether, on receive, the
-   receive functions do fixed speed receive, or track the speed of the
-   received Morse code by adapting to the input stream.
+   Set the value of the flag of \p receiver that controls whether, on
+   receive, the receive functions do fixed speed receive, or track the
+   speed of the received Morse code by adapting to the input stream.
 
-   \param rec - receiver
-   \param flag - intended flag value
+   \param rec - receiver for which to set the flag
+   \param flag - flag value to set
 */
 void cw_receiver_set_adaptive_internal(cw_rec_t *rec, bool flag)
 {
 	/* Look for change of adaptive receive state. */
-	if ((rec->is_adaptive_receive_enabled && !flag)
-	    || (!rec->is_adaptive_receive_enabled && flag)) {
+	if (rec->is_adaptive_receive_enabled != flag) {
 
 		rec->is_adaptive_receive_enabled = flag;
 
@@ -6122,7 +6248,7 @@ int cw_receive_buffer_dash(const struct timeval *timestamp)
    contents of the current representation buffer and returns
    CW_SUCCESS.
 
-   On error, it returns CW_FAILURE and sets errno to:
+   On failure, it returns CW_FAILURE and sets errno to:
    ERANGE if not preceded by a cw_end_receive_tone call, a prior
    successful cw_receive_representation call, or a prior
    cw_receive_buffer_dot or cw_receive_buffer_dash,
@@ -7727,6 +7853,7 @@ void *cw_generator_write_sine_wave_internal(void *arg)
    ending phase of a sine wave generated in current call.
 
    \param gen - current generator
+   \param tone - generated tone
 
    \return position in buffer at which a last sample has been saved
 */
@@ -7800,6 +7927,7 @@ int cw_generator_calculate_sine_wave_internal(cw_gen_t *gen, cw_tone_t *tone)
    \brief Calculate value of a sample of sine wave
 
    \param gen - generator used to generate a sine wave
+   \param tone - tone being generated
 
    \return value of a sample of sine wave, a non-negative number
 */
@@ -7933,7 +8061,7 @@ int cw_generator_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone)
    \li generator's sample rate,
    \li generator's volume.
 
-   There are three supported shapes of slopes:
+   There are four supported shapes of slopes:
    \li linear (the only one supported by libcw until version 4.1.1),
    \li raised cosine (supposedly the most desired shape),
    \li sine,
@@ -8380,6 +8508,8 @@ void main_helper(int audio_system, const char *name, const char *device, predica
 #include <assert.h>
 
 static unsigned int test_cw_representation_to_hash_internal(void);
+static unsigned int test_cw_representation_to_character_internal(void);
+static unsigned int test_cw_representation_to_character_internal_speed(void);
 static unsigned int test_cw_forever(void);
 
 static unsigned int test_cw_tone_queue_init_internal(void);
@@ -8404,6 +8534,8 @@ typedef unsigned int (*cw_test_function_t)(void);
 
 static cw_test_function_t cw_unit_tests[] = {
 	test_cw_representation_to_hash_internal,
+	test_cw_representation_to_character_internal,
+	test_cw_representation_to_character_internal_speed,
 	// test_cw_forever,
 
 	test_cw_tone_queue_init_internal,
@@ -8453,7 +8585,7 @@ int main(void)
 
 #define REPRESENTATION_LEN 7
 /* for maximum length of 7, there should be 254 items:
-   2^1 + 2^2 + 2^3 + ... * 2^7 */
+   2^1 + 2^2 + 2^3 + ... + 2^7 */
 #define REPRESENTATION_TABLE_SIZE ((2 << (REPRESENTATION_LEN + 1)) - 1)
 
 
@@ -8471,28 +8603,116 @@ unsigned int test_cw_representation_to_hash_internal(void)
 
 	/* build table of all valid representations ("valid" as in "build
 	   from dash and dot, no longer than REPRESENTATION_LEN"). */
-	long int i = 0;
-	for (unsigned int len = 0; len < REPRESENTATION_LEN; len++) {
-		for (unsigned int binary_representation = 0; binary_representation < (2 << len); binary_representation++) {
-			for (unsigned int bit_pos = 0; bit_pos <= len; bit_pos++) {
+	long int rep = 0;
+	for (unsigned int len = 1; len <= REPRESENTATION_LEN; len++) {
+
+		/* Build representations of all lengths, starting from
+		   shortest (single dot or dash) and ending with the
+		   longest representations. */
+
+		for (unsigned int binary_representation = 0; binary_representation < (2 << (len - 1)); binary_representation++) {
+
+			/* A representation of length "len" can have
+			   2^len distinct forms/values. The "for" loop
+			   that we are in iterates over these 2^len
+			   forms. */
+
+			for (unsigned int bit_pos = 0; bit_pos < len; bit_pos++) {
 				unsigned int bit = binary_representation & (1 << bit_pos);
-				input[i][bit_pos] = bit ? '-' : '.';
+				input[rep][bit_pos] = bit ? '-' : '.';
 				// fprintf(stderr, "rep = %x, bit pos = %d, bit = %d\n", binary_representation, bit_pos, bit);
 			}
 
-			input[i][len + 1] = '\0';
-			// fprintf(stderr, "input[%d] = \"%s\"\n", i, input[i]);
-			// fprintf(stderr, "%s\n", input[i]);
-			i++;
-
+			input[rep][len] = '\0';
+			// fprintf(stderr, "\ninput[%ld] = \"%s\"", rep, input[rep]);
+			rep++;
 		}
 	}
 
 	/* compute hash for every valid representation */
-	for (int j = 0; j < i; j++) {
-		unsigned int hash = cw_representation_to_hash_internal(input[j]);
+	for (int i = 0; i < rep; i++) {
+		unsigned int hash = cw_representation_to_hash_internal(input[i]);
 		assert(hash);
 	}
+
+	fprintf(stderr, "OK\n");
+
+	return 0;
+}
+
+
+
+
+
+/**
+   tests::cw_representation_to_character_internal()
+*/
+unsigned int test_cw_representation_to_character_internal(void)
+{
+	fprintf(stderr, "\ttesting cw_representation_to_character_internal... ");
+
+	/* The test is performed by comparing results of function
+	   using fast lookup table, and function using direct
+	   lookup. */
+
+	for (const cw_entry_t *cw_entry = CW_TABLE; cw_entry->character; cw_entry++) {
+
+		int lookup = cw_representation_to_character_internal(cw_entry->representation);
+		int direct = cw_representation_to_character_direct_internal(cw_entry->representation);
+
+		cw_assert (lookup == direct, "Failed for \"%s\"\n", cw_entry->representation);
+	}
+
+	fprintf(stderr, "OK\n");
+
+	return 0;
+}
+
+
+
+
+
+
+unsigned int test_cw_representation_to_character_internal_speed(void)
+{
+	fprintf(stderr, "\ttesting speed gain of cw_representation_to_character_internal... ");
+
+
+	/* Testing speed gain between function with direct lookup, and
+	   function with fast lookup table.  Test is preformed by
+	   running each function N times with timer started before the
+	   N runs and stopped after N runs. */
+
+	int N = 1000;
+
+	struct timeval start;
+	struct timeval stop;
+
+
+	gettimeofday(&start, NULL);
+	for (int i = 0; i < N; i++) {
+		for (const cw_entry_t *cw_entry = CW_TABLE; cw_entry->character; cw_entry++) {
+			__attribute__((unused)) int rv = cw_representation_to_character_internal(cw_entry->representation);
+		}
+	}
+	gettimeofday(&stop, NULL);
+
+	int lookup = cw_timestamp_compare_internal(&start, &stop);
+
+
+
+	gettimeofday(&start, NULL);
+	for (int i = 0; i < N; i++) {
+		for (const cw_entry_t *cw_entry = CW_TABLE; cw_entry->character; cw_entry++) {
+			__attribute__((unused)) int rv = cw_representation_to_character_direct_internal(cw_entry->representation);
+		}
+	}
+	gettimeofday(&stop, NULL);
+
+	int direct = cw_timestamp_compare_internal(&start, &stop);
+
+	fprintf(stderr, "gain = %.2f  ", 1.0 * direct / lookup);
+
 
 	fprintf(stderr, "OK\n");
 
@@ -8628,7 +8848,7 @@ unsigned int test_cw_tone_queue_prev_index_internal(void)
 	int i = 0;
 	while (input[i].arg != -1000) {
 		uint32_t prev = cw_tone_queue_prev_index_internal(&test_tone_queue, input[i].arg);
-		fprintf(stderr, "arg = %d, result = %d, expected = %d\n", input[i].arg, (int) prev, input[i].expected);
+		//fprintf(stderr, "arg = %d, result = %d, expected = %d\n", input[i].arg, (int) prev, input[i].expected);
 		assert (prev == input[i].expected);
 		i++;
 	}
@@ -8669,7 +8889,7 @@ unsigned int test_cw_tone_queue_next_index_internal(void)
 	int i = 0;
 	while (input[i].arg != -1000) {
 		uint32_t next = cw_tone_queue_next_index_internal(&test_tone_queue, input[i].arg);
-		fprintf(stderr, "arg = %d, result = %d, expected = %d\n", input[i].arg, (int) next, input[i].expected);
+		//fprintf(stderr, "arg = %d, result = %d, expected = %d\n", input[i].arg, (int) next, input[i].expected);
 		assert (next == input[i].expected);
 		i++;
 	}
