@@ -163,6 +163,9 @@
 /* Define to 1 if the system has the type `_Bool'. */
 #undef HAVE__BOOL
 
+/* Library version, libtool notation */
+#undef LIBCW_VERSION
+
 /* Define as 1 if your build machine can support ALSA. */
 #undef LIBCW_WITH_ALSA
 

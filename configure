@@ -648,6 +648,7 @@ QT4_CFLAGS
 PKG_CONFIG_LIBDIR
 PKG_CONFIG_PATH
 PKG_CONFIG
+LIBCW_VERSION
 LDCONFIG
 GZIP
 CXXCPP
@@ -15547,6 +15548,20 @@ fi
 
 
 
+# http://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html
+# library's current:revision:age
+#
+# I'm defining it here so that it's available in config.h and can be
+# used in libcw's cw_version() function that should return the
+# numbers.
+LIBCW_VERSION=\"5:0:1\"
+
+cat >>confdefs.h <<_ACEOF
+#define LIBCW_VERSION $LIBCW_VERSION
+_ACEOF
+
+
+
 
 # ########################################################################
 # definitions of custom command line options for configure script
@@ -20124,5 +20139,4 @@ if test -n "$ac_unrecognized_opts" && test "$enable_option_checking" != no; then
   { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: unrecognized options: $ac_unrecognized_opts" >&5
 $as_echo "$as_me: WARNING: unrecognized options: $ac_unrecognized_opts" >&2;}
 fi
-
 
