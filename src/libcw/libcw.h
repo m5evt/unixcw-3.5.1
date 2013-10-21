@@ -211,6 +211,7 @@ extern void cw_generator_delete(void);
 extern int  cw_generator_start(void);
 extern void cw_generator_stop(void);
 extern const char *cw_generator_get_audio_system_label(void);
+/* FIXME: first argument of the function is gen, but no function provides access to generator variable. */
 extern int  cw_generator_set_tone_slope(cw_gen_t *gen, int slope_shape, int slope_usecs);
 
 /* Core Morse code data and lookup */
