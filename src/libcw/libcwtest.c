@@ -139,14 +139,48 @@ void test_cw_version(cw_test_stats_t *stats)
 	int major = rv >> 16;
 	int minor = rv & 0xff;
 
-	if (major == 4) {
+	/* Library's version is defined in LIBCW_VERSION. cw_version()
+	   uses three calls to strtol() to get three parts of the
+	   library version.
+
+	   Let's use a different approach to convert LIBCW_VERSION
+	   into numbers. */
+
+
+	int current = 0, revision = 0;
+	__attribute__((unused)) int age = 0;
+
+	char *str = strdup(LIBCW_VERSION);
+
+	for (int i = 0; ; i++, str = NULL) {
+
+		char *token = strtok(str, ":");
+		if (token == NULL) {
+			break;
+		}
+
+		if (i == 0) {
+			current = atoi(token);
+		} else if (i == 1) {
+			revision = atoi(token);
+		} else if (i == 2) {
+			age = atoi(token);
+		} else {
+			cw_assert (0, "too many tokens in \"%s\"\n", LIBCW_VERSION);
+		}
+	}
+
+	free(str);
+	str = NULL;
+
+	if (major == current) {
 		stats->successes++;
 	} else {
 		stats->failures++;
 		failure = true;
 	}
 
-	if (minor == 0) {
+	if (minor == revision) {
 		stats->successes++;
 	} else {
 		stats->failures++;
