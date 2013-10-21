@@ -465,5 +465,8 @@ int cw_generator_set_audio_device_internal(cw_gen_t *gen, const char *device);
 void cw_usecs_to_timespec_internal(struct timespec *t, int usecs);
 void cw_nanosleep_internal(struct timespec *n);
 
+/* From libcwtest.c */
+int  cw_test_args(int argc, char *const argv[], char *sound_systems, size_t systems_max);
+void cw_test_print_help(const char *progname);
 
 #endif /* #ifndef H_LIBCW_INTERNAL */
