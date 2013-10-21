@@ -45,7 +45,8 @@ libcw_la_LIBADD=-lm -lpthread -ldl
 
 # target-specific linker flags (additional flags)
 # http://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html
-libcw_la_LDFLAGS = -version-number 5:0:0
+# LIBCW_VERSION is defined in configure.ac
+libcw_la_LDFLAGS = -version-number $(LIBCW_VERSION)
 
 # target-specific compiler flags
 libcw_la_CFLAGS = -rdynamic
@@ -123,6 +124,3 @@ greptest.sh:
 #
 # source of snippet related to "check_SCRIPTS" and greptests.sh:
 # http://www.freesoftwaremagazine.com/books/agaal/automatically_writing_makefiles_with_autotools
-
-
-
