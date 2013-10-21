@@ -68,9 +68,9 @@ static int  cw_test_independent(void);
 static int  cw_test_dependent(const char *audio_systems);
 static int  cw_test_dependent_with(int audio_system, cw_test_stats_t *stats);
 static void cw_test_print_stats(void);
-static void cw_test_print_help(const char *progname);
 
-static int  cw_test_args(int argc, char *const argv[], char *sound_systems, size_t systems_max);
+
+
 
 typedef struct {
 	const char character;
@@ -2777,6 +2777,12 @@ int cw_test_dependent(const char *audio_systems)
 
 
 
+#ifndef LIBCW_STANDALONE
+
+
+
+
+
 /**
    \return EXIT_SUCCESS if all tests complete successfully,
    \return EXIT_FAILURE otherwise
@@ -2828,6 +2834,12 @@ int main(int argc, char *const argv[])
 
 	return rv1 == 0 && rv2 == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }
+
+
+
+
+
+#endif // #ifndef LIBCW_STANDALONE
 
 
 
