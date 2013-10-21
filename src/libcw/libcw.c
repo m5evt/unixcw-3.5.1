@@ -38,6 +38,7 @@
    - Section:Straight key
    - Section:Generator - generic
    - Section:Soundcard
+   - Section:Utilities
    - Section:main() function for testing purposes
    - Section:Unit tests for internal functions
    - Section:Global variables
@@ -150,6 +151,16 @@ static int   cw_generator_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t 
 /*                         Section:Soundcard                            */
 /* ******************************************************************** */
 static int cw_soundcard_write_internal(cw_gen_t *gen, int queue_state, cw_tone_t *tone);
+
+
+
+
+
+/* ******************************************************************** */
+/*                         Section:Utilities                            */
+/* ******************************************************************** */
+static int cw_timestamp_validate_internal(struct timeval *out_timestamp, const struct timeval *in_timestamp);
+static int cw_timestamp_compare_internal(const struct timeval *earlier, const struct timeval *later);
 
 
 
@@ -411,8 +422,6 @@ static void cw_receiver_set_adaptive_internal(cw_rec_t *rec, bool flag);
 static int  cw_receiver_identify_tone_internal(cw_rec_t *rec, int element_len_usecs, char *representation);
 static void cw_receiver_update_adaptive_tracking_internal(cw_rec_t *rec, int element_len_usecs, char element);
 static int  cw_receiver_add_element_internal(cw_rec_t *rec, const struct timeval *timestamp, char element);
-static int  cw_timestamp_validate_internal(struct timeval *out_timestamp, const struct timeval *in_timestamp);
-static int  cw_timestamp_compare_internal(const struct timeval *earlier, const struct timeval *later);
 
 
 
@@ -5700,116 +5709,6 @@ bool cw_get_adaptive_receive_state(void)
 
 
 /**
-   \brief Validate and return timestamp
-
-   If an input timestamp \p in_timestamp is given (non-NULL pointer),
-   validate it for correctness, and if valid, copy contents of
-   \p in_timestamp into \p out_timestamp and return CW_SUCCESS.
-
-   If \p in_timestamp is non-NULL and the timestamp is invalid, return
-   CW_FAILURE with errno set to EINVAL.
-
-   If \p in_timestamp is not given (NULL), get current time (with
-   gettimeofday()), put it in \p out_timestamp and return
-   CW_SUCCESS. If call to gettimeofday() fails, return CW_FAILURE.
-
-   \p out_timestamp cannot be NULL.
-
-   testedin::test_cw_timestamp_validate_internal()
-
-   \param out_timestamp - timestamp to be used by client code after the function call
-   \param in_timestamp - timestamp to be validated
-
-   \return CW_SUCCESS on success
-   \return CW_FAILURE on failure
-*/
-int cw_timestamp_validate_internal(struct timeval *out_timestamp, const struct timeval *in_timestamp)
-{
-	cw_assert (out_timestamp, "pointer to output timestamp is NULL");
-
-	if (in_timestamp) {
-		if (in_timestamp->tv_sec < 0
-		    || in_timestamp->tv_usec < 0
-		    || in_timestamp->tv_usec >= CW_USECS_PER_SEC) {
-
-			errno = EINVAL;
-			return CW_FAILURE;
-		} else {
-			*out_timestamp = *in_timestamp;
-			return CW_SUCCESS;
-		}
-	} else {
-		if (gettimeofday(out_timestamp, NULL)) {
-			perror ("libcw: gettimeofday");
-			return CW_FAILURE;
-		} else {
-			return CW_SUCCESS;
-		}
-	}
-}
-
-
-
-
-
-/**
-   \brief Compare two timestamps
-
-   Compare two timestamps, and return the difference between them in
-   microseconds, taking care to clamp values which would overflow an int.
-
-   This routine always returns a positive integer in the range 0 to INT_MAX.
-
-   testedin::test_cw_timestamp_compare_internal()
-
-   \param earlier - timestamp to compare
-   \param later - timestamp to compare
-
-   \return difference between timestamps (in microseconds)
-*/
-int cw_timestamp_compare_internal(const struct timeval *earlier,
-				  const struct timeval *later)
-{
-
-	/* Compare the timestamps, taking care on overflows.
-
-	   At 4 WPM, the dash length is 3*(1200000/4)=900,000 usecs, and
-	   the word gap is 2,100,000 usecs.  With the maximum Farnsworth
-	   additional delay, the word gap extends to 20,100,000 usecs.
-	   This fits into an int with a lot of room to spare, in fact, an
-	   int can represent 2,147,483,647 usecs, or around 33 minutes.
-	   This is way, way longer than we'd ever want to differentiate,
-	   so if by some chance we see timestamps farther apart than this,
-	   and it ought to be very, very unlikely, then we'll clamp the
-	   return value to INT_MAX with a clear conscience.
-
-	   Note: passing nonsensical or bogus timevals in may result in
-	   unpredictable results.  Nonsensical includes timevals with
-	   -ve tv_usec, -ve tv_sec, tv_usec >= 1,000,000, etc.
-	   To help in this, we check all incoming timestamps for
-	   "well-formedness".  However, we assume the  gettimeofday()
-	   call always returns good timevals.  All in all, timeval could
-	   probably be a better thought-out structure. */
-
-	/* Calculate an initial delta, possibly with overflow. */
-	int delta_usec = (later->tv_sec - earlier->tv_sec) * CW_USECS_PER_SEC
-		+ later->tv_usec - earlier->tv_usec;
-
-	/* Check specifically for overflow, and clamp if it did. */
-	if ((later->tv_sec - earlier->tv_sec) > (INT_MAX / CW_USECS_PER_SEC) + 1
-	    || delta_usec < 0) {
-
-		delta_usec = INT_MAX;
-	}
-
-	return delta_usec;
-}
-
-
-
-
-
-/**
    \brief Mark beginning of receive tone
 
    Called on the start of a receive tone.  If the \p timestamp is NULL, the
@@ -8555,6 +8454,116 @@ bool cw_dlopen_internal(const char *name, void **handle)
 	}
 }
 #endif
+
+
+
+
+
+/**
+   \brief Validate and return timestamp
+
+   If an input timestamp \p in_timestamp is given (non-NULL pointer),
+   validate it for correctness, and if valid, copy contents of
+   \p in_timestamp into \p out_timestamp and return CW_SUCCESS.
+
+   If \p in_timestamp is non-NULL and the timestamp is invalid, return
+   CW_FAILURE with errno set to EINVAL.
+
+   If \p in_timestamp is not given (NULL), get current time (with
+   gettimeofday()), put it in \p out_timestamp and return
+   CW_SUCCESS. If call to gettimeofday() fails, return CW_FAILURE.
+
+   \p out_timestamp cannot be NULL.
+
+   testedin::test_cw_timestamp_validate_internal()
+
+   \param out_timestamp - timestamp to be used by client code after the function call
+   \param in_timestamp - timestamp to be validated
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
+int cw_timestamp_validate_internal(struct timeval *out_timestamp, const struct timeval *in_timestamp)
+{
+	cw_assert (out_timestamp, "pointer to output timestamp is NULL");
+
+	if (in_timestamp) {
+		if (in_timestamp->tv_sec < 0
+		    || in_timestamp->tv_usec < 0
+		    || in_timestamp->tv_usec >= CW_USECS_PER_SEC) {
+
+			errno = EINVAL;
+			return CW_FAILURE;
+		} else {
+			*out_timestamp = *in_timestamp;
+			return CW_SUCCESS;
+		}
+	} else {
+		if (gettimeofday(out_timestamp, NULL)) {
+			perror ("libcw: gettimeofday");
+			return CW_FAILURE;
+		} else {
+			return CW_SUCCESS;
+		}
+	}
+}
+
+
+
+
+
+/**
+   \brief Compare two timestamps
+
+   Compare two timestamps, and return the difference between them in
+   microseconds, taking care to clamp values which would overflow an int.
+
+   This routine always returns a positive integer in the range 0 to INT_MAX.
+
+   testedin::test_cw_timestamp_compare_internal()
+
+   \param earlier - timestamp to compare
+   \param later - timestamp to compare
+
+   \return difference between timestamps (in microseconds)
+*/
+int cw_timestamp_compare_internal(const struct timeval *earlier,
+				  const struct timeval *later)
+{
+
+	/* Compare the timestamps, taking care on overflows.
+
+	   At 4 WPM, the dash length is 3*(1200000/4)=900,000 usecs, and
+	   the word gap is 2,100,000 usecs.  With the maximum Farnsworth
+	   additional delay, the word gap extends to 20,100,000 usecs.
+	   This fits into an int with a lot of room to spare, in fact, an
+	   int can represent 2,147,483,647 usecs, or around 33 minutes.
+	   This is way, way longer than we'd ever want to differentiate,
+	   so if by some chance we see timestamps farther apart than this,
+	   and it ought to be very, very unlikely, then we'll clamp the
+	   return value to INT_MAX with a clear conscience.
+
+	   Note: passing nonsensical or bogus timevals in may result in
+	   unpredictable results.  Nonsensical includes timevals with
+	   -ve tv_usec, -ve tv_sec, tv_usec >= 1,000,000, etc.
+	   To help in this, we check all incoming timestamps for
+	   "well-formedness".  However, we assume the  gettimeofday()
+	   call always returns good timevals.  All in all, timeval could
+	   probably be a better thought-out structure. */
+
+	/* Calculate an initial delta, possibly with overflow. */
+	int delta_usec = (later->tv_sec - earlier->tv_sec) * CW_USECS_PER_SEC
+		+ later->tv_usec - earlier->tv_usec;
+
+	/* Check specifically for overflow, and clamp if it did. */
+	if ((later->tv_sec - earlier->tv_sec) > (INT_MAX / CW_USECS_PER_SEC) + 1
+	    || delta_usec < 0) {
+
+		delta_usec = INT_MAX;
+	}
+
+	return delta_usec;
+}
 
 
 
