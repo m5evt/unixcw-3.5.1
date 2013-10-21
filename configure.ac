@@ -68,6 +68,16 @@ fi
 
 
 
+# http://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html
+# library's current:revision:age
+#
+# I'm defining it here so that it's available in config.h and can be
+# used in libcw's cw_version() function that should return the
+# numbers.
+LIBCW_VERSION=\"5:0:1\"
+AC_DEFINE_UNQUOTED([LIBCW_VERSION], $LIBCW_VERSION, [Library version, libtool notation])
+AC_SUBST(LIBCW_VERSION)
+
 
 # ########################################################################
 # definitions of custom command line options for configure script
@@ -521,4 +531,3 @@ if test "$WITH_DEV" = 'yes' ; then
 fi
 
 AC_OUTPUT
-
