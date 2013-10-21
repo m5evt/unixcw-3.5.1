@@ -522,8 +522,6 @@ const char *cw_audio_system_labels[] = {
 static bool cw_iambic_keyer_lock = false;
 
 
-/* TODO: Provide all three parts of library version. */
-static unsigned int major = 4, minor = 0;
 
 
 
@@ -540,7 +538,17 @@ static unsigned int major = 4, minor = 0;
 */
 int cw_version(void)
 {
-	return major << 16 | minor;
+	char *endptr = NULL;
+
+	/* LIBCW_VERSION: "current:revision:age", libtool notation. */
+	long int current = strtol(LIBCW_VERSION, &endptr, 10);
+	long int revision = strtol(endptr + 1, &endptr, 10);
+	__attribute__((unused)) long int age = strtol(endptr + 1, &endptr, 10);
+
+	// fprintf(stderr, "current:revision:age: %ld:%ld:%ld\n", current, revision, age);
+
+	/* TODO: Return all three parts of library version. */
+	return ((int) current) << 16 | ((int) revision);
 }
 
 
@@ -557,7 +565,11 @@ int cw_version(void)
 */
 void cw_license(void)
 {
-	printf("libcw version %d.%d\n", major, minor);
+	int version = cw_version();
+	int current = version >> 16;
+	int revision = version & 0xff;
+
+	printf("libcw version %d.%d\n", current, revision);
 	printf("%s\n", CW_COPYRIGHT);
 
 	return;
