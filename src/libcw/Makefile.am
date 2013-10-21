@@ -94,7 +94,7 @@ libcw.3: libcw.3.m4 libcw.c
 
 
 standalone:
-	gcc -O0 -g -DHAVE_CONFIG_H  -std=gnu99 -I. -I../../src  -I../../src/ -I../../src/libcw/ -I../../src/cwutils/ -DLIBCW_WITH_DEV -DLIBCW_STANDALONE -DLIBCW_WITH_PULSEAUDIO -DLIBCW_WITH_OSS -DLIBCW_WITH_ALSA -DLIBCW_WITH_CONSOLE libcw.c libcw_console.c libcw_null.c libcw_pa.c libcw_debug.c libcw_oss.c libcw_alsa.c -lm -ldl -lpthread -o libcw_standalone
+	gcc -O0 -g -DHAVE_CONFIG_H  -std=gnu99 -I. -I../../src  -I../../src/ -I../../src/libcw/ -I../../src/cwutils/ -DLIBCW_WITH_DEV -DLIBCW_STANDALONE -DLIBCW_WITH_PULSEAUDIO -DLIBCW_WITH_OSS -DLIBCW_WITH_ALSA -DLIBCW_WITH_CONSOLE libcw.c libcwtest.c libcw_console.c libcw_null.c libcw_pa.c libcw_debug.c libcw_oss.c libcw_alsa.c -lm -ldl -lpthread -o libcw_standalone
 
 
 # target: libcw.pc
