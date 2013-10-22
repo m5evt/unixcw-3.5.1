@@ -173,7 +173,7 @@ static int cw_timestamp_compare_internal(const struct timeval *earlier, const st
    representation looks like this: ".-" for "a", "--.." for "z", etc. */
 static int          cw_representation_lookup_init_internal(const cw_entry_t *lookup[]);
 static int          cw_representation_to_character_internal(const char *representation);
-static int          cw_representation_to_character_direct_internal(const char *representation);
+__attribute__((unused)) static int cw_representation_to_character_direct_internal(const char *representation);
 static unsigned int cw_representation_to_hash_internal(const char *representation);
 static const char  *cw_character_to_representation_internal(int c);
 
@@ -231,11 +231,11 @@ static int      cw_tone_queue_init_internal(cw_tone_queue_t *tq);
 
 /* Some day the following two functions will be made public. */
 static int      cw_tone_queue_set_capacity_internal(cw_tone_queue_t *tq, uint32_t capacity, uint32_t high_water_mark);
-static uint32_t cw_tone_queue_get_high_water_mark_internal(cw_tone_queue_t *tq);
+__attribute__((unused)) static uint32_t cw_tone_queue_get_high_water_mark_internal(cw_tone_queue_t *tq);
 static uint32_t cw_tone_queue_get_capacity_internal(cw_tone_queue_t *tq);
 
 static uint32_t cw_tone_queue_length_internal(cw_tone_queue_t *tq);
-static uint32_t cw_tone_queue_prev_index_internal(cw_tone_queue_t *tq, uint32_t current);
+__attribute__((unused)) static uint32_t cw_tone_queue_prev_index_internal(cw_tone_queue_t *tq, uint32_t current);
 static uint32_t cw_tone_queue_next_index_internal(cw_tone_queue_t *tq, uint32_t current);
 static int      cw_tone_queue_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone);
 static int      cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone);
@@ -5041,7 +5041,7 @@ int cw_send_representation_internal(cw_gen_t *gen, const char *representation, b
 	   number of tones in our representation, then check that the space
 	   exists in the tone queue. However, since the queue is comfortably
 	   long, we can get away with just looking for a high water mark.  */
-	if (cw_get_tone_queue_length() >= gen->tq->high_water_mark) {
+	if ((uint32_t) cw_get_tone_queue_length() >= gen->tq->high_water_mark) {
 		errno = EAGAIN;
 		return CW_FAILURE;
 	}
@@ -8943,7 +8943,7 @@ unsigned int test_cw_representation_to_character_internal_speed(void)
 	gettimeofday(&start, NULL);
 	for (int i = 0; i < N; i++) {
 		for (const cw_entry_t *cw_entry = CW_TABLE; cw_entry->character; cw_entry++) {
-			__attribute__((unused)) int rv = cw_representation_to_character_direct_internal(cw_entry->representation);
+			int rv = cw_representation_to_character_direct_internal(cw_entry->representation);
 		}
 	}
 	gettimeofday(&stop, NULL);
