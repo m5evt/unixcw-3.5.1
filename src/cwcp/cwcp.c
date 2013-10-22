@@ -102,6 +102,9 @@ static const char *mode_get_description(int index);
 static bool mode_current_is_type(mode_type_t type);
 static bool mode_is_sending_active(void);
 
+static void queue_enqueue_string(const char *word);
+static void queue_enqueue_character(char c);
+
 
 /* Definition of an interface operating mode; its description, related
    dictionary, and data on how to send for the mode. */
@@ -326,55 +329,73 @@ queue_dequeue_character (void)
 }
 
 
-/*
- * queue_enqueue_string()
- * queue_enqueue_character()
- *
- * Queues a string or character for sending by the CW sender.  Rejects any
- * unsendable character, and also any characters passed in where the character
- * queue is already full.  Rejection is silent.
- */
-static void
-queue_enqueue_string (const char *word)
+
+
+
+/**
+   \brief Queue a string for sending by the CW sender
+
+   Function rejects any unsendable character, and also any characters
+   passed in where the character queue is already full.  Rejection is
+   silent.
+
+   \param word - string to send
+*/
+void queue_enqueue_string(const char *word)
 {
-  bool is_queue_notify = false;
-  for (int i = 0; word[i] != '\0'; i++)
-    {
-      char c;
+	bool is_queue_notify = false;
+	for (int i = 0; word[i] != '\0'; i++) {
 
-      c = toupper (word[i]);
-      if (cw_check_character (c))
-        {
-          /*
-           * Calculate the new character queue tail.  If the new value will
-           * not hit the current queue head, add the character to the queue.
-           */
-          if (queue_next_index (queue_tail) != queue_head)
-            {
-              queue_tail = queue_next_index (queue_tail);
-              queue_data[queue_tail] = c;
-              queue_display_add_character ();
+		char c = toupper(word[i]);
+		if (cw_character_is_valid(c)) {
+			/* Calculate the new character queue tail.  If
+			   the new value will not hit the current
+			   queue head, add the character to the
+			   queue. */
+			if (queue_next_index(queue_tail) != queue_head) {
+				queue_tail = queue_next_index(queue_tail);
+				queue_data[queue_tail] = c;
+				queue_display_add_character();
 
-              if (is_queue_idle)
-                is_queue_notify = true;
-            }
-        }
-    }
+				if (is_queue_idle) {
+					is_queue_notify = true;
+				}
+			}
+		}
+	}
 
-  /* If we queued any character, mark the queue as not idle. */
-  if (is_queue_notify)
-    is_queue_idle = false;
+	/* If we queued any character, mark the queue as not idle. */
+	if (is_queue_notify) {
+		is_queue_idle = false;
+	}
 }
 
-static void
-queue_enqueue_character (char c)
-{
-  char buffer[2];
 
-  buffer[0] = c;
-  buffer[1] = '\0';
-  queue_enqueue_string (buffer);
+
+
+
+/**
+   \brief Queue a character for sending by the CW sender
+
+   Function rejects any unsendable character, and also any characters
+   passed in where the character queue is already full.  Rejection is
+   silent.
+
+   \param c - character to send
+*/
+void queue_enqueue_character(char c)
+{
+	char buffer[2];
+
+	buffer[0] = c;
+	buffer[1] = '\0';
+	queue_enqueue_string(buffer);
+
+	return;
 }
+
+
+
 
 
 /*
@@ -1632,4 +1653,3 @@ void cwcp_atexit(void)
 
 	return;
 }
-
