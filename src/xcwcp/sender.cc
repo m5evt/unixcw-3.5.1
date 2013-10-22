@@ -40,31 +40,38 @@ namespace cw {
 //  Class Sender
 //-----------------------------------------------------------------------
 
+
+
+
+
 // poll()
 //
 // Poll the CW library tone queue, and if it is getting low, arrange for
 // more data to be passed in to the sender.
-void
-Sender::poll (const Mode *current_mode)
+void Sender::poll(const Mode *current_mode)
 {
-  if (current_mode->is_dictionary () || current_mode->is_keyboard ())
-    {
-      if (cw_get_tone_queue_length () <= 1)
-        {
-          // Arrange more data for the sender.  In dictionary modes, add more
-          // random data if the queue is empty.  In keyboard mode, just
-          // dequeue anything currently on the character queue.
-          if (current_mode->is_dictionary () && send_queue_.empty ())
-            {
-              const DictionaryMode *dict_mode = current_mode->is_dictionary ();
-              enqueue_string (std::string (1, ' ')
-                              + dict_mode->get_random_word_group ());
-            }
+	if (current_mode->is_dictionary() || current_mode->is_keyboard()) {
+		if (cw_get_tone_queue_length() <= 1) {
+			// Arrange more data for the sender.  In
+			// dictionary modes, add more random data if
+			// the queue is empty.  In keyboard mode, just
+			// dequeue anything currently on the character
+			// queue.
+			if (current_mode->is_dictionary() && send_queue_.empty()) {
+				const DictionaryMode *dict_mode = current_mode->is_dictionary();
+				enqueue_string(std::string(1, ' ')
+					       + dict_mode->get_random_word_group());
+			}
 
-          dequeue_character ();
-        }
-    }
+			dequeue_character();
+		}
+	}
+
+	return;
 }
+
+
+
 
 
 // handle_key_event()
@@ -112,13 +119,17 @@ void Sender::handle_key_event(QKeyEvent *event, const Mode *current_mode)
 // clear()
 //
 // Flush the tone queue, empty the character queue, and set to idle.
-void
-Sender::clear ()
+void Sender::clear()
 {
-  cw_flush_tone_queue ();
-  send_queue_.clear ();
-  is_queue_idle_ = true;
+	cw_flush_tone_queue();
+	send_queue_.clear();
+	is_queue_idle_ = true;
+
+	return;
 }
+
+
+
 
 
 // dequeue_character()
@@ -200,14 +211,14 @@ void Sender::enqueue_string(const std::string &word)
 // Remove the most recently added character from the queue, provided that
 // the dequeue hasn't yet reached it.  If there's nothing available to
 // delete, fail silently.
-void
-Sender::delete_character ()
+void Sender::delete_character()
 {
-  if (!send_queue_.empty ())
-    {
-      send_queue_.pop_back ();
-      display_->backspace ();
-    }
+	if (!send_queue_.empty()) {
+		send_queue_.pop_back();
+		display_->backspace();
+	}
+
+	return;
 }
 
 }  // cw namespace
