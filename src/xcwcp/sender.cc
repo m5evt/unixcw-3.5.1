@@ -71,36 +71,42 @@ Sender::poll (const Mode *current_mode)
 //
 // Specific handler for keyboard mode_key events.  Handles presses only;
 // releases are ignored.
-void
-Sender::handle_key_event (QKeyEvent *event, const Mode *current_mode)
+void Sender::handle_key_event(QKeyEvent *event, const Mode *current_mode)
 {
-  if (current_mode->is_keyboard ())
-    {
-      if (event->type () == QEvent::KeyPress)
-        {
-          // If the key was backspace, remove the last queued character, or at
-          // least try, and we are done.
-          if (event->key () == Qt::Key_Backspace)
-            {
-              delete_character ();
-              event->accept ();
-            }
-          else
-            {
-              // Extract the ASCII keycode from the key event, and queue the
-              // character for sending, converted to uppercase.
-		    const char *c = event->text().toAscii().data();
-		    enqueue_string(c);
+	if (!current_mode->is_keyboard()) {
+		return;
+	}
 
-              // Accept the event if the character was sendable.  If not, it
-              // won't have queued, and so by ignoring it we can let
-              // characters such as Tab pass up to the parent.
-              if (cw_check_character (toupper (c[0])))
-                event->accept ();
-            }
-        }
-    }
+	if (event->type() == QEvent::KeyPress) {
+
+		if (event->key() == Qt::Key_Backspace) {
+
+			// Remove the last queued character, or at
+			// least try, and we are done.
+			delete_character();
+			event->accept();
+		} else {
+			// Extract the ASCII keycode from the key
+			// event, and queue the character for sending,
+			// converted to uppercase.
+			const char *c = event->text().toAscii().data();
+			enqueue_string(c);
+
+			// Accept the event if the character was
+			// sendable.  If not, it won't have queued,
+			// and so by ignoring it we can let characters
+			// such as Tab pass up to the parent.
+			if (cw_character_is_valid(toupper(c[0]))) {
+				event->accept();
+			}
+		}
+	}
+
+	return;
 }
+
+
+
 
 
 // clear()
@@ -159,30 +165,34 @@ void Sender::dequeue_character()
 //
 // Queues a string for sending by the CW sender.  Rejects any unsendable
 // characters found in the string.  Rejection is silent.
-void
-Sender::enqueue_string (const std::string &word)
+void Sender::enqueue_string(const std::string &word)
 {
-  bool is_queue_notify = false;
+	bool is_queue_notify = false;
 
-  // Add each character, and note if we need to change from idle.
-  for (unsigned int index = 0; index < word.size (); index++)
-    {
-      const char c = toupper (word[index]);
+	// Add each character, and note if we need to change from idle.
+	for (unsigned int i = 0; i < word.size(); i++) {
+		const char c = toupper(word[i]);
 
-      if (cw_check_character (c))
-        {
-          send_queue_.push_back (c);
-          display_->append (c);
+		if (cw_character_is_valid(c)) {
+			send_queue_.push_back(c);
+			display_->append(c);
 
-          if (is_queue_idle_)
-            is_queue_notify = true;
-        }
-    }
+			if (is_queue_idle_) {
+				is_queue_notify = true;
+			}
+		}
+	}
 
-  // If we queued any character, mark the queue as not idle.
-  if (is_queue_notify)
-    is_queue_idle_ = false;
+	// If we queued any character, mark the queue as not idle.
+	if (is_queue_notify) {
+		is_queue_idle_ = false;
+	}
+
+	return;
 }
+
+
+
 
 
 // delete_character()
