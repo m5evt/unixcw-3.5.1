@@ -108,11 +108,6 @@ static void test_straight_key(cw_test_stats_t *stats);
 
 
 
-static const int print_width = 75;
-
-#define CW_TEST_PRINT_TEST_RESULT(m_failure, m_n) {			\
-		printf("%*s\n", (print_width - m_n), m_failure ? "failure" : "success"); \
-	}
 
 
 
