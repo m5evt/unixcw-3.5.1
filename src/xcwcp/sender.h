@@ -39,34 +39,34 @@ namespace cw {
 class Display;
 class Mode;
 
-class Sender
-{
+class Sender {
  public:
-  Sender (Display *display)
-    : display_ (display), is_queue_idle_ (true) { }
+	Sender (Display *display)
+		: display_ (display), is_queue_idle_ (true) { }
 
-  // Poll timeout handler, and keypress event handler.
-  void poll (const Mode *current_mode);
-  void handle_key_event (QKeyEvent *event, const Mode *current_mode);
+	// Poll timeout handler, and keypress event handler.
+	void poll(const Mode *current_mode);
+	void handle_key_event(QKeyEvent *event, const Mode *current_mode);
 
-  // Clear out queued data on stop, mode change, etc.
-  void clear ();
+	// Clear out queued data on stop, mode change, etc.
+	void clear();
 
  private:
-  // Display used for output.
-  Display *display_;
+	// Display used for output.
+	Display *display_;
 
-  // Deque and queue manipulation functions, used to handle and maintain the
-  // buffer of characters awaiting libcw send.
-  bool is_queue_idle_;
-  std::deque<char> send_queue_;
-  void dequeue_character ();
-  void enqueue_string (const std::string &word);
-  void delete_character ();
+	// Deque and queue manipulation functions, used to handle and
+	// maintain the buffer of characters awaiting libcw send.
+	bool is_queue_idle_;
+	std::deque<char> send_queue_;
 
-  // Prevent unwanted operations.
-  Sender (const Sender &);
-  Sender &operator= (const Sender &);
+	void dequeue_character();
+	void enqueue_string(const std::string &word);
+	void delete_character();
+
+	// Prevent unwanted operations.
+	Sender(const Sender &);
+	Sender &operator= (const Sender &);
 };
 
 }  // cw namespace
