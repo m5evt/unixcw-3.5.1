@@ -1,3 +1,6 @@
+2013-10-22 Kamil Ignacak
+	* unit tests: adding first unit test in cwutils/dictionary module.
+
 2013-10-19 Kamil Ignacak
 	* unit tests: adding "tests::" and "testedin::" markings in
 	functions' top level comments to indicate which functions are
