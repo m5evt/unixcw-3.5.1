@@ -18,6 +18,24 @@
 
 -include $(top_builddir)/Makefile.inc
 
+# targets to be built in this directory
+check_PROGRAMS=cw_dictionary_tests
+
+
+# source code files used to build cw_dictionary_tests program
+cw_dictionary_tests_SOURCES = dictionary.c memory.c i18n.c
+
+# target-specific preprocessor flags (#defs and include dirs)
+cw_dictionary_tests_CPPFLAGS = $(AM_CPPFLAGS) -DCW_DICTIONARY_UNIT_TESTS
+
+# target-specific linker flags (objects to link)
+cw_dictionary_tests_LDADD=-L$(top_builddir)/src/libcw/.libs -lcw #-lm -lpthread -ldl
+
+# target-specific compiler flags
+cw_dictionary_tests_CFLAGS = -rdynamic
+
+
+
 # no header from this dir should be installed
 # noinst_HEADERS = cmdline.h copyright.h cw_common.h cwwords.h dictionary.h i18n.h memory.h
 
@@ -31,4 +49,13 @@ lib_xcwcp_a_SOURCES = copyright.h i18n.c i18n.h cw_common.c cw_common.h cmdline.
 
 
 # Test targets; no self-test, but make sure all is built.
-check: all
+#check: all
+
+
+TESTS = $(check_SCRIPTS)
+
+# run test programs (only libcwunittests unit tests suite)
+check_SCRIPTS = greptest.sh
+greptest.sh:
+	echo './cw_dictionary_tests | grep "test result: success"' > greptest.sh
+	chmod +x greptest.sh
