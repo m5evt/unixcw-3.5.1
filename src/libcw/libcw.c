@@ -8785,7 +8785,7 @@ static cw_test_function_t cw_unit_tests[] = {
 
 int main(void)
 {
-	fprintf(stderr, "libcw unit tests facility\n");
+	fprintf(stderr, "libcw unit tests for library's internal functions\n\n");
 
 	// cw_debug_set_flags(&cw_debug_object_dev, CW_DEBUG_TONE_QUEUE);
 	// cw_debug_object_dev.level = CW_DEBUG_ERROR;
@@ -8798,7 +8798,8 @@ int main(void)
 
 	/* "make check" facility requires this message to be
 	   printed on stdout; don't localize it */
-	fprintf(stdout, "test result: success\n\n");
+	fprintf(stdout, "\nlibcw: test result: success\n\n");
+
 
 	return 0;
 }
@@ -8833,7 +8834,7 @@ int main(void)
 */
 unsigned int test_cw_representation_to_hash_internal(void)
 {
-	fprintf(stderr, "\ttesting cw_representation_to_hash_internal()... ");
+	int p = fprintf(stderr, "libcw: cw_representation_to_hash_internal():");
 
 
 	char input[REPRESENTATION_TABLE_SIZE][REPRESENTATION_LEN + 1];
@@ -8873,7 +8874,7 @@ unsigned int test_cw_representation_to_hash_internal(void)
 		cw_assert (hash >= 2 && hash <= 255, "Invalid hash #%d: %d\n", i, hash)
 	}
 
-	fprintf(stderr, "OK\n");
+	CW_TEST_PRINT_TEST_RESULT(false, p);
 
 	return 0;
 }
@@ -8887,7 +8888,7 @@ unsigned int test_cw_representation_to_hash_internal(void)
 */
 unsigned int test_cw_representation_to_character_internal(void)
 {
-	fprintf(stderr, "\ttesting cw_representation_to_character_internal... ");
+	int p = fprintf(stderr, "libcw: cw_representation_to_character_internal():");
 
 	/* The test is performed by comparing results of function
 	   using fast lookup table, and function using direct
@@ -8901,7 +8902,7 @@ unsigned int test_cw_representation_to_character_internal(void)
 		cw_assert (lookup == direct, "Failed for \"%s\"\n", cw_entry->representation);
 	}
 
-	fprintf(stderr, "OK\n");
+	CW_TEST_PRINT_TEST_RESULT(false, p);
 
 	return 0;
 }
@@ -8913,7 +8914,7 @@ unsigned int test_cw_representation_to_character_internal(void)
 
 unsigned int test_cw_representation_to_character_internal_speed(void)
 {
-	fprintf(stderr, "\ttesting speed gain of cw_representation_to_character_internal... ");
+	int p = fprintf(stderr, "libcw: cw_representation_to_character_internal() speed gain: ");
 
 
 	/* Testing speed gain between function with direct lookup, and
@@ -8949,10 +8950,10 @@ unsigned int test_cw_representation_to_character_internal_speed(void)
 
 	int direct = cw_timestamp_compare_internal(&start, &stop);
 
-	fprintf(stderr, "gain = %.2f  ", 1.0 * direct / lookup);
+	p += fprintf(stderr, "%.2f:", 1.0 * direct / lookup);
 
 
-	fprintf(stderr, "OK\n");
+	CW_TEST_PRINT_TEST_RESULT(false, p);
 
 	return 0;
 }
@@ -8963,7 +8964,7 @@ unsigned int test_cw_representation_to_character_internal_speed(void)
 
 unsigned int test_cw_forever(void)
 {
-	fprintf(stderr, "\ttesting CW_AUDIO_FOREVER_USECS...        ");
+	int p = fprintf(stderr, "libcw: CW_AUDIO_FOREVER_USECS:");
 
 	int rv = cw_generator_new(CW_AUDIO_OSS, NULL);
 	assert (rv);
@@ -8996,9 +8997,10 @@ unsigned int test_cw_forever(void)
 	cw_generator_stop();
 	cw_generator_delete();
 
-	fprintf(stderr, "OK\n");
 
-	return 1;
+	CW_TEST_PRINT_TEST_RESULT(false, p);
+
+	return 0;
 }
 
 
@@ -9015,7 +9017,7 @@ static cw_tone_queue_t test_tone_queue;
 */
 unsigned int test_cw_tone_queue_init_internal(void)
 {
-	fprintf(stderr, "\ttesting cw_tone_queue_init_internal()...        ");
+	int p = fprintf(stderr, "libwc: cw_tone_queue_init_internal():");
 	int rv = cw_tone_queue_init_internal(&test_tone_queue);
 	assert (rv == CW_SUCCESS);
 
@@ -9023,7 +9025,7 @@ unsigned int test_cw_tone_queue_init_internal(void)
 	   on the global test tq. */
 	test_tone_queue.state = QS_BUSY;
 
-	fprintf(stderr, "OK\n");
+	CW_TEST_PRINT_TEST_RESULT(false, p);
 
 	return 0;
 }
@@ -9038,12 +9040,12 @@ unsigned int test_cw_tone_queue_init_internal(void)
 */
 unsigned int test_cw_tone_queue_get_capacity_internal(void)
 {
-	fprintf(stderr, "\ttesting cw_tone_queue_get_capacity_internal()... ");
+	int p = fprintf(stderr, "libcw: cw_tone_queue_get_capacity_internal():");
 
 	uint32_t n = cw_tone_queue_get_capacity_internal(&test_tone_queue);
 	assert (n == test_tone_queue.capacity);
 
-	fprintf(stderr, "OK\n");
+	CW_TEST_PRINT_TEST_RESULT(false, p);
 
 	return 0;
 }
@@ -9057,7 +9059,7 @@ unsigned int test_cw_tone_queue_get_capacity_internal(void)
 */
 unsigned int test_cw_tone_queue_prev_index_internal(void)
 {
-	fprintf(stderr, "\ttesting cw_tone_queue_prev_index_internal()...  ");
+	int p = fprintf(stderr, "libcw: cw_tone_queue_prev_index_internal():");
 
 	struct {
 		int arg;
@@ -9091,7 +9093,7 @@ unsigned int test_cw_tone_queue_prev_index_internal(void)
 		i++;
 	}
 
-	fprintf(stderr, "OK\n");
+	CW_TEST_PRINT_TEST_RESULT(false, p);
 
 	return 0;
 }
@@ -9105,7 +9107,7 @@ unsigned int test_cw_tone_queue_prev_index_internal(void)
 */
 unsigned int test_cw_tone_queue_next_index_internal(void)
 {
-	fprintf(stderr, "\ttesting cw_tone_queue_next_index_internal()...  ");
+	int p = fprintf(stderr, "libcw: cw_tone_queue_next_index_internal():");
 
 	struct {
 		int arg;
@@ -9132,7 +9134,7 @@ unsigned int test_cw_tone_queue_next_index_internal(void)
 		i++;
 	}
 
-	fprintf(stderr, "OK\n");
+	CW_TEST_PRINT_TEST_RESULT(false, p);
 
 	return 0;
 }
@@ -9150,7 +9152,7 @@ unsigned int test_cw_tone_queue_next_index_internal(void)
 */
 unsigned int test_cw_tone_queue_length_internal(void)
 {
-	fprintf(stderr, "\ttesting cw_tone_queue_length_internal()...      ");
+	int p = fprintf(stderr, "libcw: cw_tone_queue_length_internal():");
 
 	/* This is just some code copied from implementation of
 	   'enqueue' function. I don't use 'enqueue' function itself
@@ -9203,7 +9205,7 @@ unsigned int test_cw_tone_queue_length_internal(void)
 	test_tone_queue.len = 0;
 	test_tone_queue.head = test_tone_queue.tail;
 
-	fprintf(stderr, "OK\n");
+	CW_TEST_PRINT_TEST_RESULT(false, p);
 
 	return 0;
 }
@@ -9217,7 +9219,7 @@ unsigned int test_cw_tone_queue_length_internal(void)
 */
 unsigned int test_cw_tone_queue_enqueue_internal(void)
 {
-	fprintf(stderr, "\ttesting cw_tone_queue_enqueue_internal()...     ");
+	int p = fprintf(stderr, "libcw: cw_tone_queue_enqueue_internal():");
 
 	/* At this point cw_tone_queue_length_internal() should be
 	   tested, so we can use it to verify correctness of 'enqueue'
@@ -9250,7 +9252,7 @@ unsigned int test_cw_tone_queue_enqueue_internal(void)
 	   function.  Full tq should not grow beyond its capacity. */
 	assert (test_tone_queue.len == test_tone_queue.capacity);
 
-	fprintf(stderr, "OK\n");
+	CW_TEST_PRINT_TEST_RESULT(false, p);
 
 	return 0;
 }
@@ -9264,7 +9266,7 @@ unsigned int test_cw_tone_queue_enqueue_internal(void)
 */
 unsigned int test_cw_tone_queue_dequeue_internal(void)
 {
-	fprintf(stderr, "\ttesting cw_tone_queue_dequeue_internal()...     ");
+	int p = fprintf(stderr, "libcw: cw_tone_queue_dequeue_internal():");
 
 	/* At this point cw_tone_queue_length_internal() should be
 	   tested, so we can use it to verify correctness of 'deenqueue'
@@ -9316,8 +9318,7 @@ unsigned int test_cw_tone_queue_dequeue_internal(void)
 	rv = cw_tone_queue_dequeue_internal(&test_tone_queue, &tone);
 	assert (rv == CW_TQ_STILL_EMPTY);
 
-
-	fprintf(stderr, "OK\n");
+	CW_TEST_PRINT_TEST_RESULT(false, p);
 
 	return 0;
 }
@@ -9335,7 +9336,7 @@ unsigned int test_cw_tone_queue_dequeue_internal(void)
 */
 unsigned int test_cw_tone_queue_is_full_internal(void)
 {
-	fprintf(stderr, "\ttesting cw_tone_queue_is_full_internal()...     ");
+	int p = fprintf(stderr, "libcw: cw_tone_queue_is_full_internal():");
 
 	/* The tq should be empty after the last test, but just in case...
 	   Empty and reset the queue. */
@@ -9370,8 +9371,7 @@ unsigned int test_cw_tone_queue_is_full_internal(void)
 
 	assert (cw_tone_queue_is_full_internal(&test_tone_queue));
 
-
-	fprintf(stderr, "OK\n");
+	CW_TEST_PRINT_TEST_RESULT(false, p);
 
 	return 0;
 }
@@ -9395,7 +9395,7 @@ unsigned int test_cw_tone_queue_is_full_internal(void)
 */
 unsigned int test_cw_tone_queue_test_capacity1(void)
 {
-	fprintf(stderr, "\ttesting correctness of handling capacity (1)... ");
+	int p = fprintf(stderr, "libcw: testing correctness of handling capacity (1):");
 
 	/* We don't need to check tq with capacity ==
 	   CW_TONE_QUEUE_CAPACITY_MAX (yet). Let's test a smaller
@@ -9451,8 +9451,7 @@ unsigned int test_cw_tone_queue_test_capacity1(void)
 		s++;
 	}
 
-
-	fprintf(stderr, "OK\n");
+	CW_TEST_PRINT_TEST_RESULT(false, p);
 
 	return 0;
 }
@@ -9477,7 +9476,7 @@ unsigned int test_cw_tone_queue_test_capacity1(void)
 */
 unsigned int test_cw_tone_queue_test_capacity2(void)
 {
-	fprintf(stderr, "\ttesting correctness of handling capacity (2)... ");
+	int p = fprintf(stderr, "libcw: testing correctness of handling capacity (2):");
 
 	/* We don't need to check tq with capacity ==
 	   CW_TONE_QUEUE_CAPACITY_MAX (yet). Let's test a smaller
@@ -9553,7 +9552,7 @@ unsigned int test_cw_tone_queue_test_capacity2(void)
 		s++;
 	}
 
-	fprintf(stderr, "OK\n");
+	CW_TEST_PRINT_TEST_RESULT(false, p);
 
 	return 0;
 }
@@ -9635,7 +9634,7 @@ int test_cw_tone_queue_capacity_test_init(cw_tone_queue_t *tq, uint32_t capacity
 */
 unsigned int test_cw_timestamp_compare_internal(void)
 {
-	fprintf(stderr, "\ttesting cw_timestamp_compare_internal()...      ");
+	int p = fprintf(stderr, "libcw: cw_timestamp_compare_internal():");
 
 	struct timeval earlier_timestamp;
 	struct timeval later_timestamp;
@@ -9670,7 +9669,8 @@ unsigned int test_cw_timestamp_compare_internal(void)
 		i++;
 	}
 
-	fprintf(stderr, "OK\n");
+	CW_TEST_PRINT_TEST_RESULT(false, p);
+
 	return 0;
 }
 
@@ -9683,7 +9683,7 @@ unsigned int test_cw_timestamp_compare_internal(void)
 */
 unsigned int test_cw_timestamp_validate_internal(void)
 {
-	fprintf(stderr, "\ttesting cw_timestamp_validate_internal()...     ");
+	int p = fprintf(stderr, "libcw: cw_timestamp_validate_internal():");
 
 	struct timeval out_timestamp;
 	struct timeval in_timestamp;
@@ -9760,8 +9760,8 @@ unsigned int test_cw_timestamp_validate_internal(void)
 	cw_assert (errno == EINVAL, "test 5: failed to properly set errno, errno is %d", errno);
 
 
+	CW_TEST_PRINT_TEST_RESULT(false, p);
 
-	fprintf(stderr, "OK\n");
 	return 0;
 }
 
@@ -9774,7 +9774,7 @@ unsigned int test_cw_timestamp_validate_internal(void)
 */
 unsigned int test_cw_usecs_to_timespec_internal(void)
 {
-	fprintf(stderr, "\ttesting cw_usecs_to_timespec_internal()...      ");
+	int p = fprintf(stderr, "libcw: cw_usecs_to_timespec_internal():");
 
 	struct {
 		int input;
@@ -9803,7 +9803,7 @@ unsigned int test_cw_usecs_to_timespec_internal(void)
 		i++;
 	}
 
-	fprintf(stderr, "OK\n");
+	CW_TEST_PRINT_TEST_RESULT(false, p);
 
 	return 0;
 }
