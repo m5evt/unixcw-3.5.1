@@ -108,7 +108,7 @@ static bool cw_dictionary_parse_is_section(const char *line, char **name_ptr);
 static cw_dictionary_t *cw_dictionaries_create_from_stream(FILE *stream, const char *file);
 static cw_dictionary_t *cw_dictionaries_create_default(void);
 
-
+static char *cw_dictionary_check_line(const char *line);
 
 
 
@@ -414,35 +414,44 @@ void cw_dictionary_trim(char *buffer)
 
 
 
-/*
- * dictionary_check_line()
- *
- * Check a line for unsendable characters.  Returns an allocated string with
- * '^' in error positions, and spaces otherwise, or NULL if no unsendable
- * characters.
- */
-static char *cw_dictionary_check_line (const char *line)
+/**
+   \brief Check if given line contains any invalid characters.
+
+   Check a \p line for unsendable characters.
+
+   If there are any invalid characters in \p line, return an allocated string with
+   '^' characters in error positions and with spaces in all other positions.
+   Return NULL if all characters in \p line are valid (sendable).
+
+   Returned pointer is managed by caller.
+
+   \param line - line to check
+
+   \return pointer to string if \p line contains one or more invalid characters
+   \return NULL otherwise
+*/
+char *cw_dictionary_check_line(const char *line)
 {
-	char *errors;
-	int count, index;
+	char *errors = malloc(strlen(line) + 1);
 
-	/* Allocate a string, and set a '^' marker for any unsendable characters. */
-	errors = safe_malloc (strlen (line) + 1);
-	count = 0;
-
-	for (index = 0; line[index] != '\0'; index++)
-		{
-			errors[index] = cw_check_character (line[index]) ? ' ' : '^';
-			if (errors[index] == '^')
-				count++;
+	int count = 0;
+	int i = 0;
+	for (i = 0; line[i] != '\0'; i++) {
+		errors[i] = cw_character_is_valid(line[i]) ? ' ' : '^';
+		if (errors[i] == '^') {
+			count++;
 		}
-	errors[index] = '\0';
+	}
+	errors[i] = '\0';
 
 	/* If not all sendable, return the string, otherwise return NULL. */
-	if (count > 0)
+	if (count > 0) {
 		return errors;
+	}
 
-	free (errors);
+	free(errors);
+	errors = NULL;
+
 	return NULL;
 }
 
@@ -891,7 +900,6 @@ int main(void)
 
 unsigned int test_cw_dictionary_check_line(void)
 {
-
 	int p = fprintf(stderr, "dictionary: cw_dictionary_check_line():");
 
 	/* First test the function giving it strings with some invalid
@@ -899,8 +907,15 @@ unsigned int test_cw_dictionary_check_line(void)
 	{
 		struct {
 			const char *in;
-			const char *out;
+			const char *expected_out;
 		} invalid_test_data[] = {
+			/* See src/libcw/libcw.c for list of valid characters. */
+
+			/* The '^' marks in "out" strings point
+			   invalid characters. These "out" strings
+			   look exactly as expected outputs of tested
+			   function. */
+
 			{ "t7890pl\tnbf7890lnbdg",
 			  "       ^            " },
 
@@ -909,7 +924,6 @@ unsigned int test_cw_dictionary_check_line(void)
 
 			{ "34rtghjm,1qazx-poijh|",
 			  "                    ^" },
-
 
 			{ "=-0987654$[^&*()%^&|",
 			  "          ^  ^  ^  ^" },
@@ -923,12 +937,35 @@ unsigned int test_cw_dictionary_check_line(void)
 
 			cw_assert (out, "function returned NULL for string #%d with invalid char(s)", i);
 
-			cw_assert (!strcmp(out, invalid_test_data[i].out),
+			cw_assert (!strcmp(out, invalid_test_data[i].expected_out),
 				   "strings not equal:\n\"%s\"\n\"%s\"\n",
-				   out, invalid_test_data[i].out);
+				   out, invalid_test_data[i].expected_out);
 
 			free(out);
 			out = NULL;
+		}
+	}
+
+
+
+	/* Now also test with strings with all chars valid. */
+	{
+		const char *valid_test_data[] = {
+			/* See src/libcw/libcw.c for list of valid characters. */
+
+			"t7890pltnbf7890lnbdg",
+			"u90-pkngfrt6789=0ol",
+			"34rtghjm,1qazx-poijh",
+			"=-0987654$^&()^&ABCP",
+
+			NULL /* Guard. */
+		};
+
+
+		for (int i = 0; valid_test_data[i]; i++) {
+			char *out = cw_dictionary_check_line(valid_test_data[i]);
+
+			cw_assert (!out, "function returned non-NULL for string #%d with all valid chars", i);
 		}
 	}
 
