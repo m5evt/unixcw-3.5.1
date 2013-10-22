@@ -41,6 +41,10 @@
 #include "i18n.h"
 
 
+#include "libcw_internal.h"
+#include "libcw_debug.h"
+
+
 /**
    cw dictionaries
 
@@ -417,30 +421,29 @@ void cw_dictionary_trim(char *buffer)
  * '^' in error positions, and spaces otherwise, or NULL if no unsendable
  * characters.
  */
-static char *
-dictionary_check_line (const char *line)
+static char *cw_dictionary_check_line (const char *line)
 {
-  char *errors;
-  int count, index;
+	char *errors;
+	int count, index;
 
-  /* Allocate a string, and set a '^' marker for any unsendable characters. */
-  errors = safe_malloc (strlen (line) + 1);
-  count = 0;
+	/* Allocate a string, and set a '^' marker for any unsendable characters. */
+	errors = safe_malloc (strlen (line) + 1);
+	count = 0;
 
-  for (index = 0; line[index] != '\0'; index++)
-    {
-      errors[index] = cw_check_character (line[index]) ? ' ' : '^';
-      if (errors[index] == '^')
-        count++;
-    }
-  errors[index] = '\0';
+	for (index = 0; line[index] != '\0'; index++)
+		{
+			errors[index] = cw_check_character (line[index]) ? ' ' : '^';
+			if (errors[index] == '^')
+				count++;
+		}
+	errors[index] = '\0';
 
-  /* If not all sendable, return the string, otherwise return NULL. */
-  if (count > 0)
-    return errors;
+	/* If not all sendable, return the string, otherwise return NULL. */
+	if (count > 0)
+		return errors;
 
-  free (errors);
-  return NULL;
+	free (errors);
+	return NULL;
 }
 
 
@@ -501,7 +504,7 @@ cw_dictionary_t *cw_dictionaries_create_from_stream(FILE *stream, const char *fi
 			content = NULL;
 		} else if (name) {
 			/* Check the line for unsendable characters. */
-			char *errors = dictionary_check_line(line);
+			char *errors = cw_dictionary_check_line(line);
 			if (errors) {
 				fprintf(stderr, "%s:%d: unsendable character found:\n",
 					file, line_number);
@@ -843,3 +846,98 @@ const char *get_dictionary_random_word(const dictionary *dict)
 {
 	return cw_dictionary_get_random_word(dict);
 }
+
+
+
+
+
+#ifdef CW_DICTIONARY_UNIT_TESTS
+
+
+
+
+static unsigned int test_cw_dictionary_check_line(void);
+
+
+typedef unsigned int (*cw_dict_test_function_t)(void);
+
+static cw_dict_test_function_t cw_dict_unit_tests[] = {
+	test_cw_dictionary_check_line,
+	NULL
+};
+
+
+
+int main(void)
+{
+	fprintf(stderr, "unit tests for \"dictionary\" functions\n\n");
+
+	int i = 0;
+	while (cw_dict_unit_tests[i]) {
+		cw_dict_unit_tests[i]();
+		i++;
+	}
+
+	/* "make check" facility requires this message to be
+	   printed on stdout; don't localize it */
+	fprintf(stdout, "\ndictionary: test result: success\n\n");
+
+	return 0;
+}
+
+
+
+
+
+unsigned int test_cw_dictionary_check_line(void)
+{
+
+	int p = fprintf(stderr, "dictionary: cw_dictionary_check_line():");
+
+	/* First test the function giving it strings with some invalid
+	   characters. */
+	{
+		struct {
+			const char *in;
+			const char *out;
+		} invalid_test_data[] = {
+			{ "t7890pl\tnbf7890lnbdg",
+			  "       ^            " },
+
+			{ "`u90-pkngfrt6789=0ol",
+			  "^                   " },
+
+			{ "34rtghjm,1qazx-poijh|",
+			  "                    ^" },
+
+
+			{ "=-0987654$[^&*()%^&|",
+			  "          ^  ^  ^  ^" },
+
+			{ NULL, NULL } /* Guard. */
+		};
+
+
+		for (int i = 0; invalid_test_data[i].in; i++) {
+			char *out = cw_dictionary_check_line(invalid_test_data[i].in);
+
+			cw_assert (out, "function returned NULL for string #%d with invalid char(s)", i);
+
+			cw_assert (!strcmp(out, invalid_test_data[i].out),
+				   "strings not equal:\n\"%s\"\n\"%s\"\n",
+				   out, invalid_test_data[i].out);
+
+			free(out);
+			out = NULL;
+		}
+	}
+
+
+	CW_TEST_PRINT_TEST_RESULT(false, p);
+
+	return 0;
+}
+
+
+
+#endif /* #ifdef CW_DICTIONARY_UNIT_TESTS */
