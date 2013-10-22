@@ -362,7 +362,7 @@ void Receiver::poll_receive_character()
 				display_->append('?');
 
 				QString status = _("Unknown character received at %1 WPM");
-				display_->show_status(status.arg(c).arg(cw_get_receive_speed()));
+				display_->show_status(status.arg(cw_get_receive_speed()));
 			}
 			break;
 
