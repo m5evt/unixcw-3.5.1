@@ -102,6 +102,7 @@ static void test_send_character_and_string(cw_test_stats_t *stats);
 static void test_fixed_receive(cw_test_stats_t *stats);
 static int  test_fixed_receive_add_jitter(const int usecs, bool is_space);
 static void test_adaptive_receive(cw_test_stats_t *stats);
+static int  test_adaptive_receive_scale(const int usecs, float factor);
 static void test_keyer(cw_test_stats_t *stats);
 static void test_straight_key(cw_test_stats_t *stats);
 // static void cw_test_delayed_release(cw_test_stats_t *stats);
@@ -1802,7 +1803,11 @@ static const cw_test_receive_data_t TEST_DATA_RAW[] = {
 	{ '^', "-.-.-" ,   { 60000, 20000,  20000, 20000,  60000, 20000,  20000, 20000,  60000,                                  60000, 0 }},    /* KA, starting signal */
 	{ '~', ".-.-..",   { 20000, 20000,  60000, 20000,  20000, 20000,  60000, 20000,  20000, 20000,  20000,                   60000, 0 }},    /* AL, paragraph */
 
+	/* This line is exclusively for adaptive receiving speed tracking. */
+	{ 'P', ".--.",     { 20000, 20000,  60000, 20000,  60000, 20000,  20000,                                               1200000, -1 }},  /* Includes word end delay (120000 > 5 * 20000), -1 indicator */
 
+
+#if 0 /* Legacy test units, now we have test data for full set of supported characters defined above. */
 	/* Values from old code:
 	   Jitter for "space": 111, 222, 333.
 	   Jitter for "dot" and "dash": 2346, 3456.
@@ -1813,13 +1818,39 @@ static const cw_test_receive_data_t TEST_DATA_RAW[] = {
 
 	   Jitter for "space": 350
 	   Jitter for "dot" and "dash": 3500 */
-#if 0 /* Legacy test units, now we have test data for full set of supported characters defined above. */
 	{ 'Q', "--.-", { 63456, 20111, 63456, 20111, 23456, 20111, 63456, 60111, 0 } },
 	{ 'R', ".-.",  { 17654, 20222, 57654, 20222, 17654, 60222,     0 } },
 	{ 'P', ".--.", { 23456, 20333, 63456, 20333, 63456, 20333, 23456, 60333, 0 } },
 #endif
+
+#if 0
+	{ 'Q', "--.-", { 60000, 20000,  60000, 20000,  20000, 20000, 60000, 60000, 0    } },
+	{ 'R', ".-.",  { 30000, 30000,  90000, 30000,  30000, 90000,     0 } },
+	{ 'P', ".--.", { 40000, 40000, 120000, 40000, 120000, 40000, 40000,  280000, -1 } },  /* Includes word end delay, -1 indicator */
+#endif
+
 	{ ' ', NULL,   { 0 } }
 };
+
+
+
+#define TEST_ADAPTIVE_RECEIVE_FACTORS_MAX 10
+
+/* Input values of timing parameters are calculated for 60
+   WPM. Scaling should produce values no larger than 60 WPM. */
+float test_adaptive_receive_factors[TEST_ADAPTIVE_RECEIVE_FACTORS_MAX] =
+	{
+		60.0 / 60.0,
+		60.0 / 60.0,
+		60.0 / 60.0,
+		55.0 / 60.0,
+		55.0 / 60.0,
+		55.0 / 60.0,
+		50.0 / 60.0,
+		50.0 / 60.0,
+		45.0 / 60.0,
+		45.0 / 60.0
+	};
 
 
 
@@ -1886,6 +1917,28 @@ int test_fixed_receive_add_jitter(const int usecs, bool is_space)
 
 
 /**
+   Scale timing parameters
+
+   Scale values of timing parameters for purposes of testing of adaptive receiving.
+
+   \param usecs - raw value of timing parameter
+   \param factor - scaling factor
+
+   \return scaled value of usecs
+*/
+int test_adaptive_receive_scale(const int usecs, float factor)
+{
+	int out = usecs * factor;
+	fprintf(stderr, "factor = %f, in usecs = %d, out usecs = %d\n", factor, usecs, out);
+
+	return out;
+}
+
+
+
+
+
+/**
    test_adaptive_receive()
 */
 void test_adaptive_receive(cw_test_stats_t *stats)
@@ -1908,7 +1961,7 @@ void test_adaptive_receive(cw_test_stats_t *stats)
 	cw_set_tolerance(35);
 	cw_enable_adaptive_receive();
 
-	test_helper_receive_tests(true, TEST_DATA, stats, false);
+	test_helper_receive_tests(true, TEST_DATA_RAW, stats, false);
 
 	printf("libcw: %s(): completed\n\n", __func__);
 	return;
@@ -1963,7 +2016,13 @@ void test_helper_receive_tests(bool adaptive, const cw_test_receive_data_t *data
 			if (fixed_speed) {
 				tv.tv_usec += test_fixed_receive_add_jitter(data[i].usecs[entry], (bool) (entry & 1));
 			} else {
-				tv.tv_usec += data[i].usecs[entry];
+				float factor = test_adaptive_receive_factors[i % TEST_ADAPTIVE_RECEIVE_FACTORS_MAX];
+				tv.tv_usec += test_adaptive_receive_scale(data[i].usecs[entry], factor);
+			}
+
+			if (tv.tv_usec > CW_USECS_PER_SEC) {
+				tv.tv_usec %= CW_USECS_PER_SEC;
+				tv.tv_sec++;
 			}
 		}
 
@@ -2013,26 +2072,30 @@ void test_helper_receive_tests(bool adaptive, const cw_test_receive_data_t *data
 			   "end of character" space is 5 x dot. */
 			if (!cw_receive_representation(&tv, representation, &is_word, &is_error)) {
 				stats->failures++;
-				int n = printf("libcw: cw_receive_representation():");
+				int n = printf("libcw: cw_receive_representation() (1):");
 				CW_TEST_PRINT_TEST_RESULT (true, n);
 				break;
 			}
 
 			if (strcmp(representation, data[i].representation) != 0) {
 				stats->failures++;
-				int n = printf("libcw: cw_receive_representation():");
+				fprintf(stderr, "\"%s\"   !=   \"%s\"\n",
+					representation, data[i].representation);
+				int n = printf("libcw: cw_receive_representation() (2):");
 				CW_TEST_PRINT_TEST_RESULT (true, n);
 				break;
 			}
 
 			if (is_error) {
 				stats->failures++;
-				int n = printf("libcw: cw_receive_representation():");
+				int n = printf("libcw: cw_receive_representation() (3):");
 				CW_TEST_PRINT_TEST_RESULT (true, n);
 				break;
 			}
 
-			if (adaptive) {
+			if (adaptive
+			    || data[i].usecs[entry] == -1) { /* The test data row that is exclusively for adaptive speed tracking. */
+
 				if ((data[i].usecs[entry] == 0 && is_word)
 				    || (data[i].usecs[entry] < 0 && !is_word)) {
 
@@ -2044,7 +2107,7 @@ void test_helper_receive_tests(bool adaptive, const cw_test_receive_data_t *data
 			} else {
 				if (is_word) {
 					stats->failures++;
-					int n = printf("libcw: cw_receive_representation():");
+					int n = printf("libcw: cw_receive_representation() (4):");
 					CW_TEST_PRINT_TEST_RESULT (true, n);
 					break;
 				}
