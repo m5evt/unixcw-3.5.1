@@ -377,6 +377,15 @@ enum {
 };
 
 
+static const char *cw_receiver_states[] = {
+	"RS_IDLE",
+	"RS_IN_TONE",
+	"RS_AFTER_TONE",
+	"RS_END_CHAR",
+	"RS_END_WORD",
+	"RS_ERR_CHAR",
+	"RS_ERR_WORD"
+};
 
 
 
@@ -5768,7 +5777,7 @@ int cw_start_receive_tone(const struct timeval *timestamp)
 	receiver.state = RS_IN_TONE;
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-		      "libcw: receive state ->%d", receiver.state);
+		      "libcw: receive state -> %s", cw_receiver_states[receiver.state]);
 
 	return CW_SUCCESS;
 }
@@ -5856,7 +5865,7 @@ int cw_receiver_identify_tone_internal(cw_rec_t *rec, int element_len_usecs, /* 
 		? RS_ERR_WORD : RS_ERR_CHAR;
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-		      "libcw: receive state ->%d", rec->state);
+		      "libcw: receive state -> %s", cw_receiver_states[rec->state]);
 
 	if (rec->is_adaptive_receive_enabled) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
@@ -6010,7 +6019,7 @@ int cw_end_receive_tone(const struct timeval *timestamp)
 		receiver.tone_end = saved_end_timestamp;
 
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-			      "libcw: receive state ->%d", receiver.state);
+			      "libcw: receive state -> %s", cw_receiver_states[receiver.state]);
 
 		errno = EAGAIN;
 		return CW_FAILURE;
@@ -6062,7 +6071,7 @@ int cw_end_receive_tone(const struct timeval *timestamp)
 			      "libcw: receiver's representation buffer is full");
 
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-			      "libcw: receive state ->%d", receiver.state);
+			      "libcw: receive state -> %s", cw_receiver_states[receiver.state]);
 
 		errno = ENOMEM;
 		return CW_FAILURE;
@@ -6072,7 +6081,7 @@ int cw_end_receive_tone(const struct timeval *timestamp)
 	receiver.state = RS_AFTER_TONE;
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-		      "libcw: receive state ->%d", receiver.state);
+		      "libcw: receive state -> %s", cw_receiver_states[receiver.state]);
 
 	return CW_SUCCESS;
 }
@@ -6142,7 +6151,7 @@ int cw_receiver_add_element_internal(cw_rec_t *rec, const struct timeval *timest
 			      "libcw: receiver's representation buffer is full");
 
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-			      "libcw: receive state ->%d", rec->state);
+			      "libcw: receive state -> %s", cw_receiver_states[rec->state]);
 
 		errno = ENOMEM;
 		return CW_FAILURE;
@@ -6153,7 +6162,7 @@ int cw_receiver_add_element_internal(cw_rec_t *rec, const struct timeval *timest
 	rec->state = RS_AFTER_TONE;
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-		      "libcw: receive state ->%d", rec->state);
+		      "libcw: receive state -> %s", cw_receiver_states[rec->state]);
 
 	return CW_SUCCESS;
 }
@@ -6361,7 +6370,7 @@ int cw_receive_representation(const struct timeval *timestamp,
 		}
 
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-			      "libcw: receive state ->%d", receiver.state);
+			      "libcw: receive state -> %s", cw_receiver_states[receiver.state]);
 
 		/* Return the representation from receiver's buffer. */
 		if (is_end_of_word) {
@@ -6390,7 +6399,7 @@ int cw_receive_representation(const struct timeval *timestamp,
 			? RS_ERR_WORD : RS_END_WORD;
 
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-			      "libcw: receive state ->%d", receiver.state);
+			      "libcw: receive state -> %s", cw_receiver_states[receiver.state]);
 
 		/* Return the representation from receiver's buffer. */
 		if (is_end_of_word) {
@@ -6509,7 +6518,7 @@ void cw_clear_receive_buffer(void)
 	receiver.state = RS_IDLE;
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-		      "libcw: receive state ->%d", receiver.state);
+		      "libcw: receive state -> %s", cw_receiver_states[receiver.state]);
 
 	return;
 }
@@ -6567,7 +6576,7 @@ void cw_reset_receive(void)
 	cw_reset_receive_statistics();
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-		      "libcw: receive state ->%d (reset)", receiver.state);
+		      "libcw: receive state -> %s (reset)", cw_receiver_states[receiver.state]);
 
 	return;
 }
@@ -7254,7 +7263,7 @@ int cw_notify_straight_key_event(int key_state)
 		cw_sk_key_state = key_state;
 
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STRAIGHT_KEY_STATES, CW_DEBUG_INFO,
-			      "libcw: straight key state ->%s", cw_sk_key_state == CW_KEY_STATE_CLOSED ? "DOWN" : "UP");
+			      "libcw: straight key state -> %s", cw_sk_key_state == CW_KEY_STATE_CLOSED ? "DOWN" : "UP");
 
 		/* Do tones and keying, and set up timeouts and soundcard
 		   activities to match the new key state. */
