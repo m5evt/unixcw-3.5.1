@@ -439,7 +439,11 @@ static int  cw_receiver_add_element_internal(cw_rec_t *rec, const struct timeval
 /* ******************************************************************** */
 /*                        Section:Iambic keyer                          */
 /* ******************************************************************** */
-static int cw_iambic_keyer_update_internal(void);
+
+typedef struct cw_iambic_keyer_struct cw_iambic_keyer_t;
+
+static int  cw_iambic_keyer_update_internal(cw_iambic_keyer_t *keyer);
+static void cw_iambic_keyer_update_initial_internal(cw_iambic_keyer_t *keyer);
 
 
 
@@ -524,11 +528,6 @@ const char *cw_audio_system_labels[] = {
 	"ALSA",
 	"PulseAudio",
 	"Soundcard" };
-
-
-
-/* FIXME: describe why we need this flag. */
-static bool cw_iambic_keyer_lock = false;
 
 
 
@@ -6593,71 +6592,6 @@ void cw_reset_receive(void)
 
 
 
-/* Iambic keyer status.  The keyer functions maintain the current known
-   state of the paddles, and latch false-to-true transitions while busy,
-   to form the iambic effect.  For Curtis mode B, the keyer also latches
-   any point where both paddle states are true at the same time. */
-static volatile bool cw_iambic_keyer_dot_paddle = false,      /* Dot paddle state */
-	cw_iambic_keyer_dash_paddle = false,                  /* Dash paddle state */
-	cw_iambic_keyer_dot_latch = false,                    /* Dot false->true latch */
-	cw_iambic_keyer_dash_latch = false,                   /* Dash false->true latch */
-	cw_iambic_keyer_curtis_b_latch = false;               /* Curtis Dot&&Dash latch */
-
-/* Iambic keyer "Curtis" mode A/B selector.  Mode A and mode B timings
-   differ slightly, and some people have a preference for one or the other.
-   Mode A is a bit less timing-critical, so we'll make that the default. */
-static volatile bool cw_iambic_keyer_curtis_mode_b = false;
-
-
-
-
-
-/**
-   \brief Enable iambic Curtis mode B
-
-   Normally, the iambic keying functions will emulate Curtis 8044 Keyer
-   mode A.  In this mode, when both paddles are pressed together, the
-   last dot or dash being sent on release is completed, and nothing else
-   is sent. In mode B, when both paddles are pressed together, the last
-   dot or dash being sent on release is completed, then an opposite
-   element is also sent. Some operators prefer mode B, but timing is
-   more critical in this mode. The default mode is Curtis mode A.
-*/
-void cw_enable_iambic_curtis_mode_b(void)
-{
-	cw_iambic_keyer_curtis_mode_b = true;
-	return;
-}
-
-
-
-
-
-/**
-   See documentation of cw_enable_iambic_curtis_mode_b() for more information
-*/
-void cw_disable_iambic_curtis_mode_b(void)
-{
-	cw_iambic_keyer_curtis_mode_b = false;
-	return;
-}
-
-
-
-
-
-/**
-   See documentation of cw_enable_iambic_curtis_mode_b() for more information
-*/
-int cw_get_iambic_curtis_mode_b_state(void)
-{
-	return cw_iambic_keyer_curtis_mode_b;
-}
-
-
-
-
-
 /*
  * The CW keyer functions implement the following state graph:
  *
@@ -6685,7 +6619,9 @@ int cw_get_iambic_curtis_mode_b_state(void)
  *        |          (all latches clear)                        |
  *        +-----------------------------------------------------+
  */
-static volatile enum {
+
+/* KS stands for Keyer State. */
+enum {
 	KS_IDLE,
 	KS_IN_DOT_A,
 	KS_IN_DASH_A,
@@ -6695,7 +6631,111 @@ static volatile enum {
 	KS_IN_DASH_B,
 	KS_AFTER_DOT_B,
 	KS_AFTER_DASH_B
-} cw_iambic_keyer_state = KS_IDLE;
+};
+
+
+static const char *cw_iambic_keyer_states[] = {
+	"KS_IDLE",
+	"KS_IN_DOT_A",
+	"KS_IN_DASH_A",
+	"KS_AFTER_DOT_A",
+	"KS_AFTER_DASH_A",
+	"KS_IN_DOT_B",
+	"KS_IN_DASH_B",
+	"KS_AFTER_DOT_B",
+	"KS_AFTER_DASH_B"
+};
+
+
+
+
+/* Iambic keyer status.  The keyer functions maintain the current
+   known state of the paddles, and latch false-to-true transitions
+   while busy, to form the iambic effect.  For Curtis mode B, the
+   keyer also latches any point where both paddle states are true at
+   the same time. */
+struct cw_iambic_keyer_struct {
+	int state;            /* Keyer state. */
+
+	bool dot_paddle;      /* Dot paddle state */
+	bool dash_paddle;     /* Dash paddle state */
+
+	bool dot_latch;       /* Dot false->true latch */
+	bool dash_latch;      /* Dash false->true latch */
+
+	/* Iambic keyer "Curtis" mode A/B selector.  Mode A and mode B timings
+	   differ slightly, and some people have a preference for one or the other.
+	   Mode A is a bit less timing-critical, so we'll make that the default. */
+	bool curtis_mode_b;
+
+	bool curtis_b_latch;  /* Curtis Dot&&Dash latch */
+
+	bool lock;            /* FIXME: describe why we need this flag. */
+
+}; // typedef cw_iambic_keyer_t
+
+
+
+cw_iambic_keyer_t cw_iambic_keyer = {
+	.state = KS_IDLE,
+
+	.dot_paddle = false,
+	.dash_paddle = false,
+
+	.dot_latch = false,
+	.dash_latch = false,
+
+	.curtis_mode_b = false,
+	.curtis_b_latch = false,
+
+	.lock = false
+};
+
+
+
+
+
+/**
+   \brief Enable iambic Curtis mode B
+
+   Normally, the iambic keying functions will emulate Curtis 8044 Keyer
+   mode A.  In this mode, when both paddles are pressed together, the
+   last dot or dash being sent on release is completed, and nothing else
+   is sent. In mode B, when both paddles are pressed together, the last
+   dot or dash being sent on release is completed, then an opposite
+   element is also sent. Some operators prefer mode B, but timing is
+   more critical in this mode. The default mode is Curtis mode A.
+*/
+void cw_enable_iambic_curtis_mode_b(void)
+{
+	cw_iambic_keyer.curtis_mode_b = true;
+	return;
+}
+
+
+
+
+
+/**
+   See documentation of cw_enable_iambic_curtis_mode_b() for more information
+*/
+void cw_disable_iambic_curtis_mode_b(void)
+{
+	cw_iambic_keyer.curtis_mode_b = false;
+	return;
+}
+
+
+
+
+
+/**
+   See documentation of cw_enable_iambic_curtis_mode_b() for more information
+*/
+int cw_get_iambic_curtis_mode_b_state(void)
+{
+	return cw_iambic_keyer.curtis_mode_b;
+}
 
 
 
@@ -6714,26 +6754,30 @@ static volatile enum {
    dequeued and pushed to audio system. I don't know why make the call
    in that place for iambic keyer, but not for straight key.
 
+   \param keyer - iambic keyer
+
    \return CW_FAILURE if there is a lock and the function cannot proceed
    \return CW_SUCCESS otherwise
 */
-int cw_iambic_keyer_update_internal(void)
+int cw_iambic_keyer_update_internal(cw_iambic_keyer_t *keyer)
 {
-	if (cw_iambic_keyer_lock) {
+	if (keyer->lock) {
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_INTERNAL, CW_DEBUG_ERROR,
 			      "libcw: lock in thread %ld", (long) pthread_self());
 		return CW_FAILURE;
 	}
-	cw_iambic_keyer_lock = true;
+	keyer->lock = true;
 
 	/* Synchronize low level timing parameters if required. */
 	cw_sync_parameters_internal(generator, &receiver);
 
+	int cw_iambic_keyer_state_old = keyer->state;
+
 	/* Decide what to do based on the current state. */
-	switch (cw_iambic_keyer_state) {
+	switch (keyer->state) {
 		/* Ignore calls if our state is idle. */
 	case KS_IDLE:
-		cw_iambic_keyer_lock = false;
+		keyer->lock = false;
 		return CW_SUCCESS;
 
 		/* If we were in a dot, turn off tones and begin the
@@ -6744,25 +6788,16 @@ int cw_iambic_keyer_update_internal(void)
 	case KS_IN_DOT_A:
 	case KS_IN_DOT_B:
 		cw_key_iambic_keyer_generate_internal(generator, CW_KEY_STATE_OPEN, generator->eoe_delay);
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
-			      "libcw: cw_keyer_state: KS_IN_DOT -> KS_AFTER_DOT");
-		cw_iambic_keyer_state = cw_iambic_keyer_state == KS_IN_DOT_A
+		keyer->state = keyer->state == KS_IN_DOT_A
 			? KS_AFTER_DOT_A : KS_AFTER_DOT_B;
-
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYER_STATES, CW_DEBUG_INFO,
-			      "libcw: keyer ->%d", cw_iambic_keyer_state);
 		break;
 
 	case KS_IN_DASH_A:
 	case KS_IN_DASH_B:
 		cw_key_iambic_keyer_generate_internal(generator, CW_KEY_STATE_OPEN, generator->eoe_delay);
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
-			      "libcw: cw_keyer_state: KS_IN_DASH -> KS_AFTER_DASH");
-		cw_iambic_keyer_state = cw_iambic_keyer_state == KS_IN_DASH_A
+		keyer->state = keyer->state == KS_IN_DASH_A
 			? KS_AFTER_DASH_A : KS_AFTER_DASH_B;
 
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYER_STATES, CW_DEBUG_INFO,
-			      "libcw: keyer ->%d", cw_iambic_keyer_state);
 		break;
 
 		/* If we have just finished a dot or a dash and its
@@ -6775,82 +6810,68 @@ int cw_iambic_keyer_update_internal(void)
 		   true, then revert to idling. */
 	case KS_AFTER_DOT_A:
 	case KS_AFTER_DOT_B:
-		if (!cw_iambic_keyer_dot_paddle) {
-			cw_iambic_keyer_dot_latch = false;
+		if (!keyer->dot_paddle) {
+			keyer->dot_latch = false;
 		}
 
-		if (cw_iambic_keyer_state == KS_AFTER_DOT_B) {
+		if (keyer->state == KS_AFTER_DOT_B) {
 			cw_key_iambic_keyer_generate_internal(generator, CW_KEY_STATE_CLOSED, generator->dash_length);
-			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
-				      "libcw: cw_keyer_state: KS_AFTER_DOT -> KS_IN_DASH_A");
-			cw_iambic_keyer_state = KS_IN_DASH_A;
-		} else if (cw_iambic_keyer_dash_latch) {
+			keyer->state = KS_IN_DASH_A;
+		} else if (keyer->dash_latch) {
 			cw_key_iambic_keyer_generate_internal(generator, CW_KEY_STATE_CLOSED, generator->dash_length);
-			if (cw_iambic_keyer_curtis_b_latch){
-				cw_iambic_keyer_curtis_b_latch = false;
-				cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
-					      "libcw: cw_keyer_state: KS_AFTER_DOT -> KS_IN_DASH_B");
-				cw_iambic_keyer_state = KS_IN_DASH_B;
+			if (keyer->curtis_b_latch){
+				keyer->curtis_b_latch = false;
+				keyer->state = KS_IN_DASH_B;
 			} else {
-				cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
-					      "libcw: cw_keyer_state: KS_AFTER_DOT -> KS_IN_DASH_A");
-				cw_iambic_keyer_state = KS_IN_DASH_A;
+				keyer->state = KS_IN_DASH_A;
 			}
-		} else if (cw_iambic_keyer_dot_latch) {
+		} else if (keyer->dot_latch) {
 			cw_key_iambic_keyer_generate_internal(generator, CW_KEY_STATE_CLOSED, generator->dot_length);
-			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
-				      "libcw: cw_keyer_state: KS_AFTER_DOT -> KS_IN_DOT_A");
-			cw_iambic_keyer_state = KS_IN_DOT_A;
+			keyer->state = KS_IN_DOT_A;
 		} else {
-			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
-				      "libcw: cw_keyer_state: KS_AFTER_DOT -> KS_IDLE");
-			cw_iambic_keyer_state = KS_IDLE;
+			keyer->state = KS_IDLE;
 			//cw_finalization_schedule_internal();
 		}
 
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYER_STATES, CW_DEBUG_INFO,
-			      "libcw: keyer ->%d", cw_iambic_keyer_state);
 		break;
 
 	case KS_AFTER_DASH_A:
 	case KS_AFTER_DASH_B:
-		if (!cw_iambic_keyer_dash_paddle) {
-			cw_iambic_keyer_dash_latch = false;
+		if (!keyer->dash_paddle) {
+			keyer->dash_latch = false;
 		}
-		if (cw_iambic_keyer_state == KS_AFTER_DASH_B) {
+		if (keyer->state == KS_AFTER_DASH_B) {
 			cw_key_iambic_keyer_generate_internal(generator, CW_KEY_STATE_CLOSED, generator->dot_length);
-			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
-				      "libcw: cw_keyer_state: KS_AFTER_DASH_B -> IN_DOT_A");
-			cw_iambic_keyer_state = KS_IN_DOT_A;
-		} else if (cw_iambic_keyer_dot_latch) {
+			keyer->state = KS_IN_DOT_A;
+		} else if (keyer->dot_latch) {
 			cw_key_iambic_keyer_generate_internal(generator, CW_KEY_STATE_CLOSED, generator->dot_length);
-			if (cw_iambic_keyer_curtis_b_latch) {
-				cw_iambic_keyer_curtis_b_latch = false;
-				cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
-					      "libcw: cw_keyer_state: KS_AFTER_DASH -> KS_IN_DOT_B");
-				cw_iambic_keyer_state = KS_IN_DOT_B;
+			if (keyer->curtis_b_latch) {
+				keyer->curtis_b_latch = false;
+				keyer->state = KS_IN_DOT_B;
 			} else {
-				cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
-					      "libcw: cw_keyer_state: KS_AFTER_DASH -> KS_IN_DOT_A");
-				cw_iambic_keyer_state = KS_IN_DOT_A;
+				keyer->state = KS_IN_DOT_A;
 			}
-		} else if (cw_iambic_keyer_dash_latch) {
+		} else if (keyer->dash_latch) {
 			cw_key_iambic_keyer_generate_internal(generator, CW_KEY_STATE_CLOSED, generator->dash_length);
-			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
-				      "libcw: cw_keyer_state: KS_AFTER_DASH -> KS_IN_DASH_A");
-			cw_iambic_keyer_state = KS_IN_DASH_A;
+			keyer->state = KS_IN_DASH_A;
 		} else {
-			cw_iambic_keyer_state = KS_IDLE;
-			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
-				      "libcw: cw_keyer_state: KS_AFTER_DASH -> KS_STATE");
+			keyer->state = KS_IDLE;
 			//cw_finalization_schedule_internal();
 		}
 
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYER_STATES, CW_DEBUG_INFO,
-			      "libcw: keyer ->%d", cw_iambic_keyer_state);
 		break;
 	}
-	cw_iambic_keyer_lock = false;
+
+
+	cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
+		      "libcw: cw_keyer_state: %s -> %s",
+		      cw_iambic_keyer_states[cw_iambic_keyer_state_old], cw_iambic_keyer_states[keyer->state]);
+
+	cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYER_STATES, CW_DEBUG_INFO,
+		      "libcw: keyer %s -> %s",
+		      cw_iambic_keyer_states[cw_iambic_keyer_state_old], cw_iambic_keyer_states[keyer->state]);
+
+	keyer->lock = false;
 	return CW_SUCCESS;
 }
 
@@ -6898,63 +6919,94 @@ int cw_notify_keyer_paddle_event(int dot_paddle_state,
 	}
 
 	/* Clean up and save the paddle states passed in. */
-	cw_iambic_keyer_dot_paddle = (dot_paddle_state != 0);
-	cw_iambic_keyer_dash_paddle = (dash_paddle_state != 0);
+	cw_iambic_keyer.dot_paddle = (dot_paddle_state != 0);
+	cw_iambic_keyer.dash_paddle = (dash_paddle_state != 0);
 
 	/* Update the paddle latches if either paddle goes true.
 	   The latches are checked in the signal handler, so if the paddles
 	   go back to false during this element, the item still gets
 	   actioned.  The signal handler is also responsible for clearing
 	   down the latches. */
-	if (cw_iambic_keyer_dot_paddle) {
-		cw_iambic_keyer_dot_latch = true;
+	if (cw_iambic_keyer.dot_paddle) {
+		cw_iambic_keyer.dot_latch = true;
 	}
-	if (cw_iambic_keyer_dash_paddle) {
-		cw_iambic_keyer_dash_latch = true;
+	if (cw_iambic_keyer.dash_paddle) {
+		cw_iambic_keyer.dash_latch = true;
 	}
 
 	/* If in Curtis mode B, make a special check for both paddles true
 	   at the same time.  This flag is checked by the signal handler,
 	   to determine whether to add mode B trailing timing elements. */
-	if (cw_iambic_keyer_curtis_mode_b && cw_iambic_keyer_dot_paddle && cw_iambic_keyer_dash_paddle) {
-		cw_iambic_keyer_curtis_b_latch = true;
+	if (cw_iambic_keyer.curtis_mode_b && cw_iambic_keyer.dot_paddle && cw_iambic_keyer.dash_paddle) {
+		cw_iambic_keyer.curtis_b_latch = true;
 	}
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYER_STATES, CW_DEBUG_INFO,
 		      "libcw: keyer paddles %d,%d, latches %d,%d, curtis_b %d",
-		      cw_iambic_keyer_dot_paddle, cw_iambic_keyer_dash_paddle,
-		      cw_iambic_keyer_dot_latch, cw_iambic_keyer_dash_latch, cw_iambic_keyer_curtis_b_latch);
+		      cw_iambic_keyer.dot_paddle, cw_iambic_keyer.dash_paddle,
+		      cw_iambic_keyer.dot_latch, cw_iambic_keyer.dash_latch, cw_iambic_keyer.curtis_b_latch);
 
-	/* If the current state is idle, give the state process a nudge. */
-	if (cw_iambic_keyer_state == KS_IDLE) {
-		if (cw_iambic_keyer_dot_paddle) {
-			/* Pretend we just finished a dash. */
-			cw_iambic_keyer_state = cw_iambic_keyer_curtis_b_latch
-				? KS_AFTER_DASH_B : KS_AFTER_DASH_A;
 
-			if (!cw_iambic_keyer_update_internal()) {
-				/* just try again, once */
-				usleep(1000);
-				cw_iambic_keyer_update_internal();
-			}
-		} else if (cw_iambic_keyer_dash_paddle) {
-			/* Pretend we just finished a dot. */
-			cw_iambic_keyer_state = cw_iambic_keyer_curtis_b_latch
-				? KS_AFTER_DOT_B : KS_AFTER_DOT_A;
 
-			if (!cw_iambic_keyer_update_internal()) {
-				/* just try again, once */
-				usleep(1000);
-				cw_iambic_keyer_update_internal();
-			}
-		} else {
-			;
-		}
+	if (cw_iambic_keyer.state == KS_IDLE) {
+		/* If the current state is idle, give the state
+		   process a nudge. */
+		cw_iambic_keyer_update_initial_internal(&cw_iambic_keyer);
 	} else {
+		/* The state machine for iambic keyer is already in
+		   motion, no need to do anything more.
+
+		   Current paddle states have been recorded in this
+		   function. Any future changes of paddle states will
+		   be also recorded by this function. In both cases
+		   the main action upon the states is taken somewhere
+		   else. */
 		;
 	}
 
 	return CW_SUCCESS;
+}
+
+
+
+
+
+/**
+   \brief Initiate work of iambic keyer state machine
+
+   State machine for iambic keyer must be pushed from KS_IDLE
+   state. Call this function to do this.
+*/
+void cw_iambic_keyer_update_initial_internal(cw_iambic_keyer_t *keyer)
+{
+	if (keyer->dot_paddle) {
+		/* Pretend we just finished a dash. */
+		keyer->state = keyer->curtis_b_latch
+			? KS_AFTER_DASH_B : KS_AFTER_DASH_A;
+
+		if (!cw_iambic_keyer_update_internal(keyer)) {
+			/* just try again, once */
+			usleep(1000);
+			cw_iambic_keyer_update_internal(keyer);
+		}
+	} else if (keyer->dash_paddle) {
+		/* Pretend we just finished a dot. */
+		keyer->state = keyer->curtis_b_latch
+			? KS_AFTER_DOT_B : KS_AFTER_DOT_A;
+
+		if (!cw_iambic_keyer_update_internal(keyer)) {
+			/* just try again, once */
+			usleep(1000);
+			cw_iambic_keyer_update_internal(keyer);
+		}
+	} else {
+		/* Both paddles are open/up. We certainly don't want
+		   to start any process upon "both paddles open"
+		   event. */
+		;
+	}
+
+	return;
 }
 
 
@@ -6974,7 +7026,7 @@ int cw_notify_keyer_paddle_event(int dot_paddle_state,
 */
 int cw_notify_keyer_dot_paddle_event(int dot_paddle_state)
 {
-	return cw_notify_keyer_paddle_event(dot_paddle_state, cw_iambic_keyer_dash_paddle);
+	return cw_notify_keyer_paddle_event(dot_paddle_state, cw_iambic_keyer.dash_paddle);
 }
 
 
@@ -6986,7 +7038,7 @@ int cw_notify_keyer_dot_paddle_event(int dot_paddle_state)
 */
 int cw_notify_keyer_dash_paddle_event(int dash_paddle_state)
 {
-	return cw_notify_keyer_paddle_event(cw_iambic_keyer_dot_paddle, dash_paddle_state);
+	return cw_notify_keyer_paddle_event(cw_iambic_keyer.dot_paddle, dash_paddle_state);
 }
 
 
@@ -7004,10 +7056,10 @@ int cw_notify_keyer_dash_paddle_event(int dash_paddle_state)
 void cw_get_keyer_paddles(int *dot_paddle_state, int *dash_paddle_state)
 {
 	if (dot_paddle_state) {
-		*dot_paddle_state = cw_iambic_keyer_dot_paddle;
+		*dot_paddle_state = cw_iambic_keyer.dot_paddle;
 	}
 	if (dash_paddle_state) {
-		*dash_paddle_state = cw_iambic_keyer_dash_paddle;
+		*dash_paddle_state = cw_iambic_keyer.dash_paddle;
 	}
 	return;
 }
@@ -7031,10 +7083,10 @@ void cw_get_keyer_paddle_latches(int *dot_paddle_latch_state,
 				 int *dash_paddle_latch_state)
 {
 	if (dot_paddle_latch_state) {
-		*dot_paddle_latch_state = cw_iambic_keyer_dot_latch;
+		*dot_paddle_latch_state = cw_iambic_keyer.dot_latch;
 	}
 	if (dash_paddle_latch_state) {
-		*dash_paddle_latch_state = cw_iambic_keyer_dash_latch;
+		*dash_paddle_latch_state = cw_iambic_keyer.dash_latch;
 	}
 	return;
 }
@@ -7051,7 +7103,7 @@ void cw_get_keyer_paddle_latches(int *dot_paddle_latch_state,
 */
 bool cw_is_keyer_busy(void)
 {
-	return cw_iambic_keyer_state != KS_IDLE;
+	return cw_iambic_keyer.state != KS_IDLE;
 }
 
 
@@ -7082,11 +7134,11 @@ int cw_wait_for_keyer_element(void)
 
 	/* First wait for the state to move to idle (or just do nothing
 	   if it's not), or to one of the after- states. */
-	while (cw_iambic_keyer_state != KS_IDLE
-	       && cw_iambic_keyer_state != KS_AFTER_DOT_A
-	       && cw_iambic_keyer_state != KS_AFTER_DOT_B
-	       && cw_iambic_keyer_state != KS_AFTER_DASH_A
-	       && cw_iambic_keyer_state != KS_AFTER_DASH_B) {
+	while (cw_iambic_keyer.state != KS_IDLE
+	       && cw_iambic_keyer.state != KS_AFTER_DOT_A
+	       && cw_iambic_keyer.state != KS_AFTER_DOT_B
+	       && cw_iambic_keyer.state != KS_AFTER_DASH_A
+	       && cw_iambic_keyer.state != KS_AFTER_DASH_B) {
 
 		cw_signal_wait_internal();
 	}
@@ -7095,11 +7147,11 @@ int cw_wait_for_keyer_element(void)
 	   already), or one of the in- states, at which point we know
 	   we're actually at the end of the element we were in when we
 	   entered this routine. */
-	while (cw_iambic_keyer_state != KS_IDLE
-	       && cw_iambic_keyer_state != KS_IN_DOT_A
-	       && cw_iambic_keyer_state != KS_IN_DOT_B
-	       && cw_iambic_keyer_state != KS_IN_DASH_A
-	       && cw_iambic_keyer_state != KS_IN_DASH_B) {
+	while (cw_iambic_keyer.state != KS_IDLE
+	       && cw_iambic_keyer.state != KS_IN_DOT_A
+	       && cw_iambic_keyer.state != KS_IN_DOT_B
+	       && cw_iambic_keyer.state != KS_IN_DASH_A
+	       && cw_iambic_keyer.state != KS_IN_DASH_B) {
 
 		cw_signal_wait_internal();
 	}
@@ -7133,13 +7185,13 @@ int cw_wait_for_keyer(void)
 	/* Check that neither paddle is true; if either is, then the signal
 	   cycle is going to continue forever, and we'll never return from
 	   this routine. */
-	if (cw_iambic_keyer_dot_paddle || cw_iambic_keyer_dash_paddle) {
+	if (cw_iambic_keyer.dot_paddle || cw_iambic_keyer.dash_paddle) {
 		errno = EDEADLK;
 		return CW_FAILURE;
 	}
 
 	/* Wait for the keyer state to go idle. */
-	while (cw_iambic_keyer_state != KS_IDLE) {
+	while (cw_iambic_keyer.state != KS_IDLE) {
 		cw_signal_wait_internal();
 	}
 
@@ -7159,23 +7211,23 @@ int cw_wait_for_keyer(void)
 */
 void cw_reset_keyer(void)
 {
-	cw_iambic_keyer_dot_paddle = false;
-	cw_iambic_keyer_dash_paddle = false;
-	cw_iambic_keyer_dot_latch = false;
-	cw_iambic_keyer_dash_latch = false;
-	cw_iambic_keyer_curtis_b_latch = false;
-	cw_iambic_keyer_curtis_mode_b = false;
+	cw_iambic_keyer.dot_paddle = false;
+	cw_iambic_keyer.dash_paddle = false;
+	cw_iambic_keyer.dot_latch = false;
+	cw_iambic_keyer.dash_latch = false;
+	cw_iambic_keyer.curtis_b_latch = false;
+	cw_iambic_keyer.curtis_mode_b = false;
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYER_STATES, CW_DEBUG_INFO,
-		      "libcw: assigning to cw_keyer_state %d -> 0 (KS_IDLE)", cw_iambic_keyer_state);
-	cw_iambic_keyer_state = KS_IDLE;
+		      "libcw: assigning to cw_keyer_state %s -> KS_IDLE", cw_iambic_keyer_states[cw_iambic_keyer.state]);
+	cw_iambic_keyer.state = KS_IDLE;
 
 	/* Silence sound and stop any background soundcard tone generation. */
 	cw_generator_silence_internal(generator);
 	cw_finalization_schedule_internal();
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYER_STATES, CW_DEBUG_INFO,
-		      "libcw: keyer ->%d (reset)", cw_iambic_keyer_state);
+		      "libcw: keyer -> %s (reset)", cw_iambic_keyer_states[cw_iambic_keyer.state]);
 
 	return;
 }
@@ -7853,10 +7905,37 @@ void *cw_generator_dequeue_and_play_internal(void *arg)
 
 		 */
 		pthread_kill(gen->client.thread_id, SIGALRM);
-		if (!cw_iambic_keyer_update_internal()) { /* TODO: follow this function, check if and when it needs to be called */
+
+		/* Iambic keyer machine state is quite complicated,
+		   and it needs to be constantly updated using calls
+		   to cw_iambic_keyer_update_internal(). For now the
+		   best place to do this appears to be here.
+
+		   FIXME: There is a big problem:
+		   cw_soundcard_write_internal() call made above may
+		   be pretty good at telling sound card to produce
+		   tones of specific length, but surely is not the
+		   best, the most precise source of timing needed to
+		   control iambic keyer.
+
+		   While lengths of tones passed to the function are
+		   precise, and tones produced by soundcard are also
+		   quite precise, the time of execution of the
+		   function is not constant. I've noticed a situation,
+		   when first call to the function (after dequeueing
+		   first tone from tq) can take ~1000 us, and all
+		   following tones last roughly the same as
+		   tone.usecs, which can be 1-2 orders of magnitude
+		   more.
+
+		   We need to find another place to make the call to
+		   cw_iambic_keyer_update_internal(), or at least pass
+		   to it some reliable source of timing. */
+
+		if (!cw_iambic_keyer_update_internal(&cw_iambic_keyer)) {
 			/* just try again, once */
 			usleep(1000);
-			cw_iambic_keyer_update_internal();
+			cw_iambic_keyer_update_internal(&cw_iambic_keyer);
 		}
 
 #ifdef LIBCW_WITH_DEV
