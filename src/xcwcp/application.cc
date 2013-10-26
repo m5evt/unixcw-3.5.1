@@ -164,19 +164,23 @@ Application::Application() : QMainWindow (0)
 // instance's receiver handler function.
 //
 // This function is called in signal handler context.
-void
-Application::libcw_keying_event_static (void *, int key_state)
+void Application::libcw_keying_event_static(void *arg, int key_state)
 {
-  const Application *application = libcw_user_application_instance;
+	const Application *app = libcw_user_application_instance;
 
-  // Notify the receiver of a libcw keying event only if there is a user
-  // instance that is actively using the library and in receive mode.  The
-  // receiver handler function cannot determine this for itself.
-  if (application && application->is_using_libcw_
-      && application->modeset_.is_receive ())
-    {
-      application->receiver_->handle_libcw_keying_event (key_state);
-    }
+	// Notify the receiver of a libcw keying event only if there
+	// is a user instance that is actively using the library and
+	// in receive mode.  The receiver handler function cannot
+	// determine this for itself.
+	if (app
+	    && app->is_using_libcw_
+	    && app->modeset_.is_receive()) {
+
+		struct timeval *t = (struct timeval *) arg;
+		app->receiver_->handle_libcw_keying_event(t, key_state);
+	}
+
+	return;
 }
 
 
@@ -616,7 +620,7 @@ Application::key_event (QKeyEvent *event)
   event->ignore ();
 
   // Special case Alt-M as a way to acquire focus in the mode combo widget.
-  // This was a workround applied to earlier releases, no longer required
+  // This was a workaround applied to earlier releases, no longer required
   // now that events are propagated correctly to the parent.
   //if (event->state () & AltButton && event->key () == Qt::Key_M)
   //  {
@@ -958,17 +962,11 @@ void Application::make_auxiliaries_begin(void)
 	saved_receive_speed_ = cw_get_receive_speed();
 	play_ = false;
 
-	// Register class handler as the CW library keying event callback. It's
-	// important here that we register the static handler, since once we have
-	// been into and out of 'C', all concept of 'this' is lost.  It's the job
-	// of the static handler to work out which class instance is using the CW
-	// library, and call the instance's libcw_keying_event() function.
-	cw_register_keying_callback(libcw_keying_event_static, NULL);
-
 	// Create a timer for polling send and receive.
 	poll_timer_ = new QTimer (this);
 	connect(poll_timer_, SIGNAL (timeout()), SLOT (poll_timer_event()));
 
+	return;
 }
 
 
@@ -980,6 +978,24 @@ void Application::make_auxiliaries_end(void)
 	// Create a sender and a receiver.
 	sender_ = new Sender(display_);
 	receiver_ = new Receiver(display_);
+
+	// Register class handler as the CW library keying event callback. It's
+	// important here that we register the static handler, since once we have
+	// been into and out of 'C', all concept of 'this' is lost.  It's the job
+	// of the static handler to work out which class instance is using the CW
+	// library, and call the instance's libcw_keying_event() function.
+	//
+	// The handler called back by libcw is important because it's
+	// used to send to libcw information about timings of events
+	// (key down and key up events).
+	//
+	// Without the callback the library can play sounds as key or
+	// paddles are pressed, but (since it doesn't receive timing
+	// parameters) it won't be able to identify entered Morse
+	// code.
+	cw_register_keying_callback(libcw_keying_event_static, &(receiver_->timer));
+	gettimeofday(&(receiver_->timer), NULL);
+	fprintf(stderr, "time on aux config: %10ld : %10ld\n", receiver_->timer.tv_sec, receiver_->timer.tv_usec);
 
 	QString label("Output: ");
 	label += cw_generator_get_audio_system_label();
