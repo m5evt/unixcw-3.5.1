@@ -104,25 +104,50 @@ void Receiver::handle_key_event(QKeyEvent *event, const Mode *current_mode,
 
 		const int is_down = event->type() == QEvent::KeyPress;
 
-		// If this is the Space, UpArrow, DownArrow, Enter, or
-		// Return key, use as a straight key.  If one wears
-		// out, there's always the other ones.
-
 		if (event->key() == Qt::Key_Space
 		    || event->key() == Qt::Key_Up
 		    || event->key() == Qt::Key_Down
 		    || event->key() == Qt::Key_Enter
 		    || event->key() == Qt::Key_Return) {
 
+			// These keys are obvious candidates for
+			// "straight key" key.
+
+			// Prepare timestamp for libcw on both "key
+			// up" and "key down" events. There is no code
+			// in libcw that would generate updated
+			// consecutive timestamps for us (as it does
+			// in case of iambic keyer).
+			gettimeofday(&timer, NULL);
+			fprintf(stderr, "time on Skey down:  %10ld : %10ld\n", timer.tv_sec, timer.tv_usec);
+
 			cw_notify_straight_key_event(is_down);
+
 			event->accept();
 
 		} else if (event->key() == Qt::Key_Left) {
 
-			// If this is the LeftArrow key, use as one of
-			// the paddles.  Which paddle depends on the
-			// reverse_paddles state.
+			is_left_down = is_down;
+			if (is_left_down && !is_right_down) {
+				// Prepare timestamp for libcw, but
+				// only for initial "paddle down"
+				// event at the beginning of
+				// character. Don't create the
+				// timestamp for any successive
+				// "paddle down" events inside a
+				// character.
+				//
+				// In case of iambic keyer the
+				// timestamps for every next
+				// (non-initial) "paddle up" or
+				// "paddle down" event in a character
+				// will be created by libcw.
+				gettimeofday(&timer, NULL);
+				fprintf(stderr, "time on Lkey down:  %10ld : %10ld\n", timer.tv_sec, timer.tv_usec);
+			}
 
+			// Inform libcw about state of left paddle
+			// regardless of state of the other paddle.
 			is_reverse_paddles
 				? cw_notify_keyer_dash_paddle_event(is_down)
 				: cw_notify_keyer_dot_paddle_event(is_down);
@@ -131,12 +156,34 @@ void Receiver::handle_key_event(QKeyEvent *event, const Mode *current_mode,
 
 		} else if (event->key() == Qt::Key_Right) {
 
+			is_right_down = is_down;
+			if (is_right_down && !is_left_down) {
+				// Prepare timestamp for libcw, but
+				// only for initial "paddle down"
+				// event at the beginning of
+				// character. Don't create the
+				// timestamp for any successive
+				// "paddle down" events inside a
+				// character.
+				//
+				// In case of iambic keyer the
+				// timestamps for every next
+				// (non-initial) "paddle up" or
+				// "paddle down" event in a character
+				// will be created by libcw.
+				gettimeofday(&timer, NULL);
+				fprintf(stderr, "time on Rkey down:  %10ld : %10ld\n", timer.tv_sec, timer.tv_usec);
+			}
+
 			// If this is the RightArrow key, use as the
 			// other one of the paddles.
 
+			// Inform libcw about state of left paddle
+			// regardless of state of the other paddle.
 			is_reverse_paddles
 				? cw_notify_keyer_dot_paddle_event(is_down)
 				: cw_notify_keyer_dash_paddle_event(is_down);
+
 			event->accept();
 
 		} else {
@@ -171,24 +218,75 @@ void Receiver::handle_mouse_event(QMouseEvent *event, const Mode *current_mode,
 
 		// If this is the Middle button, use as a straight key.
 		if (event->button() == Qt::MidButton) {
+
+			// Prepare timestamp for libcw on both "key
+			// up" and "key down" events. There is no code
+			// in libcw that would generate updated
+			// consecutive timestamps for us (as it does
+			// in case of iambic keyer).
+			gettimeofday(&timer, NULL);
+			fprintf(stderr, "time on Skey down:  %10ld : %10ld\n", timer.tv_sec, timer.tv_usec);
+
 			cw_notify_straight_key_event(is_down);
+
 			event->accept();
 
 		} else if (event->button() == Qt::LeftButton) {
-			// If this is the Left button, use as one of
-			// the paddles.  Which paddle depends on the
-			// reverse_paddles state.
 
+			is_left_down = is_down;
+			if (is_left_down && !is_right_down) {
+				// Prepare timestamp for libcw, but
+				// only for initial "paddle down"
+				// event at the beginning of
+				// character. Don't create the
+				// timestamp for any successive
+				// "paddle down" events inside a
+				// character.
+				//
+				// In case of iambic keyer the
+				// timestamps for every next
+				// (non-initial) "paddle up" or
+				// "paddle down" event in a character
+				// will be created by libcw.
+				gettimeofday(&timer, NULL);
+				fprintf(stderr, "time on Lkey down:  %10ld : %10ld\n", timer.tv_sec, timer.tv_usec);
+			}
+
+			// Inform libcw about state of left paddle
+			// regardless of state of the other paddle.
 			is_reverse_paddles
 				? cw_notify_keyer_dash_paddle_event(is_down)
 				: cw_notify_keyer_dot_paddle_event(is_down);
+
 			event->accept();
 
 		} else if (event->button() == Qt::RightButton) {
-			// If this is the Right button, use as the
-			// other one of the paddles.
-			is_reverse_paddles ? cw_notify_keyer_dot_paddle_event(is_down)
+
+			is_right_down = is_down;
+			if (is_right_down && !is_left_down) {
+				// Prepare timestamp for libcw, but
+				// only for initial "paddle down"
+				// event at the beginning of
+				// character. Don't create the
+				// timestamp for any successive
+				// "paddle down" events inside a
+				// character.
+				//
+				// In case of iambic keyer the
+				// timestamps for every next
+				// (non-initial) "paddle up" or
+				// "paddle down" event in a character
+				// will be created by libcw.
+				gettimeofday(&timer, NULL);
+				fprintf(stderr, "time on Rkey down:  %10ld : %10ld\n", timer.tv_sec, timer.tv_usec);
+			}
+
+			// Inform libcw about state of right paddle
+			// regardless of state of the other paddle.
+			is_reverse_paddles
+				? cw_notify_keyer_dot_paddle_event(is_down)
 				: cw_notify_keyer_dash_paddle_event(is_down);
+
 			event->accept();
 
 		} else {
@@ -213,7 +311,7 @@ void Receiver::handle_mouse_event(QMouseEvent *event, const Mode *current_mode,
 // call only functions that are safe within that context.  In particular,
 // it goes out of its way to deliver results by setting flags that are
 // later handled by receive polling.
-void Receiver::handle_libcw_keying_event(int key_state)
+void Receiver::handle_libcw_keying_event(struct timeval *t, int key_state)
 {
 	// Ignore calls where the key state matches our tracked key state.  This
 	// avoids possible problems where this event handler is redirected between
@@ -244,13 +342,15 @@ void Receiver::handle_libcw_keying_event(int key_state)
 	// see if the library has registered any receive error.
 	if (key_state) {
 		// Key down
-		if (!cw_start_receive_tone(NULL)) {
+		fprintf(stderr, "start receive tone: %10ld . %10ld\n", t->tv_sec, t->tv_usec);
+		if (!cw_start_receive_tone(t)) {
 			perror("cw_start_receive_tone");
 			abort();
 		}
 	} else {
 		// Key up
-		if (!cw_end_receive_tone(NULL)) {
+		fprintf(stderr, "end receive tone:   %10ld . %10ld\n", t->tv_sec, t->tv_usec);
+		if (!cw_end_receive_tone(t)) {
 			// Handle receive error detected on tone end.  For
 			// ENOMEM and ENOENT we set the error in a class
 			// flag, and display the appropriate message on the
@@ -318,7 +418,21 @@ void Receiver::poll_report_receive_error()
 void Receiver::poll_receive_character()
 {
 	char c;
-	if (cw_receive_character(NULL, &c, NULL, NULL)) {
+
+	// Don't use receiver.timer - it is used eclusively for
+	// marking initial "key down" events. Use local throw-away
+	// timer2.
+	//
+	// Additionally using reveiver.timer here would mess up time
+	// intervals measured by receiver.timer, and that would
+	// interfere with recognizing dots and dashes.
+	struct timeval timer2;
+	gettimeofday(&timer2, NULL);
+	if (timer2.tv_usec < 0) {
+		fprintf(stderr, "Negative usecs in %s\n", __func__);
+	}
+	//fprintf(stderr, "poll_receive_char:  %10ld : %10ld\n", timer2.tv_sec, timer2.tv_usec);
+	if (cw_receive_character(&timer2, &c, NULL, NULL)) {
 		// Receiver stores full, well formed
 		// character. Display it.
 		display_->append(c);
@@ -341,6 +455,8 @@ void Receiver::poll_receive_character()
 		// font width.
 		QString status = _("Received at %1 WPM: '%2'");
 		display_->show_status(status.arg(cw_get_receive_speed()).arg(c));
+		fprintf(stderr, "Received character '%c'\n", c);
+
 	} else {
 		// Handle receive error detected on trying to read a character.
 		switch (errno) {
@@ -392,8 +508,19 @@ void Receiver::poll_receive_space()
 	// than a regular inter-character space, then the receiver
 	// will treat it as inter-word space, and communicate it over
 	// is_end_of_word.
-	cw_receive_character(NULL, NULL, &is_end_of_word, NULL);
+
+	// Don't use receiver.timer - it is used eclusively for
+	// marking initial "key down" events. Use local throw-away
+	// timer2.
+	struct timeval timer2;
+	gettimeofday(&timer2, NULL);
+	if (timer2.tv_usec < 0) {
+		fprintf(stderr, "Negative usecs in pool receive space\n");
+	}
+	//fprintf(stderr, "poll_receive_space:  %10ld : %10ld\n", timer2.tv_sec, timer2.tv_usec);
+	cw_receive_character(&timer2, NULL, &is_end_of_word, NULL);
 	if (is_end_of_word) {
+		fprintf(stderr, "End of word\n\n");
 		display_->append(' ');
 		cw_clear_receive_buffer();
 		is_pending_inter_word_space_ = false;
