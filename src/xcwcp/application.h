@@ -137,7 +137,10 @@ class Application : public QMainWindow
   // of a libcw tone queue low callback.
   QTimer *poll_timer_;
 
-  // Flag indicating if this instance is currently using the libcw.
+  // Flag indicating if this instance is currently using the libcw. Of
+  // course xcwcp is an application that links to libcw, but this flag
+  // is for *active* use of libcw, i.e when "play"/"start" button in
+  // xcwcp's UI has been pressed.
   bool is_using_libcw_;
 
   // Saved receive speed, used to reinstate adaptive tracked speed on start.
