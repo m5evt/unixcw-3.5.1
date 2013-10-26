@@ -7911,13 +7911,9 @@ void *cw_generator_dequeue_and_play_internal(void *arg)
 			   cw_iambic_keyer_update_internal() that is
 			   called below at the end of loop's body. */
 			struct timeval *timer = (struct timeval *) cw_kk_key_callback_arg;
-			fprintf(stderr, "before:              %10ld : %10ld\n", timer->tv_sec, timer->tv_usec);
-
 			timer->tv_usec += tone.usecs % CW_USECS_PER_SEC;
 			timer->tv_sec  += tone.usecs / CW_USECS_PER_SEC + timer->tv_usec / CW_USECS_PER_SEC;
 			timer->tv_usec %= CW_USECS_PER_SEC;
-
-			fprintf(stderr, "after:              %10ld : %10ld\n", timer->tv_sec, timer->tv_usec);
 		}
 
 #ifdef LIBCW_WITH_DEV
