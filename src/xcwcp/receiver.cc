@@ -127,6 +127,16 @@ void Receiver::handle_key_event(QKeyEvent *event, const Mode *current_mode,
 
 		} else if (event->key() == Qt::Key_Left) {
 
+			// Notice that keyboard keys that are
+			// recognized as iambic keyer paddles, and
+			// left/right mouse buttons that are also
+			// treated as iambic keyer paddles, are
+			// handled by basically the same code. I was
+			// thinking about putting the common code in
+			// function, but I didn't do it because of
+			// performance (whether I'm right here or
+			// wrong that's another thing).
+
 			is_left_down = is_down;
 			if (is_left_down && !is_right_down) {
 				// Prepare timestamp for libcw, but
@@ -232,6 +242,16 @@ void Receiver::handle_mouse_event(QMouseEvent *event, const Mode *current_mode,
 			event->accept();
 
 		} else if (event->button() == Qt::LeftButton) {
+
+			// Notice that keyboard keys that are
+			// recognized as iambic keyer paddles, and
+			// left/right mouse buttons that are also
+			// treated as iambic keyer paddles, are
+			// handled by basically the same code. I was
+			// thinking about putting the common code in
+			// function, but I didn't do it because of
+			// performance (whether I'm right here or
+			// wrong that's another thing).
 
 			is_left_down = is_down;
 			if (is_left_down && !is_right_down) {
@@ -428,9 +448,6 @@ void Receiver::poll_receive_character()
 	// interfere with recognizing dots and dashes.
 	struct timeval timer2;
 	gettimeofday(&timer2, NULL);
-	if (timer2.tv_usec < 0) {
-		fprintf(stderr, "Negative usecs in %s\n", __func__);
-	}
 	//fprintf(stderr, "poll_receive_char:  %10ld : %10ld\n", timer2.tv_sec, timer2.tv_usec);
 	if (cw_receive_character(&timer2, &c, NULL, NULL)) {
 		// Receiver stores full, well formed
@@ -514,10 +531,7 @@ void Receiver::poll_receive_space()
 	// timer2.
 	struct timeval timer2;
 	gettimeofday(&timer2, NULL);
-	if (timer2.tv_usec < 0) {
-		fprintf(stderr, "Negative usecs in pool receive space\n");
-	}
-	//fprintf(stderr, "poll_receive_space:  %10ld : %10ld\n", timer2.tv_sec, timer2.tv_usec);
+	//fprintf(stderr, "poll_receive_space: %10ld : %10ld\n", timer2.tv_sec, timer2.tv_usec);
 	cw_receive_character(&timer2, NULL, &is_end_of_word, NULL);
 	if (is_end_of_word) {
 		fprintf(stderr, "End of word\n\n");
