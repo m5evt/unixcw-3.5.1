@@ -5767,9 +5767,9 @@ int cw_start_receive_tone(const struct timeval *timestamp)
 
 	   Do that, then, and update the relevant statistics. */
 	if (receiver.state == RS_AFTER_TONE) {
-		int space_usec = cw_timestamp_compare_internal(&receiver.tone_end,
-							       &receiver.tone_start);
-		cw_receiver_add_statistic_internal(&receiver, STAT_END_ELEMENT, space_usec);
+		int space_len_usec = cw_timestamp_compare_internal(&receiver.tone_end,
+								   &receiver.tone_start);
+		cw_receiver_add_statistic_internal(&receiver, STAT_END_ELEMENT, space_len_usec);
 	}
 
 	/* Set state to indicate we are inside a tone. */
@@ -5825,6 +5825,8 @@ int cw_receiver_identify_tone_internal(cw_rec_t *rec, int element_len_usecs, /* 
 	if (element_len_usecs >= rec->dot_range_minimum
 	    && element_len_usecs <= rec->dot_range_maximum) {
 
+		fprintf(stderr, "%d identified as dot\n", element_len_usecs);
+
 		*representation = CW_DOT_REPRESENTATION;
 		return CW_SUCCESS;
 	}
@@ -5833,9 +5835,13 @@ int cw_receiver_identify_tone_internal(cw_rec_t *rec, int element_len_usecs, /* 
 	if (element_len_usecs >= rec->dash_range_minimum
 	    && element_len_usecs <= rec->dash_range_maximum) {
 
+		fprintf(stderr, "%d identified as dash\n", element_len_usecs);
+
 		*representation = CW_DASH_REPRESENTATION;
 		return CW_SUCCESS;
 	}
+
+	fprintf(stderr, "%d unidentified\n", element_len_usecs);
 
 	/* This element is not a dot or a dash, so we have an error
 	   case.
@@ -6019,6 +6025,8 @@ int cw_end_receive_tone(const struct timeval *timestamp)
 
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
 			      "libcw: receive state -> %s", cw_receiver_states[receiver.state]);
+
+		fprintf(stderr, "%d identified as spike noise\n", element_len_usecs);
 
 		errno = EAGAIN;
 		return CW_FAILURE;
@@ -6342,6 +6350,12 @@ int cw_receive_representation(const struct timeval *timestamp,
 	   of the inter-tone gap. */
 	int space_len_usecs = cw_timestamp_compare_internal(&receiver.tone_end,
 							    &now_timestamp);
+
+	if (space_len_usecs == INT_MAX) {
+		fprintf(stderr, "space len == INT_MAX\n");
+		errno = EAGAIN;
+		return CW_FAILURE;
+	}
 
 	/* Synchronize low level timings if required */
 	cw_sync_parameters_internal(generator, &receiver);
@@ -7881,7 +7895,30 @@ void *cw_generator_dequeue_and_play_internal(void *arg)
 			//usleep(CW_AUDIO_QUANTUM_USECS);
 			continue;
 		}
+
 		// POSSIBLE ALTERNATIVE IMPLEMENTATION: old_state = state;
+
+		if (cw_iambic_keyer.state != KS_IDLE) {
+			/* Update timestamp that clocks iambic keyer
+			   with current time interval. This must be
+			   done only when iambic keyer is in
+			   use. Calling the code when straight key is
+			   in use will cause problems, so don't clock
+			   a straight key with this. */
+
+			/* TODO: see if we can put this piece of code
+			   this inside of
+			   cw_iambic_keyer_update_internal() that is
+			   called below at the end of loop's body. */
+			struct timeval *timer = (struct timeval *) cw_kk_key_callback_arg;
+			fprintf(stderr, "before:              %10ld : %10ld\n", timer->tv_sec, timer->tv_usec);
+
+			timer->tv_usec += tone.usecs % CW_USECS_PER_SEC;
+			timer->tv_sec  += tone.usecs / CW_USECS_PER_SEC + timer->tv_usec / CW_USECS_PER_SEC;
+			timer->tv_usec %= CW_USECS_PER_SEC;
+
+			fprintf(stderr, "after:              %10ld : %10ld\n", timer->tv_sec, timer->tv_usec);
+		}
 
 #ifdef LIBCW_WITH_DEV
 		cw_debug_ev ((&cw_debug_object_ev), 0, tone.frequency ? CW_DEBUG_EVENT_TONE_HIGH : CW_DEBUG_EVENT_TONE_LOW);
@@ -7930,7 +7967,13 @@ void *cw_generator_dequeue_and_play_internal(void *arg)
 
 		   We need to find another place to make the call to
 		   cw_iambic_keyer_update_internal(), or at least pass
-		   to it some reliable source of timing. */
+		   to it some reliable source of timing.
+
+		   INFO: it seems that this problem has been fixed
+		   with the code enclosed in
+		   "if (cw_iambic_keyer.state != KS_IDLE) {}" above,
+		   and all the other new or changed code in libcw
+		   and xcwcp that is related to it. */
 
 		if (!cw_iambic_keyer_update_internal(&cw_iambic_keyer)) {
 			/* just try again, once */
@@ -8600,6 +8643,10 @@ int cw_timestamp_validate_internal(struct timeval *out_timestamp, const struct t
 		}
 	} else {
 		if (gettimeofday(out_timestamp, NULL)) {
+			if (out_timestamp->tv_usec < 0) {
+				fprintf(stderr, "Negative usecs in %s\n", __func__);
+			}
+
 			perror ("libcw: gettimeofday");
 			return CW_FAILURE;
 		} else {
@@ -8660,7 +8707,12 @@ int cw_timestamp_compare_internal(const struct timeval *earlier,
 	    || delta_usec < 0) {
 
 		delta_usec = INT_MAX;
+		fprintf(stderr, "earlier =           %10ld : %10ld\n", earlier->tv_sec, earlier->tv_usec);
+		fprintf(stderr, "later   =           %10ld : %10ld\n", later->tv_sec, later->tv_usec);
 	}
+
+	/* TODO: add somewhere a debug message informing that we are
+	   returning INT_MAX. */
 
 	return delta_usec;
 }
