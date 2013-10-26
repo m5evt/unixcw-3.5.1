@@ -1,3 +1,19 @@
+2013-10-26 Kamil Ignacak
+	* clocking of iambic keyer. There has been a problem with clocking
+	iambic keyer when the state machine for the keyer was in
+	motion. The clocking has been receiving imprecise timestamps, and
+	so recognizing characters (e.g. in xcwcp's receiver) was
+	difficult.  Today I've committed code that fixes timing problems
+	in clocking iambic keyer.
+
+	The code updates receiver's timer with lengths of dequeued tones
+	in cw_generator_dequeue_and_play_internal(). Receiver uses this
+	updated timer as an argument to cw_{start|stop}_receive_tone(),
+	and since the timer is updated with exact time values, the lengths
+	of spaces and marks are more precise. Fixing the problem also
+	required some changes in xcwcp/receiver.cc and
+	xcwcp/application.cc.
+
 2013-10-22 Kamil Ignacak
 	* unit tests: adding first unit test in cwutils/dictionary module.
 
