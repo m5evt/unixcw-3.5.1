@@ -43,7 +43,9 @@ class Receiver {
 		: display_ (display),
 		is_pending_inter_word_space_ (false),
 		libcw_receive_errno_ (0),
-		tracked_key_state_ (false) { }
+		tracked_key_state_ (false),
+		is_left_down (false),
+		is_right_down (false) { }
 
 	// Poll timeout handler.
 	void poll(const Mode *current_mode);
@@ -57,10 +59,19 @@ class Receiver {
 				bool is_reverse_paddles);
 
 	// CW library keying event handler.
-	void handle_libcw_keying_event(int key_state);
+	void handle_libcw_keying_event(struct timeval *t, int key_state);
 
 	// Clear out queued data on stop, mode change, etc.
 	void clear();
+
+	// Timer for measuring length of dots and dashes.
+	//
+	// Initial value of the timestamp is created by xcwcp's
+	// receiver on first "paddle down" event in a character. The
+	// timestamp is then updated by libcw on specific time
+	// intervals. The intervals are a function of keyboard key
+	// presses or mouse button presses recorded by xcwcp.
+	struct timeval timer;
 
  private:
 	// Display used for output.
@@ -78,6 +89,17 @@ class Receiver {
 	// Without, there's a chance that of a on-off event, one half will go to one
 	// application instance, and the other to another instance.
 	volatile int tracked_key_state_;
+
+	// State of left and right paddle of iambic keyer. The flags
+	// are common for keying with keyboard keys and with mouse
+	// buttons.
+	//
+	// A timestamp for libcw needs to be generated only in
+	// situations when one of the paddles comes down and the other
+	// is up. This is why we observe state of both paddles
+	// separately.
+	bool is_left_down;
+	bool is_right_down;
 
 	// Poll primitives to handle receive errors, characters, and spaces.
 	void poll_report_receive_error();
