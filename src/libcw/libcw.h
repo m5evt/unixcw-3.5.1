@@ -356,6 +356,19 @@ extern void cw_disable_adaptive_receive(void);
 extern bool cw_get_adaptive_receive_state(void);
 extern int cw_start_receive_tone(const struct timeval *timestamp);
 extern int cw_end_receive_tone(const struct timeval *timestamp);
+
+/* If I'm reading xcwcp/receiver.cc correctly then currently libcw
+   implements polling interface to receiver code. Client code must
+   periodically poll libcw to see if there is a new character or space
+   in receiver's representation buffer. These four functions below are
+   the main part of "polling".
+
+   TODO: implement alternative way of accessing receiver's
+   representation buffer (or maybe sharing the buffer's content by
+   receiver). Some kind of scheme where receiver informs client code
+   about the fact that the receiver ended receiving marks/spaces and
+   recognized full character or space. Some kind of notification to
+   the client code, or calling client's callback function. */
 extern int cw_receive_buffer_dot(const struct timeval *timestamp);
 extern int cw_receive_buffer_dash(const struct timeval *timestamp);
 extern int cw_receive_representation(const struct timeval *timestamp,
@@ -363,7 +376,12 @@ extern int cw_receive_representation(const struct timeval *timestamp,
 				     bool *is_end_of_word, bool *is_error);
 extern int cw_receive_character(const struct timeval *timestamp,
                                  char *c, bool *is_end_of_word, bool *is_error);
+/* It seems that this function is a part of the polling interface as
+   well. It is called by client code in xcwcp/receiver.cc after
+   passing recognized character from receiver to client code. It makes
+   space in the receiver's buffer for next character. */
 extern void cw_clear_receive_buffer(void);
+
 extern int cw_get_receive_buffer_capacity(void);
 extern int cw_get_receive_buffer_length(void);
 extern void cw_reset_receive(void);
