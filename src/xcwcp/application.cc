@@ -125,6 +125,9 @@ const QString GAP_WHATSTHIS =
 Application *Application::libcw_user_application_instance = NULL;
 
 
+
+
+
 // Application()
 //
 // Class constructor.  Creates the application main window an GUI frame, and
@@ -148,7 +151,12 @@ Application::Application() : QMainWindow (0)
 	make_central_widget();
 
 	make_auxiliaries_end();
+
+	return;
 }
+
+
+
 
 
 //-----------------------------------------------------------------------
@@ -184,6 +192,9 @@ void Application::libcw_keying_event_static(void *arg, int key_state)
 }
 
 
+
+
+
 //-----------------------------------------------------------------------
 //  Qt event and slot handlers
 //-----------------------------------------------------------------------
@@ -194,29 +205,34 @@ void Application::libcw_keying_event_static(void *arg, int key_state)
 void Application::about()
 {
 	QMessageBox::about(0, ABOUT_CAPTION, ABOUT_TEXT);
+
+	return;
 }
+
+
+
 
 
 // closeEvent()
 //
 // Event handler for window close.  Requests a confirmation if we happen to
 // be busy sending.
-void
-Application::closeEvent (QCloseEvent *event)
+void Application::closeEvent(QCloseEvent *event)
 {
-  bool is_closing = true;
+	bool is_closing = true;
 
-  if (is_using_libcw_)
-    {
-      is_closing =
-          QMessageBox::warning (this, _("Xcwcp"),
-                                _("Busy - are you sure?"),
-                                _("&Exit"), _("&Cancel"), 0, 0, 1) == 0;
-      if (is_closing)
-        stop ();
-    }
+	if (is_using_libcw_) {
+		is_closing = QMessageBox::warning(this, _("Xcwcp"),
+						  _("Busy - are you sure?"),
+						  _("&Exit"), _("&Cancel"), 0, 0, 1) == 0;
+		if (is_closing) {
+			stop();
+		}
+	}
 
-  is_closing ? event->accept () : event->ignore ();
+	is_closing ? event->accept() : event->ignore();
+
+	return;
 }
 
 
@@ -230,6 +246,8 @@ Application::closeEvent (QCloseEvent *event)
 void Application::startstop()
 {
 	play_ ? stop() : start();
+
+	return;
 }
 
 
@@ -305,6 +323,8 @@ void Application::start()
 	// maximum library speed needs a 10ms timeout.
 	poll_timer_->setSingleShot(false);
 	poll_timer_->start(10);
+
+	return;
 }
 
 
@@ -348,6 +368,8 @@ void Application::stop()
 	play_ = false;
 
 	display_->show_status(_("Ready"));
+
+	return;
 }
 
 
@@ -357,48 +379,58 @@ void Application::stop()
 // new_instance()
 //
 // Creates a new instance of the Xcwcp application.
-void
-Application::new_instance ()
+void Application::new_instance()
 {
-  Application *application = new Application ();
-  //application->setCaption (_("Xcwcp"));
-  application->show ();
+	Application *app = new Application();
+	//app->setCaption (_("Xcwcp"));
+	app->show();
+
+	return;
 }
+
+
+
 
 
 // clear()
 //
 // Clears the display window of this Xcwcp instance.
-void
-Application::clear ()
+void Application::clear()
 {
-  display_->clear ();
+	display_->clear();
+
+	return;
 }
+
+
+
 
 
 // sync_speed()
 //
 // Forces the tracked receive speed into synchronization with the speed
 // spin box if adaptive receive is activated.
-void
-Application::sync_speed ()
+void Application::sync_speed()
 {
-  if (is_using_libcw_)
-    {
-      if (adaptive_receive_->isChecked ())
-        {
-          // Force by unsetting adaptive receive, setting the receive speed,
-          // then resetting adaptive receive again.
-          cw_disable_adaptive_receive ();
-          if (!cw_set_receive_speed (speed_spin_->value ()))
-            {
-              perror ("cw_set_receive_speed");
-              abort ();
-            }
-          cw_enable_adaptive_receive ();
-        }
-    }
+	if (is_using_libcw_) {
+		if (adaptive_receive_->isChecked()) {
+			// Force by unsetting adaptive receive,
+			// setting the receive speed, then resetting
+			// adaptive receive again.
+			cw_disable_adaptive_receive();
+			if (!cw_set_receive_speed(speed_spin_->value())) {
+				perror("cw_set_receive_speed");
+				abort();
+			}
+			cw_enable_adaptive_receive();
+		}
+	}
+
+	return;
 }
+
+
+
 
 
 // speed_change()
@@ -410,96 +442,107 @@ Application::sync_speed ()
 // necessary is to write the new values out to the CW library.  The one thing
 // we do do is to only change parameters when we are active (i.e. have
 // control of the CW library).
-void
-Application::speed_change ()
+void Application::speed_change()
 {
-  if (is_using_libcw_)
-    {
-      if (!cw_set_send_speed (speed_spin_->value ()))
-        {
-          perror ("cw_set_send_speed");
-          abort ();
-        }
-      if (!cw_get_adaptive_receive_state ())
-        {
-          if (!cw_set_receive_speed (speed_spin_->value ()))
-            {
-              perror ("cw_set_receive_speed");
-              abort ();
-            }
-        }
-    }
+	if (is_using_libcw_) {
+		if (!cw_set_send_speed(speed_spin_->value())) {
+			perror("cw_set_send_speed");
+			abort();
+		}
+		if (!cw_get_adaptive_receive_state()) {
+			if (!cw_set_receive_speed(speed_spin_->value())) {
+				perror("cw_set_receive_speed");
+				abort();
+			}
+		}
+	}
+
+	return;
 }
 
-void
-Application::frequency_change ()
+
+
+
+
+void Application::frequency_change()
 {
-  if (is_using_libcw_)
-    {
-      if (!cw_set_frequency (frequency_spin_->value ()))
-        {
-          perror ("cw_set_frequency");
-          abort ();
-        }
-    }
+	if (is_using_libcw_) {
+		if (!cw_set_frequency(frequency_spin_->value())) {
+			perror("cw_set_frequency");
+			abort();
+		}
+	}
+
+	return;
 }
 
-void
-Application::volume_change ()
+
+
+
+
+void Application::volume_change()
 {
-  if (is_using_libcw_)
-    {
-      if (!cw_set_volume (volume_spin_->value ()))
-        {
-          perror ("cw_set_volume");
-          abort ();
-        }
-    }
+	if (is_using_libcw_) {
+		if (!cw_set_volume(volume_spin_->value())) {
+			perror("cw_set_volume");
+			abort();
+		}
+	}
+
+	return;
 }
 
-void
-Application::gap_change ()
+
+
+
+
+void Application::gap_change()
 {
-  if (is_using_libcw_)
-    {
-      if (!cw_set_gap (gap_spin_->value ()))
-        {
-          perror ("cw_set_gap");
-          abort ();
-        }
-    }
+	if (is_using_libcw_) {
+		if (!cw_set_gap(gap_spin_->value())) {
+			perror("cw_set_gap");
+			abort();
+		}
+	}
+
+	return;
 }
+
+
+
 
 
 // mode_change()
 //
 // Handle a change of mode.  Synchronize mode and receive speed if moving to
 // a receive mode, then clear the sender and receiver and any pending tones.
-void
-Application::mode_change ()
+void Application::mode_change()
 {
-  // Get the mode to which mode we're changing.
-  const Mode *new_mode = modeset_.get (mode_combo_->currentIndex());
+	// Get the mode to which mode we're changing.
+	const Mode *new_mode = modeset_.get(mode_combo_->currentIndex());
 
-  // If this changes mode type, set the speed synchronization menu item state
-  // to enabled for receive mode, disabled otherwise.  And for tidiness, clear
-  // the display.
-  if (!new_mode->is_same_type_as (modeset_.get_current ()))
-    {
-	    sync_speed_->setEnabled(new_mode->is_receive());
-      display_->clear ();
-    }
+	// If this changes mode type, set the speed synchronization
+	// menu item state to enabled for receive mode, disabled
+	// otherwise.  And for tidiness, clear the display.
+	if (!new_mode->is_same_type_as(modeset_.get_current())) {
+		sync_speed_->setEnabled(new_mode->is_receive());
+		display_->clear();
+	}
 
-  // If the mode changed while we're busy, clear the sender and receiver.
-  if (is_using_libcw_)
-    {
-      sender_->clear ();
-      receiver_->clear ();
-    }
+	// If the mode changed while we're busy, clear the sender and receiver.
+	if (is_using_libcw_) {
+		sender_->clear();
+		receiver_->clear();
+	}
 
-  // Keep the ModeSet synchronized to mode_combo changes.
-  modeset_.set_current(mode_combo_->currentIndex());
+	// Keep the ModeSet synchronized to mode_combo changes.
+	modeset_.set_current(mode_combo_->currentIndex());
+
+	return;
 }
+
+
+
 
 
 // curtis_mode_b_change()
@@ -507,15 +550,19 @@ Application::mode_change ()
 // Called whenever the user request a change of Curtis iambic mode.  The
 // function simply passes the Curtis mode on to the CW library if active,
 // and ignores the call if not.
-void
-Application::curtis_mode_b_change ()
+void Application::curtis_mode_b_change()
 {
-  if (is_using_libcw_)
-    {
-      curtis_mode_b_->isChecked () ? cw_enable_iambic_curtis_mode_b ()
-                                   : cw_disable_iambic_curtis_mode_b ();
-    }
+	if (is_using_libcw_) {
+		curtis_mode_b_->isChecked()
+			? cw_enable_iambic_curtis_mode_b()
+			: cw_disable_iambic_curtis_mode_b();
+	}
+
+	return;
 }
+
+
+
 
 
 // adaptive_receive_change()
@@ -525,39 +572,39 @@ Application::curtis_mode_b_change ()
 // active, and if fixed speed receive is set, also sets the hard receive speed
 // to equal the send speed, otherwise, it restores the previous tracked receive
 // speed.
-void
-Application::adaptive_receive_change ()
+void Application::adaptive_receive_change()
 {
-  if (is_using_libcw_)
-    {
-      if (adaptive_receive_->isChecked ())
-        {
-          // If going to adaptive receive, first set the speed to the saved
-          // receive speed, then turn on adaptive receiving.
-          cw_disable_adaptive_receive ();
-          if (!cw_set_receive_speed (saved_receive_speed_))
-            {
-              perror ("cw_set_receive_speed");
-              abort ();
-            }
-          cw_enable_adaptive_receive ();
-        }
-      else
-        {
-          // If going to fixed receive, save the current adaptive receive
-          // speed so we can restore it later, then turn off adaptive receive,
-          // and set the speed to equal the send speed as shown on the speed
-          // spin box.
-          saved_receive_speed_ = cw_get_receive_speed ();
-          cw_disable_adaptive_receive ();
-          if (!cw_set_receive_speed (speed_spin_->value ()))
-            {
-              perror ("cw_set_receive_speed");
-              abort ();
-            }
-        }
-    }
+	if (is_using_libcw_) {
+		if (adaptive_receive_->isChecked()) {
+			// If going to adaptive receive, first set the
+			// speed to the saved receive speed, then turn
+			// on adaptive receiving.
+			cw_disable_adaptive_receive();
+			if (!cw_set_receive_speed(saved_receive_speed_)) {
+				perror("cw_set_receive_speed");
+				abort ();
+			}
+			cw_enable_adaptive_receive();
+		} else {
+			// If going to fixed receive, save the current
+			// adaptive receive speed so we can restore it
+			// later, then turn off adaptive receive, and
+			// set the speed to equal the send speed as
+			// shown on the speed spin box.
+			saved_receive_speed_ = cw_get_receive_speed();
+			cw_disable_adaptive_receive();
+			if (!cw_set_receive_speed(speed_spin_->value())) {
+				perror("cw_set_receive_speed");
+				abort();
+			}
+		}
+	}
+
+	return;
 }
+
+
+
 
 
 // fonts()
@@ -572,7 +619,12 @@ void Application::fonts()
 		QWidget *display_widget = display_->get_widget();
 		display_widget->setFont(font);
 	}
+
+	return;
 }
+
+
+
 
 
 // colors()
@@ -590,7 +642,12 @@ void Application::colors()
 
 		display_widget->setPalette(palette);
 	}
+
+	return;
 }
+
+
+
 
 
 //-----------------------------------------------------------------------
@@ -608,52 +665,60 @@ void Application::poll_timer_event()
 		sender_->poll(modeset_.get_current());
 		receiver_->poll(modeset_.get_current());
 	}
+
+	return;
 }
+
+
+
 
 
 // key_event()
 //
 // Handle a key press event from the display widget.
-void
-Application::key_event (QKeyEvent *event)
+void Application::key_event(QKeyEvent *event)
 {
-  event->ignore ();
+	event->ignore();
 
-  // Special case Alt-M as a way to acquire focus in the mode combo widget.
-  // This was a workaround applied to earlier releases, no longer required
-  // now that events are propagated correctly to the parent.
-  //if (event->state () & AltButton && event->key () == Qt::Key_M)
-  //  {
-  //    mode_combo_->setFocus ();
-  //    event->accept ();
-  //    return;
-  //  }
+	// Special case Alt-M as a way to acquire focus in the mode
+	// combo widget.  This was a workaround applied to earlier
+	// releases, no longer required now that events are propagated
+	// correctly to the parent.
+	//if (event->state () & AltButton && event->key () == Qt::Key_M)
+	//  {
+	//    mode_combo_->setFocus ();
+	//    event->accept ();
+	//    return;
+	//  }
 
-  // Pass the key event to the sender and the receiver.
-  if (is_using_libcw_)
-    {
-      sender_->handle_key_event (event, modeset_.get_current ());
-      receiver_->handle_key_event (event, modeset_.get_current (),
-                                   reverse_paddles_->isChecked ());
+	// Pass the key event to the sender and the receiver.
+	if (is_using_libcw_) {
+		sender_->handle_key_event(event, modeset_.get_current());
+		receiver_->handle_key_event(event, modeset_.get_current(),
+					     reverse_paddles_->isChecked());
+	}
 
-    }
+	return;
 }
+
+
+
 
 
 // mouse_event()
 //
 // Handle a mouse event from the display widget.
-void
-Application::mouse_event (QMouseEvent *event)
+void Application::mouse_event(QMouseEvent *event)
 {
-  event->ignore ();
+	event->ignore();
 
-  // Pass the mouse event to the receiver.  The sender isn't interested.
-  if (is_using_libcw_)
-    {
-      receiver_->handle_mouse_event (event, modeset_.get_current (),
-                                     reverse_paddles_->isChecked ());
-    }
+	// Pass the mouse event to the receiver.  The sender isn't interested.
+	if (is_using_libcw_) {
+		receiver_->handle_mouse_event(event, modeset_.get_current(),
+					      reverse_paddles_->isChecked());
+	}
+
+	return;
 }
 
 
@@ -662,7 +727,6 @@ Application::mouse_event (QMouseEvent *event)
 
 void Application::toggle_toolbar(void)
 {
-
 	if (toolbar->isVisible()) {
 		toolbar->hide();
 		toolbar_visibility_->setText("Show Toolbar");
@@ -670,6 +734,8 @@ void Application::toggle_toolbar(void)
 		toolbar->show();
 		toolbar_visibility_->setText("Hide Toolbar");
 	}
+
+	return;
 }
 
 
@@ -936,6 +1002,7 @@ void Application::make_help_menu(void)
 	connect(about_, SIGNAL(triggered(bool)), SLOT(about()));
 	help_->addAction(about_);
 
+	return;
 }
 
 
@@ -946,6 +1013,8 @@ void Application::make_central_widget(void)
 {
 	// this constructor calls setCentralWidget()
 	display_ = new Display(this, this->parentWidget());
+
+	return;
 }
 
 
@@ -1001,6 +1070,8 @@ void Application::make_auxiliaries_end(void)
 	label += cw_generator_get_audio_system_label();
 	QLabel *sound_system = new QLabel(label);
 	statusBar()->addPermanentWidget(sound_system);
+
+	return;
 }
 
 

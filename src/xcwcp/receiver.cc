@@ -46,34 +46,38 @@ namespace cw {
 // anything found in it.
 void Receiver::poll(const Mode *current_mode)
 {
-	if (current_mode->is_receive()) {
-		// Report and clear any receiver errors noted when handling
-		// the last libcw keyer event.
-		if (libcw_receive_errno_ != 0) {
-			poll_report_receive_error();
-		}
+	if (!current_mode->is_receive()) {
+		return;
+	}
 
-		// If we are awaiting a possible inter-word space,
-		// poll that first, then go on to poll receive
-		// characters; otherwise just poll receive characters.
-		if (is_pending_inter_word_space_) {
+	// Report and clear any receiver errors noted when handling
+	// the last libcw keyer event.
+	if (libcw_receive_errno_ != 0) {
+		poll_report_receive_error();
+	}
 
-			// This call directly asks receiver: "did you
-			// record space after a character that is long
-			// enough to treat it as end of word?".
-			poll_receive_space();
+	// If we are awaiting a possible inter-word space,
+	// poll that first, then go on to poll receive
+	// characters; otherwise just poll receive characters.
+	if (is_pending_inter_word_space_) {
 
-			// If we received a space, poll the next
-			// possible receive character
-			if (!is_pending_inter_word_space_) {
-				poll_receive_character();
-			}
-		} else {
-			// Not awaiting a possible space, so just poll
-			// the next possible receive character.
+		// This call directly asks receiver: "did you
+		// record space after a character that is long
+		// enough to treat it as end of word?".
+		poll_receive_space();
+
+		// If we received a space, poll the next
+		// possible receive character
+		if (!is_pending_inter_word_space_) {
 			poll_receive_character();
 		}
+	} else {
+		// Not awaiting a possible space, so just poll
+		// the next possible receive character.
+		poll_receive_character();
 	}
+
+	return;
 }
 
 
@@ -201,6 +205,8 @@ void Receiver::handle_key_event(QKeyEvent *event, const Mode *current_mode,
 			;
 		}
 	}
+
+	return;
 }
 
 
@@ -315,6 +321,8 @@ void Receiver::handle_mouse_event(QMouseEvent *event, const Mode *current_mode,
 			;
 		}
 	}
+
+	return;
 }
 
 
@@ -394,6 +402,8 @@ void Receiver::handle_libcw_keying_event(struct timeval *t, int key_state)
 			}
 		}
 	}
+
+	return;
 }
 
 
@@ -409,6 +419,8 @@ void Receiver::clear()
 	is_pending_inter_word_space_ = false;
 	libcw_receive_errno_ = 0;
 	tracked_key_state_ = FALSE;
+
+	return;
 }
 
 
@@ -426,6 +438,8 @@ void Receiver::poll_report_receive_error()
 			      : _("Receive buffer overrun"));
 
 	libcw_receive_errno_ = 0;
+
+	return;
 }
 
 
@@ -504,6 +518,8 @@ void Receiver::poll_receive_character()
 			abort();
 		}
 	}
+
+	return;
 }
 
 
@@ -551,6 +567,8 @@ void Receiver::poll_receive_space()
 		// word. And since a new character begins, the flag
 		// will be reset (elsewhere).
 	}
+
+	return;
 }
 
 }  // cw namespace

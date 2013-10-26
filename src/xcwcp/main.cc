@@ -175,8 +175,8 @@ int main(int argc, char **argv)
 
 	// Handle any exceptions thrown by the above.
 	catch (std::bad_alloc) {
-			std::clog << "Internal error: heap memory exhausted" << std::endl;
-			return EXIT_FAILURE;
+		std::clog << "Internal error: heap memory exhausted" << std::endl;
+		return EXIT_FAILURE;
 	}
 	catch (...) {
 		std::clog << "Internal error: unknown problem" << std::endl;
@@ -202,4 +202,3 @@ void xcwcp_atexit(void)
 
 	return;
 }
-

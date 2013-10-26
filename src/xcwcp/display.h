@@ -39,25 +39,25 @@ class DisplayImpl;
 class Display {
  public:
 	Display (Application *application, QWidget *parent);
-  QWidget *get_widget() const;
+	QWidget *get_widget() const;
 
-  // Minimal text display interface; add a character, remove a character,
-  // and clear the display completely.
-  void append (char c);
-  void backspace ();
-  void clear ();
+	// Minimal text display interface; add a character, remove a character,
+	// and clear the display completely.
+	void append(char c);
+	void backspace();
+	void clear();
 
-  // Minimal pass-through status bar interface.
-  void show_status (const QString &status);
-  void clear_status ();
+	// Minimal pass-through status bar interface.
+	void show_status(const QString &status);
+	void clear_status();
 
  private:
-  Application *application_;
-  DisplayImpl *implementation_;
+	Application *application_;
+	DisplayImpl *implementation_;
 
-  // Prevent unwanted operations.
-  Display (const Display &);
-  Display &operator= (const Display &);
+	// Prevent unwanted operations.
+	Display (const Display &);
+	Display &operator= (const Display &);
 };
 
 }  // cw namespace

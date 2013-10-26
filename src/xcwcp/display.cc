@@ -54,27 +54,27 @@ const QString DISPLAY_WHATSTHIS =
 // to this module.
 
 class DisplayImpl : public QTextEdit {
- public:
+public:
 	DisplayImpl (Application *application, QWidget *parent);
 
- protected:
-  // Functions overridden to catch events from the parent class.
-  void keyPressEvent (QKeyEvent *event);
-  void keyReleaseEvent (QKeyEvent *event);
-  void mousePressEvent(QMouseEvent *event);
-  void mouseDoubleClickEvent(QMouseEvent *event);
-  void mouseReleaseEvent(QMouseEvent *event);
-  // Are these necessary after adding fontPointSize() in constructor?
-  virtual QMenu *createPopupMenu (const QPoint &);
-  virtual QMenu *createPopupMenu ();
+protected:
+	// Functions overridden to catch events from the parent class.
+	void keyPressEvent(QKeyEvent *event);
+	void keyReleaseEvent(QKeyEvent *event);
+	void mousePressEvent(QMouseEvent *event);
+	void mouseDoubleClickEvent(QMouseEvent *event);
+	void mouseReleaseEvent(QMouseEvent *event);
+	// Are these necessary after adding fontPointSize() in constructor?
+	virtual QMenu *createPopupMenu(const QPoint &);
+	virtual QMenu *createPopupMenu();
 
- private:
-  // Application to forward key and mouse events to.
-  Application *application_;
+private:
+	// Application to forward key and mouse events to.
+	Application *application_;
 
-  // Prevent unwanted operations.
-  DisplayImpl (const DisplayImpl &);
-  DisplayImpl &operator= (const DisplayImpl &);
+	// Prevent unwanted operations.
+	DisplayImpl (const DisplayImpl &);
+	DisplayImpl &operator= (const DisplayImpl &);
 };
 
 
@@ -83,7 +83,7 @@ class DisplayImpl : public QTextEdit {
 // Call the superclass constructor, and save the application for sending on
 // key and mouse events.
 DisplayImpl::DisplayImpl (Application *application, QWidget *parent)
-  : QTextEdit (parent), application_ (application)
+	: QTextEdit (parent), application_ (application)
 {
 	// Block context menu in text area, this is to make right mouse
 	// button work as correct sending key (paddle).
@@ -108,22 +108,33 @@ DisplayImpl::DisplayImpl (Application *application, QWidget *parent)
 }
 
 
+
+
+
 // keyPressEvent()
 // keyReleaseEvent()
 //
 // Catch key events and pass them to our parent Application.  Both press
 // and release events are merged into one *_event() call.
-void
-DisplayImpl::keyPressEvent (QKeyEvent *event)
+void DisplayImpl::keyPressEvent(QKeyEvent *event)
 {
-  application_->key_event (event);
+	application_->key_event(event);
+
+	return;
 }
 
-void
-DisplayImpl::keyReleaseEvent (QKeyEvent *event)
+
+
+
+void DisplayImpl::keyReleaseEvent(QKeyEvent *event)
 {
-  application_->key_event (event);
+	application_->key_event(event);
+
+	return;
 }
+
+
+
 
 
 // mousePressEvent()
@@ -136,36 +147,56 @@ DisplayImpl::keyReleaseEvent (QKeyEvent *event)
 void DisplayImpl::mousePressEvent(QMouseEvent *event)
 {
 	application_->mouse_event(event);
+
+	return;
 }
 
-void
-DisplayImpl::mouseDoubleClickEvent(QMouseEvent *event)
+
+
+
+
+void DisplayImpl::mouseDoubleClickEvent(QMouseEvent *event)
 {
 	application_->mouse_event(event);
+
+	return;
 }
 
-void
-DisplayImpl::mouseReleaseEvent(QMouseEvent *event)
+
+
+
+
+void DisplayImpl::mouseReleaseEvent(QMouseEvent *event)
 {
-	application_->mouse_event (event);
+	application_->mouse_event(event);
+
+	return;
 }
+
+
+
 
 
 // createPopupMenu()
 //
 // Override and suppress popup menus, so we can use the right mouse button
 // as a keyer paddle.
-QMenu *
-DisplayImpl::createPopupMenu (const QPoint &)
+QMenu *DisplayImpl::createPopupMenu(const QPoint &)
 {
-  return NULL;
+	return NULL;
 }
 
-QMenu *
-DisplayImpl::createPopupMenu ()
+
+
+
+
+QMenu *DisplayImpl::createPopupMenu()
 {
-  return NULL;
+	return NULL;
 }
+
+
+
 
 
 //-----------------------------------------------------------------------
@@ -187,66 +218,92 @@ Display::Display(Application *application, QWidget *parent)
 }
 
 
+
+
+
 // get_widget()
 //
 // Return the underlying QWidget used to implement the display.  Returning
 // the widget only states that this is a QWidget, it doesn't tie us to using
 // any particular type of widget.
-QWidget *
-Display::get_widget () const
+QWidget *Display::get_widget() const
 {
-  return implementation_;
+	return implementation_;
 }
+
+
+
 
 
 // append()
 //
 // Append a character at the current notional cursor position.
-void
-Display::append (char c)
+void Display::append(char c)
 {
-  implementation_->insertPlainText (QString (QChar (c)));
+	implementation_->insertPlainText(QString(QChar(c)));
+
+	return;
 }
+
+
+
 
 
 // backspace()
 //
 // Delete the character left of the notional cursor position (that is, the
 // last one appended).
-void
-Display::backspace ()
+void Display::backspace()
 {
 	// implementation_->doKeyboardAction (QTextEdit::ActionBackspace);
+
+	return;
 }
+
+
+
 
 
 // clear()
 //
 // Clear the display area.
-void
-Display::clear ()
+void Display::clear()
 {
-  implementation_->clear ();
+	implementation_->clear();
+
+	return;
 }
+
+
+
 
 
 // show_status()
 //
 // Display the given string on the status line.
-void
-Display::show_status (const QString &status)
+void Display::show_status(const QString &status)
 {
-  application_->statusBar ()->showMessage(status);
+	application_->statusBar()->showMessage(status);
+
+	return;
 }
+
+
+
 
 
 // clear_status()
 //
 // Clear the status line.
-void
-Display::clear_status ()
+void Display::clear_status()
 {
-  application_->statusBar ()->clearMessage();
+	application_->statusBar()->clearMessage();
+
+	return;
 }
+
+
+
+
 
 }  // cw namespace
