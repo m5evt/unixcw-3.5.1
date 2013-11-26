@@ -19,7 +19,7 @@
 # General initializations.
 AC_PREREQ(2.57)
 
-AC_INIT([unixcw], [3.2.0])
+AC_INIT([unixcw], [3.3.0])
 AC_CONFIG_SRCDIR([src/libcw/libcw.c])
 AM_INIT_AUTOMAKE
 
@@ -74,7 +74,7 @@ fi
 # I'm defining it here so that it's available in config.h and can be
 # used in libcw's cw_version() function that should return the
 # numbers.
-LIBCW_VERSION=\"5:0:1\"
+LIBCW_VERSION=\"6:0:1\"
 AC_DEFINE_UNQUOTED([LIBCW_VERSION], $LIBCW_VERSION, [Library version, libtool notation])
 AC_SUBST(LIBCW_VERSION)
 
