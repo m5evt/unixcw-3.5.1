@@ -74,6 +74,8 @@ do
     # test
     #echo $switches
 
+    echo $(eval pwd)
+
     # real code
     command="./configure $switches &>/dev/null  && make &>/dev/null && make clean &>/dev/null"
     echo $i": "$command
