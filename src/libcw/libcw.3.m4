@@ -18,7 +18,7 @@
 .\" 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 .\"
 .\"
-.TH LIBCW 3 "CW Tutor Package" "libcw ver. 5.0.0" \" -*- nroff -*-
+.TH LIBCW 3 "CW Tutor Package" "libcw ver. 6.0.1" \" -*- nroff -*-
 .SH NAME
 .\"
 libcw \- general purpose Morse code functions library
