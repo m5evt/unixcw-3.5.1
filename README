@@ -26,9 +26,9 @@ a lot more care over what they do, and don't do, in signal handler context.
 cwcp and xcwcp now offer fully configurable modes and dictionaries through a
 configuration file option, and xcwcp has been rewritten in proper C++ style.
 
-Version 3.0 has been prepared and released by new maintainer, Kamil Ignacak.
-The takeover of unixcw has been discussed with and approved by Simon Baldwin.
-Main changes in 3.0 are:
+Version 3.0 has been prepared and released by new lead developer,
+Kamil Ignacak. The takeover of unixcw has been discussed with and
+approved by Simon Baldwin.  Main changes in 3.0 are:
   o rewriting parts of libcw so that using OSS is less probable to cause
     problems (this should solve at least one Debian bug)
   o adding support for ALSA to libcw; libcw uses OSS as default audio system,
@@ -55,7 +55,15 @@ Version 3.1.1 fixes small problem with interlocks in thread code.
 Version 3.2.0 introduces small fixes and improvements in libcw, and
 implements new debug facilities (the old ones are being deprecated).
 It also fixes faulty logic checking "--disable-feature" flags in
-configure.ac.
+configure.ac. The problem was spotted by Thomas Beierlein.
+
+Version 3.3.0 is mostly fixes. More fixes in configuration flags
+(thanks again to Thomas Beierlein). Patches fixing compilation under
+FreeBSD (thanks to Diane Bruce). Fixes and improvements of handling of
+iambic keying in libcw and xcwcp. Fixing compilation error in
+cwutils/dictionary.h.
+
+See NEWS file for more detailed log of changes.
 
 
 
@@ -85,12 +93,13 @@ is following:
     3.1.0       4.0.0
     3.1.1       4.1.1
     3.2.0       5.0.0
+    3.3.0       6.0.1
 
 The library uses signals and threads to create a background task in
 which it performs the majority of its work, leaving the main program
 free to handle other tasks.  For example, the simplest CW sending
-program that uses the library looks like this (compile it with "gcc
--lcw example.c")
+program that uses the library looks like this (compile it with 
+"gcc -lcw example.c"):
 
 
 #include <libcw.h>
