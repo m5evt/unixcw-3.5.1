@@ -5826,7 +5826,7 @@ int cw_receiver_identify_tone_internal(cw_rec_t *rec, int element_len_usecs, /* 
 	if (element_len_usecs >= rec->dot_range_minimum
 	    && element_len_usecs <= rec->dot_range_maximum) {
 
-		fprintf(stderr, "%d identified as dot\n", element_len_usecs);
+		// fprintf(stderr, "%d identified as dot\n", element_len_usecs);
 
 		*representation = CW_DOT_REPRESENTATION;
 		return CW_SUCCESS;
@@ -5836,13 +5836,13 @@ int cw_receiver_identify_tone_internal(cw_rec_t *rec, int element_len_usecs, /* 
 	if (element_len_usecs >= rec->dash_range_minimum
 	    && element_len_usecs <= rec->dash_range_maximum) {
 
-		fprintf(stderr, "%d identified as dash\n", element_len_usecs);
+		// fprintf(stderr, "%d identified as dash\n", element_len_usecs);
 
 		*representation = CW_DASH_REPRESENTATION;
 		return CW_SUCCESS;
 	}
 
-	fprintf(stderr, "%d unidentified\n", element_len_usecs);
+	// fprintf(stderr, "%d unidentified\n", element_len_usecs);
 
 	/* This element is not a dot or a dash, so we have an error
 	   case.
@@ -6027,7 +6027,7 @@ int cw_end_receive_tone(const struct timeval *timestamp)
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
 			      "libcw: receive state -> %s", cw_receiver_states[receiver.state]);
 
-		fprintf(stderr, "%d identified as spike noise\n", element_len_usecs);
+		// fprintf(stderr, "%d identified as spike noise\n", element_len_usecs);
 
 		errno = EAGAIN;
 		return CW_FAILURE;
@@ -6353,7 +6353,7 @@ int cw_receive_representation(const struct timeval *timestamp,
 							    &now_timestamp);
 
 	if (space_len_usecs == INT_MAX) {
-		fprintf(stderr, "space len == INT_MAX\n");
+		// fprintf(stderr, "space len == INT_MAX\n");
 		errno = EAGAIN;
 		return CW_FAILURE;
 	}
@@ -8641,7 +8641,7 @@ int cw_timestamp_validate_internal(struct timeval *out_timestamp, const struct t
 	} else {
 		if (gettimeofday(out_timestamp, NULL)) {
 			if (out_timestamp->tv_usec < 0) {
-				fprintf(stderr, "Negative usecs in %s\n", __func__);
+				// fprintf(stderr, "Negative usecs in %s\n", __func__);
 			}
 
 			perror ("libcw: gettimeofday");
@@ -8704,8 +8704,8 @@ int cw_timestamp_compare_internal(const struct timeval *earlier,
 	    || delta_usec < 0) {
 
 		delta_usec = INT_MAX;
-		fprintf(stderr, "earlier =           %10ld : %10ld\n", earlier->tv_sec, earlier->tv_usec);
-		fprintf(stderr, "later   =           %10ld : %10ld\n", later->tv_sec, later->tv_usec);
+		// fprintf(stderr, "earlier =           %10ld : %10ld\n", earlier->tv_sec, earlier->tv_usec);
+		// fprintf(stderr, "later   =           %10ld : %10ld\n", later->tv_sec, later->tv_usec);
 	}
 
 	/* TODO: add somewhere a debug message informing that we are
