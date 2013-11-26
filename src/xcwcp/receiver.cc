@@ -123,7 +123,7 @@ void Receiver::handle_key_event(QKeyEvent *event, const Mode *current_mode,
 			// consecutive timestamps for us (as it does
 			// in case of iambic keyer).
 			gettimeofday(&timer, NULL);
-			fprintf(stderr, "time on Skey down:  %10ld : %10ld\n", timer.tv_sec, timer.tv_usec);
+			//fprintf(stderr, "time on Skey down:  %10ld : %10ld\n", timer.tv_sec, timer.tv_usec);
 
 			cw_notify_straight_key_event(is_down);
 
@@ -157,7 +157,7 @@ void Receiver::handle_key_event(QKeyEvent *event, const Mode *current_mode,
 				// "paddle down" event in a character
 				// will be created by libcw.
 				gettimeofday(&timer, NULL);
-				fprintf(stderr, "time on Lkey down:  %10ld : %10ld\n", timer.tv_sec, timer.tv_usec);
+				//fprintf(stderr, "time on Lkey down:  %10ld : %10ld\n", timer.tv_sec, timer.tv_usec);
 			}
 
 			// Inform libcw about state of left paddle
@@ -186,7 +186,7 @@ void Receiver::handle_key_event(QKeyEvent *event, const Mode *current_mode,
 				// "paddle down" event in a character
 				// will be created by libcw.
 				gettimeofday(&timer, NULL);
-				fprintf(stderr, "time on Rkey down:  %10ld : %10ld\n", timer.tv_sec, timer.tv_usec);
+				//fprintf(stderr, "time on Rkey down:  %10ld : %10ld\n", timer.tv_sec, timer.tv_usec);
 			}
 
 			// If this is the RightArrow key, use as the
@@ -241,7 +241,7 @@ void Receiver::handle_mouse_event(QMouseEvent *event, const Mode *current_mode,
 			// consecutive timestamps for us (as it does
 			// in case of iambic keyer).
 			gettimeofday(&timer, NULL);
-			fprintf(stderr, "time on Skey down:  %10ld : %10ld\n", timer.tv_sec, timer.tv_usec);
+			//fprintf(stderr, "time on Skey down:  %10ld : %10ld\n", timer.tv_sec, timer.tv_usec);
 
 			cw_notify_straight_key_event(is_down);
 
@@ -275,7 +275,7 @@ void Receiver::handle_mouse_event(QMouseEvent *event, const Mode *current_mode,
 				// "paddle down" event in a character
 				// will be created by libcw.
 				gettimeofday(&timer, NULL);
-				fprintf(stderr, "time on Lkey down:  %10ld : %10ld\n", timer.tv_sec, timer.tv_usec);
+				//fprintf(stderr, "time on Lkey down:  %10ld : %10ld\n", timer.tv_sec, timer.tv_usec);
 			}
 
 			// Inform libcw about state of left paddle
@@ -304,7 +304,7 @@ void Receiver::handle_mouse_event(QMouseEvent *event, const Mode *current_mode,
 				// "paddle down" event in a character
 				// will be created by libcw.
 				gettimeofday(&timer, NULL);
-				fprintf(stderr, "time on Rkey down:  %10ld : %10ld\n", timer.tv_sec, timer.tv_usec);
+				//fprintf(stderr, "time on Rkey down:  %10ld : %10ld\n", timer.tv_sec, timer.tv_usec);
 			}
 
 			// Inform libcw about state of right paddle
@@ -370,14 +370,14 @@ void Receiver::handle_libcw_keying_event(struct timeval *t, int key_state)
 	// see if the library has registered any receive error.
 	if (key_state) {
 		// Key down
-		fprintf(stderr, "start receive tone: %10ld . %10ld\n", t->tv_sec, t->tv_usec);
+		//fprintf(stderr, "start receive tone: %10ld . %10ld\n", t->tv_sec, t->tv_usec);
 		if (!cw_start_receive_tone(t)) {
 			perror("cw_start_receive_tone");
 			abort();
 		}
 	} else {
 		// Key up
-		fprintf(stderr, "end receive tone:   %10ld . %10ld\n", t->tv_sec, t->tv_usec);
+		//fprintf(stderr, "end receive tone:   %10ld . %10ld\n", t->tv_sec, t->tv_usec);
 		if (!cw_end_receive_tone(t)) {
 			// Handle receive error detected on tone end.  For
 			// ENOMEM and ENOENT we set the error in a class
@@ -486,7 +486,7 @@ void Receiver::poll_receive_character()
 		// font width.
 		QString status = _("Received at %1 WPM: '%2'");
 		display_->show_status(status.arg(cw_get_receive_speed()).arg(c));
-		fprintf(stderr, "Received character '%c'\n", c);
+		//fprintf(stderr, "Received character '%c'\n", c);
 
 	} else {
 		// Handle receive error detected on trying to read a character.
@@ -550,7 +550,7 @@ void Receiver::poll_receive_space()
 	//fprintf(stderr, "poll_receive_space: %10ld : %10ld\n", timer2.tv_sec, timer2.tv_usec);
 	cw_receive_character(&timer2, NULL, &is_end_of_word, NULL);
 	if (is_end_of_word) {
-		fprintf(stderr, "End of word\n\n");
+		//fprintf(stderr, "End of word\n\n");
 		display_->append(' ');
 		cw_clear_receive_buffer();
 		is_pending_inter_word_space_ = false;

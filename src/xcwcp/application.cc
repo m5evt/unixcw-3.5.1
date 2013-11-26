@@ -1064,7 +1064,7 @@ void Application::make_auxiliaries_end(void)
 	// code.
 	cw_register_keying_callback(libcw_keying_event_static, &(receiver_->timer));
 	gettimeofday(&(receiver_->timer), NULL);
-	fprintf(stderr, "time on aux config: %10ld : %10ld\n", receiver_->timer.tv_sec, receiver_->timer.tv_usec);
+	//fprintf(stderr, "time on aux config: %10ld : %10ld\n", receiver_->timer.tv_sec, receiver_->timer.tv_usec);
 
 	QString label("Output: ");
 	label += cw_generator_get_audio_system_label();
