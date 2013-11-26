@@ -1,3 +1,10 @@
+unixcw (3.3.0-1) unstable; urgency=low
+
+  * New upstream release fixes some problems in libcw library
+   (receiver code), in build system, and adds more unit tests.
+
+ -- Kamil Ignacak <acerion@wp.pl>  Tue, 26 Nov 2013 19:35:00 +0100
+
 unixcw (3.2.0-1) unstable; urgency=low
 
   * New upstream release fixes some problems in libcw library.
