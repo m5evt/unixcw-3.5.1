@@ -1,3 +1,55 @@
+version 3.3.0 / 2013.12.XX
+
+  unixcw: 
+  - Thomas Beierlein has reported that some combinations of
+    '--enable-*'/'--disable-*' flags result in a code that fails to
+    compile. He also provided a patch that fixes it. I've created a
+    tool ('unixcw/tools/test_configure_flags.sh') that tests all
+    combinations of configure flags, which also detected one more
+    faulty configuration, in addition to the ones discovered by
+    Thomas. Thanks Thomas!
+  - FreeBSD patches: Diane Bruce provided a set of patches that fix
+    compilation on FreeBSD (thank you!). Thanks to the patches the
+    ./configure script now should support two new flags:
+    --with-qt-includes=<path>
+    --with-qt-libraries=<path>
+    The state of build system on FreeBSD may still not be perfect (I
+    didn't test this myself FreeBSD), but should now be better than it
+    was.
+
+  libcw:
+  - new functions: adding new functions: cw_character_is_valid()
+    (replaces cw_check_character()) and cw_string_is_valid() (replaces
+    cw_check_string()). The old functions are still available, but
+    have been marked as deprecated.
+  - unit tests: improvements and expansion of unit test code testing
+    public API.
+  - unit tests: improvements and expansion of unit test code testing
+    libcw's internal functions.
+  - receiver code (responsible for receiving and recognizing Morse
+    code keyed with iambic keyer or straight key) has been reviewed.
+  - code handling incoming events for receiving iambic keyer has been
+    improved. iambic keyer events sent from client code to libcw are
+    recognized with better precision, which leads to better
+    recognition of keyed characters. These changes don't change public
+    API nor "external" behaviour of libcw - these are just
+    improvements of existing functionality.
+
+  xcwcp: 
+  - xcwcp takes advantage of changes in how libcw handles iambic
+    keying, and - with some additional modifications in xcwcp's code -
+    gets improved handling of iambic keying.
+
+  cwutils
+  - unit tests: adding first unit test in cwutils/dictionary module.
+  - bugfix: usage of __attribute__ ((deprecated("message"))) construct
+    in cwutils/dictionary.h may have lead to compilation failure. This
+    has been fixed by getting rid of "message" argument.
+
+
+----------------------------------------------------------------------------
+
+
 version 3.2.0 / 2013.01.11
 
   unixcw:
