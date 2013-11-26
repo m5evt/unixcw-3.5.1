@@ -78,7 +78,7 @@ In addition, following ISO 8859-1 and ISO 8859-2 accented characters are
 also part of the generally accepted international Morse code:
 .IP
 .\" ÜÄÇÖÉČŔŃŞŽ
-\[:U]\[:A]\[,C]\[:O]\['E]\[`E]\[`A]\[~N]\[S u0327] (S with cedilla), \[vZ] (Z with caron/hacek),
+\[:U]\[:A]\[,C]\[:O]\['E]\[`E]\[`A]\[~N]\[S u0327] (S with cedilla), \[Z u030C] (Z with caron/hacek),
 .PP
 Finally, \fBlibcw\fP adds the following ASCII characters as extensions to
 single character procedural signals:
@@ -96,27 +96,40 @@ portion of this table is taken from the \fIARRL Handbook\fP, and the
 accented extensions from various other sources:
 .\"
 .TS
-l l l l l l l l
-_ _ _ _ _ _ _ _
-l l l l l l l l .
-Ch	Code	Ch	Code	Ch	Code	Ch	Code
-A	.-	B	-...	C	-.-.	D	-..
-E	.	F	..-.	G	--.	H	....
-I	..	J	.---	K	-.-	L	.-..
-M	--	N	-.	O	---	P	.--.
-Q	--.-	R	.-.	S	...	T	-
-U	..-	V	...-	W	.--	X	-..-
+l l l l
+_ _ _ _
+l l l l .
+Ch	Code	Ch	Code
+A	.-	B	-...
+C	-.-.	D	-..
+E	.	F	..-.
+G	--.	H	....
+I	..	J	.---
+K	-.-	L	.-..
+M	--	N	-.
+O	---	P	.--.
+Q	--.-	R	.-.
+S	...	T	-
+U	..-	V	...-
+W	.--	X	-..-
 Y	-.--	Z	--..
 .BR
-0	-----	1	.----	2	..---	3	...--
-4	....-	5	.....	6	-....	7	--...
+0	-----	1	.----
+2	..---	3	...--
+4	....-	5	.....
+6	-....	7	--...
 8	---..	9	----.
 .BR
 .\" \[u0022] = ", otherwise emacs syntax highlighting is messed up;
-\[u0022]	.-..-.	'	.----.	$	...-..-	(	-.--.
-)	-.--.-	+	.-.-.	,	--..--	-	-....-
-\.	.-.-.-	/	-..-.	:	---...	;	-.-.-.
-\(eq	-...-	?	..--..	\(ul	..--.-
+\[u0022]	.-..-.	'	.----.
+$	...-..-	(	-.--.
+)	-.--.-	+	.-.-.
+,	--..--	-	-....-
+.\" "\[char46]" is a dot
+\[char46]	.-.-.-	/	-..-.
+:	---...	;	-.-.-.
+\(eq	-...-	?	..--..
+\(ul	..--.-
 .TE
 .TS
 l l l l
@@ -135,26 +148,32 @@ are conventionally used for punctuation and procedural signals as
 follows:
 .\"
 .TS
-l l l l l l l l
-_ _ _ _ _ _ _ _
-l l l l l l l l.
-Ch	Code	Ch	Code	Ch	Code	Ch	Code
+l l l l
+_ _ _ _
+l l l l.
+Ch	Code	Ch	Code
 .\" \[u0022] = "
-\[u0022]	.-..-.	'	.----.	$	...-..-	(	-.--.
-)	-.--.-	+	.-.-.	,	--..--	-	-....-
-\.	.-.-.-	/	-..-.	:	---...	;	-.-.-.
-\(eq	-...-	?	..--..	\(ul	..--.-	@	.--.-.
+\[u0022]	.-..-.	'	.----.
+$	...-..-	(	-.--.
+)	-.--.-	+	.-.-.
+,	--..--	-	-....-
+.\" "\[char46]" is a dot
+\[char46]	.-.-.-	/	-..-.
+:	---...	;	-.-.-.
+\(eq	-...-	?	..--..
+\(ul	..--.-	@	.--.-.
 .TE
 .PP
 and the following are non-conventional extensions implemented
 by \fBlibcw\fP:
 .\"
 .TS
-l l l l l l l l
-_ _ _ _ _ _ _ _
-l l l l l l l l.
-Ch	Code	Ch	Code	Ch	Code	Ch	Code
-<	...-.-	>	-...-.-	!	...-.	&	.-...
+l l l l
+_ _ _ _
+l l l l.
+Ch	Code	Ch	Code
+<	...-.-	>	-...-.-
+!	...-.	&	.-...
 ^	-.-.-	~	.-.-..
 .TE
 .PP
@@ -162,16 +181,22 @@ An alternative view of punctuation and procedural signals is as
 combination Morse characters:
 .\"
 .TS
-l l l l l l l l
-_ _ _ _ _ _ _ _
-l l l l l l l l.
-Ch	Prosig	Ch	Prosig	Ch	Prosig	Ch	Prosig
+l l l l
+_ _ _ _
+l l l l.
+Ch	Prosig	Ch	Prosig
 .\" \[u0022] = "
-\[u0022]	[AF]	'	[WG]	$	[SX]	(	[KN]
-)	[KK]	+	[AR]	,	[MIM]	-	[DU]
-\.	[AAA]	/	[DN]	:	[OS]	;	[KR]
-\(eq	[BT]	?	[IMI]	\(ul	[IQ]	@	[AC]
-<	[VA],[SK]	>	[BK]	!	[SN]	&	[AS]
+\[u0022]	[AF]	'	[WG]
+$	[SX]	(	[KN]
+)	[KK]	+	[AR]
+,	[MIM]	-	[DU]
+.\" "\[char46]" is a dot
+\[char46]	[AAA]	/	[DN]
+:	[OS]	;	[KR]
+\(eq	[BT]	?	[IMI]
+\(ul	[IQ]	@	[AC]
+<	[VA],[SK]	>	[BK]
+!	[SN]	&	[AS]
 ^	[KA]	~	[AL]
 .TE
 .PP
