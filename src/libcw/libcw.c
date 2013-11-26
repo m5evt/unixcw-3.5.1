@@ -62,6 +62,7 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <math.h>
+#include <inttypes.h> /* "PRIu32" */
 
 #include <dlfcn.h> /* dlopen() and related symbols */
 
@@ -9608,6 +9609,7 @@ unsigned int test_cw_tone_queue_test_capacity1(void)
    that enqueued tones are the ones that we were expecting to get.
 
    tests::cw_tone_queue_enqueue_internal()
+
    tests::cw_tone_queue_dequeue_internal()
 */
 unsigned int test_cw_tone_queue_test_capacity2(void)
