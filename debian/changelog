@@ -1,9 +1,13 @@
 unixcw (3.3.0-1) unstable; urgency=low
 
   * New upstream release fixes some problems in libcw library
-   (receiver code), in build system, and adds more unit tests.
+    (receiver code), in build system, and adds more unit tests.
+  * New italian translation of debian templates. Thanks to
+    Fabio Pirola for contributing! Closes: #701677
+  * New japanese translation of debian templates. Thanks to
+    Hideki Yamane for contributing! Closes: #717703
 
- -- Kamil Ignacak <acerion@wp.pl>  Tue, 26 Nov 2013 19:35:00 +0100
+ -- Kamil Ignacak <acerion@wp.pl>  Wed, 27 Nov 2013 21:44:29 +0100
 
 unixcw (3.2.0-1) unstable; urgency=low
 
