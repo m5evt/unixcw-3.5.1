@@ -5,10 +5,10 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: unixcw 2.3-12\n"
+"Project-Id-Version: unixcw 3.0.2-1\n"
 "Report-Msgid-Bugs-To: unixcw@packages.debian.org\n"
 "POT-Creation-Date: 2012-01-11 06:51+0100\n"
-"PO-Revision-Date: 2009-11-07 06:52+0900\n"
+"PO-Revision-Date: 2012-01-11 14:51+0900\n"
 "Last-Translator: Hideki Yamane (Debian-JP) <henrich@debian.or.jp>\n"
 "Language-Team: Japanese <debian-japanese@lists.debian.org>\n"
 "Language: ja\n"
@@ -20,7 +20,7 @@ msgstr ""
 #. Description
 #: ../cwcp.templates:2001
 msgid "Run cwcp with root privileges?"
-msgstr ""
+msgstr "cwcp を root 権限で実行しますか?"
 
 #. Type: boolean
 #. Description
@@ -29,6 +29,8 @@ msgid ""
 "If it is run with elevated privileges (which is not recommended), cwcp can "
 "produce sounds using the console buzzer."
 msgstr ""
+"高位の権限で実行した場合 (これは推奨しません)、cwcp はコンソールのブザーを使っ"
+"て音を出すことができます。"
 
 #. Type: boolean
 #. Description
@@ -37,6 +39,8 @@ msgid ""
 "Please choose whether this should be achieved by giving the executable the "
 "\"setuid\" attribute."
 msgstr ""
+"実行ファイルに「setuid」属性を付与することによりこれをできるようにするかどうか"
+"選択してください。"
 
 #. Type: boolean
 #. Description
@@ -45,12 +49,14 @@ msgid ""
 "Alternatives include running the program with sudo or eliminating this issue "
 "completely by using output via a sound card instead of the buzzer."
 msgstr ""
+"代替手段として、プログラムを sudo して実行する、あるいはサウンドカード経由の音"
+"声出力をブザーの代わりに使うことによりこの問題を完全に排除する、等があります。"
 
 #. Type: boolean
 #. Description
 #: ../cw.templates:2001
 msgid "Run cw with root privileges?"
-msgstr ""
+msgstr "cw を root 権限で実行しますか??"
 
 #. Type: boolean
 #. Description
@@ -59,35 +65,5 @@ msgid ""
 "If it is run with elevated privileges (which is not recommended), cw can "
 "produce sounds using the console buzzer."
 msgstr ""
-
-#, fuzzy
-#~| msgid "Make cwcp setuid root"
-#~ msgid "Make cwcp setuid root?"
-#~ msgstr "cwcp を root に setuid する"
-
-#, fuzzy
-#~| msgid "Make cw setuid root"
-#~ msgid "Make cw setuid root?"
-#~ msgstr "cw を root に setuid する"
-
-#~ msgid ""
-#~ "The cwcp program only runs correctly as the root user. One way of doing "
-#~ "this is to make the program setuid root. This is generally a bad idea as "
-#~ "there are better ways, such as using the sudo program, to do this. "
-#~ "However, you have the option here of making it setuid root if you like."
-#~ msgstr ""
-#~ "cwcp プログラムは root ユーザでのみ正しく動作します。これを行う方法の一つ"
-#~ "は、プログラムを root に setuid することです。これは大抵は良い考えではあり"
-#~ "ません。実行に sudo を使うなど、もっと良い方法があります。しかし、もしお望"
-#~ "みなら root に setuid するのをここで選べます。"
-
-#~ msgid ""
-#~ "The cw program only runs correctly as the root user. One way of doing "
-#~ "this is to make the program setuid root. This is generally a bad idea as "
-#~ "there are better ways, such as using the sudo program, to do this. "
-#~ "However, you have the option here of making it setuid root if you like."
-#~ msgstr ""
-#~ "cw プログラムは root ユーザでのみ正しく動作します。これを行う方法の一つ"
-#~ "は、プログラムを root に setuid することです。これは大抵は良い考えではあり"
-#~ "ません。実行に sudo を使うなど、もっと良い方法があります。しかし、もしお望"
-#~ "みなら root に setuid するのをここで選べます。"
+"高位の権限で実行した場合 (これは推奨しません)、cw はコンソールのブザーを使って"
+"音を出すことができます。"
