@@ -308,7 +308,7 @@ extern int  cw_unregister_signal_handler(int signal_number);
 /* Keying control */
 extern void cw_register_keying_callback(void (*callback_func)(void*, int),
 					void *callback_arg);
-
+extern void cw_iambic_keyer_register_timer(struct timeval *timer);
 
 
 /* Tone queue */
