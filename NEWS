@@ -1,6 +1,6 @@
 version 3.3.0 / 2013.12.XX
 
-  unixcw: 
+  unixcw:
   - Thomas Beierlein has reported that some combinations of
     '--enable-*'/'--disable-*' flags result in a code that fails to
     compile. He also provided a patch that fixes it. I've created a
@@ -14,8 +14,8 @@ version 3.3.0 / 2013.12.XX
     --with-qt-includes=<path>
     --with-qt-libraries=<path>
     The state of build system on FreeBSD may still not be perfect (I
-    didn't test this myself FreeBSD), but should now be better than it
-    was.
+    didn't test this myself on FreeBSD), but should now be better than
+    it was.
 
   libcw:
   - new functions: adding new functions: cw_character_is_valid()
@@ -34,13 +34,26 @@ version 3.3.0 / 2013.12.XX
     recognition of keyed characters. These changes don't change public
     API nor "external" behaviour of libcw - these are just
     improvements of existing functionality.
+  - new function: cw_iambic_keyer_register_timer(): to be used by
+    client code that wants to receive Morse code sent with mouse or
+    keyboard keys emulating iambic key. The function is related to the
+    change mentioned one point above.
 
-  xcwcp: 
+    At this point the interface to iambic keying becomes a bit more
+    complicated. It will take me some more time to figure it out
+    completely. For now I've made some internal fixes and changes that
+    iprove one aspect of this functionality, and as a result I had to
+    add this one function. Expect more changes in future.
+
+    If you want to see an example of usage of the keyer API, see xcwcp
+    source code.
+
+  xcwcp:
   - xcwcp takes advantage of changes in how libcw handles iambic
     keying, and - with some additional modifications in xcwcp's code -
     gets improved handling of iambic keying.
 
-  cwutils
+  cwutils:
   - unit tests: adding first unit test in cwutils/dictionary module.
   - bugfix: usage of __attribute__ ((deprecated("message"))) construct
     in cwutils/dictionary.h may have lead to compilation failure. This
@@ -309,4 +322,3 @@ unixcw 3.0 for Debian.
   - Ported xcwcp to QT4. This should resolve Debian bug #604386
     (http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=604386).
   - Added auto-detection of QT4 headers and QT4 moc by build files.
-
