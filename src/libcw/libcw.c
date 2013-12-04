@@ -441,7 +441,114 @@ static int  cw_receiver_add_element_internal(cw_rec_t *rec, const struct timeval
 /*                        Section:Iambic keyer                          */
 /* ******************************************************************** */
 
+
+
+
+/*
+ * The CW keyer functions implement the following state graph:
+ *
+ *        +-----------------------------------------------------+
+ *        |          (all latches clear)                        |
+ *        |                                     (dot latch)     |
+ *        |                          +--------------------------+
+ *        |                          |                          |
+ *        |                          v                          |
+ *        |      +-------------> KS_IN_DOT_[A|B] -------> KS_AFTER_DOT_[A|B]
+ *        |      |(dot paddle)       ^            (delay)       |
+ *        |      |                   |                          |(dash latch/
+ *        |      |                   +------------+             | _B)
+ *        v      |                                |             |
+ * --> KS_IDLE --+                   +--------------------------+
+ *        ^      |                   |            |
+ *        |      |                   |            +-------------+(dot latch/
+ *        |      |                   |                          | _B)
+ *        |      |(dash paddle)      v            (delay)       |
+ *        |      +-------------> KS_IN_DASH_[A|B] -------> KS_AFTER_DASH_[A|B]
+ *        |                          ^                          |
+ *        |                          |                          |
+ *        |                          +--------------------------+
+ *        |                                     (dash latch)    |
+ *        |          (all latches clear)                        |
+ *        +-----------------------------------------------------+
+ */
+
+/* KS stands for Keyer State. */
+enum {
+	KS_IDLE,
+	KS_IN_DOT_A,
+	KS_IN_DASH_A,
+	KS_AFTER_DOT_A,
+	KS_AFTER_DASH_A,
+	KS_IN_DOT_B,
+	KS_IN_DASH_B,
+	KS_AFTER_DOT_B,
+	KS_AFTER_DASH_B
+};
+
+
+static const char *cw_iambic_keyer_states[] = {
+	"KS_IDLE",
+	"KS_IN_DOT_A",
+	"KS_IN_DASH_A",
+	"KS_AFTER_DOT_A",
+	"KS_AFTER_DASH_A",
+	"KS_IN_DOT_B",
+	"KS_IN_DASH_B",
+	"KS_AFTER_DOT_B",
+	"KS_AFTER_DASH_B"
+};
+
+
+
+
+/* Iambic keyer status.  The keyer functions maintain the current
+   known state of the paddles, and latch false-to-true transitions
+   while busy, to form the iambic effect.  For Curtis mode B, the
+   keyer also latches any point where both paddle states are true at
+   the same time. */
+struct cw_iambic_keyer_struct {
+	int state;            /* Keyer state. */
+
+	bool dot_paddle;      /* Dot paddle state */
+	bool dash_paddle;     /* Dash paddle state */
+
+	bool dot_latch;       /* Dot false->true latch */
+	bool dash_latch;      /* Dash false->true latch */
+
+	/* Iambic keyer "Curtis" mode A/B selector.  Mode A and mode B timings
+	   differ slightly, and some people have a preference for one or the other.
+	   Mode A is a bit less timing-critical, so we'll make that the default. */
+	bool curtis_mode_b;
+
+	bool curtis_b_latch;  /* Curtis Dot&&Dash latch */
+
+	bool lock;            /* FIXME: describe why we need this flag. */
+
+	struct timeval *timer; /* Timer for receiving of iambic keying, owned by client code. */
+
+}; // typedef cw_iambic_keyer_t
+
 typedef struct cw_iambic_keyer_struct cw_iambic_keyer_t;
+
+cw_iambic_keyer_t cw_iambic_keyer = {
+	.state = KS_IDLE,
+
+	.dot_paddle = false,
+	.dash_paddle = false,
+
+	.dot_latch = false,
+	.dash_latch = false,
+
+	.curtis_mode_b = false,
+	.curtis_b_latch = false,
+
+	.lock = false,
+
+	.timer = NULL
+};
+
+
+
 
 static int  cw_iambic_keyer_update_internal(cw_iambic_keyer_t *keyer);
 static void cw_iambic_keyer_update_initial_internal(cw_iambic_keyer_t *keyer);
@@ -2682,8 +2789,6 @@ int cw_get_noise_spike_threshold(void)
 
 
 
-/* Microseconds in a second, for struct timeval handling. */
-static const int CW_USECS_PER_SEC = 1000000;
 
 
 /* The library keeps a single central non-sparse list of SIGALRM signal
@@ -3650,6 +3755,30 @@ void cw_register_keying_callback(void (*callback_func)(void*, int),
 
 
 
+/*
+  Most of the time libcw just passes around cw_kk_key_callback_arg,
+  not caring of what type it is, and not attempting to do any
+  operations on it. On one occasion however, it needs to know whether
+  cw_kk_key_callback_arg is of type 'struct timeval', and if so, it
+  must do some operation on it. I could pass struct with ID as
+  cw_kk_key_callback_arg, but that may break some old client
+  code. Instead I've created this function that has only one, very
+  specific purpose: to pass to libcw a pointer to timer.
+
+  The timer is owned by client code, and is used to measure and clock
+  iambic keyer.
+*/
+void cw_iambic_keyer_register_timer(struct timeval *timer)
+{
+	cw_iambic_keyer.timer = timer;
+
+	return;
+}
+
+
+
+
+
 /**
    \brief Set new key state
 
@@ -3847,29 +3976,6 @@ enum cw_queue_state {
 
 
 
-/* Right now there is no function that would calculate number of tones
-   representing given character or string, so there is no easy way to
-   present exact relationship between capacity of tone queue and
-   number of characters that it can hold.  TODO: perhaps we could
-   write utility functions to do that calculation? */
-
-/* TODO: create tests that validate correctness of handling of tone
-   queue capacity. See if we really handle the capacity correctly. */
-
-
-enum {
-	/* Default and maximum values of two basic parameters of tone
-	   queue: capacity and high water mark. The parameters can be
-	   modified using suitable function. */
-
-	/* Tone queue will accept at most "capacity" tones. */
-	CW_TONE_QUEUE_CAPACITY_MAX = 3000,        /* ~= 5 minutes at 12 WPM */
-
-	/* Tone queue will refuse to accept new tones (characters?) if
-	   number of tones in queue (queue length) is already equal or
-	   larger than queue's high water mark. */
-	CW_TONE_QUEUE_HIGH_WATER_MARK_MAX = 2900
-};
 
 
 
@@ -6607,109 +6713,6 @@ void cw_reset_receive(void)
 
 
 
-/*
- * The CW keyer functions implement the following state graph:
- *
- *        +-----------------------------------------------------+
- *        |          (all latches clear)                        |
- *        |                                     (dot latch)     |
- *        |                          +--------------------------+
- *        |                          |                          |
- *        |                          v                          |
- *        |      +-------------> KS_IN_DOT_[A|B] -------> KS_AFTER_DOT_[A|B]
- *        |      |(dot paddle)       ^            (delay)       |
- *        |      |                   |                          |(dash latch/
- *        |      |                   +------------+             | _B)
- *        v      |                                |             |
- * --> KS_IDLE --+                   +--------------------------+
- *        ^      |                   |            |
- *        |      |                   |            +-------------+(dot latch/
- *        |      |                   |                          | _B)
- *        |      |(dash paddle)      v            (delay)       |
- *        |      +-------------> KS_IN_DASH_[A|B] -------> KS_AFTER_DASH_[A|B]
- *        |                          ^                          |
- *        |                          |                          |
- *        |                          +--------------------------+
- *        |                                     (dash latch)    |
- *        |          (all latches clear)                        |
- *        +-----------------------------------------------------+
- */
-
-/* KS stands for Keyer State. */
-enum {
-	KS_IDLE,
-	KS_IN_DOT_A,
-	KS_IN_DASH_A,
-	KS_AFTER_DOT_A,
-	KS_AFTER_DASH_A,
-	KS_IN_DOT_B,
-	KS_IN_DASH_B,
-	KS_AFTER_DOT_B,
-	KS_AFTER_DASH_B
-};
-
-
-static const char *cw_iambic_keyer_states[] = {
-	"KS_IDLE",
-	"KS_IN_DOT_A",
-	"KS_IN_DASH_A",
-	"KS_AFTER_DOT_A",
-	"KS_AFTER_DASH_A",
-	"KS_IN_DOT_B",
-	"KS_IN_DASH_B",
-	"KS_AFTER_DOT_B",
-	"KS_AFTER_DASH_B"
-};
-
-
-
-
-/* Iambic keyer status.  The keyer functions maintain the current
-   known state of the paddles, and latch false-to-true transitions
-   while busy, to form the iambic effect.  For Curtis mode B, the
-   keyer also latches any point where both paddle states are true at
-   the same time. */
-struct cw_iambic_keyer_struct {
-	int state;            /* Keyer state. */
-
-	bool dot_paddle;      /* Dot paddle state */
-	bool dash_paddle;     /* Dash paddle state */
-
-	bool dot_latch;       /* Dot false->true latch */
-	bool dash_latch;      /* Dash false->true latch */
-
-	/* Iambic keyer "Curtis" mode A/B selector.  Mode A and mode B timings
-	   differ slightly, and some people have a preference for one or the other.
-	   Mode A is a bit less timing-critical, so we'll make that the default. */
-	bool curtis_mode_b;
-
-	bool curtis_b_latch;  /* Curtis Dot&&Dash latch */
-
-	bool lock;            /* FIXME: describe why we need this flag. */
-
-}; // typedef cw_iambic_keyer_t
-
-
-
-cw_iambic_keyer_t cw_iambic_keyer = {
-	.state = KS_IDLE,
-
-	.dot_paddle = false,
-	.dash_paddle = false,
-
-	.dot_latch = false,
-	.dash_latch = false,
-
-	.curtis_mode_b = false,
-	.curtis_b_latch = false,
-
-	.lock = false
-};
-
-
-
-
-
 /**
    \brief Enable iambic Curtis mode B
 
@@ -7911,10 +7914,11 @@ void *cw_generator_dequeue_and_play_internal(void *arg)
 			   this inside of
 			   cw_iambic_keyer_update_internal() that is
 			   called below at the end of loop's body. */
-			struct timeval *timer = (struct timeval *) cw_kk_key_callback_arg;
-			timer->tv_usec += tone.usecs % CW_USECS_PER_SEC;
-			timer->tv_sec  += tone.usecs / CW_USECS_PER_SEC + timer->tv_usec / CW_USECS_PER_SEC;
-			timer->tv_usec %= CW_USECS_PER_SEC;
+			if (cw_iambic_keyer.timer) {
+				cw_iambic_keyer.timer->tv_usec += tone.usecs % CW_USECS_PER_SEC;
+				cw_iambic_keyer.timer->tv_sec  += tone.usecs / CW_USECS_PER_SEC + cw_iambic_keyer.timer->tv_usec / CW_USECS_PER_SEC;
+				cw_iambic_keyer.timer->tv_usec %= CW_USECS_PER_SEC;
+			}
 		}
 
 #ifdef LIBCW_WITH_DEV
