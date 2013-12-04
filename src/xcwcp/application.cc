@@ -1063,6 +1063,14 @@ void Application::make_auxiliaries_end(void)
 	// parameters) it won't be able to identify entered Morse
 	// code.
 	cw_register_keying_callback(libcw_keying_event_static, &(receiver_->timer));
+
+	// The call above registered receiver_->timer as a generic
+	// argument to a callback. However, libcw needs to know when
+	// the argument happens to be of type 'struct timeval'. This
+	// is why we have this second call, explicitly passing
+	// receiver's timer to libcw.
+	cw_iambic_keyer_register_timer(&(receiver_->timer));
+
 	gettimeofday(&(receiver_->timer), NULL);
 	//fprintf(stderr, "time on aux config: %10ld : %10ld\n", receiver_->timer.tv_sec, receiver_->timer.tv_usec);
 
