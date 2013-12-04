@@ -798,68 +798,119 @@ void test_tone_queue_3(cw_test_stats_t *stats)
 	cw_set_volume(70);
 
 
-	int capacity = cw_get_tone_queue_capacity();
-	bool failure = capacity == 0;
 
-	failure ? stats->failures++ : stats->successes++;
-	int n = printf("libcw: cw_get_tone_queue_capacity(): %d %s 0:", capacity, failure ? "!=" : "==");
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
+	/* Test: properties (capacity and length) of empty tq. */
+	{
+		fprintf(stderr, "libcw:  --  initial test on empty tq:\n");
 
+		/* Empty tone queue and make sure that it is really
+		   empty (wait for info from libcw). */
+		cw_flush_tone_queue();
+		cw_wait_for_tone_queue();
 
-	/* Empty tone queue and make sure that it is really empty
-	   (wait for info from libcw). */
-	cw_flush_tone_queue();
-	cw_wait_for_tone_queue();
+		int capacity = cw_get_tone_queue_capacity();
+		bool failure = capacity != CW_TONE_QUEUE_CAPACITY_MAX;
 
-	int len_empty = cw_get_tone_queue_length();
-	failure = len_empty > 0;
-
-	failure ? stats->failures++ : stats->successes++;
-	n = printf("libcw: cw_get_tone_queue_length() when tq empty: %d %s 0:", len_empty, failure ? "!=" : "==");
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
+		failure ? stats->failures++ : stats->successes++;
+		int n = printf("libcw: cw_get_tone_queue_capacity(): %d %s %d:",
+			       capacity, failure ? "!=" : "==", CW_TONE_QUEUE_CAPACITY_MAX);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 
-	int i = 0;
-	/* FIXME: cw_is_tone_queue_full() is not tested */
-	while (!cw_is_tone_queue_full()) {
-		cw_queue_tone(1000000, 100 + (i++ & 1) * 100);
+		int len_empty = cw_get_tone_queue_length();
+		failure = len_empty > 0;
+
+		failure ? stats->failures++ : stats->successes++;
+		n = printf("libcw: cw_get_tone_queue_length() when tq empty: %d %s 0:", len_empty, failure ? "!=" : "==");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
-	int len_full = cw_get_tone_queue_length();
-	failure = len_full != capacity;
-
-	failure ? stats->failures++ : stats->successes++;
-	n = printf("libcw: cw_get_tone_queue_length() when tq full: %d %s capacity:", len_full, failure ? "!=" : "==");
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
+	/* Test: properties (capacity and length) of full tq. */
 
-	/* Attempt to add tone to full queue. */
-	errno = 0;
-	int status = cw_queue_tone(1000000, 100);
-	failure = status || errno != EAGAIN;
+	/* FIXME: we call cw_queue_tone() until tq is full, and then
+	   expect the tq to be full while we perform tests. Doesn't
+	   the tq start dequeuing tones right away? Can we expect the
+	   tq to be full for some time after adding last tone?
+	   Hint: check when a length of tq is decreased. Probably
+	   after playing first tone on tq, which - in this test - is
+	   pretty long. Or perhaps not. */
+	{
+		fprintf(stderr, "libcw:  --  test on full tq:\n");
 
-	failure ? stats->failures++ : stats->successes++;
-	n = printf("libcw: cw_queue_tone() for full tq:");
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
+		int i = 0;
+		/* FIXME: cw_is_tone_queue_full() is not tested */
+		while (!cw_is_tone_queue_full()) {
+			cw_queue_tone(1000000, 100 + (i++ & 1) * 100);
+		}
+
+		int capacity = cw_get_tone_queue_capacity();
+		bool failure = capacity != CW_TONE_QUEUE_CAPACITY_MAX;
+
+		failure ? stats->failures++ : stats->successes++;
+		int n = printf("libcw: cw_get_tone_queue_capacity(): %d %s %d:",
+			       capacity, failure ? "!=" : "==", CW_TONE_QUEUE_CAPACITY_MAX);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 
-	/* Empty tone queue and make sure that it is really empty
-	   (wait for info from libcw). */
-	cw_flush_tone_queue();
-	cw_wait_for_tone_queue();
+		int len_full = cw_get_tone_queue_length();
+		failure = len_full != CW_TONE_QUEUE_CAPACITY_MAX;
 
-	/* Test that the tq is really empty after
-	   cw_wait_for_tone_queue() has returned. */
-	len_empty = cw_get_tone_queue_length();
-	failure = len_empty > 0;
+		failure ? stats->failures++ : stats->successes++;
+		n = printf("libcw: cw_get_tone_queue_length() when tq full: %d %s %d:",
+			   len_full, failure ? "!=" : "==", CW_TONE_QUEUE_CAPACITY_MAX);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+	}
 
-	failure ? stats->failures++ : stats->successes++;
-	n = printf("libcw: cw_get_tone_queue_length() for empty tq: %d:", len_empty);
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
+
+	/* Test: attempt to add tone to full queue. */
+	{
+		errno = 0;
+		int status = cw_queue_tone(1000000, 100);
+		bool failure = status || errno != EAGAIN;
+
+		failure ? stats->failures++ : stats->successes++;
+		int n = printf("libcw: cw_queue_tone() for full tq:");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+	}
+
+
+
+	/* Test: check again properties (capacity and length) of empty
+	   tq after it has been in use.
+
+	   Empty the tq, ensure that it is empty, and do the test. */
+	{
+		fprintf(stderr, "libcw:  --  final test on empty tq:\n");
+
+		/* Empty tone queue and make sure that it is really
+		   empty (wait for info from libcw). */
+		cw_flush_tone_queue();
+		cw_wait_for_tone_queue();
+
+		int capacity = cw_get_tone_queue_capacity();
+		bool failure = capacity != CW_TONE_QUEUE_CAPACITY_MAX;
+
+		failure ? stats->failures++ : stats->successes++;
+		int n = printf("libcw: cw_get_tone_queue_capacity(): %d %s %d:",
+			       capacity, failure ? "!=" : "==", CW_TONE_QUEUE_CAPACITY_MAX);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+
+
+
+		/* Test that the tq is really empty after
+		   cw_wait_for_tone_queue() has returned. */
+		int len_empty = cw_get_tone_queue_length();
+		failure = len_empty > 0;
+
+		failure ? stats->failures++ : stats->successes++;
+		n = printf("libcw: cw_get_tone_queue_length() when tq empty: %d %s 0:", len_empty, failure ? "!=" : "==");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+	}
 
 
 	printf("libcw: %s(): completed\n\n", __func__);
@@ -1929,7 +1980,7 @@ int test_fixed_receive_add_jitter(const int usecs, bool is_space)
 int test_adaptive_receive_scale(const int usecs, float factor)
 {
 	int out = usecs * factor;
-	fprintf(stderr, "factor = %f, in usecs = %d, out usecs = %d\n", factor, usecs, out);
+	//fprintf(stderr, "factor = %f, in usecs = %d, out usecs = %d\n", factor, usecs, out);
 
 	return out;
 }
@@ -1944,15 +1995,6 @@ int test_adaptive_receive_scale(const int usecs, float factor)
 void test_adaptive_receive(cw_test_stats_t *stats)
 {
 	printf("libcw: %s():\n", __func__);
-
-	/* TODO: use TEST_DATA_RAW and new function for recalculating
-	   values for purposes of adaptive speed receiving. */
-	const cw_test_receive_data_t TEST_DATA[] = {  /* 60, 40, and 30 WPM (mixed speed) characters */
-		{ 'Q', "--.-", { 60000, 20000,  60000, 20000,  20000, 20000, 60000, 60000, 0    } },
-		{ 'R', ".-.",  { 30000, 30000,  90000, 30000,  30000, 90000,     0 } },
-		{ 'P', ".--.", { 40000, 40000, 120000, 40000, 120000, 40000, 40000,  280000, -1 } },  /* Includes word end delay, -1 indicator */
-		{ ' ', NULL,   { 0 } }
-	};
 
 	/* Test adaptive receive functions in much the same sort of
 	   way.  Again, this is a _very_ minimal test, omitting all
