@@ -85,6 +85,37 @@ static const int        CW_AUDIO_SLOPE_USECS = 5000;          /* length of a sin
 enum { CW_REC_REPRESENTATION_CAPACITY = 256 };
 
 
+/* Microseconds in a second, for struct timeval handling. */
+enum { CW_USECS_PER_SEC = 1000000 };
+
+
+
+/* Right now there is no function that would calculate number of tones
+   representing given character or string, so there is no easy way to
+   present exact relationship between capacity of tone queue and
+   number of characters that it can hold.  TODO: perhaps we could
+   write utility functions to do that calculation? */
+
+/* TODO: create tests that validate correctness of handling of tone
+   queue capacity. See if we really handle the capacity correctly. */
+
+
+enum {
+	/* Default and maximum values of two basic parameters of tone
+	   queue: capacity and high water mark. The parameters can be
+	   modified using suitable function. */
+
+	/* Tone queue will accept at most "capacity" tones. */
+	CW_TONE_QUEUE_CAPACITY_MAX = 3000,        /* ~= 5 minutes at 12 WPM */
+
+	/* Tone queue will refuse to accept new tones (characters?) if
+	   number of tones in queue (queue length) is already equal or
+	   larger than queue's high water mark. */
+	CW_TONE_QUEUE_HIGH_WATER_MARK_MAX = 2900
+};
+
+
+
 
 typedef struct cw_tone_struct cw_tone_t;
 typedef struct cw_tone_queue_struct cw_tone_queue_t;
