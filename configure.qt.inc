@@ -22,7 +22,7 @@
 # Qt4 application using autotools.
 # On success, the script sets three variables for build system by making
 # these two calls:
-#    AC_SUBST(QT4INC, $QT4_CFLAGS)
+#    AC_SUBST(QT4CFLAGS, $QT4_CFLAGS)
 #    AC_SUBST(QT4LIBS)
 #    AC_SUBST(QT4MOC)
 
@@ -47,14 +47,14 @@ MOC_MAJOR_EARLIEST=4
 
 
 
-QT4INC=""  # full path to directory with QT4 QtCore + QtGui subdirs and include files, e.g. /usr/include/qt4/
-QT4MOC=""  # full path to Qt4 moc
-# QT4DIR="" # for testing purposes
+QT4CFLAGS=""  # QT4-related define flags, and full path to directory with QT4 QtCore + QtGui subdirs and include files, e.g. /usr/include/qt4/
+QT4MOC=""     # full path to Qt4 moc
+# QT4DIR=""   # for testing purposes
 
-AC_ARG_WITH([qt-includes],
-AC_HELP_STRING([--with-qt-includes=<path>],
-    [path to qt4 include files]),
-    [QT4INC=$with_qt_includes])
+AC_ARG_WITH([qt-cflags],
+AC_HELP_STRING([--with-qt-cflags=<string>],
+    [Qt4-related defines, and path to Qt4 include files]),
+    [QT4CFLAGS=$with_qt_cflags])
 
 AC_ARG_WITH([qt-libraries],
 AC_HELP_STRING([--with-qt-libraries=<path>],
@@ -65,7 +65,7 @@ AC_HELP_STRING([--with-qt-libraries=<path>],
 # Task 1: find Qt4 include directory, and for QT4 library
 
 PKG_CHECK_MODULES([QT4], [ "QtCore QtGui"],
-			 [ AC_SUBST(QT4INC, $QT4_CFLAGS) AC_SUBST(QT4LIBS) ],
+			 [ AC_SUBST(QT4CFLAGS, $QT4_CFLAGS) AC_SUBST(QT4LIBS) ],
 			 [ AC_MSG_ERROR([Qt4 libs not found])
 			 ])
 
@@ -137,12 +137,12 @@ fi
 
 
 # Task 4: on success set up some build system variables (AC_SUBST)
-if [[ "$QT4INC" -a "$QT4MOC" ]] ; then
-    echo "Qt4 headers dir is $QT4INC"
+if [[ "$QT4CFLAGS" -a "$QT4MOC" ]] ; then
+    echo "Qt4 CFLAGS is $QT4CFLAGS"
     echo "Qt4 moc is $QT4MOC"
 
 else
-    if [[ -z "$QT4INC" ]] ; then
+    if [[ -z "$QT4CFLAGS" ]] ; then
 	AC_MSG_WARN(["Can't find directory with Qt4 header files - unable to build xcwcp"])
     fi
 
@@ -153,7 +153,7 @@ else
 
     AC_MSG_WARN(["Hint: try setting QT4DIR env variable per instructions in unixcw/INSTALL"])
 
-    QT4INC=""
+    QT4CFLAGS=""
     QT4MOC=""
 fi
 
