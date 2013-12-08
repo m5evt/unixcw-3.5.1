@@ -1,3 +1,6 @@
+2013-12-08 Kamil Ignacak
+	* cwgen: improving seed for random function.
+
 2013-10-26 Kamil Ignacak
 	* clocking of iambic keyer. There has been a problem with clocking
 	iambic keyer when the state machine for the keyer was in
