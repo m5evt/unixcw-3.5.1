@@ -506,5 +506,9 @@ static const int cw_test_print_width = 75;
 		printf("%*s\n", (cw_test_print_width - m_n), m_failure ? "failure" : "success"); \
 	}
 
+#define CW_TEST_PRINT_FUNCTION_COMPLETED(m_func_name) {			\
+		int m = printf("libcw: %s(): ", m_func_name);		\
+		printf("%*s\n\n", cw_test_print_width - m, "completed");	\
+	}
 
 #endif /* #ifndef H_LIBCW_INTERNAL */
