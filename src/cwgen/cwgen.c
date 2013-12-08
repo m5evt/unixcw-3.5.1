@@ -21,7 +21,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
+#include <sys/time.h> /* gettimeofday() */
 #include <errno.h>
 #include <assert.h>
 #include <stdint.h>
@@ -106,7 +106,16 @@ void cwgen_generate_characters(struct cwgen_config *config)
 
 	/* On first (usually only) call, seed the random number generator. */
 	if (!is_initialized) {
-		srandom(time(NULL));
+
+		/* Previously the initializator used value returned by
+		time(). Consecutive calls of the program within one
+		second resulted in the same generated string - not
+		very random. To improve randomness, I've switched to
+		gettimeofday(). */
+		struct timeval t;
+		gettimeofday(&t, NULL);
+
+		srandom(t.tv_usec);
 		is_initialized = true;
 	}
 
