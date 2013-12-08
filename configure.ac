@@ -303,7 +303,7 @@ else
     # autodetection of Qt4 dependencies
     m4_include([configure.qt.inc])
 
-    if [[ "$QT4INC" -a "$QT4MOC" ]] ; then
+    if [[ "$QT4CFLAGS" -a "$QT4MOC" ]] ; then
         # we have moc4 and path to Qt4 include files,
         # so we can build xcwcp
 	WITH_XCWCP='yes'
@@ -518,7 +518,7 @@ AC_MSG_NOTICE([build cw & cwgen:  ............................  yes])
 AC_MSG_NOTICE([build cwcp:  ..................................  $WITH_CWCP])
 AC_MSG_NOTICE([build xcwcp:  .................................  $WITH_XCWCP])
 if test "$WITH_XCWCP" = 'yes' ; then
-    AC_MSG_NOTICE([    Qt4 headers dir is $QT4INC])
+    AC_MSG_NOTICE([    Qt4 CFLAGS is $QT4CFLAGS])
     AC_MSG_NOTICE([    Qt4 moc is $QT4MOC])
 fi
 AC_MSG_NOTICE([include console buzzer support:  ..............  $WITH_CONSOLE])
