@@ -186,7 +186,7 @@ void test_cw_version(cw_test_stats_t *stats)
 	int n = fprintf(stderr, "libcw: version %d.%d:", major, minor);
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
-	printf("libcw: %s(): completed\n\n", __func__);
+	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
 
 	return;
 }
@@ -205,7 +205,7 @@ void test_cw_license(__attribute__((unused)) cw_test_stats_t *stats)
 	/* Test the cw_license() function. */
 	cw_license();
 
-	printf("libcw: %s(): completed\n\n", __func__);
+	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
 
 	return;
 }
@@ -246,7 +246,7 @@ void test_cw_debug_flags(cw_test_stats_t *stats)
 	/* Restore original flags. */
 	cw_debug_set_flags(&cw_debug_object, flags_backup);
 
-	printf("libcw: %s(): completed\n\n", __func__);
+	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
 
 	return;
 }
@@ -307,7 +307,7 @@ void test_cw_get_x_limits(cw_test_stats_t *stats)
 	}
 
 
-	printf("libcw: %s(): completed\n\n", __func__);
+	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
 
 	return;
 }
@@ -460,7 +460,8 @@ void test_parameter_ranges(cw_test_stats_t *stats)
 	}
 
 
-	printf("libcw: %s(): completed\n\n", __func__);
+	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
+
 	return;
 }
 
@@ -513,7 +514,7 @@ void test_tone_queue_0(cw_test_stats_t *stats)
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
-	printf("libcw: %s(): completed\n\n", __func__);
+	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
 
 	return;
 }
@@ -692,7 +693,7 @@ void test_tone_queue_1(cw_test_stats_t *stats)
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
-	printf("libcw: %s():         completed\n\n", __func__);
+	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
 
 	return;
 }
@@ -771,7 +772,8 @@ void test_tone_queue_2(cw_test_stats_t *stats)
 	cw_queue_tone(0, 0);
 	cw_wait_for_tone_queue();
 
-	printf("libcw: %s():  completed\n\n", __func__);
+
+	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
 
 	return;
 }
@@ -913,7 +915,7 @@ void test_tone_queue_3(cw_test_stats_t *stats)
 	}
 
 
-	printf("libcw: %s(): completed\n\n", __func__);
+	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
 
 	return;
 }
@@ -930,6 +932,8 @@ static int cw_test_tone_queue_callback_data = 999999;
 */
 void test_tone_queue_callback(cw_test_stats_t *stats)
 {
+	printf("libcw: %s():\n", __func__);
+
 	for (int i = 1; i < 10; i++) {
 		/* Test the callback mechanism for very small values,
 		   but for a bit larger as well. */
@@ -973,6 +977,9 @@ void test_tone_queue_callback(cw_test_stats_t *stats)
 
 		cw_reset_tone_queue();
 	}
+
+
+	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
 
 	return;
 }
@@ -1099,7 +1106,8 @@ void test_volume_functions(cw_test_stats_t *stats)
 	cw_flush_tone_queue();
 
 
-	printf("libcw: %s():      completed\n\n", __func__);
+	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
+
 	return;
 }
 
@@ -1228,7 +1236,8 @@ void test_character_lookups(cw_test_stats_t *stats)
 
 	}
 
-	printf("libcw: %s(): completed\n\n", __func__);
+
+	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
 
 	return;
 }
@@ -1334,7 +1343,8 @@ void test_prosign_lookups(cw_test_stats_t *stats)
 	}
 
 
-	printf("libcw: %s(): completed\n\n", __func__);
+	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
+
 	return;
 }
 
@@ -1403,7 +1413,9 @@ void test_phonetic_lookups(cw_test_stats_t *stats)
 		CW_TEST_PRINT_TEST_RESULT (reverse_lookup_failure, n);
 	}
 
-	printf("libcw: %s(): completed\n\n", __func__);
+
+	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
+
 	return;
 }
 
@@ -1495,7 +1507,7 @@ void test_send_primitives(cw_test_stats_t *stats)
 	}
 
 
-	printf("libcw: %s():  completed\n\n", __func__);
+	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
 
 	return;
 }
@@ -1582,7 +1594,8 @@ void test_representations(cw_test_stats_t *stats)
 	cw_wait_for_tone_queue();
 
 
-	printf("libcw: %s():            completed\n\n", __func__);
+	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
+
 	return;
 }
 
@@ -1664,7 +1677,8 @@ void test_validate_character_and_string(cw_test_stats_t *stats)
 	}
 
 
-	printf("libcw: %s(): completed\n\n", __func__);
+	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
+
 	return;
 }
 
@@ -1751,7 +1765,8 @@ void test_send_character_and_string(cw_test_stats_t *stats)
 	}
 
 
-	printf("libcw: %s(): completed\n\n", __func__);
+	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
+
 	return;
 }
 
@@ -1928,7 +1943,9 @@ void test_fixed_receive(cw_test_stats_t *stats)
 
 	test_helper_receive_tests(false, TEST_DATA_RAW, stats, true);
 
-	printf("libcw: %s(): completed\n\n", __func__);
+
+	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
+
 	return;
 }
 
@@ -2005,7 +2022,9 @@ void test_adaptive_receive(cw_test_stats_t *stats)
 
 	test_helper_receive_tests(true, TEST_DATA_RAW, stats, false);
 
-	printf("libcw: %s(): completed\n\n", __func__);
+
+	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
+
 	return;
 }
 
@@ -2403,7 +2422,8 @@ void test_keyer(cw_test_stats_t *stats)
 	cw_wait_for_keyer();
 
 
-	printf("libcw: %s(): completed\n\n", __func__);
+	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
+
 	return;
 }
 
@@ -2528,7 +2548,9 @@ void test_straight_key(cw_test_stats_t *stats)
 		CW_TEST_PRINT_TEST_RESULT (state_failure, n);
 	}
 
-	printf("libcw: %s(): completed\n\n", __func__);
+
+	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
+
 	return;
 }
 
@@ -2598,7 +2620,9 @@ void cw_test_delayed_release(cw_test_stats_t *stats)
 		failures++;
 	}
 
-	printf("libcw: %s(): completed\n\n", __func__);
+
+	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
+
 	return;
 }
 
