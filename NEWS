@@ -53,6 +53,14 @@ version 3.3.0 / 2013.12.XX
     keying, and - with some additional modifications in xcwcp's code -
     gets improved handling of iambic keying.
 
+  cwgen:
+  - improving randomness of generated strings;
+    until now if cwgen was called twice within the same second, it
+    produced the same result (since the random function has been
+    seeded with value returned by time()). Now the seed comes from
+    gettimeofday() (the milliseconds part), so randomness has been
+    improved a bit.
+
   cwutils:
   - unit tests: adding first unit test in cwutils/dictionary module.
   - bugfix: usage of __attribute__ ((deprecated("message"))) construct
