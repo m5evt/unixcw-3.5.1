@@ -52,6 +52,12 @@ lib_xcwcp_a_SOURCES = copyright.h i18n.c i18n.h cw_common.c cw_common.h cmdline.
 #check: all
 
 
+# CLEANFILES extends list of files that need to be removed when
+# calling "make clean"
+CLEANFILES = greptest.sh
+
+
+
 TESTS = $(check_SCRIPTS)
 
 # run test programs (only libcwunittests unit tests suite)
