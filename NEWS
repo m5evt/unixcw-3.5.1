@@ -11,7 +11,7 @@ version 3.3.0 / 2013.12.XX
   - FreeBSD patches: Diane Bruce provided a set of patches that fix
     compilation on FreeBSD (thank you!). Thanks to the patches the
     ./configure script now should support two new flags:
-    --with-qt-includes=<path>
+    --with-qt-cflags=<string>
     --with-qt-libraries=<path>
     The state of build system on FreeBSD may still not be perfect (I
     didn't test this myself on FreeBSD), but should now be better than
@@ -42,7 +42,7 @@ version 3.3.0 / 2013.12.XX
     At this point the interface to iambic keying becomes a bit more
     complicated. It will take me some more time to figure it out
     completely. For now I've made some internal fixes and changes that
-    iprove one aspect of this functionality, and as a result I had to
+    improve one aspect of this functionality, and as a result I had to
     add this one function. Expect more changes in future.
 
     If you want to see an example of usage of the keyer API, see xcwcp
@@ -87,7 +87,7 @@ version 3.2.0 / 2013.01.11
     raised cosine function. The 'raised cosine' slope is now default.
   - Rewriting usage of "__attribute__ ((deprecated(msg)))" facility in libcw.h.
     A user has reported errors related to the attribute when compiling libcw
-    libcw with gcc 4.3.3.
+    with gcc 4.3.3.
   - Improving the method of queuing a space character. This helps me avoid
     problems in some corner cases (e.g. when a single space is queued, and
     tone queue's low watermark is set to 1).
