@@ -1,3 +1,10 @@
+unixcw (3.3.1-1) unstable; urgency=low
+
+  * New upstream release fixes some problems in libcw library
+    (dequeueing from tone queue).
+
+ -- Kamil Ignacak <acerion@wp.pl>  Wed, 23 Apr 2014 20:36:40 +0100
+
 unixcw (3.3.0-1) unstable; urgency=low
 
   * New upstream release fixes some problems in libcw library
