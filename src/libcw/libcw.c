@@ -4315,21 +4315,28 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *ton
 			   compare with the length after we've scanned
 			   over every tone we can omit, and use it to see
 			   if we've crossed the low water mark, if any. */
-			uint32_t queue_length = tq->len;
+			uint32_t queue_len = tq->len;
 
 			/* Get parameters of tone to be played */
 			tone->usecs = tq->queue[tq->head].usecs;
 			tone->frequency = tq->queue[tq->head].frequency;
 			tone->slope_mode = tq->queue[tq->head].slope_mode;
 
-			if (tone->usecs == CW_AUDIO_FOREVER_USECS && queue_length == 1) {
+			if (tone->usecs == CW_AUDIO_FOREVER_USECS && queue_len == 1) {
 				/* The last tone currently in queue is
 				   CW_AUDIO_FOREVER_USECS, which means that we
 				   should play certain tone until client
 				   code adds next tone (possibly forever).
 
 				   Don't dequeue this "forever" tone,
-				   don't iterate head. */
+				   don't iterate head.
+
+				   TODO: shouldn't we 'return
+				   CW_TQ_NONEMPTY' at this point?
+				   Since we are in "forever" tone,
+				   what else should we do?  Maybe call
+				   cw_key_set_state_internal(), but I
+				   think that this would be all. */
 			} else {
 				tq->head = cw_tone_queue_next_index_internal(tq, tq->head);;
 				tq->len--;
@@ -4347,8 +4354,8 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *ton
 			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
 				      "libcw: tone queue: dequeue tone %d usec, %d Hz", tone->usecs, tone->frequency);
 			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
-				      "libcw: tone queue: head = %"PRIu32", tail = %"PRIu32", length = %"PRIu32"",
-				      tq->head, tq->tail, queue_length);
+				      "libcw: tone queue: head = %"PRIu32", tail = %"PRIu32", length = %"PRIu32" -> %"PRIu32"",
+				      tq->head, tq->tail, queue_len, tq->len);
 
 			/* Notify the key control function that there might
 			   have been a change of keying state (and then
@@ -4378,12 +4385,6 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *ton
 				tq_report = REPORTED_NONEMPTY;
 			}
 #endif
-			pthread_mutex_unlock(&tq->mutex);
-
-			/* Since client's callback can use functions
-			   that call pthread_mutex_lock(), we should
-			   put the callback *after* we release
-			   pthread_mutex_unlock() in this function. */
 
 			/* If there is a low water mark callback registered,
 			   and if we passed under the water mark, call the
@@ -4392,7 +4393,9 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *ton
 			   the state to idle, since the most likely action
 			   of this routine is to queue tones, and we don't
 			   want to play with the state here after that. */
+			bool call_callback = false;
 			if (tq->low_water_callback) {
+
 				/* If the length we originally calculated
 				   was above the low water mark, and the
 				   one we have now is below or equal to it,
@@ -4402,20 +4405,31 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *ton
 				   'if ()' is redundant, but for some reason
 				   it is necessary. Be very, very careful
 				   when modifying this. */
-				if (queue_length > tq->low_water_mark
-				    // && CW_TONE_QUEUE_LENGTH(tq) <= tq->low_water_mark
+				if (queue_len > tq->low_water_mark
+				    && tq->len <= tq->low_water_mark
 
 				    /* Avoid endlessly calling the callback
 				       if the only queued tone is 'forever'
-				       tone. Once someone decides to end the
+				       tone. Once client code decides to end the
 				       'forever' tone, we will be ready to
 				       call the callback again. */
-				    && !(tone->usecs == CW_AUDIO_FOREVER_USECS && queue_length == 1)
+				    && !(tone->usecs == CW_AUDIO_FOREVER_USECS && queue_len == 1)) {
 
-				    ) {
-
-					(*(tq->low_water_callback))(tq->low_water_callback_arg);
+					// fprintf(stderr, "libcw: solution 7, calling callback A, %d / %d / %d\n", tq->len, queue_len, tq->low_water_mark);
+					call_callback = true;
 				}
+			}
+
+			pthread_mutex_unlock(&tq->mutex);
+
+			/* Since client's callback can use functions
+			   that call pthread_mutex_lock(), we should
+			   put the callback *after* we release
+			   pthread_mutex_unlock() in this function. */
+
+			if (call_callback) {
+				// fprintf(stderr, "libcw: solution 7, calling callback B, %d / %d / %d\n", tq->len, queue_len, tq->low_water_mark);
+				(*(tq->low_water_callback))(tq->low_water_callback_arg);
 			}
 
 			return CW_TQ_NONEMPTY;
