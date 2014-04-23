@@ -1,3 +1,21 @@
+version 3.3.1 / 2014-04-23
+
+  libcw:
+
+  - Fixing bug discovered when fixing a problem with cwdaemon,
+    reported by Pino Zollo ZP4KFX. Condition for calling "low water
+    mark in tone queue" callback was invalid. This resulted in calling
+    the callback too early or too often.
+
+  - Library version changed from 6.0.1 to 6.1.1.
+
+Big *thank you* to Pino Zollo ZP4KFX for reporting a problem with
+cwdaemon and for helping to solve it in cwdaemon and in libcw.
+
+
+----------------------------------------------------------------------------
+
+
 version 3.3.0 / 2013.12.10
 
   unixcw:
