@@ -1,3 +1,8 @@
+2014-04-23 Kamil Ignacak
+	* committing changes before a new release; the new release
+	contains a fix of problem reported by Pino Zollo ZP4KFX. Se NEWS
+	file for more details.
+
 2013-12-08 Kamil Ignacak
 	* cwgen: improving seed for random function.
 
