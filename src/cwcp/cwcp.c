@@ -862,7 +862,7 @@ bool mode_is_sending_active(void)
 static const char *const INTRODUCTION = N_(
   "UNIX/Linux Morse Tutor v3.3.1\n"
   "Copyright (C) 1997-2006 Simon Baldwin\n"
-  "Copyright (C) 2011-2013 Kamil Ignacak\n"
+  "Copyright (C) 2011-2014 Kamil Ignacak\n"
   "---------------------------------------------------------\n"
   "Cwcp is an interactive Morse code tutor program, designed\n"
   "both for learning Morse code for the first time, and for\n"
