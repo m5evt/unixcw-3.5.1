@@ -1,6 +1,6 @@
 /*
   Copyright (C) 2001-2006  Simon Baldwin (simon_baldwin@yahoo.com)
-  Copyright (C) 2011-2013  Kamil Ignacak (acerion@wp.pl)
+  Copyright (C) 2011-2014  Kamil Ignacak (acerion@wp.pl)
 
   This program is free software; you can redistribute it and/or
   modify it under the terms of the GNU General Public License
@@ -104,5 +104,3 @@ void cw_null_write(__attribute__((unused)) cw_gen_t *gen, cw_tone_t *tone)
 
 	return;
 }
-
-
