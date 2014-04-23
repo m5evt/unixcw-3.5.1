@@ -925,6 +925,7 @@ void test_tone_queue_3(cw_test_stats_t *stats)
 
 
 static int cw_test_tone_queue_callback_data = 999999;
+static int cw_test_helper_tq_callback_capture = false;
 
 
 /**
@@ -957,6 +958,10 @@ void test_tone_queue_callback(cw_test_stats_t *stats)
 			assert (rv);
 		}
 
+		/* Allow the callback to work only after initial
+		   filling of queue. */
+		cw_test_helper_tq_callback_capture = true;
+
 		/* Wait for the queue to be drained to zero. While the
 		   tq is drained, and level of tq reaches trigger
 		   level, a callback will be called. Its only task is
@@ -969,7 +974,12 @@ void test_tone_queue_callback(cw_test_stats_t *stats)
 		   callback for different values of trigger level. */
 		cw_wait_for_tone_queue();
 
-		failure = level != cw_test_tone_queue_callback_data;
+		/* Because of order of calling callback and decreasing
+		   length of queue, I think that it's safe to assume
+		   that there may be a difference of 1 between these
+		   two values. */
+		int diff = level - cw_test_tone_queue_callback_data;
+		failure = diff > 1;
 
 		failure ? stats->failures++ : stats->successes++;
 		n = printf("libcw: tone queue callback: %d", level);
@@ -990,8 +1000,12 @@ void test_tone_queue_callback(cw_test_stats_t *stats)
 
 static void cw_test_helper_tq_callback(void *data)
 {
+	if (cw_test_helper_tq_callback_capture) {
 	int *d = (int *) data;
 	*d = cw_get_tone_queue_length();
+
+		cw_test_helper_tq_callback_capture = false;
+	}
 
 	return;
 }
