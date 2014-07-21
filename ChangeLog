@@ -1,3 +1,10 @@
+2014-07-21 Kamil Ignacak
+	* libcw/tone queue: Moving most of code related to tone queue into
+	new file: libcw_tq.c.
+	Having separate things in separate files (instead of having
+	everything in a single 10kLOC file) should make some things easier
+	for me as a maintainer of libcw.
+
 2014-04-23 Kamil Ignacak
 	* committing changes before a new release; the new release
 	contains a fix of problem reported by Pino Zollo ZP4KFX. Se NEWS
