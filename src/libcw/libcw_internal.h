@@ -119,7 +119,6 @@ enum {
 
 typedef struct cw_tone_struct cw_tone_t;
 typedef struct cw_tone_queue_struct cw_tone_queue_t;
-typedef struct cw_entry_struct cw_entry_t;
 typedef struct cw_tracking_struct cw_tracking_t;
 
 
@@ -490,6 +489,9 @@ typedef struct {
 void cw_key_set_state_internal(int key_state);
 bool cw_sigalrm_is_blocked_internal(void);
 int  cw_signal_wait_internal(void);
+
+/* From libcw.c, needed in libcw_data.c. */
+int cw_timestamp_compare_internal(const struct timeval *earlier, const struct timeval *later);
 
 
 #if (defined(LIBCW_WITH_ALSA) || defined(LIBCW_WITH_PULSEAUDIO))
