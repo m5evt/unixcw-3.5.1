@@ -486,7 +486,10 @@ typedef struct {
 } cw_rec_t;
 
 
-
+/* From libcw.c, needed in libcw_tq.c. */
+void cw_key_set_state_internal(int key_state);
+bool cw_sigalrm_is_blocked_internal(void);
+int  cw_signal_wait_internal(void);
 
 
 #if (defined(LIBCW_WITH_ALSA) || defined(LIBCW_WITH_PULSEAUDIO))
