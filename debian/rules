@@ -62,8 +62,8 @@ build-indep-stamp:  config.status
 
 clean:
 	dh_testdir
-	dh_testroot
-	rm -f build-arch-stamp build-indep-stamp config.status config.log
+	dh_auto_clean
+	rm -f build-arch-stamp configure-stamp
 
 # Add here commands to clean up after the build process.
 	[ ! -f Makefile ] || $(MAKE) clean
