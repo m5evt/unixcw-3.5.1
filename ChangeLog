@@ -1,8 +1,18 @@
+2014-07-22 Kamil Ignacak
+	* libcw/keying code: Moving most of code related to iambic keyer,
+	straight key, and general keying control into new file:
+	libcw_key.c.
+
+	Having separate things in separate files (instead of having
+	everything in a single 10kLOC file) should make some things easier
+	for me as a maintainer of libcw.
+
 2014-07-21 Kamil Ignacak
 	* libcw/tone queue: Moving most of code related to tone queue into
 	new file: libcw_tq.c.
 	* libcw/data: Moving code related to characters (and their
 	representation), prosigns and phonetics to new file: libcw_data.c
+
 	Having separate things in separate files (instead of having
 	everything in a single 10kLOC file) should make some things easier
 	for me as a maintainer of libcw.
