@@ -22,20 +22,14 @@
    Table of contents
 
    - Section:Debugging
-   + Section:Core Morse code data and lookup
-   + Section:Extended Morse code data and lookup (procedural signals)
-   + Section:Phonetic alphabet
    - Section:Morse code controls and timing parameters
    - Section:SIGALRM and timer handling
    - Section:General control of console buzzer and of soundcard
    - Section:Finalization and cleanup
-   + Section:Keying control
    + Section:Tone queue
    - Section:Sending
    - Section:Receive tracking and statistics helpers
    - Section:Receiving
-   + Section:Iambic keyer
-   + Section:Straight key
    - Section:Generator - generic
    - Section:Soundcard
    - Section:Utilities
@@ -167,23 +161,6 @@ static int cw_timestamp_validate_internal(struct timeval *out_timestamp, const s
 
 
 
-
-/* ******************************************************************** */
-/*              Section:Core Morse code data and lookup                 */
-/* ******************************************************************** */
-
-
-
-
-
-/* ******************************************************************** */
-/*   Section:Extended Morse code data and lookup (procedural signals)   */
-/* ******************************************************************** */
-
-
-
-
-
 /* ******************************************************************** */
 /*                 Section:SIGALRM and timer handling                   */
 /* ******************************************************************** */
@@ -194,14 +171,6 @@ static int  cw_sigalrm_block_internal(bool block);
 static int  cw_sigalrm_restore_internal(void);
 static int  cw_sigalrm_install_top_level_handler_internal(void);
 static void cw_signal_main_handler_internal(int signal_number);
-
-
-
-
-
-/* ******************************************************************** */
-/*                         Section:Tone queue                           */
-/* ******************************************************************** */
 
 
 
@@ -248,14 +217,6 @@ enum {
 	CW_REC_INITIAL_THRESHOLD = (DOT_CALIBRATION / CW_SPEED_INITIAL) * 2,   /* Initial adaptive speed threshold */
 	CW_REC_INITIAL_NOISE_THRESHOLD = (DOT_CALIBRATION / CW_SPEED_MAX) / 2  /* Initial noise filter threshold */
 };
-
-
-
-
-
-/* ******************************************************************** */
-/*                       Section:Keying control                         */
-/* ******************************************************************** */
 
 
 
@@ -355,22 +316,6 @@ static void cw_receiver_set_adaptive_internal(cw_rec_t *rec, bool flag);
 static int  cw_receiver_identify_tone_internal(cw_rec_t *rec, int element_len_usecs, char *representation);
 static void cw_receiver_update_adaptive_tracking_internal(cw_rec_t *rec, int element_len_usecs, char element);
 static int  cw_receiver_add_element_internal(cw_rec_t *rec, const struct timeval *timestamp, char element);
-
-
-
-
-
-/* ******************************************************************** */
-/*                        Section:Iambic keyer                          */
-/* ******************************************************************** */
-
-
-
-
-
-/* ******************************************************************** */
-/*                        Section:Straight key                          */
-/* ******************************************************************** */
 
 
 
@@ -518,15 +463,6 @@ const char *cw_get_audio_system_label(int audio_system)
 {
 	return cw_audio_system_labels[audio_system];
 }
-
-
-
-
-
-/* ******************************************************************** */
-/*              Section:Core Morse code data and lookup                 */
-/* ******************************************************************** */
-
 
 
 
@@ -2379,14 +2315,6 @@ void cw_complete_reset(void)
 
 
 /* ******************************************************************** */
-/*                       Section:Keying control                         */
-/* ******************************************************************** */
-
-
-
-
-
-/* ******************************************************************** */
 /*                         Section:Tone queue                           */
 /* ******************************************************************** */
 
@@ -4230,22 +4158,6 @@ void cw_reset_receive(void)
 
 	return;
 }
-
-
-
-
-
-/* ******************************************************************** */
-/*                        Section:Iambic keyer                          */
-/* ******************************************************************** */
-
-
-
-
-
-/* ******************************************************************** */
-/*                        Section:Straight key                          */
-/* ******************************************************************** */
 
 
 
