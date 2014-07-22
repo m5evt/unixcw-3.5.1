@@ -70,7 +70,6 @@ cw_tone_queue_t cw_tone_queue;
 
 
 
-/* Currently unused, replaced by tq->len. */
 #if 0
 /* Remember that tail and head are of unsigned type.  Make sure that
    order of calculations is correct when tail < head. */
@@ -229,9 +228,6 @@ uint32_t cw_tone_queue_get_high_water_mark_internal(cw_tone_queue_t *tq)
 
 /**
    \brief Return number of items on tone queue
-
-   Keeping this function in existence because in its body there is
-   still a reference to old implementation of length().
 
    testedin::test_cw_tone_queue_length_internal()
 
@@ -824,6 +820,7 @@ int cw_wait_for_tone_queue_critical(int level)
 */
 bool cw_is_tone_queue_full(void)
 {
+	/* TODO: should we pass 'cw_tone_queue' or 'generator->tq'? */
 	return cw_tone_queue_is_full_internal(&cw_tone_queue);
 }
 
@@ -887,6 +884,44 @@ int cw_get_tone_queue_length(void)
 
 
 /**
+   \brief Cancel all pending queued tones, and return to silence.
+
+   If there is a tone in progress, the function will wait until this
+   last one has completed, then silence the tones.
+
+   This function may be called with SIGALRM blocked, in which case it
+   will empty the queue as best it can, then return without waiting for
+   the final tone to complete.  In this case, it may not be possible to
+   guarantee silence after the call.
+*/
+void cw_flush_tone_queue(void)
+{
+	pthread_mutex_lock(&generator->tq->mutex);
+
+	/* Empty and reset the queue. */
+	generator->tq->len = 0;
+	generator->tq->head = generator->tq->tail;
+
+	pthread_mutex_unlock(&generator->tq->mutex);
+
+	/* If we can, wait until the dequeue goes idle. */
+	if (!cw_sigalrm_is_blocked_internal()) {
+		cw_wait_for_tone_queue();
+	}
+
+	/* Force silence on the speaker anyway, and stop any background
+	   soundcard tone generation. */
+	cw_generator_silence_internal(generator);
+	//cw_finalization_schedule_internal();
+
+	return;
+}
+
+
+
+
+
+/**
    \brief Primitive access to simple tone generation
 
    This routine queues a tone of given duration and frequency.
@@ -933,26 +968,31 @@ int cw_queue_tone(int usecs, int frequency)
 
 
 /**
-   \brief Cancel all pending queued tones, reset any registered queue low callback
+   Cancel all pending queued tones, reset any queue low callback registered,
+   and return to silence.  This function is suitable for calling from an
+   application exit handler.
 */
-void cw_tone_queue_reset_internal(cw_tone_queue_t *tq)
+void cw_reset_tone_queue(void)
 {
 	/* Empty and reset the queue, and force state to idle. */
-	tq->len = 0;
-	tq->head = tq->tail;
-	tq->state = QS_IDLE;
+	cw_tone_queue.len = 0;
+	cw_tone_queue.head = cw_tone_queue.tail;
+	cw_tone_queue.state = QS_IDLE;
 
 	/* Reset low water mark details to their initial values. */
-	tq->low_water_mark = 0;
-	tq->low_water_callback = NULL;
-	tq->low_water_callback_arg = NULL;
+	cw_tone_queue.low_water_mark = 0;
+	cw_tone_queue.low_water_callback = NULL;
+	cw_tone_queue.low_water_callback_arg = NULL;
+
+	/* Silence sound and stop any background soundcard tone generation. */
+	cw_generator_silence_internal(generator);
+	//cw_finalization_schedule_internal();
+
+	cw_debug_msg ((&cw_debug_object), CW_DEBUG_TONE_QUEUE, CW_DEBUG_INFO,
+		      "libcw: tone queue: reset");
 
 	return;
 }
-
-
-
-
 
 
 
