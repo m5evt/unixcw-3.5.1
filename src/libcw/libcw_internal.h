@@ -485,6 +485,8 @@ typedef struct {
 } cw_rec_t;
 
 
+
+
 /* From libcw.c, needed in libcw_tq.c. */
 void cw_key_set_state_internal(int key_state);
 bool cw_sigalrm_is_blocked_internal(void);
@@ -492,6 +494,14 @@ int  cw_signal_wait_internal(void);
 
 /* From libcw.c, needed in libcw_data.c. */
 int cw_timestamp_compare_internal(const struct timeval *earlier, const struct timeval *later);
+
+/* From libcw.c, needed in libcw_iambic_keyer.c. */
+void cw_sync_parameters_internal(cw_gen_t *gen, cw_rec_t *rec);
+void cw_key_iambic_keyer_generate_internal(cw_gen_t *gen, int key_state, int usecs);
+int cw_generator_silence_internal(cw_gen_t *gen);
+void cw_finalization_schedule_internal(void);
+
+
 
 
 #if (defined(LIBCW_WITH_ALSA) || defined(LIBCW_WITH_PULSEAUDIO))
