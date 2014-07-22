@@ -505,8 +505,8 @@ cw_iambic_keyer_t cw_iambic_keyer = {
 
 
 
-static int  cw_iambic_keyer_update_internal(cw_iambic_keyer_t *keyer);
-static void cw_iambic_keyer_update_initial_internal(cw_iambic_keyer_t *keyer);
+static int  cw_iambic_keyer_update_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen);
+static void cw_iambic_keyer_update_initial_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen);
 
 
 
@@ -4697,11 +4697,12 @@ int cw_get_iambic_curtis_mode_b_state(void)
    in that place for iambic keyer, but not for straight key.
 
    \param keyer - iambic keyer
+   \param gen - current generator
 
    \return CW_FAILURE if there is a lock and the function cannot proceed
    \return CW_SUCCESS otherwise
 */
-int cw_iambic_keyer_update_internal(cw_iambic_keyer_t *keyer)
+int cw_iambic_keyer_update_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen)
 {
 	if (keyer->lock) {
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_INTERNAL, CW_DEBUG_ERROR,
@@ -4711,7 +4712,7 @@ int cw_iambic_keyer_update_internal(cw_iambic_keyer_t *keyer)
 	keyer->lock = true;
 
 	/* Synchronize low level timing parameters if required. */
-	cw_sync_parameters_internal(generator, &receiver);
+	cw_sync_parameters_internal(gen, &receiver);
 
 	int cw_iambic_keyer_state_old = keyer->state;
 
@@ -4729,14 +4730,14 @@ int cw_iambic_keyer_update_internal(cw_iambic_keyer_t *keyer)
 		   to the client. */
 	case KS_IN_DOT_A:
 	case KS_IN_DOT_B:
-		cw_key_iambic_keyer_generate_internal(generator, CW_KEY_STATE_OPEN, generator->eoe_delay);
+		cw_key_iambic_keyer_generate_internal(gen, CW_KEY_STATE_OPEN, gen->eoe_delay);
 		keyer->state = keyer->state == KS_IN_DOT_A
 			? KS_AFTER_DOT_A : KS_AFTER_DOT_B;
 		break;
 
 	case KS_IN_DASH_A:
 	case KS_IN_DASH_B:
-		cw_key_iambic_keyer_generate_internal(generator, CW_KEY_STATE_OPEN, generator->eoe_delay);
+		cw_key_iambic_keyer_generate_internal(gen, CW_KEY_STATE_OPEN, gen->eoe_delay);
 		keyer->state = keyer->state == KS_IN_DASH_A
 			? KS_AFTER_DASH_A : KS_AFTER_DASH_B;
 
@@ -4757,10 +4758,10 @@ int cw_iambic_keyer_update_internal(cw_iambic_keyer_t *keyer)
 		}
 
 		if (keyer->state == KS_AFTER_DOT_B) {
-			cw_key_iambic_keyer_generate_internal(generator, CW_KEY_STATE_CLOSED, generator->dash_length);
+			cw_key_iambic_keyer_generate_internal(gen, CW_KEY_STATE_CLOSED, gen->dash_length);
 			keyer->state = KS_IN_DASH_A;
 		} else if (keyer->dash_latch) {
-			cw_key_iambic_keyer_generate_internal(generator, CW_KEY_STATE_CLOSED, generator->dash_length);
+			cw_key_iambic_keyer_generate_internal(gen, CW_KEY_STATE_CLOSED, gen->dash_length);
 			if (keyer->curtis_b_latch){
 				keyer->curtis_b_latch = false;
 				keyer->state = KS_IN_DASH_B;
@@ -4768,7 +4769,7 @@ int cw_iambic_keyer_update_internal(cw_iambic_keyer_t *keyer)
 				keyer->state = KS_IN_DASH_A;
 			}
 		} else if (keyer->dot_latch) {
-			cw_key_iambic_keyer_generate_internal(generator, CW_KEY_STATE_CLOSED, generator->dot_length);
+			cw_key_iambic_keyer_generate_internal(gen, CW_KEY_STATE_CLOSED, gen->dot_length);
 			keyer->state = KS_IN_DOT_A;
 		} else {
 			keyer->state = KS_IDLE;
@@ -4783,10 +4784,10 @@ int cw_iambic_keyer_update_internal(cw_iambic_keyer_t *keyer)
 			keyer->dash_latch = false;
 		}
 		if (keyer->state == KS_AFTER_DASH_B) {
-			cw_key_iambic_keyer_generate_internal(generator, CW_KEY_STATE_CLOSED, generator->dot_length);
+			cw_key_iambic_keyer_generate_internal(gen, CW_KEY_STATE_CLOSED, gen->dot_length);
 			keyer->state = KS_IN_DOT_A;
 		} else if (keyer->dot_latch) {
-			cw_key_iambic_keyer_generate_internal(generator, CW_KEY_STATE_CLOSED, generator->dot_length);
+			cw_key_iambic_keyer_generate_internal(gen, CW_KEY_STATE_CLOSED, gen->dot_length);
 			if (keyer->curtis_b_latch) {
 				keyer->curtis_b_latch = false;
 				keyer->state = KS_IN_DOT_B;
@@ -4794,7 +4795,7 @@ int cw_iambic_keyer_update_internal(cw_iambic_keyer_t *keyer)
 				keyer->state = KS_IN_DOT_A;
 			}
 		} else if (keyer->dash_latch) {
-			cw_key_iambic_keyer_generate_internal(generator, CW_KEY_STATE_CLOSED, generator->dash_length);
+			cw_key_iambic_keyer_generate_internal(gen, CW_KEY_STATE_CLOSED, gen->dash_length);
 			keyer->state = KS_IN_DASH_A;
 		} else {
 			keyer->state = KS_IDLE;
@@ -4893,7 +4894,7 @@ int cw_notify_keyer_paddle_event(int dot_paddle_state,
 	if (cw_iambic_keyer.state == KS_IDLE) {
 		/* If the current state is idle, give the state
 		   process a nudge. */
-		cw_iambic_keyer_update_initial_internal(&cw_iambic_keyer);
+		cw_iambic_keyer_update_initial_internal(&cw_iambic_keyer, generator);
 	} else {
 		/* The state machine for iambic keyer is already in
 		   motion, no need to do anything more.
@@ -4919,27 +4920,27 @@ int cw_notify_keyer_paddle_event(int dot_paddle_state,
    State machine for iambic keyer must be pushed from KS_IDLE
    state. Call this function to do this.
 */
-void cw_iambic_keyer_update_initial_internal(cw_iambic_keyer_t *keyer)
+void cw_iambic_keyer_update_initial_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen)
 {
 	if (keyer->dot_paddle) {
 		/* Pretend we just finished a dash. */
 		keyer->state = keyer->curtis_b_latch
 			? KS_AFTER_DASH_B : KS_AFTER_DASH_A;
 
-		if (!cw_iambic_keyer_update_internal(keyer)) {
+		if (!cw_iambic_keyer_update_internal(keyer, gen)) {
 			/* just try again, once */
 			usleep(1000);
-			cw_iambic_keyer_update_internal(keyer);
+			cw_iambic_keyer_update_internal(keyer, gen);
 		}
 	} else if (keyer->dash_paddle) {
 		/* Pretend we just finished a dot. */
 		keyer->state = keyer->curtis_b_latch
 			? KS_AFTER_DOT_B : KS_AFTER_DOT_A;
 
-		if (!cw_iambic_keyer_update_internal(keyer)) {
+		if (!cw_iambic_keyer_update_internal(keyer, gen)) {
 			/* just try again, once */
 			usleep(1000);
-			cw_iambic_keyer_update_internal(keyer);
+			cw_iambic_keyer_update_internal(keyer, gen);
 		}
 	} else {
 		/* Both paddles are open/up. We certainly don't want
@@ -5392,6 +5393,10 @@ const char *cw_generator_get_audio_system_label(void)
 */
 int cw_generator_new(int audio_system, const char *device)
 {
+#ifdef LIBCW_WITH_DEV
+	fprintf(stderr, "libcw build %s %s\n", __DATE__, __TIME__);
+#endif
+
 	generator = (cw_gen_t *) malloc(sizeof (cw_gen_t));
 	if (!generator) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
@@ -5900,10 +5905,10 @@ void *cw_generator_dequeue_and_play_internal(void *arg)
 		   and all the other new or changed code in libcw
 		   and xcwcp that is related to it. */
 
-		if (!cw_iambic_keyer_update_internal(&cw_iambic_keyer)) {
+		if (!cw_iambic_keyer_update_internal(&cw_iambic_keyer, gen)) {
 			/* just try again, once */
 			usleep(1000);
-			cw_iambic_keyer_update_internal(&cw_iambic_keyer);
+			cw_iambic_keyer_update_internal(&cw_iambic_keyer, gen);
 		}
 
 #ifdef LIBCW_WITH_DEV
