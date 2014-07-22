@@ -65,7 +65,6 @@ uint32_t cw_tone_queue_next_index_internal(cw_tone_queue_t *tq, uint32_t current
 int      cw_tone_queue_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone);
 int      cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone);
 bool     cw_tone_queue_is_full_internal(cw_tone_queue_t *tq);
-void     cw_tone_queue_reset_internal(cw_tone_queue_t *tq);
 
 
 
