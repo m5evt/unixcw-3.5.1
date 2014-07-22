@@ -29,13 +29,13 @@
    - Section:SIGALRM and timer handling
    - Section:General control of console buzzer and of soundcard
    - Section:Finalization and cleanup
-   - Section:Keying control
+   + Section:Keying control
    + Section:Tone queue
    - Section:Sending
    - Section:Receive tracking and statistics helpers
    - Section:Receiving
-   - Section:Iambic keyer
-   - Section:Straight key
+   + Section:Iambic keyer
+   + Section:Straight key
    - Section:Generator - generic
    - Section:Soundcard
    - Section:Utilities
@@ -121,7 +121,7 @@
 
 #include "libcw_tq.h"
 #include "libcw_data.h"
-#include "libcw_iambic_keyer.h"
+#include "libcw_key.h"
 
 
 
@@ -184,7 +184,6 @@ static int cw_timestamp_validate_internal(struct timeval *out_timestamp, const s
 
 
 
-
 /* ******************************************************************** */
 /*                 Section:SIGALRM and timer handling                   */
 /* ******************************************************************** */
@@ -203,8 +202,6 @@ static void cw_signal_main_handler_internal(int signal_number);
 /* ******************************************************************** */
 /*                         Section:Tone queue                           */
 /* ******************************************************************** */
-
-
 
 
 
@@ -256,38 +253,9 @@ enum {
 
 
 
-
-
-
-
-
-
 /* ******************************************************************** */
 /*                       Section:Keying control                         */
 /* ******************************************************************** */
-/* Code maintaining state of a key, and handling changes of key state.
-   A key can be in two states:
-   \li open - a physical key with electric contacts open, no sound or
-   continuous wave is generated;
-   \li closed - a physical key with electric contacts closed, a sound
-   or continuous wave is generated;
-
-   Key type is not specified. This code maintains state of any type
-   of key: straight key, cootie key, iambic key. All that matters is
-   state of contacts (open/closed).
-
-   The concept of "key" is extended to a software generator (provided
-   by this library) that generates Morse code wave from text input.
-   This means that key is closed when a tone (element) is generated,
-   and key is open when there is inter-tone (inter-element) space.
-
-   Client code can register - using cw_register_keying_callback() -
-   a client callback function. The function will be called every time the
-   state of a key changes. */
-
-
-static void cw_key_straight_key_generate_internal(cw_gen_t *gen, int key_state);
-
 
 
 
@@ -399,12 +367,11 @@ static int  cw_receiver_add_element_internal(cw_rec_t *rec, const struct timeval
 
 
 
-#if 0 /* unused */
+
 /* ******************************************************************** */
 /*                        Section:Straight key                          */
 /* ******************************************************************** */
-static void cw_straight_key_clock_internal(void);
-#endif
+
 
 
 
@@ -2419,233 +2386,6 @@ void cw_complete_reset(void)
 
 
 
-/* External "on key state change" callback function and its argument.
-
-   It may be useful for a client to have this library control an external
-   keying device, for example, an oscillator, or a transmitter.
-   Here is where we keep the address of a function that is passed to us
-   for this purpose, and a void* argument for it. */
-static void (*cw_kk_key_callback)(void*, int) = NULL;
-static void *cw_kk_key_callback_arg = NULL;
-
-
-
-
-
-/**
-   \brief Register external callback function for keying
-
-   Register a \p callback_func function that should be called when a state
-   of a key changes from "key open" to "key closed", or vice-versa.
-
-   The first argument passed to the registered callback function is the
-   supplied \p callback_arg, if any.  The second argument passed to
-   registered callback function is the key state: CW_KEY_STATE_CLOSED
-   (one/true) for "key closed", and CW_KEY_STATE_OPEN (zero/false) for
-   "key open".
-
-   Calling this routine with a NULL function address disables keying
-   callbacks.  Any callback supplied will be called in signal handler
-   context (??).
-
-   \param callback_func - callback function to be called on key state changes
-   \param callback_arg - first argument to callback_func
-*/
-void cw_register_keying_callback(void (*callback_func)(void*, int),
-				 void *callback_arg)
-{
-	cw_kk_key_callback = callback_func;
-	cw_kk_key_callback_arg = callback_arg;
-
-	return;
-}
-
-
-
-
-
-/**
-   \brief Set new key state
-
-   Set new state of a key. Filter successive key-down or key-up
-   actions into a single action (successive calls with the same value
-   of \p key_state don't change internally registered state of key).
-
-   If and only if the function registers change of key state, an
-   external callback function for keying (if configured) is called.
-
-   Notice that the function is used only in
-   cw_tone_queue_dequeue_internal(). A generator which owns a tone
-   queue is treated as a key, and dequeued tones are treated as key
-   states. Dequeueing tones is treated as manipulating a key.
-
-   \param key_state - key state to be set
-*/
-void cw_key_set_state_internal(int key_state)
-{
-	static int current_key_state = CW_KEY_STATE_OPEN;  /* Maintained key control state */
-
-	if (current_key_state != key_state) {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
-			      "libcw: keying state %d->%d", current_key_state, key_state);
-
-		/* Set the new keying state, and call any requested callback. */
-		current_key_state = key_state;
-		if (cw_kk_key_callback) {
-			(*cw_kk_key_callback)(cw_kk_key_callback_arg, current_key_state);
-		}
-	}
-
-	return;
-}
-
-
-
-
-
-/**
-   \brief Set new key state, generate appropriate tone
-
-   Set new state of a key. Filter successive key-down or key-up
-   actions into a single action (successive calls with the same value
-   of \p key_state don't change internally registered state of key).
-
-   If and only if the function registers change of key state, an
-   external callback function for keying (if configured) is called.
-
-   If and only if the function registers change of key state, a state
-   of related generator \p gen is changed accordingly (a tone is
-   started or stopped).
-
-   \param gen - generator to be used to emit tones as state of key changes
-   \param key_state - key state to be set
-*/
-void cw_key_straight_key_generate_internal(cw_gen_t *gen, int key_state)
-{
-	static int current_key_state = CW_KEY_STATE_OPEN;  /* Maintained key control state */
-
-	if (current_key_state != key_state) {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
-			      "libcw: straight key: keying state %d->%d", current_key_state, key_state);
-
-		/* Set the new keying state, and call any requested callback. */
-		current_key_state = key_state;
-		if (cw_kk_key_callback) {
-			(*cw_kk_key_callback)(cw_kk_key_callback_arg, current_key_state);
-		}
-
-		if (current_key_state == CW_KEY_STATE_CLOSED) {
-
-			/* First a transient state of rising slope,
-			   then a constant tone. The constant tone
-			   will be played until function receives
-			   CW_KEY_STATE_OPEN key state. */
-
-			cw_tone_t tone;
-			tone.usecs = gen->tone_slope.length_usecs;
-			tone.frequency = gen->frequency;
-			tone.slope_mode = CW_SLOPE_MODE_RISING_SLOPE;
-			cw_tone_queue_enqueue_internal(gen->tq, &tone);
-
-			tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-			tone.usecs = CW_AUDIO_FOREVER_USECS;
-			tone.frequency = gen->frequency;
-			cw_tone_queue_enqueue_internal(gen->tq, &tone);
-
-			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
-				      "libcw: tone queue: len = %"PRIu32"", cw_tone_queue_length_internal(gen->tq));
-		} else {
-			if (gen->audio_system == CW_AUDIO_CONSOLE) {
-				/* Play just a bit of silence, just to switch
-				   buzzer from playing a sound to being silent. */
-				cw_tone_t tone;
-				tone.usecs = CW_AUDIO_QUANTUM_USECS;
-				tone.frequency = 0;
-				tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-				cw_tone_queue_enqueue_internal(gen->tq, &tone);
-			} else {
-				/* For soundcards a falling slope with
-				   volume from max to zero should be
-				   enough, but... */
-				cw_tone_t tone;
-				tone.usecs = gen->tone_slope.length_usecs;
-				tone.frequency = gen->frequency;
-				tone.slope_mode = CW_SLOPE_MODE_FALLING_SLOPE;
-				cw_tone_queue_enqueue_internal(gen->tq, &tone);
-
-				/* On some occasions, on some platforms, some
-				   sound systems may need to constantly play
-				   "silent" tone. These four lines of code are
-				   just for them.
-
-				   It would be better to avoid queueing silent
-				   "forever" tone because this increases CPU
-				   usage. It would be better to simply not to
-				   queue any new tones after "falling slope"
-				   tone. Silence after the last falling slope
-				   would simply last on itself until there is
-				   new tone on queue to play. */
-				tone.usecs = CW_AUDIO_FOREVER_USECS;
-				tone.frequency = 0;
-				tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-				cw_tone_queue_enqueue_internal(gen->tq, &tone);
-			}
-		}
-	}
-
-	return;
-}
-
-
-
-
-
-/**
-   \brief Call external callback function for keying
-
-   Control function that calls any requested keying callback only when there
-   is a change of keying state.  This function filters successive key-down
-   or key-up actions into a single action.
-
-   \param gen - generator
-   \param key_state - key state to be set
-   \param usecs - length of tone to be generated
-*/
-void cw_key_iambic_keyer_generate_internal(cw_gen_t *gen, int key_state, int usecs)
-{
-	static int current_key_state = CW_KEY_STATE_OPEN;  /* Maintained key control state */
-
-	if (current_key_state != key_state) {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
-			      "libcw: iambic keyer: keying state %d->%d", current_key_state, key_state);
-
-		/* Set the new keying state, and call any requested callback. */
-		current_key_state = key_state;
-		if (cw_kk_key_callback) {
-			(*cw_kk_key_callback)(cw_kk_key_callback_arg, current_key_state);
-		}
-
-		cw_tone_t tone;
-		if (current_key_state == CW_KEY_STATE_CLOSED) {
-			tone.slope_mode = CW_SLOPE_MODE_STANDARD_SLOPES;
-			tone.usecs = usecs;
-			tone.frequency = gen->frequency;
-			cw_tone_queue_enqueue_internal(gen->tq, &tone);
-		} else {
-			tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-			tone.usecs = usecs;
-			tone.frequency = 0;
-			cw_tone_queue_enqueue_internal(gen->tq, &tone);
-		}
-	}
-
-	return;
-}
-
-
-
-
-
 /* ******************************************************************** */
 /*                         Section:Tone queue                           */
 /* ******************************************************************** */
@@ -4503,170 +4243,9 @@ void cw_reset_receive(void)
 
 
 
-
-
-
 /* ******************************************************************** */
 /*                        Section:Straight key                          */
 /* ******************************************************************** */
-
-
-
-
-
-/* Straight key status; just a key-up or key-down indication. */
-static volatile bool cw_sk_key_state = CW_KEY_STATE_OPEN;
-
-
-#if 0 /* unused */
-/* Period of constant tone generation after which we need another timeout,
-   to ensure that the soundcard doesn't run out of data. */
-static const int STRAIGHT_KEY_TIMEOUT = 500000;
-
-
-
-
-
-/**
-   \brief Generate a tone while straight key is down
-
-   Soundcard tone data is only buffered to last about a second on each
-   cw_generate_sound_internal() call, and holding down the straight key
-   for longer than this could cause a soundcard data underrun.  To guard
-   against this, a timeout is generated every half-second or so while the
-   straight key is down.  The timeout generates a chunk of sound data for
-   the soundcard.
-*/
-void cw_straight_key_clock_internal(void)
-{
-	if (cw_sk_key_state == CW_KEY_STATE_CLOSED) {
-		/* Generate a quantum of tone data, and request another
-		   timeout. */
-		// cw_generate_sound_internal();
-		cw_timer_run_with_handler_internal(STRAIGHT_KEY_TIMEOUT, NULL);
-	}
-
-	return;
-}
-#endif
-
-
-
-
-
-/**
-   \brief Inform the library that the straight key has changed state
-
-   This routine returns CW_SUCCESS on success.  On error, it returns CW_FAILURE,
-   with errno set to EBUSY if the tone queue or iambic keyer are using
-   the sound card, console speaker, or keying control system.  If
-   \p key_state indicates no change of state, the call is ignored.
-
-   \p key_state may be either CW_KEY_STATE_OPEN (false) or CW_KEY_STATE_CLOSED (true).
-
-   testedin::test_straight_key()
-
-   \param key_state - state of straight key
-*/
-int cw_notify_straight_key_event(int key_state)
-{
-	/* If the tone queue or the keyer are busy, we can't use the
-	   sound card, console sounder, or the key control system. */
-	// if (cw_is_tone_busy() || cw_is_keyer_busy()) {
-	if (0) {
-		errno = EBUSY;
-		return CW_FAILURE;
-	}
-
-	/* If the key state did not change, ignore the call. */
-	if (cw_sk_key_state != key_state) {
-
-		/* Save the new key state. */
-		cw_sk_key_state = key_state;
-
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STRAIGHT_KEY_STATES, CW_DEBUG_INFO,
-			      "libcw: straight key state -> %s", cw_sk_key_state == CW_KEY_STATE_CLOSED ? "DOWN" : "UP");
-
-		/* Do tones and keying, and set up timeouts and soundcard
-		   activities to match the new key state. */
-		if (cw_sk_key_state == CW_KEY_STATE_CLOSED) {
-			cw_key_straight_key_generate_internal(generator, CW_KEY_STATE_CLOSED);
-		} else {
-			cw_key_straight_key_generate_internal(generator, CW_KEY_STATE_OPEN);
-
-			/* Indicate that we have finished with timeouts,
-			   and also with the soundcard too.  There's no way
-			   of knowing when straight keying is completed,
-			   so the only thing we can do here is to schedule
-			   release on each key up event.   */
-			//cw_finalization_schedule_internal();
-		}
-	}
-
-	return CW_SUCCESS;
-}
-
-
-
-
-
-/**
-   \brief Get saved state of straight key
-
-   Returns the current saved state of the straight key.
-
-   testedin::test_straight_key()
-
-   \return CW_KEY_STATE_CLOSED (true) if the key is down
-   \return CW_KEY_STATE_OPEN (false) if the key up
-*/
-int cw_get_straight_key_state(void)
-{
-	return cw_sk_key_state;
-}
-
-
-
-
-
-/**
-   \brief Check if the straight key is busy
-
-   This routine is just a pseudonym for cw_get_straight_key_state(),
-   and exists to fill a hole in the API naming conventions.
-
-   testedin::test_straight_key()
-
-   \return true if the straight key is busy
-   \return false if the straight key is not busy
-*/
-bool cw_is_straight_key_busy(void)
-{
-	return cw_sk_key_state;
-}
-
-
-
-
-
-/**
-   \brief Clear the straight key state, and return to silence
-
-   This function is suitable for calling from an application exit handler.
-*/
-void cw_reset_straight_key(void)
-{
-	cw_sk_key_state = CW_KEY_STATE_OPEN;
-
-	/* Silence sound and stop any background soundcard tone generation. */
-	cw_generator_silence_internal(generator);
-	//cw_finalization_schedule_internal();
-
-	cw_debug_msg ((&cw_debug_object), CW_DEBUG_STRAIGHT_KEY_STATES, CW_DEBUG_INFO,
-		      "libcw: straight key state ->UP (reset)");
-
-	return;
-}
 
 
 
