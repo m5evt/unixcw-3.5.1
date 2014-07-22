@@ -497,7 +497,6 @@ int cw_timestamp_compare_internal(const struct timeval *earlier, const struct ti
 
 /* From libcw.c, needed in libcw_iambic_keyer.c. */
 void cw_sync_parameters_internal(cw_gen_t *gen, cw_rec_t *rec);
-void cw_key_iambic_keyer_generate_internal(cw_gen_t *gen, int key_state, int usecs);
 int cw_generator_silence_internal(cw_gen_t *gen);
 void cw_finalization_schedule_internal(void);
 
