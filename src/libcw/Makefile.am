@@ -29,7 +29,7 @@ EXTRA_DIST=include.awk libdoc.awk libfuncs.awk libpc.awk libsigs.awk \
 	libcw.3.m4 \
 	libcw.pc.in \
 	cw.7 \
-	libcw_tq.h libcw_data.h \
+	libcw_tq.h libcw_data.h libcw_key.h \
 	libcw_null.h libcw_console.h libcw_pa.h libcw_oss.h libcw_alsa.h \
 	libcw_internal.h
 
@@ -39,7 +39,7 @@ EXTRA_DIST=include.awk libdoc.awk libfuncs.awk libpc.awk libsigs.awk \
 # target: shared library
 
 # source code files used to build libcw shared library
-libcw_la_SOURCES = libcw.c libcw_tq.c libcw_data.c libcw_null.c libcw_console.c libcw_pa.c libcw_oss.c libcw_alsa.c libcw_debug.c
+libcw_la_SOURCES = libcw.c libcw_tq.c libcw_data.c libcw_key.c libcw_null.c libcw_console.c libcw_pa.c libcw_oss.c libcw_alsa.c libcw_debug.c
 
 # target-specific linker flags (objects to link)
 # libcw_la_LIBADD=-lm -lpthread $(AC_ALSA_LIBS)  $(AC_PULSEAUDIO_LIBS)
@@ -75,7 +75,7 @@ libcwtest_LDADD = -L./.libs -lcw
 # main() is defined in libcw.c, enabled by a LIBCW_UNIT_TESTS flag
 
 # source code files used to build libcwunittests program
-libcwunittests_SOURCES = libcw.c libcw_tq.c libcw_data.c libcw_null.c libcw_console.c libcw_pa.c libcw_oss.c libcw_alsa.c libcw_debug.c
+libcwunittests_SOURCES = libcw.c libcw_tq.c libcw_data.c libcw_key.c libcw_null.c libcw_console.c libcw_pa.c libcw_oss.c libcw_alsa.c libcw_debug.c
 
 # target-specific preprocessor flags (#defs and include dirs)
 libcwunittests_CPPFLAGS = $(AM_CPPFLAGS) -DLIBCW_UNIT_TESTS
