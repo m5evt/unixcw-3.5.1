@@ -33,7 +33,6 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <stdlib.h>
-#include <getopt.h>
 #include <assert.h>
 
 
@@ -46,6 +45,7 @@
 #endif
 
 #include "libcw.h"
+#include "libcw_test.h"
 #include "libcw_debug.h"
 #include "libcw_internal.h"
 
@@ -2949,12 +2949,6 @@ int cw_test_dependent(const char *audio_systems)
 
 
 
-#ifndef LIBCW_STANDALONE
-
-
-
-
-
 /**
    \return EXIT_SUCCESS if all tests complete successfully,
    \return EXIT_FAILURE otherwise
@@ -3005,82 +2999,6 @@ int main(int argc, char *const argv[])
 	int rv2 = cw_test_dependent(sound_systems);
 
 	return rv1 == 0 && rv2 == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
-}
-
-
-
-
-
-#endif // #ifndef LIBCW_STANDALONE
-
-
-
-
-
-int cw_test_args(int argc, char *const argv[], char *sound_systems, size_t systems_max)
-{
-	if (argc == 1) {
-		strncpy(sound_systems, "ncoap", systems_max);
-		sound_systems[systems_max] = '\0';
-
-		fprintf(stderr, "sound systems = \"%s\"\n", sound_systems);
-		return CW_SUCCESS;
-	}
-
-	int opt;
-	while ((opt = getopt(argc, argv, "s:")) != -1) {
-		switch (opt) {
-		case 's':
-			{
-				size_t len = strlen(optarg);
-				if (!len || len > systems_max) {
-					return CW_FAILURE;
-				}
-
-				int j = 0;
-				for (size_t i = 0; i < len; i++) {
-					if (optarg[i] != 'n'
-					    && optarg[i] != 'c'
-					    && optarg[i] != 'o'
-					    && optarg[i] != 'a'
-					    && optarg[i] != 'p') {
-
-						return CW_FAILURE;
-					} else {
-						sound_systems[j] = optarg[i];
-						j++;
-					}
-				}
-				sound_systems[j] = '\0';
-			}
-
-			break;
-		default: /* '?' */
-			return CW_FAILURE;
-		}
-	}
-
-	fprintf(stderr, "sound systems = \"%s\"\n", sound_systems);
-	return CW_SUCCESS;
-}
-
-
-
-
-
-void cw_test_print_help(const char *progname)
-{
-	fprintf(stderr, "Usage: %s [-s <sound systems>]\n\n", progname);
-	fprintf(stderr, "       <sound system> is one or more of those:\n");
-	fprintf(stderr, "       n - null\n");
-	fprintf(stderr, "       c - console\n");
-	fprintf(stderr, "       o - OSS\n");
-	fprintf(stderr, "       a - ALSA\n");
-	fprintf(stderr, "       p - PulseAudio\n");
-	fprintf(stderr, "\n");
-	fprintf(stderr, "       If no argument is provided, the program will attempt to test all audio systems\n");
-
-	return;
 }
 
 
