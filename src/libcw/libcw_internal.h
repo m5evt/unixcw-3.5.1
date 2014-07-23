@@ -16,12 +16,6 @@
 #endif
 
 
-#ifdef LIBCW_STANDALONE
-/* Should be defined in command line for building "standalone" make target. */
-#ifndef LIBCW_WITH_DEV
-#define LIBCW_WITH_DEV
-#endif
-#endif
 
 
 #ifdef LIBCW_WITH_DEV
@@ -500,6 +494,12 @@ void cw_sync_parameters_internal(cw_gen_t *gen, cw_rec_t *rec);
 int cw_generator_silence_internal(cw_gen_t *gen);
 void cw_finalization_schedule_internal(void);
 
+/* From libcw.c, needed in libcw_tests.c. */
+unsigned int test_cw_forever(void);
+unsigned int test_cw_timestamp_compare_internal(void);
+unsigned int test_cw_timestamp_validate_internal(void);
+unsigned int test_cw_usecs_to_timespec_internal(void);
+
 
 
 
@@ -510,19 +510,6 @@ int cw_generator_set_audio_device_internal(cw_gen_t *gen, const char *device);
 void cw_usecs_to_timespec_internal(struct timespec *t, int usecs);
 void cw_nanosleep_internal(struct timespec *n);
 
-/* From libcwtest.c */
-int  cw_test_args(int argc, char *const argv[], char *sound_systems, size_t systems_max);
-void cw_test_print_help(const char *progname);
 
-static const int cw_test_print_width = 75;
-
-#define CW_TEST_PRINT_TEST_RESULT(m_failure, m_n) {			\
-		printf("%*s\n", (cw_test_print_width - m_n), m_failure ? "failure" : "success"); \
-	}
-
-#define CW_TEST_PRINT_FUNCTION_COMPLETED(m_func_name) {			\
-		int m = printf("libcw: %s(): ", m_func_name);		\
-		printf("%*s\n\n", cw_test_print_width - m, "completed");	\
-	}
 
 #endif /* #ifndef H_LIBCW_INTERNAL */
