@@ -1006,6 +1006,9 @@ void cw_reset_tone_queue(void)
 #ifdef LIBCW_UNIT_TESTS
 
 
+#include "libcw_test.h"
+
+
 static cw_tone_queue_t test_tone_queue;
 
 
