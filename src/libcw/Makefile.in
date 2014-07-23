@@ -637,7 +637,6 @@ libcw_test_internal_CFLAGS = -rdynamic
 # use of libcw's facilities.
 
 # source code files used to build libcw_test_simple program
-# libcw_test_simple_SOURCES = libcw.c libcw_tq.c libcw_data.c libcw_key.c libcw_test.c libcw_test_simple.c libcw_null.c libcw_console.c libcw_pa.c libcw_oss.c libcw_alsa.c libcw_debug.c
 libcw_test_simple_SOURCES = libcw_test_simple.c libcw_test.c
 
 # target-specific linker flags (objects to link)
