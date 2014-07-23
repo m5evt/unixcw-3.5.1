@@ -32,7 +32,6 @@
    - Section:Generator - generic
    - Section:Soundcard
    - Section:Utilities
-   - Section:main() function for testing purposes
    - Section:Unit tests for internal functions
    - Section:Global variables
 */
@@ -103,6 +102,7 @@
 
 
 #include "libcw.h"
+#include "libcw_test.h"
 
 #include "libcw_internal.h"
 #include "libcw_null.h"
@@ -5398,140 +5398,6 @@ int cw_timestamp_compare_internal(const struct timeval *earlier,
 
 
 
-#ifdef LIBCW_STANDALONE
-
-
-
-
-
-/* ******************************************************************** */
-/*             Section:main() function for testing purposes             */
-/* ******************************************************************** */
-
-
-
-
-
-typedef bool (*predicate_t)(const char *device);
-static void main_helper(int audio_system, const char *name, const char *device, predicate_t predicate);
-
-
-
-
-
-/* For stand-alone testing of functionality implemented in libcw.c.
-
-   In order to build this target, go to src/libcw/, and run
-   "make standalone". */
-int main(int argc, char *const argv[])
-{
-
-#define CW_SYSTEMS_MAX 5
-	char sound_systems[CW_SYSTEMS_MAX + 1];
-
-	if (!cw_test_args(argc, argv, sound_systems, CW_SYSTEMS_MAX)) {
-		cw_test_print_help(argv[0]);
-		exit(EXIT_FAILURE);
-	}
-
-	if (strstr(sound_systems, "n")) {
-		fprintf(stderr, "========================================\n");
-		fprintf(stderr, "libcw: testing with null output\n");
-		main_helper(CW_AUDIO_NULL,    "Null",        CW_DEFAULT_NULL_DEVICE,      cw_is_null_possible);
-	}
-
-	if (strstr(sound_systems, "c")) {
-		fprintf(stderr, "========================================\n");
-		fprintf(stderr, "libcw: testing with console output\n");
-		main_helper(CW_AUDIO_CONSOLE, "console",     CW_DEFAULT_CONSOLE_DEVICE,   cw_is_console_possible);
-	}
-
-	if (strstr(sound_systems, "o")) {
-		fprintf(stderr, "========================================\n");
-		fprintf(stderr, "libcw: testing with OSS output\n");
-		main_helper(CW_AUDIO_OSS,     "OSS",         CW_DEFAULT_OSS_DEVICE,       cw_is_oss_possible);
-	}
-
-	if (strstr(sound_systems, "a")) {
-		fprintf(stderr, "========================================\n");
-		fprintf(stderr, "libcw: testing with ALSA output\n");
-		main_helper(CW_AUDIO_ALSA,    "ALSA",        CW_DEFAULT_ALSA_DEVICE,      cw_is_alsa_possible);
-	}
-
-	if (strstr(sound_systems, "p")) {
-		fprintf(stderr, "========================================\n");
-		fprintf(stderr, "libcw: testing with PulseAudio output\n");
-		main_helper(CW_AUDIO_PA,      "PulseAudio",  CW_DEFAULT_PA_DEVICE,        cw_is_pa_possible);
-	}
-
-	sleep(2);
-
-	return 0;
-}
-
-
-
-
-
-void main_helper(int audio_system, const char *name, const char *device, predicate_t predicate)
-{
-	int rv = CW_FAILURE;
-
-	rv = predicate(device);
-	if (rv == CW_SUCCESS) {
-		rv = cw_generator_new(audio_system, device);
-		if (rv == CW_SUCCESS) {
-			cw_reset_send_receive_parameters();
-			cw_set_send_speed(12);
-			cw_generator_start();
-
-			//cw_send_string("abcdefghijklmnopqrstuvwyz0123456789");
-			cw_send_string("eish ");
-			cw_wait_for_tone_queue();
-
-			cw_generator_set_tone_slope(generator, CW_TONE_SLOPE_SHAPE_LINEAR, -1);
-			cw_send_string("eish ");
-			cw_wait_for_tone_queue();
-
-			cw_generator_set_tone_slope(generator, CW_TONE_SLOPE_SHAPE_SINE, -1);
-			cw_send_string("eish ");
-			cw_wait_for_tone_queue();
-
-			cw_send_string("two");
-			cw_wait_for_tone_queue();
-
-			cw_send_string("three");
-			cw_wait_for_tone_queue();
-
-			cw_wait_for_tone_queue();
-			cw_generator_stop();
-			cw_generator_delete();
-		} else {
-			cw_debug_msg ((&cw_debug_object), CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
-				      "libcw: can't create %s generator", name);
-		}
-	} else {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
-			      "libcw: %s output is not available", name);
-	}
-}
-
-
-
-
-
-#endif // #if LIBCW_STANDALONE
-
-
-
-
-// #define LIBCW_UNIT_TESTS
-#ifdef LIBCW_UNIT_TESTS
-
-
-
-
-
 /* ******************************************************************** */
 /*             Section:Unit tests for internal functions                */
 /* ******************************************************************** */
@@ -5540,79 +5406,7 @@ void main_helper(int audio_system, const char *name, const char *device, predica
 
 
 
-/* Unit tests for internal functions (and also some public functions)
-   defined in libcw.c.
-
-   For unit tests of library's public interfaces see libcwtest.c. */
-
-#include <stdio.h>
-#include <assert.h>
-
-
-static unsigned int test_cw_forever(void);
-
-
-static unsigned int test_cw_timestamp_compare_internal(void);
-static unsigned int test_cw_timestamp_validate_internal(void);
-
-static unsigned int test_cw_usecs_to_timespec_internal(void);
-
-
-
-typedef unsigned int (*cw_test_function_t)(void);
-
-static cw_test_function_t cw_unit_tests[] = {
-	test_cw_representation_to_hash_internal,
-	test_cw_representation_to_character_internal,
-	test_cw_representation_to_character_internal_speed,
-	// test_cw_forever,
-
-	test_cw_tone_queue_init_internal,
-	test_cw_tone_queue_get_capacity_internal,
-	test_cw_tone_queue_prev_index_internal,
-	test_cw_tone_queue_next_index_internal,
-	test_cw_tone_queue_length_internal,
-	test_cw_tone_queue_enqueue_internal,
-	test_cw_tone_queue_dequeue_internal,
-	test_cw_tone_queue_is_full_internal,
-	test_cw_tone_queue_test_capacity1,
-	test_cw_tone_queue_test_capacity2,
-
-	test_cw_timestamp_compare_internal,
-	test_cw_timestamp_validate_internal,
-
-	test_cw_usecs_to_timespec_internal,
-	NULL
-};
-
-
-
-
-int main(void)
-{
-	fprintf(stderr, "libcw unit tests for library's internal functions\n\n");
-
-	// cw_debug_set_flags(&cw_debug_object_dev, CW_DEBUG_TONE_QUEUE);
-	// cw_debug_object_dev.level = CW_DEBUG_ERROR;
-
-	int i = 0;
-	while (cw_unit_tests[i]) {
-		cw_unit_tests[i]();
-		i++;
-	}
-
-	/* "make check" facility requires this message to be
-	   printed on stdout; don't localize it */
-	fprintf(stdout, "\nlibcw: test result: success\n\n");
-
-
-	return 0;
-}
-
-
-
-
-
+#ifdef LIBCW_UNIT_TESTS
 
 
 
@@ -5658,9 +5452,6 @@ unsigned int test_cw_forever(void)
 
 	return 0;
 }
-
-
-
 
 
 
