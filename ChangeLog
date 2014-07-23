@@ -1,3 +1,17 @@
+2014-07-23 Kamil Ignacak
+	* libcw/test code: moving some code related to testing from
+	libcw.c into other files.
+
+	This little change triggered a larger change in test utilities for
+	libcw. Now we have three libcw test executables built with "make
+	check": libcw_test_internal, libcw_test_public, and
+	libcw_test_simple. Each of them has its own .c file with its own
+	main(). There is no main() function in libcw.c anymore.
+
+	Explicit "standalone" target has been removed from
+	src/libcw/Makefile.am. It has been replaced by libcw_test_simple
+	executable built with "make check".
+
 2014-07-22 Kamil Ignacak
 	* libcw/keying code: Moving most of code related to iambic keyer,
 	straight key, and general keying control into new file:
