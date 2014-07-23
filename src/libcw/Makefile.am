@@ -20,7 +20,7 @@
 
 # targets to be built in this directory
 lib_LTLIBRARIES=libcw.la
-check_PROGRAMS=libcwunittests libcwtest
+check_PROGRAMS=libcw_test_public libcw_test_internal libcw_test_simple
 man_MANS=libcw.3 cw.7
 pkgconfig_DATA=libcw.pc
 
@@ -31,7 +31,8 @@ EXTRA_DIST=include.awk libdoc.awk libfuncs.awk libpc.awk libsigs.awk \
 	cw.7 \
 	libcw_tq.h libcw_data.h libcw_key.h \
 	libcw_null.h libcw_console.h libcw_pa.h libcw_oss.h libcw_alsa.h \
-	libcw_internal.h
+	libcw_internal.h \
+	libcw_test.h
 
 
 
@@ -58,33 +59,60 @@ libcw_include_HEADERS = libcw.h libcw_debug.h
 
 
 
-# target: libcwtest, a test program, testing public API of libcw library;
-# main() is defined in libcwtest.c
 
-# source code files used to build libcwtest program
-libcwtest_SOURCES = libcwtest.c
+
+# target: libcw_test_public: a test program testing only public API of libcw library;
+# main() is defined in libcw_test_public.c
+# Source code files used to build libcw_test_public program.
+# This test tests library's public API, so the target should depend on
+# a regular library file. It shouldn't compile all *.c files that are
+# used to create library, it should compile only test files and "link"
+# them with regular library file.
+libcw_test_public_SOURCES = libcw_test_public.c libcw_test.c
 
 # target-specific linker flags (objects to link)
-libcwtest_LDADD = -L./.libs -lcw
+libcw_test_public_LDADD = -L./.libs -lcw
 
 
 
 
-# target: libcwunittest, a test program, invoking unit tests for
-# (internal) functions defined in libcw.c;
-# main() is defined in libcw.c, enabled by a LIBCW_UNIT_TESTS flag
 
-# source code files used to build libcwunittests program
-libcwunittests_SOURCES = libcw.c libcw_tq.c libcw_data.c libcw_key.c libcw_null.c libcw_console.c libcw_pa.c libcw_oss.c libcw_alsa.c libcw_debug.c
+# target: libcw_test_internal, a test program invoking unit tests for
+# (internal) functions defined in libcw.c and libcw_xyz.c;
+# main() is defined in libcw_test_internal.c.
+
+# source code files used to build libcw_test_internal program
+libcw_test_internal_SOURCES = libcw.c libcw_tq.c libcw_data.c libcw_key.c libcw_test_internal.c libcw_null.c libcw_console.c libcw_pa.c libcw_oss.c libcw_alsa.c libcw_debug.c
 
 # target-specific preprocessor flags (#defs and include dirs)
-libcwunittests_CPPFLAGS = $(AM_CPPFLAGS) -DLIBCW_UNIT_TESTS
+libcw_test_internal_CPPFLAGS = $(AM_CPPFLAGS) -DLIBCW_UNIT_TESTS
 
 # target-specific linker flags (objects to link)
-libcwunittests_LDADD=-lm -lpthread -ldl
+libcw_test_internal_LDADD=-lm -lpthread -ldl
 
 # target-specific compiler flags
-libcwunittests_CFLAGS = -rdynamic
+libcw_test_internal_CFLAGS = -rdynamic
+
+
+
+
+
+# target: libcw_test_simple, yet another test program;
+# main() is defined in libcw_test_simple.c
+# The file defines a very simple set of tests that make only a basic
+# use of libcw's facilities.
+
+# source code files used to build libcw_test_simple program
+libcw_test_simple_SOURCES = libcw_test_simple.c libcw_test.c
+
+# target-specific linker flags (objects to link)
+libcw_test_simple_LDADD=-lm -lpthread -ldl  -L./.libs -lcw
+
+# target-specific compiler flags
+libcw_test_simple_CFLAGS = -rdynamic
+
+
+
 
 
 # target: libcw man page
@@ -96,8 +124,6 @@ libcw.3: libcw.3.m4 libcw.c
 
 
 
-standalone:
-	gcc -O0 -g -DHAVE_CONFIG_H  -std=gnu99 -I. -I../../src  -I../../src/ -I../../src/libcw/ -I../../src/cwutils/ -DLIBCW_WITH_DEV -DLIBCW_STANDALONE -DLIBCW_WITH_PULSEAUDIO -DLIBCW_WITH_OSS -DLIBCW_WITH_ALSA -DLIBCW_WITH_CONSOLE libcw.c libcwtest.c libcw_console.c libcw_null.c libcw_pa.c libcw_debug.c libcw_oss.c libcw_alsa.c -lm -ldl -lpthread -o libcw_standalone
 
 
 # target: libcw.pc
@@ -108,21 +134,21 @@ pkgconfigdir = $(libdir)/pkgconfig
 
 # CLEANFILES extends list of files that need to be removed when
 # calling "make clean"
-CLEANFILES = greptest.sh libcw.3
+CLEANFILES = libcw_test_internal.sh libcw.3
 
 
 
 
 TESTS = $(check_SCRIPTS)
 
-# run test programs (only libcwunittests unit tests suite)
-check_SCRIPTS = greptest.sh
-greptest.sh:
-	echo './libcwunittests | grep "test result: success"' > greptest.sh
-	chmod +x greptest.sh
+# run test programs (only libcw_test_internal unit tests suite)
+check_SCRIPTS = libcw_test_internal.sh
+libcw_test_internal.sh:
+	echo './libcw_test_internal | grep "test result: success"' > libcw_test_internal.sh
+	chmod +x libcw_test_internal.sh
 
 
 # sources, references
 #
-# source of snippet related to "check_SCRIPTS" and greptests.sh:
+# source of snippet related to "check_SCRIPTS" and related sh script:
 # http://www.freesoftwaremagazine.com/books/agaal/automatically_writing_makefiles_with_autotools
