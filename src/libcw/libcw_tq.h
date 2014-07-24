@@ -2,10 +2,50 @@
 #define H_LIBCW_TQ
 
 
-/* return values from cw_tone_queue_dequeue_internal() */
-#define CW_TQ_JUST_EMPTIED 0
-#define CW_TQ_STILL_EMPTY  1
-#define CW_TQ_NONEMPTY     2
+
+
+
+#include <stdint.h>     /* uint32_t */
+#include <pthread.h>    /* pthread_mutex_t */
+#include <stdbool.h>    /* bool */
+
+
+
+
+
+/* Return values from cw_tone_queue_dequeue_internal(). */
+enum {
+	CW_TQ_JUST_EMPTIED = 0,
+	CW_TQ_STILL_EMPTY  = 1,
+	CW_TQ_NONEMPTY     = 2
+};
+
+
+
+
+
+/* Right now there is no function that would calculate number of tones
+   representing given character or string, so there is no easy way to
+   present exact relationship between capacity of tone queue and
+   number of characters that it can hold.  TODO: perhaps we could
+   write utility functions to do that calculation? */
+
+/* TODO: create tests that validate correctness of handling of tone
+   queue capacity. See if we really handle the capacity correctly. */
+
+enum {
+	/* Default and maximum values of two basic parameters of tone
+	   queue: capacity and high water mark. The parameters can be
+	   modified using suitable function. */
+
+	/* Tone queue will accept at most "capacity" tones. */
+	CW_TONE_QUEUE_CAPACITY_MAX = 3000,        /* ~= 5 minutes at 12 WPM */
+
+	/* Tone queue will refuse to accept new tones (characters?) if
+	   number of tones in queue (queue length) is already equal or
+	   larger than queue's high water mark. */
+	CW_TONE_QUEUE_HIGH_WATER_MARK_MAX = 2900
+};
 
 
 
@@ -19,7 +59,88 @@ enum cw_queue_state {
 
 
 
-struct cw_tone_queue_struct {
+
+typedef struct {
+	/* Frequency of a tone. */
+	int frequency;
+
+	/* Duration of a tone, in microseconds. */
+	int usecs;
+
+	/* Duration of a tone, in samples.
+	   This is a derived value, a function of usecs and sample rate. */
+
+	/* TODO: come up with thought-out, consistent type system for
+	   samples and usecs. The type system should take into
+	   consideration very long duration of tones in QRSS. */
+	int64_t n_samples;
+
+	/* We need two indices to gen->buffer, indicating beginning and end
+	   of a subarea in the buffer.
+	   The subarea is not the same as gen->buffer for variety of reasons:
+	    - buffer length is almost always smaller than length of a dash,
+	      a dot, or inter-element space that we want to produce;
+	    - moreover, length of a dash/dot/space is almost never an exact
+	      multiple of length of a buffer;
+            - as a result, a sound representing a dash/dot/space may start
+	      and end anywhere between beginning and end of the buffer;
+
+	   A workable solution is have a subarea of the buffer, a window,
+	   into which we will write a series of fragments of calculated sound.
+
+	   The subarea won't wrap around boundaries of the buffer. "stop"
+	   will be no larger than "gen->buffer_n_samples - 1", and it will
+	   never be smaller than "stop".
+
+	   "start" and "stop" mark beginning and end of the subarea.
+	   Very often (in the middle of the sound), "start" will be zero,
+	   and "stop" will be "gen->buffer_n_samples - 1".
+
+	   Sine wave (sometimes with amplitude = 0) will be calculated for
+	   cells ranging from cell "start" to cell "stop", inclusive. */
+	int sub_start;
+	int sub_stop;
+
+	/* a tone can start and/or end abruptly (which may result in
+	   audible clicks), or its beginning and/or end can have form
+	   of slopes (ramps), where amplitude increases/decreases less
+	   abruptly than if there were no slopes;
+
+	   using slopes reduces audible clicks at the beginning/end of
+	   tone, and can be used to shape spectrum of a tone;
+
+	   AFAIK most desired shape of a slope looks like sine wave;
+	   most simple one is just a linear slope;
+
+	   slope area should be integral part of a tone, i.e. it shouldn't
+	   make the tone longer than usecs/n_samples;
+
+	   a tone with rising and falling slope should have this length
+	   (in samples):
+	   slope_n_samples   +   (n_samples - 2 * slope_n_samples)   +   slope_n_samples
+
+	   libcw allows following slope area scenarios (modes):
+	   1. no slopes: tone shouldn't have any slope areas (i.e. tone
+	      with constant amplitude);
+	   1.a. a special case of this mode is silent tone - amplitude
+	        of a tone is zero for whole duration of the tone;
+	   2. tone has nothing more than a single slope area (rising or
+	      falling); there is no area with constant amplitude;
+	   3. a regular tone, with area of rising slope, then area with
+	   constant amplitude, and then falling slope;
+
+	   currently, if a tone has both slopes (rising and falling), both
+	   slope areas have to have the same length; */
+	int slope_iterator;     /* counter of samples in slope area */
+	int slope_mode;         /* mode/scenario of slope */
+	int slope_n_samples;    /* length of slope area */
+} cw_tone_t;
+
+
+
+
+
+typedef struct {
 	volatile cw_tone_t queue[CW_TONE_QUEUE_CAPACITY_MAX];
 
 	/* Tail index of tone queue. Index of last (newest) inserted
@@ -49,7 +170,10 @@ struct cw_tone_queue_struct {
 	void        *low_water_callback_arg;
 
 	pthread_mutex_t mutex;
-}; /* typedef cw_tone_queue_t */
+} cw_tone_queue_t;
+
+
+
 
 
 int      cw_tone_queue_init_internal(cw_tone_queue_t *tq);
@@ -65,6 +189,7 @@ uint32_t cw_tone_queue_next_index_internal(cw_tone_queue_t *tq, uint32_t current
 int      cw_tone_queue_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone);
 int      cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone);
 bool     cw_tone_queue_is_full_internal(cw_tone_queue_t *tq);
+
 
 
 
@@ -86,6 +211,7 @@ unsigned int test_cw_tone_queue_test_capacity1(void);
 unsigned int test_cw_tone_queue_test_capacity2(void);
 
 #endif /* #ifdef LIBCW_UNIT_TESTS */
+
 
 
 
