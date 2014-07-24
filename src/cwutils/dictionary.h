@@ -24,6 +24,8 @@
 extern "C" {
 #endif
 
+#include <stdbool.h>
+
 
 typedef struct cw_dictionary_s cw_dictionary_t;
 

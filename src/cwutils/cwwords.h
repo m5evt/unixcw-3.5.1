@@ -20,6 +20,8 @@
 #ifndef _CWWORDS_H
 #define _CWWORDS_H
 
+#include <stdlib.h> /* NULL */
+
 /*
  * Bulk string data for generating characters to send.  These string entries
  * are used as initializers for the default dictionary set.
