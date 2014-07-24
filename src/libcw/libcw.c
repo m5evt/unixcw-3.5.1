@@ -334,7 +334,12 @@ static int  cw_receiver_add_element_internal(cw_rec_t *rec, const struct timeval
 
    TODO: perform the conversion later, when you figure out ins and
    outs of the library. */
-cw_gen_t *generator = NULL;
+static cw_gen_t *generator = NULL;
+/* I don't want to make public/extern a variable with generic name
+   "generator". I will make public a variable with more specific name
+   "cw_generator". I will rename "cw_gen_t *generator" to cw_gen_t
+   *cw_generator" in a next version of libcw. */
+cw_gen_t **cw_generator = &generator;
 
 /* From libcw_tq.c. */
 extern cw_tone_queue_t cw_tone_queue;

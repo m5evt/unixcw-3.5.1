@@ -50,7 +50,7 @@ extern cw_debug_t cw_debug_object;
 extern cw_debug_t cw_debug_object_ev;
 extern cw_debug_t cw_debug_object_dev;
 
-extern cw_gen_t *generator;
+extern cw_gen_t **cw_generator;
 
 
 typedef bool (*predicate_t)(const char *device);
@@ -126,11 +126,11 @@ void main_helper(int audio_system, const char *name, const char *device, predica
 			cw_send_string("eish ");
 			cw_wait_for_tone_queue();
 
-			cw_generator_set_tone_slope(generator, CW_TONE_SLOPE_SHAPE_LINEAR, -1);
+			cw_generator_set_tone_slope((*cw_generator), CW_TONE_SLOPE_SHAPE_LINEAR, -1);
 			cw_send_string("eish ");
 			cw_wait_for_tone_queue();
 
-			cw_generator_set_tone_slope(generator, CW_TONE_SLOPE_SHAPE_SINE, -1);
+			cw_generator_set_tone_slope((*cw_generator), CW_TONE_SLOPE_SHAPE_SINE, -1);
 			cw_send_string("eish ");
 			cw_wait_for_tone_queue();
 

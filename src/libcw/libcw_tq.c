@@ -54,7 +54,7 @@ extern cw_debug_t cw_debug_object;
 extern cw_debug_t cw_debug_object_ev;
 extern cw_debug_t cw_debug_object_dev;
 
-extern cw_gen_t *generator;
+extern cw_gen_t **cw_generator;
 
 
 /* Tone queue associated with a generator.  Every generator should
@@ -630,7 +630,7 @@ int cw_tone_queue_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 		   to be filled with new tones to dequeue and play.
 		   It waits for a signal. This is a right place and time
 		   to send such a signal. */
-		pthread_kill(generator->thread.id, SIGALRM);
+		pthread_kill((*cw_generator)->thread.id, SIGALRM);
 	}
 
 	pthread_mutex_unlock(&tq->mutex);
@@ -896,13 +896,13 @@ int cw_get_tone_queue_length(void)
 */
 void cw_flush_tone_queue(void)
 {
-	pthread_mutex_lock(&generator->tq->mutex);
+	pthread_mutex_lock(&(*cw_generator)->tq->mutex);
 
 	/* Empty and reset the queue. */
-	generator->tq->len = 0;
-	generator->tq->head = generator->tq->tail;
+	(*cw_generator)->tq->len = 0;
+	(*cw_generator)->tq->head = (*cw_generator)->tq->tail;
 
-	pthread_mutex_unlock(&generator->tq->mutex);
+	pthread_mutex_unlock(&(*cw_generator)->tq->mutex);
 
 	/* If we can, wait until the dequeue goes idle. */
 	if (!cw_sigalrm_is_blocked_internal()) {
@@ -911,7 +911,7 @@ void cw_flush_tone_queue(void)
 
 	/* Force silence on the speaker anyway, and stop any background
 	   soundcard tone generation. */
-	cw_generator_silence_internal(generator);
+	cw_generator_silence_internal((*cw_generator));
 	//cw_finalization_schedule_internal();
 
 	return;
@@ -985,7 +985,7 @@ void cw_reset_tone_queue(void)
 	cw_tone_queue.low_water_callback_arg = NULL;
 
 	/* Silence sound and stop any background soundcard tone generation. */
-	cw_generator_silence_internal(generator);
+	cw_generator_silence_internal((*cw_generator));
 	//cw_finalization_schedule_internal();
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_TONE_QUEUE, CW_DEBUG_INFO,

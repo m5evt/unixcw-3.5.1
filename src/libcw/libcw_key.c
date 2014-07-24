@@ -39,7 +39,7 @@ extern cw_debug_t cw_debug_object_ev;
 extern cw_debug_t cw_debug_object_dev;
 
 extern cw_rec_t receiver;
-extern cw_gen_t *generator;
+extern cw_gen_t **cw_generator;
 
 
 
@@ -678,7 +678,7 @@ int cw_notify_keyer_paddle_event(int dot_paddle_state,
 	if (cw_iambic_keyer.state == KS_IDLE) {
 		/* If the current state is idle, give the state
 		   process a nudge. */
-		cw_iambic_keyer_update_initial_internal(&cw_iambic_keyer, generator);
+		cw_iambic_keyer_update_initial_internal(&cw_iambic_keyer, (*cw_generator));
 	} else {
 		/* The state machine for iambic keyer is already in
 		   motion, no need to do anything more.
@@ -950,7 +950,7 @@ void cw_reset_keyer(void)
 	cw_iambic_keyer.state = KS_IDLE;
 
 	/* Silence sound and stop any background soundcard tone generation. */
-	cw_generator_silence_internal(generator);
+	cw_generator_silence_internal((*cw_generator));
 	cw_finalization_schedule_internal();
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYER_STATES, CW_DEBUG_INFO,
@@ -1047,9 +1047,9 @@ int cw_notify_straight_key_event(int key_state)
 		/* Do tones and keying, and set up timeouts and soundcard
 		   activities to match the new key state. */
 		if (cw_sk_key_state == CW_KEY_STATE_CLOSED) {
-			cw_key_straight_key_generate_internal(generator, CW_KEY_STATE_CLOSED);
+			cw_key_straight_key_generate_internal((*cw_generator), CW_KEY_STATE_CLOSED);
 		} else {
-			cw_key_straight_key_generate_internal(generator, CW_KEY_STATE_OPEN);
+			cw_key_straight_key_generate_internal((*cw_generator), CW_KEY_STATE_OPEN);
 
 			/* Indicate that we have finished with timeouts,
 			   and also with the soundcard too.  There's no way
@@ -1116,7 +1116,7 @@ void cw_reset_straight_key(void)
 	cw_sk_key_state = CW_KEY_STATE_OPEN;
 
 	/* Silence sound and stop any background soundcard tone generation. */
-	cw_generator_silence_internal(generator);
+	cw_generator_silence_internal((*cw_generator));
 	//cw_finalization_schedule_internal();
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_STRAIGHT_KEY_STATES, CW_DEBUG_INFO,
