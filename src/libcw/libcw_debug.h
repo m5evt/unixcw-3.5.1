@@ -32,6 +32,8 @@ extern "C"
 {
 #endif
 
+#include <stdint.h> /* uint32_t */
+
 
 #define CW_DEBUG_N_EVENTS_MAX (1024 * 128)
 
