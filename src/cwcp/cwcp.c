@@ -135,6 +135,12 @@ static void ui_clear_main_window(void);
 static void ui_poll_user_input(int fd, int usecs);
 static void ui_update_mode_selection(int old_mode, int current_mode);
 
+static WINDOW *interface_init_box(int lines, int columns, int begin_y, int begin_x, const char *legend);
+static WINDOW *interface_init_display(int lines, int columns, int begin_y, int begin_x, int indent, const char *text);
+static void    interface_init_panel(int lines, int columns, int begin_y, int begin_x, const char *box_legend, int indent, const char *display_text, WINDOW **box, WINDOW **display);
+
+static void signal_handler(int signal_number);
+
 static void state_change_to_active(void);
 static void state_change_to_idle(void);
 
@@ -964,75 +970,110 @@ interface_init_screen (void)
   return window;
 }
 
-static WINDOW*
-interface_init_box (int lines, int columns, int begin_y, int begin_x,
-                    const char *legend)
+
+
+
+
+/**
+   \brief Create new window
+
+   Create new window with border (box) and legend (description).
+   The function allocates new ncurses WINDOW.
+
+   \return new window
+*/
+WINDOW *interface_init_box(int lines, int columns, int begin_y, int begin_x, const char *legend)
 {
-  WINDOW *window;
+	/* Create the window, and set up colors if possible and requested. */
+	WINDOW *window = newwin(lines, columns, begin_y, begin_x);
+	if (!window) {
+		fprintf(stderr, "newwin()\n");
+		exit(EXIT_FAILURE);
+	}
 
-  /* Create the window, and set up colors if possible and requested. */
-  window = newwin (lines, columns, begin_y, begin_x);
+	if (do_colors && has_colors()) {
+		wbkgdset(window, COLOR_PAIR (BOX_COLORS) | ' ');
+		werase(window);
+		wattron(window, COLOR_PAIR (BOX_COLORS));
+	} else {
+		wattron(window, A_REVERSE);
+	}
+	box(window, 0, 0);
 
-  if (do_colors && has_colors ())
-    {
-      wbkgdset (window, COLOR_PAIR (BOX_COLORS) | ' ');
-      werase (window);
-      wattron (window, COLOR_PAIR (BOX_COLORS));
-    }
-  else
-    wattron (window, A_REVERSE);
-  box (window, 0, 0);
+	/* Add any initial legend to the box. */
+	if (legend) {
+		mvwaddstr(window, 0, 1, legend);
+	}
 
-  /* Add any initial legend to the box. */
-  if (legend)
-    mvwaddstr (window, 0, 1, legend);
-
-  wrefresh (window);
-  return window;
+	wrefresh(window);
+	return window;
 }
 
-static WINDOW*
-interface_init_display (int lines, int columns, int begin_y, int begin_x,
-                        int indent, const char *text)
+
+
+
+
+/**
+   \brief Create new display
+
+   Create new display with initial text in it.
+   The function allocates new ncurses WINDOW.
+
+   \return new display
+*/
+WINDOW *interface_init_display(int lines, int columns, int begin_y, int begin_x, int indent, const char *text)
 {
-  WINDOW *window;
+	/* Create the window, and set up colors if possible and requested. */
+	WINDOW *window = newwin(lines, columns, begin_y, begin_x);
+	if (!window) {
+		fprintf(stderr, "newwin()\n");
+		exit(EXIT_FAILURE);
+	}
 
-  /* Create the window, and set up colors if possible and requested. */
-  window = newwin (lines, columns, begin_y, begin_x);
+	if (do_colors && has_colors()) {
+		wbkgdset(window, COLOR_PAIR (DISPLAY_COLORS) | ' ');
+		wattron(window, COLOR_PAIR (DISPLAY_COLORS));
+		werase(window);
+	}
 
-  if (do_colors && has_colors ())
-    {
-      wbkgdset (window, COLOR_PAIR (DISPLAY_COLORS) | ' ');
-      wattron (window, COLOR_PAIR (DISPLAY_COLORS));
-      werase (window);
-    }
+	/* Add any initial text to the box. */
+	if (text) {
+		mvwaddstr(window, 0, indent, text);
+	}
 
-  /* Add any initial text to the box. */
-  if (text)
-    mvwaddstr (window, 0, indent, text);
-
-  wrefresh (window);
-  return window;
+	wrefresh(window);
+	return window;
 }
 
-static void
-interface_init_panel (int lines, int columns, int begin_y, int begin_x,
-                      const char *box_legend,
-                      int indent, const char *display_text,
-                      WINDOW **box, WINDOW **display)
+
+
+
+
+/**
+   \brief Create new panel
+*/
+void interface_init_panel(int lines, int columns, int begin_y, int begin_x,
+			  const char *box_legend,
+			  int indent, const char *display_text,
+			  WINDOW **box, WINDOW **display)
 {
-  WINDOW *window;
 
-  /* Create and return, if required, a box for the control. */
-  window = interface_init_box (lines, columns, begin_y, begin_x, box_legend);
-  if (box)
-    *box = window;
+	/* Create and return, if required, a box for the control. */
+	WINDOW *window = interface_init_box(lines, columns, begin_y, begin_x, box_legend);
+	if (box) {
+		*box = window;
+	}
 
-  /* Add a display within the frame of the box. */
-  *display = interface_init_display (lines - 2, columns - 2,
-                                     begin_y + 1, begin_x + 1,
-                                     indent, display_text);
+	/* Add a display within the frame of the box. */
+	*display = interface_init_display(lines - 2, columns - 2,
+					  begin_y + 1, begin_x + 1,
+					  indent, display_text);
+
+	return;
 }
+
+
+
 
 
 /*
@@ -1131,11 +1172,40 @@ interface_destroy (void)
 
   /* Reset user interface windows to initial values. */
   screen = NULL;
-  mode_display = NULL;
-  speed_display = NULL;
-  tone_display = NULL;
-  volume_display = NULL;
-  gap_display = NULL;
+
+
+  if (mode_display) {
+	  delwin(mode_display);
+	  mode_display = NULL;
+  }
+  if (speed_display) {
+	  delwin(speed_display);
+	  speed_display = NULL;
+  }
+  if (tone_display) {
+	  delwin(tone_display);
+	  tone_display = NULL;
+  }
+  if (volume_display) {
+	  delwin(volume_display);
+	  volume_display = NULL;
+  }
+  if (gap_display) {
+	  delwin(gap_display);
+	  gap_display = NULL;
+  }
+  if (timer_display) {
+	  delwin(timer_display);
+	  timer_display = NULL;
+  }
+  if (text_box) {
+	  delwin(text_box);
+	  text_box = NULL;
+  }
+  if (text_display) {
+	  delwin(text_display);
+	  text_display = NULL;
+  }
 }
 
 
@@ -1513,21 +1583,21 @@ void ui_update_mode_selection(int old_mode, int current_mode)
 
 
 
-/*
- * signal_handler()
- *
- * Signal handler for signals, to clear up on kill.
- */
-static void
-signal_handler (int signal_number)
+/**
+   \brief Signal handler for signals, to clear up on kill
+*/
+void signal_handler(int signal_number)
 {
-  /* Attempt to wrestle the screen back from curses. */
-  interface_destroy ();
+	/* Attempt to wrestle the screen back from curses. */
+	interface_destroy();
 
-  /* Show the signal caught, and exit. */
-  fprintf (stderr, _("\nCaught signal %d, exiting...\n"), signal_number);
-  exit (EXIT_SUCCESS);
+	/* Show the signal caught, and exit. */
+	fprintf(stderr, _("\nCaught signal %d, exiting...\n"), signal_number);
+	exit(EXIT_SUCCESS);
 }
+
+
+
 
 
 /*
