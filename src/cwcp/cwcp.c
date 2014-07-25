@@ -106,8 +106,6 @@ static const char *mode_get_description(int index);
 static bool mode_current_is_type(mode_type_t type);
 static bool mode_is_sending_active(void);
 
-static void queue_enqueue_string(const char *word);
-static void queue_enqueue_character(char c);
 
 
 /* Definition of an interface operating mode; its description, related
@@ -129,9 +127,19 @@ static moderef_t modes = NULL,
                  current_mode = NULL;
 static int modes_count = 0;
 
-
+static int queue_get_length(void);
+static int queue_next_index(int index);
+static int queue_prior_index(int index);
+static void queue_display_add_character(void);
+static void queue_display_delete_character(void);
+static void queue_display_highlight_character(bool is_highlight);
+static void queue_discard_contents(void);
+static void queue_dequeue_character(void);
+static void queue_enqueue_string(const char *word);
+static void queue_enqueue_character(char c);
 static void queue_enqueue_random_dictionary_text(moderef_t mode, bool beginning_of_buffer);
 static void queue_transfer_character_to_libcw(void);
+static void queue_delete_character(void);
 
 static void ui_refresh_main_window(void);
 static void ui_display_state(const char *state);
@@ -149,193 +157,207 @@ static void state_change_to_active(void);
 static void state_change_to_idle(void);
 
 
+
+
+
 /*---------------------------------------------------------------------*/
 /*  Circular character queue                                           */
 /*---------------------------------------------------------------------*/
 
-/*
- * Characters awaiting send are stored in a circular buffer, implemented as
- * an array with tail and head indexes that wrap.
- */
+/* Characters awaiting send are stored in a circular buffer,
+   implemented as an array with tail and head indexes that wrap. */
 enum { QUEUE_CAPACITY = 256 };
 static volatile char queue_data[QUEUE_CAPACITY];
 static volatile int queue_tail = 0,
                     queue_head = 0;
 
-/*
- * There are times where we have no data to send.  For these cases, record
- * as idle, so that we know when to wake the sender.
- */
+/* There are times where we have no data to send.  For these cases,
+   record as idle, so that we know when to wake the sender. */
 static volatile bool is_queue_idle = true;
 
 
 
 
-/*
- * queue_get_length()
- * queue_next_index()
- * queue_prior_index()
- *
- * Return the count of characters currently held in the circular buffer, and
- * advance/regress a tone queue index, including circular wrapping.
- */
-static int
-queue_get_length (void)
+/**
+   \brief Return the count of characters currently held in the circular buffer
+*/
+int queue_get_length(void)
 {
-  return queue_tail >= queue_head
-         ? queue_tail - queue_head : queue_tail - queue_head + QUEUE_CAPACITY;
-}
-
-static int
-queue_next_index (int index)
-{
-  return (index + 1) % QUEUE_CAPACITY;
-}
-
-static int
-queue_prior_index (int index)
-{
-  return index == 0 ? QUEUE_CAPACITY - 1 : index - 1;
+	return queue_tail >= queue_head
+		? queue_tail - queue_head : queue_tail - queue_head + QUEUE_CAPACITY;
 }
 
 
-/*
- * queue_display_add_character()
- * queue_display_delete_character()
- * queue_display_highlight_character()
- *
- * Add and delete a character to the text display when queueing, and
- * highlight or un-highlight, a character in the text display when dequeueing.
- */
-static void
-queue_display_add_character (void)
+
+
+
+/**
+   \brief Advance a tone queue index, including circular wrapping
+*/
+int queue_next_index(int index)
 {
-  /* Append the last queued character to the text display. */
-  if (queue_get_length () > 0)
-    {
-      waddch (text_subwindow, toupper (queue_data[queue_tail]));
-      wrefresh (text_subwindow);
-    }
-}
-
-static void
-queue_display_delete_character (void)
-{
-  int y, x, max_x;
-  __attribute__((unused)) int max_y;
-
-  /* Get the text display dimensions and current coordinates. */
-  getmaxyx (text_subwindow, max_y, max_x);
-  getyx (text_subwindow, y, x);
-
-  /* Back the cursor up one position. */
-  x--;
-  if (x < 0)
-    {
-      x += max_x;
-      y--;
-    }
-
-  /* If these coordinates are on screen, write a space and back up. */
-  if (y >= 0)
-    {
-      wmove (text_subwindow, y, x);
-      waddch (text_subwindow, ' ');
-      wmove (text_subwindow, y, x);
-      wrefresh (text_subwindow);
-    }
-}
-
-static void
-queue_display_highlight_character (int is_highlight)
-{
-  int y, x, max_x;
-  __attribute__((unused)) int max_y;
-
-  /* Get the text display dimensions and current coordinates. */
-  getmaxyx (text_subwindow, max_y, max_x);
-  getyx (text_subwindow, y, x);
-
-  /* Find the coordinates for the queue head character. */
-  x -= queue_get_length () + 1;
-  while (x < 0)
-    {
-      x += max_x;
-      y--;
-    }
-
-  /*
-   * If these coordinates are on screen, highlight or unhighlight, and then
-   * restore the cursor position so that it remains unchanged.
-   */
-  if (y >= 0)
-    {
-      int saved_y, saved_x;
-
-      getyx (text_subwindow, saved_y, saved_x);
-      wmove (text_subwindow, y, x);
-      waddch (text_subwindow,
-              is_highlight ? winch (text_subwindow) | A_REVERSE
-                           : winch (text_subwindow) & ~A_REVERSE);
-      wmove (text_subwindow, saved_y, saved_x);
-      wrefresh (text_subwindow);
-    }
+	return (index + 1) % QUEUE_CAPACITY;
 }
 
 
-/*
- * queue_discard_contents()
- *
- * Forcibly empty the queue, if not already idle.
- */
-static void
-queue_discard_contents (void)
+
+
+
+/**
+   \brief Regress a tone queue index, including circular wrapping
+*/
+int queue_prior_index(int index)
 {
-  if (!is_queue_idle)
-    {
-      queue_display_highlight_character (false);
-      queue_head = queue_tail;
-      is_queue_idle = true;
-    }
+	return index == 0 ? QUEUE_CAPACITY - 1 : index - 1;
 }
 
 
-/*
- * queue_dequeue_character()
- *
- * Called when the CW send buffer is empty.  If the queue is not idle, take
- * the next character from the queue and send it.  If there are no more queued
- * characters, set the queue to idle.
- */
-static void
-queue_dequeue_character (void)
+
+
+
+/**
+   Add a character to the text display when queueing
+*/
+void queue_display_add_character(void)
 {
-  if (!is_queue_idle)
-    {
-      /* Unhighlight any previous highlighting, and see if we can dequeue. */
-      queue_display_highlight_character (false);
-      if (queue_get_length () > 0)
-        {
-          char c;
+	/* Append the last queued character to the text display. */
+	if (queue_get_length() > 0) {
+		waddch(text_subwindow, toupper(queue_data[queue_tail]));
+		wrefresh(text_subwindow);
+	}
 
-          /*
-           * Take the next character off the queue, highlight, and send it.
-           * We don't expect sending to fail because only sendable characters
-           * are queued.
-           */
-          queue_head = queue_next_index (queue_head);
-          c = queue_data[queue_head];
-          queue_display_highlight_character (true);
+	return;
+}
 
-          if (!cw_send_character (c))
-            {
-              perror ("cw_send_character");
-              abort ();
-            }
-        }
-      else
-        is_queue_idle = true;
-    }
+
+
+
+
+/**
+   Delete a character to the text display when dequeueing
+*/
+void queue_display_delete_character(void)
+{
+	int y, x, max_x;
+	__attribute__((unused)) int max_y;
+
+	/* Get the text display dimensions and current coordinates. */
+	getmaxyx(text_subwindow, max_y, max_x);
+	getyx(text_subwindow, y, x);
+
+	/* Back the cursor up one position. */
+	x--;
+	if (x < 0) {
+		x += max_x;
+		y--;
+	}
+
+	/* If these coordinates are on screen, write a space and back up. */
+	if (y >= 0) {
+		wmove(text_subwindow, y, x);
+		waddch(text_subwindow, ' ');
+		wmove(text_subwindow, y, x);
+		wrefresh(text_subwindow);
+	}
+}
+
+
+
+
+
+/**
+   Highlight or un-highlight a character in the text display when dequeueing
+*/
+void queue_display_highlight_character(bool is_highlight)
+{
+	int y, x, max_x;
+	__attribute__((unused)) int max_y;
+
+	/* Get the text display dimensions and current coordinates. */
+	getmaxyx(text_subwindow, max_y, max_x);
+	getyx(text_subwindow, y, x);
+
+	/* Find the coordinates for the queue head character. */
+	x -= queue_get_length() + 1;
+	while (x < 0) {
+		x += max_x;
+		y--;
+	}
+
+	/* If these coordinates are on screen, highlight or
+	   unhighlight, and then restore the cursor position so that
+	   it remains unchanged. */
+	if (y >= 0) {
+		int saved_y, saved_x;
+
+		getyx(text_subwindow, saved_y, saved_x);
+		wmove(text_subwindow, y, x);
+		waddch(text_subwindow,
+		       is_highlight ? winch(text_subwindow) | A_REVERSE
+			: winch(text_subwindow) & ~A_REVERSE);
+		wmove(text_subwindow, saved_y, saved_x);
+		wrefresh(text_subwindow);
+	}
+
+	return;
+}
+
+
+
+
+
+/**
+   \brief Forcibly empty the queue, if not already idle
+*/
+void queue_discard_contents(void)
+{
+	if (!is_queue_idle) {
+		queue_display_highlight_character(false);
+		queue_head = queue_tail;
+		is_queue_idle = true;
+	}
+
+	return;
+}
+
+
+
+
+
+/**
+   \brief Dequeue a character
+
+   Called when the CW send buffer is empty.  If the queue is not idle,
+   take the next character from the queue and send it.  If there are
+   no more queued characters, set the queue to idle.
+*/
+void queue_dequeue_character(void)
+{
+	if (!is_queue_idle) {
+		/* Unhighlight any previous highlighting, and see if
+		   we can dequeue. */
+		queue_display_highlight_character(false);
+		if (queue_get_length() > 0) {
+			char c;
+
+			/* Take the next character off the queue,
+			   highlight, and send it.  We don't expect
+			   sending to fail because only sendable
+			   characters are queued. */
+			queue_head = queue_next_index(queue_head);
+			c = queue_data[queue_head];
+			queue_display_highlight_character(true);
+
+			if (!cw_send_character(c)) {
+				perror ("cw_send_character");
+				abort();
+			}
+		} else {
+			is_queue_idle = true;
+		}
+	}
+
+	return;
 }
 
 
@@ -378,6 +400,8 @@ void queue_enqueue_string(const char *word)
 	if (is_queue_notify) {
 		is_queue_idle = false;
 	}
+
+	return;
 }
 
 
@@ -408,22 +432,22 @@ void queue_enqueue_character(char c)
 
 
 
-/*
- * queue_delete_character()
- *
- * Remove the most recently added character from the queue, provided that
- * the dequeue hasn't yet reached it.  If there's nothing available to
- * delete, fail silently.
- */
-static void
-queue_delete_character (void)
+/**
+   \brief Delete the most recently added character from the queue
+
+   Remove the most recently added character from the queue, provided
+   that the dequeue hasn't yet reached it.  If there's nothing
+   available to delete, fail silently.
+*/
+void queue_delete_character(void)
 {
-  /* If data is queued, regress tail and delete one display character. */
-  if (queue_get_length () > 0)
-    {
-      queue_tail = queue_prior_index (queue_tail);
-      queue_display_delete_character ();
-    }
+	/* If data is queued, regress tail and delete one display character. */
+	if (queue_get_length() > 0) {
+		queue_tail = queue_prior_index(queue_tail);
+		queue_display_delete_character();
+	}
+
+	return;
 }
 
 
