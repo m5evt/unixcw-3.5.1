@@ -63,6 +63,12 @@ static bool beginning_of_buffer = true;
 static bool is_sending_active = false;
 
 
+/* Width of parameter windows, displayed at the bottom of window.
+   Since the same value is used as size of char buffer, make one
+   character for terminating NUL explicit as +1.
+ */
+#define CWCP_PARAM_WIDTH (15 + 1)
+
 
 static cw_config_t *config = NULL; /* program-specific configuration */
 static bool generator = false;     /* have we created a generator? */
@@ -93,6 +99,11 @@ static bool timer_set_total_practice_time(int practice_time);
 static void timer_start(void);
 static bool timer_is_expired(void);
 static void timer_window_update(int elapsed, int total);
+
+static void speed_update(void);
+static void frequency_update(void);
+static void volume_update(void);
+static void gap_update(void);
 
 
 typedef enum { M_DICTIONARY, M_KEYBOARD, M_EXIT } mode_type_t;
@@ -147,7 +158,7 @@ static void ui_clear_main_window(void);
 static void ui_poll_user_input(int fd, int usecs);
 static void ui_update_mode_selection(int old_mode, int current_mode);
 
-static WINDOW *ui_init_window(int lines, int columns, int begin_y, int begin_x, int indent, const char *header, char *contents);
+static WINDOW *ui_init_window(int lines, int columns, int begin_y, int begin_x, const char *header);
 static void    ui_init_text_window(int lines, int columns, int begin_y, int begin_x, const char *header, WINDOW **window, WINDOW **subwindow);
 static WINDOW *ui_init_screen(void);
 
@@ -643,8 +654,8 @@ void timer_window_update(int elapsed, int total)
 		el = elapsed;
 	}
 
-	char buffer[16];
-	sprintf (buffer, total == 1 ? _("%2d/%2d min ") : _("%2d/%2d mins"), el, total);
+	char buffer[CWCP_PARAM_WIDTH];
+	snprintf(buffer, CWCP_PARAM_WIDTH, total == 1 ? _("%2d/%2d min ") : _("%2d/%2d mins"), el, total);
 	mvwaddstr(timer_window, 1, 2, buffer);
 	wrefresh(timer_window);
 
@@ -1001,7 +1012,7 @@ WINDOW *ui_init_screen(void)
 
    \return new window
 */
-WINDOW *ui_init_window(int lines, int columns, int begin_y, int begin_x, int indent, const char *header, char *contents)
+WINDOW *ui_init_window(int lines, int columns, int begin_y, int begin_x, const char *header)
 {
 	/* Create the window, and set up colors if possible and requested. */
 	WINDOW *window = newwin(lines, columns, begin_y, begin_x);
@@ -1020,11 +1031,6 @@ WINDOW *ui_init_window(int lines, int columns, int begin_y, int begin_x, int ind
 	box(window, 0, 0);
 	mvwaddstr(window, 0, 1, header);
 
-	/* Add any initial text to the box. */
-	if (contents) {
-		mvwaddstr(window, 1, indent, contents);
-	}
-
 	wrefresh(window);
 	return window;
 }
@@ -1042,7 +1048,7 @@ void ui_init_text_window(int lines, int columns, int begin_y, int begin_x,
 			  const char *header,
 			  WINDOW **window, WINDOW **subwindow)
 {
-	*window = ui_init_window(lines, columns, begin_y, begin_x, 0, header, NULL);
+	*window = ui_init_window(lines, columns, begin_y, begin_x, header);
 
 
 	/* Text subwindow: Create the window, and set up colors if possible and requested. */
@@ -1083,8 +1089,8 @@ static void interface_initialize(void)
 	getmaxyx(screen, max_y, max_x);
 
 	/* Create and box in the mode window. */
-	mode_window = ui_init_window(max_y - 3, 20, 0, 0, 0,
-				     _("Mode(F10v,F11^)"), NULL);
+	mode_window = ui_init_window(max_y - 3, 20, 0, 0,
+				     _("Mode(F10v,F11^)"));
 	for (int i = 0; i < mode_get_count(); i++) {
 		if (i == mode_get_current()) {
 			wattron(mode_window, A_REVERSE);
@@ -1109,30 +1115,24 @@ static void interface_initialize(void)
 	immedok(text_subwindow, true);
 	scrollok(text_subwindow, true);
 
-	char buffer[16];
 	int lines = 3;
-	int columns = 16;
-	int indent = 4;
+	int columns = CWCP_PARAM_WIDTH;
+
 	/* Create the control feedback boxes. */
-	sprintf(buffer, _("%2d WPM"), cw_get_send_speed());
-	speed_window = ui_init_window(lines, columns, max_y - lines, columns * 0, indent,
-				      _("Speed(F1-,F2+)"), buffer);
 
-	sprintf(buffer, _("%4d Hz"), cw_get_frequency());
-	tone_window = ui_init_window(lines, columns, max_y - lines, columns * 1, indent,
-				     _("Tone(F3-,F4+)"), buffer);
+	speed_window = ui_init_window(lines, columns, max_y - lines, columns * 0, _("Speed(F1-,F2+)"));
+	speed_update();
 
-	sprintf(buffer, _("%3d %%"), cw_get_volume ());
-	volume_window = ui_init_window(lines, columns, max_y - lines, columns * 2, indent,
-				       _("Vol(F5-,F6+)"), buffer);
+	tone_window = ui_init_window(lines, columns, max_y - lines, columns * 1, _("Tone(F3-,F4+)"));
+	frequency_update();
 
-	int value = cw_get_gap();
-	sprintf(buffer, value == 1 ? _("%2d dot ") : _("%2d dots"), value);
-	gap_window = ui_init_window(lines, columns, max_y - lines, columns * 3, indent,
-				    _("Gap(F7-,F8+)"), buffer);
+	volume_window = ui_init_window(lines, columns, max_y - lines, columns * 2, _("Vol(F5-,F6+)"));
+	volume_update();
 
-	timer_window = ui_init_window(lines, columns, max_y - lines, columns * 4, indent,
-				      _("Time(Dn-,Up+)"), NULL);
+	gap_window = ui_init_window(lines, columns, max_y - lines, columns * 3, _("Gap(F7-,F8+)"));
+	gap_update();
+
+	timer_window = ui_init_window(lines, columns, max_y - lines, columns * 4, _("Time(Dn-,Up+)"));
 	timer_window_update(0, timer_get_total_practice_time());
 
 	/* Set up curses input mode. */
@@ -1215,9 +1215,6 @@ static void interface_destroy(void)
 */
 static int interface_interpret(int c)
 {
-	char buffer[16];
-	int value;
-
 	/* Interpret the command passed in */
 	switch (c) {
 	default:
@@ -1260,94 +1257,78 @@ static int interface_interpret(int c)
 	case KEY_F (1):
 	case PSEUDO_KEYF1:
 	case KEY_LEFT:
-		if (cw_set_send_speed(cw_get_send_speed() - CW_SPEED_STEP))
-			goto speed_update;
+		if (cw_set_send_speed(cw_get_send_speed() - CW_SPEED_STEP)) {
+			speed_update();
+		}
 		break;
 
 	case KEY_F (2):
 	case PSEUDO_KEYF2:
 	case KEY_RIGHT:
-		if (cw_set_send_speed(cw_get_send_speed() + CW_SPEED_STEP))
-			goto speed_update;
-		break;
-
-	speed_update:
-		sprintf(buffer, _("%2d WPM"), cw_get_send_speed());
-		mvwaddstr(speed_window, 1, 4, buffer);
-		wrefresh(speed_window);
+		if (cw_set_send_speed(cw_get_send_speed() + CW_SPEED_STEP)) {
+			speed_update();
+		}
 		break;
 
 
 	case KEY_F (3):
 	case PSEUDO_KEYF3:
 	case KEY_END:
-		if (cw_set_frequency(cw_get_frequency() - CW_FREQUENCY_STEP))
-			goto frequency_update;
+		if (cw_set_frequency(cw_get_frequency() - CW_FREQUENCY_STEP)) {
+			frequency_update();
+		}
 		break;
 
 	case KEY_F (4):
 	case PSEUDO_KEYF4:
 	case KEY_HOME:
-		if (cw_set_frequency(cw_get_frequency() + CW_FREQUENCY_STEP))
-			goto frequency_update;
+		if (cw_set_frequency(cw_get_frequency() + CW_FREQUENCY_STEP)) {
+			frequency_update();
+		}
 		break;
-
-	frequency_update:
-		sprintf(buffer, _("%4d Hz"), cw_get_frequency());
-		mvwaddstr(tone_window, 1, 3, buffer);
-		wrefresh(tone_window);
-		break;
-
 
 	case KEY_F (5):
 	case PSEUDO_KEYF5:
-		if (cw_set_volume(cw_get_volume() - CW_VOLUME_STEP))
-			goto volume_update;
+		if (cw_set_volume(cw_get_volume() - CW_VOLUME_STEP)) {
+			volume_update();
+		}
 		break;
 
 	case KEY_F (6):
 	case PSEUDO_KEYF6:
-		if (cw_set_volume(cw_get_volume() + CW_VOLUME_STEP))
-			goto volume_update;
+		if (cw_set_volume(cw_get_volume() + CW_VOLUME_STEP)) {
+			volume_update();
+		}
 		break;
 
-	volume_update:
-		sprintf(buffer, _("%3d %%"), cw_get_volume());
-		mvwaddstr(volume_window, 1, 4, buffer);
-		wrefresh(volume_window);
-		break;
 
 
 	case KEY_F (7):
 	case PSEUDO_KEYF7:
-		if (cw_set_gap(cw_get_gap() - CW_GAP_STEP))
-			goto gap_update;
+		if (cw_set_gap(cw_get_gap() - CW_GAP_STEP)) {
+			gap_update();
+		}
 		break;
 
 	case KEY_F (8):
 	case PSEUDO_KEYF8:
-		if (cw_set_gap(cw_get_gap() + CW_GAP_STEP))
-			goto gap_update;
+		if (cw_set_gap(cw_get_gap() + CW_GAP_STEP)) {
+			gap_update();
+		}
 		break;
-
-	gap_update:
-		value = cw_get_gap();
-		sprintf (buffer, value == 1 ? _("%2d dot ") : _("%2d dots"), value);
-		mvwaddstr(gap_window, 1, 3, buffer);
-		wrefresh(gap_window);
-		break;
-
 
 	case KEY_NPAGE:
 	case PSEUDO_KEYNPAGE:
-		if (timer_set_total_practice_time(timer_get_total_practice_time() - CW_PRACTICE_TIME_STEP))
+		if (timer_set_total_practice_time(timer_get_total_practice_time() - CW_PRACTICE_TIME_STEP)) {
 			timer_window_update(-1, timer_get_total_practice_time());
+		}
 		break;
 
 	case KEY_PPAGE:
 	case PSEUDO_KEYPPAGE:
-		if (timer_set_total_practice_time (timer_get_total_practice_time() + CW_PRACTICE_TIME_STEP))
+		if (timer_set_total_practice_time(timer_get_total_practice_time() + CW_PRACTICE_TIME_STEP)) {
 			timer_window_update(-1, timer_get_total_practice_time());
+		}
 		break;
 
 	case KEY_F (11):
@@ -1422,6 +1403,45 @@ static int interface_interpret(int c)
 }
 
 
+
+void speed_update(void)
+{
+	char buffer[CWCP_PARAM_WIDTH];
+	snprintf(buffer, CWCP_PARAM_WIDTH, _("%2d WPM"), cw_get_send_speed());
+	mvwaddstr(speed_window, 1, 4, buffer);
+	wrefresh(speed_window);
+	return;
+}
+
+
+void frequency_update(void)
+{
+	char buffer[CWCP_PARAM_WIDTH];
+	snprintf(buffer, CWCP_PARAM_WIDTH, _("%4d Hz"), cw_get_frequency());
+	mvwaddstr(tone_window, 1, 3, buffer);
+	wrefresh(tone_window);
+	return;
+}
+
+
+void volume_update(void)
+{
+	char buffer[CWCP_PARAM_WIDTH];
+	snprintf(buffer, CWCP_PARAM_WIDTH, _("%3d %%"), cw_get_volume());
+	mvwaddstr(volume_window, 1, 4, buffer);
+	wrefresh(volume_window);
+	return;
+}
+
+void gap_update(void)
+{
+	char buffer[CWCP_PARAM_WIDTH];
+	int value = cw_get_gap();
+	snprintf(buffer, CWCP_PARAM_WIDTH, value == 1 ? _("%2d dot ") : _("%2d dots"), value);
+	mvwaddstr(gap_window, 1, 3, buffer);
+	wrefresh(gap_window);
+	return;
+}
 
 
 
