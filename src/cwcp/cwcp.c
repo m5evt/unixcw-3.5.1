@@ -1114,80 +1114,80 @@ void interface_init_panel(int lines, int columns, int begin_y, int begin_x,
  *
  * Initialize the user interface, boxes and windows.
  */
-static void
-interface_initialize (void)
+static void interface_initialize(void)
 {
-  static bool is_initialized = false;
+	static bool is_initialized = false;
 
-  int max_y, max_x;
+	int max_y, max_x;
 
-  /* Create the over-arching screen window. */
-  screen = interface_init_screen ();
-  getmaxyx (screen, max_y, max_x);
+	/* Create the over-arching screen window. */
+	screen = interface_init_screen();
+	getmaxyx(screen, max_y, max_x);
 
-  /* Create and box in the mode window. */
-  mode_display = ui_init_area(max_y - 3, 20, 0, 0, 0,
-			      _("Mode(F10v,F11^)"), NULL);
-  for (int i = 0; i < mode_get_count (); i++)
-    {
-      if (i == mode_get_current ())
-        wattron (mode_display, A_REVERSE);
-      else
-        wattroff (mode_display, A_REVERSE);
-      mvwaddstr (mode_display, i, 0, mode_get_description (i));
-    }
-  wrefresh (mode_display);
+	/* Create and box in the mode window. */
+	mode_display = ui_init_area(max_y - 3, 20, 0, 0, 0,
+				    _("Mode(F10v,F11^)"), NULL);
+	for (int i = 0; i < mode_get_count(); i++) {
+		if (i == mode_get_current()) {
+			wattron(mode_display, A_REVERSE);
+		} else {
+			wattroff(mode_display, A_REVERSE);
+		}
+		mvwaddstr(mode_display, i, 0, mode_get_description(i));
+	}
+	wrefresh(mode_display);
 
-  /* Create the text display window; do the introduction only once. */
-  interface_init_panel (max_y - 3, max_x - 20, 0, 20, _("Start(F9)"),
-                        0, NULL, &text_box, &text_display);
-  wmove (text_display, 0, 0);
-  if (!is_initialized)
-    {
-      waddstr (text_display, _(INTRODUCTION));
-      waddstr (text_display, _(INTRODUCTION_CONTINUED));
-      is_initialized = true;
-    }
-  wrefresh (text_display);
-  idlok (text_display, true);
-  immedok (text_display, true);
-  scrollok (text_display, true);
+	/* Create the text display window; do the introduction only once. */
+	interface_init_panel(max_y - 3, max_x - 20, 0, 20, _("Start(F9)"),
+			     0, NULL, &text_box, &text_display);
+	wmove(text_display, 0, 0);
+	if (!is_initialized) {
+		waddstr(text_display, _(INTRODUCTION));
+		waddstr(text_display, _(INTRODUCTION_CONTINUED));
+		is_initialized = true;
+	}
+	wrefresh(text_display);
+	idlok(text_display, true);
+	immedok(text_display, true);
+	scrollok(text_display, true);
 
-  char buffer[16];
-  int lines = 3;
-  int columns = 16;
-  int indent = 4;
-  /* Create the control feedback boxes. */
-  sprintf(buffer, _("%2d WPM"), cw_get_send_speed());
-  speed_display = ui_init_area(lines, columns, max_y - lines, columns * 0, indent,
-			       _("Speed(F1-,F2+)"), buffer);
+	char buffer[16];
+	int lines = 3;
+	int columns = 16;
+	int indent = 4;
+	/* Create the control feedback boxes. */
+	sprintf(buffer, _("%2d WPM"), cw_get_send_speed());
+	speed_display = ui_init_area(lines, columns, max_y - lines, columns * 0, indent,
+				     _("Speed(F1-,F2+)"), buffer);
 
-  sprintf(buffer, _("%4d Hz"), cw_get_frequency());
-  tone_display = ui_init_area(lines, columns, max_y - lines, columns * 1, indent,
-			       _("Tone(F3-,F4+)"), buffer);
+	sprintf(buffer, _("%4d Hz"), cw_get_frequency());
+	tone_display = ui_init_area(lines, columns, max_y - lines, columns * 1, indent,
+				    _("Tone(F3-,F4+)"), buffer);
 
-  sprintf(buffer, _("%3d %%"), cw_get_volume ());
-  volume_display = ui_init_area(lines, columns, max_y - lines, columns * 2, indent,
-				_("Vol(F5-,F6+)"), buffer);
+	sprintf(buffer, _("%3d %%"), cw_get_volume ());
+	volume_display = ui_init_area(lines, columns, max_y - lines, columns * 2, indent,
+				      _("Vol(F5-,F6+)"), buffer);
 
-  int value = cw_get_gap();
-  sprintf(buffer, value == 1 ? _("%2d dot ") : _("%2d dots"), value);
-  gap_display = ui_init_area(lines, columns, max_y - lines, columns * 3, indent,
-			     _("Gap(F7-,F8+)"), buffer);
+	int value = cw_get_gap();
+	sprintf(buffer, value == 1 ? _("%2d dot ") : _("%2d dots"), value);
+	gap_display = ui_init_area(lines, columns, max_y - lines, columns * 3, indent,
+				   _("Gap(F7-,F8+)"), buffer);
 
-  timer_display = ui_init_area(lines, columns, max_y - lines, columns * 4, indent,
-			       _("Time(Dn-,Up+)"), NULL);
-  timer_display_update(0, timer_get_total_practice_time());
+	timer_display = ui_init_area(lines, columns, max_y - lines, columns * 4, indent,
+				     _("Time(Dn-,Up+)"), NULL);
+	timer_display_update(0, timer_get_total_practice_time());
 
-  /* Set up curses input mode. */
-  keypad (screen, true);
-  noecho ();
-  cbreak ();
-  curs_set (0);
-  raw ();
-  nodelay (screen, false);
+	/* Set up curses input mode. */
+	keypad(screen, true);
+	noecho();
+	cbreak();
+	curs_set(0);
+	raw();
+	nodelay(screen, false);
 
-  wrefresh (curscr);
+	wrefresh(curscr);
+
+	return;
 }
 
 
@@ -1196,270 +1196,275 @@ interface_initialize (void)
  *
  * Dismantle the user interface, boxes and windows.
  */
-static void
-interface_destroy (void)
+static void interface_destroy(void)
 {
-  /* Clear the screen for neatness. */
-  werase (screen);
-  wrefresh (screen);
+	/* Clear the screen for neatness. */
+	werase(screen);
+	wrefresh(screen);
 
-  /* End curses processing. */
-  endwin ();
+	/* End curses processing. */
+	endwin();
 
-  /* Reset user interface windows to initial values. */
-  screen = NULL;
+	/* Reset user interface windows to initial values. */
+	screen = NULL;
 
 
-  if (mode_display) {
-	  delwin(mode_display);
-	  mode_display = NULL;
-  }
-  if (speed_display) {
-	  delwin(speed_display);
-	  speed_display = NULL;
-  }
-  if (tone_display) {
-	  delwin(tone_display);
-	  tone_display = NULL;
-  }
-  if (volume_display) {
-	  delwin(volume_display);
-	  volume_display = NULL;
-  }
-  if (gap_display) {
-	  delwin(gap_display);
-	  gap_display = NULL;
-  }
-  if (timer_display) {
-	  delwin(timer_display);
-	  timer_display = NULL;
-  }
-  if (text_box) {
-	  delwin(text_box);
-	  text_box = NULL;
-  }
-  if (text_display) {
-	  delwin(text_display);
-	  text_display = NULL;
-  }
+	if (mode_display) {
+		delwin(mode_display);
+		mode_display = NULL;
+	}
+	if (speed_display) {
+		delwin(speed_display);
+		speed_display = NULL;
+	}
+	if (tone_display) {
+		delwin(tone_display);
+		tone_display = NULL;
+	}
+	if (volume_display) {
+		delwin(volume_display);
+		volume_display = NULL;
+	}
+	if (gap_display) {
+		delwin(gap_display);
+		gap_display = NULL;
+	}
+	if (timer_display) {
+		delwin(timer_display);
+		timer_display = NULL;
+	}
+	if (text_box) {
+		delwin(text_box);
+		text_box = NULL;
+	}
+	if (text_display) {
+		delwin(text_display);
+		text_display = NULL;
+	}
+
+	return;
 }
 
 
-/*
- * interface_interpret()
- *
- * Assess a user command, and action it if valid.  If the command turned out
- * to be a valid user interface command, return true, otherwise return false.
- */
-static int
-interface_interpret (int c)
+
+
+
+/**
+   \brief Assess a user command, and action it if valid
+
+   If the command turned out to be a valid user interface command,
+   return true, otherwise return false.
+*/
+static int interface_interpret(int c)
 {
-  char buffer[16];
-  int value;
+	char buffer[16];
+	int value;
 
-  /* Interpret the command passed in */
-  switch (c)
-    {
-    default:
-      return false;
+	/* Interpret the command passed in */
+	switch (c) {
+	default:
+		return false;
 
-    case ']':
-      display_background = (display_background + 1) % COLORS_COUNT;
-      goto color_update;
+	case ']':
+		display_background = (display_background + 1) % COLORS_COUNT;
+		goto color_update;
 
-    case '[':
-      display_foreground = (display_foreground + 1) % COLORS_COUNT;
-      goto color_update;
+	case '[':
+		display_foreground = (display_foreground + 1) % COLORS_COUNT;
+		goto color_update;
 
-    case '{':
-      box_background = (box_background + 1) % COLORS_COUNT;
-      goto color_update;
+	case '{':
+		box_background = (box_background + 1) % COLORS_COUNT;
+		goto color_update;
 
-    case '}':
-      box_foreground = (box_foreground + 1) % COLORS_COUNT;
-      goto color_update;
+	case '}':
+		box_foreground = (box_foreground + 1) % COLORS_COUNT;
+		goto color_update;
 
-    color_update:
-      if (do_colors && has_colors ())
-        {
-          init_pair (BOX_COLORS,
-                     color_array[box_foreground],
-                     color_array[box_background]);
-          init_pair (DISPLAY_COLORS,
-                     color_array[display_foreground],
-                     color_array[display_background]);
-          wrefresh (curscr);
-        }
-      break;
+	color_update:
+		if (do_colors && has_colors()) {
+			init_pair(BOX_COLORS,
+				  color_array[box_foreground],
+				  color_array[box_background]);
+			init_pair(DISPLAY_COLORS,
+				  color_array[display_foreground],
+				  color_array[display_background]);
+			wrefresh(curscr);
+		}
+		break;
 
 
-    case 'L' - CTRL_OFFSET:
-      wrefresh (curscr);
-      break;
+	case 'L' - CTRL_OFFSET:
+		wrefresh(curscr);
+		break;
 
 
-    case KEY_F (1):
-    case PSEUDO_KEYF1:
-    case KEY_LEFT:
-      if (cw_set_send_speed (cw_get_send_speed () - CW_SPEED_STEP))
-        goto speed_update;
-      break;
+	case KEY_F (1):
+	case PSEUDO_KEYF1:
+	case KEY_LEFT:
+		if (cw_set_send_speed(cw_get_send_speed() - CW_SPEED_STEP))
+			goto speed_update;
+		break;
 
-    case KEY_F (2):
-    case PSEUDO_KEYF2:
-    case KEY_RIGHT:
-      if (cw_set_send_speed (cw_get_send_speed () + CW_SPEED_STEP))
-        goto speed_update;
-      break;
+	case KEY_F (2):
+	case PSEUDO_KEYF2:
+	case KEY_RIGHT:
+		if (cw_set_send_speed(cw_get_send_speed() + CW_SPEED_STEP))
+			goto speed_update;
+		break;
 
-    speed_update:
-      sprintf (buffer, _("%2d WPM"), cw_get_send_speed ());
-      mvwaddstr (speed_display, 1, 4, buffer);
-      wrefresh (speed_display);
-      break;
-
-
-    case KEY_F (3):
-    case PSEUDO_KEYF3:
-    case KEY_END:
-      if (cw_set_frequency (cw_get_frequency () - CW_FREQUENCY_STEP))
-        goto frequency_update;
-      break;
-
-    case KEY_F (4):
-    case PSEUDO_KEYF4:
-    case KEY_HOME:
-      if (cw_set_frequency (cw_get_frequency () + CW_FREQUENCY_STEP))
-        goto frequency_update;
-      break;
-
-    frequency_update:
-      sprintf (buffer, _("%4d Hz"), cw_get_frequency ());
-      mvwaddstr (tone_display, 1, 3, buffer);
-      wrefresh (tone_display);
-      break;
+	speed_update:
+		sprintf(buffer, _("%2d WPM"), cw_get_send_speed());
+		mvwaddstr(speed_display, 1, 4, buffer);
+		wrefresh(speed_display);
+		break;
 
 
-    case KEY_F (5):
-    case PSEUDO_KEYF5:
-      if (cw_set_volume (cw_get_volume () - CW_VOLUME_STEP))
-        goto volume_update;
-      break;
+	case KEY_F (3):
+	case PSEUDO_KEYF3:
+	case KEY_END:
+		if (cw_set_frequency(cw_get_frequency() - CW_FREQUENCY_STEP))
+			goto frequency_update;
+		break;
 
-    case KEY_F (6):
-    case PSEUDO_KEYF6:
-      if (cw_set_volume (cw_get_volume () + CW_VOLUME_STEP))
-        goto volume_update;
-      break;
+	case KEY_F (4):
+	case PSEUDO_KEYF4:
+	case KEY_HOME:
+		if (cw_set_frequency(cw_get_frequency() + CW_FREQUENCY_STEP))
+			goto frequency_update;
+		break;
 
-    volume_update:
-      sprintf (buffer, _("%3d %%"), cw_get_volume ());
-      mvwaddstr (volume_display, 1, 4, buffer);
-      wrefresh (volume_display);
-      break;
-
-
-    case KEY_F (7):
-    case PSEUDO_KEYF7:
-      if (cw_set_gap (cw_get_gap () - CW_GAP_STEP))
-        goto gap_update;
-      break;
-
-    case KEY_F (8):
-    case PSEUDO_KEYF8:
-      if (cw_set_gap (cw_get_gap () + CW_GAP_STEP))
-        goto gap_update;
-      break;
-
-    gap_update:
-      value = cw_get_gap ();
-      sprintf (buffer, value == 1 ? _("%2d dot ") : _("%2d dots"), value);
-      mvwaddstr (gap_display, 1, 3, buffer);
-      wrefresh (gap_display);
-      break;
+	frequency_update:
+		sprintf(buffer, _("%4d Hz"), cw_get_frequency());
+		mvwaddstr(tone_display, 1, 3, buffer);
+		wrefresh(tone_display);
+		break;
 
 
-    case KEY_NPAGE:
-    case PSEUDO_KEYNPAGE:
-      if (timer_set_total_practice_time (timer_get_total_practice_time () - CW_PRACTICE_TIME_STEP))
-	timer_display_update(-1, timer_get_total_practice_time());
-      break;
+	case KEY_F (5):
+	case PSEUDO_KEYF5:
+		if (cw_set_volume(cw_get_volume() - CW_VOLUME_STEP))
+			goto volume_update;
+		break;
 
-    case KEY_PPAGE:
-    case PSEUDO_KEYPPAGE:
-      if (timer_set_total_practice_time (timer_get_total_practice_time () + CW_PRACTICE_TIME_STEP))
-	timer_display_update(-1, timer_get_total_practice_time());
-      break;
+	case KEY_F (6):
+	case PSEUDO_KEYF6:
+		if (cw_set_volume(cw_get_volume() + CW_VOLUME_STEP))
+			goto volume_update;
+		break;
 
-    case KEY_F (11):
-    case PSEUDO_KEYF11:
-    case KEY_UP:
-	    {
-		    state_change_to_idle();
-		    int old_mode = mode_get_current();
-		    if (mode_change_to_previous()) {
-			    ui_update_mode_selection(old_mode, mode_get_current());
-		    }
-	    }
-	    break;
+	volume_update:
+		sprintf(buffer, _("%3d %%"), cw_get_volume());
+		mvwaddstr(volume_display, 1, 4, buffer);
+		wrefresh(volume_display);
+		break;
 
-    case KEY_F (10):
-    case PSEUDO_KEYF10:
-    case KEY_DOWN:
-	    {
-		    state_change_to_idle();
-		    int old_mode = mode_get_current();
-		    if (mode_change_to_next()) {
-			    ui_update_mode_selection(old_mode, mode_get_current());
-		    }
-	    }
-	    break;
 
-    case KEY_F (9):
-    case PSEUDO_KEYF9:
-    case '\n':
-      if (mode_current_is_type (M_EXIT))
-        is_running = false;
-      else
-        {
-          if (!mode_is_sending_active ())
-            state_change_to_active ();
-          else
-            if (c != '\n')
-              state_change_to_idle ();
-        }
-      break;
+	case KEY_F (7):
+	case PSEUDO_KEYF7:
+		if (cw_set_gap(cw_get_gap() - CW_GAP_STEP))
+			goto gap_update;
+		break;
 
-    case KEY_CLEAR:
-    case 'V' - CTRL_OFFSET:
-	    if (!mode_is_sending_active()) {
-		    ui_clear_main_window();
-	    }
-      break;
+	case KEY_F (8):
+	case PSEUDO_KEYF8:
+		if (cw_set_gap(cw_get_gap() + CW_GAP_STEP))
+			goto gap_update;
+		break;
 
-    case '[' - CTRL_OFFSET:
-    case 'Z' - CTRL_OFFSET:
-      state_change_to_idle ();
-      break;
+	gap_update:
+		value = cw_get_gap();
+		sprintf (buffer, value == 1 ? _("%2d dot ") : _("%2d dots"), value);
+		mvwaddstr(gap_display, 1, 3, buffer);
+		wrefresh(gap_display);
+		break;
 
-    case KEY_F (12):
-    case PSEUDO_KEYF12:
-    case 'C' - CTRL_OFFSET:
-      queue_discard_contents ();
-      cw_flush_tone_queue ();
-      is_running = false;
-      break;
 
-    case KEY_RESIZE:
-      state_change_to_idle ();
-      interface_destroy ();
-      interface_initialize ();
-      break;
-    }
+	case KEY_NPAGE:
+	case PSEUDO_KEYNPAGE:
+		if (timer_set_total_practice_time(timer_get_total_practice_time() - CW_PRACTICE_TIME_STEP))
+			timer_display_update(-1, timer_get_total_practice_time());
+		break;
 
-  /* The command was a recognized interface key. */
-  return true;
+	case KEY_PPAGE:
+	case PSEUDO_KEYPPAGE:
+		if (timer_set_total_practice_time (timer_get_total_practice_time() + CW_PRACTICE_TIME_STEP))
+			timer_display_update(-1, timer_get_total_practice_time());
+		break;
+
+	case KEY_F (11):
+	case PSEUDO_KEYF11:
+	case KEY_UP:
+		{
+			state_change_to_idle();
+			int old_mode = mode_get_current();
+			if (mode_change_to_previous()) {
+				ui_update_mode_selection(old_mode, mode_get_current());
+			}
+		}
+		break;
+
+	case KEY_F (10):
+	case PSEUDO_KEYF10:
+	case KEY_DOWN:
+		{
+			state_change_to_idle();
+			int old_mode = mode_get_current();
+			if (mode_change_to_next()) {
+				ui_update_mode_selection(old_mode, mode_get_current());
+			}
+		}
+		break;
+
+	case KEY_F (9):
+	case PSEUDO_KEYF9:
+	case '\n':
+		if (mode_current_is_type(M_EXIT)) {
+			is_running = false;
+		} else {
+			if (!mode_is_sending_active()) {
+				state_change_to_active();
+			} else {
+				if (c != '\n') {
+					state_change_to_idle();
+				}
+			}
+		}
+		break;
+
+	case KEY_CLEAR:
+	case 'V' - CTRL_OFFSET:
+		if (!mode_is_sending_active()) {
+			ui_clear_main_window();
+		}
+		break;
+
+	case '[' - CTRL_OFFSET:
+	case 'Z' - CTRL_OFFSET:
+		state_change_to_idle();
+		break;
+
+	case KEY_F (12):
+	case PSEUDO_KEYF12:
+	case 'C' - CTRL_OFFSET:
+		queue_discard_contents();
+		cw_flush_tone_queue();
+		is_running = false;
+		break;
+
+	case KEY_RESIZE:
+		state_change_to_idle();
+		interface_destroy();
+		interface_initialize();
+		break;
+	}
+
+	/* The command was a recognized interface key. */
+	return true;
 }
+
+
+
 
 
 /*
