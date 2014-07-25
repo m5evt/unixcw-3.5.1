@@ -130,10 +130,9 @@ struct mode_s {
 
 typedef struct mode_s *moderef_t;
 
-/*
- * Modes table, current program mode, and count of modes in the table.
- * The program is always in one of these modes, indicated by current_mode.
- */
+/* Modes table, current program mode, and count of modes in the table.
+   The program is always in one of these modes, indicated by
+   current_mode. */
 static moderef_t modes = NULL,
                  current_mode = NULL;
 static int modes_count = 0;
@@ -157,7 +156,10 @@ static void ui_display_state(const char *state);
 static void ui_clear_main_window(void);
 static void ui_poll_user_input(int fd, int usecs);
 static void ui_update_mode_selection(int old_mode, int current_mode);
+static void ui_handle_event(int c);
 
+static void    ui_destroy(void);
+static void    ui_initialize(void);
 static WINDOW *ui_init_window(int lines, int columns, int begin_y, int begin_x, const char *header);
 static void    ui_init_text_window(int lines, int columns, int begin_y, int begin_x, const char *header, WINDOW **window, WINDOW **subwindow);
 static WINDOW *ui_init_screen(void);
@@ -270,6 +272,8 @@ void queue_display_delete_character(void)
 		wmove(text_subwindow, y, x);
 		wrefresh(text_subwindow);
 	}
+
+	return;
 }
 
 
@@ -360,7 +364,7 @@ void queue_dequeue_character(void)
 			queue_display_highlight_character(true);
 
 			if (!cw_send_character(c)) {
-				perror ("cw_send_character");
+				perror("cw_send_character");
 				abort();
 			}
 		} else {
@@ -513,7 +517,7 @@ void queue_enqueue_random_dictionary_text(moderef_t mode, bool beginning)
 */
 void queue_transfer_character_to_libcw(void)
 {
-	if (cw_get_tone_queue_length () > 1) {
+	if (cw_get_tone_queue_length() > 1) {
 		return;
 	}
 
@@ -816,11 +820,10 @@ bool mode_change_to_previous(void)
 
 
 
-/*
- *
- * Change the state of the program from idle to actively sending.
- */
-void state_change_to_active (void)
+/**
+   \brief Change the state of the program from idle to actively sending.
+*/
+void state_change_to_active(void)
 {
 	static moderef_t last_mode = NULL;  /* Detect changes of mode */
 
@@ -1073,12 +1076,10 @@ void ui_init_text_window(int lines, int columns, int begin_y, int begin_x,
 
 
 
-/*
- * interface_initialize()
- *
- * Initialize the user interface, boxes and windows.
- */
-static void interface_initialize(void)
+/**
+   \brief Initialize the user interface, boxes and windows
+*/
+void ui_initialize(void)
 {
 	static bool is_initialized = false;
 
@@ -1149,12 +1150,13 @@ static void interface_initialize(void)
 }
 
 
-/*
- * interface_destroy()
- *
- * Dismantle the user interface, boxes and windows.
- */
-static void interface_destroy(void)
+
+
+
+/**
+   \brief Dismantle the user interface, boxes and windows
+*/
+void ui_destroy(void)
 {
 	/* Clear the screen for neatness. */
 	werase(screen);
@@ -1393,14 +1395,16 @@ static int interface_interpret(int c)
 
 	case KEY_RESIZE:
 		state_change_to_idle();
-		interface_destroy();
-		interface_initialize();
+		ui_destroy();
+		ui_initialize();
 		break;
 	}
 
 	/* The command was a recognized interface key. */
 	return true;
 }
+
+
 
 
 
@@ -1414,6 +1418,9 @@ void speed_update(void)
 }
 
 
+
+
+
 void frequency_update(void)
 {
 	char buffer[CWCP_PARAM_WIDTH];
@@ -1424,6 +1431,9 @@ void frequency_update(void)
 }
 
 
+
+
+
 void volume_update(void)
 {
 	char buffer[CWCP_PARAM_WIDTH];
@@ -1432,6 +1442,10 @@ void volume_update(void)
 	wrefresh(volume_window);
 	return;
 }
+
+
+
+
 
 void gap_update(void)
 {
@@ -1445,39 +1459,38 @@ void gap_update(void)
 
 
 
-/*
- * interface_handle_event()
- *
- * Handle an interface 'event', in this case simply a character from the
- * keyboard via curses.
- */
-static void
-interface_handle_event (int c)
+
+
+/**
+   \brief Handle UI event
+
+   Handle an interface 'event', in this case simply a character from
+   the keyboard via curses.
+*/
+void ui_handle_event(int c)
 {
-  /* See if this character is a valid user interface command. */
-  if (interface_interpret (c))
-    return;
+	/* See if this character is a valid user interface command. */
+	if (interface_interpret(c)) {
+		return;
+	}
 
-  /*
-   * If the character is standard 8-bit ASCII or backspace, and the current
-   * sending mode is from the keyboard, then make an effort to either queue
-   * the character for sending, or delete the most recently queued.
-   */
-  if (mode_is_sending_active () && mode_current_is_type (M_KEYBOARD))
-    {
-      if (c == KEY_BACKSPACE || c == KEY_DC)
-        {
-          queue_delete_character ();
-          return;
-        }
-      else if (c <= UCHAR_MAX)
-        {
-          queue_enqueue_character ((char) c);
-          return;
-        }
-    }
+	/* If the character is standard 8-bit ASCII or backspace, and
+	   the current sending mode is from the keyboard, then make an
+	   effort to either queue the character for sending, or delete
+	   the most recently queued. */
+	if (mode_is_sending_active() && mode_current_is_type(M_KEYBOARD)) {
+		if (c == KEY_BACKSPACE || c == KEY_DC) {
+			queue_delete_character();
+			return;
+		} else if (c <= UCHAR_MAX)  {
+			queue_enqueue_character((char) c);
+			return;
+		}
+	}
 
-  /* The 'event' is nothing at all of interest; drop it. */
+	/* The 'event' is nothing at all of interest; drop it. */
+
+	return;
 }
 
 
@@ -1608,7 +1621,7 @@ void ui_update_mode_selection(int old_mode, int current_mode)
 void signal_handler(int signal_number)
 {
 	/* Attempt to wrestle the screen back from curses. */
-	interface_destroy();
+	ui_destroy();
 
 	/* Show the signal caught, and exit. */
 	fprintf(stderr, _("\nCaught signal %d, exiting...\n"), signal_number);
@@ -1619,12 +1632,10 @@ void signal_handler(int signal_number)
 
 
 
-/*
- * main()
- *
- * Parse the command line, initialize a few things, then enter the main
- * program event loop, from which there is no return.
- */
+/**
+   Parse the command line, initialize a few things, then enter the
+   main program event loop, from which there is no return.
+*/
 int main(int argc, char **argv)
 {
 	atexit(cwcp_atexit);
@@ -1698,23 +1709,20 @@ int main(int argc, char **argv)
 		}
 	}
 
-	/*
-	 * Build our table of modes from dictionaries, augmented with keyboard
-	 * and any other local modes.
-	 */
+	/* Build our table of modes from dictionaries, augmented with
+	   keyboard and any other local modes. */
 	mode_initialize();
 
-	/*
-	 * Initialize the curses user interface, then catch and action every
-	 * keypress we see.  Before calling getch, wait until data is available on
-	 * stdin, polling the libcw sender.  At 60WPM, a dot is 20ms, so polling
-	 * for the maximum library speed needs a 10ms (10,000usec) timeout.
-	 */
-	interface_initialize ();
+	/* Initialize the curses user interface, then catch and action
+	   every keypress we see.  Before calling getch, wait until
+	   data is available on stdin, polling the libcw sender.  At
+	   60WPM, a dot is 20ms, so polling for the maximum library
+	   speed needs a 10ms (10,000usec) timeout. */
+	ui_initialize();
 	cw_generator_start();
 	while (is_running) {
 		ui_poll_user_input(fileno(stdin), 10000);
-		interface_handle_event(getch());
+		ui_handle_event(getch());
 	}
 
 	cw_wait_for_tone_queue();
@@ -1728,7 +1736,7 @@ int main(int argc, char **argv)
 
 void cwcp_atexit(void)
 {
-	interface_destroy();
+	ui_destroy();
 
 	if (generator) {
 		cw_complete_reset();
