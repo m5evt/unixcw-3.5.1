@@ -135,6 +135,7 @@ static void ui_clear_main_window(void);
 static void ui_poll_user_input(int fd, int usecs);
 static void ui_update_mode_selection(int old_mode, int current_mode);
 
+static WINDOW *ui_init_area(int lines, int columns, int begin_y, int begin_x, int indent, const char *header, char *contents);
 static WINDOW *interface_init_box(int lines, int columns, int begin_y, int begin_x, const char *legend);
 static WINDOW *interface_init_display(int lines, int columns, int begin_y, int begin_x, int indent, const char *text);
 static void    interface_init_panel(int lines, int columns, int begin_y, int begin_x, const char *box_legend, int indent, const char *display_text, WINDOW **box, WINDOW **display);
@@ -617,7 +618,7 @@ void timer_display_update(int elapsed, int total)
 
 	char buffer[16];
 	sprintf (buffer, total == 1 ? _("%2d/%2d min ") : _("%2d/%2d mins"), el, total);
-	mvwaddstr(timer_display, 0, 2, buffer);
+	mvwaddstr(timer_display, 1, 2, buffer);
 	wrefresh(timer_display);
 
 	return;
@@ -1049,6 +1050,38 @@ WINDOW *interface_init_display(int lines, int columns, int begin_y, int begin_x,
 
 
 
+WINDOW *ui_init_area(int lines, int columns, int begin_y, int begin_x, int indent, const char *header, char *contents)
+{
+	/* Create the window, and set up colors if possible and requested. */
+	WINDOW *window = newwin(lines, columns, begin_y, begin_x);
+	if (!window) {
+		fprintf(stderr, "newwin()\n");
+		exit(EXIT_FAILURE);
+	}
+
+	if (do_colors && has_colors()) {
+		wbkgdset(window, COLOR_PAIR (DISPLAY_COLORS) | ' ');
+		wattron(window, COLOR_PAIR (DISPLAY_COLORS));
+		werase(window);
+	}
+
+	/* Test on top of the area. */
+	box(window, 0, 0);
+	mvwaddstr(window, 0, 1, header);
+
+	/* Add any initial text to the box. */
+	if (contents) {
+		mvwaddstr(window, 1, indent, contents);
+	}
+
+	wrefresh(window);
+	return window;
+}
+
+
+
+
+
 /**
    \brief Create new panel
 */
@@ -1093,8 +1126,8 @@ interface_initialize (void)
   getmaxyx (screen, max_y, max_x);
 
   /* Create and box in the mode window. */
-  interface_init_panel (max_y - 3, 20, 0, 0, _("Mode(F10v,F11^)"),
-                        0, NULL, NULL, &mode_display);
+  mode_display = ui_init_area(max_y - 3, 20, 0, 0, 0,
+			      _("Mode(F10v,F11^)"), NULL);
   for (int i = 0; i < mode_get_count (); i++)
     {
       if (i == mode_get_current ())
@@ -1121,26 +1154,29 @@ interface_initialize (void)
   scrollok (text_display, true);
 
   char buffer[16];
+  int lines = 3;
+  int columns = 16;
+  int indent = 4;
   /* Create the control feedback boxes. */
-  sprintf (buffer, _("%2d WPM"), cw_get_send_speed ());
-  interface_init_panel (3, 16, max_y - 3, 0, _("Speed(F1-,F2+)"),
-                        4, buffer, NULL, &speed_display);
+  sprintf(buffer, _("%2d WPM"), cw_get_send_speed());
+  speed_display = ui_init_area(lines, columns, max_y - lines, columns * 0, indent,
+			       _("Speed(F1-,F2+)"), buffer);
 
-  sprintf (buffer, _("%4d Hz"), cw_get_frequency ());
-  interface_init_panel (3, 16, max_y - 3, 16, _("Tone(F3-,F4+)"),
-                        3, buffer, NULL, &tone_display);
+  sprintf(buffer, _("%4d Hz"), cw_get_frequency());
+  tone_display = ui_init_area(lines, columns, max_y - lines, columns * 1, indent,
+			       _("Tone(F3-,F4+)"), buffer);
 
-  sprintf (buffer, _("%3d %%"), cw_get_volume ());
-  interface_init_panel (3, 16, max_y - 3, 32, _("Vol(F5-,F6+)"),
-                        4, buffer, NULL, &volume_display);
+  sprintf(buffer, _("%3d %%"), cw_get_volume ());
+  volume_display = ui_init_area(lines, columns, max_y - lines, columns * 2, indent,
+				_("Vol(F5-,F6+)"), buffer);
 
-  int value = cw_get_gap ();
-  sprintf (buffer, value == 1 ? _("%2d dot ") : _("%2d dots"), value);
-  interface_init_panel (3, 16, max_y - 3, 48, _("Gap(F7-,F8+)"),
-                        3, buffer, NULL, &gap_display);
+  int value = cw_get_gap();
+  sprintf(buffer, value == 1 ? _("%2d dot ") : _("%2d dots"), value);
+  gap_display = ui_init_area(lines, columns, max_y - lines, columns * 3, indent,
+			     _("Gap(F7-,F8+)"), buffer);
 
-  interface_init_panel (3, 16, max_y - 3, 64, _("Time(Dn-,Up+)"),
-                        2, "", NULL, &timer_display);
+  timer_display = ui_init_area(lines, columns, max_y - lines, columns * 4, indent,
+			       _("Time(Dn-,Up+)"), NULL);
   timer_display_update(0, timer_get_total_practice_time());
 
   /* Set up curses input mode. */
@@ -1278,7 +1314,7 @@ interface_interpret (int c)
 
     speed_update:
       sprintf (buffer, _("%2d WPM"), cw_get_send_speed ());
-      mvwaddstr (speed_display, 0, 4, buffer);
+      mvwaddstr (speed_display, 1, 4, buffer);
       wrefresh (speed_display);
       break;
 
@@ -1299,7 +1335,7 @@ interface_interpret (int c)
 
     frequency_update:
       sprintf (buffer, _("%4d Hz"), cw_get_frequency ());
-      mvwaddstr (tone_display, 0, 3, buffer);
+      mvwaddstr (tone_display, 1, 3, buffer);
       wrefresh (tone_display);
       break;
 
@@ -1318,7 +1354,7 @@ interface_interpret (int c)
 
     volume_update:
       sprintf (buffer, _("%3d %%"), cw_get_volume ());
-      mvwaddstr (volume_display, 0, 4, buffer);
+      mvwaddstr (volume_display, 1, 4, buffer);
       wrefresh (volume_display);
       break;
 
@@ -1338,7 +1374,7 @@ interface_interpret (int c)
     gap_update:
       value = cw_get_gap ();
       sprintf (buffer, value == 1 ? _("%2d dot ") : _("%2d dots"), value);
-      mvwaddstr (gap_display, 0, 3, buffer);
+      mvwaddstr (gap_display, 1, 3, buffer);
       wrefresh (gap_display);
       break;
 
