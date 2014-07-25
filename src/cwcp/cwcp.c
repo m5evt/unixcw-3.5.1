@@ -64,8 +64,6 @@ static bool is_sending_active = false;
 
 
 
-/* Curses windows used globally. */
-static WINDOW *text_box, *text_display, *timer_display;
 static cw_config_t *config = NULL; /* program-specific configuration */
 static bool generator = false;     /* have we created a generator? */
 static const char *all_options = "s:|system,d:|device,"
@@ -76,11 +74,17 @@ static const char *all_options = "s:|system,d:|device,"
 	/* "c:|colours,c:|colors,m|mono," */
 	"h|help,V|version";
 
-/* Curses windows used by interface functions only. */
+
+static WINDOW *text_window = NULL,
+	*text_subwindow = NULL;
+
 static WINDOW *screen = NULL,
-              *mode_display = NULL, *speed_display = NULL,
-              *tone_display = NULL, *volume_display = NULL,
-              *gap_display = NULL;
+	*mode_window = NULL,
+	*speed_window = NULL,
+	*tone_window = NULL,
+	*volume_window = NULL,
+	*gap_window = NULL,
+	*timer_window = NULL;
 
 static void cwcp_atexit(void);
 
@@ -88,7 +92,7 @@ static int  timer_get_total_practice_time(void);
 static bool timer_set_total_practice_time(int practice_time);
 static void timer_start(void);
 static bool timer_is_expired(void);
-static void timer_display_update(int elapsed, int total);
+static void timer_window_update(int elapsed, int total);
 
 
 typedef enum { M_DICTIONARY, M_KEYBOARD, M_EXIT } mode_type_t;
@@ -135,10 +139,9 @@ static void ui_clear_main_window(void);
 static void ui_poll_user_input(int fd, int usecs);
 static void ui_update_mode_selection(int old_mode, int current_mode);
 
-static WINDOW *ui_init_area(int lines, int columns, int begin_y, int begin_x, int indent, const char *header, char *contents);
-static WINDOW *interface_init_box(int lines, int columns, int begin_y, int begin_x, const char *legend);
-static WINDOW *interface_init_display(int lines, int columns, int begin_y, int begin_x, int indent, const char *text);
-static void    interface_init_panel(int lines, int columns, int begin_y, int begin_x, const char *box_legend, int indent, const char *display_text, WINDOW **box, WINDOW **display);
+static WINDOW *ui_init_window(int lines, int columns, int begin_y, int begin_x, int indent, const char *header, char *contents);
+static void    ui_init_text_window(int lines, int columns, int begin_y, int begin_x, const char *header, WINDOW **window, WINDOW **subwindow);
+static WINDOW *ui_init_screen(void);
 
 static void signal_handler(int signal_number);
 
@@ -210,8 +213,8 @@ queue_display_add_character (void)
   /* Append the last queued character to the text display. */
   if (queue_get_length () > 0)
     {
-      waddch (text_display, toupper (queue_data[queue_tail]));
-      wrefresh (text_display);
+      waddch (text_subwindow, toupper (queue_data[queue_tail]));
+      wrefresh (text_subwindow);
     }
 }
 
@@ -222,8 +225,8 @@ queue_display_delete_character (void)
   __attribute__((unused)) int max_y;
 
   /* Get the text display dimensions and current coordinates. */
-  getmaxyx (text_display, max_y, max_x);
-  getyx (text_display, y, x);
+  getmaxyx (text_subwindow, max_y, max_x);
+  getyx (text_subwindow, y, x);
 
   /* Back the cursor up one position. */
   x--;
@@ -236,10 +239,10 @@ queue_display_delete_character (void)
   /* If these coordinates are on screen, write a space and back up. */
   if (y >= 0)
     {
-      wmove (text_display, y, x);
-      waddch (text_display, ' ');
-      wmove (text_display, y, x);
-      wrefresh (text_display);
+      wmove (text_subwindow, y, x);
+      waddch (text_subwindow, ' ');
+      wmove (text_subwindow, y, x);
+      wrefresh (text_subwindow);
     }
 }
 
@@ -250,8 +253,8 @@ queue_display_highlight_character (int is_highlight)
   __attribute__((unused)) int max_y;
 
   /* Get the text display dimensions and current coordinates. */
-  getmaxyx (text_display, max_y, max_x);
-  getyx (text_display, y, x);
+  getmaxyx (text_subwindow, max_y, max_x);
+  getyx (text_subwindow, y, x);
 
   /* Find the coordinates for the queue head character. */
   x -= queue_get_length () + 1;
@@ -269,13 +272,13 @@ queue_display_highlight_character (int is_highlight)
     {
       int saved_y, saved_x;
 
-      getyx (text_display, saved_y, saved_x);
-      wmove (text_display, y, x);
-      waddch (text_display,
-              is_highlight ? winch (text_display) | A_REVERSE
-                           : winch (text_display) & ~A_REVERSE);
-      wmove (text_display, saved_y, saved_x);
-      wrefresh (text_display);
+      getyx (text_subwindow, saved_y, saved_x);
+      wmove (text_subwindow, y, x);
+      waddch (text_subwindow,
+              is_highlight ? winch (text_subwindow) | A_REVERSE
+                           : winch (text_subwindow) & ~A_REVERSE);
+      wmove (text_subwindow, saved_y, saved_x);
+      wrefresh (text_subwindow);
     }
 }
 
@@ -587,7 +590,7 @@ bool timer_is_expired(void)
 {
 	/* Update the display of minutes practiced. */
 	int elapsed = (time(NULL) - timer_practice_start) / 60;
-	timer_display_update(elapsed, timer_total_practice_time);
+	timer_window_update(elapsed, timer_total_practice_time);
 
 	/* Check the time, requesting stop if over practice time. */
 	return elapsed >= timer_total_practice_time;
@@ -609,7 +612,7 @@ bool timer_is_expired(void)
    \param elapsed - time elapsed from beginning of practice
    \param total - total time of practice
 */
-void timer_display_update(int elapsed, int total)
+void timer_window_update(int elapsed, int total)
 {
 	static int el = 0;
 	if (elapsed >= 0) {
@@ -618,8 +621,8 @@ void timer_display_update(int elapsed, int total)
 
 	char buffer[16];
 	sprintf (buffer, total == 1 ? _("%2d/%2d min ") : _("%2d/%2d mins"), el, total);
-	mvwaddstr(timer_display, 1, 2, buffer);
-	wrefresh(timer_display);
+	mvwaddstr(timer_window, 1, 2, buffer);
+	wrefresh(timer_window);
 
 	return;
 }
@@ -827,8 +830,8 @@ void state_change_to_idle(void)
 	is_sending_active = false;
 
 	ui_display_state(_("Start(F9)"));
-	touchwin(text_display);
-	wnoutrefresh(text_display);
+	touchwin(text_subwindow);
+	wnoutrefresh(text_subwindow);
 	doupdate();
 
 	/* Remove everything in the outgoing character queue. */
@@ -931,44 +934,35 @@ static int display_foreground = DISPLAY_FOREGROUND,  /* White foreground */
 
 
 
-/*
- * interface_init_screen()
- * interface_init_box()
- * interface_init_display()
- * interface_init_panel()
- *
- * Helper functions for interface_init(), to build boxes and displays.
- */
-static WINDOW*
-interface_init_screen (void)
+
+
+/**
+   \brief Initialize main window
+*/
+WINDOW *ui_init_screen(void)
 {
-  WINDOW *window;
+	/* Create the main window for the complete screen. */
+	WINDOW *window = initscr();
+	wrefresh(window);
 
-  /* Create the main window for the complete screen. */
-  window = initscr ();
-  wrefresh (window);
+	/* If using colors, set up a base color for the screen. */
+	if (do_colors && has_colors())	{
+		start_color();
 
-  /* If using colors, set up a base color for the screen. */
-  if (do_colors && has_colors ())
-    {
-      int max_y, max_x;
-      WINDOW *base;
+		init_pair(BOX_COLORS,
+			  color_array[box_foreground],
+			  color_array[box_background]);
 
-      start_color ();
-      init_pair (BOX_COLORS,
-                 color_array[box_foreground],
-                 color_array[box_background]);
-      init_pair (DISPLAY_COLORS,
-                 color_array[display_foreground],
-                 color_array[display_background]);
-      getmaxyx (screen, max_y, max_x);
-      base = newwin (max_y + 1, max_x + 1, 0, 0);
-      wbkgdset (base, COLOR_PAIR (BOX_COLORS) | ' ');
-      werase (base);
-      wrefresh (base);
-    }
+		init_pair(DISPLAY_COLORS,
+			  color_array[display_foreground],
+			  color_array[display_background]);
 
-  return window;
+		wbkgdset(window, COLOR_PAIR (BOX_COLORS) | ' ');
+		werase(window);
+		wrefresh(window);
+	}
+
+	return window;
 }
 
 
@@ -978,79 +972,12 @@ interface_init_screen (void)
 /**
    \brief Create new window
 
-   Create new window with border (box) and legend (description).
+   Create new window with initial header and contents.
    The function allocates new ncurses WINDOW.
 
    \return new window
 */
-WINDOW *interface_init_box(int lines, int columns, int begin_y, int begin_x, const char *legend)
-{
-	/* Create the window, and set up colors if possible and requested. */
-	WINDOW *window = newwin(lines, columns, begin_y, begin_x);
-	if (!window) {
-		fprintf(stderr, "newwin()\n");
-		exit(EXIT_FAILURE);
-	}
-
-	if (do_colors && has_colors()) {
-		wbkgdset(window, COLOR_PAIR (BOX_COLORS) | ' ');
-		werase(window);
-		wattron(window, COLOR_PAIR (BOX_COLORS));
-	} else {
-		wattron(window, A_REVERSE);
-	}
-	box(window, 0, 0);
-
-	/* Add any initial legend to the box. */
-	if (legend) {
-		mvwaddstr(window, 0, 1, legend);
-	}
-
-	wrefresh(window);
-	return window;
-}
-
-
-
-
-
-/**
-   \brief Create new display
-
-   Create new display with initial text in it.
-   The function allocates new ncurses WINDOW.
-
-   \return new display
-*/
-WINDOW *interface_init_display(int lines, int columns, int begin_y, int begin_x, int indent, const char *text)
-{
-	/* Create the window, and set up colors if possible and requested. */
-	WINDOW *window = newwin(lines, columns, begin_y, begin_x);
-	if (!window) {
-		fprintf(stderr, "newwin()\n");
-		exit(EXIT_FAILURE);
-	}
-
-	if (do_colors && has_colors()) {
-		wbkgdset(window, COLOR_PAIR (DISPLAY_COLORS) | ' ');
-		wattron(window, COLOR_PAIR (DISPLAY_COLORS));
-		werase(window);
-	}
-
-	/* Add any initial text to the box. */
-	if (text) {
-		mvwaddstr(window, 0, indent, text);
-	}
-
-	wrefresh(window);
-	return window;
-}
-
-
-
-
-
-WINDOW *ui_init_area(int lines, int columns, int begin_y, int begin_x, int indent, const char *header, char *contents)
+WINDOW *ui_init_window(int lines, int columns, int begin_y, int begin_x, int indent, const char *header, char *contents)
 {
 	/* Create the window, and set up colors if possible and requested. */
 	WINDOW *window = newwin(lines, columns, begin_y, begin_x);
@@ -1083,24 +1010,31 @@ WINDOW *ui_init_area(int lines, int columns, int begin_y, int begin_x, int inden
 
 
 /**
-   \brief Create new panel
-*/
-void interface_init_panel(int lines, int columns, int begin_y, int begin_x,
-			  const char *box_legend,
-			  int indent, const char *display_text,
-			  WINDOW **box, WINDOW **display)
-{
+   \brief Create new main window for Morse code text
 
-	/* Create and return, if required, a box for the control. */
-	WINDOW *window = interface_init_box(lines, columns, begin_y, begin_x, box_legend);
-	if (box) {
-		*box = window;
+   Function allocates two new ncurses WINDOW variables.
+*/
+void ui_init_text_window(int lines, int columns, int begin_y, int begin_x,
+			  const char *header,
+			  WINDOW **window, WINDOW **subwindow)
+{
+	*window = ui_init_window(lines, columns, begin_y, begin_x, 0, header, NULL);
+
+
+	/* Text subwindow: Create the window, and set up colors if possible and requested. */
+	*subwindow = newwin(lines - 2, columns - 2, begin_y + 1, begin_x + 1);
+	if (!*subwindow) {
+		fprintf(stderr, "newwin()\n");
+		exit(EXIT_FAILURE);
 	}
 
-	/* Add a display within the frame of the box. */
-	*display = interface_init_display(lines - 2, columns - 2,
-					  begin_y + 1, begin_x + 1,
-					  indent, display_text);
+	if (do_colors && has_colors()) {
+		wbkgdset(*subwindow, COLOR_PAIR (DISPLAY_COLORS) | ' ');
+		wattron(*subwindow, COLOR_PAIR (DISPLAY_COLORS));
+		werase(*subwindow);
+	}
+
+	wrefresh(*subwindow);
 
 	return;
 }
@@ -1121,35 +1055,35 @@ static void interface_initialize(void)
 	int max_y, max_x;
 
 	/* Create the over-arching screen window. */
-	screen = interface_init_screen();
+	screen = ui_init_screen();
 	getmaxyx(screen, max_y, max_x);
 
 	/* Create and box in the mode window. */
-	mode_display = ui_init_area(max_y - 3, 20, 0, 0, 0,
-				    _("Mode(F10v,F11^)"), NULL);
+	mode_window = ui_init_window(max_y - 3, 20, 0, 0, 0,
+				     _("Mode(F10v,F11^)"), NULL);
 	for (int i = 0; i < mode_get_count(); i++) {
 		if (i == mode_get_current()) {
-			wattron(mode_display, A_REVERSE);
+			wattron(mode_window, A_REVERSE);
 		} else {
-			wattroff(mode_display, A_REVERSE);
+			wattroff(mode_window, A_REVERSE);
 		}
-		mvwaddstr(mode_display, i, 0, mode_get_description(i));
+		mvwaddstr(mode_window, i + 1, 1, mode_get_description(i));
 	}
-	wrefresh(mode_display);
+	wrefresh(mode_window);
 
 	/* Create the text display window; do the introduction only once. */
-	interface_init_panel(max_y - 3, max_x - 20, 0, 20, _("Start(F9)"),
-			     0, NULL, &text_box, &text_display);
-	wmove(text_display, 0, 0);
+	ui_init_text_window(max_y - 3, max_x - 20, 0, 20, _("Start(F9)"),
+			    &text_window, &text_subwindow);
+	wmove(text_subwindow, 0, 0);
 	if (!is_initialized) {
-		waddstr(text_display, _(INTRODUCTION));
-		waddstr(text_display, _(INTRODUCTION_CONTINUED));
+		waddstr(text_subwindow, _(INTRODUCTION));
+		waddstr(text_subwindow, _(INTRODUCTION_CONTINUED));
 		is_initialized = true;
 	}
-	wrefresh(text_display);
-	idlok(text_display, true);
-	immedok(text_display, true);
-	scrollok(text_display, true);
+	wrefresh(text_subwindow);
+	idlok(text_subwindow, true);
+	immedok(text_subwindow, true);
+	scrollok(text_subwindow, true);
 
 	char buffer[16];
 	int lines = 3;
@@ -1157,25 +1091,25 @@ static void interface_initialize(void)
 	int indent = 4;
 	/* Create the control feedback boxes. */
 	sprintf(buffer, _("%2d WPM"), cw_get_send_speed());
-	speed_display = ui_init_area(lines, columns, max_y - lines, columns * 0, indent,
-				     _("Speed(F1-,F2+)"), buffer);
+	speed_window = ui_init_window(lines, columns, max_y - lines, columns * 0, indent,
+				      _("Speed(F1-,F2+)"), buffer);
 
 	sprintf(buffer, _("%4d Hz"), cw_get_frequency());
-	tone_display = ui_init_area(lines, columns, max_y - lines, columns * 1, indent,
-				    _("Tone(F3-,F4+)"), buffer);
+	tone_window = ui_init_window(lines, columns, max_y - lines, columns * 1, indent,
+				     _("Tone(F3-,F4+)"), buffer);
 
 	sprintf(buffer, _("%3d %%"), cw_get_volume ());
-	volume_display = ui_init_area(lines, columns, max_y - lines, columns * 2, indent,
-				      _("Vol(F5-,F6+)"), buffer);
+	volume_window = ui_init_window(lines, columns, max_y - lines, columns * 2, indent,
+				       _("Vol(F5-,F6+)"), buffer);
 
 	int value = cw_get_gap();
 	sprintf(buffer, value == 1 ? _("%2d dot ") : _("%2d dots"), value);
-	gap_display = ui_init_area(lines, columns, max_y - lines, columns * 3, indent,
-				   _("Gap(F7-,F8+)"), buffer);
+	gap_window = ui_init_window(lines, columns, max_y - lines, columns * 3, indent,
+				    _("Gap(F7-,F8+)"), buffer);
 
-	timer_display = ui_init_area(lines, columns, max_y - lines, columns * 4, indent,
-				     _("Time(Dn-,Up+)"), NULL);
-	timer_display_update(0, timer_get_total_practice_time());
+	timer_window = ui_init_window(lines, columns, max_y - lines, columns * 4, indent,
+				      _("Time(Dn-,Up+)"), NULL);
+	timer_window_update(0, timer_get_total_practice_time());
 
 	/* Set up curses input mode. */
 	keypad(screen, true);
@@ -1208,38 +1142,38 @@ static void interface_destroy(void)
 	/* Reset user interface windows to initial values. */
 	screen = NULL;
 
+	if (text_subwindow) {
+		delwin(text_subwindow);
+		text_subwindow = NULL;
+	}
+	if (text_window) {
+		delwin(text_window);
+		text_window = NULL;
+	}
 
-	if (mode_display) {
-		delwin(mode_display);
-		mode_display = NULL;
+	if (mode_window) {
+		delwin(mode_window);
+		mode_window = NULL;
 	}
-	if (speed_display) {
-		delwin(speed_display);
-		speed_display = NULL;
+	if (speed_window) {
+		delwin(speed_window);
+		speed_window = NULL;
 	}
-	if (tone_display) {
-		delwin(tone_display);
-		tone_display = NULL;
+	if (tone_window) {
+		delwin(tone_window);
+		tone_window = NULL;
 	}
-	if (volume_display) {
-		delwin(volume_display);
-		volume_display = NULL;
+	if (volume_window) {
+		delwin(volume_window);
+		volume_window = NULL;
 	}
-	if (gap_display) {
-		delwin(gap_display);
-		gap_display = NULL;
+	if (gap_window) {
+		delwin(gap_window);
+		gap_window = NULL;
 	}
-	if (timer_display) {
-		delwin(timer_display);
-		timer_display = NULL;
-	}
-	if (text_box) {
-		delwin(text_box);
-		text_box = NULL;
-	}
-	if (text_display) {
-		delwin(text_display);
-		text_display = NULL;
+	if (timer_window) {
+		delwin(timer_window);
+		timer_window = NULL;
 	}
 
 	return;
@@ -1315,8 +1249,8 @@ static int interface_interpret(int c)
 
 	speed_update:
 		sprintf(buffer, _("%2d WPM"), cw_get_send_speed());
-		mvwaddstr(speed_display, 1, 4, buffer);
-		wrefresh(speed_display);
+		mvwaddstr(speed_window, 1, 4, buffer);
+		wrefresh(speed_window);
 		break;
 
 
@@ -1336,8 +1270,8 @@ static int interface_interpret(int c)
 
 	frequency_update:
 		sprintf(buffer, _("%4d Hz"), cw_get_frequency());
-		mvwaddstr(tone_display, 1, 3, buffer);
-		wrefresh(tone_display);
+		mvwaddstr(tone_window, 1, 3, buffer);
+		wrefresh(tone_window);
 		break;
 
 
@@ -1355,8 +1289,8 @@ static int interface_interpret(int c)
 
 	volume_update:
 		sprintf(buffer, _("%3d %%"), cw_get_volume());
-		mvwaddstr(volume_display, 1, 4, buffer);
-		wrefresh(volume_display);
+		mvwaddstr(volume_window, 1, 4, buffer);
+		wrefresh(volume_window);
 		break;
 
 
@@ -1375,21 +1309,21 @@ static int interface_interpret(int c)
 	gap_update:
 		value = cw_get_gap();
 		sprintf (buffer, value == 1 ? _("%2d dot ") : _("%2d dots"), value);
-		mvwaddstr(gap_display, 1, 3, buffer);
-		wrefresh(gap_display);
+		mvwaddstr(gap_window, 1, 3, buffer);
+		wrefresh(gap_window);
 		break;
 
 
 	case KEY_NPAGE:
 	case PSEUDO_KEYNPAGE:
 		if (timer_set_total_practice_time(timer_get_total_practice_time() - CW_PRACTICE_TIME_STEP))
-			timer_display_update(-1, timer_get_total_practice_time());
+			timer_window_update(-1, timer_get_total_practice_time());
 		break;
 
 	case KEY_PPAGE:
 	case PSEUDO_KEYPPAGE:
 		if (timer_set_total_practice_time (timer_get_total_practice_time() + CW_PRACTICE_TIME_STEP))
-			timer_display_update(-1, timer_get_total_practice_time());
+			timer_window_update(-1, timer_get_total_practice_time());
 		break;
 
 	case KEY_F (11):
@@ -1555,9 +1489,9 @@ void ui_poll_user_input(int fd, int usecs)
 
 void ui_clear_main_window(void)
 {
-	werase(text_display);
-	wmove(text_display, 0, 0);
-	wrefresh(text_display);
+	werase(text_subwindow);
+	wmove(text_subwindow, 0, 0);
+	wrefresh(text_subwindow);
 
 	return;
 }
@@ -1568,8 +1502,8 @@ void ui_clear_main_window(void)
 
 void ui_refresh_main_window(void)
 {
-	touchwin(text_display);
-	wnoutrefresh(text_display);
+	touchwin(text_subwindow);
+	wnoutrefresh(text_subwindow);
 	doupdate();
 
 	return;
@@ -1581,9 +1515,9 @@ void ui_refresh_main_window(void)
 
 void ui_display_state(const char *state)
 {
-	box(text_box, 0, 0);
-	mvwaddstr(text_box, 0, 1, state);
-	wnoutrefresh(text_box);
+	box(text_window, 0, 0);
+	mvwaddstr(text_window, 0, 1, state);
+	wnoutrefresh(text_window);
 	doupdate();
 
 	return;
@@ -1605,17 +1539,17 @@ void ui_display_state(const char *state)
 */
 void ui_update_mode_selection(int old_mode, int current_mode)
 {
-      wattroff(mode_display, A_REVERSE);
-      mvwaddstr(mode_display,
-		old_mode, 0,
+      wattroff(mode_window, A_REVERSE);
+      mvwaddstr(mode_window,
+		old_mode + 1, 1,
 		mode_get_description(old_mode));
 
-      wattron(mode_display, A_REVERSE);
-      mvwaddstr(mode_display,
-		current_mode, 0,
+      wattron(mode_window, A_REVERSE);
+      mvwaddstr(mode_window,
+		current_mode + 1, 1,
 		mode_get_description(current_mode));
 
-      wrefresh(mode_display);
+      wrefresh(mode_window);
 
       return;
 }
