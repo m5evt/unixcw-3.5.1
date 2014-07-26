@@ -109,6 +109,7 @@ static void gap_update(void);
 typedef enum { M_DICTIONARY, M_KEYBOARD, M_EXIT } mode_type_t;
 
 static void mode_initialize(void);
+static void mode_clean(void);
 static bool mode_change_to_next(void);
 static bool mode_change_to_previous(void);
 static int  mode_get_current(void);
@@ -728,6 +729,23 @@ void mode_initialize(void)
 
 
 /**
+   \brief Free data structures relates to modes
+
+   Call this function at exit
+*/
+void mode_clean(void)
+{
+	free(modes);
+	modes = NULL;
+
+	return;
+}
+
+
+
+
+
+/**
    \brief Get count of modes
 */
 int mode_get_count(void)
@@ -1158,16 +1176,6 @@ void ui_initialize(void)
 */
 void ui_destroy(void)
 {
-	/* Clear the screen for neatness. */
-	werase(screen);
-	wrefresh(screen);
-
-	/* End curses processing. */
-	endwin();
-
-	/* Reset user interface windows to initial values. */
-	screen = NULL;
-
 	if (text_subwindow) {
 		delwin(text_subwindow);
 		text_subwindow = NULL;
@@ -1201,6 +1209,18 @@ void ui_destroy(void)
 		delwin(timer_window);
 		timer_window = NULL;
 	}
+
+	if (screen) {
+		/* Clear the screen for neatness. */
+		werase(screen);
+		wrefresh(screen);
+
+		delwin(screen);
+		screen = NULL;
+	}
+
+	/* End curses processing. */
+	endwin();
 
 	return;
 }
@@ -1661,6 +1681,9 @@ int main(int argc, char **argv)
 		fprintf(stderr, _("%s: failed to parse command line args\n"), config->program_name);
 		return EXIT_FAILURE;
 	}
+	free(combined_argv);
+	combined_argv = NULL;
+
 	if (!cw_config_is_valid(config)) {
 		fprintf(stderr, _("%s: inconsistent arguments\n"), config->program_name);
 		return EXIT_FAILURE;
@@ -1743,6 +1766,10 @@ void cwcp_atexit(void)
 		cw_generator_stop();
 		cw_generator_delete();
 	}
+
+	mode_clean();
+
+	cw_dictionaries_unload();
 
 	if (config) {
 		cw_config_delete(&config);
