@@ -1,3 +1,14 @@
+2014-07-26 Kamil Ignacak
+	* cwcp: fixing a stupid error that I introduced in one of previous
+	releases: cwcp didn't use "combined" argv, so it didn't process
+	CWCP_OPTIONS from env. Now it should work.
+
+	Today's commit ends my main part of work on cwcp code. There were
+	three main changes made to cwcp: first: fixing the bug mentioned
+	above; second: calling few delwin()s to plug memory leaks; third:
+	bringing the code into shape when it comes to project's
+	indentation and comments style.
+
 2014-07-23 Kamil Ignacak
 	* libcw/test code: moving some code related to testing from
 	libcw.c into other files.
