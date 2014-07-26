@@ -81,16 +81,15 @@ static const char *all_options = "s:|system,d:|device,"
 	"h|help,V|version";
 
 
-static WINDOW *text_window = NULL,
-	*text_subwindow = NULL;
 
-static WINDOW *screen = NULL,
-	*mode_window = NULL,
-	*speed_window = NULL,
-	*tone_window = NULL,
-	*volume_window = NULL,
-	*gap_window = NULL,
-	*timer_window = NULL;
+static WINDOW *screen  = NULL,
+	*text_window   = NULL, *text_subwindow   = NULL,
+	*mode_window   = NULL, *mode_subwindow   = NULL,
+	*speed_window  = NULL, *speed_subwindow  = NULL,
+	*tone_window   = NULL, *tone_subwindow   = NULL,
+	*volume_window = NULL, *volume_subwindow = NULL,
+	*gap_window    = NULL, *gap_subwindow    = NULL,
+	*timer_window  = NULL, *timer_subwindow  = NULL;
 
 static void cwcp_atexit(void);
 
@@ -162,7 +161,7 @@ static void ui_handle_event(int c);
 static void    ui_destroy(void);
 static void    ui_initialize(void);
 static WINDOW *ui_init_window(int lines, int columns, int begin_y, int begin_x, const char *header);
-static void    ui_init_text_window(int lines, int columns, int begin_y, int begin_x, const char *header, WINDOW **window, WINDOW **subwindow);
+static void    ui_init_display(int lines, int columns, int begin_y, int begin_x, const char *header, WINDOW **window, WINDOW **subwindow);
 static WINDOW *ui_init_screen(void);
 
 static void signal_handler(int signal_number);
@@ -661,8 +660,8 @@ void timer_window_update(int elapsed, int total)
 
 	char buffer[CWCP_PARAM_WIDTH];
 	snprintf(buffer, CWCP_PARAM_WIDTH, total == 1 ? _("%2d/%2d min ") : _("%2d/%2d mins"), el, total);
-	mvwaddstr(timer_window, 1, 2, buffer);
-	wrefresh(timer_window);
+	mvwaddstr(timer_subwindow, 0, 2, buffer);
+	wrefresh(timer_subwindow);
 
 	return;
 }
@@ -973,13 +972,13 @@ static const short color_array[] = {
 };
 enum { COLORS_COUNT = sizeof (color_array) / sizeof (color_array[0]) };
 
-enum
-{ BOX_COLORS = 1,          /* Normal color pair */
-  DISPLAY_COLORS = 2,      /* Blue color pair */
-  DISPLAY_FOREGROUND = 7,  /* White foreground */
-  DISPLAY_BACKGROUND = 4,  /* Blue background */
-  BOX_FOREGROUND = 7,      /* White foreground */
-  BOX_BACKGROUND = 0       /* Black background */
+enum {
+	DISPLAY_EXTERNAL_COLORS = 1,   /* Normal color pair */
+	DISPLAY_INTERNAL_COLORS = 2,   /* Blue color pair */
+	DISPLAY_FOREGROUND      = 7,   /* White foreground */
+	DISPLAY_BACKGROUND      = 4,   /* Blue background */
+	BOX_FOREGROUND          = 7,   /* White foreground */
+	BOX_BACKGROUND          = 0    /* Black background */
 };
 
 /* Color values as arrays into color_array. */
@@ -1005,15 +1004,15 @@ WINDOW *ui_init_screen(void)
 	if (do_colors && has_colors())	{
 		start_color();
 
-		init_pair(BOX_COLORS,
+		init_pair(DISPLAY_EXTERNAL_COLORS,
 			  color_array[box_foreground],
 			  color_array[box_background]);
 
-		init_pair(DISPLAY_COLORS,
+		init_pair(DISPLAY_INTERNAL_COLORS,
 			  color_array[display_foreground],
 			  color_array[display_background]);
 
-		wbkgdset(window, COLOR_PAIR (BOX_COLORS) | ' ');
+		wbkgdset(window, COLOR_PAIR (DISPLAY_EXTERNAL_COLORS) | ' ');
 		werase(window);
 		wrefresh(window);
 	}
@@ -1043,8 +1042,8 @@ WINDOW *ui_init_window(int lines, int columns, int begin_y, int begin_x, const c
 	}
 
 	if (do_colors && has_colors()) {
-		wbkgdset(window, COLOR_PAIR (DISPLAY_COLORS) | ' ');
-		wattron(window, COLOR_PAIR (DISPLAY_COLORS));
+		wbkgdset(window, COLOR_PAIR (DISPLAY_EXTERNAL_COLORS) | ' ');
+		wattron(window, COLOR_PAIR (DISPLAY_EXTERNAL_COLORS));
 		werase(window);
 	}
 
@@ -1065,7 +1064,7 @@ WINDOW *ui_init_window(int lines, int columns, int begin_y, int begin_x, const c
 
    Function allocates two new ncurses WINDOW variables.
 */
-void ui_init_text_window(int lines, int columns, int begin_y, int begin_x,
+void ui_init_display(int lines, int columns, int begin_y, int begin_x,
 			  const char *header,
 			  WINDOW **window, WINDOW **subwindow)
 {
@@ -1080,8 +1079,8 @@ void ui_init_text_window(int lines, int columns, int begin_y, int begin_x,
 	}
 
 	if (do_colors && has_colors()) {
-		wbkgdset(*subwindow, COLOR_PAIR (DISPLAY_COLORS) | ' ');
-		wattron(*subwindow, COLOR_PAIR (DISPLAY_COLORS));
+		wbkgdset(*subwindow, COLOR_PAIR (DISPLAY_INTERNAL_COLORS) | ' ');
+		wattron(*subwindow, COLOR_PAIR (DISPLAY_INTERNAL_COLORS));
 		werase(*subwindow);
 	}
 
@@ -1108,21 +1107,20 @@ void ui_initialize(void)
 	getmaxyx(screen, max_y, max_x);
 
 	/* Create and box in the mode window. */
-	mode_window = ui_init_window(max_y - 3, 20, 0, 0,
-				     _("Mode(F10v,F11^)"));
+	ui_init_display(max_y - 3, 20, 0, 0, _("Mode(F10v,F11^)"), &mode_window, &mode_subwindow);
+
 	for (int i = 0; i < mode_get_count(); i++) {
 		if (i == mode_get_current()) {
-			wattron(mode_window, A_REVERSE);
+			wattron(mode_subwindow, A_REVERSE);
 		} else {
-			wattroff(mode_window, A_REVERSE);
+			wattroff(mode_subwindow, A_REVERSE);
 		}
-		mvwaddstr(mode_window, i + 1, 1, mode_get_description(i));
+		mvwaddstr(mode_subwindow, i, 1, mode_get_description(i));
 	}
-	wrefresh(mode_window);
+	wrefresh(mode_subwindow);
 
 	/* Create the text display window; do the introduction only once. */
-	ui_init_text_window(max_y - 3, max_x - 20, 0, 20, _("Start(F9)"),
-			    &text_window, &text_subwindow);
+	ui_init_display(max_y - 3, max_x - 20, 0, 20, _("Start(F9)"), &text_window, &text_subwindow);
 	wmove(text_subwindow, 0, 0);
 	if (!is_initialized) {
 		waddstr(text_subwindow, _(INTRODUCTION));
@@ -1139,19 +1137,19 @@ void ui_initialize(void)
 
 	/* Create the control feedback boxes. */
 
-	speed_window = ui_init_window(lines, columns, max_y - lines, columns * 0, _("Speed(F1-,F2+)"));
+	ui_init_display(lines, columns, max_y - lines, columns * 0, _("Speed(F1-,F2+)"), &speed_window, &speed_subwindow);
 	speed_update();
 
-	tone_window = ui_init_window(lines, columns, max_y - lines, columns * 1, _("Tone(F3-,F4+)"));
+	ui_init_display(lines, columns, max_y - lines, columns * 1, _("Tone(F3-,F4+)"), &tone_window, &tone_subwindow);
 	frequency_update();
 
-	volume_window = ui_init_window(lines, columns, max_y - lines, columns * 2, _("Vol(F5-,F6+)"));
+	ui_init_display(lines, columns, max_y - lines, columns * 2, _("Vol(F5-,F6+)"), &volume_window, &volume_subwindow);
 	volume_update();
 
-	gap_window = ui_init_window(lines, columns, max_y - lines, columns * 3, _("Gap(F7-,F8+)"));
+	ui_init_display(lines, columns, max_y - lines, columns * 3, _("Gap(F7-,F8+)"), &gap_window, &gap_subwindow);
 	gap_update();
 
-	timer_window = ui_init_window(lines, columns, max_y - lines, columns * 4, _("Time(Dn-,Up+)"));
+	ui_init_display(lines, columns, max_y - lines, columns * 4, _("Time(Dn-,Up+)"), &timer_window, &timer_subwindow);
 	timer_window_update(0, timer_get_total_practice_time());
 
 	/* Set up curses input mode. */
@@ -1185,25 +1183,54 @@ void ui_destroy(void)
 		text_window = NULL;
 	}
 
+	if (mode_subwindow) {
+		delwin(mode_subwindow);
+		mode_subwindow = NULL;
+	}
 	if (mode_window) {
 		delwin(mode_window);
 		mode_window = NULL;
+	}
+
+	if (speed_subwindow) {
+		delwin(speed_subwindow);
+		speed_subwindow = NULL;
 	}
 	if (speed_window) {
 		delwin(speed_window);
 		speed_window = NULL;
 	}
+
+	if (tone_subwindow) {
+		delwin(tone_subwindow);
+		tone_subwindow = NULL;
+	}
 	if (tone_window) {
 		delwin(tone_window);
 		tone_window = NULL;
+	}
+
+	if (volume_subwindow) {
+		delwin(volume_subwindow);
+		volume_subwindow = NULL;
 	}
 	if (volume_window) {
 		delwin(volume_window);
 		volume_window = NULL;
 	}
+
+	if (gap_subwindow) {
+		delwin(gap_subwindow);
+		gap_subwindow = NULL;
+	}
 	if (gap_window) {
 		delwin(gap_window);
 		gap_window = NULL;
+	}
+
+	if (timer_subwindow) {
+		delwin(timer_subwindow);
+		timer_subwindow = NULL;
 	}
 	if (timer_window) {
 		delwin(timer_window);
@@ -1260,10 +1287,10 @@ static int interface_interpret(int c)
 
 	color_update:
 		if (do_colors && has_colors()) {
-			init_pair(BOX_COLORS,
+			init_pair(DISPLAY_EXTERNAL_COLORS,
 				  color_array[box_foreground],
 				  color_array[box_background]);
-			init_pair(DISPLAY_COLORS,
+			init_pair(DISPLAY_INTERNAL_COLORS,
 				  color_array[display_foreground],
 				  color_array[display_background]);
 			wrefresh(curscr);
@@ -1432,8 +1459,8 @@ void speed_update(void)
 {
 	char buffer[CWCP_PARAM_WIDTH];
 	snprintf(buffer, CWCP_PARAM_WIDTH, _("%2d WPM"), cw_get_send_speed());
-	mvwaddstr(speed_window, 1, 4, buffer);
-	wrefresh(speed_window);
+	mvwaddstr(speed_subwindow, 0, 4, buffer);
+	wrefresh(speed_subwindow);
 	return;
 }
 
@@ -1445,8 +1472,8 @@ void frequency_update(void)
 {
 	char buffer[CWCP_PARAM_WIDTH];
 	snprintf(buffer, CWCP_PARAM_WIDTH, _("%4d Hz"), cw_get_frequency());
-	mvwaddstr(tone_window, 1, 3, buffer);
-	wrefresh(tone_window);
+	mvwaddstr(tone_subwindow, 0, 3, buffer);
+	wrefresh(tone_subwindow);
 	return;
 }
 
@@ -1458,8 +1485,8 @@ void volume_update(void)
 {
 	char buffer[CWCP_PARAM_WIDTH];
 	snprintf(buffer, CWCP_PARAM_WIDTH, _("%3d %%"), cw_get_volume());
-	mvwaddstr(volume_window, 1, 4, buffer);
-	wrefresh(volume_window);
+	mvwaddstr(volume_subwindow, 0, 4, buffer);
+	wrefresh(volume_subwindow);
 	return;
 }
 
@@ -1472,8 +1499,8 @@ void gap_update(void)
 	char buffer[CWCP_PARAM_WIDTH];
 	int value = cw_get_gap();
 	snprintf(buffer, CWCP_PARAM_WIDTH, value == 1 ? _("%2d dot ") : _("%2d dots"), value);
-	mvwaddstr(gap_window, 1, 3, buffer);
-	wrefresh(gap_window);
+	mvwaddstr(gap_subwindow, 0, 3, buffer);
+	wrefresh(gap_subwindow);
 	return;
 }
 
@@ -1616,17 +1643,17 @@ void ui_display_state(const char *state)
 */
 void ui_update_mode_selection(int old_mode, int current_mode)
 {
-      wattroff(mode_window, A_REVERSE);
-      mvwaddstr(mode_window,
-		old_mode + 1, 1,
+      wattroff(mode_subwindow, A_REVERSE);
+      mvwaddstr(mode_subwindow,
+		old_mode, 1,
 		mode_get_description(old_mode));
 
-      wattron(mode_window, A_REVERSE);
-      mvwaddstr(mode_window,
-		current_mode + 1, 1,
+      wattron(mode_subwindow, A_REVERSE);
+      mvwaddstr(mode_subwindow,
+		current_mode, 1,
 		mode_get_description(current_mode));
 
-      wrefresh(mode_window);
+      wrefresh(mode_subwindow);
 
       return;
 }
