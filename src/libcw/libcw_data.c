@@ -1183,6 +1183,9 @@ int cw_lookup_phonetic(char c, char *phonetic)
 #ifdef LIBCW_UNIT_TESTS
 
 
+#include "libcw_utils.h"
+
+
 
 #define REPRESENTATION_LEN 7
 /* for maximum length of 7, there should be 254 items:
