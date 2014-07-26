@@ -381,33 +381,17 @@ typedef struct {
 
 
 /* From libcw.c, needed in libcw_tq.c. */
-void cw_key_set_state_internal(int key_state);
 bool cw_sigalrm_is_blocked_internal(void);
 int  cw_signal_wait_internal(void);
 
-/* From libcw.c, needed in libcw_data.c. */
-int cw_timestamp_compare_internal(const struct timeval *earlier, const struct timeval *later);
 
 /* From libcw.c, needed in libcw_iambic_keyer.c. */
 void cw_sync_parameters_internal(cw_gen_t *gen, cw_rec_t *rec);
 int cw_generator_silence_internal(cw_gen_t *gen);
 void cw_finalization_schedule_internal(void);
 
-/* From libcw.c, needed in libcw_tests.c. */
-unsigned int test_cw_forever(void);
-unsigned int test_cw_timestamp_compare_internal(void);
-unsigned int test_cw_timestamp_validate_internal(void);
-unsigned int test_cw_usecs_to_timespec_internal(void);
-
-
-
-
-#if (defined(LIBCW_WITH_ALSA) || defined(LIBCW_WITH_PULSEAUDIO))
-bool cw_dlopen_internal(const char *name, void **handle);
-#endif
 int cw_generator_set_audio_device_internal(cw_gen_t *gen, const char *device);
-void cw_usecs_to_timespec_internal(struct timespec *t, int usecs);
-void cw_nanosleep_internal(struct timespec *n);
+
 
 
 
