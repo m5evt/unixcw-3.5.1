@@ -40,6 +40,7 @@
 #include "libcw.h"
 #include "libcw_pa.h"
 #include "libcw_debug.h"
+#include "libcw_utils.h"
 
 
 extern cw_debug_t cw_debug_object;

@@ -35,6 +35,7 @@
 #include "libcw_debug.h"
 #include "libcw_data.h"
 #include "libcw_tq.h"
+#include "libcw_utils.h"
 
 #include "libcw_null.h"
 #include "libcw_console.h"
