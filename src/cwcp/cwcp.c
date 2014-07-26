@@ -1657,7 +1657,7 @@ int main(int argc, char **argv)
 	config->has_practice_time = true;
 	config->has_outfile = true;
 
-	if (!cw_process_argv(argc, argv, all_options, config)) {
+	if (!cw_process_argv(combined_argc, combined_argv, all_options, config)) {
 		fprintf(stderr, _("%s: failed to parse command line args\n"), config->program_name);
 		return EXIT_FAILURE;
 	}
