@@ -55,7 +55,8 @@ enum {
 
 
 
-int cw_iambic_keyer_update_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen);
+int  cw_iambic_keyer_update_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen);
+void cw_key_set_state_internal(int key_state);
 
 
 #endif // #ifndef H_LIBCW_IAMBIC_KEYER
