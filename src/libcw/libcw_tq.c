@@ -19,6 +19,9 @@
 
 
 #include <inttypes.h> /* "PRIu32" */
+#include <errno.h>
+#include <pthread.h>
+#include <signal.h> /* SIGALRM */
 
 #include "libcw_debug.h"
 #include "libcw_internal.h"

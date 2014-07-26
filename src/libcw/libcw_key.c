@@ -27,6 +27,8 @@
 
 #include <stdbool.h>
 #include <inttypes.h> /* uint32_t */
+#include <errno.h>
+#include <unistd.h>   /* usleep() */
 
 #include "libcw_debug.h"
 #include "libcw_key.h"
