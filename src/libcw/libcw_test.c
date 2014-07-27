@@ -47,7 +47,6 @@
 
 #include "libcw.h"
 #include "libcw_debug.h"
-#include "libcw_internal.h"
 #include "libcw_test.h"
 
 
