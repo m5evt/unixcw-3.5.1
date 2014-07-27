@@ -1,10 +1,16 @@
+/*
+  This file is a part of unixcw project.
+  unixcw project is covered by GNU General Public License.
+*/
+
 #ifndef H_LIBCW_DATA
 #define H_LIBCW_DATA
 
 
-#include <stdbool.h>
 
-#include "libcw_internal.h"
+
+
+#include <stdbool.h>
 
 
 
@@ -26,9 +32,8 @@ int          cw_representation_to_character_internal(const char *representation)
 __attribute__((unused)) int cw_representation_to_character_direct_internal(const char *representation);
 unsigned int cw_representation_to_hash_internal(const char *representation);
 const char  *cw_character_to_representation_internal(int c);
+const char  *cw_lookup_procedural_character_internal(int c, bool *is_usually_expanded);
 
-
-const char *cw_lookup_procedural_character_internal(int c, bool *is_usually_expanded);
 
 
 
@@ -40,6 +45,8 @@ unsigned int test_cw_representation_to_character_internal(void);
 unsigned int test_cw_representation_to_character_internal_speed(void);
 
 #endif /* #ifdef LIBCW_UNIT_TESTS */
+
+
 
 
 
