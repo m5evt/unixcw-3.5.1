@@ -48,6 +48,9 @@
 #include "libcw_test.h"
 #include "libcw_debug.h"
 #include "libcw_internal.h"
+#include "libcw_tq.h"
+#include "libcw_utils.h"
+
 
 typedef struct {
 	int successes;
