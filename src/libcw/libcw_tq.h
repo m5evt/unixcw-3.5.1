@@ -1,3 +1,8 @@
+/*
+  This file is a part of unixcw project.
+  unixcw project is covered by GNU General Public License.
+*/
+
 #ifndef H_LIBCW_TQ
 #define H_LIBCW_TQ
 
@@ -194,9 +199,9 @@ bool     cw_tone_queue_is_full_internal(cw_tone_queue_t *tq);
 
 
 
-/* Unit tests. */
 
 #ifdef LIBCW_UNIT_TESTS
+
 int          test_cw_tone_queue_capacity_test_init(cw_tone_queue_t *tq, uint32_t capacity, uint32_t high_water_mark, int head_shift);
 
 unsigned int test_cw_tone_queue_init_internal(void);
