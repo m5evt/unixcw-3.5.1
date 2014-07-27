@@ -67,7 +67,6 @@
 
 #include "libcw.h"
 #include "libcw_test.h"
-#include "libcw_internal.h"
 #include "libcw_debug.h"
 #include "libcw_utils.h"
 
@@ -322,6 +321,8 @@ int cw_timestamp_compare_internal(const struct timeval *earlier,
 
 #ifdef LIBCW_UNIT_TESTS
 
+
+#include "libcw_gen.h"
 
 
 extern cw_gen_t **cw_generator;
