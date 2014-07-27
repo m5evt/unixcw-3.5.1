@@ -29,7 +29,7 @@ EXTRA_DIST=include.awk libdoc.awk libfuncs.awk libpc.awk libsigs.awk \
 	libcw.3.m4 \
 	libcw.pc.in \
 	cw.7 \
-	libcw_tq.h libcw_data.h libcw_key.h libcw_utils.h \
+	libcw_tq.h libcw_data.h libcw_key.h libcw_utils.h libcw_gen.h \
 	libcw_null.h libcw_console.h libcw_pa.h libcw_oss.h libcw_alsa.h \
 	libcw_internal.h \
 	libcw_test.h
@@ -40,7 +40,7 @@ EXTRA_DIST=include.awk libdoc.awk libfuncs.awk libpc.awk libsigs.awk \
 # target: shared library
 
 # source code files used to build libcw shared library
-libcw_la_SOURCES = libcw.c libcw_tq.c libcw_data.c libcw_key.c libcw_utils.c libcw_null.c libcw_console.c libcw_pa.c libcw_oss.c libcw_alsa.c libcw_debug.c
+libcw_la_SOURCES = libcw.c libcw_tq.c libcw_data.c libcw_key.c libcw_utils.c libcw_gen.c libcw_null.c libcw_console.c libcw_pa.c libcw_oss.c libcw_alsa.c libcw_debug.c
 
 # target-specific linker flags (objects to link)
 # libcw_la_LIBADD=-lm -lpthread $(AC_ALSA_LIBS)  $(AC_PULSEAUDIO_LIBS)
@@ -82,7 +82,7 @@ libcw_test_public_LDADD = -L./.libs -lcw
 # main() is defined in libcw_test_internal.c.
 
 # source code files used to build libcw_test_internal program
-libcw_test_internal_SOURCES = libcw.c libcw_tq.c libcw_data.c libcw_key.c libcw_utils.c libcw_test_internal.c libcw_null.c libcw_console.c libcw_pa.c libcw_oss.c libcw_alsa.c libcw_debug.c
+libcw_test_internal_SOURCES = libcw.c libcw_tq.c libcw_data.c libcw_key.c libcw_utils.c libcw_gen.c libcw_test_internal.c libcw_null.c libcw_console.c libcw_pa.c libcw_oss.c libcw_alsa.c libcw_debug.c
 
 # target-specific preprocessor flags (#defs and include dirs)
 libcw_test_internal_CPPFLAGS = $(AM_CPPFLAGS) -DLIBCW_UNIT_TESTS
