@@ -49,9 +49,9 @@
 #include <math.h>
 
 
-#include "libcw_internal.h"
 #include "libcw_oss.h"
 #include "libcw_debug.h"
+#include "libcw_gen.h"
 
 
 #if   defined(HAVE_SYS_SOUNDCARD_H)
