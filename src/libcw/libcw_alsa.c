@@ -33,6 +33,7 @@
 #include "libcw_alsa.h"
 #include "libcw_debug.h"
 #include "libcw_utils.h"
+#include "libcw_gen.h"
 
 
 #define CW_ALSA_HW_BUFFER_CONFIG  0  /* set up hw buffer/period parameters; unnecessary and probably harmful */
@@ -708,7 +709,6 @@ void cw_alsa_drop(cw_gen_t *gen)
 
 #include <stdbool.h>
 #include "libcw_alsa.h"
-#include "libcw_internal.h"
 
 
 
