@@ -41,7 +41,7 @@ extern cw_debug_t cw_debug_object;
 extern cw_debug_t cw_debug_object_ev;
 extern cw_debug_t cw_debug_object_dev;
 
-extern cw_rec_t receiver;
+extern cw_rec_t *cw_receiver;
 extern cw_gen_t **cw_generator;
 
 
@@ -499,7 +499,7 @@ int cw_iambic_keyer_update_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen)
 	keyer->lock = true;
 
 	/* Synchronize low level timing parameters if required. */
-	cw_sync_parameters_internal(gen, &receiver);
+	cw_sync_parameters_internal(gen, cw_receiver);
 
 	int cw_iambic_keyer_state_old = keyer->state;
 
