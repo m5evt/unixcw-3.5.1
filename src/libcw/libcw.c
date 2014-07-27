@@ -231,7 +231,7 @@ static const char *cw_receiver_states[] = {
 
 
 
-cw_rec_t receiver = { .state = RS_IDLE,
+static cw_rec_t receiver = { .state = RS_IDLE,
 
 			     .speed = CW_SPEED_INITIAL,
 
@@ -299,7 +299,9 @@ static cw_gen_t *generator = NULL;
    *cw_generator" in a next version of libcw. */
 cw_gen_t **cw_generator = &generator;
 
-
+/* Similarly, I don't want to expose "receiver". Let's have globally
+   visible "cw_receiver" instead. */
+cw_rec_t *cw_receiver = &receiver;
 
 
 
@@ -3978,10 +3980,6 @@ const char *cw_generator_get_audio_system_label(void)
 */
 int cw_generator_new(int audio_system, const char *device)
 {
-#ifdef LIBCW_WITH_DEV
-	fprintf(stderr, "libcw build %s %s\n", __DATE__, __TIME__);
-#endif
-
 	generator = cw_gen_new_internal(audio_system, device);
 	if (!generator) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
