@@ -1,10 +1,28 @@
+/*
+  This file is a part of unixcw project.
+  unixcw project is covered by GNU General Public License.
+*/
+
 #ifndef H_LIBCW_UTILS
 #define H_LIBCW_UTILS
+
+
+
+
 
 #include "config.h"
 
 #include <sys/time.h>
 #include <stdbool.h>
+
+
+
+
+
+/* Microseconds in a second, for struct timeval handling. */
+enum { CW_USECS_PER_SEC = 1000000 };
+
+
 
 
 
@@ -29,6 +47,8 @@ unsigned int test_cw_timestamp_validate_internal(void);
 unsigned int test_cw_usecs_to_timespec_internal(void);
 
 #endif /* #ifdef LIBCW_UNIT_TESTS */
+
+
 
 
 
