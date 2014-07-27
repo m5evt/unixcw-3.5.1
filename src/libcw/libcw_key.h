@@ -1,12 +1,22 @@
-#ifndef H_LIBCW_IAMBIC_KEYER
-#define H_LIBCW_IAMBIC_KEYER
+/*
+  This file is a part of unixcw project.
+  unixcw project is covered by GNU General Public License.
+*/
+
+#ifndef H_LIBCW_KEY
+#define H_LIBCW_KEY
+
+
 
 
 
 #include <stdbool.h>
 #include <sys/time.h>
 
-#include "libcw_internal.h"
+#include "libcw_gen.h"
+
+
+
 
 
 /* Iambic keyer status.  The keyer functions maintain the current
@@ -14,7 +24,7 @@
    while busy, to form the iambic effect.  For Curtis mode B, the
    keyer also latches any point where both paddle states are true at
    the same time. */
-struct cw_iambic_keyer_struct {
+typedef struct cw_iambic_keyer_struct {
 	int state;            /* Keyer state. */
 
 	bool dot_paddle;      /* Dot paddle state */
@@ -34,9 +44,9 @@ struct cw_iambic_keyer_struct {
 
 	struct timeval *timer; /* Timer for receiving of iambic keying, owned by client code. */
 
-}; // typedef cw_iambic_keyer_t
+} cw_iambic_keyer_t;
 
-typedef struct cw_iambic_keyer_struct cw_iambic_keyer_t;
+
 
 
 
@@ -59,4 +69,7 @@ int  cw_iambic_keyer_update_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen);
 void cw_key_set_state_internal(int key_state);
 
 
-#endif // #ifndef H_LIBCW_IAMBIC_KEYER
+
+
+
+#endif // #ifndef H_LIBCW_KEY
