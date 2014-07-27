@@ -160,7 +160,7 @@ enum {
 
 
 
-#if CW_DEV_RAW_SINK
+#ifdef LIBCW_WITH_DEV
 int  cw_dev_debug_raw_sink_write_internal(cw_gen_t *gen);
 void cw_dev_debug_print_generator_setup(cw_gen_t *gen);
 #endif
