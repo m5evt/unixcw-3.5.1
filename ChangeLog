@@ -1,3 +1,64 @@
+2014-07-28 Kamil Ignacak
+	* libcw: I think that for now I'm done with splitting libcw.c into
+	parts. In about a week I have moved large portions of code from
+	libcw.c to separate files. Different parts of libcw.c,
+	implementing different functionality, are now in their own *.c/*.h
+	files. These new modules are:
+        libcw_data.c
+	libcw_gen.c
+        libcw_key.c
+        libcw_tq.c
+	libcw_utils.c
+
+	It's very possible that in future I will move some more code from
+	libcw.c to new files.
+
+	Up until now the code in new files is pretty much the same as it
+	was in libcw.c (the same order of functions, the same bodies of
+	functions, pretty much copy-and-paste). If you want to check
+	correctness of moving the functions to new files, you could do
+	this by comparing libcw/*.c files from 28.07.2014 with original
+	libcw.c from previous release (I did such comparing using KDE
+	application 'kompare', everything looks ok to me).
+
+	After today I may make some changes in *.c files that will make
+	the movement of code less transparent (but of course keeping
+	everything in git).
+
+
+	In addition to moving parts core functionality of the library from
+	libcw.c to new files, I have also reviewed test code and build
+	targets in Makefile.am for building test applications. You can now
+	build three test executables with "make check":
+        libcw_test_internal
+        libcw_test_public
+        libcw_test_simple_gen
+
+	C code used to build these test executables is now a bit more
+	simple - it uses a bit less #ifdefs, and main() function for each
+	executable is in its own separate *.c file. There is no main()
+	function in libcw.c file anymore.
+
+
+	The main goal for the splitting of libcw.c was to introduce more
+	order into the project.  libcw.c file contained almost 10k
+	LOC. Almost all modules (with exception of audio systems) were in
+	a single file. Functions implementing these modules were sometimes
+	mixed. Mental navigation in the file was becoming difficult. The
+	split should help me solve these problems.
+
+
+	The description above was given to explain why and how the libcw.c
+	has been modified so heavily in this release. The code is still in
+	*.c files. No functionality has been removed. No functions have
+	been added or removed.
+
+	Looking from outside, the library hasn't changed. It has the same
+	set of functions implementing the same functionality. The libcw.h
+	and libcw_debug.h files haven't changed at all. Changes to libcw
+	in this release, from users' and developers' point of view, are
+	none.
+
 2014-07-26 Kamil Ignacak
 	* cwcp: fixing a stupid error that I introduced in one of previous
 	releases: cwcp didn't use "combined" argv, so it didn't process
