@@ -20,7 +20,7 @@
 
 # targets to be built in this directory
 lib_LTLIBRARIES=libcw.la
-check_PROGRAMS=libcw_test_public libcw_test_internal libcw_test_simple
+check_PROGRAMS=libcw_test_public libcw_test_internal libcw_test_simple_gen
 man_MANS=libcw.3 cw.7
 pkgconfig_DATA=libcw.pc
 
@@ -97,19 +97,19 @@ libcw_test_internal_CFLAGS = -rdynamic
 
 
 
-# target: libcw_test_simple, yet another test program;
-# main() is defined in libcw_test_simple.c
+# target: libcw_test_simple_gen, yet another test program;
+# main() is defined in libcw_test_simple_gen.c
 # The file defines a very simple set of tests that make only a basic
-# use of libcw's facilities.
+# use of libcw's generator facilities.
 
-# source code files used to build libcw_test_simple program
-libcw_test_simple_SOURCES = libcw_test_simple.c libcw_test.c
+# source code files used to build libcw_test_simple_gen program
+libcw_test_simple_gen_SOURCES = libcw_test_simple_gen.c libcw_test.c
 
 # target-specific linker flags (objects to link)
-libcw_test_simple_LDADD=-lm -lpthread -ldl  -L./.libs -lcw
+libcw_test_simple_gen_LDADD=-lm -lpthread -ldl  -L./.libs -lcw
 
 # target-specific compiler flags
-libcw_test_simple_CFLAGS = -rdynamic
+libcw_test_simple_gen_CFLAGS = -rdynamic
 
 
 
