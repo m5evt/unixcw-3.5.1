@@ -35,6 +35,7 @@
 #include "libcw_tq.h"
 #include "libcw_gen.h"
 #include "libcw_internal.h"
+#include "libcw_utils.h"
 
 
 extern cw_debug_t cw_debug_object;
@@ -70,8 +71,7 @@ extern cw_gen_t **cw_generator;
    Client code can register - using cw_register_keying_callback() -
    a client callback function. The function will be called every time the
    state of a key changes. */
-static void cw_straight_key_generate_internal(cw_gen_t *gen, int key_state);
-static void cw_iambic_keyer_generate_internal(cw_gen_t *gen, int key_state, int usecs);
+static void cw_straight_key_enqueue_symbol_internal(cw_gen_t *gen, int key_state);
 
 
 
@@ -131,7 +131,8 @@ static const char *cw_iambic_keyer_states[] = {
 
 
 cw_iambic_keyer_t cw_iambic_keyer = {
-	.state = KS_IDLE,
+	.graph_state = KS_IDLE,
+	.key_value = CW_KEY_STATE_OPEN,
 
 	.dot_paddle = false,
 	.dash_paddle = false,
@@ -151,8 +152,8 @@ cw_iambic_keyer_t cw_iambic_keyer = {
 
 
 
-static void cw_iambic_keyer_update_initial_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen);
-
+static void cw_iambic_keyer_update_state_initial_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen);
+static void cw_iambic_keyer_enqueue_symbol_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen, int key_value, int usecs);
 
 
 
@@ -290,7 +291,7 @@ void cw_key_set_state_internal(int key_state)
    \param gen - generator to be used to emit tones as state of key changes
    \param key_state - key state to be set
 */
-void cw_straight_key_generate_internal(cw_gen_t *gen, int key_state)
+void cw_straight_key_enqueue_symbol_internal(cw_gen_t *gen, int key_state)
 {
 	static int current_key_state = CW_KEY_STATE_OPEN;  /* Maintained key control state */
 
@@ -371,32 +372,55 @@ void cw_straight_key_generate_internal(cw_gen_t *gen, int key_state)
 
 
 /**
-   \brief Call external callback function for keying
+   \brief Enqueue a symbol (Mark/Space) in generator's queue
 
-   Control function that calls any requested keying callback only when there
-   is a change of keying state.  This function filters successive key-down
+   This function is called when keyer enters new graph state (as
+   described by keyer's state graph). The keyer needs some mechanism
+   to control itself, to control when to move out of current graph
+   state into next graph state. The movement between graph states must
+   be done in specific time periods. Iambic keyer needs to be notified
+   whenever a specific time period has elapsed.
+
+   Generator and its tone queue is used to implement this mechanism.
+   The function enqueues a tone (Mark or Space) of specific length -
+   this is the beginning of period when keyer is in new graph
+   state. Then generator dequeues the tone, counts the time period,
+   and (at the end of the tone/period) notifies keyer about end of
+   period. (Keyer then needs to evaluate state of paddles and decide
+   what's next, but that is a different story).
+
+   As a side effect of using generator, a sound is generated on Mark
+   (if generator's sound system is not Null).
+
+   Function also calls external callback function for keying on every
+   change of key's value (if the callback has been registered by
+   client code). Key's value (Open/Closed) is passed to the callback
+   as argument. Callback is called by this function only when there is
+   a change of key value - this function filters successive key-down
    or key-up actions into a single action.
 
+   TODO: explain difference and relation between key's value and
+   keyer's graph state.
+
+   \param keyer - current keyer
    \param gen - generator
-   \param key_state - key state to be set
-   \param usecs - length of tone to be generated
+   \param key_value - key value to be set (Mark/Space)
+   \param usecs - length of tone to be generated (period)
 */
-void cw_iambic_keyer_generate_internal(cw_gen_t *gen, int key_state, int usecs)
+void cw_iambic_keyer_enqueue_symbol_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen, int key_value, int usecs)
 {
-	static int current_key_state = CW_KEY_STATE_OPEN;  /* Maintained key control state */
-
-	if (current_key_state != key_state) {
+	if (keyer->key_value != key_value) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
-			      "libcw: iambic keyer: keying state %d->%d", current_key_state, key_state);
+			      "libcw: iambic keyer: key value %d->%d", keyer->key_value, key_value);
 
-		/* Set the new keying state, and call any requested callback. */
-		current_key_state = key_state;
+		/* Set the new key value, and call a registered callback. */
+		keyer->key_value = key_value;
 		if (cw_kk_key_callback) {
-			(*cw_kk_key_callback)(cw_kk_key_callback_arg, current_key_state);
+			(*cw_kk_key_callback)(cw_kk_key_callback_arg, keyer->key_value);
 		}
 
 		cw_tone_t tone;
-		if (current_key_state == CW_KEY_STATE_CLOSED) {
+		if (keyer->key_value == CW_KEY_STATE_CLOSED) {
 			tone.slope_mode = CW_SLOPE_MODE_STANDARD_SLOPES;
 			tone.usecs = usecs;
 			tone.frequency = gen->frequency;
@@ -489,7 +513,7 @@ int cw_get_iambic_curtis_mode_b_state(void)
    \return CW_FAILURE if there is a lock and the function cannot proceed
    \return CW_SUCCESS otherwise
 */
-int cw_iambic_keyer_update_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen)
+int cw_iambic_keyer_update_graph_state_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen)
 {
 	if (keyer->lock) {
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_INTERNAL, CW_DEBUG_ERROR,
@@ -501,10 +525,10 @@ int cw_iambic_keyer_update_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen)
 	/* Synchronize low level timing parameters if required. */
 	cw_sync_parameters_internal(gen, cw_receiver);
 
-	int cw_iambic_keyer_state_old = keyer->state;
+	int cw_iambic_keyer_state_old = keyer->graph_state;
 
 	/* Decide what to do based on the current state. */
-	switch (keyer->state) {
+	switch (keyer->graph_state) {
 		/* Ignore calls if our state is idle. */
 	case KS_IDLE:
 		keyer->lock = false;
@@ -517,15 +541,25 @@ int cw_iambic_keyer_update_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen)
 		   to the client. */
 	case KS_IN_DOT_A:
 	case KS_IN_DOT_B:
-		cw_iambic_keyer_generate_internal(gen, CW_KEY_STATE_OPEN, gen->eoe_delay);
-		keyer->state = keyer->state == KS_IN_DOT_A
+		/* Just to verify that key value and keyer graph state
+		   are in sync.  We are *at the end* of Mark, so key
+		   should be (still) closed. */
+		assert (keyer->key_value == CW_KEY_STATE_CLOSED);
+
+		cw_iambic_keyer_enqueue_symbol_internal(keyer, gen, CW_KEY_STATE_OPEN, gen->eoe_delay);
+		keyer->graph_state = keyer->graph_state == KS_IN_DOT_A
 			? KS_AFTER_DOT_A : KS_AFTER_DOT_B;
 		break;
 
 	case KS_IN_DASH_A:
 	case KS_IN_DASH_B:
-		cw_iambic_keyer_generate_internal(gen, CW_KEY_STATE_OPEN, gen->eoe_delay);
-		keyer->state = keyer->state == KS_IN_DASH_A
+		/* Just to verify that key value and keyer graph state
+		   are in sync.  We are *at the end* of Mark, so key
+		   should be (still) closed. */
+		assert (keyer->key_value == CW_KEY_STATE_CLOSED);
+
+		cw_iambic_keyer_enqueue_symbol_internal(keyer, gen, CW_KEY_STATE_OPEN, gen->eoe_delay);
+		keyer->graph_state = keyer->graph_state == KS_IN_DASH_A
 			? KS_AFTER_DASH_A : KS_AFTER_DASH_B;
 
 		break;
@@ -540,26 +574,34 @@ int cw_iambic_keyer_update_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen)
 		   true, then revert to idling. */
 	case KS_AFTER_DOT_A:
 	case KS_AFTER_DOT_B:
+		/* Just to verify that key value and keyer graph state
+		   are in sync.  We are *at the end* of Space, so key
+		   should be (still) open. */
+		assert (keyer->key_value == CW_KEY_STATE_OPEN);
+
 		if (!keyer->dot_paddle) {
+			/* Client has informed us that dot paddle has
+			   been released. Clear the paddle state
+			   memory. */
 			keyer->dot_latch = false;
 		}
 
-		if (keyer->state == KS_AFTER_DOT_B) {
-			cw_iambic_keyer_generate_internal(gen, CW_KEY_STATE_CLOSED, gen->dash_length);
-			keyer->state = KS_IN_DASH_A;
+		if (keyer->graph_state == KS_AFTER_DOT_B) {
+			cw_iambic_keyer_enqueue_symbol_internal(keyer, gen, CW_KEY_STATE_CLOSED, gen->dash_length);
+			keyer->graph_state = KS_IN_DASH_A;
 		} else if (keyer->dash_latch) {
-			cw_iambic_keyer_generate_internal(gen, CW_KEY_STATE_CLOSED, gen->dash_length);
+			cw_iambic_keyer_enqueue_symbol_internal(keyer, gen, CW_KEY_STATE_CLOSED, gen->dash_length);
 			if (keyer->curtis_b_latch){
 				keyer->curtis_b_latch = false;
-				keyer->state = KS_IN_DASH_B;
+				keyer->graph_state = KS_IN_DASH_B;
 			} else {
-				keyer->state = KS_IN_DASH_A;
+				keyer->graph_state = KS_IN_DASH_A;
 			}
 		} else if (keyer->dot_latch) {
-			cw_iambic_keyer_generate_internal(gen, CW_KEY_STATE_CLOSED, gen->dot_length);
-			keyer->state = KS_IN_DOT_A;
+			cw_iambic_keyer_enqueue_symbol_internal(keyer, gen, CW_KEY_STATE_CLOSED, gen->dot_length);
+			keyer->graph_state = KS_IN_DOT_A;
 		} else {
-			keyer->state = KS_IDLE;
+			keyer->graph_state = KS_IDLE;
 			//cw_finalization_schedule_internal();
 		}
 
@@ -567,25 +609,34 @@ int cw_iambic_keyer_update_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen)
 
 	case KS_AFTER_DASH_A:
 	case KS_AFTER_DASH_B:
+		/* Just to verify that key value and keyer graph state
+		   are in sync.  We are *at the end* of Space, so key
+		   should be (still) open. */
+		assert (keyer->key_value == CW_KEY_STATE_OPEN);
+
 		if (!keyer->dash_paddle) {
+			/* Client has informed us that dash paddle has
+			   been released. Clear the paddle state
+			   memory. */
 			keyer->dash_latch = false;
 		}
-		if (keyer->state == KS_AFTER_DASH_B) {
-			cw_iambic_keyer_generate_internal(gen, CW_KEY_STATE_CLOSED, gen->dot_length);
-			keyer->state = KS_IN_DOT_A;
+
+		if (keyer->graph_state == KS_AFTER_DASH_B) {
+			cw_iambic_keyer_enqueue_symbol_internal(keyer, gen, CW_KEY_STATE_CLOSED, gen->dot_length);
+			keyer->graph_state = KS_IN_DOT_A;
 		} else if (keyer->dot_latch) {
-			cw_iambic_keyer_generate_internal(gen, CW_KEY_STATE_CLOSED, gen->dot_length);
+			cw_iambic_keyer_enqueue_symbol_internal(keyer, gen, CW_KEY_STATE_CLOSED, gen->dot_length);
 			if (keyer->curtis_b_latch) {
 				keyer->curtis_b_latch = false;
-				keyer->state = KS_IN_DOT_B;
+				keyer->graph_state = KS_IN_DOT_B;
 			} else {
-				keyer->state = KS_IN_DOT_A;
+				keyer->graph_state = KS_IN_DOT_A;
 			}
 		} else if (keyer->dash_latch) {
-			cw_iambic_keyer_generate_internal(gen, CW_KEY_STATE_CLOSED, gen->dash_length);
-			keyer->state = KS_IN_DASH_A;
+			cw_iambic_keyer_enqueue_symbol_internal(keyer, gen, CW_KEY_STATE_CLOSED, gen->dash_length);
+			keyer->graph_state = KS_IN_DASH_A;
 		} else {
-			keyer->state = KS_IDLE;
+			keyer->graph_state = KS_IDLE;
 			//cw_finalization_schedule_internal();
 		}
 
@@ -595,11 +646,11 @@ int cw_iambic_keyer_update_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen)
 
 	cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
 		      "libcw: cw_keyer_state: %s -> %s",
-		      cw_iambic_keyer_states[cw_iambic_keyer_state_old], cw_iambic_keyer_states[keyer->state]);
+		      cw_iambic_keyer_states[cw_iambic_keyer_state_old], cw_iambic_keyer_states[keyer->graph_state]);
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYER_STATES, CW_DEBUG_INFO,
 		      "libcw: keyer %s -> %s",
-		      cw_iambic_keyer_states[cw_iambic_keyer_state_old], cw_iambic_keyer_states[keyer->state]);
+		      cw_iambic_keyer_states[cw_iambic_keyer_state_old], cw_iambic_keyer_states[keyer->graph_state]);
 
 	keyer->lock = false;
 	return CW_SUCCESS;
@@ -678,19 +729,21 @@ int cw_notify_keyer_paddle_event(int dot_paddle_state,
 
 
 
-	if (cw_iambic_keyer.state == KS_IDLE) {
+	if (cw_iambic_keyer.graph_state == KS_IDLE) {
 		/* If the current state is idle, give the state
 		   process a nudge. */
-		cw_iambic_keyer_update_initial_internal(&cw_iambic_keyer, (*cw_generator));
+		cw_iambic_keyer_update_state_initial_internal(&cw_iambic_keyer, (*cw_generator));
 	} else {
 		/* The state machine for iambic keyer is already in
 		   motion, no need to do anything more.
 
 		   Current paddle states have been recorded in this
 		   function. Any future changes of paddle states will
-		   be also recorded by this function. In both cases
-		   the main action upon the states is taken somewhere
-		   else. */
+		   be also recorded by this function.
+
+		   In both cases the main action upon states of
+		   paddles and paddle latches is taken in
+		   cw_iambic_keyer_update_graph_state_internal(). */
 		;
 	}
 
@@ -707,27 +760,31 @@ int cw_notify_keyer_paddle_event(int dot_paddle_state,
    State machine for iambic keyer must be pushed from KS_IDLE
    state. Call this function to do this.
 */
-void cw_iambic_keyer_update_initial_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen)
+void cw_iambic_keyer_update_state_initial_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen)
 {
 	if (keyer->dot_paddle) {
-		/* Pretend we just finished a dash. */
-		keyer->state = keyer->curtis_b_latch
+		/* "Dot" paddle pressed. Pretend that we are in "after
+		   dash" space, so that keyer will have to transit
+		   into "dot" mark state. */
+		keyer->graph_state = keyer->curtis_b_latch
 			? KS_AFTER_DASH_B : KS_AFTER_DASH_A;
 
-		if (!cw_iambic_keyer_update_internal(keyer, gen)) {
+		if (!cw_iambic_keyer_update_graph_state_internal(keyer, gen)) {
 			/* just try again, once */
 			usleep(1000);
-			cw_iambic_keyer_update_internal(keyer, gen);
+			cw_iambic_keyer_update_graph_state_internal(keyer, gen);
 		}
 	} else if (keyer->dash_paddle) {
-		/* Pretend we just finished a dot. */
-		keyer->state = keyer->curtis_b_latch
+		/* "Dash" paddle pressed. Pretend that we are in
+		   "after dot" space, so that keyer will have to
+		   transit into "dash" mark state. */
+		keyer->graph_state = keyer->curtis_b_latch
 			? KS_AFTER_DOT_B : KS_AFTER_DOT_A;
 
-		if (!cw_iambic_keyer_update_internal(keyer, gen)) {
+		if (!cw_iambic_keyer_update_graph_state_internal(keyer, gen)) {
 			/* just try again, once */
 			usleep(1000);
-			cw_iambic_keyer_update_internal(keyer, gen);
+			cw_iambic_keyer_update_graph_state_internal(keyer, gen);
 		}
 	} else {
 		/* Both paddles are open/up. We certainly don't want
@@ -833,7 +890,7 @@ void cw_get_keyer_paddle_latches(int *dot_paddle_latch_state,
 */
 bool cw_is_keyer_busy(void)
 {
-	return cw_iambic_keyer.state != KS_IDLE;
+	return cw_iambic_keyer.graph_state != KS_IDLE;
 }
 
 
@@ -864,11 +921,11 @@ int cw_wait_for_keyer_element(void)
 
 	/* First wait for the state to move to idle (or just do nothing
 	   if it's not), or to one of the after- states. */
-	while (cw_iambic_keyer.state != KS_IDLE
-	       && cw_iambic_keyer.state != KS_AFTER_DOT_A
-	       && cw_iambic_keyer.state != KS_AFTER_DOT_B
-	       && cw_iambic_keyer.state != KS_AFTER_DASH_A
-	       && cw_iambic_keyer.state != KS_AFTER_DASH_B) {
+	while (cw_iambic_keyer.graph_state != KS_IDLE
+	       && cw_iambic_keyer.graph_state != KS_AFTER_DOT_A
+	       && cw_iambic_keyer.graph_state != KS_AFTER_DOT_B
+	       && cw_iambic_keyer.graph_state != KS_AFTER_DASH_A
+	       && cw_iambic_keyer.graph_state != KS_AFTER_DASH_B) {
 
 		cw_signal_wait_internal();
 	}
@@ -877,11 +934,11 @@ int cw_wait_for_keyer_element(void)
 	   already), or one of the in- states, at which point we know
 	   we're actually at the end of the element we were in when we
 	   entered this routine. */
-	while (cw_iambic_keyer.state != KS_IDLE
-	       && cw_iambic_keyer.state != KS_IN_DOT_A
-	       && cw_iambic_keyer.state != KS_IN_DOT_B
-	       && cw_iambic_keyer.state != KS_IN_DASH_A
-	       && cw_iambic_keyer.state != KS_IN_DASH_B) {
+	while (cw_iambic_keyer.graph_state != KS_IDLE
+	       && cw_iambic_keyer.graph_state != KS_IN_DOT_A
+	       && cw_iambic_keyer.graph_state != KS_IN_DOT_B
+	       && cw_iambic_keyer.graph_state != KS_IN_DASH_A
+	       && cw_iambic_keyer.graph_state != KS_IN_DASH_B) {
 
 		cw_signal_wait_internal();
 	}
@@ -921,7 +978,7 @@ int cw_wait_for_keyer(void)
 	}
 
 	/* Wait for the keyer state to go idle. */
-	while (cw_iambic_keyer.state != KS_IDLE) {
+	while (cw_iambic_keyer.graph_state != KS_IDLE) {
 		cw_signal_wait_internal();
 	}
 
@@ -949,15 +1006,54 @@ void cw_reset_keyer(void)
 	cw_iambic_keyer.curtis_mode_b = false;
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYER_STATES, CW_DEBUG_INFO,
-		      "libcw: assigning to cw_keyer_state %s -> KS_IDLE", cw_iambic_keyer_states[cw_iambic_keyer.state]);
-	cw_iambic_keyer.state = KS_IDLE;
+		      "libcw: assigning to cw_keyer_state %s -> KS_IDLE", cw_iambic_keyer_states[cw_iambic_keyer.graph_state]);
+	cw_iambic_keyer.graph_state = KS_IDLE;
 
 	/* Silence sound and stop any background soundcard tone generation. */
 	cw_generator_silence_internal((*cw_generator));
 	cw_finalization_schedule_internal();
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYER_STATES, CW_DEBUG_INFO,
-		      "libcw: keyer -> %s (reset)", cw_iambic_keyer_states[cw_iambic_keyer.state]);
+		      "libcw: keyer -> %s (reset)", cw_iambic_keyer_states[cw_iambic_keyer.graph_state]);
+
+	return;
+}
+
+
+
+
+
+/**
+   Iambic keyer has an internal timer variable. On some occasions the
+   variable needs to be updated.
+
+   I thought that it needs to be updated by client application on key
+   paddle events, but it turns out that it should be also updated in
+   generator dequeue code. Not sure why.
+
+   \param keyer - keyer with timer to be updated
+   \param usecs - amount of increase
+*/
+void cw_iambic_keyer_increment_timer_internal(cw_iambic_keyer_t *keyer, int usecs)
+{
+	if (keyer->graph_state != KS_IDLE) {
+		/* Update timestamp that clocks iambic keyer
+		   with current time interval. This must be
+		   done only when iambic keyer is in
+		   use. Calling the code when straight key is
+		   in use will cause problems, so don't clock
+		   a straight key with this. */
+
+		if (keyer->timer) {
+
+			cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
+				      "libcw: iambic keyer: incrementing timer by %d [us]\n", usecs);
+
+			keyer->timer->tv_usec += usecs % CW_USECS_PER_SEC;
+			keyer->timer->tv_sec  += usecs / CW_USECS_PER_SEC + keyer->timer->tv_usec / CW_USECS_PER_SEC;
+			keyer->timer->tv_usec %= CW_USECS_PER_SEC;
+		}
+	}
 
 	return;
 }
@@ -1050,9 +1146,9 @@ int cw_notify_straight_key_event(int key_state)
 		/* Do tones and keying, and set up timeouts and soundcard
 		   activities to match the new key state. */
 		if (cw_sk_key_state == CW_KEY_STATE_CLOSED) {
-			cw_straight_key_generate_internal((*cw_generator), CW_KEY_STATE_CLOSED);
+			cw_straight_key_enqueue_symbol_internal((*cw_generator), CW_KEY_STATE_CLOSED);
 		} else {
-			cw_straight_key_generate_internal((*cw_generator), CW_KEY_STATE_OPEN);
+			cw_straight_key_enqueue_symbol_internal((*cw_generator), CW_KEY_STATE_OPEN);
 
 			/* Indicate that we have finished with timeouts,
 			   and also with the soundcard too.  There's no way
