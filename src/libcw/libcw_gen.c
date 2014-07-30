@@ -471,24 +471,7 @@ void *cw_generator_dequeue_and_play_internal(void *arg)
 
 		// POSSIBLE ALTERNATIVE IMPLEMENTATION: old_state = state;
 
-		if (cw_iambic_keyer.state != KS_IDLE) {
-			/* Update timestamp that clocks iambic keyer
-			   with current time interval. This must be
-			   done only when iambic keyer is in
-			   use. Calling the code when straight key is
-			   in use will cause problems, so don't clock
-			   a straight key with this. */
-
-			/* TODO: see if we can put this piece of code
-			   this inside of
-			   cw_iambic_keyer_update_internal() that is
-			   called below at the end of loop's body. */
-			if (cw_iambic_keyer.timer) {
-				cw_iambic_keyer.timer->tv_usec += tone.usecs % CW_USECS_PER_SEC;
-				cw_iambic_keyer.timer->tv_sec  += tone.usecs / CW_USECS_PER_SEC + cw_iambic_keyer.timer->tv_usec / CW_USECS_PER_SEC;
-				cw_iambic_keyer.timer->tv_usec %= CW_USECS_PER_SEC;
-			}
-		}
+		cw_iambic_keyer_increment_timer_internal(&cw_iambic_keyer, tone.usecs);
 
 #ifdef LIBCW_WITH_DEV
 		cw_debug_ev ((&cw_debug_object_ev), 0, tone.frequency ? CW_DEBUG_EVENT_TONE_HIGH : CW_DEBUG_EVENT_TONE_LOW);
@@ -513,12 +496,25 @@ void *cw_generator_dequeue_and_play_internal(void *arg)
 		 */
 		pthread_kill(gen->client.thread_id, SIGALRM);
 
-		/* Iambic keyer machine state is quite complicated,
-		   and it needs to be constantly updated using calls
-		   to cw_iambic_keyer_update_internal(). For now the
-		   best place to do this appears to be here.
+		/* Generator may be used by iambic keyer to measure
+		   periods of time (lengths of Mark and Space) - this
+		   is achieved by enqueueing Marks and Spaces by keyer
+		   in generator.
 
-		   FIXME: There is a big problem:
+		   At this point the generator has finished generating
+		   a tone of specified length. A duration of Mark or
+		   Space has elapsed. Inform iambic keyer that the
+		   tone it has enqueued has elapsed.
+
+		   (Whether iambic keyer has enqueued any tones or
+		   not, and whether it is waiting for the
+		   notification, is a different story. We will let the
+		   iambic keyer function called below to decide what
+		   to do with the notification. If keyer is in idle
+		   graph state, it will ignore the notification.)
+		*/
+
+		/* FIXME: There is a big problem:
 		   cw_gen_write_to_soundcard_internal() call made above may
 		   be pretty good at telling sound card to produce
 		   tones of specific length, but surely is not the
@@ -536,18 +532,19 @@ void *cw_generator_dequeue_and_play_internal(void *arg)
 		   more.
 
 		   We need to find another place to make the call to
-		   cw_iambic_keyer_update_internal(), or at least pass
-		   to it some reliable source of timing.
+		   cw_iambic_keyer_update_graph_state_internal(), or
+		   at least pass to it some reliable source of timing.
 
-		   INFO: it seems that this problem has been fixed
-		   with the code enclosed in
-		   "if (cw_iambic_keyer.state != KS_IDLE) {}" above,
-		   and all the other new or changed code in libcw
-		   and xcwcp that is related to it. */
-		if (!cw_iambic_keyer_update_internal(&cw_iambic_keyer, gen)) {
+		   INFO to FIXME: it seems that this problem has been
+		   fixed with call to
+		   cw_iambic_keyer_increment_timer_internal() above,
+		   and all the other new or changed code in libcw and
+		   xcwcp that is related to keyer's timer. */
+
+		if (!cw_iambic_keyer_update_graph_state_internal(&cw_iambic_keyer, gen)) {
 			/* just try again, once */
 			usleep(1000);
-			cw_iambic_keyer_update_internal(&cw_iambic_keyer, gen);
+			cw_iambic_keyer_update_graph_state_internal(&cw_iambic_keyer, gen);
 		}
 
 #ifdef LIBCW_WITH_DEV
