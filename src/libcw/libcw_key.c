@@ -70,8 +70,8 @@ extern cw_gen_t **cw_generator;
    Client code can register - using cw_register_keying_callback() -
    a client callback function. The function will be called every time the
    state of a key changes. */
-static void cw_key_straight_key_generate_internal(cw_gen_t *gen, int key_state);
-static void cw_key_iambic_keyer_generate_internal(cw_gen_t *gen, int key_state, int usecs);
+static void cw_straight_key_generate_internal(cw_gen_t *gen, int key_state);
+static void cw_iambic_keyer_generate_internal(cw_gen_t *gen, int key_state, int usecs);
 
 
 
@@ -290,7 +290,7 @@ void cw_key_set_state_internal(int key_state)
    \param gen - generator to be used to emit tones as state of key changes
    \param key_state - key state to be set
 */
-void cw_key_straight_key_generate_internal(cw_gen_t *gen, int key_state)
+void cw_straight_key_generate_internal(cw_gen_t *gen, int key_state)
 {
 	static int current_key_state = CW_KEY_STATE_OPEN;  /* Maintained key control state */
 
@@ -381,7 +381,7 @@ void cw_key_straight_key_generate_internal(cw_gen_t *gen, int key_state)
    \param key_state - key state to be set
    \param usecs - length of tone to be generated
 */
-void cw_key_iambic_keyer_generate_internal(cw_gen_t *gen, int key_state, int usecs)
+void cw_iambic_keyer_generate_internal(cw_gen_t *gen, int key_state, int usecs)
 {
 	static int current_key_state = CW_KEY_STATE_OPEN;  /* Maintained key control state */
 
@@ -517,14 +517,14 @@ int cw_iambic_keyer_update_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen)
 		   to the client. */
 	case KS_IN_DOT_A:
 	case KS_IN_DOT_B:
-		cw_key_iambic_keyer_generate_internal(gen, CW_KEY_STATE_OPEN, gen->eoe_delay);
+		cw_iambic_keyer_generate_internal(gen, CW_KEY_STATE_OPEN, gen->eoe_delay);
 		keyer->state = keyer->state == KS_IN_DOT_A
 			? KS_AFTER_DOT_A : KS_AFTER_DOT_B;
 		break;
 
 	case KS_IN_DASH_A:
 	case KS_IN_DASH_B:
-		cw_key_iambic_keyer_generate_internal(gen, CW_KEY_STATE_OPEN, gen->eoe_delay);
+		cw_iambic_keyer_generate_internal(gen, CW_KEY_STATE_OPEN, gen->eoe_delay);
 		keyer->state = keyer->state == KS_IN_DASH_A
 			? KS_AFTER_DASH_A : KS_AFTER_DASH_B;
 
@@ -545,10 +545,10 @@ int cw_iambic_keyer_update_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen)
 		}
 
 		if (keyer->state == KS_AFTER_DOT_B) {
-			cw_key_iambic_keyer_generate_internal(gen, CW_KEY_STATE_CLOSED, gen->dash_length);
+			cw_iambic_keyer_generate_internal(gen, CW_KEY_STATE_CLOSED, gen->dash_length);
 			keyer->state = KS_IN_DASH_A;
 		} else if (keyer->dash_latch) {
-			cw_key_iambic_keyer_generate_internal(gen, CW_KEY_STATE_CLOSED, gen->dash_length);
+			cw_iambic_keyer_generate_internal(gen, CW_KEY_STATE_CLOSED, gen->dash_length);
 			if (keyer->curtis_b_latch){
 				keyer->curtis_b_latch = false;
 				keyer->state = KS_IN_DASH_B;
@@ -556,7 +556,7 @@ int cw_iambic_keyer_update_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen)
 				keyer->state = KS_IN_DASH_A;
 			}
 		} else if (keyer->dot_latch) {
-			cw_key_iambic_keyer_generate_internal(gen, CW_KEY_STATE_CLOSED, gen->dot_length);
+			cw_iambic_keyer_generate_internal(gen, CW_KEY_STATE_CLOSED, gen->dot_length);
 			keyer->state = KS_IN_DOT_A;
 		} else {
 			keyer->state = KS_IDLE;
@@ -571,10 +571,10 @@ int cw_iambic_keyer_update_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen)
 			keyer->dash_latch = false;
 		}
 		if (keyer->state == KS_AFTER_DASH_B) {
-			cw_key_iambic_keyer_generate_internal(gen, CW_KEY_STATE_CLOSED, gen->dot_length);
+			cw_iambic_keyer_generate_internal(gen, CW_KEY_STATE_CLOSED, gen->dot_length);
 			keyer->state = KS_IN_DOT_A;
 		} else if (keyer->dot_latch) {
-			cw_key_iambic_keyer_generate_internal(gen, CW_KEY_STATE_CLOSED, gen->dot_length);
+			cw_iambic_keyer_generate_internal(gen, CW_KEY_STATE_CLOSED, gen->dot_length);
 			if (keyer->curtis_b_latch) {
 				keyer->curtis_b_latch = false;
 				keyer->state = KS_IN_DOT_B;
@@ -582,7 +582,7 @@ int cw_iambic_keyer_update_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen)
 				keyer->state = KS_IN_DOT_A;
 			}
 		} else if (keyer->dash_latch) {
-			cw_key_iambic_keyer_generate_internal(gen, CW_KEY_STATE_CLOSED, gen->dash_length);
+			cw_iambic_keyer_generate_internal(gen, CW_KEY_STATE_CLOSED, gen->dash_length);
 			keyer->state = KS_IN_DASH_A;
 		} else {
 			keyer->state = KS_IDLE;
@@ -1050,9 +1050,9 @@ int cw_notify_straight_key_event(int key_state)
 		/* Do tones and keying, and set up timeouts and soundcard
 		   activities to match the new key state. */
 		if (cw_sk_key_state == CW_KEY_STATE_CLOSED) {
-			cw_key_straight_key_generate_internal((*cw_generator), CW_KEY_STATE_CLOSED);
+			cw_straight_key_generate_internal((*cw_generator), CW_KEY_STATE_CLOSED);
 		} else {
-			cw_key_straight_key_generate_internal((*cw_generator), CW_KEY_STATE_OPEN);
+			cw_straight_key_generate_internal((*cw_generator), CW_KEY_STATE_OPEN);
 
 			/* Indicate that we have finished with timeouts,
 			   and also with the soundcard too.  There's no way
