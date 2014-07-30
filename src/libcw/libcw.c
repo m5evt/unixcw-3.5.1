@@ -665,7 +665,7 @@ void cw_sync_parameters_internal(cw_gen_t *gen, cw_rec_t *rec)
 	gen->adjustment_delay = (7 * gen->additional_delay) / 3;
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_PARAMETERS, CW_DEBUG_INFO,
-		      "libcw: send usec timings <%d>: %d, %d, %d, %d, %d, %d, %d",
+		      "libcw: send usec timings <%d [wpm]>: dot: %d, dash: %d, %d, %d, %d, %d, %d",
 		      gen->send_speed, gen->dot_length, gen->dash_length,
 		      gen->eoe_delay, gen->eoc_delay,
 		      gen->eow_delay, gen->additional_delay, gen->adjustment_delay);
@@ -756,7 +756,7 @@ void cw_sync_parameters_internal(cw_gen_t *gen, cw_rec_t *rec)
 	rec->eoc_range_ideal = 3 * unit_length;
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_PARAMETERS, CW_DEBUG_INFO,
-		      "libcw: receive usec timings <%d>: %d-%d, %d-%d, %d-%d[%d], %d-%d[%d], %d",
+		      "libcw: receive usec timings <%d [wpm]>: dot: %d-%d [ms], dash: %d-%d [ms], %d-%d[%d], %d-%d[%d], thres: %d",
 		      rec->speed,
 		      rec->dot_range_minimum, rec->dot_range_maximum,
 		      rec->dash_range_minimum, rec->dash_range_maximum,
@@ -2933,36 +2933,37 @@ void cw_reset_receive_statistics(void)
 /*
  * The CW receive functions implement the following state graph:
  *
- *        +----------------- RS_ERR_WORD <-------------------+
- *        |(clear)                ^                          |
- *        |           (delay=long)|                          |
- *        |                       |                          |
- *        +----------------- RS_ERR_CHAR <---------+         |
- *        |(clear)                ^  |             |         |
- *        |                       |  +-------------+         |(error,
- *        |                       |   (delay=short)          | delay=long)
- *        |    (error,delay=short)|                          |
- *        |                       |  +-----------------------+
+ *        +----------------- RS_ERR_WORD <-----------------------+
+ *        |(clear)                ^                              |
+ *        |           (delay=long)|                              |
+ *        |                       |                              |
+ *        +----------------- RS_ERR_CHAR <-------------+         |
+ *        |(clear)                ^  |                 |         |
+ *        |                       |  +-----------------+         |(error,
+ *        |                       |   (delay=short)              | delay=long)
+ *        |    (error,delay=short)|                              |
+ *        |                       |  +---------------------------+
  *        |                       |  |
  *        +--------------------+  |  |
  *        |             (noise)|  |  |
  *        |                    |  |  |
  *        v    (start tone)    |  |  |  (end tone,noise)
- * --> RS_IDLE ------------> RS_IN_TONE ------------> RS_AFTER_TONE <------- +
- *     |  ^                           ^               | |    | ^ |           |
- *     |  |          (delay=short)    +---------------+ |    | | +-----------+
- *     |  |        +--------------+     (start tone)    |    | |  (not ready,
- *     |  |        |              |                     |    | |   buffer dot,
- *     |  |        +-------> RS_END_CHAR <--------------+    | |   buffer dash)
- *     |  |                   |   |       (delay=short)      | |
- *     |  +-------------------+   |                          | |
- *     |  |(clear)                |                          | |
- *     |  |           (delay=long)|                          | |
- *     |  |                       v                          | |
- *     |  +----------------- RS_END_WORD <-------------------+ |
- *     |   (clear)                        (delay=long)         |(buffer dot,
- *     |                                                       | buffer dash)
- *     +-------------------------------------------------------+
+ * --> RS_IDLE ------------> RS_IN_TONE ----------------> RS_AFTER_TONE <------- +
+ *     |  ^                           ^                   | |    | ^ |           |
+ *     |  |                           |                   | |    | | |           |
+ *     |  |          (delay=short)    +-------------------+ |    | | +-----------+
+ *     |  |        +--------------+     (start tone)        |    | |   (not ready,
+ *     |  |        |              |                         |    | |    buffer dot,
+ *     |  |        +-------> RS_END_CHAR <------------------+    | |    buffer dash)
+ *     |  |                   |   |       (delay=short)          | |
+ *     |  +-------------------+   |                              | |
+ *     |  |(clear)                |                              | |
+ *     |  |           (delay=long)|                              | |
+ *     |  |                       v                              | |
+ *     |  +----------------- RS_END_WORD <-----------------------+ |
+ *     |   (clear)                        (delay=long)             |(buffer dot,
+ *     |                                                           | buffer dash)
+ *     +-----------------------------------------------------------+
  */
 
 
@@ -3068,12 +3069,16 @@ bool cw_get_adaptive_receive_state(void)
    Called on the start of a receive tone.  If the \p timestamp is NULL, the
    current timestamp is used as beginning of tone.
 
+   The function should be called by client application when pressing a
+   key down (closing a circuit) has been detected by client
+   application.
+
    On error the function returns CW_FAILURE, with errno set to ERANGE if
    the call is directly after another cw_start_receive_tone() call or if
    an existing received character has not been cleared from the buffer,
    or EINVAL if the timestamp passed in is invalid.
 
-   \param timestamp
+   \param timestamp - time stamp of "key down" event
 
    \return CW_SUCCESS on success
    \return CW_FAILURE otherwise (with errno set)
@@ -3093,11 +3098,12 @@ int cw_start_receive_tone(const struct timeval *timestamp)
 		return CW_FAILURE;
 	}
 
-	/* If we are in the after tone state, we can measure the
-	   inter-element gap by comparing the start timestamp with the
-	   last end one, guaranteed set by getting to the after tone
-	   state via cw_end_receive tone(), or in extreme cases, by
-	   cw_receiver_add_element_internal().
+	/* If this function has been called while received is in "after
+	   tone" state, we can measure the inter-element gap (between
+	   previous tone and this tone) by comparing the start
+	   timestamp with the last end one, guaranteed set by getting
+	   to the after tone state via cw_end_receive tone(), or in
+	   extreme cases, by cw_receiver_add_element_internal().
 
 	   Do that, then, and update the relevant statistics. */
 	if (receiver.state == RS_AFTER_TONE) {
@@ -3106,7 +3112,8 @@ int cw_start_receive_tone(const struct timeval *timestamp)
 		cw_receiver_add_statistic_internal(&receiver, STAT_END_ELEMENT, space_len_usec);
 	}
 
-	/* Set state to indicate we are inside a tone. */
+	/* Set state to indicate we are inside a tone. We don't know
+	   yet if it will be recognized as valid tone. */
 	receiver.state = RS_IN_TONE;
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
@@ -3159,7 +3166,9 @@ int cw_receiver_identify_tone_internal(cw_rec_t *rec, int element_len_usecs, /* 
 	if (element_len_usecs >= rec->dot_range_minimum
 	    && element_len_usecs <= rec->dot_range_maximum) {
 
-		// fprintf(stderr, "%d identified as dot\n", element_len_usecs);
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
+			      "libcw: mark '%d [us]' recognized as DOT (limits: %d - %d [us])",
+			      element_len_usecs, rec->dot_range_minimum, rec->dot_range_maximum);
 
 		*representation = CW_DOT_REPRESENTATION;
 		return CW_SUCCESS;
@@ -3169,18 +3178,37 @@ int cw_receiver_identify_tone_internal(cw_rec_t *rec, int element_len_usecs, /* 
 	if (element_len_usecs >= rec->dash_range_minimum
 	    && element_len_usecs <= rec->dash_range_maximum) {
 
-		// fprintf(stderr, "%d identified as dash\n", element_len_usecs);
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
+			      "libcw: mark '%d [us]' recognized as DASH (limits: %d - %d [us])",
+			      element_len_usecs, rec->dash_range_minimum, rec->dash_range_maximum);
 
 		*representation = CW_DASH_REPRESENTATION;
 		return CW_SUCCESS;
 	}
 
-	// fprintf(stderr, "%d unidentified\n", element_len_usecs);
-
 	/* This element is not a dot or a dash, so we have an error
-	   case.
+	   case. */
+	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
+		      "libcw: unrecognized element, mark len = %d [us]", element_len_usecs);
+	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
+		      "libcw: dot limits: %d - %d [us]", rec->dot_range_minimum, rec->dot_range_maximum);
+	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
+		      "libcw: dash limits: %d - %d [us]", rec->dash_range_minimum, rec->dash_range_maximum);
 
-	   If we cannot send back through \p representation a mark,
+	/* We should never reach here when in adaptive timing receive
+	   mode. */
+	if (rec->is_adaptive_receive_enabled) {
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
+			      "libcw: unrecognized element in adaptive receive");
+	}
+
+
+
+	/* TODO: making decision about current state of receiver is
+	   out of scope of this function. Move the part below to
+	   separate function. */
+
+	/* If we cannot send back through \p representation any result,
 	   let's move to either "in error after character" or "in
 	   error after word" state, which is an "in space" state.
 
@@ -3196,20 +3224,14 @@ int cw_receiver_identify_tone_internal(cw_rec_t *rec, int element_len_usecs, /* 
 	   space. Are we sure that we now want to treat the
 	   element_len_usecs as length of *space*? And do we want to
 	   move to either RS_ERR_WORD or RS_ERR_CHAR pretending that
-	   this is a length of *space*?
-
-	   Note that we should never reach here for adaptive timing
-	   receive. */
+	   this is a length of *space*? */
 	rec->state = element_len_usecs > rec->eoc_range_maximum
 		? RS_ERR_WORD : RS_ERR_CHAR;
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
 		      "libcw: receive state -> %s", cw_receiver_states[rec->state]);
 
-	if (rec->is_adaptive_receive_enabled) {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
-			      "libcw: unrecognized element in adaptive receive (mark len = %d)", element_len_usecs);
-	}
+
 
 	/* Return ENOENT to the caller. */
 	errno = ENOENT;
@@ -3293,7 +3315,8 @@ void cw_receiver_update_adaptive_tracking_internal(cw_rec_t *rec, int element_le
 /**
    \brief Mark end of tone
 
-   Called on the end of a received tone.
+   The function should be called by client application when releasing
+   a key (opening a circuit) has been detected by client application.
 
    If the \p timestamp is NULL, the current time is used as timestamp
    of end of tone.
@@ -3310,7 +3333,7 @@ void cw_receiver_update_adaptive_tracking_internal(cw_rec_t *rec, int element_le
    EAGAIN if the tone was shorter than the threshold for noise and was
    therefore ignored.
 
-   \param timestamp
+   \param timestamp - time stamp of "key up" event
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
@@ -3357,21 +3380,24 @@ int cw_end_receive_tone(const struct timeval *timestamp)
 		   came in to the routine. */
 		receiver.tone_end = saved_end_timestamp;
 
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
+			      "libcw: '%d [us]' tone identified as spike noise (threshold = '%d [us]')",
+			      element_len_usecs, receiver.noise_spike_threshold);
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
 			      "libcw: receive state -> %s", cw_receiver_states[receiver.state]);
-
-		// fprintf(stderr, "%d identified as spike noise\n", element_len_usecs);
 
 		errno = EAGAIN;
 		return CW_FAILURE;
 	}
 
+
+	/* This was not a noise. At this point, we have to make a
+	   decision about the element just received.  We'll use a
+	   routine that compares ranges to tell us what it thinks this
+	   element is.  If it can't decide, it will hand us back an
+	   error which we return to the caller.  Otherwise, it returns
+	   a mark (dot or dash), for us to buffer. */
 	char representation;
-	/* At this point, we have to make a decision about the element
-	   just received.  We'll use a routine that compares ranges to
-	   tell us what it thinks this element is.  If it can't decide,
-	   it will hand us back an error which we return to the caller.
-	   Otherwise, it returns a mark (dot or dash), for us to buffer. */
 	int status = cw_receiver_identify_tone_internal(&receiver, element_len_usecs, &representation);
 	if (!status) {
 		return CW_FAILURE;
@@ -4046,6 +4072,8 @@ void cw_generator_delete(void)
 			free(generator->tone_slope.amplitudes);
 			generator->tone_slope.amplitudes = NULL;
 		}
+
+		cw_tq_delete_internal(&(generator->tq));
 
 		generator->audio_system = CW_AUDIO_NONE;
 		free(generator);
