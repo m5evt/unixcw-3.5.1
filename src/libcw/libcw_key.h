@@ -25,7 +25,8 @@
    keyer also latches any point where both paddle states are true at
    the same time. */
 typedef struct cw_iambic_keyer_struct {
-	int state;            /* Keyer state. */
+	int graph_state;      /* State of iambic keyer state machine. */
+	int key_value;        /* Open/Closed, Space/Mark, NoSound/Sound. */
 
 	bool dot_paddle;      /* Dot paddle state */
 	bool dash_paddle;     /* Dash paddle state */
@@ -65,7 +66,9 @@ enum {
 
 
 
-int  cw_iambic_keyer_update_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen);
+int  cw_iambic_keyer_update_graph_state_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen);
+void cw_iambic_keyer_increment_timer_internal(cw_iambic_keyer_t *keyer, int usecs);
+
 void cw_key_set_state_internal(int key_state);
 
 
