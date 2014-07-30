@@ -264,11 +264,7 @@ struct cw_gen_struct {
 int       cw_generator_set_audio_device_internal(cw_gen_t *gen, const char *device);
 int       cw_generator_silence_internal(cw_gen_t *gen);
 cw_gen_t *cw_gen_new_internal(int audio_system, const char *device);
-int       cw_generator_new_open_internal(cw_gen_t *gen, int audio_system, const char *device);
 void     *cw_generator_dequeue_and_play_internal(void *arg);
-int       cw_generator_calculate_sine_wave_internal(cw_gen_t *gen, cw_tone_t *tone);
-int       cw_generator_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone);
-int       cw_soundcard_write_internal(cw_gen_t *gen, int queue_state, cw_tone_t *tone);
 
 
 
