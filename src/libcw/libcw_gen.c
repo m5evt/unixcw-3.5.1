@@ -69,8 +69,6 @@ extern cw_debug_t cw_debug_object;
 extern cw_debug_t cw_debug_object_ev;
 extern cw_debug_t cw_debug_object_dev;
 
-/* From libcw_tq.c. */
-extern cw_tone_queue_t cw_tone_queue;
 
 /* From libcw_key.c. */
 extern cw_iambic_keyer_t cw_iambic_keyer;
@@ -90,6 +88,15 @@ static const char *default_audio_devices[] = {
 	CW_DEFAULT_ALSA_DEVICE,
 	CW_DEFAULT_PA_DEVICE,
 	(char *) NULL }; /* just in case someone decided to index the table with CW_AUDIO_SOUNDCARD */
+
+
+
+
+
+static int cw_gen_new_open_internal(cw_gen_t *gen, int audio_system, const char *device);
+static int cw_gen_calculate_sine_wave_internal(cw_gen_t *gen, cw_tone_t *tone);
+static int cw_gen_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone);
+static int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, int queue_state, cw_tone_t *tone);
 
 
 
@@ -216,67 +223,66 @@ cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 	fprintf(stderr, "libcw build %s %s\n", __DATE__, __TIME__);
 #endif
 
-	cw_gen_t *generator = (cw_gen_t *) malloc(sizeof (cw_gen_t));
-	if (!generator) {
+	cw_gen_t *gen = (cw_gen_t *) malloc(sizeof (cw_gen_t));
+	if (!gen) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
 			      "libcw: malloc()");
 		return NULL;
 	}
 
-	generator->tq = &cw_tone_queue;
-	cw_tone_queue_init_internal(generator->tq);
+	gen->tq = cw_tq_new_internal();
 
-	generator->audio_device = NULL;
-	//generator->audio_system = audio_system;
-	generator->audio_device_is_open = false;
-	generator->dev_raw_sink = -1;
-	generator->send_speed = CW_SPEED_INITIAL,
-	generator->frequency = CW_FREQUENCY_INITIAL;
-	generator->volume_percent = CW_VOLUME_INITIAL;
-	generator->volume_abs = (generator->volume_percent * CW_AUDIO_VOLUME_RANGE) / 100;
-	generator->gap = CW_GAP_INITIAL;
-	generator->buffer = NULL;
-	generator->buffer_n_samples = -1;
+	gen->audio_device = NULL;
+	//gen->audio_system = audio_system;
+	gen->audio_device_is_open = false;
+	gen->dev_raw_sink = -1;
+	gen->send_speed = CW_SPEED_INITIAL,
+	gen->frequency = CW_FREQUENCY_INITIAL;
+	gen->volume_percent = CW_VOLUME_INITIAL;
+	gen->volume_abs = (gen->volume_percent * CW_AUDIO_VOLUME_RANGE) / 100;
+	gen->gap = CW_GAP_INITIAL;
+	gen->buffer = NULL;
+	gen->buffer_n_samples = -1;
 
-	generator->oss_version.x = -1;
-	generator->oss_version.y = -1;
-	generator->oss_version.z = -1;
+	gen->oss_version.x = -1;
+	gen->oss_version.y = -1;
+	gen->oss_version.z = -1;
 
-	generator->client.name = (char *) NULL;
+	gen->client.name = (char *) NULL;
 
-	generator->tone_slope.length_usecs = CW_AUDIO_SLOPE_USECS;
-	generator->tone_slope.shape = CW_TONE_SLOPE_SHAPE_RAISED_COSINE;
-	generator->tone_slope.amplitudes = NULL;
-	generator->tone_slope.n_amplitudes = 0;
+	gen->tone_slope.length_usecs = CW_AUDIO_SLOPE_USECS;
+	gen->tone_slope.shape = CW_TONE_SLOPE_SHAPE_RAISED_COSINE;
+	gen->tone_slope.amplitudes = NULL;
+	gen->tone_slope.n_amplitudes = 0;
 
 #ifdef LIBCW_WITH_PULSEAUDIO
-	generator->pa_data.s = NULL;
+	gen->pa_data.s = NULL;
 
-	generator->pa_data.ba.prebuf    = (uint32_t) -1;
-	generator->pa_data.ba.tlength   = (uint32_t) -1;
-	generator->pa_data.ba.minreq    = (uint32_t) -1;
-	generator->pa_data.ba.maxlength = (uint32_t) -1;
-	generator->pa_data.ba.fragsize  = (uint32_t) -1;
+	gen->pa_data.ba.prebuf    = (uint32_t) -1;
+	gen->pa_data.ba.tlength   = (uint32_t) -1;
+	gen->pa_data.ba.minreq    = (uint32_t) -1;
+	gen->pa_data.ba.maxlength = (uint32_t) -1;
+	gen->pa_data.ba.fragsize  = (uint32_t) -1;
 #endif
 
-	generator->open_device = NULL;
-	generator->close_device = NULL;
-	generator->write = NULL;
+	gen->open_device = NULL;
+	gen->close_device = NULL;
+	gen->write = NULL;
 
-	pthread_attr_init(&generator->thread.attr);
-	pthread_attr_setdetachstate(&generator->thread.attr, PTHREAD_CREATE_DETACHED);
+	pthread_attr_init(&gen->thread.attr);
+	pthread_attr_setdetachstate(&gen->thread.attr, PTHREAD_CREATE_DETACHED);
 
-	generator->weighting = CW_WEIGHTING_INITIAL;
+	gen->weighting = CW_WEIGHTING_INITIAL;
 
-	generator->dot_length = 0;
-	generator->dash_length = 0;
-	generator->eoe_delay = 0;
-	generator->eoc_delay = 0;
-	generator->additional_delay = 0;
-	generator->eow_delay = 0;
-	generator->adjustment_delay = 0;
+	gen->dot_length = 0;
+	gen->dash_length = 0;
+	gen->eoe_delay = 0;
+	gen->eoc_delay = 0;
+	gen->additional_delay = 0;
+	gen->eow_delay = 0;
+	gen->adjustment_delay = 0;
 
-	int rv = cw_generator_new_open_internal(generator, audio_system, device);
+	int rv = cw_gen_new_open_internal(gen, audio_system, device);
 	if (rv == CW_FAILURE) {
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
 			      "libcw: failed to open audio device for audio system '%s' and device '%s'", cw_get_audio_system_label(audio_system), device);
@@ -289,8 +295,8 @@ cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 
 		; /* the two types of audio output don't require audio buffer */
 	} else {
-		generator->buffer = (cw_sample_t *) malloc(generator->buffer_n_samples * sizeof (cw_sample_t));
-		if (!generator->buffer) {
+		gen->buffer = (cw_sample_t *) malloc(gen->buffer_n_samples * sizeof (cw_sample_t));
+		if (!gen->buffer) {
 			cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
 				      "libcw: malloc()");
 			cw_generator_delete();
@@ -300,8 +306,8 @@ cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 
 	/* Set slope that late, because it uses value of sample rate.
 	   The sample rate value is set in
-	   cw_generator_new_open_internal(). */
-	rv = cw_generator_set_tone_slope(generator, CW_TONE_SLOPE_SHAPE_RAISED_COSINE, CW_AUDIO_SLOPE_USECS);
+	   cw_gen_new_open_internal(). */
+	rv = cw_generator_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_RAISED_COSINE, CW_AUDIO_SLOPE_USECS);
 	if (rv == CW_FAILURE) {
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
 			      "libcw: failed to set slope");
@@ -311,7 +317,7 @@ cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 
 	cw_sigalrm_install_top_level_handler_internal();
 
-	return generator;
+	return gen;
 }
 
 
@@ -333,7 +339,7 @@ cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
   \return CW_SUCCESS on success
   \return CW_FAILURE otherwise
 */
-int cw_generator_new_open_internal(cw_gen_t *gen, int audio_system, const char *device)
+int cw_gen_new_open_internal(cw_gen_t *gen, int audio_system, const char *device)
 {
 	/* FIXME: this functionality is partially duplicated in
 	   src/cwutils/cw_common.c/cw_generator_new_from_config() */
@@ -493,7 +499,7 @@ void *cw_generator_dequeue_and_play_internal(void *arg)
 		} else if (gen->audio_system == CW_AUDIO_CONSOLE) {
 			cw_console_write(gen, &tone);
 		} else {
-			cw_soundcard_write_internal(gen, state, &tone);
+			cw_gen_write_to_soundcard_internal(gen, state, &tone);
 		}
 
 		/*
@@ -513,7 +519,7 @@ void *cw_generator_dequeue_and_play_internal(void *arg)
 		   best place to do this appears to be here.
 
 		   FIXME: There is a big problem:
-		   cw_soundcard_write_internal() call made above may
+		   cw_gen_write_to_soundcard_internal() call made above may
 		   be pretty good at telling sound card to produce
 		   tones of specific length, but surely is not the
 		   best, the most precise source of timing needed to
@@ -538,7 +544,6 @@ void *cw_generator_dequeue_and_play_internal(void *arg)
 		   "if (cw_iambic_keyer.state != KS_IDLE) {}" above,
 		   and all the other new or changed code in libcw
 		   and xcwcp that is related to it. */
-
 		if (!cw_iambic_keyer_update_internal(&cw_iambic_keyer, gen)) {
 			/* just try again, once */
 			usleep(1000);
@@ -586,7 +591,7 @@ void *cw_generator_dequeue_and_play_internal(void *arg)
 
    \return position in buffer at which a last sample has been saved
 */
-int cw_generator_calculate_sine_wave_internal(cw_gen_t *gen, cw_tone_t *tone)
+int cw_gen_calculate_sine_wave_internal(cw_gen_t *gen, cw_tone_t *tone)
 {
 	assert (tone->sub_stop <= gen->buffer_n_samples);
 
@@ -613,7 +618,7 @@ int cw_generator_calculate_sine_wave_internal(cw_gen_t *gen, cw_tone_t *tone)
 				* (double) tone->frequency * (double) j
 				/ (double) gen->sample_rate)
 			+ gen->phase_offset;
-		int amplitude = cw_generator_calculate_amplitude_internal(gen, tone);
+		int amplitude = cw_gen_calculate_amplitude_internal(gen, tone);
 
 		gen->buffer[i] = amplitude * sin(phase);
 		if (tone->slope_iterator >= 0) {
@@ -685,7 +690,7 @@ int cw_generator_calculate_sine_wave_internal(cw_gen_t *gen, cw_tone_t *tone)
 
    \return value of a sample of sine wave, a non-negative number
 */
-int cw_generator_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone)
+int cw_gen_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone)
 {
 	int amplitude = 0;
 #if 0
@@ -941,7 +946,7 @@ int cw_generator_set_tone_slope(cw_gen_t *gen, int slope_shape, int slope_usecs)
 
 
 
-int cw_soundcard_write_internal(cw_gen_t *gen, int queue_state, cw_tone_t *tone)
+int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, int queue_state, cw_tone_t *tone)
 {
 	assert (queue_state != CW_TQ_STILL_EMPTY);
 
@@ -1016,7 +1021,7 @@ int cw_soundcard_write_internal(cw_gen_t *gen, int queue_state, cw_tone_t *tone)
 		}
 #endif
 
-		cw_generator_calculate_sine_wave_internal(gen, tone);
+		cw_gen_calculate_sine_wave_internal(gen, tone);
 		if (tone->sub_stop + 1 == gen->buffer_n_samples) {
 
 			gen->write(gen);
