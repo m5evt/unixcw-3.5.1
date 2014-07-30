@@ -73,7 +73,7 @@ static cw_test_function_t cw_unit_tests[] = {
 	test_cw_representation_to_character_internal_speed,
 	// test_cw_forever,
 
-	test_cw_tone_queue_init_internal,
+	test_cw_tq_new_internal,
 	test_cw_tone_queue_get_capacity_internal,
 	test_cw_tone_queue_prev_index_internal,
 	test_cw_tone_queue_next_index_internal,
