@@ -57,8 +57,8 @@ enum {
 
 
 enum cw_queue_state {
-	QS_IDLE,
-	QS_BUSY
+	CW_TQ_IDLE,
+	CW_TQ_BUSY
 };
 
 
@@ -179,22 +179,13 @@ typedef struct {
 
 
 
+cw_tone_queue_t *cw_tq_new_internal(void);
+void             cw_tq_delete_internal(cw_tone_queue_t **tq);
 
-
-int      cw_tone_queue_init_internal(cw_tone_queue_t *tq);
-
-/* Some day the following two functions will be made public. */
-int      cw_tone_queue_set_capacity_internal(cw_tone_queue_t *tq, uint32_t capacity, uint32_t high_water_mark);
-__attribute__((unused)) uint32_t cw_tone_queue_get_high_water_mark_internal(cw_tone_queue_t *tq);
 uint32_t cw_tone_queue_get_capacity_internal(cw_tone_queue_t *tq);
-
 uint32_t cw_tone_queue_length_internal(cw_tone_queue_t *tq);
-__attribute__((unused)) uint32_t cw_tone_queue_prev_index_internal(cw_tone_queue_t *tq, uint32_t current);
-uint32_t cw_tone_queue_next_index_internal(cw_tone_queue_t *tq, uint32_t current);
 int      cw_tone_queue_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone);
 int      cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone);
-bool     cw_tone_queue_is_full_internal(cw_tone_queue_t *tq);
-
 
 
 
@@ -202,8 +193,7 @@ bool     cw_tone_queue_is_full_internal(cw_tone_queue_t *tq);
 
 #ifdef LIBCW_UNIT_TESTS
 
-int          test_cw_tone_queue_capacity_test_init(cw_tone_queue_t *tq, uint32_t capacity, uint32_t high_water_mark, int head_shift);
-
+unsigned int test_cw_tq_new_internal(void);
 unsigned int test_cw_tone_queue_init_internal(void);
 unsigned int test_cw_tone_queue_get_capacity_internal(void);
 unsigned int test_cw_tone_queue_prev_index_internal(void);
