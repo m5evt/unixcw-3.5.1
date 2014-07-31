@@ -512,7 +512,11 @@ void *cw_generator_dequeue_and_play_internal(void *arg)
 		   iambic keyer function called below to decide what
 		   to do with the notification. If keyer is in idle
 		   graph state, it will ignore the notification.)
-		*/
+
+		   Notice that this mechanism is needed only for
+		   iambic keyer. Inner workings of straight key are
+		   much more simple, the straight key doesn't need to
+		   use generator as a timer. */
 
 		/* FIXME: There is a big problem:
 		   cw_gen_write_to_soundcard_internal() call made above may
