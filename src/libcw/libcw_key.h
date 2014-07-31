@@ -51,6 +51,15 @@ typedef struct cw_iambic_keyer_struct {
 
 
 
+/* Straight key data type. */
+typedef struct cw_straight_key_struct {
+	int key_value;        /* Open/Closed, Space/Mark, NoSound/Sound. */
+} cw_straight_key_t;
+
+
+
+
+
 /* KS stands for Keyer State. */
 enum {
 	KS_IDLE,
