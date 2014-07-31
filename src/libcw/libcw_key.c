@@ -276,6 +276,9 @@ void cw_key_set_state_internal(int key_state)
 
 		/* Call a registered callback. */
 		if (cw_kk_key_callback) {
+			cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
+				      "libcw: KK: about to call callback, key value = %d\n", key_state);
+
 			(*cw_kk_key_callback)(cw_kk_key_callback_arg, current_key_state);
 		}
 	}
@@ -315,6 +318,9 @@ void cw_straight_key_enqueue_symbol_internal(volatile cw_straight_key_t *key, cw
 
 		/* Call a registered callback. */
 		if (cw_kk_key_callback) {
+			cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
+				      "libcw: SK: about to call callback, key value = %d\n", key_value);
+
 			(*cw_kk_key_callback)(cw_kk_key_callback_arg, key->key_value);
 		}
 
@@ -438,6 +444,9 @@ void cw_iambic_keyer_enqueue_symbol_internal(cw_iambic_keyer_t *keyer, cw_gen_t 
 
 		/* Call a registered callback. */
 		if (cw_kk_key_callback) {
+			cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
+				      "libcw: IK: about to call callback, key value = %d\n", key_value);
+
 			(*cw_kk_key_callback)(cw_kk_key_callback_arg, keyer->key_value);
 		}
 
@@ -572,7 +581,9 @@ int cw_iambic_keyer_update_graph_state_internal(cw_iambic_keyer_t *keyer, cw_gen
 		/* Just to verify that key value and keyer graph state
 		   are in sync.  We are *at the end* of Mark, so key
 		   should be (still) closed. */
-		assert (keyer->key_value == CW_KEY_STATE_CLOSED);
+		cw_assert (keyer->key_value == CW_KEY_STATE_CLOSED,
+			   "Inconsistency between keyer state (%s) ad key value (%d)",
+			   cw_iambic_keyer_states[keyer->graph_state], keyer->key_value);
 
 		cw_iambic_keyer_enqueue_symbol_internal(keyer, gen, CW_KEY_STATE_OPEN, gen->eoe_delay);
 		keyer->graph_state = keyer->graph_state == KS_IN_DOT_A
@@ -584,7 +595,9 @@ int cw_iambic_keyer_update_graph_state_internal(cw_iambic_keyer_t *keyer, cw_gen
 		/* Just to verify that key value and keyer graph state
 		   are in sync.  We are *at the end* of Mark, so key
 		   should be (still) closed. */
-		assert (keyer->key_value == CW_KEY_STATE_CLOSED);
+		cw_assert (keyer->key_value == CW_KEY_STATE_CLOSED,
+			   "Inconsistency between keyer state (%s) ad key value (%d)",
+			   cw_iambic_keyer_states[keyer->graph_state], keyer->key_value);
 
 		cw_iambic_keyer_enqueue_symbol_internal(keyer, gen, CW_KEY_STATE_OPEN, gen->eoe_delay);
 		keyer->graph_state = keyer->graph_state == KS_IN_DASH_A
@@ -605,7 +618,9 @@ int cw_iambic_keyer_update_graph_state_internal(cw_iambic_keyer_t *keyer, cw_gen
 		/* Just to verify that key value and keyer graph state
 		   are in sync.  We are *at the end* of Space, so key
 		   should be (still) open. */
-		assert (keyer->key_value == CW_KEY_STATE_OPEN);
+		cw_assert (keyer->key_value == CW_KEY_STATE_OPEN,
+			   "Inconsistency between keyer state (%s) ad key value (%d)",
+			   cw_iambic_keyer_states[keyer->graph_state], keyer->key_value);
 
 		if (!keyer->dot_paddle) {
 			/* Client has informed us that dot paddle has
@@ -640,7 +655,9 @@ int cw_iambic_keyer_update_graph_state_internal(cw_iambic_keyer_t *keyer, cw_gen
 		/* Just to verify that key value and keyer graph state
 		   are in sync.  We are *at the end* of Space, so key
 		   should be (still) open. */
-		assert (keyer->key_value == CW_KEY_STATE_OPEN);
+		cw_assert (keyer->key_value == CW_KEY_STATE_OPEN,
+			   "Inconsistency between keyer state (%s) ad key value (%d)",
+			   cw_iambic_keyer_states[keyer->graph_state], keyer->key_value);
 
 		if (!keyer->dash_paddle) {
 			/* Client has informed us that dash paddle has
@@ -1038,7 +1055,7 @@ void cw_reset_keyer(void)
 	cw_iambic_keyer.graph_state = KS_IDLE;
 
 	/* Silence sound and stop any background soundcard tone generation. */
-	cw_generator_silence_internal((*cw_generator));
+	cw_gen_silence_internal((*cw_generator));
 	cw_finalization_schedule_internal();
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYER_STATES, CW_DEBUG_INFO,
@@ -1227,7 +1244,7 @@ void cw_reset_straight_key(void)
 	cw_straight_key.key_value = CW_KEY_STATE_OPEN;
 
 	/* Silence sound and stop any background soundcard tone generation. */
-	cw_generator_silence_internal((*cw_generator));
+	cw_gen_silence_internal((*cw_generator));
 	//cw_finalization_schedule_internal();
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_STRAIGHT_KEY_STATES, CW_DEBUG_INFO,
