@@ -964,22 +964,12 @@ int cw_get_tone_queue_length(void)
 */
 void cw_flush_tone_queue(void)
 {
-	pthread_mutex_lock(&((*cw_generator)->tq->mutex));
-
-	/* Empty and reset the queue. */
-	(*cw_generator)->tq->len = 0;
-	(*cw_generator)->tq->head = (*cw_generator)->tq->tail;
-
-	pthread_mutex_unlock(&((*cw_generator)->tq->mutex));
-
-	/* If we can, wait until the dequeue goes idle. */
-	if (!cw_sigalrm_is_blocked_internal()) {
-		cw_wait_for_tone_queue();
-	}
+	/* This function locks and unlocks mutex. */
+	cw_tq_flush_internal((*cw_generator)->tq);
 
 	/* Force silence on the speaker anyway, and stop any background
 	   soundcard tone generation. */
-	cw_generator_silence_internal((*cw_generator));
+	cw_gen_silence_internal((*cw_generator));
 	//cw_finalization_schedule_internal();
 
 	return;
@@ -1045,7 +1035,7 @@ void cw_reset_tone_queue(void)
 	cw_tq_reset_internal((*cw_generator)->tq);
 
 	/* Silence sound and stop any background soundcard tone generation. */
-	cw_generator_silence_internal((*cw_generator));
+	cw_gen_silence_internal((*cw_generator));
 	//cw_finalization_schedule_internal();
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_TONE_QUEUE, CW_DEBUG_INFO,
@@ -1073,6 +1063,27 @@ void cw_tq_reset_internal(cw_tone_queue_t *tq)
 	return;
 }
 
+
+
+
+
+void cw_tq_flush_internal(cw_tone_queue_t *tq)
+{
+	pthread_mutex_lock(&(tq->mutex));
+
+	/* Empty and reset the queue. */
+	tq->len = 0;
+	tq->head = tq->tail;
+
+	pthread_mutex_unlock(&(tq->mutex));
+
+	/* If we can, wait until the dequeue goes idle. */
+	if (!cw_sigalrm_is_blocked_internal()) {
+		cw_tq_wait_for_tone_queue_internal(tq);
+	}
+
+	return;
+}
 
 
 
