@@ -552,6 +552,22 @@ int cw_get_iambic_curtis_mode_b_state(void)
 */
 int cw_iambic_keyer_update_graph_state_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen)
 {
+	if (!keyer) {
+		/* This function is called from generator thread. It
+		   is perfectly valid situation that for some
+		   applications a generator exists, but a keyer does
+		   not exist.  Silently accept this situation. */
+		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_INTERNAL, CW_DEBUG_DEBUG,
+			      "libcw: NULL keyer, silently accepting");
+		return CW_SUCCESS;
+	}
+
+	/* This function is called from generator thread function, so
+	   the generator must exist. Be paranoid and check it, just in
+	   case :) */
+	cw_assert (gen, "NULL generator");
+
+
 	if (keyer->lock) {
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_INTERNAL, CW_DEBUG_ERROR,
 			      "libcw: lock in thread %ld", (long) pthread_self());
@@ -776,8 +792,8 @@ int cw_notify_keyer_paddle_event(int dot_paddle_state,
 
 	if (cw_iambic_keyer.graph_state == KS_IDLE) {
 		/* If the current state is idle, give the state
-		   process a nudge. */
-		cw_iambic_keyer_update_state_initial_internal(&cw_iambic_keyer, (*cw_generator));
+		   process an initial impulse. */
+		cw_iambic_keyer_update_state_initial_internal(&cw_iambic_keyer, cw_iambic_keyer.gen);
 	} else {
 		/* The state machine for iambic keyer is already in
 		   motion, no need to do anything more.
@@ -807,6 +823,9 @@ int cw_notify_keyer_paddle_event(int dot_paddle_state,
 */
 void cw_iambic_keyer_update_state_initial_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen)
 {
+	cw_assert (keyer, "NULL keyer\n");
+	cw_assert (gen, "NULL gen\n");
+
 	if (keyer->dot_paddle) {
 		/* "Dot" paddle pressed. Pretend that we are in "after
 		   dash" space, so that keyer will have to transit
@@ -1055,7 +1074,7 @@ void cw_reset_keyer(void)
 	cw_iambic_keyer.graph_state = KS_IDLE;
 
 	/* Silence sound and stop any background soundcard tone generation. */
-	cw_gen_silence_internal((*cw_generator));
+	cw_gen_silence_internal(cw_iambic_keyer.gen);
 	cw_finalization_schedule_internal();
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYER_STATES, CW_DEBUG_INFO,
@@ -1081,6 +1100,16 @@ void cw_reset_keyer(void)
 */
 void cw_iambic_keyer_increment_timer_internal(cw_iambic_keyer_t *keyer, int usecs)
 {
+	if (!keyer) {
+		/* This function is called from generator thread. It
+		   is perfectly valid situation that for some
+		   applications a generator exists, but a keyer does
+		   not exist.  Silently accept this situation. */
+		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_INTERNAL, CW_DEBUG_DEBUG,
+			      "libcw: NULL keyer, silently accepting");
+		return;
+	}
+
 	if (keyer->graph_state != KS_IDLE) {
 		/* Update timestamp that clocks iambic keyer
 		   with current time interval. This must be
@@ -1099,6 +1128,30 @@ void cw_iambic_keyer_increment_timer_internal(cw_iambic_keyer_t *keyer, int usec
 			keyer->timer->tv_usec %= CW_USECS_PER_SEC;
 		}
 	}
+
+	return;
+}
+
+
+
+
+
+/*
+  A keyer cannot function without an associated generator. A keyer has
+  to have some generator to function correctly. Thus a function
+  binding a keyer and generator belongs to "iambic keyer" module.
+
+  Remember that a generator can exist without a keyer. In applications
+  that do noting related to keying with iambic keyer, having just a
+  generator is a valid situation.
+
+  \param keyer - keyer that needs to have a generator associated with it
+  \param gen - generator to be used with given keyer
+*/
+void cw_iambic_keyer_register_generator_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen)
+{
+	keyer->gen = gen;
+	gen->keyer = keyer;
 
 	return;
 }
