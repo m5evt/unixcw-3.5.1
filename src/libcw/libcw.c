@@ -304,6 +304,9 @@ cw_gen_t **cw_generator = &generator;
 cw_rec_t *cw_receiver = &receiver;
 
 
+/* From libcw_key.c. */
+extern cw_iambic_keyer_t cw_iambic_keyer;
+
 
 /* Most of audio systems (excluding console) should be configured to
    have specific sample rate. Some audio systems (with connection with
@@ -4012,6 +4015,7 @@ int cw_generator_new(int audio_system, const char *device)
 			      "libcw: can't create generator()");
 		return CW_FAILURE;
 	} else {
+		cw_iambic_keyer_register_generator_internal(&cw_iambic_keyer, generator);
 		return CW_SUCCESS;
 	}
 
