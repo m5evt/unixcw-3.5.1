@@ -145,15 +145,18 @@ cw_iambic_keyer_t cw_iambic_keyer = {
 
 	.lock = false,
 
-	.timer = NULL
+	.timer = NULL,
+
+	.gen = NULL
 };
 
 
 
 
 
-static volatile cw_straight_key_t cw_straight_key = {
-	.key_value = CW_KEY_STATE_OPEN
+volatile cw_straight_key_t cw_straight_key = {
+	.key_value = CW_KEY_STATE_OPEN,
+	.gen = NULL
 };
 
 
@@ -304,11 +307,15 @@ void cw_key_set_state_internal(int key_state)
    of related generator \p gen is changed accordingly (a tone is
    started or stopped).
 
+   \param key - straight key in use
    \param gen - generator to be used to emit tones as state of key changes
    \param key_state - key state to be set
 */
 void cw_straight_key_enqueue_symbol_internal(volatile cw_straight_key_t *key, cw_gen_t *gen, int key_value)
 {
+	cw_assert (key, "ERROR: key is NULL");
+	cw_assert (gen, "generator is NULL");
+
 	if (key->key_value != key_value) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
 			      "libcw: B straight key: keying state %d->%d", key->key_value, key_value);
@@ -1230,7 +1237,7 @@ int cw_notify_straight_key_event(int key_state)
 
 	/* Do tones and keying, and set up timeouts and soundcard
 	   activities to match the new key state. */
-	cw_straight_key_enqueue_symbol_internal(&cw_straight_key, (*cw_generator), key_state);
+	cw_straight_key_enqueue_symbol_internal(&cw_straight_key, cw_straight_key.gen, key_state);
 
 	if (cw_straight_key.key_value == CW_KEY_STATE_OPEN) {
 		/* Indicate that we have finished with timeouts, and
@@ -1302,6 +1309,33 @@ void cw_reset_straight_key(void)
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_STRAIGHT_KEY_STATES, CW_DEBUG_INFO,
 		      "libcw: straight key state ->UP (reset)");
+
+	return;
+}
+
+
+
+
+
+/*
+  A straight key needs a generator to generate audio. This function
+  binds a straight key and a generator.
+
+  Since its the key that needs a generator (and not the other way
+  around), a function binding a straight key and generator belongs to
+  "straight" module.
+
+  Remember that a generator can exist without a straight. In
+  applications that do noting related to keying with straight key,
+  having just a generator is a valid situation.
+
+  \param key - straight key that needs to have a generator associated with it
+  \param gen - generator to be used with given key
+*/
+void cw_straight_key_register_generator_internal(volatile cw_straight_key_t *key, cw_gen_t *gen)
+{
+	key->gen = gen;
+	gen->key = key;
 
 	return;
 }
