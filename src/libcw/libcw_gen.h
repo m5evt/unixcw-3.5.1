@@ -262,8 +262,10 @@ struct cw_gen_struct {
 
 
 int       cw_generator_set_audio_device_internal(cw_gen_t *gen, const char *device);
-int       cw_generator_silence_internal(cw_gen_t *gen);
+int       cw_gen_silence_internal(cw_gen_t *gen);
 cw_gen_t *cw_gen_new_internal(int audio_system, const char *device);
+void      cw_gen_delete_internal(cw_gen_t **gen);
+void      cw_gen_stop_internal(cw_gen_t *gen);
 void     *cw_generator_dequeue_and_play_internal(void *arg);
 
 

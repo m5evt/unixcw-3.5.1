@@ -181,6 +181,7 @@ typedef struct {
 
 cw_tone_queue_t *cw_tq_new_internal(void);
 void             cw_tq_delete_internal(cw_tone_queue_t **tq);
+void             cw_tq_flush_internal(cw_tone_queue_t *tq);
 
 uint32_t cw_tone_queue_get_capacity_internal(cw_tone_queue_t *tq);
 uint32_t cw_tone_queue_length_internal(cw_tone_queue_t *tq);
