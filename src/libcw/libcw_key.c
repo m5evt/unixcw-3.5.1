@@ -43,7 +43,6 @@ extern cw_debug_t cw_debug_object_ev;
 extern cw_debug_t cw_debug_object_dev;
 
 extern cw_rec_t *cw_receiver;
-extern cw_gen_t **cw_generator;
 
 
 
@@ -1304,7 +1303,7 @@ void cw_reset_straight_key(void)
 	cw_straight_key.key_value = CW_KEY_STATE_OPEN;
 
 	/* Silence sound and stop any background soundcard tone generation. */
-	cw_gen_silence_internal((*cw_generator));
+	cw_gen_silence_internal(cw_straight_key.gen);
 	//cw_finalization_schedule_internal();
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_STRAIGHT_KEY_STATES, CW_DEBUG_INFO,
