@@ -46,8 +46,8 @@ typedef struct cw_iambic_keyer_struct {
 	struct timeval *timer; /* Timer for receiving of iambic keying, owned by client code. */
 
 	/* Generator associated with the keyer. Should never be NULL
-	   as iambic keyer *needs* a generator to function
-	   properly. Set using
+	   as iambic keyer *needs* a generator to function properly
+	   (and to generate audible tones). Set using
 	   cw_iambic_keyer_register_generator_internal(). */
 	cw_gen_t *gen;
 
@@ -60,6 +60,12 @@ typedef struct cw_iambic_keyer_struct {
 /* Straight key data type. */
 typedef struct cw_straight_key_struct {
 	int key_value;        /* Open/Closed, Space/Mark, NoSound/Sound. */
+
+	/* Generator associated with the key. Should never be NULL as
+	   straight key needs a generator to generate audible
+	   tones. Set using
+	   cw_straight_key_register_generator_internal(). */
+	cw_gen_t *gen;
 } cw_straight_key_t;
 
 
@@ -84,6 +90,8 @@ enum {
 int  cw_iambic_keyer_update_graph_state_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen);
 void cw_iambic_keyer_increment_timer_internal(cw_iambic_keyer_t *keyer, int usecs);
 void cw_iambic_keyer_register_generator_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen);
+
+void cw_straight_key_register_generator_internal(volatile cw_straight_key_t *key, cw_gen_t *gen);
 
 void cw_key_set_state_internal(int key_state);
 
