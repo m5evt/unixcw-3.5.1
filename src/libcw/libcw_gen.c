@@ -70,10 +70,6 @@ extern cw_debug_t cw_debug_object_ev;
 extern cw_debug_t cw_debug_object_dev;
 
 
-/* From libcw_key.c. */
-extern cw_iambic_keyer_t cw_iambic_keyer;
-
-
 
 
 
@@ -581,7 +577,7 @@ void *cw_generator_dequeue_and_play_internal(void *arg)
 
 		// POSSIBLE ALTERNATIVE IMPLEMENTATION: old_state = state;
 
-		cw_iambic_keyer_increment_timer_internal(&cw_iambic_keyer, tone.usecs);
+		cw_iambic_keyer_increment_timer_internal(gen->keyer, tone.usecs);
 
 #ifdef LIBCW_WITH_DEV
 		cw_debug_ev ((&cw_debug_object_ev), 0, tone.frequency ? CW_DEBUG_EVENT_TONE_HIGH : CW_DEBUG_EVENT_TONE_LOW);
@@ -655,10 +651,10 @@ void *cw_generator_dequeue_and_play_internal(void *arg)
 		   and all the other new or changed code in libcw and
 		   xcwcp that is related to keyer's timer. */
 
-		if (!cw_iambic_keyer_update_graph_state_internal(&cw_iambic_keyer, gen)) {
+		if (!cw_iambic_keyer_update_graph_state_internal(gen->keyer, gen)) {
 			/* just try again, once */
 			usleep(1000);
-			cw_iambic_keyer_update_graph_state_internal(&cw_iambic_keyer, gen);
+			cw_iambic_keyer_update_graph_state_internal(gen->keyer, gen);
 		}
 
 #ifdef LIBCW_WITH_DEV
