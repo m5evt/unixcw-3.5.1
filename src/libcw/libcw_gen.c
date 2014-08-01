@@ -164,7 +164,7 @@ int cw_generator_set_audio_device_internal(cw_gen_t *gen, const char *device)
    \return CW_SUCCESS on success
    \return CW_FAILURE on errors
 */
-int cw_generator_silence_internal(cw_gen_t *gen)
+int cw_gen_silence_internal(cw_gen_t *gen)
 {
 	if (!gen) {
 		/* this may happen because the process of finalizing
@@ -286,7 +286,7 @@ cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 	if (rv == CW_FAILURE) {
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
 			      "libcw: failed to open audio device for audio system '%s' and device '%s'", cw_get_audio_system_label(audio_system), device);
-		cw_generator_delete();
+		cw_gen_delete_internal(&gen);
 		return CW_FAILURE;
 	}
 
@@ -299,7 +299,7 @@ cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 		if (!gen->buffer) {
 			cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
 				      "libcw: malloc()");
-			cw_generator_delete();
+			cw_gen_delete_internal(&gen);
 			return CW_FAILURE;
 		}
 	}
@@ -311,13 +311,123 @@ cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 	if (rv == CW_FAILURE) {
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
 			      "libcw: failed to set slope");
-		cw_generator_delete();
+		cw_gen_delete_internal(&gen);
 		return CW_FAILURE;
 	}
 
 	cw_sigalrm_install_top_level_handler_internal();
 
 	return gen;
+}
+
+
+
+
+
+void cw_gen_delete_internal(cw_gen_t **gen)
+{
+	cw_assert (gen, "\"gen\" argument can't be NULL\n");
+
+	if (!*gen) {
+		return;
+	}
+
+	if ((*gen)->generate) {
+		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG,
+			      "libcw: you forgot to call cw_generator_stop()");
+		cw_gen_stop_internal(*gen);
+	}
+
+	/* Wait for "write" thread to end accessing output
+	   file descriptor. I have come up with value 500
+	   after doing some experiments.
+
+	   FIXME: magic number. I think that we can come up
+	   with algorithm for calculating the value. */
+	usleep(500);
+
+	free((*gen)->audio_device);
+	(*gen)->audio_device = NULL;
+
+	free((*gen)->buffer);
+	(*gen)->buffer = NULL;
+
+	if ((*gen)->close_device) {
+		(*gen)->close_device(*gen);
+	} else {
+		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG, "libcw: WARNING: NULL function pointer, something went wrong");
+	}
+
+	pthread_attr_destroy(&((*gen)->thread.attr));
+
+	free((*gen)->client.name);
+	(*gen)->client.name = NULL;
+
+	free((*gen)->tone_slope.amplitudes);
+	(*gen)->tone_slope.amplitudes = NULL;
+
+	cw_tq_delete_internal(&((*gen)->tq));
+
+	(*gen)->audio_system = CW_AUDIO_NONE;
+
+	free(*gen);
+	*gen = NULL;
+
+	return;
+}
+
+
+
+
+
+void cw_gen_stop_internal(cw_gen_t *gen)
+{
+	if (!gen) {
+		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_WARNING,
+			      "libcw: called the function for NULL generator");
+		return;
+	}
+
+	cw_tq_flush_internal(gen->tq);
+
+	cw_gen_silence_internal(gen);
+
+	gen->generate = false;
+
+	/* this is to wake up cw_signal_wait_internal() function
+	   that may be waiting for signal in while() loop in thread
+	   function; */
+	pthread_kill(gen->thread.id, SIGALRM);
+
+	/* Sleep a bit to postpone closing a device.
+	   This way we can avoid a situation when "generate" is set
+	   to zero and device is being closed while a new buffer is
+	   being prepared, and while write() tries to write this
+	   new buffer to already closed device.
+
+	   Without this usleep(), writei() from ALSA library may
+	   return "File descriptor in bad state" error - this
+	   happened when writei() tried to write to closed ALSA
+	   handle.
+
+	   The delay also allows the generator function thread to stop
+	   generating tone and exit before we resort to killing generator
+	   function thread. */
+	struct timespec req = { .tv_sec = 1, .tv_nsec = 0 };
+	cw_nanosleep_internal(&req);
+
+	/* check if generator thread is still there */
+	int rv = pthread_kill(gen->thread.id, 0);
+	if (rv == 0) {
+		/* thread function didn't return yet; let's help it a bit */
+		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_WARNING, "libcw: EXIT: forcing exit of thread function");
+		rv = pthread_kill(gen->thread.id, SIGKILL);
+		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_WARNING, "libcw: EXIT: pthread_kill() returns %d/%s", rv, strerror(rv));
+	} else {
+		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_INFO, "libcw: EXIT: seems that thread function exited voluntarily");
+	}
+
+	return;
 }
 
 
