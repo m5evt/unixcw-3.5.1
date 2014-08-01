@@ -45,6 +45,12 @@ typedef struct cw_iambic_keyer_struct {
 
 	struct timeval *timer; /* Timer for receiving of iambic keying, owned by client code. */
 
+	/* Generator associated with the keyer. Should never be NULL
+	   as iambic keyer *needs* a generator to function
+	   properly. Set using
+	   cw_iambic_keyer_register_generator_internal(). */
+	cw_gen_t *gen;
+
 } cw_iambic_keyer_t;
 
 
@@ -77,6 +83,7 @@ enum {
 
 int  cw_iambic_keyer_update_graph_state_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen);
 void cw_iambic_keyer_increment_timer_internal(cw_iambic_keyer_t *keyer, int usecs);
+void cw_iambic_keyer_register_generator_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen);
 
 void cw_key_set_state_internal(int key_state);
 
