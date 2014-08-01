@@ -14,7 +14,7 @@
 #include "libcw_pa.h"
 #include "libcw_alsa.h"
 #include "libcw_tq.h"
-
+#include "libcw_key.h"
 
 
 
@@ -42,6 +42,13 @@
 #define CW_DEV_RAW_SINK           0
 #define CW_DEV_RAW_SINK_MARKERS   0
 #endif
+
+
+
+
+
+/* Forward declaration of a data type. */
+struct cw_iambic_keyer_struct;
 
 
 
@@ -255,6 +262,11 @@ struct cw_gen_struct {
 	int eow_delay;            /* End of word delay, extra delay at the end of a word */
 	int additional_delay;     /* More delay at the end of a char */
 	int adjustment_delay;     /* More delay at the end of a word */
+
+	/* Iambic keyer associated with a generator. Can be NULL in
+	   some applications. Set using
+	   cw_iambic_keyer_register_generator_internal(). */
+	struct cw_iambic_keyer_struct *keyer;
 };
 
 
