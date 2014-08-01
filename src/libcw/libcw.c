@@ -4030,55 +4030,8 @@ int cw_generator_new(int audio_system, const char *device)
 */
 void cw_generator_delete(void)
 {
-	if (generator) {
+	cw_gen_delete_internal(&generator);
 
-		if (generator->generate) {
-			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG,
-				      "libcw: you forgot to call cw_generator_stop()");
-			cw_generator_stop();
-		}
-
-		/* Wait for "write" thread to end accessing output
-		   file descriptor. I have come up with value 500
-		   after doing some experiments.
-
-		   FIXME: magic number. I think that we can come up
-		   with algorithm for calculating the value. */
-		usleep(500);
-
-		if (generator->audio_device) {
-			free(generator->audio_device);
-			generator->audio_device = NULL;
-		}
-		if (generator->buffer) {
-			free(generator->buffer);
-			generator->buffer = NULL;
-		}
-
-		if (generator->close_device) {
-			generator->close_device(generator);
-		} else {
-			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG, "libcw: WARNING: null function pointer, something went wrong");
-		}
-
-		pthread_attr_destroy(&generator->thread.attr);
-
-		if (generator->client.name) {
-			free(generator->client.name);
-			generator->client.name = NULL;
-		}
-
-		if (generator->tone_slope.amplitudes) {
-			free(generator->tone_slope.amplitudes);
-			generator->tone_slope.amplitudes = NULL;
-		}
-
-		cw_tq_delete_internal(&(generator->tq));
-
-		generator->audio_system = CW_AUDIO_NONE;
-		free(generator);
-		generator = NULL;
-	}
 	return;
 }
 
@@ -4156,50 +4109,7 @@ int cw_generator_start(void)
 */
 void cw_generator_stop(void)
 {
-	if (!generator) {
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_WARNING,
-			      "libcw: called the function for NULL generator");
-		return;
-	}
-
-	cw_flush_tone_queue();
-
-	cw_generator_silence_internal(generator);
-
-	generator->generate = false;
-
-	/* this is to wake up cw_signal_wait_internal() function
-	   that may be waiting for signal in while() loop in thread
-	   function; */
-	pthread_kill(generator->thread.id, SIGALRM);
-
-	/* Sleep a bit to postpone closing a device.
-	   This way we can avoid a situation when "generate" is set
-	   to zero and device is being closed while a new buffer is
-	   being prepared, and while write() tries to write this
-	   new buffer to already closed device.
-
-	   Without this usleep(), writei() from ALSA library may
-	   return "File descriptor in bad state" error - this
-	   happened when writei() tried to write to closed ALSA
-	   handle.
-
-	   The delay also allows the generator function thread to stop
-	   generating tone and exit before we resort to killing generator
-	   function thread. */
-	struct timespec req = { .tv_sec = 1, .tv_nsec = 0 };
-	cw_nanosleep_internal(&req);
-
-	/* check if generator thread is still there */
-	int rv = pthread_kill(generator->thread.id, 0);
-	if (rv == 0) {
-		/* thread function didn't return yet; let's help it a bit */
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_WARNING, "libcw: EXIT: forcing exit of thread function");
-		rv = pthread_kill(generator->thread.id, SIGKILL);
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_WARNING, "libcw: EXIT: pthread_kill() returns %d/%s", rv, strerror(rv));
-	} else {
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_INFO, "libcw: EXIT: seems that thread function exited voluntarily");
-	}
+	cw_gen_stop_internal(generator);
 
 	return;
 }
