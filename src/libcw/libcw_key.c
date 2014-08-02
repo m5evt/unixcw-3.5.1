@@ -36,11 +36,6 @@
 #include "libcw_internal.h"
 #include "libcw_utils.h"
 
-/* TODO: this module shouldn't directly refer to generator's tone
-   queue. The tone queue should be accessed only through generator's
-   API. */
-#include "libcw_tq.h"
-
 
 
 
@@ -82,10 +77,10 @@ extern cw_rec_t *cw_receiver;
 
 
 
-
 /* ******************************************************************** */
 /*                        Section:Iambic keyer                          */
 /* ******************************************************************** */
+
 
 
 
@@ -134,45 +129,6 @@ static const char *cw_iambic_keyer_states[] = {
 
 
 
-
-#if 0
-static cw_iambic_keyer_t cw_iambic_keyer = {
-	.graph_state = KS_IDLE,
-	.key_value = CW_KEY_STATE_OPEN,
-
-	.dot_paddle = false,
-	.dash_paddle = false,
-
-	.dot_latch = false,
-	.dash_latch = false,
-
-	.curtis_mode_b = false,
-	.curtis_b_latch = false,
-
-	.lock = false,
-
-	.timer = NULL,
-
-	.gen = NULL
-};
-#endif
-
-
-
-
-#if 0
-static volatile cw_straight_key_t cw_straight_key = {
-	.key_value = CW_KEY_STATE_OPEN,
-	.gen = NULL
-};
-#endif
-
-#if 0
-static cw_tqkey_t cw_tqkey = {
-	.key_value = CW_KEY_STATE_OPEN,
-	.tq = NULL
-};
-#endif
 
 
 volatile cw_key_t cw_key = {
@@ -228,11 +184,6 @@ static void cw_straight_key_enqueue_symbol_internal(volatile cw_key_t *key, int 
 /* ******************************************************************** */
 /*                       Section:Keying control                         */
 /* ******************************************************************** */
-
-
-
-
-
 
 
 
@@ -339,25 +290,24 @@ void cw_tqkey_set_value_internal(volatile cw_key_t *key, int key_value)
 
 
 
+/*
+  Comment for key used as iambic keyer:
+  Iambic keyer cannot function without an associated generator. A keyer has
+  to have some generator to function correctly. Thus a function
+  binding a keyer and generator belongs to "iambic keyer" module.
+
+  Remember that a generator can exist without a keyer. In applications
+  that do noting related to keying with iambic keyer, having just a
+  generator is a valid situation.
+
+
+
+
+  \param key - key that needs to have a generator associated with it
+  \param gen - generator to be used with given keyer
+*/
 void cw_key_register_generator_internal(volatile cw_key_t *key, cw_gen_t *gen)
 {
-#if 0
-	/* Tone queue key. */
-	cw_tqkey.tq = gen->tq;
-	gen->tq->tqkey = &cw_tqkey;
-#endif
-#if 0
-	/* Iambic keyer. */
-	cw_iambic_keyer.gen = gen;
-	gen->keyer = &cw_iambic_keyer;
-#endif
-
-#if 0
-	/* Straight key. */
-	cw_straight_key.gen = gen;
-	gen->straight_key = &cw_straight_key;
-#endif
-
 	/* General key. */
 	key->gen = gen;
 	gen->key = key;
@@ -1219,32 +1169,6 @@ void cw_iambic_keyer_increment_timer_internal(volatile cw_key_t *keyer, int usec
 
 
 
-#if 0
-/*
-  A keyer cannot function without an associated generator. A keyer has
-  to have some generator to function correctly. Thus a function
-  binding a keyer and generator belongs to "iambic keyer" module.
-
-  Remember that a generator can exist without a keyer. In applications
-  that do noting related to keying with iambic keyer, having just a
-  generator is a valid situation.
-
-  \param keyer - keyer that needs to have a generator associated with it
-  \param gen - generator to be used with given keyer
-*/
-void cw_iambic_keyer_register_generator_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen)
-{
-	keyer->gen = gen;
-	gen->keyer = keyer;
-
-	return;
-}
-#endif
-
-
-
-
-
 /* ******************************************************************** */
 /*                        Section:Straight key                          */
 /* ******************************************************************** */
@@ -1390,32 +1314,3 @@ void cw_reset_straight_key(void)
 
 	return;
 }
-
-
-
-
-
-#if 0
-/*
-  A straight key needs a generator to generate audio. This function
-  binds a straight key and a generator.
-
-  Since its the key that needs a generator (and not the other way
-  around), a function binding a straight key and generator belongs to
-  "straight" module.
-
-  Remember that a generator can exist without a straight. In
-  applications that do noting related to keying with straight key,
-  having just a generator is a valid situation.
-
-  \param key - straight key that needs to have a generator associated with it
-  \param gen - generator to be used with given key
-*/
-void cw_straight_key_register_generator_internal(volatile cw_straight_key_t *key, cw_gen_t *gen)
-{
-	key->gen = gen;
-	gen->key = key;
-
-	return;
-}
-#endif
