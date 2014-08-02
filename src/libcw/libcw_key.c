@@ -174,7 +174,10 @@ static cw_tqkey_t cw_tqkey = {
 
 
 volatile cw_key_t cw_key = {
-	.gen = NULL
+	.gen = NULL,
+
+	.cw_key_callback = NULL,
+	.cw_key_callback_arg = NULL
 };
 
 
@@ -198,14 +201,6 @@ static void cw_straight_key_enqueue_symbol_internal(volatile cw_straight_key_t *
 
 
 
-/* External "on key state change" callback function and its argument.
-
-   It may be useful for a client to have this library control an external
-   keying device, for example, an oscillator, or a transmitter.
-   Here is where we keep the address of a function that is passed to us
-   for this purpose, and a void* argument for it. */
-static void (*cw_kk_key_callback)(void*, int) = NULL;
-static void *cw_kk_key_callback_arg = NULL;
 
 
 
@@ -233,8 +228,8 @@ static void *cw_kk_key_callback_arg = NULL;
 void cw_register_keying_callback(void (*callback_func)(void*, int),
 				 void *callback_arg)
 {
-	cw_kk_key_callback = callback_func;
-	cw_kk_key_callback_arg = callback_arg;
+	cw_key.cw_key_callback = callback_func;
+	cw_key.cw_key_callback_arg = callback_arg;
 
 	return;
 }
@@ -244,12 +239,12 @@ void cw_register_keying_callback(void (*callback_func)(void*, int),
 
 
 /*
-  Most of the time libcw just passes around cw_kk_key_callback_arg,
+  Most of the time libcw just passes around cw_key_callback_arg,
   not caring of what type it is, and not attempting to do any
   operations on it. On one occasion however, it needs to know whether
-  cw_kk_key_callback_arg is of type 'struct timeval', and if so, it
+  cw_key_callback_arg is of type 'struct timeval', and if so, it
   must do some operation on it. I could pass struct with ID as
-  cw_kk_key_callback_arg, but that may break some old client
+  cw_key_callback_arg, but that may break some old client
   code. Instead I've created this function that has only one, very
   specific purpose: to pass to libcw a pointer to timer.
 
@@ -297,11 +292,11 @@ void cw_tqkey_set_value_internal(cw_tqkey_t *tqkey, int key_value)
 		tqkey->key_value = key_value;
 
 		/* Call a registered callback. */
-		if (cw_kk_key_callback) {
+		if (cw_key.cw_key_callback) {
 			cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
 				      "libcw: TK: about to call callback, key value = %d\n", tqkey->key_value);
 
-			(*cw_kk_key_callback)(cw_kk_key_callback_arg, tqkey->key_value);
+			(*(cw_key.cw_key_callback))(cw_key.cw_key_callback_arg, tqkey->key_value);
 		}
 	}
 
@@ -367,11 +362,11 @@ void cw_straight_key_enqueue_symbol_internal(volatile cw_straight_key_t *key, in
 		key->key_value = key_value;
 
 		/* Call a registered callback. */
-		if (cw_kk_key_callback) {
+		if (cw_key.cw_key_callback) {
 			cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
 				      "libcw: SK: about to call callback, key value = %d\n", key_value);
 
-			(*cw_kk_key_callback)(cw_kk_key_callback_arg, key->key_value);
+			(*(cw_key.cw_key_callback))(cw_key.cw_key_callback_arg, key->key_value);
 		}
 
 		if (key->key_value == CW_KEY_STATE_CLOSED) {
@@ -495,11 +490,11 @@ void cw_iambic_keyer_enqueue_symbol_internal(cw_iambic_keyer_t *keyer, int key_v
 		keyer->key_value = key_value;
 
 		/* Call a registered callback. */
-		if (cw_kk_key_callback) {
+		if (cw_key.cw_key_callback) {
 			cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
 				      "libcw: IK: about to call callback, key value = %d\n", key_value);
 
-			(*cw_kk_key_callback)(cw_kk_key_callback_arg, keyer->key_value);
+			(*(cw_key.cw_key_callback))(cw_key.cw_key_callback_arg, keyer->key_value);
 		}
 
 		if (keyer->key_value == CW_KEY_STATE_CLOSED) {
