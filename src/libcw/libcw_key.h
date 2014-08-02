@@ -87,7 +87,7 @@ enum {
 
 
 
-int  cw_iambic_keyer_update_graph_state_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen);
+int  cw_iambic_keyer_update_graph_state_internal(cw_iambic_keyer_t *keyer);
 void cw_iambic_keyer_increment_timer_internal(cw_iambic_keyer_t *keyer, int usecs);
 void cw_iambic_keyer_register_generator_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen);
 
