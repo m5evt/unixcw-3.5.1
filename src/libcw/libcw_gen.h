@@ -264,13 +264,14 @@ struct cw_gen_struct {
 	int additional_delay;     /* More delay at the end of a char */
 	int adjustment_delay;     /* More delay at the end of a word */
 
+#if 0
 	/* Iambic keyer associated with a generator (or to put it mode
 	   correctly: keyer that has a generator associated with
 	   it). Can be NULL in some applications. Set using
 	   cw_iambic_keyer_register_generator_internal(). */
 	struct cw_iambic_keyer_struct *keyer;
 
-#if 0
+
 	/* Straight key associated with a generator (or to put it more
 	   correctly: key that has a generator associated with
 	   it). Can be NULL in some applications. Set using
@@ -278,6 +279,9 @@ struct cw_gen_struct {
 	volatile struct cw_straight_key_struct *straight_key;
 #endif
 
+	/* Key that has a generator associated with it. Can be NULL in
+	   some applications (?).  Set using
+	   cw_key_register_generator_internal(). */
 	volatile struct cw_key_struct *key;
 };
 
