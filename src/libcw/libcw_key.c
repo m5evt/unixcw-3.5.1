@@ -159,25 +159,29 @@ static cw_iambic_keyer_t cw_iambic_keyer = {
 
 
 
-
+#if 0
 static volatile cw_straight_key_t cw_straight_key = {
 	.key_value = CW_KEY_STATE_OPEN,
 	.gen = NULL
 };
+#endif
 
-
-
+#if 0
 static cw_tqkey_t cw_tqkey = {
 	.key_value = CW_KEY_STATE_OPEN,
 	.tq = NULL
 };
+#endif
 
 
 volatile cw_key_t cw_key = {
 	.gen = NULL,
 
 	.cw_key_callback = NULL,
-	.cw_key_callback_arg = NULL
+	.cw_key_callback_arg = NULL,
+
+	.sk.key_value = CW_KEY_STATE_OPEN,
+	.tk.key_value = CW_KEY_STATE_OPEN
 };
 
 
@@ -187,7 +191,7 @@ volatile cw_key_t cw_key = {
 static void cw_iambic_keyer_update_state_initial_internal(cw_iambic_keyer_t *keyer);
 static void cw_iambic_keyer_enqueue_symbol_internal(cw_iambic_keyer_t *keyer, int key_value, int usecs);
 
-static void cw_straight_key_enqueue_symbol_internal(volatile cw_straight_key_t *key, int key_value);
+static void cw_straight_key_enqueue_symbol_internal(volatile cw_key_t *key, int key_value);
 
 
 
@@ -263,7 +267,7 @@ void cw_iambic_keyer_register_timer(struct timeval *timer)
 
 
 /**
-   \brief Set new value of "tone queue key"
+   \brief Set new value of key
 
    Set new value of a key. Filter successive key-down or key-up
    actions into a single action (successive calls with the same value
@@ -277,26 +281,26 @@ void cw_iambic_keyer_register_timer(struct timeval *timer)
    queue is treated as a key, and dequeued tones are treated as key
    values. Dequeueing tones is treated as manipulating a key.
 
-   \param tqkey - tone queue key to use
+   \param key - key to use
    \param key_value - key value to be set
 */
-void cw_tqkey_set_value_internal(cw_tqkey_t *tqkey, int key_value)
+void cw_tqkey_set_value_internal(volatile cw_key_t *key, int key_value)
 {
-	cw_assert (tqkey, "tqkey is NULL");
+	cw_assert (key, "key is NULL");
 
-	if (tqkey->key_value != key_value) {
+	if (key->tk.key_value != key_value) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
-			      "libcw: TK: keying state %d->%d", tqkey->key_value, key_value);
+			      "libcw: TK: keying state %d->%d", key->tk.key_value, key_value);
 
 		/* Remember the new key value. */
-		tqkey->key_value = key_value;
+		key->tk.key_value = key_value;
 
 		/* Call a registered callback. */
 		if (cw_key.cw_key_callback) {
 			cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
-				      "libcw: TK: about to call callback, key value = %d\n", tqkey->key_value);
+				      "libcw: TK: about to call callback, key value = %d\n", key->tk.key_value);
 
-			(*(cw_key.cw_key_callback))(cw_key.cw_key_callback_arg, tqkey->key_value);
+			(*(cw_key.cw_key_callback))(cw_key.cw_key_callback_arg, key->tk.key_value);
 		}
 	}
 
@@ -309,17 +313,21 @@ void cw_tqkey_set_value_internal(cw_tqkey_t *tqkey, int key_value)
 
 void cw_key_register_generator_internal(volatile cw_key_t *key, cw_gen_t *gen)
 {
+#if 0
 	/* Tone queue key. */
 	cw_tqkey.tq = gen->tq;
 	gen->tq->tqkey = &cw_tqkey;
+#endif
 
 	/* Iambic keyer. */
 	cw_iambic_keyer.gen = gen;
 	gen->keyer = &cw_iambic_keyer;
 
+#if 0
 	/* Straight key. */
 	cw_straight_key.gen = gen;
 	gen->straight_key = &cw_straight_key;
+#endif
 
 	/* General key. */
 	key->gen = gen;
@@ -346,30 +354,30 @@ void cw_key_register_generator_internal(volatile cw_key_t *key, cw_gen_t *gen)
    of related generator \p gen is changed accordingly (a tone is
    started or stopped).
 
-   \param key - straight key in use
+   \param key - key in use
    \param key_state - key state to be set
 */
-void cw_straight_key_enqueue_symbol_internal(volatile cw_straight_key_t *key, int key_value)
+void cw_straight_key_enqueue_symbol_internal(volatile cw_key_t *key, int key_value)
 {
 	cw_assert (key, "ERROR: key is NULL");
 	cw_assert (key->gen, "generator is NULL");
 
-	if (key->key_value != key_value) {
+	if (key->sk.key_value != key_value) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
-			      "libcw: B straight key: keying state %d->%d", key->key_value, key_value);
+			      "libcw: B straight key: keying state %d->%d", key->sk.key_value, key_value);
 
 		/* Remember the new key value. */
-		key->key_value = key_value;
+		key->sk.key_value = key_value;
 
 		/* Call a registered callback. */
 		if (cw_key.cw_key_callback) {
 			cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
 				      "libcw: SK: about to call callback, key value = %d\n", key_value);
 
-			(*(cw_key.cw_key_callback))(cw_key.cw_key_callback_arg, key->key_value);
+			(*(cw_key.cw_key_callback))(cw_key.cw_key_callback_arg, key->sk.key_value);
 		}
 
-		if (key->key_value == CW_KEY_STATE_CLOSED) {
+		if (key->sk.key_value == CW_KEY_STATE_CLOSED) {
 
 			/* In case of straight key we don't know at
 			   all how long the tone should be (we don't
@@ -1278,9 +1286,9 @@ int cw_notify_straight_key_event(int key_state)
 
 	/* Do tones and keying, and set up timeouts and soundcard
 	   activities to match the new key state. */
-	cw_straight_key_enqueue_symbol_internal(&cw_straight_key, key_state);
+	cw_straight_key_enqueue_symbol_internal(&cw_key, key_state);
 
-	if (cw_straight_key.key_value == CW_KEY_STATE_OPEN) {
+	if (cw_key.sk.key_value == CW_KEY_STATE_OPEN) {
 		/* Indicate that we have finished with timeouts, and
 		   also with the soundcard too.  There's no way of
 		   knowing when straight keying is completed, so the
@@ -1308,7 +1316,7 @@ int cw_notify_straight_key_event(int key_state)
 */
 int cw_get_straight_key_state(void)
 {
-	return cw_straight_key.key_value;
+	return cw_key.sk.key_value;
 }
 
 
@@ -1328,7 +1336,7 @@ int cw_get_straight_key_state(void)
 */
 bool cw_is_straight_key_busy(void)
 {
-	return cw_straight_key.key_value;
+	return cw_key.sk.key_value;
 }
 
 
@@ -1342,10 +1350,10 @@ bool cw_is_straight_key_busy(void)
 */
 void cw_reset_straight_key(void)
 {
-	cw_straight_key.key_value = CW_KEY_STATE_OPEN;
+	cw_key.sk.key_value = CW_KEY_STATE_OPEN;
 
 	/* Silence sound and stop any background soundcard tone generation. */
-	cw_gen_silence_internal(cw_straight_key.gen);
+	cw_gen_silence_internal(cw_key.gen);
 	//cw_finalization_schedule_internal();
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_STRAIGHT_KEY_STATES, CW_DEBUG_INFO,
