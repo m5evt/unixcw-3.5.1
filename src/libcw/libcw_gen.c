@@ -279,8 +279,8 @@ cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 	gen->eow_delay = 0;
 	gen->adjustment_delay = 0;
 
-	gen->keyer = (cw_iambic_keyer_t *) NULL;
 #if 0
+	gen->keyer = (cw_iambic_keyer_t *) NULL;
 	gen->straight_key = (cw_straight_key_t *) NULL;
 #endif
 	gen->key = (cw_key_t *) NULL;
@@ -585,7 +585,7 @@ void *cw_generator_dequeue_and_play_internal(void *arg)
 
 		// POSSIBLE ALTERNATIVE IMPLEMENTATION: old_state = state;
 
-		cw_iambic_keyer_increment_timer_internal(gen->keyer, tone.usecs);
+		cw_iambic_keyer_increment_timer_internal(gen->key, tone.usecs);
 
 #ifdef LIBCW_WITH_DEV
 		cw_debug_ev ((&cw_debug_object_ev), 0, tone.frequency ? CW_DEBUG_EVENT_TONE_HIGH : CW_DEBUG_EVENT_TONE_LOW);
@@ -659,10 +659,10 @@ void *cw_generator_dequeue_and_play_internal(void *arg)
 		   and all the other new or changed code in libcw and
 		   xcwcp that is related to keyer's timer. */
 
-		if (!cw_iambic_keyer_update_graph_state_internal(gen->keyer)) {
+		if (!cw_iambic_keyer_update_graph_state_internal(gen->key)) {
 			/* just try again, once */
 			usleep(1000);
-			cw_iambic_keyer_update_graph_state_internal(gen->keyer);
+			cw_iambic_keyer_update_graph_state_internal(gen->key);
 		}
 
 #ifdef LIBCW_WITH_DEV
