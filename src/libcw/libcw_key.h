@@ -83,6 +83,17 @@ typedef struct cw_tqkey_struct {
 
 typedef struct cw_key_struct {
 	cw_gen_t *gen;
+
+	/* External "on key state change" callback function and its
+	   argument.
+
+	   It may be useful for a client to have this library control
+	   an external keying device, for example, an oscillator, or a
+	   transmitter.  Here is where we keep the address of a
+	   function that is passed to us for this purpose, and a void*
+	   argument for it. */
+	void (*cw_key_callback)(void*, int);
+	void *cw_key_callback_arg;
 } cw_key_t;
 
 
