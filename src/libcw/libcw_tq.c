@@ -433,8 +433,8 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *ton
 				   CW_TQ_NONEMPTY' at this point?
 				   Since we are in "forever" tone,
 				   what else should we do?  Maybe call
-				   cw_tqkey_set_value_internal(), but I
-				   think that this would be all. */
+				   cw_key_tk_set_value_internal(), but
+				   I think that this would be all. */
 			} else {
 				tq->head = cw_tone_queue_next_index_internal(tq, tq->head);;
 				tq->len--;
@@ -462,7 +462,7 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *ton
 			   comparing current key state with its
 			   internal key state). */
 			if (tq->gen && tq->gen->key) {
-				cw_tqkey_set_value_internal(tq->gen->key, tone->frequency ? CW_KEY_STATE_CLOSED : CW_KEY_STATE_OPEN);
+				cw_key_tk_set_value_internal(tq->gen->key, tone->frequency ? CW_KEY_STATE_CLOSED : CW_KEY_STATE_OPEN);
 			}
 
 #if 0
@@ -553,7 +553,7 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *ton
 
 			/* Notify the keying control function about the silence. */
 			if (tq->gen && tq->gen->key) {
-				cw_tqkey_set_value_internal(tq->gen->key, CW_KEY_STATE_OPEN);
+				cw_key_tk_set_value_internal(tq->gen->key, CW_KEY_STATE_OPEN);
 			}
 
 			//cw_finalization_schedule_internal();
