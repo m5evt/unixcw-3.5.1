@@ -131,7 +131,9 @@ cw_tone_queue_t *cw_tq_new_internal(void)
 	tq->low_water_callback = NULL;
 	tq->low_water_callback_arg = NULL;
 
+#if 0
 	tq->tqkey = NULL;
+#endif
 
 	rv = cw_tone_queue_set_capacity_internal(tq, CW_TONE_QUEUE_CAPACITY_MAX, CW_TONE_QUEUE_HIGH_WATER_MARK_MAX);
 	assert (rv);
@@ -459,7 +461,7 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *ton
 			   the function will sort this out by
 			   comparing current key state with its
 			   internal key state). */
-			cw_tqkey_set_value_internal(tq->tqkey, tone->frequency ? CW_KEY_STATE_CLOSED : CW_KEY_STATE_OPEN);
+			cw_tqkey_set_value_internal(tq->gen->key, tone->frequency ? CW_KEY_STATE_CLOSED : CW_KEY_STATE_OPEN);
 
 #if 0
 			/* If microseconds is zero, leave it at that.  This
@@ -548,7 +550,7 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *ton
 			   about "no tones" state through return value. */
 
 			/* Notify the keying control function about the silence. */
-			cw_tqkey_set_value_internal(tq->tqkey, CW_KEY_STATE_OPEN);
+			cw_tqkey_set_value_internal(tq->gen->key, CW_KEY_STATE_OPEN);
 
 			//cw_finalization_schedule_internal();
 
