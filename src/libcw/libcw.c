@@ -305,9 +305,10 @@ cw_rec_t *cw_receiver = &receiver;
 
 
 /* From libcw_key.c. */
-extern cw_iambic_keyer_t cw_iambic_keyer;
-extern volatile cw_straight_key_t cw_straight_key;
-extern cw_tqkey_t cw_tqkey;
+//extern cw_iambic_keyer_t cw_iambic_keyer;
+//extern volatile cw_straight_key_t cw_straight_key;
+//extern cw_tqkey_t cw_tqkey;
+extern volatile cw_key_t cw_key;
 
 
 /* Most of audio systems (excluding console) should be configured to
@@ -4017,11 +4018,7 @@ int cw_generator_new(int audio_system, const char *device)
 			      "libcw: can't create generator()");
 		return CW_FAILURE;
 	} else {
-		/* Yes, both global keys (iambic, straight and tq) use
-		   the same generator. That's how it always was. */
-		cw_iambic_keyer_register_generator_internal(&cw_iambic_keyer, generator);
-		cw_straight_key_register_generator_internal(&cw_straight_key, generator);
-		cw_tqkey_register_tone_queue_internal(&cw_tqkey, generator->tq);
+		cw_key_register_generator_internal(&cw_key, generator);
 
 		return CW_SUCCESS;
 	}
