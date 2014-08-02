@@ -50,6 +50,7 @@
 /* Forward declarations of data types. */
 struct cw_iambic_keyer_struct;
 struct cw_straight_key_struct;
+struct cw_key_struct;
 
 
 
@@ -273,7 +274,10 @@ struct cw_gen_struct {
 	   correctly: key that has a generator associated with
 	   it). Can be NULL in some applications. Set using
 	   cw_straight_key_register_generator_internal(). */
-	volatile struct cw_straight_key_struct *key;
+	volatile struct cw_straight_key_struct *straight_key;
+
+
+	volatile struct cw_key_struct *key;
 };
 
 
