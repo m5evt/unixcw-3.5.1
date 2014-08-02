@@ -25,10 +25,9 @@
 
 #include "libcw_debug.h"
 #include "libcw_internal.h"
-#include "libcw_tq.h"
 #include "libcw_key.h"
 #include "libcw_gen.h"
-
+#include "libcw_tq.h"
 
 /**
    \file libcw_tq.c
@@ -430,7 +429,7 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *ton
 				   CW_TQ_NONEMPTY' at this point?
 				   Since we are in "forever" tone,
 				   what else should we do?  Maybe call
-				   cw_key_set_state_internal(), but I
+				   cw_tqkey_set_value_internal(), but I
 				   think that this would be all. */
 			} else {
 				tq->head = cw_tone_queue_next_index_internal(tq, tq->head);;
@@ -458,7 +457,7 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *ton
 			   the function will sort this out by
 			   comparing current key state with its
 			   internal key state). */
-			cw_key_set_state_internal(tone->frequency ? CW_KEY_STATE_CLOSED : CW_KEY_STATE_OPEN);
+			cw_tqkey_set_value_internal(tq->tqkey, tone->frequency ? CW_KEY_STATE_CLOSED : CW_KEY_STATE_OPEN);
 
 #if 0
 			/* If microseconds is zero, leave it at that.  This
@@ -547,7 +546,7 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *ton
 			   about "no tones" state through return value. */
 
 			/* Notify the keying control function about the silence. */
-			cw_key_set_state_internal(CW_KEY_STATE_OPEN);
+			cw_tqkey_set_value_internal(tq->tqkey, CW_KEY_STATE_OPEN);
 
 			//cw_finalization_schedule_internal();
 
