@@ -131,6 +131,8 @@ cw_tone_queue_t *cw_tq_new_internal(void)
 	tq->low_water_callback = NULL;
 	tq->low_water_callback_arg = NULL;
 
+	tq->tqkey = NULL;
+
 	rv = cw_tone_queue_set_capacity_internal(tq, CW_TONE_QUEUE_CAPACITY_MAX, CW_TONE_QUEUE_HIGH_WATER_MARK_MAX);
 	assert (rv);
 
