@@ -461,7 +461,9 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *ton
 			   the function will sort this out by
 			   comparing current key state with its
 			   internal key state). */
-			cw_tqkey_set_value_internal(tq->gen->key, tone->frequency ? CW_KEY_STATE_CLOSED : CW_KEY_STATE_OPEN);
+			if (tq->gen && tq->gen->key) {
+				cw_tqkey_set_value_internal(tq->gen->key, tone->frequency ? CW_KEY_STATE_CLOSED : CW_KEY_STATE_OPEN);
+			}
 
 #if 0
 			/* If microseconds is zero, leave it at that.  This
@@ -550,7 +552,9 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *ton
 			   about "no tones" state through return value. */
 
 			/* Notify the keying control function about the silence. */
-			cw_tqkey_set_value_internal(tq->gen->key, CW_KEY_STATE_OPEN);
+			if (tq->gen && tq->gen->key) {
+				cw_tqkey_set_value_internal(tq->gen->key, CW_KEY_STATE_OPEN);
+			}
 
 			//cw_finalization_schedule_internal();
 
