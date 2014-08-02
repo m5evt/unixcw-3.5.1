@@ -56,7 +56,7 @@ typedef struct cw_iambic_keyer_struct {
 
 
 
-
+#if 0
 /* Straight key data type. */
 typedef struct cw_straight_key_struct {
 	int key_value;        /* Open/Closed, Space/Mark, NoSound/Sound. */
@@ -67,18 +67,18 @@ typedef struct cw_straight_key_struct {
 	   cw_straight_key_register_generator_internal(). */
 	cw_gen_t *gen;
 } cw_straight_key_t;
+#endif
 
 
 
-
-
+#if 0
 typedef struct cw_tqkey_struct {
 	int key_value;        /* Open/Closed, Space/Mark, NoSound/Sound. */
 
 	/* Tone queue associated with a tq-key. */
 	cw_tone_queue_t *tq;
 } cw_tqkey_t;
-
+#endif
 
 
 typedef struct cw_key_struct {
@@ -94,6 +94,17 @@ typedef struct cw_key_struct {
 	   argument for it. */
 	void (*cw_key_callback)(void*, int);
 	void *cw_key_callback_arg;
+
+
+	/* Straight key. */
+	struct {
+		int key_value;    /* Open/Closed, Space/Mark, NoSound/Sound. */
+	} sk;
+
+	/* Tone-queue key. */
+	struct {
+		int key_value;    /* Open/Closed, Space/Mark, NoSound/Sound. */
+	} tk;
 } cw_key_t;
 
 
@@ -119,7 +130,7 @@ void cw_iambic_keyer_increment_timer_internal(cw_iambic_keyer_t *keyer, int usec
 
 //void cw_straight_key_register_generator_internal(volatile cw_straight_key_t *key, cw_gen_t *gen);
 
-void cw_tqkey_set_value_internal(cw_tqkey_t *tqkey, int key_state);
+void cw_tqkey_set_value_internal(volatile cw_key_t *key, int key_state);
 
 
 void cw_key_register_generator_internal(volatile cw_key_t *key, cw_gen_t *gen);
