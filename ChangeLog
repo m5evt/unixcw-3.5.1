@@ -1,3 +1,12 @@
+2014-08-02 Kamil Ignacak
+	* libcw/key: lots of changes in libcw_key module. After some
+	trials and errors I've implemented a code with single data type
+	for all types of code (cw_key_t) while maintaining separate states
+	of straight key, iambic keyer, and tone-queue-key.
+
+	The key and code handling it is not visible to users of public
+	API. Behaviour of public API functions has not been changed.
+
 2014-07-28 Kamil Ignacak
 	* libcw: I think that for now I'm done with splitting libcw.c into
 	parts. In about a week I have moved large portions of code from
@@ -446,4 +455,3 @@
 	Build system now supports "make distcheck" target.
 
 	Build system now depends on libtool.
-
