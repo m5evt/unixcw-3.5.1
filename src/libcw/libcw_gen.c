@@ -278,8 +278,10 @@ cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 	gen->eow_delay = 0;
 	gen->adjustment_delay = 0;
 
-	gen->keyer = NULL;
-	gen->key = NULL;
+	gen->keyer = (cw_iambic_keyer_t *) NULL;
+	gen->straight_key = (cw_straight_key_t *) NULL;
+	gen->key = (cw_key_t *) NULL;
+
 
 	int rv = cw_gen_new_open_internal(gen, audio_system, device);
 	if (rv == CW_FAILURE) {
