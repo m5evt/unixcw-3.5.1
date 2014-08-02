@@ -654,10 +654,10 @@ void *cw_generator_dequeue_and_play_internal(void *arg)
 		   and all the other new or changed code in libcw and
 		   xcwcp that is related to keyer's timer. */
 
-		if (!cw_iambic_keyer_update_graph_state_internal(gen->keyer, gen)) {
+		if (!cw_iambic_keyer_update_graph_state_internal(gen->keyer)) {
 			/* just try again, once */
 			usleep(1000);
-			cw_iambic_keyer_update_graph_state_internal(gen->keyer, gen);
+			cw_iambic_keyer_update_graph_state_internal(gen->keyer);
 		}
 
 #ifdef LIBCW_WITH_DEV

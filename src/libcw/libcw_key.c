@@ -32,10 +32,17 @@
 
 #include "libcw_debug.h"
 #include "libcw_key.h"
-#include "libcw_tq.h"
 #include "libcw_gen.h"
 #include "libcw_internal.h"
 #include "libcw_utils.h"
+
+/* TODO: this module shouldn't directly refer to generator's tone
+   queue. The tone queue should be accessed only through generator's
+   API. */
+#include "libcw_tq.h"
+
+
+
 
 
 extern cw_debug_t cw_debug_object;
@@ -162,10 +169,10 @@ volatile cw_straight_key_t cw_straight_key = {
 
 
 
-static void cw_iambic_keyer_update_state_initial_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen);
-static void cw_iambic_keyer_enqueue_symbol_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen, int key_value, int usecs);
+static void cw_iambic_keyer_update_state_initial_internal(cw_iambic_keyer_t *keyer);
+static void cw_iambic_keyer_enqueue_symbol_internal(cw_iambic_keyer_t *keyer, int key_value, int usecs);
 
-static void cw_straight_key_enqueue_symbol_internal(volatile cw_straight_key_t *key, cw_gen_t *gen, int key_value);
+static void cw_straight_key_enqueue_symbol_internal(volatile cw_straight_key_t *key, int key_value);
 
 
 
@@ -310,10 +317,10 @@ void cw_key_set_state_internal(int key_state)
    \param gen - generator to be used to emit tones as state of key changes
    \param key_state - key state to be set
 */
-void cw_straight_key_enqueue_symbol_internal(volatile cw_straight_key_t *key, cw_gen_t *gen, int key_value)
+void cw_straight_key_enqueue_symbol_internal(volatile cw_straight_key_t *key, int key_value)
 {
 	cw_assert (key, "ERROR: key is NULL");
-	cw_assert (gen, "generator is NULL");
+	cw_assert (key->gen, "generator is NULL");
 
 	if (key->key_value != key_value) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
@@ -342,39 +349,39 @@ void cw_straight_key_enqueue_symbol_internal(volatile cw_straight_key_t *key, cw
 			   receives CW_KEY_STATE_OPEN key state. */
 
 			cw_tone_t tone;
-			tone.usecs = gen->tone_slope.length_usecs;
-			tone.frequency = gen->frequency;
+			tone.usecs = key->gen->tone_slope.length_usecs;
+			tone.frequency = key->gen->frequency;
 			tone.slope_mode = CW_SLOPE_MODE_RISING_SLOPE;
-			cw_tone_queue_enqueue_internal(gen->tq, &tone);
+			cw_tone_queue_enqueue_internal(key->gen->tq, &tone);
 
 			tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
 			tone.usecs = CW_AUDIO_FOREVER_USECS;
-			tone.frequency = gen->frequency;
-			cw_tone_queue_enqueue_internal(gen->tq, &tone);
+			tone.frequency = key->gen->frequency;
+			cw_tone_queue_enqueue_internal(key->gen->tq, &tone);
 
 			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
-				      "libcw: tone queue: len = %"PRIu32"", cw_tone_queue_length_internal(gen->tq));
+				      "libcw: tone queue: len = %"PRIu32"", cw_tone_queue_length_internal(key->gen->tq));
 		} else {
 			/* CW_KEY_STATE_OPEN, time to go from Mark
 			   (audible tone) to Space (silence). */
 
-			if (gen->audio_system == CW_AUDIO_CONSOLE) {
+			if (key->gen->audio_system == CW_AUDIO_CONSOLE) {
 				/* Play just a bit of silence, just to switch
 				   buzzer from playing a sound to being silent. */
 				cw_tone_t tone;
 				tone.usecs = CW_AUDIO_QUANTUM_USECS;
 				tone.frequency = 0;
 				tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-				cw_tone_queue_enqueue_internal(gen->tq, &tone);
+				cw_tone_queue_enqueue_internal(key->gen->tq, &tone);
 			} else {
 				/* For soundcards a falling slope with
 				   volume from max to zero should be
 				   enough, but... */
 				cw_tone_t tone;
-				tone.usecs = gen->tone_slope.length_usecs;
-				tone.frequency = gen->frequency;
+				tone.usecs = key->gen->tone_slope.length_usecs;
+				tone.frequency = key->gen->frequency;
 				tone.slope_mode = CW_SLOPE_MODE_FALLING_SLOPE;
-				cw_tone_queue_enqueue_internal(gen->tq, &tone);
+				cw_tone_queue_enqueue_internal(key->gen->tq, &tone);
 
 				/* On some occasions, on some platforms, some
 				   sound systems may need to constantly play
@@ -391,7 +398,7 @@ void cw_straight_key_enqueue_symbol_internal(volatile cw_straight_key_t *key, cw
 				tone.usecs = CW_AUDIO_FOREVER_USECS;
 				tone.frequency = 0;
 				tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-				cw_tone_queue_enqueue_internal(gen->tq, &tone);
+				cw_tone_queue_enqueue_internal(key->gen->tq, &tone);
 			}
 		}
 	}
@@ -435,12 +442,14 @@ void cw_straight_key_enqueue_symbol_internal(volatile cw_straight_key_t *key, cw
    keyer's graph state.
 
    \param keyer - current keyer
-   \param gen - generator
    \param key_value - key value to be set (Mark/Space)
    \param usecs - length of tone to be generated (period)
 */
-void cw_iambic_keyer_enqueue_symbol_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen, int key_value, int usecs)
+void cw_iambic_keyer_enqueue_symbol_internal(cw_iambic_keyer_t *keyer, int key_value, int usecs)
 {
+	cw_assert (keyer, "keyer is NULL");
+	cw_assert (keyer->gen, "generator is NULL");
+
 	if (keyer->key_value != key_value) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
 			      "libcw: iambic keyer: key value %d->%d", keyer->key_value, key_value);
@@ -465,14 +474,14 @@ void cw_iambic_keyer_enqueue_symbol_internal(cw_iambic_keyer_t *keyer, cw_gen_t 
 			cw_tone_t tone;
 			tone.slope_mode = CW_SLOPE_MODE_STANDARD_SLOPES;
 			tone.usecs = usecs;
-			tone.frequency = gen->frequency;
-			cw_tone_queue_enqueue_internal(gen->tq, &tone);
+			tone.frequency = keyer->gen->frequency;
+			cw_tone_queue_enqueue_internal(keyer->gen->tq, &tone);
 		} else {
 			cw_tone_t tone;
 			tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
 			tone.usecs = usecs;
 			tone.frequency = 0;
-			cw_tone_queue_enqueue_internal(gen->tq, &tone);
+			cw_tone_queue_enqueue_internal(keyer->gen->tq, &tone);
 		}
 	}
 
@@ -551,12 +560,11 @@ int cw_get_iambic_curtis_mode_b_state(void)
    in that place for iambic keyer, but not for straight key.
 
    \param keyer - iambic keyer
-   \param gen - current generator
 
    \return CW_FAILURE if there is a lock and the function cannot proceed
    \return CW_SUCCESS otherwise
 */
-int cw_iambic_keyer_update_graph_state_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen)
+int cw_iambic_keyer_update_graph_state_internal(cw_iambic_keyer_t *keyer)
 {
 	if (!keyer) {
 		/* This function is called from generator thread. It
@@ -571,7 +579,7 @@ int cw_iambic_keyer_update_graph_state_internal(cw_iambic_keyer_t *keyer, cw_gen
 	/* This function is called from generator thread function, so
 	   the generator must exist. Be paranoid and check it, just in
 	   case :) */
-	cw_assert (gen, "NULL generator");
+	cw_assert (keyer->gen, "NULL generator");
 
 
 	if (keyer->lock) {
@@ -582,7 +590,7 @@ int cw_iambic_keyer_update_graph_state_internal(cw_iambic_keyer_t *keyer, cw_gen
 	keyer->lock = true;
 
 	/* Synchronize low level timing parameters if required. */
-	cw_sync_parameters_internal(gen, cw_receiver);
+	cw_sync_parameters_internal(keyer->gen, cw_receiver);
 
 	int cw_iambic_keyer_state_old = keyer->graph_state;
 
@@ -607,7 +615,7 @@ int cw_iambic_keyer_update_graph_state_internal(cw_iambic_keyer_t *keyer, cw_gen
 			   "Inconsistency between keyer state (%s) ad key value (%d)",
 			   cw_iambic_keyer_states[keyer->graph_state], keyer->key_value);
 
-		cw_iambic_keyer_enqueue_symbol_internal(keyer, gen, CW_KEY_STATE_OPEN, gen->eoe_delay);
+		cw_iambic_keyer_enqueue_symbol_internal(keyer, CW_KEY_STATE_OPEN, keyer->gen->eoe_delay);
 		keyer->graph_state = keyer->graph_state == KS_IN_DOT_A
 			? KS_AFTER_DOT_A : KS_AFTER_DOT_B;
 		break;
@@ -621,7 +629,7 @@ int cw_iambic_keyer_update_graph_state_internal(cw_iambic_keyer_t *keyer, cw_gen
 			   "Inconsistency between keyer state (%s) ad key value (%d)",
 			   cw_iambic_keyer_states[keyer->graph_state], keyer->key_value);
 
-		cw_iambic_keyer_enqueue_symbol_internal(keyer, gen, CW_KEY_STATE_OPEN, gen->eoe_delay);
+		cw_iambic_keyer_enqueue_symbol_internal(keyer, CW_KEY_STATE_OPEN, keyer->gen->eoe_delay);
 		keyer->graph_state = keyer->graph_state == KS_IN_DASH_A
 			? KS_AFTER_DASH_A : KS_AFTER_DASH_B;
 
@@ -652,10 +660,10 @@ int cw_iambic_keyer_update_graph_state_internal(cw_iambic_keyer_t *keyer, cw_gen
 		}
 
 		if (keyer->graph_state == KS_AFTER_DOT_B) {
-			cw_iambic_keyer_enqueue_symbol_internal(keyer, gen, CW_KEY_STATE_CLOSED, gen->dash_length);
+			cw_iambic_keyer_enqueue_symbol_internal(keyer, CW_KEY_STATE_CLOSED, keyer->gen->dash_length);
 			keyer->graph_state = KS_IN_DASH_A;
 		} else if (keyer->dash_latch) {
-			cw_iambic_keyer_enqueue_symbol_internal(keyer, gen, CW_KEY_STATE_CLOSED, gen->dash_length);
+			cw_iambic_keyer_enqueue_symbol_internal(keyer, CW_KEY_STATE_CLOSED, keyer->gen->dash_length);
 			if (keyer->curtis_b_latch){
 				keyer->curtis_b_latch = false;
 				keyer->graph_state = KS_IN_DASH_B;
@@ -663,7 +671,7 @@ int cw_iambic_keyer_update_graph_state_internal(cw_iambic_keyer_t *keyer, cw_gen
 				keyer->graph_state = KS_IN_DASH_A;
 			}
 		} else if (keyer->dot_latch) {
-			cw_iambic_keyer_enqueue_symbol_internal(keyer, gen, CW_KEY_STATE_CLOSED, gen->dot_length);
+			cw_iambic_keyer_enqueue_symbol_internal(keyer, CW_KEY_STATE_CLOSED, keyer->gen->dot_length);
 			keyer->graph_state = KS_IN_DOT_A;
 		} else {
 			keyer->graph_state = KS_IDLE;
@@ -689,10 +697,10 @@ int cw_iambic_keyer_update_graph_state_internal(cw_iambic_keyer_t *keyer, cw_gen
 		}
 
 		if (keyer->graph_state == KS_AFTER_DASH_B) {
-			cw_iambic_keyer_enqueue_symbol_internal(keyer, gen, CW_KEY_STATE_CLOSED, gen->dot_length);
+			cw_iambic_keyer_enqueue_symbol_internal(keyer, CW_KEY_STATE_CLOSED, keyer->gen->dot_length);
 			keyer->graph_state = KS_IN_DOT_A;
 		} else if (keyer->dot_latch) {
-			cw_iambic_keyer_enqueue_symbol_internal(keyer, gen, CW_KEY_STATE_CLOSED, gen->dot_length);
+			cw_iambic_keyer_enqueue_symbol_internal(keyer, CW_KEY_STATE_CLOSED, keyer->gen->dot_length);
 			if (keyer->curtis_b_latch) {
 				keyer->curtis_b_latch = false;
 				keyer->graph_state = KS_IN_DOT_B;
@@ -700,7 +708,7 @@ int cw_iambic_keyer_update_graph_state_internal(cw_iambic_keyer_t *keyer, cw_gen
 				keyer->graph_state = KS_IN_DOT_A;
 			}
 		} else if (keyer->dash_latch) {
-			cw_iambic_keyer_enqueue_symbol_internal(keyer, gen, CW_KEY_STATE_CLOSED, gen->dash_length);
+			cw_iambic_keyer_enqueue_symbol_internal(keyer, CW_KEY_STATE_CLOSED, keyer->gen->dash_length);
 			keyer->graph_state = KS_IN_DASH_A;
 		} else {
 			keyer->graph_state = KS_IDLE;
@@ -799,7 +807,7 @@ int cw_notify_keyer_paddle_event(int dot_paddle_state,
 	if (cw_iambic_keyer.graph_state == KS_IDLE) {
 		/* If the current state is idle, give the state
 		   process an initial impulse. */
-		cw_iambic_keyer_update_state_initial_internal(&cw_iambic_keyer, cw_iambic_keyer.gen);
+		cw_iambic_keyer_update_state_initial_internal(&cw_iambic_keyer);
 	} else {
 		/* The state machine for iambic keyer is already in
 		   motion, no need to do anything more.
@@ -827,10 +835,10 @@ int cw_notify_keyer_paddle_event(int dot_paddle_state,
    State machine for iambic keyer must be pushed from KS_IDLE
    state. Call this function to do this.
 */
-void cw_iambic_keyer_update_state_initial_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen)
+void cw_iambic_keyer_update_state_initial_internal(cw_iambic_keyer_t *keyer)
 {
 	cw_assert (keyer, "NULL keyer\n");
-	cw_assert (gen, "NULL gen\n");
+	cw_assert (keyer->gen, "NULL gen\n");
 
 	if (keyer->dot_paddle) {
 		/* "Dot" paddle pressed. Pretend that we are in "after
@@ -839,10 +847,10 @@ void cw_iambic_keyer_update_state_initial_internal(cw_iambic_keyer_t *keyer, cw_
 		keyer->graph_state = keyer->curtis_b_latch
 			? KS_AFTER_DASH_B : KS_AFTER_DASH_A;
 
-		if (!cw_iambic_keyer_update_graph_state_internal(keyer, gen)) {
+		if (!cw_iambic_keyer_update_graph_state_internal(keyer)) {
 			/* just try again, once */
 			usleep(1000);
-			cw_iambic_keyer_update_graph_state_internal(keyer, gen);
+			cw_iambic_keyer_update_graph_state_internal(keyer);
 		}
 	} else if (keyer->dash_paddle) {
 		/* "Dash" paddle pressed. Pretend that we are in
@@ -851,10 +859,10 @@ void cw_iambic_keyer_update_state_initial_internal(cw_iambic_keyer_t *keyer, cw_
 		keyer->graph_state = keyer->curtis_b_latch
 			? KS_AFTER_DOT_B : KS_AFTER_DOT_A;
 
-		if (!cw_iambic_keyer_update_graph_state_internal(keyer, gen)) {
+		if (!cw_iambic_keyer_update_graph_state_internal(keyer)) {
 			/* just try again, once */
 			usleep(1000);
-			cw_iambic_keyer_update_graph_state_internal(keyer, gen);
+			cw_iambic_keyer_update_graph_state_internal(keyer);
 		}
 	} else {
 		/* Both paddles are open/up. We certainly don't want
@@ -1236,7 +1244,7 @@ int cw_notify_straight_key_event(int key_state)
 
 	/* Do tones and keying, and set up timeouts and soundcard
 	   activities to match the new key state. */
-	cw_straight_key_enqueue_symbol_internal(&cw_straight_key, cw_straight_key.gen, key_state);
+	cw_straight_key_enqueue_symbol_internal(&cw_straight_key, key_state);
 
 	if (cw_straight_key.key_value == CW_KEY_STATE_OPEN) {
 		/* Indicate that we have finished with timeouts, and
