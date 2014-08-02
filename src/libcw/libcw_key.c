@@ -136,7 +136,7 @@ static const char *cw_iambic_keyer_states[] = {
 
 
 
-cw_iambic_keyer_t cw_iambic_keyer = {
+static cw_iambic_keyer_t cw_iambic_keyer = {
 	.graph_state = KS_IDLE,
 	.key_value = CW_KEY_STATE_OPEN,
 
@@ -160,16 +160,21 @@ cw_iambic_keyer_t cw_iambic_keyer = {
 
 
 
-volatile cw_straight_key_t cw_straight_key = {
+static volatile cw_straight_key_t cw_straight_key = {
 	.key_value = CW_KEY_STATE_OPEN,
 	.gen = NULL
 };
 
 
 
-cw_tqkey_t cw_tqkey = {
+static cw_tqkey_t cw_tqkey = {
 	.key_value = CW_KEY_STATE_OPEN,
 	.tq = NULL
+};
+
+
+volatile cw_key_t cw_key = {
+	.gen = NULL
 };
 
 
@@ -307,10 +312,23 @@ void cw_tqkey_set_value_internal(cw_tqkey_t *tqkey, int key_value)
 
 
 
-void cw_tqkey_register_tone_queue_internal(cw_tqkey_t *tqkey, cw_tone_queue_t *tq)
+void cw_key_register_generator_internal(volatile cw_key_t *key, cw_gen_t *gen)
 {
-	tqkey->tq = tq;
-	tq->tqkey = tqkey;
+	/* Tone queue key. */
+	cw_tqkey.tq = gen->tq;
+	gen->tq->tqkey = &cw_tqkey;
+
+	/* Iambic keyer. */
+	cw_iambic_keyer.gen = gen;
+	gen->keyer = &cw_iambic_keyer;
+
+	/* Straight key. */
+	cw_straight_key.gen = gen;
+	gen->straight_key = &cw_straight_key;
+
+	/* General key. */
+	key->gen = gen;
+	gen->key = key;
 
 	return;
 }
@@ -334,7 +352,6 @@ void cw_tqkey_register_tone_queue_internal(cw_tqkey_t *tqkey, cw_tone_queue_t *t
    started or stopped).
 
    \param key - straight key in use
-   \param gen - generator to be used to emit tones as state of key changes
    \param key_state - key state to be set
 */
 void cw_straight_key_enqueue_symbol_internal(volatile cw_straight_key_t *key, int key_value)
@@ -1170,6 +1187,7 @@ void cw_iambic_keyer_increment_timer_internal(cw_iambic_keyer_t *keyer, int usec
 
 
 
+#if 0
 /*
   A keyer cannot function without an associated generator. A keyer has
   to have some generator to function correctly. Thus a function
@@ -1189,6 +1207,7 @@ void cw_iambic_keyer_register_generator_internal(cw_iambic_keyer_t *keyer, cw_ge
 
 	return;
 }
+#endif
 
 
 
@@ -1344,6 +1363,7 @@ void cw_reset_straight_key(void)
 
 
 
+#if 0
 /*
   A straight key needs a generator to generate audio. This function
   binds a straight key and a generator.
@@ -1366,3 +1386,4 @@ void cw_straight_key_register_generator_internal(volatile cw_straight_key_t *key
 
 	return;
 }
+#endif
