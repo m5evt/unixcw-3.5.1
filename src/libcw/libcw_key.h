@@ -81,6 +81,10 @@ typedef struct cw_tqkey_struct {
 
 
 
+typedef struct cw_key_struct {
+	cw_gen_t *gen;
+} cw_key_t;
+
 
 
 /* KS stands for Keyer State. */
@@ -100,12 +104,14 @@ enum {
 
 int  cw_iambic_keyer_update_graph_state_internal(cw_iambic_keyer_t *keyer);
 void cw_iambic_keyer_increment_timer_internal(cw_iambic_keyer_t *keyer, int usecs);
-void cw_iambic_keyer_register_generator_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen);
+//void cw_iambic_keyer_register_generator_internal(cw_iambic_keyer_t *keyer, cw_gen_t *gen);
 
-void cw_straight_key_register_generator_internal(volatile cw_straight_key_t *key, cw_gen_t *gen);
+//void cw_straight_key_register_generator_internal(volatile cw_straight_key_t *key, cw_gen_t *gen);
 
 void cw_tqkey_set_value_internal(cw_tqkey_t *tqkey, int key_state);
-void cw_tqkey_register_tone_queue_internal(cw_tqkey_t *tqkey, cw_tone_queue_t *tq);
+
+
+void cw_key_register_generator_internal(volatile cw_key_t *key, cw_gen_t *gen);
 
 
 
