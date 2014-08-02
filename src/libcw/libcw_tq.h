@@ -18,6 +18,12 @@
 
 
 
+//#include "libcw_key.h"
+
+
+
+
+
 /* Return values from cw_tone_queue_dequeue_internal(). */
 enum {
 	CW_TQ_JUST_EMPTIED = 0,
@@ -145,6 +151,9 @@ typedef struct {
 
 
 
+/* Forward declaration of data type. */
+struct cw_tqkey_struct;
+
 typedef struct {
 	volatile cw_tone_t queue[CW_TONE_QUEUE_CAPACITY_MAX];
 
@@ -175,6 +184,9 @@ typedef struct {
 	void        *low_water_callback_arg;
 
 	pthread_mutex_t mutex;
+
+	/* Tone-queue-key associated with a tone queue. */
+	struct cw_tqkey_struct *tqkey;
 } cw_tone_queue_t;
 
 
