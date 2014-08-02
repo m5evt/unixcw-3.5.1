@@ -227,6 +227,7 @@ cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 	}
 
 	gen->tq = cw_tq_new_internal();
+	gen->tq->gen = gen;
 
 	gen->audio_device = NULL;
 	//gen->audio_system = audio_system;
@@ -279,7 +280,9 @@ cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 	gen->adjustment_delay = 0;
 
 	gen->keyer = (cw_iambic_keyer_t *) NULL;
+#if 0
 	gen->straight_key = (cw_straight_key_t *) NULL;
+#endif
 	gen->key = (cw_key_t *) NULL;
 
 
