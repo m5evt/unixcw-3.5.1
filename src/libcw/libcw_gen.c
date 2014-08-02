@@ -279,10 +279,7 @@ cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 	gen->eow_delay = 0;
 	gen->adjustment_delay = 0;
 
-#if 0
-	gen->keyer = (cw_iambic_keyer_t *) NULL;
-	gen->straight_key = (cw_straight_key_t *) NULL;
-#endif
+
 	gen->key = (cw_key_t *) NULL;
 
 
