@@ -167,6 +167,13 @@ volatile cw_straight_key_t cw_straight_key = {
 
 
 
+cw_tqkey_t cw_tqkey = {
+	.key_value = CW_KEY_STATE_OPEN,
+	.tq = NULL
+};
+
+
+
 
 
 static void cw_iambic_keyer_update_state_initial_internal(cw_iambic_keyer_t *keyer);
@@ -256,41 +263,54 @@ void cw_iambic_keyer_register_timer(struct timeval *timer)
 
 
 /**
-   \brief Set new key state
+   \brief Set new value of "tone queue key"
 
-   Set new state of a key. Filter successive key-down or key-up
+   Set new value of a key. Filter successive key-down or key-up
    actions into a single action (successive calls with the same value
-   of \p key_state don't change internally registered state of key).
+   of \p key_state don't change internally registered value of key).
 
-   If and only if the function registers change of key state, an
+   If and only if the function registers change of key value, an
    external callback function for keying (if configured) is called.
 
    Notice that the function is used only in
    cw_tone_queue_dequeue_internal(). A generator which owns a tone
    queue is treated as a key, and dequeued tones are treated as key
-   states. Dequeueing tones is treated as manipulating a key.
+   values. Dequeueing tones is treated as manipulating a key.
 
-   \param key_state - key state to be set
+   \param tqkey - tone queue key to use
+   \param key_value - key value to be set
 */
-void cw_key_set_state_internal(int key_state)
+void cw_tqkey_set_value_internal(cw_tqkey_t *tqkey, int key_value)
 {
-	static int current_key_state = CW_KEY_STATE_OPEN;  /* Maintained key control state */
+	cw_assert (tqkey, "tqkey is NULL");
 
-	if (current_key_state != key_state) {
+	if (tqkey->key_value != key_value) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
-			      "libcw: keying state %d->%d", current_key_state, key_state);
+			      "libcw: TK: keying state %d->%d", tqkey->key_value, key_value);
 
 		/* Remember the new key value. */
-		current_key_state = key_state;
+		tqkey->key_value = key_value;
 
 		/* Call a registered callback. */
 		if (cw_kk_key_callback) {
 			cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
-				      "libcw: KK: about to call callback, key value = %d\n", key_state);
+				      "libcw: TK: about to call callback, key value = %d\n", tqkey->key_value);
 
-			(*cw_kk_key_callback)(cw_kk_key_callback_arg, current_key_state);
+			(*cw_kk_key_callback)(cw_kk_key_callback_arg, tqkey->key_value);
 		}
 	}
+
+	return;
+}
+
+
+
+
+
+void cw_tqkey_register_tone_queue_internal(cw_tqkey_t *tqkey, cw_tone_queue_t *tq)
+{
+	tqkey->tq = tq;
+	tq->tqkey = tqkey;
 
 	return;
 }
