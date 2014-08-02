@@ -14,7 +14,7 @@
 #include <sys/time.h>
 
 #include "libcw_gen.h"
-
+#include "libcw_tq.h"
 
 
 
@@ -72,6 +72,17 @@ typedef struct cw_straight_key_struct {
 
 
 
+typedef struct cw_tqkey_struct {
+	int key_value;        /* Open/Closed, Space/Mark, NoSound/Sound. */
+
+	/* Tone queue associated with a tq-key. */
+	cw_tone_queue_t *tq;
+} cw_tqkey_t;
+
+
+
+
+
 /* KS stands for Keyer State. */
 enum {
 	KS_IDLE,
@@ -93,8 +104,8 @@ void cw_iambic_keyer_register_generator_internal(cw_iambic_keyer_t *keyer, cw_ge
 
 void cw_straight_key_register_generator_internal(volatile cw_straight_key_t *key, cw_gen_t *gen);
 
-void cw_key_set_state_internal(int key_state);
-
+void cw_tqkey_set_value_internal(cw_tqkey_t *tqkey, int key_state);
+void cw_tqkey_register_tone_queue_internal(cw_tqkey_t *tqkey, cw_tone_queue_t *tq);
 
 
 

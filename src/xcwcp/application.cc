@@ -184,6 +184,8 @@ void Application::libcw_keying_event_static(void *arg, int key_state)
 	    && app->is_using_libcw_
 	    && app->modeset_.is_receive()) {
 
+		fprintf(stderr, "calling callback, stage 1 (key = %d)\n", key_state);
+
 		struct timeval *t = (struct timeval *) arg;
 		app->receiver_->handle_libcw_keying_event(t, key_state);
 	}

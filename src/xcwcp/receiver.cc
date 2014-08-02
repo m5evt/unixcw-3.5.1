@@ -95,6 +95,8 @@ void Receiver::handle_key_event(QKeyEvent *event, const Mode *current_mode,
 		return;
 	}
 
+	fprintf(stderr, "\n\n");
+
 	// If this is a key press that is not the first one of an
 	// autorepeating key, ignore the event.  This prevents
 	// autorepeat from getting in the way of identifying the real
@@ -224,6 +226,8 @@ void Receiver::handle_mouse_event(QMouseEvent *event, const Mode *current_mode,
 		return;
 	}
 
+	fprintf(stderr, "\n\n");
+
 
 	if (event->type() == QEvent::MouseButtonPress
 	    || event->type() == QEvent::MouseButtonDblClick
@@ -346,8 +350,10 @@ void Receiver::handle_libcw_keying_event(struct timeval *t, int key_state)
 	// application instances; we might receive an end of tone without seeing
 	// the start of tone.
 	if (key_state == tracked_key_state_) {
+		fprintf(stderr, "tracked key state == %d\n", tracked_key_state_);
 		return;
 	} else {
+		fprintf(stderr, "tracked key state := %d\n", key_state);
 		tracked_key_state_ = key_state;
 	}
 
@@ -365,6 +371,8 @@ void Receiver::handle_libcw_keying_event(struct timeval *t, int key_state)
 		// was just inter-character space.
 		is_pending_inter_word_space_ = false;
 	}
+
+	fprintf(stderr, "calling callback, stage 2\n");
 
 	// Pass tone state on to the library.  For tone end, check to
 	// see if the library has registered any receive error.
