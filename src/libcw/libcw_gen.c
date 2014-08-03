@@ -1095,21 +1095,30 @@ int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, int queue_state, cw_tone_t
 		}
 
 		/* Length of a tone in samples:
-		    - whole standard tone, from rising slope to falling
-		      slope, or
-		    - a part of longer, "forever" slope, either a fragment
-		      being rising slope, or falling slope, or "no slopes"
-		      fragment in between.
-		   Either way - a length of dequeued tone, converted from
-		   microseconds to samples. */
+		   - whole standard tone, with rising slope, steady
+		     state and falling slope (slopes' length may be
+		     zero), or
+		   - a part of longer, "forever" tone: either a
+		     fragment being rising slope, or falling slope, or
+		     "no slopes" fragment in between.
+
+		   Either way - a total length of dequeued tone,
+		   converted from microseconds to samples. */
 		tone->n_samples = gen->sample_rate / 100;
 		tone->n_samples *= tone->usecs;
 		tone->n_samples /= 10000;
 
 		/* Length in samples of a single slope (rising or falling)
 		   in standard tone of limited, known in advance length. */
-		tone->slope_n_samples = ((gen->sample_rate / 100) * gen->tone_slope.length_usecs) / 10000;
+		tone->slope_n_samples = gen->sample_rate / 100;
+		tone->slope_n_samples *= gen->tone_slope.length_usecs;
+		tone->slope_n_samples /= 10000;
 
+		/* About calculations above: 100 * 10000 = 1.000.000
+		   usecs per second. */
+
+
+		/* Total number of samples to write in a loop below. */
 		gen->samples_left = tone->n_samples;
 	}
 
@@ -1136,6 +1145,9 @@ int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, int queue_state, cw_tone_t
 		cw_gen_calculate_sine_wave_internal(gen, tone);
 		if (tone->sub_stop + 1 == gen->buffer_n_samples) {
 
+			/* We have a buffer full of samples. The
+			   buffer is ready to be pushed to audio
+			   sink. */
 			gen->write(gen);
 			tone->sub_start = 0;
 #if CW_DEV_RAW_SINK
@@ -1145,7 +1157,6 @@ int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, int queue_state, cw_tone_t
 			/* there is still some space left in the
 			   buffer, go fetch new tone from tone queue */
 			tone->sub_start = tone->sub_stop + 1;
-
 		}
 	} /* while (gen->samples_left > 0) { */
 
