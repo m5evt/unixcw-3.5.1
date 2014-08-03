@@ -115,6 +115,25 @@ extern cw_rec_t *cw_receiver;
 
 
 
+
+
+/* KS stands for Keyer State. */
+enum {
+	KS_IDLE,
+	KS_IN_DOT_A,
+	KS_IN_DASH_A,
+	KS_AFTER_DOT_A,
+	KS_AFTER_DASH_A,
+	KS_IN_DOT_B,
+	KS_IN_DASH_B,
+	KS_AFTER_DOT_B,
+	KS_AFTER_DASH_B
+};
+
+
+
+
+
 static const char *cw_iambic_keyer_states[] = {
 	"KS_IDLE",
 	"KS_IN_DOT_A",
@@ -135,8 +154,8 @@ volatile cw_key_t cw_key = {
 	.gen = NULL,
 
 
-	.cw_key_callback = NULL,
-	.cw_key_callback_arg = NULL,
+	.key_callback = NULL,
+	.key_callback_arg = NULL,
 
 
 	.sk = {
@@ -172,10 +191,10 @@ volatile cw_key_t cw_key = {
 
 
 
-static void cw_iambic_keyer_update_state_initial_internal(volatile cw_key_t *keyer);
-static void cw_iambic_keyer_enqueue_symbol_internal(volatile cw_key_t *keyer, int key_value, int usecs);
+static void cw_key_ik_update_state_initial_internal(volatile cw_key_t *keyer);
+static void cw_key_ik_enqueue_symbol_internal(volatile cw_key_t *keyer, int key_value, int usecs);
 
-static void cw_straight_key_enqueue_symbol_internal(volatile cw_key_t *key, int key_value);
+static void cw_key_sk_enqueue_symbol_internal(volatile cw_key_t *key, int key_value);
 
 
 
@@ -211,8 +230,8 @@ static void cw_straight_key_enqueue_symbol_internal(volatile cw_key_t *key, int 
 void cw_register_keying_callback(void (*callback_func)(void*, int),
 				 void *callback_arg)
 {
-	cw_key.cw_key_callback = callback_func;
-	cw_key.cw_key_callback_arg = callback_arg;
+	cw_key.key_callback = callback_func;
+	cw_key.key_callback_arg = callback_arg;
 
 	return;
 }
@@ -222,12 +241,12 @@ void cw_register_keying_callback(void (*callback_func)(void*, int),
 
 
 /*
-  Most of the time libcw just passes around cw_key_callback_arg,
+  Most of the time libcw just passes around key_callback_arg,
   not caring of what type it is, and not attempting to do any
   operations on it. On one occasion however, it needs to know whether
-  cw_key_callback_arg is of type 'struct timeval', and if so, it
+  key_callback_arg is of type 'struct timeval', and if so, it
   must do some operation on it. I could pass struct with ID as
-  cw_key_callback_arg, but that may break some old client
+  key_callback_arg, but that may break some old client
   code. Instead I've created this function that has only one, very
   specific purpose: to pass to libcw a pointer to timer.
 
@@ -263,7 +282,7 @@ void cw_iambic_keyer_register_timer(struct timeval *timer)
    \param key - key to use
    \param key_value - key value to be set
 */
-void cw_tqkey_set_value_internal(volatile cw_key_t *key, int key_value)
+void cw_key_tk_set_value_internal(volatile cw_key_t *key, int key_value)
 {
 	cw_assert (key, "key is NULL");
 
@@ -275,11 +294,11 @@ void cw_tqkey_set_value_internal(volatile cw_key_t *key, int key_value)
 		key->tk.key_value = key_value;
 
 		/* Call a registered callback. */
-		if (cw_key.cw_key_callback) {
+		if (cw_key.key_callback) {
 			cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
 				      "libcw: TK: about to call callback, key value = %d\n", key->tk.key_value);
 
-			(*(cw_key.cw_key_callback))(cw_key.cw_key_callback_arg, key->tk.key_value);
+			(*(cw_key.key_callback))(cw_key.key_callback_arg, key->tk.key_value);
 		}
 	}
 
@@ -336,7 +355,7 @@ void cw_key_register_generator_internal(volatile cw_key_t *key, cw_gen_t *gen)
    \param key - key in use
    \param key_state - key state to be set
 */
-void cw_straight_key_enqueue_symbol_internal(volatile cw_key_t *key, int key_value)
+void cw_key_sk_enqueue_symbol_internal(volatile cw_key_t *key, int key_value)
 {
 	cw_assert (key, "ERROR: key is NULL");
 	cw_assert (key->gen, "generator is NULL");
@@ -349,11 +368,11 @@ void cw_straight_key_enqueue_symbol_internal(volatile cw_key_t *key, int key_val
 		key->sk.key_value = key_value;
 
 		/* Call a registered callback. */
-		if (cw_key.cw_key_callback) {
+		if (cw_key.key_callback) {
 			cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
 				      "libcw: SK: about to call callback, key value = %d\n", key_value);
 
-			(*(cw_key.cw_key_callback))(cw_key.cw_key_callback_arg, key->sk.key_value);
+			(*(cw_key.key_callback))(cw_key.key_callback_arg, key->sk.key_value);
 		}
 
 		if (key->sk.key_value == CW_KEY_STATE_CLOSED) {
@@ -464,7 +483,7 @@ void cw_straight_key_enqueue_symbol_internal(volatile cw_key_t *key, int key_val
    \param key_value - key value to be set (Mark/Space)
    \param usecs - length of tone to be generated (period)
 */
-void cw_iambic_keyer_enqueue_symbol_internal(volatile cw_key_t *keyer, int key_value, int usecs)
+void cw_key_ik_enqueue_symbol_internal(volatile cw_key_t *keyer, int key_value, int usecs)
 {
 	cw_assert (keyer, "keyer is NULL");
 	cw_assert (keyer->gen, "generator is NULL");
@@ -477,11 +496,11 @@ void cw_iambic_keyer_enqueue_symbol_internal(volatile cw_key_t *keyer, int key_v
 		keyer->ik.key_value = key_value;
 
 		/* Call a registered callback. */
-		if (cw_key.cw_key_callback) {
+		if (cw_key.key_callback) {
 			cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
 				      "libcw: IK: about to call callback, key value = %d\n", key_value);
 
-			(*(cw_key.cw_key_callback))(cw_key.cw_key_callback_arg, keyer->ik.key_value);
+			(*(cw_key.key_callback))(cw_key.key_callback_arg, keyer->ik.key_value);
 		}
 
 		if (keyer->ik.key_value == CW_KEY_STATE_CLOSED) {
@@ -583,7 +602,7 @@ int cw_get_iambic_curtis_mode_b_state(void)
    \return CW_FAILURE if there is a lock and the function cannot proceed
    \return CW_SUCCESS otherwise
 */
-int cw_iambic_keyer_update_graph_state_internal(volatile cw_key_t *keyer)
+int cw_key_ik_update_graph_state_internal(volatile cw_key_t *keyer)
 {
 	if (!keyer) {
 		/* This function is called from generator thread. It
@@ -634,7 +653,7 @@ int cw_iambic_keyer_update_graph_state_internal(volatile cw_key_t *keyer)
 			   "Inconsistency between keyer state (%s) ad key value (%d)",
 			   cw_iambic_keyer_states[keyer->ik.graph_state], keyer->ik.key_value);
 
-		cw_iambic_keyer_enqueue_symbol_internal(keyer, CW_KEY_STATE_OPEN, keyer->gen->eoe_delay);
+		cw_key_ik_enqueue_symbol_internal(keyer, CW_KEY_STATE_OPEN, keyer->gen->eoe_delay);
 		keyer->ik.graph_state = keyer->ik.graph_state == KS_IN_DOT_A
 			? KS_AFTER_DOT_A : KS_AFTER_DOT_B;
 		break;
@@ -648,7 +667,7 @@ int cw_iambic_keyer_update_graph_state_internal(volatile cw_key_t *keyer)
 			   "Inconsistency between keyer state (%s) ad key value (%d)",
 			   cw_iambic_keyer_states[keyer->ik.graph_state], keyer->ik.key_value);
 
-		cw_iambic_keyer_enqueue_symbol_internal(keyer, CW_KEY_STATE_OPEN, keyer->gen->eoe_delay);
+		cw_key_ik_enqueue_symbol_internal(keyer, CW_KEY_STATE_OPEN, keyer->gen->eoe_delay);
 		keyer->ik.graph_state = keyer->ik.graph_state == KS_IN_DASH_A
 			? KS_AFTER_DASH_A : KS_AFTER_DASH_B;
 
@@ -679,10 +698,10 @@ int cw_iambic_keyer_update_graph_state_internal(volatile cw_key_t *keyer)
 		}
 
 		if (keyer->ik.graph_state == KS_AFTER_DOT_B) {
-			cw_iambic_keyer_enqueue_symbol_internal(keyer, CW_KEY_STATE_CLOSED, keyer->gen->dash_length);
+			cw_key_ik_enqueue_symbol_internal(keyer, CW_KEY_STATE_CLOSED, keyer->gen->dash_length);
 			keyer->ik.graph_state = KS_IN_DASH_A;
 		} else if (keyer->ik.dash_latch) {
-			cw_iambic_keyer_enqueue_symbol_internal(keyer, CW_KEY_STATE_CLOSED, keyer->gen->dash_length);
+			cw_key_ik_enqueue_symbol_internal(keyer, CW_KEY_STATE_CLOSED, keyer->gen->dash_length);
 			if (keyer->ik.curtis_b_latch){
 				keyer->ik.curtis_b_latch = false;
 				keyer->ik.graph_state = KS_IN_DASH_B;
@@ -690,7 +709,7 @@ int cw_iambic_keyer_update_graph_state_internal(volatile cw_key_t *keyer)
 				keyer->ik.graph_state = KS_IN_DASH_A;
 			}
 		} else if (keyer->ik.dot_latch) {
-			cw_iambic_keyer_enqueue_symbol_internal(keyer, CW_KEY_STATE_CLOSED, keyer->gen->dot_length);
+			cw_key_ik_enqueue_symbol_internal(keyer, CW_KEY_STATE_CLOSED, keyer->gen->dot_length);
 			keyer->ik.graph_state = KS_IN_DOT_A;
 		} else {
 			keyer->ik.graph_state = KS_IDLE;
@@ -716,10 +735,10 @@ int cw_iambic_keyer_update_graph_state_internal(volatile cw_key_t *keyer)
 		}
 
 		if (keyer->ik.graph_state == KS_AFTER_DASH_B) {
-			cw_iambic_keyer_enqueue_symbol_internal(keyer, CW_KEY_STATE_CLOSED, keyer->gen->dot_length);
+			cw_key_ik_enqueue_symbol_internal(keyer, CW_KEY_STATE_CLOSED, keyer->gen->dot_length);
 			keyer->ik.graph_state = KS_IN_DOT_A;
 		} else if (keyer->ik.dot_latch) {
-			cw_iambic_keyer_enqueue_symbol_internal(keyer, CW_KEY_STATE_CLOSED, keyer->gen->dot_length);
+			cw_key_ik_enqueue_symbol_internal(keyer, CW_KEY_STATE_CLOSED, keyer->gen->dot_length);
 			if (keyer->ik.curtis_b_latch) {
 				keyer->ik.curtis_b_latch = false;
 				keyer->ik.graph_state = KS_IN_DOT_B;
@@ -727,7 +746,7 @@ int cw_iambic_keyer_update_graph_state_internal(volatile cw_key_t *keyer)
 				keyer->ik.graph_state = KS_IN_DOT_A;
 			}
 		} else if (keyer->ik.dash_latch) {
-			cw_iambic_keyer_enqueue_symbol_internal(keyer, CW_KEY_STATE_CLOSED, keyer->gen->dash_length);
+			cw_key_ik_enqueue_symbol_internal(keyer, CW_KEY_STATE_CLOSED, keyer->gen->dash_length);
 			keyer->ik.graph_state = KS_IN_DASH_A;
 		} else {
 			keyer->ik.graph_state = KS_IDLE;
@@ -826,7 +845,7 @@ int cw_notify_keyer_paddle_event(int dot_paddle_state,
 	if (cw_key.ik.graph_state == KS_IDLE) {
 		/* If the current state is idle, give the state
 		   process an initial impulse. */
-		cw_iambic_keyer_update_state_initial_internal(&cw_key);
+		cw_key_ik_update_state_initial_internal(&cw_key);
 	} else {
 		/* The state machine for iambic keyer is already in
 		   motion, no need to do anything more.
@@ -837,7 +856,7 @@ int cw_notify_keyer_paddle_event(int dot_paddle_state,
 
 		   In both cases the main action upon states of
 		   paddles and paddle latches is taken in
-		   cw_iambic_keyer_update_graph_state_internal(). */
+		   cw_key_ik_update_graph_state_internal(). */
 		;
 	}
 
@@ -854,7 +873,7 @@ int cw_notify_keyer_paddle_event(int dot_paddle_state,
    State machine for iambic keyer must be pushed from KS_IDLE
    state. Call this function to do this.
 */
-void cw_iambic_keyer_update_state_initial_internal(volatile cw_key_t *keyer)
+void cw_key_ik_update_state_initial_internal(volatile cw_key_t *keyer)
 {
 	cw_assert (keyer, "NULL keyer\n");
 	cw_assert (keyer->gen, "NULL gen\n");
@@ -866,10 +885,10 @@ void cw_iambic_keyer_update_state_initial_internal(volatile cw_key_t *keyer)
 		keyer->ik.graph_state = keyer->ik.curtis_b_latch
 			? KS_AFTER_DASH_B : KS_AFTER_DASH_A;
 
-		if (!cw_iambic_keyer_update_graph_state_internal(keyer)) {
+		if (!cw_key_ik_update_graph_state_internal(keyer)) {
 			/* just try again, once */
 			usleep(1000);
-			cw_iambic_keyer_update_graph_state_internal(keyer);
+			cw_key_ik_update_graph_state_internal(keyer);
 		}
 	} else if (keyer->ik.dash_paddle) {
 		/* "Dash" paddle pressed. Pretend that we are in
@@ -878,10 +897,10 @@ void cw_iambic_keyer_update_state_initial_internal(volatile cw_key_t *keyer)
 		keyer->ik.graph_state = keyer->ik.curtis_b_latch
 			? KS_AFTER_DOT_B : KS_AFTER_DOT_A;
 
-		if (!cw_iambic_keyer_update_graph_state_internal(keyer)) {
+		if (!cw_key_ik_update_graph_state_internal(keyer)) {
 			/* just try again, once */
 			usleep(1000);
-			cw_iambic_keyer_update_graph_state_internal(keyer);
+			cw_key_ik_update_graph_state_internal(keyer);
 		}
 	} else {
 		/* Both paddles are open/up. We certainly don't want
@@ -1131,7 +1150,7 @@ void cw_reset_keyer(void)
    \param keyer - keyer with timer to be updated
    \param usecs - amount of increase
 */
-void cw_iambic_keyer_increment_timer_internal(volatile cw_key_t *keyer, int usecs)
+void cw_key_ik_increment_timer_internal(volatile cw_key_t *keyer, int usecs)
 {
 	if (!keyer) {
 		/* This function is called from generator thread. It
@@ -1239,7 +1258,7 @@ int cw_notify_straight_key_event(int key_state)
 
 	/* Do tones and keying, and set up timeouts and soundcard
 	   activities to match the new key state. */
-	cw_straight_key_enqueue_symbol_internal(&cw_key, key_state);
+	cw_key_sk_enqueue_symbol_internal(&cw_key, key_state);
 
 	if (cw_key.sk.key_value == CW_KEY_STATE_OPEN) {
 		/* Indicate that we have finished with timeouts, and
