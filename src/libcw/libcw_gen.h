@@ -96,8 +96,15 @@ struct cw_gen_struct {
 	void (* close_device)(cw_gen_t *gen);
 	int  (* write)(cw_gen_t *gen);
 
-	/* generator can only generate tones that were first put
-	   into queue, and then dequeued */
+	/* Generator can only generate tones that were first put into
+	   queue, and then dequeued. Here is a tone queue associated
+	   with a generator. One tone queue per generator. One
+	   generator per tone queue.
+
+	   The tone queue should be created in generator's
+	   constructor, and deleted in generator's destructor using
+	   tone queue's own constructor and destructor functions - see
+	   cw_tq module for declarations of these functions. */
 	cw_tone_queue_t *tq;
 
 
@@ -131,18 +138,46 @@ struct cw_gen_struct {
 	   type); */
 	int buffer_n_samples;
 
-	/* how many samples of audio buffer will be calculated in a given
-	   cycle of "calculate sine wave" code? */
-	int samples_calculated;
 
-	/* how many samples are still left to calculate to completely
-	   fill audio buffer in given cycle? */
-	int64_t samples_left;
+	/* We need two indices to gen->buffer, indicating beginning
+	   and end of a subarea in the buffer.  The subarea is not
+	   exactly the same as gen->buffer for variety of reasons:
+	   - buffer length is almost always smaller than length of a
+	   Mark or Space (in samples) that we want to produce;
+	   - moreover, length of a Mark/Space (in samples) is almost
+	   never an exact multiple of length of a buffer;
+	   - as a result, a sound representing a Mark/Space may start
+	   and end anywhere between beginning and end of the buffer;
+
+	   A workable solution is to have a subarea of the buffer, a
+	   window, into which we will write a series of fragments of
+	   calculated sound.
+
+	   "start" and "stop" mark beginning and end of the subarea
+	   (inclusive: samples indexed by "start" and "stop" are part
+	   of the subarea).
+
+	   The subarea shall not wrap around boundaries of the buffer:
+	   "stop" shall be no larger than "gen->buffer_n_samples - 1",
+	   and it shall never be smaller than "start". "start" will be
+	   somewhere between zero and "stop", inclusive.
+
+	   "start" == "stop" is a valid situation - length of subarea
+	   is then one.
+
+	   Very often (in the middle of a long tone), "start" will be
+	   zero, and "stop" will be "gen->buffer_n_samples - 1".
+
+	   Sine wave (sometimes with amplitude = 0) will be calculated
+	   for subarea's cells (samples) ranging from cell "start"
+	   to cell "stop", inclusive. */
+	int buffer_sub_start;
+	int buffer_sub_stop;
+
 
 	/* Some parameters of tones (and of tones' slopes) are common
-	   for all tones generated in given time by a
-	   generator. Therefore the generator should contain this
-	   struct.
+	   for all tones generated in given time by a generator.
+	   Therefore the generator should contain this struct.
 
 	   Other parameters, such as tone's duration or frequency, are
 	   strictly related to tones - you won't find them here. */
