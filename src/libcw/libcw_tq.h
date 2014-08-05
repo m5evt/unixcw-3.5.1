@@ -80,32 +80,6 @@ typedef struct {
 	   consideration very long duration of tones in QRSS. */
 	int64_t n_samples;
 
-	/* We need two indices to gen->buffer, indicating beginning and end
-	   of a subarea in the buffer.
-	   The subarea is not the same as gen->buffer for variety of reasons:
-	    - buffer length is almost always smaller than length of a dash,
-	      a dot, or inter-element space that we want to produce;
-	    - moreover, length of a dash/dot/space is almost never an exact
-	      multiple of length of a buffer;
-            - as a result, a sound representing a dash/dot/space may start
-	      and end anywhere between beginning and end of the buffer;
-
-	   A workable solution is have a subarea of the buffer, a window,
-	   into which we will write a series of fragments of calculated sound.
-
-	   The subarea won't wrap around boundaries of the buffer. "stop"
-	   will be no larger than "gen->buffer_n_samples - 1", and it will
-	   never be smaller than "stop".
-
-	   "start" and "stop" mark beginning and end of the subarea.
-	   Very often (in the middle of the sound), "start" will be zero,
-	   and "stop" will be "gen->buffer_n_samples - 1".
-
-	   Sine wave (sometimes with amplitude = 0) will be calculated for
-	   cells ranging from cell "start" to cell "stop", inclusive. */
-	int sub_start;
-	int sub_stop;
-
 	/* a tone can start and/or end abruptly (which may result in
 	   audible clicks), or its beginning and/or end can have form
 	   of slopes (ramps), where amplitude increases/decreases less
