@@ -231,7 +231,7 @@ cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 		cw_gen_delete_internal(&gen);
 		return CW_FAILURE;
 	} else {
-		gen->tq->gen = gen;
+	gen->tq->gen = gen;
 	}
 
 	gen->audio_device = NULL;
@@ -554,8 +554,8 @@ void *cw_generator_dequeue_and_play_internal(void *arg)
 	   .usecs. and .slope_mode. Values of rest of fields will be
 	   calculated in lower-level code. */
 	cw_tone_t tone =
-		{ .frequency  = 0,
-		  .usecs      = 0,
+		{ .frequency = 0,
+		  .usecs     = 0,
 		  .slope_mode = CW_SLOPE_MODE_STANDARD_SLOPES,
 
 		  .n_samples       = 0,
@@ -583,8 +583,6 @@ void *cw_generator_dequeue_and_play_internal(void *arg)
 			//usleep(CW_AUDIO_QUANTUM_USECS);
 			continue;
 		}
-
-		fprintf(stderr, "--------------------------- dequeued %s\n", state == CW_TQ_JUST_EMPTIED ? "JUST EMPTIED" : "NOT EMPTY");
 
 		// POSSIBLE ALTERNATIVE IMPLEMENTATION: old_state = state;
 
