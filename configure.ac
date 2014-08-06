@@ -23,6 +23,9 @@ AC_INIT([unixcw], [3.3.1])
 AC_CONFIG_SRCDIR([src/libcw/libcw.c])
 AM_INIT_AUTOMAKE
 
+# Libtool initialization, added during tests on FreeBSD
+LT_INIT
+
 # Specify a configuration header.
 AC_CONFIG_HEADERS(src/config.h)
 
@@ -33,10 +36,44 @@ AC_PROG_CC
 AC_PROG_CXX
 AC_PROG_AWK
 AC_PROG_LIBTOOL
+AC_PROG_RANLIB # Added during tests on FreeBSD
 AC_PROG_INSTALL
 AC_PROG_MAKE_SET
 AC_PROG_LN_S
 AM_PROG_CC_C_O
+
+
+
+
+
+# OS-specific configuration.
+AC_CANONICAL_HOST
+case $host_os in
+    *linux*|*Linux*)
+	AC_MSG_NOTICE([Detected Linux])
+	# Needed because of dynamic loading of libraries in libcw.
+	DL_LIB=\"-ldl\";
+	AC_SUBST(DL_LIB)
+	;;
+    *bsd*|*BSD*)
+	AC_MSG_NOTICE([Detected BSD])
+	# BSD (or at least FreeBSD) has "dl" library included in
+	# standard libc, so no -ldl for BSD.
+	DL_LIB=\"\";
+	AC_SUBST(DL_LIB)
+	;;
+    *)
+	AC_MSG_NOTICE([Detected $host_os])
+	# Until someone complains, we will configure dl library the
+	# same way as on Linux.
+	DL_LIB=\"-ldl\";
+	AC_SUBST(DL_LIB)
+	;;
+esac
+
+
+
+
 
 # Check specifically for gzip and ldconfig, and substitute the harmless ":"
 # if absent.
