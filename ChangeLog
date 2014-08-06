@@ -1,3 +1,10 @@
+2014-08-06 Kamil Ignacak
+	* FreeBSD: I managed to configure and build the package on FreeBSD
+	10. It worked! I only had to slightly adjust configure.ac and
+	src/libcw/Makefile.am (dl library). I also had to modify
+	src/libcw/libcw_oss.c to correctly open OSS sink. There is still a
+	bit of work on FreeBSD left to do in configure.ac.
+
 2014-08-02 Kamil Ignacak
 	* libcw/key: lots of changes in libcw_key module. After some
 	trials and errors I've implemented a code with single data type
