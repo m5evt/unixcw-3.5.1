@@ -291,6 +291,18 @@ int cw_oss_open_device_ioctls_internal(int *fd, int *sample_rate)
 			      "cw_oss: ioctl(SNDCTL_DSP_SYNC): \"%s\"", strerror(errno));
 		return CW_FAILURE;
         }
+#if 0
+	/* 
+	   This ioctl call failed on FreeBSD 10, which resulted in
+	   libcw failing to open OSS device. A bit of digging on the
+	   web revealed this:
+
+	   OSS4:
+	   http://manuals.opensound.com/developer/SNDCTL_DSP_POST.html:
+	   "This ioctl call is provided for compatibility with older
+	   applications. It has no practical purpose and should in no
+	   case be used in new applications."
+	*/
 
 	parameter = 0; /* ignored */
 	if (ioctl(*fd, SNDCTL_DSP_POST, &parameter) == -1) {
@@ -298,7 +310,7 @@ int cw_oss_open_device_ioctls_internal(int *fd, int *sample_rate)
 			      "cw_oss: ioctl(SNDCTL_DSP_POST): \"%s\"", strerror(errno));
 		return CW_FAILURE;
         }
-
+#endif
 	/* Set the audio format to 8-bit unsigned. */
 	parameter = CW_OSS_SAMPLE_FORMAT;
 	if (ioctl(*fd, SNDCTL_DSP_SETFMT, &parameter) == -1) {
