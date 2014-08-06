@@ -44,7 +44,7 @@ libcw_la_SOURCES = libcw.c libcw_tq.c libcw_data.c libcw_key.c libcw_utils.c lib
 
 # target-specific linker flags (objects to link)
 # libcw_la_LIBADD=-lm -lpthread $(AC_ALSA_LIBS)  $(AC_PULSEAUDIO_LIBS)
-libcw_la_LIBADD=-lm -lpthread -ldl
+libcw_la_LIBADD=-lm -lpthread $(DL_LIB)
 
 # target-specific linker flags (additional flags)
 # http://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html
@@ -88,7 +88,7 @@ libcw_test_internal_SOURCES = libcw.c libcw_tq.c libcw_data.c libcw_key.c libcw_
 libcw_test_internal_CPPFLAGS = $(AM_CPPFLAGS) -DLIBCW_UNIT_TESTS
 
 # target-specific linker flags (objects to link)
-libcw_test_internal_LDADD=-lm -lpthread -ldl
+libcw_test_internal_LDADD=-lm -lpthread $(DL_LIB)
 
 # target-specific compiler flags
 libcw_test_internal_CFLAGS = -rdynamic
@@ -106,7 +106,7 @@ libcw_test_internal_CFLAGS = -rdynamic
 libcw_test_simple_gen_SOURCES = libcw_test_simple_gen.c libcw_test.c
 
 # target-specific linker flags (objects to link)
-libcw_test_simple_gen_LDADD=-lm -lpthread -ldl  -L./.libs -lcw
+libcw_test_simple_gen_LDADD=-lm -lpthread $(DL_LIB)  -L./.libs -lcw
 
 # target-specific compiler flags
 libcw_test_simple_gen_CFLAGS = -rdynamic
