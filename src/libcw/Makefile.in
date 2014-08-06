@@ -144,7 +144,8 @@ am__installdirs = "$(DESTDIR)$(libdir)" "$(DESTDIR)$(man3dir)" \
 	"$(DESTDIR)$(man7dir)" "$(DESTDIR)$(pkgconfigdir)" \
 	"$(DESTDIR)$(libcw_includedir)"
 LTLIBRARIES = $(lib_LTLIBRARIES)
-libcw_la_DEPENDENCIES =
+am__DEPENDENCIES_1 =
+libcw_la_DEPENDENCIES = $(am__DEPENDENCIES_1)
 am_libcw_la_OBJECTS = libcw_la-libcw.lo libcw_la-libcw_tq.lo \
 	libcw_la-libcw_data.lo libcw_la-libcw_key.lo \
 	libcw_la-libcw_utils.lo libcw_la-libcw_gen.lo \
@@ -173,7 +174,7 @@ am_libcw_test_internal_OBJECTS = libcw_test_internal-libcw.$(OBJEXT) \
 	libcw_test_internal-libcw_alsa.$(OBJEXT) \
 	libcw_test_internal-libcw_debug.$(OBJEXT)
 libcw_test_internal_OBJECTS = $(am_libcw_test_internal_OBJECTS)
-libcw_test_internal_DEPENDENCIES =
+libcw_test_internal_DEPENDENCIES = $(am__DEPENDENCIES_1)
 libcw_test_internal_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
 	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
 	$(libcw_test_internal_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
@@ -186,7 +187,7 @@ am_libcw_test_simple_gen_OBJECTS =  \
 	libcw_test_simple_gen-libcw_test_simple_gen.$(OBJEXT) \
 	libcw_test_simple_gen-libcw_test.$(OBJEXT)
 libcw_test_simple_gen_OBJECTS = $(am_libcw_test_simple_gen_OBJECTS)
-libcw_test_simple_gen_DEPENDENCIES =
+libcw_test_simple_gen_DEPENDENCIES = $(am__DEPENDENCIES_1)
 libcw_test_simple_gen_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
 	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
 	$(libcw_test_simple_gen_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
@@ -460,6 +461,7 @@ CYGPATH_W = @CYGPATH_W@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
 DLLTOOL = @DLLTOOL@
+DL_LIB = @DL_LIB@
 DSYMUTIL = @DSYMUTIL@
 DUMPBIN = @DUMPBIN@
 ECHO_C = @ECHO_C@
@@ -594,7 +596,7 @@ libcw_la_SOURCES = libcw.c libcw_tq.c libcw_data.c libcw_key.c libcw_utils.c lib
 
 # target-specific linker flags (objects to link)
 # libcw_la_LIBADD=-lm -lpthread $(AC_ALSA_LIBS)  $(AC_PULSEAUDIO_LIBS)
-libcw_la_LIBADD = -lm -lpthread -ldl
+libcw_la_LIBADD = -lm -lpthread $(DL_LIB)
 
 # target-specific linker flags (additional flags)
 # http://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html
@@ -629,7 +631,7 @@ libcw_test_internal_SOURCES = libcw.c libcw_tq.c libcw_data.c libcw_key.c libcw_
 libcw_test_internal_CPPFLAGS = $(AM_CPPFLAGS) -DLIBCW_UNIT_TESTS
 
 # target-specific linker flags (objects to link)
-libcw_test_internal_LDADD = -lm -lpthread -ldl
+libcw_test_internal_LDADD = -lm -lpthread $(DL_LIB)
 
 # target-specific compiler flags
 libcw_test_internal_CFLAGS = -rdynamic
@@ -643,7 +645,7 @@ libcw_test_internal_CFLAGS = -rdynamic
 libcw_test_simple_gen_SOURCES = libcw_test_simple_gen.c libcw_test.c
 
 # target-specific linker flags (objects to link)
-libcw_test_simple_gen_LDADD = -lm -lpthread -ldl  -L./.libs -lcw
+libcw_test_simple_gen_LDADD = -lm -lpthread $(DL_LIB)  -L./.libs -lcw
 
 # target-specific compiler flags
 libcw_test_simple_gen_CFLAGS = -rdynamic
