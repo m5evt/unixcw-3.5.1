@@ -337,17 +337,27 @@ fi
 if test "$enable_xcwcp" = "no" ; then
     WITH_XCWCP='no'
 else
-    # autodetection of Qt4 dependencies
-    m4_include([configure.qt.inc])
+    PKG_CHECK_MODULES(QT4, [QtCore QtGui >= 4.4.0], [
+			   AC_PATH_PROGS(MOC, [moc-qt4 moc], moc,`eval $PKG_CONFIG --variable=exec_prefix QtCore`/bin)
+			   AC_PATH_PROG(RCC, rcc, rcc,`eval $PKG_CONFIG --variable=exec_prefix QtCore`/bin)
+			   AC_PATH_PROGS(UIC, [uic-qt4 uic], uic,`eval $PKG_CONFIG --variable=exec_prefix QtCore`/bin)
 
-    if [[ "$QT4CFLAGS" -a "$QT4MOC" ]] ; then
-        # we have moc4 and path to Qt4 include files,
-        # so we can build xcwcp
-	WITH_XCWCP='yes'
-    else
-	WITH_XCWCP='no'
-	AC_MSG_WARN([Cannot find Qt4 files - unable to build xcwcp])
-    fi
+			   AC_MSG_RESULT([QT4 CLFAGS is $QT4_CFLAGS])
+			   AC_MSG_RESULT([QT4 LIBS is $QT4_LIBS])
+
+			   AC_SUBST(QT4_CFLAGS)
+			   AC_SUBST(QT4_LIBS)
+			   AC_SUBST(MOC)
+
+			   WITH_XCWCP='yes'
+
+			   ], [
+
+			   AC_MSG_WARN([Cannot find Qt4 files - unable to build xcwcp])
+
+			   WITH_XCWCP='no'
+
+			   ])
 fi
 
 
@@ -550,21 +560,23 @@ fi
 
 AC_MSG_NOTICE([----------------------------------------------------])
 AC_MSG_NOTICE([------------ unixcw build configuration ------------])
+AC_MSG_NOTICE([operating system:  ............................  $host_os])
 AC_MSG_NOTICE([build libcw:  .................................  yes])
 AC_MSG_NOTICE([build cw & cwgen:  ............................  yes])
 AC_MSG_NOTICE([build cwcp:  ..................................  $WITH_CWCP])
 AC_MSG_NOTICE([build xcwcp:  .................................  $WITH_XCWCP])
 if test "$WITH_XCWCP" = 'yes' ; then
-    AC_MSG_NOTICE([    Qt4 CFLAGS is $QT4CFLAGS])
-    AC_MSG_NOTICE([    Qt4 moc is $QT4MOC])
+    AC_MSG_NOTICE([    Qt4 CFLAGS is $QT4_CFLAGS])
+    AC_MSG_NOTICE([    Qt4 LIBS is $QT4_LIBS])
+    AC_MSG_NOTICE([    Qt4 MOC is $MOC])
 fi
 AC_MSG_NOTICE([include console buzzer support:  ..............  $WITH_CONSOLE])
 AC_MSG_NOTICE([include OSS support:  .........................  $WITH_OSS])
 AC_MSG_NOTICE([include ALSA support:  ........................  $WITH_ALSA])
 AC_MSG_NOTICE([include PulseAudio support:  ..................  $WITH_PULSEAUDIO])
-AC_MSG_NOTICE([----------------------------------------------------])
 if test "$WITH_DEV" = 'yes' ; then
    AC_MSG_NOTICE([enable dev support: ...........................  yes])
 fi
+AC_MSG_NOTICE([----------------------------------------------------])
 
 AC_OUTPUT
