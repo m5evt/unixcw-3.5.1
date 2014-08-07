@@ -101,8 +101,7 @@ subdir = src/xcwcp
 DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(top_srcdir)/depcomp
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/configure.qt.inc \
-	$(top_srcdir)/configure.ac
+am__aclocal_m4_deps = $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 mkinstalldirs = $(install_sh) -d
@@ -283,6 +282,7 @@ LTLIBOBJS = @LTLIBOBJS@
 MAKEINFO = @MAKEINFO@
 MANIFEST_TOOL = @MANIFEST_TOOL@
 MKDIR_P = @MKDIR_P@
+MOC = @MOC@
 NM = @NM@
 NMEDIT = @NMEDIT@
 OBJDUMP = @OBJDUMP@
@@ -300,18 +300,16 @@ PATH_SEPARATOR = @PATH_SEPARATOR@
 PKG_CONFIG = @PKG_CONFIG@
 PKG_CONFIG_LIBDIR = @PKG_CONFIG_LIBDIR@
 PKG_CONFIG_PATH = @PKG_CONFIG_PATH@
-QT4CFLAGS = @QT4CFLAGS@
-QT4LIBS = @QT4LIBS@
-QT4MOC = @QT4MOC@
-QT4MOC_PATH = @QT4MOC_PATH@
 QT4_CFLAGS = @QT4_CFLAGS@
 QT4_LIBS = @QT4_LIBS@
 RANLIB = @RANLIB@
+RCC = @RCC@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 SRC_SUBDIRS = @SRC_SUBDIRS@
 STRIP = @STRIP@
+UIC = @UIC@
 VERSION = @VERSION@
 abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
@@ -379,9 +377,9 @@ xcwcp_SOURCES = \
 
 
 # target-specific preprocessor flags (#defs and include dirs)
-xcwcp_CPPFLAGS = $(AM_CPPFLAGS) $(AC_QT4CFLAGS) #-I$(AC_QT4INC)/QtCore -I$(AC_QT4INC)/QtGui
+xcwcp_CPPFLAGS = $(AM_CPPFLAGS) $(AC_QT4_CFLAGS)
 # target-specific linker flags (objects to link)
-xcwcp_LDADD = -L$(top_builddir)/src/libcw/.libs -lcw -lQtGui -lQtCore $(top_builddir)/src/cwutils/lib_xcwcp.a
+xcwcp_LDADD = -L$(top_builddir)/src/libcw/.libs -lcw $(AC_QT4_LIBS) $(top_builddir)/src/cwutils/lib_xcwcp.a
 
 # copy man page to proper directory during installation
 man_MANS = xcwcp.1
@@ -877,12 +875,12 @@ uninstall-man: uninstall-man1
 
 # use $(top_builddir) instead of $(top_srcdir) because Makefile.inc is
 # (re)created at build time; if you use $(top_srcdir), you may (will?)
-# get empty $(AC_QT4CFLAGS) and $(AT_QT4MOC);
+# get empty $(AC_QT4_CFLAGS), $(AC_QT4_LIBS) and $(AC_QT4_MOC);
 -include $(top_builddir)/Makefile.inc
 
 # Qt4 magic
 moc_application.cc: application.h
-	$(AC_QT4MOC) $< -o $@
+	$(AC_QT4_MOC) $< -o $@
 
 # Test targets.
 # This test target will be invoked when creating deb package.
