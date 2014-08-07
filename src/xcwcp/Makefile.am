@@ -18,7 +18,7 @@
 
 # use $(top_builddir) instead of $(top_srcdir) because Makefile.inc is
 # (re)created at build time; if you use $(top_srcdir), you may (will?)
-# get empty $(AC_QT4CFLAGS) and $(AT_QT4MOC);
+# get empty $(AC_QT4_CFLAGS), $(AC_QT4_LIBS) and $(AC_QT4_MOC);
 -include $(top_builddir)/Makefile.inc
 
 # program(s) to be built in current dir
@@ -35,9 +35,9 @@ xcwcp_SOURCES = \
 	sender.cc sender.h
 
 # target-specific preprocessor flags (#defs and include dirs)
-xcwcp_CPPFLAGS = $(AM_CPPFLAGS) $(AC_QT4CFLAGS) #-I$(AC_QT4INC)/QtCore -I$(AC_QT4INC)/QtGui
+xcwcp_CPPFLAGS = $(AM_CPPFLAGS) $(AC_QT4_CFLAGS)
 # target-specific linker flags (objects to link)
-xcwcp_LDADD = -L$(top_builddir)/src/libcw/.libs -lcw -lQtGui -lQtCore $(top_builddir)/src/cwutils/lib_xcwcp.a
+xcwcp_LDADD = -L$(top_builddir)/src/libcw/.libs -lcw $(AC_QT4_LIBS) $(top_builddir)/src/cwutils/lib_xcwcp.a
 
 
 
@@ -59,7 +59,7 @@ CLEANFILES = moc_application.cc
 
 # Qt4 magic
 moc_application.cc: application.h
-	$(AC_QT4MOC) $< -o $@
+	$(AC_QT4_MOC) $< -o $@
 
 # Test targets.
 # This test target will be invoked when creating deb package.
