@@ -1,3 +1,11 @@
+2014-08-07 Kamil Ignacak
+	* QT4: Simplifying configuration of QT4 in configure.ac: using
+	PKG_CHECK_MODULES instead of custom shell script. Tests on Linux
+	and FreeBSD ongoing.
+	* FreeBSD & clang 3.3: successful build of "make check"
+	target. Successful execution of libcw_test_simple_gen and
+	libcw_test_internal. Tests on FreeBSD ongoing.
+
 2014-08-06 Kamil Ignacak
 	* FreeBSD: I managed to configure and build the package on FreeBSD
 	10. It worked! I only had to slightly adjust configure.ac and
