@@ -19,6 +19,7 @@
 
 
 #include <inttypes.h> /* "PRIu32" */
+#include <stdlib.h>
 #include <errno.h>
 #include <pthread.h>
 #include <signal.h> /* SIGALRM */
