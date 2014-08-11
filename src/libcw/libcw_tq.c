@@ -40,7 +40,6 @@
    The tone queue (the circular list) is implemented using constant
    size table.
 
-
    The CW tone queue functions implement the following state graph:
 
                               (queue empty)
@@ -54,6 +53,23 @@
                                                  |        |
                                                  +--------+
                                              (queue not empty)
+
+
+   Above diagram shows two states of a queue, but dequeue function
+   returns three distinct values: CW_TQ_JUST_EMPTIED,
+   CW_TQ_STILL_EMPTY, CW_TQ_NONEMPTY. Having these three values is
+   important for the function that calls the dequeue function. If you
+   ever intend to limit number of return values of dequeue function to
+   two, you will also have to re-think how
+   cw_generator_dequeue_and_play_internal() operates.
+
+   Future libcw API should (completely) hide tone queue from client
+   code. The client code should only operate on a generator - enqueue
+   tones to generator, flush a generator, register low water callback
+   with generator etc. There is very little (or even no) need to
+   explicitly reveal to client code this implementation detail called
+   "tone queue".
+
 */
 
 
@@ -131,10 +147,6 @@ cw_tone_queue_t *cw_tq_new_internal(void)
 	tq->low_water_mark = 0;
 	tq->low_water_callback = NULL;
 	tq->low_water_callback_arg = NULL;
-
-#if 0
-	tq->tqkey = NULL;
-#endif
 
 	rv = cw_tone_queue_set_capacity_internal(tq, CW_TONE_QUEUE_CAPACITY_MAX, CW_TONE_QUEUE_HIGH_WATER_MARK_MAX);
 	assert (rv);
