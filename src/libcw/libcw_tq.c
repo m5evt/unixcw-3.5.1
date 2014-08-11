@@ -79,7 +79,7 @@ extern cw_debug_t cw_debug_object;
 extern cw_debug_t cw_debug_object_ev;
 extern cw_debug_t cw_debug_object_dev;
 
-extern cw_gen_t **cw_generator;
+extern cw_gen_t *cw_generator;
 
 
 
@@ -685,7 +685,7 @@ int cw_tone_queue_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 		   are some new tones in tone queue. This is a right
 		   place and time to send such a signal. */
 		tq->state = CW_TQ_BUSY;
-		pthread_kill((*cw_generator)->thread.id, SIGALRM);
+		pthread_kill(cw_generator->thread.id, SIGALRM);
 	}
 
 	pthread_mutex_unlock(&(tq->mutex));
@@ -723,7 +723,7 @@ int cw_tone_queue_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 */
 int cw_register_tone_queue_low_callback(void (*callback_func)(void*), void *callback_arg, int level)
 {
-	return cw_tq_register_low_level_callback_internal((*cw_generator)->tq, callback_func, callback_arg, level);
+	return cw_tq_register_low_level_callback_internal(cw_generator->tq, callback_func, callback_arg, level);
 }
 
 
@@ -759,7 +759,7 @@ int cw_tq_register_low_level_callback_internal(cw_tone_queue_t *tq, void (*callb
 */
 bool cw_is_tone_busy(void)
 {
-	return cw_tq_is_busy_internal((*cw_generator)->tq);
+	return cw_tq_is_busy_internal(cw_generator->tq);
 }
 
 
@@ -790,7 +790,7 @@ bool cw_tq_is_busy_internal(cw_tone_queue_t *tq)
 */
 int cw_wait_for_tone(void)
 {
-	return cw_tq_wait_for_tone_internal((*cw_generator)->tq);
+	return cw_tq_wait_for_tone_internal(cw_generator->tq);
 }
 
 
@@ -835,7 +835,7 @@ int cw_tq_wait_for_tone_internal(cw_tone_queue_t *tq)
 */
 int cw_wait_for_tone_queue(void)
 {
-	return cw_tq_wait_for_tone_queue_internal((*cw_generator)->tq);
+	return cw_tq_wait_for_tone_queue_internal(cw_generator->tq);
 }
 
 
@@ -889,7 +889,7 @@ int cw_wait_for_tone_queue_critical(int level)
 	}
 
 	/* Wait until the queue length is at or below criticality. */
-	while (cw_tone_queue_length_internal((*cw_generator)->tq) > (uint32_t) level) {
+	while (cw_tone_queue_length_internal(cw_generator->tq) > (uint32_t) level) {
 		cw_signal_wait_internal();
 	}
 
@@ -910,7 +910,7 @@ int cw_wait_for_tone_queue_critical(int level)
 */
 bool cw_is_tone_queue_full(void)
 {
-	return cw_tone_queue_is_full_internal((*cw_generator)->tq);
+	return cw_tone_queue_is_full_internal(cw_generator->tq);
 }
 
 
@@ -948,7 +948,7 @@ bool cw_tone_queue_is_full_internal(cw_tone_queue_t *tq)
 */
 int cw_get_tone_queue_capacity(void)
 {
-	return (int) cw_tone_queue_get_capacity_internal((*cw_generator)->tq);
+	return (int) cw_tone_queue_get_capacity_internal(cw_generator->tq);
 }
 
 
@@ -964,7 +964,7 @@ int cw_get_tone_queue_capacity(void)
 */
 int cw_get_tone_queue_length(void)
 {
-	return (int) cw_tone_queue_length_internal((*cw_generator)->tq);
+	return (int) cw_tone_queue_length_internal(cw_generator->tq);
 }
 
 
@@ -985,11 +985,11 @@ int cw_get_tone_queue_length(void)
 void cw_flush_tone_queue(void)
 {
 	/* This function locks and unlocks mutex. */
-	cw_tq_flush_internal((*cw_generator)->tq);
+	cw_tq_flush_internal(cw_generator->tq);
 
 	/* Force silence on the speaker anyway, and stop any background
 	   soundcard tone generation. */
-	cw_gen_silence_internal((*cw_generator));
+	cw_gen_silence_internal(cw_generator);
 	//cw_finalization_schedule_internal();
 
 	return;
@@ -1038,7 +1038,7 @@ int cw_queue_tone(int usecs, int frequency)
 	tone.slope_mode = CW_SLOPE_MODE_STANDARD_SLOPES;
 	tone.usecs = usecs;
 	tone.frequency = frequency;
-	return cw_tone_queue_enqueue_internal((*cw_generator)->tq, &tone);
+	return cw_tone_queue_enqueue_internal(cw_generator->tq, &tone);
 }
 
 
@@ -1052,10 +1052,10 @@ int cw_queue_tone(int usecs, int frequency)
 */
 void cw_reset_tone_queue(void)
 {
-	cw_tq_reset_internal((*cw_generator)->tq);
+	cw_tq_reset_internal(cw_generator->tq);
 
 	/* Silence sound and stop any background soundcard tone generation. */
-	cw_gen_silence_internal((*cw_generator));
+	cw_gen_silence_internal(cw_generator);
 	//cw_finalization_schedule_internal();
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_TONE_QUEUE, CW_DEBUG_INFO,

@@ -314,7 +314,7 @@ int cw_timestamp_compare_internal(const struct timeval *earlier,
 #include "libcw_gen.h"
 
 
-extern cw_gen_t **cw_generator;
+extern cw_gen_t *cw_generator;
 
 
 
@@ -334,12 +334,12 @@ unsigned int test_cw_forever(void)
 	tone.usecs = 100;
 	tone.frequency = 500;
 	tone.slope_mode = CW_SLOPE_MODE_RISING_SLOPE;
-	cw_tone_queue_enqueue_internal((*cw_generator)->tq, &tone);
+	cw_tone_queue_enqueue_internal(cw_generator->tq, &tone);
 
 	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
 	tone.usecs = CW_AUDIO_FOREVER_USECS;
 	tone.frequency = 500;
-	cw_tone_queue_enqueue_internal((*cw_generator)->tq, &tone);
+	cw_tone_queue_enqueue_internal(cw_generator->tq, &tone);
 
 	cw_wait_for_tone_queue();
 
@@ -348,7 +348,7 @@ unsigned int test_cw_forever(void)
 	tone.usecs = 100;
 	tone.frequency = 500;
 	tone.slope_mode = CW_SLOPE_MODE_FALLING_SLOPE;
-	cw_tone_queue_enqueue_internal((*cw_generator)->tq, &tone);
+	cw_tone_queue_enqueue_internal(cw_generator->tq, &tone);
 
 	cw_generator_stop();
 	cw_generator_delete();
