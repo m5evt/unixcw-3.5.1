@@ -292,14 +292,9 @@ static int  cw_receiver_add_element_internal(cw_rec_t *rec, const struct timeval
 
    TODO: perform the conversion later, when you figure out ins and
    outs of the library. */
-static cw_gen_t *generator = NULL;
-/* I don't want to make public/extern a variable with generic name
-   "generator". I will make public a variable with more specific name
-   "cw_generator". I will rename "cw_gen_t *generator" to cw_gen_t
-   *cw_generator" in a next version of libcw. */
-cw_gen_t **cw_generator = &generator;
+cw_gen_t *cw_generator = NULL;
 
-/* Similarly, I don't want to expose "receiver". Let's have globally
+/* I don't want to expose generic name "receiver". Let's have globally
    visible "cw_receiver" instead. */
 cw_rec_t *cw_receiver = &receiver;
 
@@ -791,12 +786,12 @@ void cw_sync_parameters_internal(cw_gen_t *gen, cw_rec_t *rec)
 */
 void cw_reset_send_receive_parameters(void)
 {
-	generator->send_speed = CW_SPEED_INITIAL;
-	generator->frequency = CW_FREQUENCY_INITIAL;
-	generator->volume_percent = CW_VOLUME_INITIAL;
-	generator->volume_abs = (generator->volume_percent * CW_AUDIO_VOLUME_RANGE) / 100;
-	generator->gap = CW_GAP_INITIAL;
-	generator->weighting = CW_WEIGHTING_INITIAL;
+	cw_generator->send_speed = CW_SPEED_INITIAL;
+	cw_generator->frequency = CW_FREQUENCY_INITIAL;
+	cw_generator->volume_percent = CW_VOLUME_INITIAL;
+	cw_generator->volume_abs = (cw_generator->volume_percent * CW_AUDIO_VOLUME_RANGE) / 100;
+	cw_generator->gap = CW_GAP_INITIAL;
+	cw_generator->weighting = CW_WEIGHTING_INITIAL;
 
 	receiver.speed = CW_SPEED_INITIAL;
 	receiver.tolerance = CW_TOLERANCE_INITIAL;
@@ -805,7 +800,7 @@ void cw_reset_send_receive_parameters(void)
 
 	/* Changes require resynchronization. */
 	cw_is_in_sync = false;
-	cw_sync_parameters_internal(generator, &receiver);
+	cw_sync_parameters_internal(cw_generator, &receiver);
 
 	return;
 }
@@ -836,12 +831,12 @@ int cw_set_send_speed(int new_value)
 		return CW_FAILURE;
 	}
 
-	if (new_value != generator->send_speed) {
-		generator->send_speed = new_value;
+	if (new_value != cw_generator->send_speed) {
+		cw_generator->send_speed = new_value;
 
 		/* Changes of send speed require resynchronization. */
 		cw_is_in_sync = false;
-		cw_sync_parameters_internal(generator, &receiver);
+		cw_sync_parameters_internal(cw_generator, &receiver);
 	}
 
 	return CW_SUCCESS;
@@ -885,7 +880,7 @@ int cw_set_receive_speed(int new_value)
 
 		/* Changes of receive speed require resynchronization. */
 		cw_is_in_sync = false;
-		cw_sync_parameters_internal(generator, &receiver);
+		cw_sync_parameters_internal(cw_generator, &receiver);
 	}
 
 	return CW_SUCCESS;
@@ -919,7 +914,7 @@ int cw_set_frequency(int new_value)
 		errno = EINVAL;
 		return CW_FAILURE;
 	} else {
-		generator->frequency = new_value;
+		cw_generator->frequency = new_value;
 		return CW_SUCCESS;
 	}
 }
@@ -957,10 +952,10 @@ int cw_set_volume(int new_value)
 		errno = EINVAL;
 		return CW_FAILURE;
 	} else {
-		generator->volume_percent = new_value;
-		generator->volume_abs = (generator->volume_percent * CW_AUDIO_VOLUME_RANGE) / 100;
+		cw_generator->volume_percent = new_value;
+		cw_generator->volume_abs = (cw_generator->volume_percent * CW_AUDIO_VOLUME_RANGE) / 100;
 
-		cw_generator_set_tone_slope(generator, -1, -1);
+		cw_generator_set_tone_slope(cw_generator, -1, -1);
 
 		return CW_SUCCESS;
 	}
@@ -991,12 +986,12 @@ int cw_set_gap(int new_value)
 		return CW_FAILURE;
 	}
 
-	if (new_value != generator->gap) {
-		generator->gap = new_value;
+	if (new_value != cw_generator->gap) {
+		cw_generator->gap = new_value;
 
 		/* Changes of gap require resynchronization. */
 		cw_is_in_sync = false;
-		cw_sync_parameters_internal(generator, &receiver);
+		cw_sync_parameters_internal(cw_generator, &receiver);
 	}
 
 	return CW_SUCCESS;
@@ -1032,7 +1027,7 @@ int cw_set_tolerance(int new_value)
 
 		/* Changes of tolerance require resynchronization. */
 		cw_is_in_sync = false;
-		cw_sync_parameters_internal(generator, &receiver);
+		cw_sync_parameters_internal(cw_generator, &receiver);
 	}
 
 	return CW_SUCCESS;
@@ -1063,12 +1058,12 @@ int cw_set_weighting(int new_value)
 		return CW_FAILURE;
 	}
 
-	if (new_value != generator->weighting) {
-		generator->weighting = new_value;
+	if (new_value != cw_generator->weighting) {
+		cw_generator->weighting = new_value;
 
 		/* Changes of weighting require resynchronization. */
 		cw_is_in_sync = false;
-		cw_sync_parameters_internal(generator, &receiver);
+		cw_sync_parameters_internal(cw_generator, &receiver);
 	}
 
 	return CW_SUCCESS;
@@ -1087,7 +1082,7 @@ int cw_set_weighting(int new_value)
 */
 int cw_get_send_speed(void)
 {
-	return generator->send_speed;
+	return cw_generator->send_speed;
 }
 
 
@@ -1122,7 +1117,7 @@ int cw_get_receive_speed(void)
 */
 int cw_get_frequency(void)
 {
-	return generator->frequency;
+	return cw_generator->frequency;
 }
 
 
@@ -1142,7 +1137,7 @@ int cw_get_frequency(void)
 */
 int cw_get_volume(void)
 {
-	return generator->volume_percent;
+	return cw_generator->volume_percent;
 }
 
 
@@ -1158,7 +1153,7 @@ int cw_get_volume(void)
 */
 int cw_get_gap(void)
 {
-	return generator->gap;
+	return cw_generator->gap;
 }
 
 
@@ -1190,7 +1185,7 @@ int cw_get_tolerance(void)
 */
 int cw_get_weighting(void)
 {
-	return generator->weighting;
+	return cw_generator->weighting;
 }
 
 
@@ -1219,17 +1214,17 @@ void cw_get_send_parameters(int *dot_usecs, int *dash_usecs,
 			    int *end_of_character_usecs, int *end_of_word_usecs,
 			    int *additional_usecs, int *adjustment_usecs)
 {
-	cw_sync_parameters_internal(generator, &receiver);
+	cw_sync_parameters_internal(cw_generator, &receiver);
 
-	if (dot_usecs)   *dot_usecs = generator->dot_length;
-	if (dash_usecs)  *dash_usecs = generator->dash_length;
+	if (dot_usecs)   *dot_usecs = cw_generator->dot_length;
+	if (dash_usecs)  *dash_usecs = cw_generator->dash_length;
 
-	if (end_of_element_usecs)    *end_of_element_usecs = generator->eoe_delay;
-	if (end_of_character_usecs)  *end_of_character_usecs = generator->eoc_delay;
-	if (end_of_word_usecs)       *end_of_word_usecs = generator->eow_delay;
+	if (end_of_element_usecs)    *end_of_element_usecs = cw_generator->eoe_delay;
+	if (end_of_character_usecs)  *end_of_character_usecs = cw_generator->eoc_delay;
+	if (end_of_word_usecs)       *end_of_word_usecs = cw_generator->eow_delay;
 
-	if (additional_usecs)    *additional_usecs = generator->additional_delay;
-	if (adjustment_usecs)    *adjustment_usecs = generator->adjustment_delay;
+	if (additional_usecs)    *additional_usecs = cw_generator->additional_delay;
+	if (adjustment_usecs)    *adjustment_usecs = cw_generator->adjustment_delay;
 
 	return;
 }
@@ -1272,7 +1267,7 @@ void cw_get_receive_parameters(int *dot_usecs, int *dash_usecs,
 			       int *end_of_character_ideal_usecs,
 			       int *adaptive_threshold)
 {
-	cw_sync_parameters_internal(generator, &receiver);
+	cw_sync_parameters_internal(cw_generator, &receiver);
 
 	if (dot_usecs)      *dot_usecs = receiver.dot_length;
 	if (dash_usecs)     *dash_usecs = receiver.dash_length;
@@ -1507,7 +1502,7 @@ int cw_timer_run_with_handler_internal(int usecs, void (*sigalrm_handler)(void))
 	   ourselves SIGALRM right away. */
 	if (usecs <= 0) {
 		/* Send ourselves SIGALRM immediately. */
-		if (pthread_kill(generator->thread.id, SIGALRM) != 0) {
+		if (pthread_kill(cw_generator->thread.id, SIGALRM) != 0) {
 	        // if (raise(SIGALRM) != 0) {
 			cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
 				      "libcw: raise()");
@@ -1958,7 +1953,7 @@ int cw_unregister_signal_handler(int signal_number)
 */
 const char *cw_get_console_device(void)
 {
-	return generator->audio_device;
+	return cw_generator->audio_device;
 }
 
 
@@ -1974,7 +1969,7 @@ const char *cw_get_console_device(void)
 */
 const char *cw_get_soundcard_device(void)
 {
-	return generator->audio_device;
+	return cw_generator->audio_device;
 }
 
 
@@ -2244,7 +2239,7 @@ int cw_send_element_internal(cw_gen_t *gen, char element)
 */
 int cw_send_dot(void)
 {
-	return cw_send_element_internal(generator, CW_DOT_REPRESENTATION);
+	return cw_send_element_internal(cw_generator, CW_DOT_REPRESENTATION);
 }
 
 
@@ -2258,7 +2253,7 @@ int cw_send_dot(void)
 */
 int cw_send_dash(void)
 {
-	return cw_send_element_internal(generator, CW_DASH_REPRESENTATION);
+	return cw_send_element_internal(cw_generator, CW_DASH_REPRESENTATION);
 }
 
 
@@ -2273,15 +2268,15 @@ int cw_send_dash(void)
 int cw_send_character_space(void)
 {
 	/* Synchronize low-level timing parameters. */
-	cw_sync_parameters_internal(generator, &receiver);
+	cw_sync_parameters_internal(cw_generator, &receiver);
 
 	/* Delay for the standard end of character period, plus any
 	   additional inter-character gap */
 	cw_tone_t tone;
 	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-	tone.usecs = generator->eoc_delay + generator->additional_delay;
+	tone.usecs = cw_generator->eoc_delay + cw_generator->additional_delay;
 	tone.frequency = 0;
-	return cw_tone_queue_enqueue_internal(generator->tq, &tone);
+	return cw_tone_queue_enqueue_internal(cw_generator->tq, &tone);
 }
 
 
@@ -2296,7 +2291,7 @@ int cw_send_character_space(void)
 int cw_send_word_space(void)
 {
 	/* Synchronize low-level timing parameters. */
-	cw_sync_parameters_internal(generator, &receiver);
+	cw_sync_parameters_internal(cw_generator, &receiver);
 
 	/* Send silence for the word delay period, plus any adjustment
 	   that may be needed at end of word. */
@@ -2337,17 +2332,17 @@ int cw_send_word_space(void)
 
 	cw_tone_t tone;
 	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-	tone.usecs = generator->eow_delay;
+	tone.usecs = cw_generator->eow_delay;
 	tone.frequency = 0;
-	int a = cw_tone_queue_enqueue_internal(generator->tq, &tone);
+	int a = cw_tone_queue_enqueue_internal(cw_generator->tq, &tone);
 
 	int b = CW_FAILURE;
 
 	if (a == CW_SUCCESS) {
 		tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-		tone.usecs = generator->adjustment_delay;
+		tone.usecs = cw_generator->adjustment_delay;
 		tone.frequency = 0;
-		b = cw_tone_queue_enqueue_internal(generator->tq, &tone);
+		b = cw_tone_queue_enqueue_internal(cw_generator->tq, &tone);
 	}
 
 	return a && b;
@@ -2356,10 +2351,10 @@ int cw_send_word_space(void)
 
 	cw_tone_t tone;
 	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-	tone.usecs = generator->eow_delay + generator->adjustment_delay;
+	tone.usecs = cw_generator->eow_delay + cw_generator->adjustment_delay;
 	tone.frequency = 0;
 
-	return cw_tone_queue_enqueue_internal(generator->tq, &tone);
+	return cw_tone_queue_enqueue_internal(cw_generator->tq, &tone);
 #endif
 }
 
@@ -2444,7 +2439,7 @@ int cw_send_representation(const char *representation)
 		errno = EINVAL;
 		return CW_FAILURE;
 	} else {
-		return cw_send_representation_internal(generator, representation, false);
+		return cw_send_representation_internal(cw_generator, representation, false);
 	}
 }
 
@@ -2474,7 +2469,7 @@ int cw_send_representation_partial(const char *representation)
 		errno = ENOENT;
 		return CW_FAILURE;
 	} else {
-		return cw_send_representation_internal(generator, representation, true);
+		return cw_send_representation_internal(cw_generator, representation, true);
 	}
 }
 
@@ -2592,7 +2587,7 @@ int cw_send_character(char c)
 		errno = ENOENT;
 		return CW_FAILURE;
 	} else {
-		return cw_send_character_internal(generator, c, false);
+		return cw_send_character_internal(cw_generator, c, false);
 	}
 }
 
@@ -2628,7 +2623,7 @@ int cw_send_character_partial(char c)
 		errno = ENOENT;
 		return CW_FAILURE;
 	} else {
-		return cw_send_character_internal(generator, c, true);
+		return cw_send_character_internal(cw_generator, c, true);
 	}
 }
 
@@ -2715,7 +2710,7 @@ int cw_send_string(const char *string)
 
 	/* Send every character in the string. */
 	for (int i = 0; string[i] != '\0'; i++) {
-		if (!cw_send_character_internal(generator, string[i], false))
+		if (!cw_send_character_internal(cw_generator, string[i], false))
 			return CW_FAILURE;
 	}
 
@@ -2811,7 +2806,7 @@ int cw_get_adaptive_average_internal(cw_tracking_t *tracking)
 void cw_receiver_add_statistic_internal(cw_rec_t *rec, stat_type_t type, int usecs)
 {
 	/* Synchronize low-level timings if required. */
-	cw_sync_parameters_internal(generator, rec);
+	cw_sync_parameters_internal(cw_generator, rec);
 
 	/* Calculate delta as difference between usec and the ideal value. */
 	int delta = usecs - ((type == STAT_DOT) ? rec->dot_length
@@ -2994,7 +2989,7 @@ void cw_receiver_set_adaptive_internal(cw_rec_t *rec, bool flag)
 
 		/* Changing the flag forces a change in low-level parameters. */
 		cw_is_in_sync = false;
-		cw_sync_parameters_internal(generator, rec);
+		cw_sync_parameters_internal(cw_generator, rec);
 
 		/* If we have just switched to adaptive mode, (re-)initialize
 		   the averages array to the current dot/dash lengths, so
@@ -3164,7 +3159,7 @@ int cw_receiver_identify_tone_internal(cw_rec_t *rec, int element_len_usecs, /* 
 	cw_assert (representation, "Output parameter is NULL");
 
 	/* Synchronize low level timings if required */
-	cw_sync_parameters_internal(generator, rec);
+	cw_sync_parameters_internal(cw_generator, rec);
 
 	/* If the timing was, within tolerance, a dot, return dot to
 	   the caller.  */
@@ -3297,17 +3292,17 @@ void cw_receiver_update_adaptive_tracking_internal(cw_rec_t *rec, int element_le
 	   then have to reset adaptive and resyncing one more time, to get
 	   all other timing parameters back to where they should be. */
 	cw_is_in_sync = false;
-	cw_sync_parameters_internal(generator, rec);
+	cw_sync_parameters_internal(cw_generator, rec);
 	if (rec->speed < CW_SPEED_MIN || rec->speed > CW_SPEED_MAX) {
 		rec->speed = rec->speed < CW_SPEED_MIN
 			? CW_SPEED_MIN : CW_SPEED_MAX;
 		rec->is_adaptive_receive_enabled = false;
 		cw_is_in_sync = false;
-		cw_sync_parameters_internal(generator, rec);
+		cw_sync_parameters_internal(cw_generator, rec);
 
 		rec->is_adaptive_receive_enabled = true;
 		cw_is_in_sync = false;
-		cw_sync_parameters_internal(generator, rec);
+		cw_sync_parameters_internal(cw_generator, rec);
 	}
 
 	return;
@@ -3723,7 +3718,7 @@ int cw_receive_representation(const struct timeval *timestamp,
 	}
 
 	/* Synchronize low level timings if required */
-	cw_sync_parameters_internal(generator, &receiver);
+	cw_sync_parameters_internal(cw_generator, &receiver);
 
 
 	if (space_len_usecs >= receiver.eoc_range_minimum
@@ -3981,7 +3976,7 @@ void cw_reset_receive(void)
 */
 const char *cw_generator_get_audio_system_label(void)
 {
-	return cw_get_audio_system_label(generator->audio_system);
+	return cw_get_audio_system_label(cw_generator->audio_system);
 }
 
 
@@ -4011,15 +4006,15 @@ const char *cw_generator_get_audio_system_label(void)
 */
 int cw_generator_new(int audio_system, const char *device)
 {
-	generator = cw_gen_new_internal(audio_system, device);
-	if (!generator) {
+	cw_generator = cw_gen_new_internal(audio_system, device);
+	if (!cw_generator) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
-			      "libcw: can't create generator()");
+			      "libcw: can't create generator");
 		return CW_FAILURE;
 	} else {
 		/* For some (all?) applications a key needs to have
 		   some generator associated with it. */
-		cw_key_register_generator_internal(&cw_key, generator);
+		cw_key_register_generator_internal(&cw_key, cw_generator);
 
 		return CW_SUCCESS;
 	}
@@ -4039,7 +4034,7 @@ int cw_generator_new(int audio_system, const char *device)
 */
 void cw_generator_delete(void)
 {
-	cw_gen_delete_internal(&generator);
+	cw_gen_delete_internal(&cw_generator);
 
 	return;
 }
@@ -4061,27 +4056,27 @@ void cw_generator_delete(void)
 */
 int cw_generator_start(void)
 {
-	generator->phase_offset = 0.0;
+	cw_generator->phase_offset = 0.0;
 
-	generator->generate = true;
+	cw_generator->generate = true;
 
-	generator->client.thread_id = pthread_self();
+	cw_generator->client.thread_id = pthread_self();
 
-	if (generator->audio_system == CW_AUDIO_NULL
-	    || generator->audio_system == CW_AUDIO_CONSOLE
-	    || generator->audio_system == CW_AUDIO_OSS
-	    || generator->audio_system == CW_AUDIO_ALSA
-	    || generator->audio_system == CW_AUDIO_PA) {
+	if (cw_generator->audio_system == CW_AUDIO_NULL
+	    || cw_generator->audio_system == CW_AUDIO_CONSOLE
+	    || cw_generator->audio_system == CW_AUDIO_OSS
+	    || cw_generator->audio_system == CW_AUDIO_ALSA
+	    || cw_generator->audio_system == CW_AUDIO_PA) {
 
 		/* cw_generator_dequeue_and_play_internal() is THE
 		   function that does the main job of generating
 		   tones. */
-		int rv = pthread_create(&generator->thread.id, &generator->thread.attr,
+		int rv = pthread_create(&cw_generator->thread.id, &cw_generator->thread.attr,
 					cw_generator_dequeue_and_play_internal,
-					(void *) generator);
+					(void *) cw_generator);
 		if (rv != 0) {
 			cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
-				      "libcw: failed to create %s generator thread", cw_audio_system_labels[generator->audio_system]);
+				      "libcw: failed to create %s generator thread", cw_audio_system_labels[cw_generator->audio_system]);
 			return CW_FAILURE;
 		} else {
 			/* for some yet unknown reason you have to
@@ -4089,13 +4084,13 @@ int cw_generator_start(void)
 			   may work incorrectly */
 			usleep(100000);
 #ifdef LIBCW_WITH_DEV
-			cw_dev_debug_print_generator_setup(generator);
+			cw_dev_debug_print_generator_setup(cw_generator);
 #endif
 			return CW_SUCCESS;
 		}
 	} else {
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
-			      "libcw: unsupported audio system %d", generator->audio_system);
+			      "libcw: unsupported audio system %d", cw_generator->audio_system);
 	}
 
 	return CW_FAILURE;
@@ -4118,7 +4113,7 @@ int cw_generator_start(void)
 */
 void cw_generator_stop(void)
 {
-	cw_gen_stop_internal(generator);
+	cw_gen_stop_internal(cw_generator);
 
 	return;
 }
