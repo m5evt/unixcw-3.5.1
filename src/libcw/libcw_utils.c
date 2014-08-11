@@ -21,8 +21,15 @@
 /**
    \file libcw_utils.c
 
-   Utilities.
+   Utility functions.
+
+   One of the utilities is cw_dlopen_internal() - a function that
+   allowed me to drop compile-time dependency on ALSA libs and
+   PulseAudio libs, and replace it with run-time dependency.
+
+   You will find calls to dlclose() in libcw_alsa.c and libcw_pa.c.
 */
+
 
 
 
@@ -31,34 +38,15 @@
 
 
 #include <sys/time.h>
-#include <sys/ioctl.h>
 #include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <signal.h>
 #include <stdio.h>
 #include <errno.h>
-#include <assert.h>
 #include <stdbool.h>
-#include <math.h>
-#include <inttypes.h> /* "PRIu32" */
-
 #include <dlfcn.h> /* dlopen() and related symbols */
-
 
 
 #if (defined(__unix__) || defined(unix)) && !defined(USG)
 # include <sys/param.h>
-#endif
-
-#if defined(HAVE_STRING_H)
-# include <string.h>
-#endif
-
-#if defined(HAVE_STRINGS_H)
-# include <strings.h>
 #endif
 
 
@@ -69,6 +57,7 @@
 #include "libcw_test.h"
 #include "libcw_debug.h"
 #include "libcw_utils.h"
+
 
 
 
