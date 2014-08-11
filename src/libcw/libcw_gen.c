@@ -22,6 +22,13 @@
    \file libcw_gen.c
 
    Functions operating on one of core elements of libcw: a generator.
+
+   Generator is an object that has access to audio sink (soundcard,
+   console buzzer, null audio device) and that can play dots and
+   dashes using the audio sink.
+
+   You can request generator to produce audio by using *_send_*()
+   functions.
 */
 
 
