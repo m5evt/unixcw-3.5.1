@@ -71,6 +71,22 @@
 
 
 
+/* Main container for data related to generating audible Morse code.
+   This is a global variable in library file, but in future the
+   variable will be moved from the file to client code.
+
+   This is a global variable that should be converted into a function
+   argument; this pointer should exist only in client's code, should
+   initially be returned by new(), and deleted by delete().
+
+   TODO: perform the conversion later, when you figure out ins and
+   outs of the library. */
+cw_gen_t *cw_generator = NULL;
+
+
+
+
+
 /* From libcw_debug.c. */
 extern cw_debug_t cw_debug_object;
 extern cw_debug_t cw_debug_object_ev;
@@ -100,6 +116,216 @@ static int cw_gen_new_open_internal(cw_gen_t *gen, int audio_system, const char 
 static int cw_gen_calculate_sine_wave_internal(cw_gen_t *gen, cw_tone_t *tone);
 static int cw_gen_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone);
 static int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, int queue_state, cw_tone_t *tone);
+static int cw_generator_release_internal(void);
+
+
+
+
+
+/**
+   \brief Get a readable label of current audio system
+
+   The function returns one of following strings:
+   None, Null, Console, OSS, ALSA, PulseAudio, Soundcard
+
+   \return audio system's label
+*/
+const char *cw_generator_get_audio_system_label(void)
+{
+	return cw_get_audio_system_label(cw_generator->audio_system);
+}
+
+
+
+
+
+/**
+   \brief Create new generator
+
+   Allocate memory for new generator data structure, set up default values
+   of some of the generator's properties.
+   The function does not start the generator (generator does not produce
+   a sound), you have to use cw_generator_start() for this.
+
+   Notice that the function doesn't return a generator variable. There
+   is at most one generator variable at any given time. You can't have
+   two generators. In some future version of the library the function
+   will return pointer to newly allocated generator, and then you
+   could have as many of them as you want, but not yet.
+
+   \p audio_system can be one of following: NULL, console, OSS, ALSA,
+   PulseAudio, soundcard. See "enum cw_audio_systems" in libcw.h for
+   exact names of symbolic constants.
+
+   \param audio_system - audio system to be used by the generator
+   \param device - name of audio device to be used; if NULL then library will use default device.
+*/
+int cw_generator_new(int audio_system, const char *device)
+{
+	cw_generator = cw_gen_new_internal(audio_system, device);
+	if (!cw_generator) {
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+			      "libcw: can't create generator");
+		return CW_FAILURE;
+	} else {
+		/* For some (all?) applications a key needs to have
+		   some generator associated with it. */
+		cw_key_register_generator_internal(&cw_key, cw_generator);
+
+		return CW_SUCCESS;
+	}
+
+}
+
+
+
+
+
+/**
+   \brief Deallocate generator
+
+   Deallocate/destroy generator data structure created with call
+   to cw_generator_new(). You can't start nor use the generator
+   after the call to this function.
+*/
+void cw_generator_delete(void)
+{
+	cw_gen_delete_internal(&cw_generator);
+
+	return;
+}
+
+
+
+
+
+/**
+   \brief Start a generator
+
+   Start producing tones using generator created with
+   cw_generator_new(). The source of tones is a tone queue associated
+   with the generator. If the tone queue is empty, the generator will
+   wait for new tones to be queued.
+
+   \return CW_FAILURE on errors
+   \return CW_SUCCESS on success
+*/
+int cw_generator_start(void)
+{
+	cw_generator->phase_offset = 0.0;
+
+	cw_generator->generate = true;
+
+	cw_generator->client.thread_id = pthread_self();
+
+	if (cw_generator->audio_system == CW_AUDIO_NULL
+	    || cw_generator->audio_system == CW_AUDIO_CONSOLE
+	    || cw_generator->audio_system == CW_AUDIO_OSS
+	    || cw_generator->audio_system == CW_AUDIO_ALSA
+	    || cw_generator->audio_system == CW_AUDIO_PA) {
+
+		/* cw_generator_dequeue_and_play_internal() is THE
+		   function that does the main job of generating
+		   tones. */
+		int rv = pthread_create(&cw_generator->thread.id, &cw_generator->thread.attr,
+					cw_generator_dequeue_and_play_internal,
+					(void *) cw_generator);
+		if (rv != 0) {
+			cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+				      "libcw: failed to create %s generator thread", cw_audio_system_labels[cw_generator->audio_system]);
+			return CW_FAILURE;
+		} else {
+			/* for some yet unknown reason you have to
+			   put usleep() here, otherwise a generator
+			   may work incorrectly */
+			usleep(100000);
+#ifdef LIBCW_WITH_DEV
+			cw_dev_debug_print_generator_setup(cw_generator);
+#endif
+			return CW_SUCCESS;
+		}
+	} else {
+		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
+			      "libcw: unsupported audio system %d", cw_generator->audio_system);
+	}
+
+	return CW_FAILURE;
+}
+
+
+
+
+
+/**
+   \brief Shut down a generator
+
+   Silence tone generated by generator (level of generated sine wave is
+   set to zero, with falling slope), and shut the generator down.
+
+   The shutdown does not erase generator's configuration.
+
+   If you want to have this generator running again, you have to call
+   cw_generator_start().
+*/
+void cw_generator_stop(void)
+{
+	cw_gen_stop_internal(cw_generator);
+
+	return;
+}
+
+
+
+
+
+
+/**
+   \brief Return char string with console device path
+
+   Returned pointer is owned by library.
+
+   \return char string with current console device path
+*/
+const char *cw_get_console_device(void)
+{
+	return cw_generator->audio_device;
+}
+
+
+
+
+
+/**
+   \brief Return char string with soundcard device name/path
+
+   Returned pointer is owned by library.
+
+   \return char string with current soundcard device name or device path
+*/
+const char *cw_get_soundcard_device(void)
+{
+	return cw_generator->audio_device;
+}
+
+
+
+
+
+/**
+   \brief Stop and delete generator
+
+   Stop and delete generator.
+   This causes silencing current sound wave.
+
+   \return CW_SUCCESS
+*/
+int cw_generator_release_internal(void)
+{
+	cw_generator_stop();
+	cw_generator_delete();
+
+	return CW_SUCCESS;
+}
 
 
 
