@@ -165,7 +165,7 @@ int cw_oss_configure(cw_gen_t *gen, const char *device)
 	assert (gen);
 
 	gen->audio_system = CW_AUDIO_OSS;
-	cw_generator_set_audio_device_internal(gen, device);
+	cw_gen_set_audio_device_internal(gen, device);
 
 	gen->open_device  = cw_oss_open_device_internal;
 	gen->close_device = cw_oss_close_device_internal;
@@ -203,7 +203,7 @@ int cw_oss_write_internal(cw_gen_t *gen)
 /**
    \brief Open OSS output, associate it with given generator
 
-   You must use cw_generator_set_audio_device_internal() before calling
+   You must use cw_gen_set_audio_device_internal() before calling
    this function. Otherwise generator \p gen won't know which device to open.
 
    \param gen - current generator
@@ -292,7 +292,7 @@ int cw_oss_open_device_ioctls_internal(int *fd, int *sample_rate)
 		return CW_FAILURE;
         }
 #if 0
-	/* 
+	/*
 	   This ioctl call failed on FreeBSD 10, which resulted in
 	   libcw failing to open OSS device. A bit of digging on the
 	   web revealed this:

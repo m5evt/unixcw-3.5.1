@@ -140,7 +140,7 @@ bool cw_is_console_possible(const char *device)
    the client code must use cw_is_console_possible() instead, prior
    to calling this function.
 
-   You must use cw_generator_set_audio_device_internal() before calling
+   You must use cw_gen_set_audio_device_internal() before calling
    this function. Otherwise generator \p gen won't know which device to open.
 
    \param gen - current generator
@@ -322,7 +322,7 @@ int cw_console_configure(cw_gen_t *gen, const char *device)
 	assert (gen);
 
 	gen->audio_system = CW_AUDIO_CONSOLE;
-	cw_generator_set_audio_device_internal(gen, device);
+	cw_gen_set_audio_device_internal(gen, device);
 
 	gen->open_device  = cw_console_open_device_internal;
 	gen->close_device = cw_console_close_device_internal;

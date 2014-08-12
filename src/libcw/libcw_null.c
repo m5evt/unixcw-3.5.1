@@ -43,7 +43,7 @@ int cw_null_configure(cw_gen_t *gen, const char *device)
 	assert (gen);
 
 	gen->audio_system = CW_AUDIO_NULL;
-	cw_generator_set_audio_device_internal(gen, device);
+	cw_gen_set_audio_device_internal(gen, device);
 
 	gen->open_device  = cw_null_open_device_internal;
 	gen->close_device = cw_null_close_device_internal;

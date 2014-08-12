@@ -170,7 +170,7 @@ bool cw_is_alsa_possible(const char *device)
 int cw_alsa_configure(cw_gen_t *gen, const char *device)
 {
 	gen->audio_system = CW_AUDIO_ALSA;
-	cw_generator_set_audio_device_internal(gen, device);
+	cw_gen_set_audio_device_internal(gen, device);
 
 	gen->open_device  = cw_alsa_open_device_internal;
 	gen->close_device = cw_alsa_close_device_internal;
@@ -208,7 +208,7 @@ int cw_alsa_write_internal(cw_gen_t *gen)
 /**
    \brief Open ALSA output, associate it with given generator
 
-   You must use cw_generator_set_audio_device_internal() before calling
+   You must use cw_gen_set_audio_device_internal() before calling
    this function. Otherwise generator \p gen won't know which device to open.
 
    \param gen - current generator
