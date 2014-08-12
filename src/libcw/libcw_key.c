@@ -45,7 +45,7 @@ extern cw_debug_t cw_debug_object;
 extern cw_debug_t cw_debug_object_ev;
 extern cw_debug_t cw_debug_object_dev;
 
-extern cw_rec_t *cw_receiver;
+extern cw_rec_t cw_receiver;
 
 
 
@@ -629,7 +629,7 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *keyer)
 	keyer->ik.lock = true;
 
 	/* Synchronize low level timing parameters if required. */
-	cw_sync_parameters_internal(keyer->gen, cw_receiver);
+	cw_sync_parameters_internal(keyer->gen, &cw_receiver);
 
 	int cw_iambic_keyer_state_old = keyer->ik.graph_state;
 
