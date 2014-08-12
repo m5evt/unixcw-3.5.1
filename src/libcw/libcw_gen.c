@@ -50,7 +50,7 @@
 #endif
 
 
-#include "libcw_internal.h"
+//#include "libcw_internal.h"
 #include "libcw_gen.h"
 #include "libcw_debug.h"
 #include "libcw_console.h"
@@ -59,6 +59,8 @@
 #include "libcw_null.h"
 #include "libcw_oss.h"
 #include "libcw_key.h"
+#include "libcw_signal.h"
+
 
 
 
