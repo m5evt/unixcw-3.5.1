@@ -137,17 +137,12 @@ typedef struct {
 
 
 
-/* From libcw.c, needed in libcw_tq.c. */
-bool cw_sigalrm_is_blocked_internal(void);
-int  cw_signal_wait_internal(void);
-
 /* From libcw.c, needed in libcw_key.c. */
 void cw_sync_parameters_internal(cw_gen_t *gen, cw_rec_t *rec);
 void cw_finalization_schedule_internal(void);
 
-/* From libcw.c, needed in libcw_gen.c. */
-int cw_sigalrm_install_top_level_handler_internal(void);
-
+/* From libcw.c, needed in libcw_signal.c. */
+void cw_finalization_cancel_internal(void);
 
 
 
