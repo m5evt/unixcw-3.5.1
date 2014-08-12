@@ -28,7 +28,7 @@
    dashes using the audio sink.
 
    You can request generator to produce audio by using *_send_*()
-   functions.
+   functions (these functions are still in libcw.c).
 */
 
 
@@ -58,7 +58,7 @@
 #include "libcw_utils.h"
 #include "libcw_null.h"
 #include "libcw_oss.h"
-
+#include "libcw_key.h"
 
 
 
@@ -93,6 +93,33 @@ extern cw_debug_t cw_debug_object_ev;
 extern cw_debug_t cw_debug_object_dev;
 
 
+/* From libcw_key.c. */
+extern volatile cw_key_t cw_key;
+
+
+
+
+
+/* Most of audio systems (excluding console) should be configured to
+   have specific sample rate. Some audio systems (with connection with
+   given hardware) can support several different sample rates. Values of
+   supported sample rates are standardized. Here is a list of them to be
+   used by this library.
+   When the library configures given audio system, it tries if the system
+   will accept a sample rate from the table, starting from the first one.
+   If a sample rate is accepted, rest of sample rates is not tested anymore. */
+const unsigned int cw_supported_sample_rates[] = {
+	44100,
+	48000,
+	32000,
+	22050,
+	16000,
+	11025,
+	 8000,
+	    0 /* guard */
+};
+
+
 
 
 
@@ -109,14 +136,15 @@ static const char *default_audio_devices[] = {
 	(char *) NULL }; /* just in case someone decided to index the table with CW_AUDIO_SOUNDCARD */
 
 
-
-
-
-static int cw_gen_new_open_internal(cw_gen_t *gen, int audio_system, const char *device);
-static int cw_gen_calculate_sine_wave_internal(cw_gen_t *gen, cw_tone_t *tone);
-static int cw_gen_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone);
-static int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, int queue_state, cw_tone_t *tone);
-static int cw_generator_release_internal(void);
+static cw_gen_t *cw_gen_new_internal(int audio_system, const char *device);
+static void      cw_gen_delete_internal(cw_gen_t **gen);
+static int       cw_gen_start_internal(cw_gen_t *gen);
+static void      cw_gen_stop_internal(cw_gen_t *gen);
+static int       cw_gen_new_open_internal(cw_gen_t *gen, int audio_system, const char *device);
+static void     *cw_gen_dequeue_and_play_internal(void *arg);
+static int       cw_gen_calculate_sine_wave_internal(cw_gen_t *gen, cw_tone_t *tone);
+static int       cw_gen_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone);
+static int       cw_gen_write_to_soundcard_internal(cw_gen_t *gen, int queue_state, cw_tone_t *tone);
 
 
 
@@ -212,27 +240,36 @@ void cw_generator_delete(void)
 */
 int cw_generator_start(void)
 {
-	cw_generator->phase_offset = 0.0;
+	return cw_gen_start_internal(cw_generator);
+}
 
-	cw_generator->generate = true;
 
-	cw_generator->client.thread_id = pthread_self();
 
-	if (cw_generator->audio_system == CW_AUDIO_NULL
-	    || cw_generator->audio_system == CW_AUDIO_CONSOLE
-	    || cw_generator->audio_system == CW_AUDIO_OSS
-	    || cw_generator->audio_system == CW_AUDIO_ALSA
-	    || cw_generator->audio_system == CW_AUDIO_PA) {
 
-		/* cw_generator_dequeue_and_play_internal() is THE
+
+int cw_gen_start_internal(cw_gen_t *gen)
+{
+	gen->phase_offset = 0.0;
+
+	gen->generate = true;
+
+	gen->client.thread_id = pthread_self();
+
+	if (gen->audio_system == CW_AUDIO_NULL
+	    || gen->audio_system == CW_AUDIO_CONSOLE
+	    || gen->audio_system == CW_AUDIO_OSS
+	    || gen->audio_system == CW_AUDIO_ALSA
+	    || gen->audio_system == CW_AUDIO_PA) {
+
+		/* cw_gen_dequeue_and_play_internal() is THE
 		   function that does the main job of generating
 		   tones. */
-		int rv = pthread_create(&cw_generator->thread.id, &cw_generator->thread.attr,
-					cw_generator_dequeue_and_play_internal,
-					(void *) cw_generator);
+		int rv = pthread_create(&gen->thread.id, &gen->thread.attr,
+					cw_gen_dequeue_and_play_internal,
+					(void *) gen);
 		if (rv != 0) {
 			cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
-				      "libcw: failed to create %s generator thread", cw_audio_system_labels[cw_generator->audio_system]);
+				      "libcw: failed to create %s generator thread", cw_get_audio_system_label(gen->audio_system));
 			return CW_FAILURE;
 		} else {
 			/* for some yet unknown reason you have to
@@ -240,13 +277,13 @@ int cw_generator_start(void)
 			   may work incorrectly */
 			usleep(100000);
 #ifdef LIBCW_WITH_DEV
-			cw_dev_debug_print_generator_setup(cw_generator);
+			cw_dev_debug_print_generator_setup(gen);
 #endif
 			return CW_SUCCESS;
 		}
 	} else {
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
-			      "libcw: unsupported audio system %d", cw_generator->audio_system);
+			      "libcw: unsupported audio system %d", gen->audio_system);
 	}
 
 	return CW_FAILURE;
@@ -273,7 +310,6 @@ void cw_generator_stop(void)
 
 	return;
 }
-
 
 
 
@@ -319,10 +355,10 @@ const char *cw_get_soundcard_device(void)
 
    \return CW_SUCCESS
 */
-int cw_generator_release_internal(void)
+int cw_gen_release_internal(cw_gen_t **gen)
 {
-	cw_generator_stop();
-	cw_generator_delete();
+	cw_gen_stop_internal(*gen);
+	cw_gen_delete_internal(gen);
 
 	return CW_SUCCESS;
 }
@@ -348,7 +384,7 @@ int cw_generator_release_internal(void)
    \return CW_SUCCESS on success
    \return CW_FAILURE on errors
 */
-int cw_generator_set_audio_device_internal(cw_gen_t *gen, const char *device)
+int cw_gen_set_audio_device_internal(cw_gen_t *gen, const char *device)
 {
 	/* this should be NULL, either because it has been
 	   initialized statically as NULL, or set to
@@ -779,7 +815,7 @@ int cw_gen_new_open_internal(cw_gen_t *gen, int audio_system, const char *device
 
    \return NULL pointer
 */
-void *cw_generator_dequeue_and_play_internal(void *arg)
+void *cw_gen_dequeue_and_play_internal(void *arg)
 {
 	cw_gen_t *gen = (cw_gen_t *) arg;
 
@@ -1343,7 +1379,7 @@ int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, int queue_state, cw_tone_t
 		tone->slope_iterator = -1;
 		tone->slope_n_samples = 0;
 
-		fprintf(stderr, "++++ length of padding silence = %d [samples]\n", tone->n_samples);
+		//fprintf(stderr, "++++ length of padding silence = %d [samples]\n", tone->n_samples);
 
 	} else { /* queue_state == CW_TQ_NONEMPTY */
 
@@ -1384,21 +1420,22 @@ int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, int queue_state, cw_tone_t
 		tone->slope_n_samples *= gen->tone_slope.length_usecs;
 		tone->slope_n_samples /= 10000;
 
-		/* About calculations above: 100 * 10000 = 1.000.000
-		   usecs per second. */
+		/* About calculations above:
+		   100 * 10000 = 1.000.000 usecs per second. */
 
-		fprintf(stderr, "++++ length of regular tone = %d [samples]\n", tone->n_samples);
+		//fprintf(stderr, "++++ length of regular tone = %d [samples]\n", tone->n_samples);
 	}
 
 
 	/* Total number of samples to write in a loop below. */
 	int64_t samples_to_write = tone->n_samples;
 
-
+#if 0
 	fprintf(stderr, "++++ entering loop, tone->frequency = %d, buffer->n_samples = %d, tone->n_samples = %d, samples_to_write = %d\n",
 		tone->frequency, gen->buffer_n_samples, tone->n_samples, samples_to_write);
 	fprintf(stderr, "++++ entering loop, expected ~%f loops\n", 1.0 * samples_to_write / gen->buffer_n_samples);
 	int debug_loop = 0;
+#endif
 
 
 	// cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG, "libcw: %lld samples, %d usecs, %d Hz", tone->n_samples, tone->usecs, gen->frequency);
@@ -1433,8 +1470,8 @@ int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, int queue_state, cw_tone_t
 		int buffer_sub_n_samples = gen->buffer_sub_stop - gen->buffer_sub_start + 1;
 
 
-		fprintf(stderr, "++++        loop #%d, buffer_sub_n_samples = %d\n", ++debug_loop, buffer_sub_n_samples);
 #if 0
+		fprintf(stderr, "++++        loop #%d, buffer_sub_n_samples = %d\n", ++debug_loop, buffer_sub_n_samples);
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG,
 			      "libcw: sub start: %d, sub stop: %d, sub len: %d, to calculate: %d", gen->buffer_sub_start, gen->buffer_sub_stop, buffer_sub_n_samples, samples_to_write);
 #endif
@@ -1480,7 +1517,7 @@ int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, int queue_state, cw_tone_t
 
 	} /* while (samples_to_write > 0) { */
 
-	fprintf(stderr, "++++ left loop, %d loops, samples left = %d\n", debug_loop, (int) samples_to_write);
+	//fprintf(stderr, "++++ left loop, %d loops, samples left = %d\n", debug_loop, (int) samples_to_write);
 
 	return 0;
 }

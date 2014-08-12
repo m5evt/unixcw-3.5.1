@@ -21,14 +21,12 @@
 /*
    Table of contents
 
-   - Section:Debugging
    - Section:Morse code controls and timing parameters
    - Section:SIGALRM and timer handling
    - Section:Finalization and cleanup
    - Section:Sending
    - Section:Receive tracking and statistics helpers
    - Section:Receiving
-   - Section:Soundcard
    - Section:Global variables
 */
 
@@ -41,7 +39,7 @@
 #include <errno.h>
 #include <assert.h>
 #include <stdbool.h>
-#include <math.h>
+#include <math.h>  /* sqrt() */
 
 
 
@@ -88,22 +86,17 @@
 #endif
 
 
-#include "libcw.h"
-#include "libcw_test.h"
 
+
+
+#include "libcw.h"
 #include "libcw_internal.h"
-#include "libcw_null.h"
-#include "libcw_console.h"
-#include "libcw_oss.h"
+#include "libcw_data.h"
+#include "libcw_utils.h"
+#include "libcw_gen.h"
 
 #include "copyright.h"
 #include "libcw_debug.h"
-
-#include "libcw_tq.h"
-#include "libcw_data.h"
-#include "libcw_key.h"
-#include "libcw_utils.h"
-#include "libcw_gen.h"
 
 
 
@@ -129,22 +122,6 @@ static void cw_signal_main_handler_internal(int signal_number);
 static int cw_send_element_internal(cw_gen_t *gen, char element);
 static int cw_send_representation_internal(cw_gen_t *gen, const char *representation, bool partial);
 static int cw_send_character_internal(cw_gen_t *gen, char character, int partial);
-
-
-
-
-
-/* ******************************************************************** */
-/*                         Section:Debugging                            */
-/* ******************************************************************** */
-
-
-
-
-extern cw_debug_t cw_debug_object;
-extern cw_debug_t cw_debug_object_ev;
-extern cw_debug_t cw_debug_object_dev;
-
 
 
 
@@ -280,35 +257,17 @@ extern cw_gen_t *cw_generator;
 cw_rec_t *cw_receiver = &receiver;
 
 
+extern cw_debug_t cw_debug_object;
+extern cw_debug_t cw_debug_object_ev;
+extern cw_debug_t cw_debug_object_dev;
 
-/* From libcw_key.c. */
-extern volatile cw_key_t cw_key;
 
 
-
-/* Most of audio systems (excluding console) should be configured to
-   have specific sample rate. Some audio systems (with connection with
-   given hardware) can support several different sample rates. Values of
-   supported sample rates are standardized. Here is a list of them to be
-   used by this library.
-   When the library configures given audio system, it tries if the system
-   will accept a sample rate from the table, starting from the first one.
-   If a sample rate is accepted, rest of sample rates is not tested anymore. */
-const unsigned int cw_supported_sample_rates[] = {
-	44100,
-	48000,
-	32000,
-	22050,
-	16000,
-	11025,
-	 8000,
-	    0 /* guard */
-};
 
 
 /* Human-readable labels of audio systems.
    Indexed by values of "enum cw_audio_systems". */
-const char *cw_audio_system_labels[] = {
+static const char *cw_audio_system_labels[] = {
 	"None",
 	"Null",
 	"Console",
@@ -866,6 +825,7 @@ int cw_set_receive_speed(int new_value)
 
 	return CW_SUCCESS;
 }
+
 
 
 
@@ -1958,7 +1918,7 @@ void cw_finalization_clock_internal(void)
 				      "libcw: finalization timeout, closing down");
 
 			cw_sigalrm_restore_internal();
-			// cw_generator_release_internal ();
+			// cw_gen_release_internal(&cw_generator);
 
 			cw_is_finalization_pending = false;
 			cw_finalization_countdown = 0;
@@ -2050,14 +2010,14 @@ void cw_complete_reset(void)
 
 	/* Silence sound, and shutdown use of the sound devices. */
 	//cw_sound_soundcard_internal (0);
-	cw_generator_release_internal ();
-	cw_sigalrm_restore_internal ();
+	cw_gen_release_internal(&cw_generator);
+	cw_sigalrm_restore_internal();
 
 	/* Call the reset functions for each subsystem. */
-	cw_reset_tone_queue ();
-	cw_reset_receive ();
-	cw_reset_keyer ();
-	cw_reset_straight_key ();
+	cw_reset_tone_queue();
+	cw_reset_receive();
+	cw_reset_keyer();
+	cw_reset_straight_key();
 
 	/* Now we can re-enable delayed finalizations. */
 	cw_is_finalization_locked_out = false;
