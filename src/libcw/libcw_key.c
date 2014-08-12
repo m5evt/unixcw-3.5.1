@@ -311,14 +311,14 @@ void cw_key_tk_set_value_internal(volatile cw_key_t *key, int key_value)
 
 /*
   Comment for key used as iambic keyer:
-  Iambic keyer cannot function without an associated generator. A keyer has
-  to have some generator to function correctly. Thus a function
+  Iambic keyer cannot function without an associated generator. A
+  keyer has to have some generator to function correctly. Generator
+  doesn't care if it has any key registered or not. Thus a function
   binding a keyer and generator belongs to "iambic keyer" module.
 
   Remember that a generator can exist without a keyer. In applications
-  that do noting related to keying with iambic keyer, having just a
+  that do nothing related to keying with iambic keyer, having just a
   generator is a valid situation.
-
 
 
 
