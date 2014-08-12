@@ -169,7 +169,7 @@ static const char *cw_receiver_states[] = {
 
 
 
-static cw_rec_t receiver = { .state = RS_IDLE,
+cw_rec_t cw_receiver = { .state = RS_IDLE,
 
 			     .speed = CW_SPEED_INITIAL,
 
@@ -221,12 +221,6 @@ static int  cw_receiver_add_element_internal(cw_rec_t *rec, const struct timeval
 /* ******************************************************************** */
 
 extern cw_gen_t *cw_generator;
-
-
-/* I don't want to expose generic name "receiver". Let's have globally
-   visible "cw_receiver" instead. */
-cw_rec_t *cw_receiver = &receiver;
-
 
 extern cw_debug_t cw_debug_object;
 extern cw_debug_t cw_debug_object_ev;
@@ -615,14 +609,14 @@ void cw_reset_send_receive_parameters(void)
 	cw_generator->gap = CW_GAP_INITIAL;
 	cw_generator->weighting = CW_WEIGHTING_INITIAL;
 
-	receiver.speed = CW_SPEED_INITIAL;
-	receiver.tolerance = CW_TOLERANCE_INITIAL;
-	receiver.is_adaptive_receive_enabled = CW_REC_ADAPTIVE_INITIAL;
-	receiver.noise_spike_threshold = CW_REC_INITIAL_NOISE_THRESHOLD;
+	cw_receiver.speed = CW_SPEED_INITIAL;
+	cw_receiver.tolerance = CW_TOLERANCE_INITIAL;
+	cw_receiver.is_adaptive_receive_enabled = CW_REC_ADAPTIVE_INITIAL;
+	cw_receiver.noise_spike_threshold = CW_REC_INITIAL_NOISE_THRESHOLD;
 
 	/* Changes require resynchronization. */
 	cw_is_in_sync = false;
-	cw_sync_parameters_internal(cw_generator, &receiver);
+	cw_sync_parameters_internal(cw_generator, &cw_receiver);
 
 	return;
 }
@@ -658,7 +652,7 @@ int cw_set_send_speed(int new_value)
 
 		/* Changes of send speed require resynchronization. */
 		cw_is_in_sync = false;
-		cw_sync_parameters_internal(cw_generator, &receiver);
+		cw_sync_parameters_internal(cw_generator, &cw_receiver);
 	}
 
 	return CW_SUCCESS;
@@ -687,7 +681,7 @@ int cw_set_send_speed(int new_value)
 */
 int cw_set_receive_speed(int new_value)
 {
-	if (receiver.is_adaptive_receive_enabled) {
+	if (cw_receiver.is_adaptive_receive_enabled) {
 		errno = EPERM;
 		return CW_FAILURE;
 	} else {
@@ -697,12 +691,12 @@ int cw_set_receive_speed(int new_value)
 		}
 	}
 
-	if (new_value != receiver.speed) {
-		receiver.speed = new_value;
+	if (new_value != cw_receiver.speed) {
+		cw_receiver.speed = new_value;
 
 		/* Changes of receive speed require resynchronization. */
 		cw_is_in_sync = false;
-		cw_sync_parameters_internal(cw_generator, &receiver);
+		cw_sync_parameters_internal(cw_generator, &cw_receiver);
 	}
 
 	return CW_SUCCESS;
@@ -814,7 +808,7 @@ int cw_set_gap(int new_value)
 
 		/* Changes of gap require resynchronization. */
 		cw_is_in_sync = false;
-		cw_sync_parameters_internal(cw_generator, &receiver);
+		cw_sync_parameters_internal(cw_generator, &cw_receiver);
 	}
 
 	return CW_SUCCESS;
@@ -845,12 +839,12 @@ int cw_set_tolerance(int new_value)
 		return CW_FAILURE;
 	}
 
-	if (new_value != receiver.tolerance) {
-		receiver.tolerance = new_value;
+	if (new_value != cw_receiver.tolerance) {
+		cw_receiver.tolerance = new_value;
 
 		/* Changes of tolerance require resynchronization. */
 		cw_is_in_sync = false;
-		cw_sync_parameters_internal(cw_generator, &receiver);
+		cw_sync_parameters_internal(cw_generator, &cw_receiver);
 	}
 
 	return CW_SUCCESS;
@@ -886,7 +880,7 @@ int cw_set_weighting(int new_value)
 
 		/* Changes of weighting require resynchronization. */
 		cw_is_in_sync = false;
-		cw_sync_parameters_internal(cw_generator, &receiver);
+		cw_sync_parameters_internal(cw_generator, &cw_receiver);
 	}
 
 	return CW_SUCCESS;
@@ -921,7 +915,7 @@ int cw_get_send_speed(void)
 */
 int cw_get_receive_speed(void)
 {
-	return receiver.speed;
+	return cw_receiver.speed;
 }
 
 
@@ -992,7 +986,7 @@ int cw_get_gap(void)
 */
 int cw_get_tolerance(void)
 {
-	return receiver.tolerance;
+	return cw_receiver.tolerance;
 }
 
 
@@ -1037,7 +1031,7 @@ void cw_get_send_parameters(int *dot_usecs, int *dash_usecs,
 			    int *end_of_character_usecs, int *end_of_word_usecs,
 			    int *additional_usecs, int *adjustment_usecs)
 {
-	cw_sync_parameters_internal(cw_generator, &receiver);
+	cw_sync_parameters_internal(cw_generator, &cw_receiver);
 
 	if (dot_usecs)   *dot_usecs = cw_generator->dot_length;
 	if (dash_usecs)  *dash_usecs = cw_generator->dash_length;
@@ -1090,23 +1084,23 @@ void cw_get_receive_parameters(int *dot_usecs, int *dash_usecs,
 			       int *end_of_character_ideal_usecs,
 			       int *adaptive_threshold)
 {
-	cw_sync_parameters_internal(cw_generator, &receiver);
+	cw_sync_parameters_internal(cw_generator, &cw_receiver);
 
-	if (dot_usecs)      *dot_usecs = receiver.dot_length;
-	if (dash_usecs)     *dash_usecs = receiver.dash_length;
-	if (dot_min_usecs)  *dot_min_usecs = receiver.dot_range_minimum;
-	if (dot_max_usecs)  *dot_max_usecs = receiver.dot_range_maximum;
-	if (dash_min_usecs) *dash_min_usecs = receiver.dash_range_minimum;
-	if (dash_max_usecs) *dash_max_usecs = receiver.dash_range_maximum;
+	if (dot_usecs)      *dot_usecs = cw_receiver.dot_length;
+	if (dash_usecs)     *dash_usecs = cw_receiver.dash_length;
+	if (dot_min_usecs)  *dot_min_usecs = cw_receiver.dot_range_minimum;
+	if (dot_max_usecs)  *dot_max_usecs = cw_receiver.dot_range_maximum;
+	if (dash_min_usecs) *dash_min_usecs = cw_receiver.dash_range_minimum;
+	if (dash_max_usecs) *dash_max_usecs = cw_receiver.dash_range_maximum;
 
-	if (end_of_element_min_usecs)     *end_of_element_min_usecs = receiver.eoe_range_minimum;
-	if (end_of_element_max_usecs)     *end_of_element_max_usecs = receiver.eoe_range_maximum;
-	if (end_of_element_ideal_usecs)   *end_of_element_ideal_usecs = receiver.eoe_range_ideal;
-	if (end_of_character_min_usecs)   *end_of_character_min_usecs = receiver.eoc_range_minimum;
-	if (end_of_character_max_usecs)   *end_of_character_max_usecs = receiver.eoc_range_maximum;
-	if (end_of_character_ideal_usecs) *end_of_character_ideal_usecs = receiver.eoc_range_ideal;
+	if (end_of_element_min_usecs)     *end_of_element_min_usecs = cw_receiver.eoe_range_minimum;
+	if (end_of_element_max_usecs)     *end_of_element_max_usecs = cw_receiver.eoe_range_maximum;
+	if (end_of_element_ideal_usecs)   *end_of_element_ideal_usecs = cw_receiver.eoe_range_ideal;
+	if (end_of_character_min_usecs)   *end_of_character_min_usecs = cw_receiver.eoc_range_minimum;
+	if (end_of_character_max_usecs)   *end_of_character_max_usecs = cw_receiver.eoc_range_maximum;
+	if (end_of_character_ideal_usecs) *end_of_character_ideal_usecs = cw_receiver.eoc_range_ideal;
 
-	if (adaptive_threshold) *adaptive_threshold = receiver.adaptive_receive_threshold;
+	if (adaptive_threshold) *adaptive_threshold = cw_receiver.adaptive_receive_threshold;
 
 	return;
 }
@@ -1140,7 +1134,7 @@ int cw_set_noise_spike_threshold(int new_value)
 		errno = EINVAL;
 		return CW_FAILURE;
 	}
-	receiver.noise_spike_threshold = new_value;
+	cw_receiver.noise_spike_threshold = new_value;
 
 	return CW_SUCCESS;
 }
@@ -1158,7 +1152,7 @@ int cw_set_noise_spike_threshold(int new_value)
 */
 int cw_get_noise_spike_threshold(void)
 {
-	return receiver.noise_spike_threshold;
+	return cw_receiver.noise_spike_threshold;
 }
 
 
@@ -1347,7 +1341,7 @@ int cw_send_element_internal(cw_gen_t *gen, char element)
 	int status;
 
 	/* Synchronize low-level timings if required. */
-	cw_sync_parameters_internal(gen, &receiver);
+	cw_sync_parameters_internal(gen, &cw_receiver);
 
 	/* Send either a dot or a dash element, depending on representation. */
 	if (element == CW_DOT_REPRESENTATION) {
@@ -1432,7 +1426,7 @@ int cw_send_dash(void)
 int cw_send_character_space(void)
 {
 	/* Synchronize low-level timing parameters. */
-	cw_sync_parameters_internal(cw_generator, &receiver);
+	cw_sync_parameters_internal(cw_generator, &cw_receiver);
 
 	/* Delay for the standard end of character period, plus any
 	   additional inter-character gap */
@@ -1455,7 +1449,7 @@ int cw_send_character_space(void)
 int cw_send_word_space(void)
 {
 	/* Synchronize low-level timing parameters. */
-	cw_sync_parameters_internal(cw_generator, &receiver);
+	cw_sync_parameters_internal(cw_generator, &cw_receiver);
 
 	/* Send silence for the word delay period, plus any adjustment
 	   that may be needed at end of word. */
@@ -2047,16 +2041,16 @@ void cw_get_receive_statistics(double *dot_sd, double *dash_sd,
 			       double *element_end_sd, double *character_end_sd)
 {
 	if (dot_sd) {
-		*dot_sd = cw_receiver_get_statistic_internal(&receiver, STAT_DOT);
+		*dot_sd = cw_receiver_get_statistic_internal(&cw_receiver, STAT_DOT);
 	}
 	if (dash_sd) {
-		*dash_sd = cw_receiver_get_statistic_internal(&receiver, STAT_DASH);
+		*dash_sd = cw_receiver_get_statistic_internal(&cw_receiver, STAT_DASH);
 	}
 	if (element_end_sd) {
-		*element_end_sd = cw_receiver_get_statistic_internal(&receiver, STAT_END_ELEMENT);
+		*element_end_sd = cw_receiver_get_statistic_internal(&cw_receiver, STAT_END_ELEMENT);
 	}
 	if (character_end_sd) {
-		*character_end_sd = cw_receiver_get_statistic_internal(&receiver, STAT_END_CHARACTER);
+		*character_end_sd = cw_receiver_get_statistic_internal(&cw_receiver, STAT_END_CHARACTER);
 	}
 	return;
 }
@@ -2074,10 +2068,10 @@ void cw_get_receive_statistics(double *dot_sd, double *dash_sd,
 void cw_reset_receive_statistics(void)
 {
 	for (int i = 0; i < CW_REC_STATISTICS_CAPACITY; i++) {
-		receiver.statistics[i].type = STAT_NONE;
-		receiver.statistics[i].delta = 0;
+		cw_receiver.statistics[i].type = STAT_NONE;
+		cw_receiver.statistics[i].delta = 0;
 	}
-	receiver.statistics_ind = 0;
+	cw_receiver.statistics_ind = 0;
 
 	return;
 }
@@ -2186,7 +2180,7 @@ void cw_receiver_set_adaptive_internal(cw_rec_t *rec, bool flag)
 */
 void cw_enable_adaptive_receive(void)
 {
-	cw_receiver_set_adaptive_internal(&receiver, true);
+	cw_receiver_set_adaptive_internal(&cw_receiver, true);
 	return;
 }
 
@@ -2201,7 +2195,7 @@ void cw_enable_adaptive_receive(void)
 */
 void cw_disable_adaptive_receive(void)
 {
-	cw_receiver_set_adaptive_internal(&receiver, false);
+	cw_receiver_set_adaptive_internal(&cw_receiver, false);
 	return;
 }
 
@@ -2220,7 +2214,7 @@ void cw_disable_adaptive_receive(void)
 */
 bool cw_get_adaptive_receive_state(void)
 {
-	return receiver.is_adaptive_receive_enabled;
+	return cw_receiver.is_adaptive_receive_enabled;
 }
 
 
@@ -2252,13 +2246,13 @@ int cw_start_receive_tone(const struct timeval *timestamp)
 	/* If the receive state is not idle or after a tone, this is
 	   a state error.  A receive tone start can only happen while
 	   we are idle, or in the middle of a character. */
-	if (receiver.state != RS_IDLE && receiver.state != RS_AFTER_TONE) {
+	if (cw_receiver.state != RS_IDLE && cw_receiver.state != RS_AFTER_TONE) {
 		errno = ERANGE;
 		return CW_FAILURE;
 	}
 
 	/* Validate and save the timestamp, or get one and then save it. */
-	if (!cw_timestamp_validate_internal(&receiver.tone_start, timestamp)) {
+	if (!cw_timestamp_validate_internal(&cw_receiver.tone_start, timestamp)) {
 		return CW_FAILURE;
 	}
 
@@ -2270,18 +2264,18 @@ int cw_start_receive_tone(const struct timeval *timestamp)
 	   extreme cases, by cw_receiver_add_element_internal().
 
 	   Do that, then, and update the relevant statistics. */
-	if (receiver.state == RS_AFTER_TONE) {
-		int space_len_usec = cw_timestamp_compare_internal(&receiver.tone_end,
-								   &receiver.tone_start);
-		cw_receiver_add_statistic_internal(&receiver, STAT_END_ELEMENT, space_len_usec);
+	if (cw_receiver.state == RS_AFTER_TONE) {
+		int space_len_usec = cw_timestamp_compare_internal(&cw_receiver.tone_end,
+								   &cw_receiver.tone_start);
+		cw_receiver_add_statistic_internal(&cw_receiver, STAT_END_ELEMENT, space_len_usec);
 	}
 
 	/* Set state to indicate we are inside a tone. We don't know
 	   yet if it will be recognized as valid tone. */
-	receiver.state = RS_IN_TONE;
+	cw_receiver.state = RS_IN_TONE;
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-		      "libcw: receive state -> %s", cw_receiver_states[receiver.state]);
+		      "libcw: receive state -> %s", cw_receiver_states[cw_receiver.state]);
 
 	return CW_SUCCESS;
 }
@@ -2505,27 +2499,27 @@ void cw_receiver_update_adaptive_tracking_internal(cw_rec_t *rec, int element_le
 int cw_end_receive_tone(const struct timeval *timestamp)
 {
 	/* The receive state is expected to be inside a tone. */
-	if (receiver.state != RS_IN_TONE) {
+	if (cw_receiver.state != RS_IN_TONE) {
 		errno = ERANGE;
 		return CW_FAILURE;
 	}
 
 	/* Take a safe copy of the current end timestamp, in case we need
 	   to put it back if we decide this tone is really just noise. */
-	struct timeval saved_end_timestamp = receiver.tone_end;
+	struct timeval saved_end_timestamp = cw_receiver.tone_end;
 
 	/* Save the timestamp passed in, or get one. */
-	if (!cw_timestamp_validate_internal(&receiver.tone_end, timestamp)) {
+	if (!cw_timestamp_validate_internal(&cw_receiver.tone_end, timestamp)) {
 		return CW_FAILURE;
 	}
 
 	/* Compare the timestamps to determine the length of the tone. */
-	int element_len_usecs = cw_timestamp_compare_internal(&receiver.tone_start,
-							      &receiver.tone_end);
+	int element_len_usecs = cw_timestamp_compare_internal(&cw_receiver.tone_start,
+							      &cw_receiver.tone_end);
 
 
-	if (receiver.noise_spike_threshold > 0
-	    && element_len_usecs <= receiver.noise_spike_threshold) {
+	if (cw_receiver.noise_spike_threshold > 0
+	    && element_len_usecs <= cw_receiver.noise_spike_threshold) {
 
 		/* This pair of start()/stop() calls is just a noise,
 		   ignore it.
@@ -2538,17 +2532,17 @@ int cw_end_receive_tone(const struct timeval *timestamp)
 		   Check position in representation buffer to see in
 		   which state the receiver was *before* start()
 		   function call, and restore this state. */
-		receiver.state = receiver.representation_ind == 0 ? RS_IDLE : RS_AFTER_TONE;
+		cw_receiver.state = cw_receiver.representation_ind == 0 ? RS_IDLE : RS_AFTER_TONE;
 
 		/* Put the end tone timestamp back to how it was when we
 		   came in to the routine. */
-		receiver.tone_end = saved_end_timestamp;
+		cw_receiver.tone_end = saved_end_timestamp;
 
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
 			      "libcw: '%d [us]' tone identified as spike noise (threshold = '%d [us]')",
-			      element_len_usecs, receiver.noise_spike_threshold);
+			      element_len_usecs, cw_receiver.noise_spike_threshold);
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-			      "libcw: receive state -> %s", cw_receiver_states[receiver.state]);
+			      "libcw: receive state -> %s", cw_receiver_states[cw_receiver.state]);
 
 		errno = EAGAIN;
 		return CW_FAILURE;
@@ -2562,7 +2556,7 @@ int cw_end_receive_tone(const struct timeval *timestamp)
 	   error which we return to the caller.  Otherwise, it returns
 	   a mark (dot or dash), for us to buffer. */
 	char representation;
-	int status = cw_receiver_identify_tone_internal(&receiver, element_len_usecs, &representation);
+	int status = cw_receiver_identify_tone_internal(&cw_receiver, element_len_usecs, &representation);
 	if (!status) {
 		return CW_FAILURE;
 	}
@@ -2571,8 +2565,8 @@ int cw_end_receive_tone(const struct timeval *timestamp)
 	   received Morse speed stays up to date.  But only do this if we
 	   have set adaptive receiving; don't fiddle about trying to track
 	   for fixed speed receive. */
-	if (receiver.is_adaptive_receive_enabled) {
-		cw_receiver_update_adaptive_tracking_internal(&receiver, element_len_usecs, representation);
+	if (cw_receiver.is_adaptive_receive_enabled) {
+		cw_receiver_update_adaptive_tracking_internal(&cw_receiver, element_len_usecs, representation);
 	}
 
 	/* Update dot and dash timing statistics.  It may seem odd to do
@@ -2583,36 +2577,36 @@ int cw_end_receive_tone(const struct timeval *timestamp)
 	   observed speeds.  So by doing this here, we can at least
 	   ameliorate this effect, if not eliminate it. */
 	if (representation == CW_DOT_REPRESENTATION) {
-		cw_receiver_add_statistic_internal(&receiver, STAT_DOT, element_len_usecs);
+		cw_receiver_add_statistic_internal(&cw_receiver, STAT_DOT, element_len_usecs);
 	} else {
-		cw_receiver_add_statistic_internal(&receiver, STAT_DASH, element_len_usecs);
+		cw_receiver_add_statistic_internal(&cw_receiver, STAT_DASH, element_len_usecs);
 	}
 
 	/* Add the representation character to the receiver's buffer. */
-	receiver.representation[receiver.representation_ind++] = representation;
+	cw_receiver.representation[cw_receiver.representation_ind++] = representation;
 
 	/* We just added a representation to the receive buffer.  If it's
 	   full, then we have to do something, even though it's unlikely.
 	   What we'll do is make a unilateral declaration that if we get
 	   this far, we go to end-of-char error state automatically. */
-	if (receiver.representation_ind == CW_REC_REPRESENTATION_CAPACITY - 1) {
-		receiver.state = RS_ERR_CHAR;
+	if (cw_receiver.representation_ind == CW_REC_REPRESENTATION_CAPACITY - 1) {
+		cw_receiver.state = RS_ERR_CHAR;
 
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
 			      "libcw: receiver's representation buffer is full");
 
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-			      "libcw: receive state -> %s", cw_receiver_states[receiver.state]);
+			      "libcw: receive state -> %s", cw_receiver_states[cw_receiver.state]);
 
 		errno = ENOMEM;
 		return CW_FAILURE;
 	}
 
 	/* All is well.  Move to the more normal after-tone state. */
-	receiver.state = RS_AFTER_TONE;
+	cw_receiver.state = RS_AFTER_TONE;
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-		      "libcw: receive state -> %s", cw_receiver_states[receiver.state]);
+		      "libcw: receive state -> %s", cw_receiver_states[cw_receiver.state]);
 
 	return CW_SUCCESS;
 }
@@ -2732,7 +2726,7 @@ int cw_receiver_add_element_internal(cw_rec_t *rec, const struct timeval *timest
 */
 int cw_receive_buffer_dot(const struct timeval *timestamp)
 {
-	return cw_receiver_add_element_internal(&receiver, timestamp, CW_DOT_REPRESENTATION);
+	return cw_receiver_add_element_internal(&cw_receiver, timestamp, CW_DOT_REPRESENTATION);
 }
 
 
@@ -2751,7 +2745,7 @@ int cw_receive_buffer_dot(const struct timeval *timestamp)
 */
 int cw_receive_buffer_dash(const struct timeval *timestamp)
 {
-	return cw_receiver_add_element_internal(&receiver, timestamp, CW_DASH_REPRESENTATION);
+	return cw_receiver_add_element_internal(&cw_receiver, timestamp, CW_DASH_REPRESENTATION);
 }
 
 
@@ -2822,23 +2816,23 @@ int cw_receive_representation(const struct timeval *timestamp,
 	   so \p timestamp is uninteresting. We don't expect it to
 	   hold any useful information that could influence state of
 	   receiver or content of representation buffer. */
-	if (receiver.state == RS_END_WORD
-	    || receiver.state == RS_ERR_WORD) {
+	if (cw_receiver.state == RS_END_WORD
+	    || cw_receiver.state == RS_ERR_WORD) {
 
 		if (is_end_of_word) {
 			*is_end_of_word = true;
 		}
 		if (is_error) {
-			*is_error = (receiver.state == RS_ERR_WORD);
+			*is_error = (cw_receiver.state == RS_ERR_WORD);
 		}
 		*representation = '\0'; /* TODO: why do this? */
-		strncat(representation, receiver.representation, receiver.representation_ind);
+		strncat(representation, cw_receiver.representation, cw_receiver.representation_ind);
 		return CW_SUCCESS;
 	}
 
 
-	if (receiver.state == RS_IDLE
-	    || receiver.state == RS_IN_TONE) {
+	if (cw_receiver.state == RS_IDLE
+	    || cw_receiver.state == RS_IN_TONE) {
 
 		/* Not a good time to call this function. */
 		errno = ERANGE;
@@ -2847,11 +2841,11 @@ int cw_receive_representation(const struct timeval *timestamp,
 
 	/* Four receiver states were covered above, so we are left
 	   with these three: */
-	cw_assert (receiver.state == RS_AFTER_TONE
-		   || receiver.state == RS_END_CHAR
-		   || receiver.state == RS_ERR_CHAR,
+	cw_assert (cw_receiver.state == RS_AFTER_TONE
+		   || cw_receiver.state == RS_END_CHAR
+		   || cw_receiver.state == RS_ERR_CHAR,
 
-		   "Unknown receiver state %d", receiver.state);
+		   "Unknown receiver state %d", cw_receiver.state);
 
 	/* We now know the state is after a tone, or end-of-char,
 	   perhaps with error.  For all three of these cases, we're
@@ -2872,7 +2866,7 @@ int cw_receive_representation(const struct timeval *timestamp,
 
 	/* Now we need to compare the timestamps to determine the length
 	   of the inter-tone gap. */
-	int space_len_usecs = cw_timestamp_compare_internal(&receiver.tone_end,
+	int space_len_usecs = cw_timestamp_compare_internal(&cw_receiver.tone_end,
 							    &now_timestamp);
 
 	if (space_len_usecs == INT_MAX) {
@@ -2882,42 +2876,42 @@ int cw_receive_representation(const struct timeval *timestamp,
 	}
 
 	/* Synchronize low level timings if required */
-	cw_sync_parameters_internal(cw_generator, &receiver);
+	cw_sync_parameters_internal(cw_generator, &cw_receiver);
 
 
-	if (space_len_usecs >= receiver.eoc_range_minimum
-	    && space_len_usecs <= receiver.eoc_range_maximum) {
+	if (space_len_usecs >= cw_receiver.eoc_range_minimum
+	    && space_len_usecs <= cw_receiver.eoc_range_maximum) {
 
 		/* The space is, within tolerance, a character
 		   space. A representation of complete character is
 		   now in representation buffer, we can return the
 		   representation via parameter. */
 
-		if (receiver.state == RS_AFTER_TONE) {
+		if (cw_receiver.state == RS_AFTER_TONE) {
 			/* A character space after a tone means end of
 			   character. Update receiver state. On
 			   updating the state, update timing
 			   statistics for an identified end of
 			   character as well. */
-			cw_receiver_add_statistic_internal(&receiver, STAT_END_CHARACTER, space_len_usecs);
-			receiver.state = RS_END_CHAR;
+			cw_receiver_add_statistic_internal(&cw_receiver, STAT_END_CHARACTER, space_len_usecs);
+			cw_receiver.state = RS_END_CHAR;
 		} else {
 			/* We are already in RS_END_CHAR or
 			   RS_ERR_CHAR, so nothing to do. */
 		}
 
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-			      "libcw: receive state -> %s", cw_receiver_states[receiver.state]);
+			      "libcw: receive state -> %s", cw_receiver_states[cw_receiver.state]);
 
 		/* Return the representation from receiver's buffer. */
 		if (is_end_of_word) {
 			*is_end_of_word = false;
 		}
 		if (is_error) {
-			*is_error = (receiver.state == RS_ERR_CHAR);
+			*is_error = (cw_receiver.state == RS_ERR_CHAR);
 		}
 		*representation = '\0'; /* TODO: why do this? */
-		strncat(representation, receiver.representation, receiver.representation_ind);
+		strncat(representation, cw_receiver.representation, cw_receiver.representation_ind);
 		return CW_SUCCESS;
 	}
 
@@ -2928,25 +2922,25 @@ int cw_receive_representation(const struct timeval *timestamp,
 
 	   Any space length longer than eoc_range_maximum is, almost
 	   by definition, an "end of word" space. */
-	if (space_len_usecs > receiver.eoc_range_maximum) {
+	if (space_len_usecs > cw_receiver.eoc_range_maximum) {
 
 		/* The space is a word space. Update receiver state,
 		   remember to preserve error state (if any). */
-		receiver.state = receiver.state == RS_ERR_CHAR
+		cw_receiver.state = cw_receiver.state == RS_ERR_CHAR
 			? RS_ERR_WORD : RS_END_WORD;
 
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-			      "libcw: receive state -> %s", cw_receiver_states[receiver.state]);
+			      "libcw: receive state -> %s", cw_receiver_states[cw_receiver.state]);
 
 		/* Return the representation from receiver's buffer. */
 		if (is_end_of_word) {
 			*is_end_of_word = true;
 		}
 		if (is_error) {
-			*is_error = (receiver.state == RS_ERR_WORD);
+			*is_error = (cw_receiver.state == RS_ERR_WORD);
 		}
 		*representation = '\0'; /* TODO: why do this? */
-		strncat(representation, receiver.representation, receiver.representation_ind);
+		strncat(representation, cw_receiver.representation, cw_receiver.representation_ind);
 		return CW_SUCCESS;
 	}
 
@@ -3051,11 +3045,11 @@ int cw_receive_character(const struct timeval *timestamp,
 */
 void cw_clear_receive_buffer(void)
 {
-	receiver.representation_ind = 0;
-	receiver.state = RS_IDLE;
+	cw_receiver.representation_ind = 0;
+	cw_receiver.state = RS_IDLE;
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-		      "libcw: receive state -> %s", cw_receiver_states[receiver.state]);
+		      "libcw: receive state -> %s", cw_receiver_states[cw_receiver.state]);
 
 	return;
 }
@@ -3083,7 +3077,7 @@ int cw_get_receive_buffer_capacity(void)
 
 
 /**
-   \brief Get the number of elements (dots/dashes) currently pending in the receiver's representation buffer
+   \brief Get the number of elements (dots/dashes) currently pending in the cw_receiver's representation buffer
 
    testedin::test_helper_receive_tests()
 
@@ -3091,7 +3085,7 @@ int cw_get_receive_buffer_capacity(void)
 */
 int cw_get_receive_buffer_length(void)
 {
-	return receiver.representation_ind;
+	return cw_receiver.representation_ind;
 }
 
 
@@ -3107,13 +3101,13 @@ int cw_get_receive_buffer_length(void)
 */
 void cw_reset_receive(void)
 {
-	receiver.representation_ind = 0;
-	receiver.state = RS_IDLE;
+	cw_receiver.representation_ind = 0;
+	cw_receiver.state = RS_IDLE;
 
 	cw_reset_receive_statistics();
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-		      "libcw: receive state -> %s (reset)", cw_receiver_states[receiver.state]);
+		      "libcw: receive state -> %s (reset)", cw_receiver_states[cw_receiver.state]);
 
 	return;
 }
