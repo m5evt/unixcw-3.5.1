@@ -1,3 +1,24 @@
+2014-08-12 Kamil Ignacak
+	* libcw/utils: three more functions have been moved to
+	libcw_utils: cw_version, cw_license and cw_get_audio_system_label,
+	because, well, these functions look like utility functions.
+	* libcw/signal: I couldn't resist and I moved signal-related
+	functions from libcw.c to new module: libcw_signal. Bodies of
+	these functions have not been modified, so you can compare
+	contents of libcw_signal.c with contents of libcw.c from last
+	release to see how the move has been done.
+	* libcw/generator: I have moved some more code from libcw.c to
+	libcw_gen.c. There is still some generator-related code left in
+	libcw.c, but I promise not to touch it in this release. I think
+	that I have enough of moving code.
+
+	There is still some code left in libcw.c. Big part of this code is
+	related to receiver. The next big task in my work on libcw should
+	be understanding (or at least attempting to understand) the
+	receiver code and its relation to other modules (especially to
+	libcw_gen and libcw_key modules). Receiver code is one of last
+	areas that I haven't really tried to digest.
+
 2014-08-07 Kamil Ignacak
 	* QT4: Simplifying configuration of QT4 in configure.ac: using
 	PKG_CHECK_MODULES instead of custom shell script. Tests on Linux
