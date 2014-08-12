@@ -43,6 +43,7 @@
 #include <errno.h>
 #include <stdbool.h>
 #include <dlfcn.h> /* dlopen() and related symbols */
+#include <stdlib.h> /* strtol() */
 
 
 #if (defined(__unix__) || defined(unix)) && !defined(USG)
@@ -57,6 +58,7 @@
 #include "libcw_test.h"
 #include "libcw_debug.h"
 #include "libcw_utils.h"
+#include "copyright.h"
 
 
 
@@ -65,6 +67,98 @@
 extern cw_debug_t cw_debug_object;
 extern cw_debug_t cw_debug_object_ev;
 extern cw_debug_t cw_debug_object_dev;
+
+
+
+
+
+/* Human-readable labels of audio systems.
+   Indexed by values of "enum cw_audio_systems". */
+static const char *cw_audio_system_labels[] = {
+	"None",
+	"Null",
+	"Console",
+	"OSS",
+	"ALSA",
+	"PulseAudio",
+	"Soundcard" };
+
+
+
+
+
+/**
+   \brief Return version number of libcw library
+
+   Return the version number of the library.
+   Version numbers (major and minor) are returned as an int,
+   composed of major_version << 16 | minor_version.
+
+   testedin::test_cw_version()
+
+   \return library's major and minor version number encoded as single int
+*/
+int cw_version(void)
+{
+	char *endptr = NULL;
+
+	/* LIBCW_VERSION: "current:revision:age", libtool notation. */
+	long int current = strtol(LIBCW_VERSION, &endptr, 10);
+	long int revision = strtol(endptr + 1, &endptr, 10);
+	__attribute__((unused)) long int age = strtol(endptr + 1, &endptr, 10);
+
+	// fprintf(stderr, "current:revision:age: %ld:%ld:%ld\n", current, revision, age);
+
+	/* TODO: Return all three parts of library version. */
+	return ((int) current) << 16 | ((int) revision);
+}
+
+
+
+
+
+/**
+   \brief Print libcw's license text to stdout
+
+   testedin::test_cw_license()
+
+   Function prints information about libcw version, followed
+   by short text presenting libcw's copyright and license notice.
+*/
+void cw_license(void)
+{
+	int version = cw_version();
+	int current = version >> 16;
+	int revision = version & 0xff;
+
+	printf("libcw version %d.%d\n", current, revision);
+	printf("%s\n", CW_COPYRIGHT);
+
+	return;
+}
+
+
+
+
+
+/**
+   \brief Get a readable label of given audio system
+
+   The function returns one of following strings:
+   None, Null, Console, OSS, ALSA, PulseAudio, Soundcard
+
+   Returned pointer is owned and managed by the library.
+
+   TODO: change the declaration to "const char *const cw_get_audio_system_label(...)"?
+
+   \param audio_system - ID of audio system
+
+   \return audio system's label
+*/
+const char *cw_get_audio_system_label(int audio_system)
+{
+	return cw_audio_system_labels[audio_system];
+}
 
 
 
