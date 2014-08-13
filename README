@@ -66,12 +66,18 @@ cwutils/dictionary.h.
 Version 3.3.1 is just one fix in libcw. Thanks to Pino Zollo ZP4KFX
 for reporting a bug and testing solution.
 
+Version 3.4.0 contains two changes in source code:
+ - refreshment of cwcp code;
+ - splitting libcw.c into parts.
+Additionally the build system has been updated to correctly build the
+software on FreeBSD 10 (with clang 3.3).
+
 See NEWS file for more detailed log of changes.
 
 
 
-The heart of the package is 'libcw'.  This is a library which, when built,
-offers the following basic CW services to a caller program:
+The heart of the package is 'libcw'.  This is a library which offers
+the following basic CW services to a caller program:
 
   o Morse code character translation tables, and lookup functions
   o Morse code low-level timing calculations
@@ -86,8 +92,8 @@ offers the following basic CW services to a caller program:
   o Straight key emulation
 
 
-Relationship between version of unixcw package, and version of libcw
-is following:
+Relationship between version of unixcw package and version of libcw is
+following:
 
     unixcw      libcw
     3.0         3.0.0
@@ -98,6 +104,7 @@ is following:
     3.2.0       5.0.0
     3.3.0       6.0.1
     3.3.1       6.1.1
+    3.4.0       6.2.1
 
 The library uses signals and threads to create a background task in
 which it performs the majority of its work, leaving the main program
