@@ -69,7 +69,6 @@ extern cw_debug_t cw_debug_object_dev;
 
 
 extern const unsigned int cw_supported_sample_rates[];
-extern const char *cw_audio_system_labels[];
 extern const char *default_audio_devices[];
 
 
