@@ -35,16 +35,24 @@ EXTRA_DIST=include.awk libdoc.awk libfuncs.awk libpc.awk libsigs.awk \
 	libcw_internal.h \
 	libcw_test.h
 
+# These files are used to build two different targets - list them only
+# once. I can't compile these files into an utility library because
+# the two targets are compiled with different CPPFLAGS.
+LIBCW_BASE_C_FILES = libcw.c \
+	libcw_gen.c libcw_tq.c libcw_key.c \
+	libcw_null.c libcw_console.c libcw_oss.c libcw_alsa.c libcw_pa.c \
+	libcw_debug.c libcw_signal.c libcw_data.c libcw_utils.c
+
+
 
 
 
 # target: shared library
 
 # source code files used to build libcw shared library
-libcw_la_SOURCES = libcw.c libcw_signal.c libcw_tq.c libcw_data.c libcw_key.c libcw_utils.c libcw_gen.c libcw_null.c libcw_console.c libcw_pa.c libcw_oss.c libcw_alsa.c libcw_debug.c
+libcw_la_SOURCES = $(LIBCW_BASE_C_FILES)
 
 # target-specific linker flags (objects to link)
-# libcw_la_LIBADD=-lm -lpthread $(AC_ALSA_LIBS)  $(AC_PULSEAUDIO_LIBS)
 libcw_la_LIBADD=-lm -lpthread $(DL_LIB)
 
 # target-specific linker flags (additional flags)
@@ -66,9 +74,9 @@ libcw_include_HEADERS = libcw.h libcw_debug.h
 # main() is defined in libcw_test_public.c
 # Source code files used to build libcw_test_public program.
 # This test tests library's public API, so the target should depend on
-# a regular library file. It shouldn't compile all *.c files that are
-# used to create library, it should compile only test files and "link"
-# them with regular library file.
+# a regular shared library file found in build directory. It shouldn't
+# compile all *.c files that are used to create library, it should
+# compile only test files and "link" them with this library file.
 libcw_test_public_SOURCES = libcw_test_public.c libcw_test.c
 
 # target-specific linker flags (objects to link)
@@ -83,7 +91,7 @@ libcw_test_public_LDADD = -L./.libs -lcw
 # main() is defined in libcw_test_internal.c.
 
 # source code files used to build libcw_test_internal program
-libcw_test_internal_SOURCES = libcw.c libcw_signal.c libcw_tq.c libcw_data.c libcw_key.c libcw_utils.c libcw_gen.c libcw_test_internal.c libcw_null.c libcw_console.c libcw_pa.c libcw_oss.c libcw_alsa.c libcw_debug.c
+libcw_test_internal_SOURCES = $(LIBCW_BASE_C_FILES) libcw_test_internal.c
 
 # target-specific preprocessor flags (#defs and include dirs)
 libcw_test_internal_CPPFLAGS = $(AM_CPPFLAGS) -DLIBCW_UNIT_TESTS
