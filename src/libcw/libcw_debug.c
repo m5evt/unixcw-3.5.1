@@ -47,10 +47,11 @@
 #include "libcw.h"
 #include "libcw_debug.h"
 #include "libcw_gen.h"
+#include "libcw_utils.h"
 
 
 
-extern const char *cw_audio_system_labels[];
+
 
 struct {
 	int flag;
@@ -263,7 +264,7 @@ bool cw_debug_has_flag(cw_debug_t *debug_object, uint32_t flag)
 
 void cw_dev_debug_print_generator_setup(cw_gen_t *gen)
 {
-	fprintf(stderr, "audio system:         %s\n",     cw_audio_system_labels[gen->audio_system]);
+	fprintf(stderr, "audio system:         %s\n",     cw_get_audio_system_label(gen->audio_system));
 	if (gen->audio_system == CW_AUDIO_OSS) {
 		fprintf(stderr, "OSS version           %X.%X.%X\n",
 			gen->oss_version.x, gen->oss_version.y, gen->oss_version.z);
