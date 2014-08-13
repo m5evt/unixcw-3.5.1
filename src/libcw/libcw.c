@@ -1290,16 +1290,16 @@ void cw_complete_reset(void)
 	cw_finalization_cancel_internal();
 	cw_is_finalization_locked_out = true;
 
-	/* Silence sound, and shutdown use of the sound devices. */
-	//cw_sound_soundcard_internal (0);
-	cw_gen_release_internal(&cw_generator);
-	cw_sigalrm_restore_internal();
+	cw_gen_stop_internal(cw_generator);
 
 	/* Call the reset functions for each subsystem. */
 	cw_reset_tone_queue();
 	cw_reset_receive();
 	cw_reset_keyer();
 	cw_reset_straight_key();
+
+	cw_gen_delete_internal(&cw_generator);
+	cw_sigalrm_restore_internal();
 
 	/* Now we can re-enable delayed finalizations. */
 	cw_is_finalization_locked_out = false;
