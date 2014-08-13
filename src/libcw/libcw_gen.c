@@ -139,9 +139,7 @@ static const char *default_audio_devices[] = {
 
 
 static cw_gen_t *cw_gen_new_internal(int audio_system, const char *device);
-static void      cw_gen_delete_internal(cw_gen_t **gen);
 static int       cw_gen_start_internal(cw_gen_t *gen);
-static void      cw_gen_stop_internal(cw_gen_t *gen);
 static int       cw_gen_new_open_internal(cw_gen_t *gen, int audio_system, const char *device);
 static void     *cw_gen_dequeue_and_play_internal(void *arg);
 static int       cw_gen_calculate_sine_wave_internal(cw_gen_t *gen, cw_tone_t *tone);
@@ -349,6 +347,9 @@ const char *cw_get_soundcard_device(void)
 
 
 
+#if 0
+/* Not really needed. We may need to first stop generator, then do
+   something else, and only then delete generator. */
 /**
    \brief Stop and delete generator
 
@@ -364,6 +365,7 @@ int cw_gen_release_internal(cw_gen_t **gen)
 
 	return CW_SUCCESS;
 }
+#endif
 
 
 
