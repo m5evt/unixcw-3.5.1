@@ -291,6 +291,8 @@ int cw_console_write_low_level_internal(cw_gen_t *gen, bool state)
 		local_state = state;
 	}
 
+	/* TODO: take a look at KDMKTONE ioctl argument. */
+
 	/* Calculate the correct argument for KIOCSOUND.  There's nothing we
 	   can do to control the volume, but if we find the volume is set to
 	   zero, the one thing we can do is to just turn off tones.  A bit
