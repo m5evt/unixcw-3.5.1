@@ -1,3 +1,9 @@
+unixcw (3.4.0-1) unstable; urgency=low
+
+  * New upstream release.
+
+ -- Kamil Ignacak <acerion@wp.pl>  Thu, 14 Aug 2014 22:30:45 +0100
+
 unixcw (3.3.1-1) unstable; urgency=low
 
   * New upstream release fixes some problems in libcw library
