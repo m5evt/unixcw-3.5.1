@@ -515,13 +515,11 @@ PKG_CONFIG_PATH = @PKG_CONFIG_PATH@
 QT4_CFLAGS = @QT4_CFLAGS@
 QT4_LIBS = @QT4_LIBS@
 RANLIB = @RANLIB@
-RCC = @RCC@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 SRC_SUBDIRS = @SRC_SUBDIRS@
 STRIP = @STRIP@
-UIC = @UIC@
 VERSION = @VERSION@
 abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
@@ -1664,8 +1662,8 @@ uninstall-man: uninstall-man3 uninstall-man7
 
 # target: libcw man page
 libcw.3: libcw.3.m4 libcw.c
-	$(AC_AWK) -f $(top_srcdir)/src/libcw/libdoc.awk  < $(top_srcdir)/src/libcw/libcw.c | $(AC_AWK) -f $(top_srcdir)/src/libcw/libsigs.awk  > signatures
-	$(AC_AWK) -f $(top_srcdir)/src/libcw/libdoc.awk  < $(top_srcdir)/src/libcw/libcw.c | $(AC_AWK) -f $(top_srcdir)/src/libcw/libfuncs.awk > functions
+	cat $(top_srcdir)/src/libcw/*.c | $(AC_AWK) -f $(top_srcdir)/src/libcw/libdoc.awk | $(AC_AWK) -f $(top_srcdir)/src/libcw/libsigs.awk  > signatures
+	cat $(top_srcdir)/src/libcw/*.c | $(AC_AWK) -f $(top_srcdir)/src/libcw/libdoc.awk | $(AC_AWK) -f $(top_srcdir)/src/libcw/libfuncs.awk > functions
 	$(AC_AWK) -f $(top_srcdir)/src/libcw/include.awk < $(top_srcdir)/src/libcw/libcw.3.m4 >libcw.3
 	rm -f signatures functions
 libcw_test_internal.sh:

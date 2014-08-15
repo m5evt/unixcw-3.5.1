@@ -303,13 +303,11 @@ PKG_CONFIG_PATH = @PKG_CONFIG_PATH@
 QT4_CFLAGS = @QT4_CFLAGS@
 QT4_LIBS = @QT4_LIBS@
 RANLIB = @RANLIB@
-RCC = @RCC@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 SRC_SUBDIRS = @SRC_SUBDIRS@
 STRIP = @STRIP@
-UIC = @UIC@
 VERSION = @VERSION@
 abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
@@ -879,8 +877,11 @@ uninstall-man: uninstall-man1
 -include $(top_builddir)/Makefile.inc
 
 # Qt4 magic
+# Previously the invocation of moc was: "$(AC_QT4_MOC) $< -o $@", but
+# because of failed build on FreeBSD I decided to replace the "$<" and
+# "$@" symbols with file names.
 moc_application.cc: application.h
-	$(AC_QT4_MOC) $< -o $@
+	$(AC_QT4_MOC) application.h -o moc_application.cc
 
 # Test targets.
 # This test target will be invoked when creating deb package.
