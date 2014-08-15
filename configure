@@ -639,8 +639,6 @@ SRC_SUBDIRS
 LIBOBJS
 LIBCW_WITH_DEV_FALSE
 LIBCW_WITH_DEV_TRUE
-UIC
-RCC
 MOC
 QT4_LIBS
 QT4_CFLAGS
@@ -17115,93 +17113,8 @@ fi
 done
 test -n "$MOC" || MOC="moc"
 
-			   # Extract the first word of "rcc", so it can be a program name with args.
-set dummy rcc; ac_word=$2
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
-$as_echo_n "checking for $ac_word... " >&6; }
-if ${ac_cv_path_RCC+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  case $RCC in
-  [\\/]* | ?:[\\/]*)
-  ac_cv_path_RCC="$RCC" # Let the user override the test with a path.
-  ;;
-  *)
-  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
-for as_dir in `eval $PKG_CONFIG --variable=exec_prefix QtCore`/bin
-do
-  IFS=$as_save_IFS
-  test -z "$as_dir" && as_dir=.
-    for ac_exec_ext in '' $ac_executable_extensions; do
-  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
-    ac_cv_path_RCC="$as_dir/$ac_word$ac_exec_ext"
-    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
-    break 2
-  fi
-done
-  done
-IFS=$as_save_IFS
-
-  test -z "$ac_cv_path_RCC" && ac_cv_path_RCC="rcc"
-  ;;
-esac
-fi
-RCC=$ac_cv_path_RCC
-if test -n "$RCC"; then
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $RCC" >&5
-$as_echo "$RCC" >&6; }
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-fi
-
-
-			   for ac_prog in uic-qt4 uic
-do
-  # Extract the first word of "$ac_prog", so it can be a program name with args.
-set dummy $ac_prog; ac_word=$2
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
-$as_echo_n "checking for $ac_word... " >&6; }
-if ${ac_cv_path_UIC+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  case $UIC in
-  [\\/]* | ?:[\\/]*)
-  ac_cv_path_UIC="$UIC" # Let the user override the test with a path.
-  ;;
-  *)
-  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
-for as_dir in `eval $PKG_CONFIG --variable=exec_prefix QtCore`/bin
-do
-  IFS=$as_save_IFS
-  test -z "$as_dir" && as_dir=.
-    for ac_exec_ext in '' $ac_executable_extensions; do
-  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
-    ac_cv_path_UIC="$as_dir/$ac_word$ac_exec_ext"
-    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
-    break 2
-  fi
-done
-  done
-IFS=$as_save_IFS
-
-  ;;
-esac
-fi
-UIC=$ac_cv_path_UIC
-if test -n "$UIC"; then
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $UIC" >&5
-$as_echo "$UIC" >&6; }
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-fi
-
-
-  test -n "$UIC" && break
-done
-test -n "$UIC" || UIC="uic"
-
+			   #AC_PATH_PROG(RCC, rcc, rcc,`eval $PKG_CONFIG --variable=exec_prefix QtCore`/bin)
+			   #AC_PATH_PROGS(UIC, [uic-qt4 uic], uic,`eval $PKG_CONFIG --variable=exec_prefix QtCore`/bin)
 
 			   { $as_echo "$as_me:${as_lineno-$LINENO}: result: QT4 CLFAGS is $QT4_CFLAGS" >&5
 $as_echo "QT4 CLFAGS is $QT4_CFLAGS" >&6; }
@@ -17249,7 +17162,7 @@ LIBS=
 
 
 
-# Checks for header files, and refuse to go on if no KIOCSOUND is available.
+# Checks for header files
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for ANSI C header files" >&5
 $as_echo_n "checking for ANSI C header files... " >&6; }
 if ${ac_cv_header_stdc+:} false; then :
@@ -17362,55 +17275,6 @@ $as_echo "#define STDC_HEADERS 1" >>confdefs.h
 
 fi
 
-for ac_header in fcntl.h limits.h stdlib.h string.h strings.h sys/ioctl.h \
-                  sys/param.h sys/time.h unistd.h locale.h libintl.h
-do :
-  as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
-ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
-if eval test \"x\$"$as_ac_Header"\" = x"yes"; then :
-  cat >>confdefs.h <<_ACEOF
-#define `$as_echo "HAVE_$ac_header" | $as_tr_cpp` 1
-_ACEOF
-
-fi
-
-done
-
-
-
-
-for ac_header in getopt.h
-do :
-  ac_fn_c_check_header_mongrel "$LINENO" "getopt.h" "ac_cv_header_getopt_h" "$ac_includes_default"
-if test "x$ac_cv_header_getopt_h" = xyes; then :
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_GETOPT_H 1
-_ACEOF
-
-fi
-
-done
-
-for ac_header in string.h strings.h
-do :
-  as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
-ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
-if eval test \"x\$"$as_ac_Header"\" = x"yes"; then :
-  cat >>confdefs.h <<_ACEOF
-#define `$as_echo "HAVE_$ac_header" | $as_tr_cpp` 1
-_ACEOF
-
-fi
-
-done
-
-if test "$ac_cv_header_string_h" = 'no' \
-    && test "$ac_cv_header_strings_h" = 'no' ; then
-  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Cannot find either string.h or strings.h" >&5
-$as_echo "$as_me: WARNING: Cannot find either string.h or strings.h" >&2;}
-fi
-
-# Checks for typedefs, structures, and compiler characteristics.
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for stdbool.h that conforms to C99" >&5
 $as_echo_n "checking for stdbool.h that conforms to C99... " >&6; }
 if ${ac_cv_header_stdbool_h+:} false; then :
@@ -17504,6 +17368,87 @@ $as_echo "#define HAVE_STDBOOL_H 1" >>confdefs.h
 
 fi
 
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether time.h and sys/time.h may both be included" >&5
+$as_echo_n "checking whether time.h and sys/time.h may both be included... " >&6; }
+if ${ac_cv_header_time+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <sys/types.h>
+#include <sys/time.h>
+#include <time.h>
+
+int
+main ()
+{
+if ((struct tm *) 0)
+return 0;
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  ac_cv_header_time=yes
+else
+  ac_cv_header_time=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_header_time" >&5
+$as_echo "$ac_cv_header_time" >&6; }
+if test $ac_cv_header_time = yes; then
+
+$as_echo "#define TIME_WITH_SYS_TIME 1" >>confdefs.h
+
+fi
+
+for ac_header in fcntl.h limits.h stdlib.h string.h strings.h sys/ioctl.h \
+                  sys/param.h sys/time.h unistd.h locale.h libintl.h
+do :
+  as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
+ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
+if eval test \"x\$"$as_ac_Header"\" = x"yes"; then :
+  cat >>confdefs.h <<_ACEOF
+#define `$as_echo "HAVE_$ac_header" | $as_tr_cpp` 1
+_ACEOF
+
+fi
+
+done
+
+for ac_header in getopt.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "getopt.h" "ac_cv_header_getopt_h" "$ac_includes_default"
+if test "x$ac_cv_header_getopt_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_GETOPT_H 1
+_ACEOF
+
+fi
+
+done
+
+for ac_header in string.h strings.h
+do :
+  as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
+ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
+if eval test \"x\$"$as_ac_Header"\" = x"yes"; then :
+  cat >>confdefs.h <<_ACEOF
+#define `$as_echo "HAVE_$ac_header" | $as_tr_cpp` 1
+_ACEOF
+
+fi
+
+done
+
+if test "$ac_cv_header_string_h" = 'no' \
+    && test "$ac_cv_header_strings_h" = 'no' ; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Cannot find either string.h or strings.h" >&5
+$as_echo "$as_me: WARNING: Cannot find either string.h or strings.h" >&2;}
+fi
+
+# Checks for typedefs, structures, and compiler characteristics.
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for an ANSI C-conforming const" >&5
 $as_echo_n "checking for an ANSI C-conforming const... " >&6; }
 if ${ac_cv_c_const+:} false; then :
@@ -17596,41 +17541,6 @@ _ACEOF
 
 fi
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether time.h and sys/time.h may both be included" >&5
-$as_echo_n "checking whether time.h and sys/time.h may both be included... " >&6; }
-if ${ac_cv_header_time+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-#include <sys/types.h>
-#include <sys/time.h>
-#include <time.h>
-
-int
-main ()
-{
-if ((struct tm *) 0)
-return 0;
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-  ac_cv_header_time=yes
-else
-  ac_cv_header_time=no
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_header_time" >&5
-$as_echo "$ac_cv_header_time" >&6; }
-if test $ac_cv_header_time = yes; then
-
-$as_echo "#define TIME_WITH_SYS_TIME 1" >>confdefs.h
-
-fi
-
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for working volatile" >&5
 $as_echo_n "checking for working volatile... " >&6; }
 if ${ac_cv_c_volatile+:} false; then :
@@ -17665,8 +17575,6 @@ $as_echo "#define volatile /**/" >>confdefs.h
 
 fi
 
-
-# Checks for library functions.
 if test $ac_cv_c_compiler_gnu = yes; then
     { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether $CC needs -traditional" >&5
 $as_echo_n "checking whether $CC needs -traditional... " >&6; }
@@ -17709,6 +17617,8 @@ $as_echo "$ac_cv_prog_gcc_traditional" >&6; }
   fi
 fi
 
+
+# Checks for library functions.
 for ac_header in stdlib.h
 do :
   ac_fn_c_check_header_mongrel "$LINENO" "stdlib.h" "ac_cv_header_stdlib_h" "$ac_includes_default"
@@ -18180,42 +18090,7 @@ fi
 
 
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: ----------------------------------------------------" >&5
-$as_echo "$as_me: ----------------------------------------------------" >&6;}
-{ $as_echo "$as_me:${as_lineno-$LINENO}: ------------ unixcw build configuration ------------" >&5
-$as_echo "$as_me: ------------ unixcw build configuration ------------" >&6;}
-{ $as_echo "$as_me:${as_lineno-$LINENO}: operating system:  ............................  $host_os" >&5
-$as_echo "$as_me: operating system:  ............................  $host_os" >&6;}
-{ $as_echo "$as_me:${as_lineno-$LINENO}: build libcw:  .................................  yes" >&5
-$as_echo "$as_me: build libcw:  .................................  yes" >&6;}
-{ $as_echo "$as_me:${as_lineno-$LINENO}: build cw & cwgen:  ............................  yes" >&5
-$as_echo "$as_me: build cw & cwgen:  ............................  yes" >&6;}
-{ $as_echo "$as_me:${as_lineno-$LINENO}: build cwcp:  ..................................  $WITH_CWCP" >&5
-$as_echo "$as_me: build cwcp:  ..................................  $WITH_CWCP" >&6;}
-{ $as_echo "$as_me:${as_lineno-$LINENO}: build xcwcp:  .................................  $WITH_XCWCP" >&5
-$as_echo "$as_me: build xcwcp:  .................................  $WITH_XCWCP" >&6;}
-if test "$WITH_XCWCP" = 'yes' ; then
-    { $as_echo "$as_me:${as_lineno-$LINENO}:     Qt4 CFLAGS is $QT4_CFLAGS" >&5
-$as_echo "$as_me:     Qt4 CFLAGS is $QT4_CFLAGS" >&6;}
-    { $as_echo "$as_me:${as_lineno-$LINENO}:     Qt4 LIBS is $QT4_LIBS" >&5
-$as_echo "$as_me:     Qt4 LIBS is $QT4_LIBS" >&6;}
-    { $as_echo "$as_me:${as_lineno-$LINENO}:     Qt4 MOC is $MOC" >&5
-$as_echo "$as_me:     Qt4 MOC is $MOC" >&6;}
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: include console buzzer support:  ..............  $WITH_CONSOLE" >&5
-$as_echo "$as_me: include console buzzer support:  ..............  $WITH_CONSOLE" >&6;}
-{ $as_echo "$as_me:${as_lineno-$LINENO}: include OSS support:  .........................  $WITH_OSS" >&5
-$as_echo "$as_me: include OSS support:  .........................  $WITH_OSS" >&6;}
-{ $as_echo "$as_me:${as_lineno-$LINENO}: include ALSA support:  ........................  $WITH_ALSA" >&5
-$as_echo "$as_me: include ALSA support:  ........................  $WITH_ALSA" >&6;}
-{ $as_echo "$as_me:${as_lineno-$LINENO}: include PulseAudio support:  ..................  $WITH_PULSEAUDIO" >&5
-$as_echo "$as_me: include PulseAudio support:  ..................  $WITH_PULSEAUDIO" >&6;}
-if test "$WITH_DEV" = 'yes' ; then
-   { $as_echo "$as_me:${as_lineno-$LINENO}: enable dev support: ...........................  yes" >&5
-$as_echo "$as_me: enable dev support: ...........................  yes" >&6;}
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: ----------------------------------------------------" >&5
-$as_echo "$as_me: ----------------------------------------------------" >&6;}
+
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -20865,3 +20740,45 @@ if test -n "$ac_unrecognized_opts" && test "$enable_option_checking" != no; then
 $as_echo "$as_me: WARNING: unrecognized options: $ac_unrecognized_opts" >&2;}
 fi
 
+
+
+
+
+# Put this at the very end, so that these are the last lines seen by
+# user on console with low number of rows.
+{ $as_echo "$as_me:${as_lineno-$LINENO}: ----------------------------------------------------" >&5
+$as_echo "$as_me: ----------------------------------------------------" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}: ------------ unixcw build configuration ------------" >&5
+$as_echo "$as_me: ------------ unixcw build configuration ------------" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}: operating system:  ............................  $host_os" >&5
+$as_echo "$as_me: operating system:  ............................  $host_os" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}: build libcw:  .................................  yes" >&5
+$as_echo "$as_me: build libcw:  .................................  yes" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}: build cw & cwgen:  ............................  yes" >&5
+$as_echo "$as_me: build cw & cwgen:  ............................  yes" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}: build cwcp:  ..................................  $WITH_CWCP" >&5
+$as_echo "$as_me: build cwcp:  ..................................  $WITH_CWCP" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}: build xcwcp:  .................................  $WITH_XCWCP" >&5
+$as_echo "$as_me: build xcwcp:  .................................  $WITH_XCWCP" >&6;}
+if test "$WITH_XCWCP" = 'yes' ; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}:     Qt4 CFLAGS is $QT4_CFLAGS" >&5
+$as_echo "$as_me:     Qt4 CFLAGS is $QT4_CFLAGS" >&6;}
+    { $as_echo "$as_me:${as_lineno-$LINENO}:     Qt4 LIBS is $QT4_LIBS" >&5
+$as_echo "$as_me:     Qt4 LIBS is $QT4_LIBS" >&6;}
+    { $as_echo "$as_me:${as_lineno-$LINENO}:     Qt4 MOC is $MOC" >&5
+$as_echo "$as_me:     Qt4 MOC is $MOC" >&6;}
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: include console buzzer support:  ..............  $WITH_CONSOLE" >&5
+$as_echo "$as_me: include console buzzer support:  ..............  $WITH_CONSOLE" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}: include OSS support:  .........................  $WITH_OSS" >&5
+$as_echo "$as_me: include OSS support:  .........................  $WITH_OSS" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}: include ALSA support:  ........................  $WITH_ALSA" >&5
+$as_echo "$as_me: include ALSA support:  ........................  $WITH_ALSA" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}: include PulseAudio support:  ..................  $WITH_PULSEAUDIO" >&5
+$as_echo "$as_me: include PulseAudio support:  ..................  $WITH_PULSEAUDIO" >&6;}
+if test "$WITH_DEV" = 'yes' ; then
+   { $as_echo "$as_me:${as_lineno-$LINENO}: enable dev support: ...........................  yes" >&5
+$as_echo "$as_me: enable dev support: ...........................  yes" >&6;}
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: ----------------------------------------------------" >&5
+$as_echo "$as_me: ----------------------------------------------------" >&6;}
