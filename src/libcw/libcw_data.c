@@ -1116,7 +1116,7 @@ static const char *const CW_PHONETICS[27] = {
    testedin::test_phonetic_lookups()
 
    \return the string length of the longest phonetic in the phonetics lookup table
- */
+*/
 int cw_get_maximum_phonetic_length(void)
 {
 	static size_t maximum_length = 0;
