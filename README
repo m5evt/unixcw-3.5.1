@@ -69,8 +69,8 @@ for reporting a bug and testing solution.
 Version 3.4.0 contains two changes in source code:
  - refreshment of cwcp code;
  - splitting libcw.c into parts.
-Additionally the build system has been updated to correctly build the
-software on FreeBSD 10 (with clang 3.3).
+Additionally the build system has been updated to correctly build
+unixcw on FreeBSD 10 (x86_64-unknown-freebsd10.0, with clang 3.3).
 
 See NEWS file for more detailed log of changes.
 
