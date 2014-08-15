@@ -57,9 +57,18 @@ CLEANFILES = moc_application.cc
 
 
 
+
+
 # Qt4 magic
+# Previously the invocation of moc was: "$(AC_QT4_MOC) $< -o $@", but
+# because of failed build on FreeBSD I decided to replace the "$<" and
+# "$@" symbols with file names.
 moc_application.cc: application.h
-	$(AC_QT4_MOC) $< -o $@
+	$(AC_QT4_MOC) application.h -o moc_application.cc
+
+
+
+
 
 # Test targets.
 # This test target will be invoked when creating deb package.
