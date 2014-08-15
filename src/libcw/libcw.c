@@ -1335,7 +1335,7 @@ void cw_complete_reset(void)
 
    \return CW_FAILURE on failure
    \return CW_SUCCESS on success
- */
+*/
 int cw_send_element_internal(cw_gen_t *gen, char element)
 {
 	int status;
@@ -2240,7 +2240,7 @@ bool cw_get_adaptive_receive_state(void)
 
    \return CW_SUCCESS on success
    \return CW_FAILURE otherwise (with errno set)
- */
+*/
 int cw_start_receive_tone(const struct timeval *timestamp)
 {
 	/* If the receive state is not idle or after a tone, this is
@@ -2635,7 +2635,7 @@ int cw_end_receive_tone(const struct timeval *timestamp)
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
- */
+*/
 int cw_receiver_add_element_internal(cw_rec_t *rec, const struct timeval *timestamp, char element)
 {
 	/* The receiver's state is expected to be idle or after a tone in
