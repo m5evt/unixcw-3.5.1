@@ -53,6 +53,8 @@ BEGIN {
 function handle_global_space()
 {
 	do {
+		# print "GLO" $0 > "/dev/stderr"
+
 		if ($0 ~ /^static /) {
 			# potentially a static function declaration
 			start = match($0, /[a-zA-Z0-9_\* ]+ \**([a-zA-Z0-9_]+)\(/);
@@ -64,8 +66,13 @@ function handle_global_space()
 			}
 		}
 	} while ($0 !~ /^\/\*\*/ && getline)
+	# print "GLO LEAVING" > "/dev/stderr"
 
-	# caught beginning of documentation block (or end of file)
+	# Caught beginning of documentation block (or end of file).
+	#
+	# Beware, line starting with "/**" may be function's top level
+	# comment (documentation block), but it may also be a file's
+	# Doxygen top level comment.
 
 	output_line = 0;
 }
@@ -94,6 +101,16 @@ function handle_function_specification()
 		len = RLENGTH
 		name = substr($0, start, len);
 		# print name > "/dev/stderr"
+	} else {
+		# This is not a function specification.
+		delete_documentation(output_line - 1)
+		output_line = 0
+
+		while ($0 == "" && getline) {
+			# read and discard
+		}
+
+		return 0
 	}
 
 
@@ -107,6 +124,9 @@ function handle_function_specification()
 		while ($0 !~ /\)$/ && getline) {
 			# read and discard
 		}
+
+		return 0
+
 	} else if (name ~ /_internal\(/) {
 		# Internal function, don't allow passing it
 		# to documentation of public API.
@@ -116,12 +136,41 @@ function handle_function_specification()
 		while ($0 !~ /\)$/ && getline) {
 			# read and discard
 		}
+
+		return 0
+
+	} else if (name ~ /test_/) {
+		# Internal function, don't allow passing it
+		# to documentation of public API.
+		delete_documentation(output_line - 1)
+		output_line = 0
+
+		while ($0 !~ /\)$/ && getline) {
+			# read and discard
+		}
+
+		return 0
+
+	} else if (name ~ /main\(/) {
+		# Internal function, don't allow passing it
+		# to documentation of public API.
+		delete_documentation(output_line - 1)
+		output_line = 0
+
+		while ($0 !~ /\)$/ && getline) {
+			# read and discard
+		}
+
+		return 0
+
 	} else {
 		# read and save function's specification
 		# (possibly multi-line)
 		do {
 			output[output_line++] = FUNCTION_TAG" "$0
 		} while ($0 !~ /\)$/ && getline)
+
+		return 1
 	}
 }
 
@@ -131,7 +180,8 @@ function handle_function_specification()
 
 function handle_function_documentation()
 {
-	while ($0 !~ /^ *\*\//) {
+	while ($0 !~ /^\*\/$/) {
+		# print "DOC" $0 > "/dev/stderr"
 		# Some documentation texts still have " * " at the
 		# beginning sub (/^ \* /," *")
 		sub(/^ \* */,"")
@@ -165,6 +215,8 @@ function handle_function_documentation()
 		output[output_line++] = DOCUMENTATION_TAG" "$0
 		getline
 	}
+
+	# print "DOC LEAVING" > "/dev/stderr"
 }
 
 
@@ -243,9 +295,14 @@ function print_documentation_and_specification()
 
 	# Process function specification line(s), stopping on ')$'.
 	if (state == FUNCTION_SPECIFICATION) {
-		handle_function_specification()
-		state = FUNCTION_BODY
-		next
+		if (handle_function_specification() == 1) {
+			# print "GOING FUN BODY" > "/dev/stderr"
+			state = FUNCTION_BODY
+			next
+		} else {
+			# print "GOING IDLE" > "/dev/stderr"
+			state = IDLE
+		}
 	}
 
 
