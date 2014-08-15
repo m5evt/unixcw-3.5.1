@@ -247,6 +247,9 @@ int cw_generator_start(void)
 
 
 
+/**
+   \brief Start a generator
+*/
 int cw_gen_start_internal(cw_gen_t *gen)
 {
 	gen->phase_offset = 0.0;
@@ -486,6 +489,9 @@ int cw_gen_silence_internal(cw_gen_t *gen)
 
 
 
+/**
+   \brief Create new generator
+*/
 cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 {
 #ifdef LIBCW_WITH_DEV
@@ -608,6 +614,9 @@ cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 
 
 
+/**
+   \brief Delete a generator
+*/
 void cw_gen_delete_internal(cw_gen_t **gen)
 {
 	cw_assert (gen, "\"gen\" argument can't be NULL\n");
@@ -664,6 +673,9 @@ void cw_gen_delete_internal(cw_gen_t **gen)
 
 
 
+/**
+   \brief Stop a generator
+*/
 void cw_gen_stop_internal(cw_gen_t *gen)
 {
 	if (!gen) {
@@ -1340,6 +1352,9 @@ int cw_generator_set_tone_slope(cw_gen_t *gen, int slope_shape, int slope_usecs)
 
 
 
+/**
+   \brief Write tone to soundcard
+*/
 int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, int queue_state, cw_tone_t *tone)
 {
 	assert (queue_state != CW_TQ_STILL_EMPTY);
