@@ -340,8 +340,8 @@ else
     # http://stackoverflow.com/questions/5178511/integrate-qt-project-with-autotool
     PKG_CHECK_MODULES(QT4, [QtCore QtGui >= 4.4.0], [
 			   AC_PATH_PROGS(MOC, [moc-qt4 moc], moc,`eval $PKG_CONFIG --variable=exec_prefix QtCore`/bin)
-			   AC_PATH_PROG(RCC, rcc, rcc,`eval $PKG_CONFIG --variable=exec_prefix QtCore`/bin)
-			   AC_PATH_PROGS(UIC, [uic-qt4 uic], uic,`eval $PKG_CONFIG --variable=exec_prefix QtCore`/bin)
+			   #AC_PATH_PROG(RCC, rcc, rcc,`eval $PKG_CONFIG --variable=exec_prefix QtCore`/bin)
+			   #AC_PATH_PROGS(UIC, [uic-qt4 uic], uic,`eval $PKG_CONFIG --variable=exec_prefix QtCore`/bin)
 
 			   AC_MSG_RESULT([QT4 CLFAGS is $QT4_CFLAGS])
 			   AC_MSG_RESULT([QT4 LIBS is $QT4_LIBS])
@@ -383,13 +383,12 @@ LIBS=
 
 
 
-# Checks for header files, and refuse to go on if no KIOCSOUND is available.
+# Checks for header files
 AC_HEADER_STDC
+AC_HEADER_STDBOOL
+AC_HEADER_TIME
 AC_CHECK_HEADERS([fcntl.h limits.h stdlib.h string.h strings.h sys/ioctl.h \
                   sys/param.h sys/time.h unistd.h locale.h libintl.h])
-
-
-
 AC_CHECK_HEADERS([getopt.h])
 AC_CHECK_HEADERS([string.h strings.h])
 if test "$ac_cv_header_string_h" = 'no' \
@@ -398,14 +397,12 @@ if test "$ac_cv_header_string_h" = 'no' \
 fi
 
 # Checks for typedefs, structures, and compiler characteristics.
-AC_HEADER_STDBOOL
 AC_C_CONST
 AC_TYPE_SIZE_T
-AC_HEADER_TIME
 AC_C_VOLATILE
+AC_PROG_GCC_TRADITIONAL
 
 # Checks for library functions.
-AC_PROG_GCC_TRADITIONAL
 AC_FUNC_MALLOC
 AC_FUNC_REALLOC
 AC_FUNC_STRCOLL
@@ -559,6 +556,15 @@ fi
 
 
 
+
+
+AC_OUTPUT
+
+
+
+
+# Put this at the very end, so that these are the last lines seen by
+# user on console with low number of rows.
 AC_MSG_NOTICE([----------------------------------------------------])
 AC_MSG_NOTICE([------------ unixcw build configuration ------------])
 AC_MSG_NOTICE([operating system:  ............................  $host_os])
@@ -579,5 +585,3 @@ if test "$WITH_DEV" = 'yes' ; then
    AC_MSG_NOTICE([enable dev support: ...........................  yes])
 fi
 AC_MSG_NOTICE([----------------------------------------------------])
-
-AC_OUTPUT
