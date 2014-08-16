@@ -16,11 +16,16 @@
 
 
 
+/* Total width of test name + test status printed in console. Remember
+   that some consoles have width = 80. Not everyone works in X. */
 static const int cw_test_print_width = 75;
 
 
+/* Notice that failure status string ("FAIL!") is visually very
+   different than "success". This makes finding failed tests
+   easier. */
 #define CW_TEST_PRINT_TEST_RESULT(m_failure, m_n) {			\
-		printf("%*s\n", (cw_test_print_width - m_n), m_failure ? "failure" : "success"); \
+		printf("%*s\n", (cw_test_print_width - m_n), m_failure ? " FAIL! " : "success"); \
 	}
 
 #define CW_TEST_PRINT_FUNCTION_COMPLETED(m_func_name) {			\
