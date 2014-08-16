@@ -14,7 +14,7 @@
 let N=7
 
 
-cd "../"
+# cd "../"
 make clean &> /dev/null
 
 
@@ -74,10 +74,10 @@ do
     # test
     #echo $switches
 
-    echo $(eval pwd)
+    #echo $(eval pwd)
 
     # real code
-    command="./configure $switches &>/dev/null  && make &>/dev/null && make clean &>/dev/null"
+    command="./configure $switches &>/dev/null   &&   make &>/dev/null   &&   make check &>/dev/null   &&   make clean &>/dev/null"
     echo $i": "$command
     result=$(eval $command)
 
