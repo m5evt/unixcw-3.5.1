@@ -6,12 +6,15 @@
 	* INSTALL: reviewed contents of INSTALL file. Less unnecessary
 	sentences, more details. Also added a generic installation
 	instructions as usually found in INSTALL files.
-	* files: added new files:
+	* files: added new files to dist package:
 	THANKS
 	HISTORY
+
+	added new files to git repository only:
 	qa_build_debian.sh
 	qa_compile_headers.sh
 	qa_test_configure_flags.sh (well this one is moved from ./tools)
+	qa_valgrind_cwcp.sh
 
 2014-08-12 Kamil Ignacak
 	* libcw/utils: three more functions have been moved to
