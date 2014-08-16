@@ -52,21 +52,21 @@ case $host_os in
     *linux*|*Linux*)
 	AC_MSG_NOTICE([Detected Linux])
 	# Needed because of dynamic loading of libraries in libcw.
-	DL_LIB=\"-ldl\";
+	DL_LIB=\"-ldl\"
 	AC_SUBST(DL_LIB)
 	;;
     *bsd*|*BSD*)
 	AC_MSG_NOTICE([Detected BSD])
 	# BSD (or at least FreeBSD) has "dl" library included in
 	# standard libc, so no -ldl for BSD.
-	DL_LIB=\"\";
+	DL_LIB=
 	AC_SUBST(DL_LIB)
 	;;
     *)
 	AC_MSG_NOTICE([Detected $host_os])
 	# Until someone complains, we will configure dl library the
 	# same way as on Linux.
-	DL_LIB=\"-ldl\";
+	DL_LIB=\"-ldl\"
 	AC_SUBST(DL_LIB)
 	;;
 esac
