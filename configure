@@ -16183,23 +16183,26 @@ case $host_os in
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: Detected Linux" >&5
 $as_echo "$as_me: Detected Linux" >&6;}
 	# Needed because of dynamic loading of libraries in libcw.
-	DL_LIB=\"-ldl\";
+	DL_LIB=\"-ldl\"
 
 	;;
     *bsd*|*BSD*)
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: Detected BSD" >&5
 $as_echo "$as_me: Detected BSD" >&6;}
 	# BSD (or at least FreeBSD) has "dl" library included in
-	# standard libc, so no -ldl for BSD.
-	DL_LIB=\"\";
+	# standard libc, so no separate -ldl for BSD.
+	#
+	# FreeBSD 9.3 doesn't like empty quotes (DL_LIB=\"\"). Leave
+	# totally empty.
+	DL_LIB=
 
 	;;
     *)
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: Detected $host_os" >&5
 $as_echo "$as_me: Detected $host_os" >&6;}
-	# Until someone complains, we will configure dl library the
-	# same way as on Linux.
-	DL_LIB=\"-ldl\";
+	# Until someone complains, for non-Linux and non-BSD we will
+	# configure dl library the same way as on Linux.
+	DL_LIB=\"-ldl\"
 
 	;;
 esac
