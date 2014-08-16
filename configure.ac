@@ -58,14 +58,17 @@ case $host_os in
     *bsd*|*BSD*)
 	AC_MSG_NOTICE([Detected BSD])
 	# BSD (or at least FreeBSD) has "dl" library included in
-	# standard libc, so no -ldl for BSD.
+	# standard libc, so no separate -ldl for BSD.
+	#
+	# FreeBSD 9.3 doesn't like empty quotes (DL_LIB=\"\"). Leave
+	# totally empty.
 	DL_LIB=
 	AC_SUBST(DL_LIB)
 	;;
     *)
 	AC_MSG_NOTICE([Detected $host_os])
-	# Until someone complains, we will configure dl library the
-	# same way as on Linux.
+	# Until someone complains, for non-Linux and non-BSD we will
+	# configure dl library the same way as on Linux.
 	DL_LIB=\"-ldl\"
 	AC_SUBST(DL_LIB)
 	;;
