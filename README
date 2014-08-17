@@ -105,9 +105,9 @@ In addition to libcw, the package comes with four basic applications:
    sounds them using libcw.  It owes much to CP222.EXE, by VU2ZAP.
 
  - xcwcp: a CW tutor program for X Window environment.  It offers the
-  same random and keyboard sending as 'cwcp', and in addition can read
-  CW that sent to it using the keyboard or mouse as a keyer, making it
-  useful for sending as well as receiving practice.
+   same random and keyboard sending as 'cwcp', and in addition can
+   read CW that sent to it using the keyboard or mouse as a keyer,
+   making it useful for sending as well as receiving practice.
 
 
 
