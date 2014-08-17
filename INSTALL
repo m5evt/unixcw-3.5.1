@@ -6,9 +6,8 @@ This is INSTALL file for unixcw 3.4.0.
 
 unixcw is written in C and C++.
 
-The source code for unixcw comes with a 'configure' file.  Its job is
-to try and decide which features your system offers, and then
-configure unixcw the best way it can for these features.
+unixcw can be built and installed with standard set of commands:
+    ./configure && make && make install
 
 Depending on platform and software/files installed on build machine,
 build system will configure and compile following features:
@@ -26,6 +25,9 @@ features:
  - xcwcp, if QT4 development files are available (xcwcp is an
    application written in C++);
 
+libcw library, and cw and cwgen applications are built
+unconditionally.
+
 You can explicitly disable some libcw and unixcw features by passing
 flags to configure script. See output of "./configure --help" for
 details.
@@ -37,13 +39,14 @@ needed for each of these features.
 
 
 
-general build-time requirements for unixcw:
+Build-time requirements for unixcw:
  - standard build environment to build software from source package
    with "./configure && make && make install";
 
- - GNU make may be necessary on some platforms (I've had a probem with
-   standard make on FreeBSD 9.3; make on FreeBSD 10.0 worked fine).
-   If, when running "make", you see an error message like this:
+ - GNU make may be necessary on some platforms (I've had a problem
+   with FreeBSD's make on FreeBSD 9.3; make on FreeBSD 10.0 worked
+   fine).  If, when running "make", you see an error message like
+   this:
 
    *** Parse error in unixcw-3.4.0/src: Need an operator in '../Makefile.inc' (Makefile:640)
    *** Error 1 in unixcw-3.4.0 (Makefile:416 'all-recursive')
@@ -54,6 +57,16 @@ general build-time requirements for unixcw:
  - pkg-config to get configuration flags for QT4 application (xcwcp);
    you can override pkg-config settings for QT4 using environment
    variables, see output of "./configure --help" for details.
+
+ - audio library development files for including support for OSS, ALSA
+   and PulseAudio audio sinks in libcw;
+
+ - header file providing KIOCSOUND symbol for including support for
+   console buzzer in libcw.
+
+ - ncurses development files for building cwcp;
+
+ - QT4 development files for building xcwcp;
 
 
 
