@@ -226,7 +226,7 @@ void Receiver::handle_mouse_event(QMouseEvent *event, const Mode *current_mode,
 		return;
 	}
 
-	fprintf(stderr, "\n\n");
+	//fprintf(stderr, "\n\n");
 
 
 	if (event->type() == QEvent::MouseButtonPress
@@ -350,10 +350,10 @@ void Receiver::handle_libcw_keying_event(struct timeval *t, int key_state)
 	// application instances; we might receive an end of tone without seeing
 	// the start of tone.
 	if (key_state == tracked_key_state_) {
-		fprintf(stderr, "tracked key state == %d\n", tracked_key_state_);
+		//fprintf(stderr, "tracked key state == %d\n", tracked_key_state_);
 		return;
 	} else {
-		fprintf(stderr, "tracked key state := %d\n", key_state);
+		//fprintf(stderr, "tracked key state := %d\n", key_state);
 		tracked_key_state_ = key_state;
 	}
 
@@ -372,7 +372,7 @@ void Receiver::handle_libcw_keying_event(struct timeval *t, int key_state)
 		is_pending_inter_word_space_ = false;
 	}
 
-	fprintf(stderr, "calling callback, stage 2\n");
+	//fprintf(stderr, "calling callback, stage 2\n");
 
 	// Pass tone state on to the library.  For tone end, check to
 	// see if the library has registered any receive error.
