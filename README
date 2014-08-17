@@ -139,8 +139,6 @@ following platforms:
  - OpenBSD 5.5
 See INSTALL file for more information about compilation on different
 OSs.
-Support for different platforms certainly can be improved. Patches
-welcome.
 
 
 
