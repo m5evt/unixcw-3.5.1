@@ -1,3 +1,8 @@
+2014-08-17 Kamil Ignacak
+	* build system: changes in build system files (configure.ac and
+	src/libcw/Makefile.am) introduced to improve compilation on
+	OpenBSD 5.5.
+
 2014-08-16 Kamil Ignacak
 	* README: reviewed contents of README file. Lots of stuff
 	accumulated in the file over the time, making a first-to-read
