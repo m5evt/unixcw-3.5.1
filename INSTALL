@@ -40,8 +40,17 @@ needed for each of these features.
 general build-time requirements for unixcw:
  - standard build environment to build software from source package
    with "./configure && make && make install";
+
  - GNU make may be necessary on some platforms (I've had a probem with
-   standard make on FreeBSD 9.3; make on FreeBSD 10.0 worked fine);
+   standard make on FreeBSD 9.3; make on FreeBSD 10.0 worked fine).
+   If, when running "make", you see an error message like this:
+
+   *** Parse error in unixcw-3.4.0/src: Need an operator in '../Makefile.inc' (Makefile:640)
+   *** Error 1 in unixcw-3.4.0 (Makefile:416 'all-recursive')
+
+   then install gmake package, and try running "gmake & gmake install"
+   instead of "make & make install".
+
  - pkg-config to get configuration flags for QT4 application (xcwcp);
    you can override pkg-config settings for QT4 using environment
    variables, see output of "./configure --help" for details.
@@ -49,10 +58,17 @@ general build-time requirements for unixcw:
 
 
 
-unixcw was successfully compiled on following platforms:
- - Debian GNU/Linux Sid, x86_64, gcc 4.9.1;
+
+unixcw (or at least parts of it) was successfully compiled on
+following platforms:
+ - Debian GNU/Linux jessie/sid, x86_64, gcc 4.9.1;
  - FreeBSD 10.0 (x86_64-unknown-freebsd10.0, with clang 3.3);
  - FreeBSD 9.3 (freebsd9.3 with gcc 4.2.1);
+ - OpenBSD 5.5 (amd64-unknown-openbsd5.5 with gcc 4.2.1);
+   compilation on OpenBSD gives lots of warnings related to usage of
+   functions deemed unsafe by OpenBSD developers, but there are no
+   errors. There are also some warnings about redeclarations of some
+   functions - this still needs to be fixed.
 
 
 
