@@ -46,34 +46,44 @@ AM_PROG_CC_C_O
 
 
 
-# OS-specific configuration.
+# OS-specific configuration. On top there are default values of some
+# flags, to be modified per host type.
+
+# General notice: FreeBSD 9.3 doesn't like empty quotes
+# (e.g. DL_LIB=\"\"). Leave totally empty.
+
+# Linux needs "-ld" library for dynamic loading of libraries (dlopen()
+# and related symbols). BSD systems don't have a separate -ld library.
+DL_LIB=
+
+# OpenBSD (at least 5.5) needs -lossaudio for _oss_ioctl symbol. No
+# separate library needed on FreeBSD and Linux.
+OSS_LIB=
+
 AC_CANONICAL_HOST
 case $host_os in
     *linux*|*Linux*)
-	AC_MSG_NOTICE([Detected Linux])
+	AC_MSG_NOTICE([Detected Linux: $host_os])
 	# Needed because of dynamic loading of libraries in libcw.
 	DL_LIB=\"-ldl\"
-	AC_SUBST(DL_LIB)
 	;;
-    *bsd*|*BSD*)
-	AC_MSG_NOTICE([Detected BSD])
-	# BSD (or at least FreeBSD) has "dl" library included in
-	# standard libc, so no separate -ldl for BSD.
-	#
-	# FreeBSD 9.3 doesn't like empty quotes (DL_LIB=\"\"). Leave
-	# totally empty.
-	DL_LIB=
-	AC_SUBST(DL_LIB)
+    *freebsd*|*FreeBSD*)
+	AC_MSG_NOTICE([Detected FreeBSD: $host_os])
+	;;
+    *openbsd*|*OpenBSD*)
+	AC_MSG_NOTICE([Detected OpenBSD: $host_os])
+	OSS_LIB=\"-lossaudio\"
 	;;
     *)
-	AC_MSG_NOTICE([Detected $host_os])
-	# Until someone complains, for non-Linux and non-BSD we will
-	# configure dl library the same way as on Linux.
+	AC_MSG_NOTICE([Detected other OS: $host_os])
+	# Until someone complains, for other OSeD we will configure
+	# the flags the same way as on Linux.
 	DL_LIB=\"-ldl\"
-	AC_SUBST(DL_LIB)
 	;;
 esac
 
+AC_SUBST(DL_LIB)
+AC_SUBST(OSS_LIB)
 
 
 
@@ -239,6 +249,7 @@ fi
 if test "$enable_console" = "no" ; then
     WITH_CONSOLE='no'
 else
+     # Search for header that provides KIOCSOUND
     AC_CHECK_HEADERS([sys/kd.h sys/vtkd.h sys/kbio.h])
     if test "$ac_cv_header_sys_kd_h" = 'no' \
 	&& test "$ac_cv_header_sys_vtkd_h" = 'no' \
