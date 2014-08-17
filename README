@@ -41,7 +41,7 @@ following basic CW services to a caller program:
 The library uses signals and threads to create a background task in
 which it performs the majority of its work, leaving the main program
 free to handle other tasks.  For example, the simplest CW sending
-program that uses the library looks like this (compile it with 
+program that uses the library looks like this (compile it with
 "gcc -lcw example.c"):
 
 
@@ -138,7 +138,7 @@ following platforms:
  - FreeBSD 10.0
  - OpenBSD 5.5
 See INSTALL file for more information about compilation on different
-OSs.
+OSes.
 
 
 
@@ -158,13 +158,13 @@ unixcw is developed by Kamil Ignacak <acerion@wp.pl>.
 
 
 
-Webside: unixcw.sf.net
+Website: unixcw.sf.net
 
 
 
 
 
-Comments, questions, bug reports: 
- - create ticket: http://sourceforge.net/p/unixcw/tickets/, or 
+Comments, questions, bug reports:
+ - create ticket: http://sourceforge.net/p/unixcw/tickets/, or
  - write directly to acerion@wp.pl
 I reserve a right to two months of delay to reply.
