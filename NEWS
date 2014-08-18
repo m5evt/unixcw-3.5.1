@@ -1,25 +1,83 @@
 version 3.4.0 / 2014-08-XY
 
   unixcw:
-  -
 
-  -
+  - Build system files have been modified to correctly configure and
+    compile unixcw (or at least parts of it) on following platforms
+    (in addition to Debian GNU/Linux):
+    - FreeBSD 10.0 (x86_64-unknown-freebsd10.0, with clang 3.3);
+    - FreeBSD 9.3 (freebsd9.3 with gcc 4.2.1);
+    - OpenBSD 5.5 (amd64-unknown-openbsd5.5 with gcc 4.2.1);
+
+    See INSTALL file for more information.
+
+  - QT4 configuration flags (CFLAGS, LIBS, MOC) are now detected only
+    by using pkg-config. My hand-made script that searched for QT4
+    files has been reduced to simple call to PKG_CHECK_MODULES().
+    This means that the following arguments are no longer accepted by
+    configure script:
+    --with-qt-cflags=<string>
+    --with-qt-libraries=<path>
+
+    If you want to override pkg-config settings, you can still use
+    environment variables. Check output of "./configure --help" for
+    details
 
 
   libcw:
-  - 
 
-  - 
+  - Large parts of libcw.c have been moved to new files:
+    - libcw_gen.c (generator)
+    - libcw_tq.c (tone queue)
+    - libcw_data.c (representations and lookup)
+    - libcw_key.c (straight key, iambic keyer)
+    - libcw_signal.c (signal handling)
+    - libcw_utils.c (utility functions)
 
-  - Library version changed from 6.1.1 to 6.2.1.
+    Benefits of this move:
+    - I won't have to use a table of contents to move around in
+      libcw.c (the file had 10kLOC before this operation);
+    - it will be easier to define boundaries between functionality of
+      modules, and it will be easier to reason about how these modules
+      should function and interact with each other;
+
+    Check ChangeLog entry from 2014-07-28 for some more reading on
+    this subject.
+
+  - "make check" now builds three executables in libcw directory:
+    - libcw_test_internal
+    - libcw_test_public
+    - libcw_test_simple_gen
+
+    main() functions for test executables have been moved outside of
+    libcw.c.
+
+  - fixed bug in OSS code. As part of configuring OSS device, libcw
+    made this call:
+    ioctl(*fd, SNDCTL_DSP_POST, &parameter)
+
+    It turns out that this call was unnecessary and - since it
+    returned error value - it prevented libcw from correctly opening
+    OSS device. Now OSS device should be again available to unixcw
+    applications
+
+  - Library soname/version changed from 6.1.1 to 6.2.1.
+
+    All these changes described above did not change API of the
+    library in any way. Functionality of the library is
+    intact. libcw.h header file has not been changed at all.
 
 
   cwcp:
-  -
 
-  -
-  
- 
+  - cwcp ignored CWCP_OPTIONS environment variable. Now it should read
+    it and use it as intended.
+
+  - cwcp code has been reviewed. Code has been modified to ensure that
+    each call to ncurses' newwin() is matched with delwin(). valgrind
+    may still complain, but now the situation is a bit better.
+
+
 ----------------------------------------------------------------------------
 
 
