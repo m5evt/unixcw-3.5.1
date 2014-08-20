@@ -41,8 +41,13 @@ version 3.4.0 / 2014-08-XY
       modules, and it will be easier to reason about how these modules
       should function and interact with each other;
 
-    Check ChangeLog entry from 2014-07-28 for some more reading on
-    this subject.
+    Check ChangeLog entry from 2014-07-28 for more information on this
+    subject.
+
+    Separation of libcw modules is not yet completed. Receiver code is
+    still mixed with generator code, and there are still some
+    functions left in libcw.c. I expect to finish the separation in
+    one or two development cycles.
 
   - "make check" now builds three executables in libcw directory:
     - libcw_test_internal
