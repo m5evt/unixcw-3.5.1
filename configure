@@ -16181,14 +16181,20 @@ fi
 # flags, to be modified per host type.
 
 # General notice: FreeBSD 9.3 doesn't like empty quotes
-# (e.g. DL_LIB=\"\"). Leave totally empty.
+# (e.g. DL_LIB=\"\"). Empty string should be totally empty.
 
-# Linux needs "-ld" library for dynamic loading of libraries (dlopen()
-# and related symbols). BSD systems don't have a separate -ld library.
+# libcw on Linux needs "-ldl" library (dlopen() and related symbols)
+# for dynamic loading of ALSA and PulseAudio libraries. Tested BSD
+# systems (FreeBSD and OpenBSD) don't have a separate -ldl library
+# (and since they don't support ALSA and PulseAudio, libcw on BSDs
+# wouldn't even need the library).
 DL_LIB=
 
-# OpenBSD (at least 5.5) needs -lossaudio for _oss_ioctl symbol. No
-# separate library needed on FreeBSD and Linux.
+# libcw on OpenBSD (tested on 5.5) needs -lossaudio for _oss_ioctl
+# symbol. No explicit OSS library needed by libcw on FreeBSD and
+# Linux. Quick and short googling suggests that NetBSD also uses
+# ossaudio library.
+# TODO: consider using AC_CHECK_LIB(ossaudio, _oss_ioctl)
 OSS_LIB=
 
 
@@ -16208,10 +16214,17 @@ $as_echo "$as_me: Detected FreeBSD: $host_os" >&6;}
 $as_echo "$as_me: Detected OpenBSD: $host_os" >&6;}
 	OSS_LIB=\"-lossaudio\"
 	;;
+    *netbsd*|*NetBSD*)
+	# I didn't test unixcw on NetBSD, but let's give it a
+	# chance.
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: Detected NetBSD: $host_os" >&5
+$as_echo "$as_me: Detected NetBSD: $host_os" >&6;}
+	OSS_LIB=\"-lossaudio\"
+	;;
     *)
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: Detected other OS: $host_os" >&5
 $as_echo "$as_me: Detected other OS: $host_os" >&6;}
-	# Until someone complains, for other OSeD we will configure
+	# Until someone complains, for other OSes we will configure
 	# the flags the same way as on Linux.
 	DL_LIB=\"-ldl\"
 	;;
@@ -16448,8 +16461,8 @@ else
 fi
 
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether to include console buzzer audio suport" >&5
-$as_echo_n "checking whether to include console buzzer audio suport... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether to include console buzzer audio support" >&5
+$as_echo_n "checking whether to include console buzzer audio support... " >&6; }
 if test "$enable_console" = "yes" ; then
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
@@ -17129,8 +17142,6 @@ fi
 done
 test -n "$MOC" || MOC="moc"
 
-			   #AC_PATH_PROG(RCC, rcc, rcc,`eval $PKG_CONFIG --variable=exec_prefix QtCore`/bin)
-			   #AC_PATH_PROGS(UIC, [uic-qt4 uic], uic,`eval $PKG_CONFIG --variable=exec_prefix QtCore`/bin)
 
 			   { $as_echo "$as_me:${as_lineno-$LINENO}: result: QT4 CLFAGS is $QT4_CFLAGS" >&5
 $as_echo "QT4 CLFAGS is $QT4_CFLAGS" >&6; }
@@ -18086,6 +18097,7 @@ $as_echo "no" >&6; }
 else
   LD=":"
 fi
+
 
 
 
@@ -20755,6 +20767,7 @@ if test -n "$ac_unrecognized_opts" && test "$enable_option_checking" != no; then
   { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: unrecognized options: $ac_unrecognized_opts" >&5
 $as_echo "$as_me: WARNING: unrecognized options: $ac_unrecognized_opts" >&2;}
 fi
+
 
 
 
