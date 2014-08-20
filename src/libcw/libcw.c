@@ -59,11 +59,13 @@
 /* After moving these definitions here, it turns out that they are no
    longer necessary, since they are redefinitions of definitions
    already existing in /usr/include/features.h */
+#if 0
 #ifndef __FreeBSD__
-// #define _BSD_SOURCE   /* usleep() */
-// #define _POSIX_SOURCE /* sigaction() */
-// #define _POSIX_C_SOURCE 200112L /* pthread_sigmask() */
+#define _BSD_SOURCE   /* usleep() */
+#define _POSIX_SOURCE /* sigaction() */
+#define _POSIX_C_SOURCE 200112L /* pthread_sigmask() */
 #endif
+#endif /* #if 0 */
 
 
 #if defined(BSD)
