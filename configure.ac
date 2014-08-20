@@ -50,14 +50,20 @@ AM_PROG_CC_C_O
 # flags, to be modified per host type.
 
 # General notice: FreeBSD 9.3 doesn't like empty quotes
-# (e.g. DL_LIB=\"\"). Leave totally empty.
+# (e.g. DL_LIB=\"\"). Empty string should be totally empty.
 
-# Linux needs "-ld" library for dynamic loading of libraries (dlopen()
-# and related symbols). BSD systems don't have a separate -ld library.
+# libcw on Linux needs "-ldl" library (dlopen() and related symbols)
+# for dynamic loading of ALSA and PulseAudio libraries. Tested BSD
+# systems (FreeBSD and OpenBSD) don't have a separate -ldl library
+# (and since they don't support ALSA and PulseAudio, libcw on BSDs
+# wouldn't even need the library).
 DL_LIB=
 
-# OpenBSD (at least 5.5) needs -lossaudio for _oss_ioctl symbol. No
-# separate library needed on FreeBSD and Linux.
+# libcw on OpenBSD (tested on 5.5) needs -lossaudio for _oss_ioctl
+# symbol. No explicit OSS library needed by libcw on FreeBSD and
+# Linux. Quick and short googling suggests that NetBSD also uses
+# ossaudio library.
+# TODO: consider using AC_CHECK_LIB(ossaudio, _oss_ioctl)
 OSS_LIB=
 
 AC_CANONICAL_HOST
@@ -74,9 +80,15 @@ case $host_os in
 	AC_MSG_NOTICE([Detected OpenBSD: $host_os])
 	OSS_LIB=\"-lossaudio\"
 	;;
+    *netbsd*|*NetBSD*)
+	# I didn't test unixcw on NetBSD, but let's give it a
+	# chance.
+	AC_MSG_NOTICE([Detected NetBSD: $host_os])
+	OSS_LIB=\"-lossaudio\"
+	;;
     *)
 	AC_MSG_NOTICE([Detected other OS: $host_os])
-	# Until someone complains, for other OSeD we will configure
+	# Until someone complains, for other OSes we will configure
 	# the flags the same way as on Linux.
 	DL_LIB=\"-ldl\"
 	;;
@@ -140,7 +152,7 @@ AC_ARG_ENABLE([console],
     [],
     [enable_console=yes])
 
-AC_MSG_CHECKING([whether to include console buzzer audio suport])
+AC_MSG_CHECKING([whether to include console buzzer audio support])
 if test "$enable_console" = "yes" ; then
     AC_MSG_RESULT(yes)
 else
@@ -354,8 +366,6 @@ else
     # http://stackoverflow.com/questions/5178511/integrate-qt-project-with-autotool
     PKG_CHECK_MODULES(QT4, [QtCore QtGui >= 4.4.0], [
 			   AC_PATH_PROGS(MOC, [moc-qt4 moc], moc,`eval $PKG_CONFIG --variable=exec_prefix QtCore`/bin)
-			   #AC_PATH_PROG(RCC, rcc, rcc,`eval $PKG_CONFIG --variable=exec_prefix QtCore`/bin)
-			   #AC_PATH_PROGS(UIC, [uic-qt4 uic], uic,`eval $PKG_CONFIG --variable=exec_prefix QtCore`/bin)
 
 			   AC_MSG_RESULT([QT4 CLFAGS is $QT4_CFLAGS])
 			   AC_MSG_RESULT([QT4 LIBS is $QT4_LIBS])
@@ -553,6 +563,7 @@ AC_SUBST(LD_LINKS_SO)
 
 
 
+
 AC_CONFIG_FILES([Makefile.inc
 	Makefile
 	src/Makefile
@@ -573,6 +584,7 @@ fi
 
 
 AC_OUTPUT
+
 
 
 
