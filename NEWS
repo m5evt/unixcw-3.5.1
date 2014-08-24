@@ -57,14 +57,14 @@ version 3.4.0 / 2014-08-XY
     main() functions for test executables have been moved outside of
     libcw.c.
 
-  - fixed bug in OSS code. As part of configuring OSS device, libcw
-    made this call:
+  - fixed bug in OSS code on BSD systems (found under FreeBSD 10). As
+    part of configuring OSS device, libcw made this call:
     ioctl(*fd, SNDCTL_DSP_POST, &parameter)
 
-    It turns out that this call was unnecessary and - since it
-    returned error value - it prevented libcw from correctly opening
-    OSS device. Now OSS device should be again available to unixcw
-    applications
+    It turns out that this call was unnecessary and returned error
+    value. This prevented libcw from correctly opening OSS device.
+    Now OSS device should be again available to unixcw applications.
+    Notice most probably that this bug affected only BSD systems.
 
   - Library soname/version changed from 6.1.1 to 6.2.1.
 
