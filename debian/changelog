@@ -1,8 +1,12 @@
 unixcw (3.4.0-1) unstable; urgency=low
 
   * New upstream release.
+  * Fixes libcw problem with OSS under FreeBSD and possibly kFreeBSD.
+    Closes: #759126
+  * Fixes cwcp problem with reading CWCP_OPTIONS environment variable.
+    Closes: #758915
 
- -- Kamil Ignacak <acerion@wp.pl>  Thu, 14 Aug 2014 22:30:45 +0100
+ -- Kamil Ignacak <acerion@wp.pl>  Sun, 24 Aug 2014 22:24:30 +0100
 
 unixcw (3.3.1-1) unstable; urgency=low
 
