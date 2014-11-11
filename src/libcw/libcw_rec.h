@@ -48,7 +48,7 @@ enum { CW_REC_AVERAGE_ARRAY_LENGTH = 4 };
 
 /* Receive timing statistics.
    A circular buffer of entries indicating the difference between the
-   actual and the ideal timing for a receive element, tagged with the
+   actual and the ideal timing for a receive mark, tagged with the
    type of statistic held, and a circular buffer pointer.
    STAT_NONE must be zero so that the statistics buffer is initially empty. */
 typedef enum {
@@ -68,11 +68,11 @@ typedef struct {
 
 
 
-/* A moving averages structure, comprising a small array of element
+/* A moving averages structure, comprising a small array of mark
    lengths, a circular index into the array, and a running sum of
-   elements for efficient calculation of moving averages. */
+   lengths of marks for efficient calculation of moving averages. */
 typedef struct cw_tracking_struct {
-	int buffer[CW_REC_AVERAGE_ARRAY_LENGTH];  /* Buffered element lengths */
+	int buffer[CW_REC_AVERAGE_ARRAY_LENGTH];  /* Buffered mark lengths */
 	int cursor;                               /* Circular buffer cursor */
 	int sum;                                  /* Running sum */
 } cw_tracking_t;
@@ -124,9 +124,9 @@ typedef struct {
 	int dot_range_maximum;    /* Longest dot period allowable */
 	int dash_range_minimum;   /* Shortest dot period allowable */
 	int dash_range_maximum;   /* Longest dot period allowable */
-	int eoe_range_minimum;    /* Shortest end of element allowable */
-	int eoe_range_maximum;    /* Longest end of element allowable */
-	int eoe_range_ideal;      /* Ideal end of element, for stats */
+	int eoe_range_minimum;    /* Shortest end of mark allowable */
+	int eoe_range_maximum;    /* Longest end of mark allowable */
+	int eoe_range_ideal;      /* Ideal end of mark, for stats */
 	int eoc_range_minimum;    /* Shortest end of char allowable */
 	int eoc_range_maximum;    /* Longest end of char allowable */
 	int eoc_range_ideal;      /* Ideal end of char, for stats */
