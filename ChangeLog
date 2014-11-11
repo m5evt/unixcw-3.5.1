@@ -1,3 +1,8 @@
+2014-11-11 Kamil Ignacak
+	Creating new module: libcw_rec. Moving code related to receiver
+	from libcw.c to libcw_rec.c. Moving other code from libcw.c to
+	other modules. libcw.c has been emptied and is now removed.
+
 2014-08-17 Kamil Ignacak
 	* build system: changes in build system files (configure.ac and
 	src/libcw/Makefile.am) introduced to improve compilation on
