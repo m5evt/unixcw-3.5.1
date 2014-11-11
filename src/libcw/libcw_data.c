@@ -1178,6 +1178,88 @@ int cw_lookup_phonetic(char c, char *phonetic)
 
 
 
+/**
+   \brief Checks that the given character is validly sendable in Morse
+
+   Function sets errno to ENOENT on failure.
+
+   testedin::test_validate_character_and_string()
+
+   \param c - character to check
+
+   \return CW_SUCCESS if character is valid
+   \return CW_FAILURE if character is invalid
+*/
+bool cw_character_is_valid(char c)
+{
+	/* If the character is the space special-case, or it is in the
+	   lookup table, return success. */
+	if (c == ' ' || cw_character_to_representation_internal(c)) {
+		return CW_SUCCESS;
+	} else {
+		errno = ENOENT;
+		return CW_FAILURE;
+	}
+}
+
+
+
+
+
+int cw_check_character(char c)
+{
+	return (int) cw_character_is_valid(c);
+}
+
+
+
+
+
+/**
+   \brief Validate a string
+
+   Check that each character in the given string is valid and can be
+   sent by libcw as a Morse character.
+
+   Function sets errno to EINVAL on failure
+
+   testedin::test_validate_character_and_string()
+
+   \param string - string to check
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
+bool cw_string_is_valid(const char *string)
+{
+	/* Check that each character in the string has a Morse
+	   representation, or - as a special case - is a space character. */
+	for (int i = 0; string[i] != '\0'; i++) {
+		if (!(string[i] == ' '
+		      || cw_character_to_representation_internal(string[i]))) {
+
+			errno = EINVAL;
+			return CW_FAILURE;
+		}
+	}
+
+	return CW_SUCCESS;
+}
+
+
+
+
+
+int cw_check_string(const char *string)
+{
+	return cw_string_is_valid(string);
+}
+
+
+
+
+
+
 /* Unit tests. */
 
 #ifdef LIBCW_UNIT_TESTS
