@@ -127,7 +127,7 @@ cw_rec_t cw_receiver = { .state = RS_IDLE,
 
 
 static void cw_receiver_set_adaptive_internal(cw_rec_t *rec, bool flag);
-static int  cw_receiver_identify_tone_internal(cw_rec_t *rec, int element_len_usecs, char *representation);
+static int  cw_rec_identify_tone_internal(cw_rec_t *rec, int element_len_usecs, char *representation);
 static void cw_receiver_update_adaptive_tracking_internal(cw_rec_t *rec, int element_len_usecs, char element);
 static int  cw_receiver_add_element_internal(cw_rec_t *rec, const struct timeval *timestamp, char element);
 
@@ -734,13 +734,14 @@ int cw_start_receive_tone(const struct timeval *timestamp)
 {
 	/* If the receive state is not idle or after a tone, this is
 	   a state error.  A receive tone start can only happen while
-	   we are idle, or in the middle of a character. */
+	   we are idle, or between marks of a current character. */
 	if (cw_receiver.state != RS_IDLE && cw_receiver.state != RS_AFTER_TONE) {
 		errno = ERANGE;
 		return CW_FAILURE;
 	}
 
-	/* Validate and save the timestamp, or get one and then save it. */
+	/* Validate and save the timestamp, or get one and then save
+	   it.  This is a beginning of mark.*/
 	if (!cw_timestamp_validate_internal(&cw_receiver.tone_start, timestamp)) {
 		return CW_FAILURE;
 	}
@@ -749,7 +750,7 @@ int cw_start_receive_tone(const struct timeval *timestamp)
 	   tone" state, we can measure the inter-element gap (between
 	   previous tone and this tone) by comparing the start
 	   timestamp with the last end one, guaranteed set by getting
-	   to the after tone state via cw_end_receive tone(), or in
+	   to the "after tone" state via cw_end_receive tone(), or in
 	   extreme cases, by cw_receiver_add_element_internal().
 
 	   Do that, then, and update the relevant statistics. */
@@ -757,10 +758,14 @@ int cw_start_receive_tone(const struct timeval *timestamp)
 		int space_len_usec = cw_timestamp_compare_internal(&cw_receiver.tone_end,
 								   &cw_receiver.tone_start);
 		cw_receiver_add_statistic_internal(&cw_receiver, STAT_END_ELEMENT, space_len_usec);
+
+		/* TODO: this may have been a very long space. Should
+		   we accept a very long space inside a character? */
 	}
 
 	/* Set state to indicate we are inside a tone. We don't know
-	   yet if it will be recognized as valid tone. */
+	   yet if it will be recognized as valid tone (it may be
+	   shorter than a threshold). */
 	cw_receiver.state = RS_IN_TONE;
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
@@ -774,10 +779,10 @@ int cw_start_receive_tone(const struct timeval *timestamp)
 
 
 /**
-   \brief Analyze a tone and identify it as an element
+   \brief Analyze a mark and identify it as a dot or dash
 
    Identify an element (dot/dash) represented by a duration of mark.
-   The duration is provided in \p element_len_usecs.
+   The duration is provided in \p mark_len_usecs.
 
    Identification is done using the ranges provided by the low level
    timing parameters.
@@ -786,22 +791,22 @@ int cw_start_receive_tone(const struct timeval *timestamp)
    or a dash through \p representation.
 
    On failure it returns CW_FAILURE with errno set to ENOENT if the
-   tone is not recognizable as either a dot or a dash, and sets the
-   receiver state to one of the error states, depending on the element
-   length passed in.
+   mark is not recognizable as either a dot or a dash, and sets the
+   receiver state to one of the error states, depending on the length
+   of mark passed in.
 
-   Note: for adaptive timing, the element should _always_ be
+   Note: for adaptive timing, the mark should _always_ be
    recognized as a dot or a dash, because the ranges will have been
    set to cover 0 to INT_MAX.
 
    \param rec - receiver
-   \param element_len_usecs - length of element to analyze
+   \param mark_len_usecs - length of mark to analyze
    \param representation - variable to store identified element (output variable)
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_receiver_identify_tone_internal(cw_rec_t *rec, int element_len_usecs, /* out */ char *representation)
+int cw_rec_identify_tone_internal(cw_rec_t *rec, int mark_len_usecs, /* out */ char *representation)
 {
 	cw_assert (representation, "Output parameter is NULL");
 
@@ -810,24 +815,24 @@ int cw_receiver_identify_tone_internal(cw_rec_t *rec, int element_len_usecs, /* 
 
 	/* If the timing was, within tolerance, a dot, return dot to
 	   the caller.  */
-	if (element_len_usecs >= rec->dot_range_minimum
-	    && element_len_usecs <= rec->dot_range_maximum) {
+	if (mark_len_usecs >= rec->dot_range_minimum
+	    && mark_len_usecs <= rec->dot_range_maximum) {
 
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
 			      "libcw: mark '%d [us]' recognized as DOT (limits: %d - %d [us])",
-			      element_len_usecs, rec->dot_range_minimum, rec->dot_range_maximum);
+			      mark_len_usecs, rec->dot_range_minimum, rec->dot_range_maximum);
 
 		*representation = CW_DOT_REPRESENTATION;
 		return CW_SUCCESS;
 	}
 
 	/* Do the same for a dash. */
-	if (element_len_usecs >= rec->dash_range_minimum
-	    && element_len_usecs <= rec->dash_range_maximum) {
+	if (mark_len_usecs >= rec->dash_range_minimum
+	    && mark_len_usecs <= rec->dash_range_maximum) {
 
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
 			      "libcw: mark '%d [us]' recognized as DASH (limits: %d - %d [us])",
-			      element_len_usecs, rec->dash_range_minimum, rec->dash_range_maximum);
+			      mark_len_usecs, rec->dash_range_minimum, rec->dash_range_maximum);
 
 		*representation = CW_DASH_REPRESENTATION;
 		return CW_SUCCESS;
@@ -836,7 +841,7 @@ int cw_receiver_identify_tone_internal(cw_rec_t *rec, int element_len_usecs, /* 
 	/* This element is not a dot or a dash, so we have an error
 	   case. */
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
-		      "libcw: unrecognized element, mark len = %d [us]", element_len_usecs);
+		      "libcw: unrecognized mark, len = %d [us]", mark_len_usecs);
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
 		      "libcw: dot limits: %d - %d [us]", rec->dot_range_minimum, rec->dot_range_maximum);
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
@@ -846,7 +851,7 @@ int cw_receiver_identify_tone_internal(cw_rec_t *rec, int element_len_usecs, /* 
 	   mode. */
 	if (rec->is_adaptive_receive_enabled) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
-			      "libcw: unrecognized element in adaptive receive");
+			      "libcw: unrecognized mark in adaptive receive");
 	}
 
 
@@ -859,7 +864,7 @@ int cw_receiver_identify_tone_internal(cw_rec_t *rec, int element_len_usecs, /* 
 	   let's move to either "in error after character" or "in
 	   error after word" state, which is an "in space" state.
 
-	   We will treat \p element_len_usecs as length of space.
+	   We will treat \p mark_len_usecs as length of space.
 
 	   Depending on the length of space, we pick which of the
 	   error states to move to, and move to it.  The comparison is
@@ -869,10 +874,10 @@ int cw_receiver_identify_tone_internal(cw_rec_t *rec, int element_len_usecs, /* 
 	   TODO: reconsider this for a moment: the function has been
 	   called because client code has received a *mark*, not a
 	   space. Are we sure that we now want to treat the
-	   element_len_usecs as length of *space*? And do we want to
+	   mark_len_usecs as length of *space*? And do we want to
 	   move to either RS_ERR_WORD or RS_ERR_CHAR pretending that
 	   this is a length of *space*? */
-	rec->state = element_len_usecs > rec->eoc_range_maximum
+	rec->state = mark_len_usecs > rec->eoc_range_maximum
 		? RS_ERR_WORD : RS_ERR_CHAR;
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
@@ -1002,13 +1007,13 @@ int cw_end_receive_tone(const struct timeval *timestamp)
 		return CW_FAILURE;
 	}
 
-	/* Compare the timestamps to determine the length of the tone. */
-	int element_len_usecs = cw_timestamp_compare_internal(&cw_receiver.tone_start,
-							      &cw_receiver.tone_end);
+	/* Compare the timestamps to determine the length of the mark. */
+	int mark_len_usecs = cw_timestamp_compare_internal(&cw_receiver.tone_start,
+							   &cw_receiver.tone_end);
 
 
 	if (cw_receiver.noise_spike_threshold > 0
-	    && element_len_usecs <= cw_receiver.noise_spike_threshold) {
+	    && mark_len_usecs <= cw_receiver.noise_spike_threshold) {
 
 		/* This pair of start()/stop() calls is just a noise,
 		   ignore it.
@@ -1018,9 +1023,10 @@ int cw_end_receive_tone(const struct timeval *timestamp)
 		   to start() the state was changed to RS_IN_TONE, but
 		   what state it was before call to start()?
 
-		   Check position in representation buffer to see in
-		   which state the receiver was *before* start()
-		   function call, and restore this state. */
+		   Check position in representation buffer (how many
+		   marks are in the buffer) to see in which state the
+		   receiver was *before* start() function call, and
+		   restore this state. */
 		cw_receiver.state = cw_receiver.representation_ind == 0 ? RS_IDLE : RS_AFTER_TONE;
 
 		/* Put the end tone timestamp back to how it was when we
@@ -1028,8 +1034,8 @@ int cw_end_receive_tone(const struct timeval *timestamp)
 		cw_receiver.tone_end = saved_end_timestamp;
 
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
-			      "libcw: '%d [us]' tone identified as spike noise (threshold = '%d [us]')",
-			      element_len_usecs, cw_receiver.noise_spike_threshold);
+			      "libcw: '%d [us]' mark identified as spike noise (threshold = '%d [us]')",
+			      mark_len_usecs, cw_receiver.noise_spike_threshold);
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
 			      "libcw: receive state -> %s", cw_receiver_states[cw_receiver.state]);
 
@@ -1039,13 +1045,13 @@ int cw_end_receive_tone(const struct timeval *timestamp)
 
 
 	/* This was not a noise. At this point, we have to make a
-	   decision about the element just received.  We'll use a
+	   decision about the mark just received.  We'll use a
 	   routine that compares ranges to tell us what it thinks this
 	   element is.  If it can't decide, it will hand us back an
 	   error which we return to the caller.  Otherwise, it returns
 	   a mark (dot or dash), for us to buffer. */
 	char representation;
-	int status = cw_receiver_identify_tone_internal(&cw_receiver, element_len_usecs, &representation);
+	int status = cw_rec_identify_tone_internal(&cw_receiver, mark_len_usecs, &representation);
 	if (!status) {
 		return CW_FAILURE;
 	}
@@ -1055,7 +1061,7 @@ int cw_end_receive_tone(const struct timeval *timestamp)
 	   have set adaptive receiving; don't fiddle about trying to track
 	   for fixed speed receive. */
 	if (cw_receiver.is_adaptive_receive_enabled) {
-		cw_receiver_update_adaptive_tracking_internal(&cw_receiver, element_len_usecs, representation);
+		cw_receiver_update_adaptive_tracking_internal(&cw_receiver, mark_len_usecs, representation);
 	}
 
 	/* Update dot and dash timing statistics.  It may seem odd to do
@@ -1066,9 +1072,9 @@ int cw_end_receive_tone(const struct timeval *timestamp)
 	   observed speeds.  So by doing this here, we can at least
 	   ameliorate this effect, if not eliminate it. */
 	if (representation == CW_DOT_REPRESENTATION) {
-		cw_receiver_add_statistic_internal(&cw_receiver, STAT_DOT, element_len_usecs);
+		cw_receiver_add_statistic_internal(&cw_receiver, STAT_DOT, mark_len_usecs);
 	} else {
-		cw_receiver_add_statistic_internal(&cw_receiver, STAT_DASH, element_len_usecs);
+		cw_receiver_add_statistic_internal(&cw_receiver, STAT_DASH, mark_len_usecs);
 	}
 
 	/* Add the representation character to the receiver's buffer. */
