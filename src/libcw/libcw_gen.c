@@ -689,6 +689,22 @@ void cw_gen_delete_internal(cw_gen_t **gen)
 
 
 /**
+   \brief Delete a generator - wrapper used in libcw_utils.c
+*/
+void cw_generator_delete_internal(void)
+{
+	if (cw_generator) {
+		cw_gen_delete_internal(&cw_generator);
+	}
+
+	return;
+}
+
+
+
+
+
+/**
    \brief Stop a generator
 */
 void cw_gen_stop_internal(cw_gen_t *gen)
