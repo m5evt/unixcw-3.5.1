@@ -1657,7 +1657,7 @@ unsigned int test_cw_rec_mark_identify_internal(void)
 
 	cw_generator_new(CW_AUDIO_NULL, "null");
 
-	int speed_step = CW_SPEED_MAX - CW_SPEED_MIN;
+	int speed_step = (CW_SPEED_MAX - CW_SPEED_MIN) / 10;
 
 	for (int i = CW_SPEED_MIN; i < CW_SPEED_MAX; i += speed_step)
 	{
