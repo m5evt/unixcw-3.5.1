@@ -1,4 +1,4 @@
-version 3.4.0 / 2014-08-XY
+version 3.4.0 / 2014-11-11
 
   unixcw:
 
@@ -64,7 +64,7 @@ version 3.4.0 / 2014-08-XY
     It turns out that this call was unnecessary and returned error
     value. This prevented libcw from correctly opening OSS device.
     Now OSS device should be again available to unixcw applications.
-    Notice most probably that this bug affected only BSD systems.
+    Notice that this bug most probably affected only BSD systems.
 
   - Library soname/version changed from 6.1.1 to 6.2.1.
 
