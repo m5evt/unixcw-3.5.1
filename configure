@@ -592,7 +592,7 @@ PACKAGE_STRING='unixcw 3.4.0'
 PACKAGE_BUGREPORT=''
 PACKAGE_URL=''
 
-ac_unique_file="src/libcw/libcw.c"
+ac_unique_file="src/libcw/libcw_gen.c"
 # Factoring default headers for most tests.
 ac_includes_default="\
 #include <stdio.h>
