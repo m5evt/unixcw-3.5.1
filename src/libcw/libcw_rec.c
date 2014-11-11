@@ -1648,6 +1648,14 @@ void cw_reset_receive(void)
 
 /**
    tests::cw_rec_mark_identify_internal()
+
+   Test if function correctly recognizes dots and dashes for a range
+   of receive speeds.  This test function also checks if marks of
+   lengths longer or shorter than certain limits (dictated by
+   receiver) are handled properly (i.e. if they are recognized as
+   invalid marks).
+
+   Currently the function only works for non-adaptive receiving.
 */
 unsigned int test_cw_rec_mark_identify_internal(void)
 {
@@ -1713,6 +1721,9 @@ unsigned int test_cw_rec_mark_identify_internal(void)
 
 	return 0;
 }
+
+
+
 
 
 #endif /* #ifdef LIBCW_UNIT_TESTS */
