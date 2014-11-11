@@ -35,6 +35,9 @@ void cw_nanosleep_internal(struct timespec *n);
 bool cw_dlopen_internal(const char *name, void **handle);
 #endif
 
+void cw_finalization_schedule_internal(void);
+void cw_finalization_cancel_internal(void);
+
 
 
 
