@@ -20,7 +20,7 @@
 AC_PREREQ(2.57)
 
 AC_INIT([unixcw], [3.4.0])
-AC_CONFIG_SRCDIR([src/libcw/libcw.c])
+AC_CONFIG_SRCDIR([src/libcw/libcw_gen.c])
 AM_INIT_AUTOMAKE
 
 # Libtool initialization, added during tests on FreeBSD
