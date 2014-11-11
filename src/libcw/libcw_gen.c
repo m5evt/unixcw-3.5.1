@@ -517,6 +517,8 @@ cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 	fprintf(stderr, "libcw build %s %s\n", __DATE__, __TIME__);
 #endif
 
+	cw_assert (audio_system != CW_AUDIO_NONE, "can't create generator with audio system \"NONE\"");
+
 	cw_gen_t *gen = (cw_gen_t *) malloc(sizeof (cw_gen_t));
 	if (!gen) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
