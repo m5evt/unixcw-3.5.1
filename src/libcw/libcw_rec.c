@@ -46,6 +46,7 @@
 #include "libcw_gen.h"
 #include "libcw_debug.h"
 #include "libcw_rec.h"
+#include "libcw_test.h"
 
 
 
@@ -813,6 +814,8 @@ int cw_rec_mark_begin(cw_rec_t *rec, const struct timeval *timestamp)
    Note: for adaptive timing, the mark should _always_ be
    recognized as a dot or a dash, because the ranges will have been
    set to cover 0 to INT_MAX.
+
+   testedin::test_cw_rec_mark_identify_internal()
 
    \param rec - receiver
    \param mark_len_usecs - length of mark to analyze
@@ -1632,3 +1635,84 @@ void cw_reset_receive(void)
 
 	return;
 }
+
+
+
+
+
+#ifdef LIBCW_UNIT_TESTS
+
+
+
+
+
+/**
+   tests::cw_rec_mark_identify_internal()
+*/
+unsigned int test_cw_rec_mark_identify_internal(void)
+{
+	int p = fprintf(stderr, "libcw: cw_rec_mark_identify_internal():");
+
+	cw_disable_adaptive_receive();
+
+	cw_generator_new(CW_AUDIO_NULL, "null");
+
+	int speed_step = CW_SPEED_MAX - CW_SPEED_MIN;
+
+	for (int i = CW_SPEED_MIN; i < CW_SPEED_MAX; i += speed_step)
+	{
+		cw_set_receive_speed(i);
+
+		char representation;
+		int rv;
+
+
+		/* Test marks of length within allowed lengths of dots. */
+		int len_step = (cw_receiver.dot_range_maximum - cw_receiver.dot_range_minimum) / 10;
+		for (int j = cw_receiver.dot_range_minimum; j < cw_receiver.dot_range_maximum; j += len_step) {
+			rv = cw_rec_mark_identify_internal(&cw_receiver, j, &representation);
+			cw_assert (rv, "failed to identify dot for speed = %d [wpm], len = %d [us]", i, j);
+
+			cw_assert (representation == CW_DOT_REPRESENTATION, "got something else than dot for speed = %d [wpm], len = %d [us]", i, j);
+		}
+
+		/* Test mark shorter than minimal length of dot. */
+		rv = cw_rec_mark_identify_internal(&cw_receiver, cw_receiver.dot_range_minimum - 1, &representation);
+		cw_assert (!rv, "incorrectly identified short mark as a dot for speed = %d [wpm]", i);
+
+		/* Test mark longer than maximal length of dot (but shorter than minimal length of dash). */
+		rv = cw_rec_mark_identify_internal(&cw_receiver, cw_receiver.dot_range_maximum + 1, &representation);
+		cw_assert (!rv, "incorrectly identified long mark as a dot for speed = %d [wpm]", i);
+
+
+
+
+		/* Test marks of length within allowed lengths of dashes. */
+		len_step = (cw_receiver.dash_range_maximum - cw_receiver.dash_range_minimum) / 10;
+		for (int j = cw_receiver.dash_range_minimum; j < cw_receiver.dash_range_maximum; j += len_step) {
+			rv = cw_rec_mark_identify_internal(&cw_receiver, j, &representation);
+			cw_assert (rv, "failed to identify dash for speed = %d [wpm], len = %d [us]", i, j);
+
+			cw_assert (representation == CW_DASH_REPRESENTATION, "got something else than dash for speed = %d [wpm], len = %d [us]", i, j);
+		}
+
+		/* Test mark shorter than minimal length of dash (but longer than maximal length of dot). */
+		rv = cw_rec_mark_identify_internal(&cw_receiver, cw_receiver.dash_range_minimum - 1, &representation);
+		cw_assert (!rv, "incorrectly identified short mark as a dash for speed = %d [wpm]", i);
+
+		/* Test mark longer than maximal length of dash. */
+		rv = cw_rec_mark_identify_internal(&cw_receiver, cw_receiver.dash_range_maximum + 1, &representation);
+		cw_assert (!rv, "incorrectly identified long mark as a dash for speed = %d [wpm]", i);
+	}
+
+
+
+	cw_generator_delete();
+
+	CW_TEST_PRINT_TEST_RESULT(false, p);
+
+	return 0;
+}
+
+
+#endif /* #ifdef LIBCW_UNIT_TESTS */
