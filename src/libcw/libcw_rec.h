@@ -147,4 +147,14 @@ typedef struct {
 
 
 
+#ifdef LIBCW_UNIT_TESTS
+
+unsigned int test_cw_rec_mark_identify_internal(void);
+
+#endif /* #ifdef LIBCW_UNIT_TESTS */
+
+
+
+
+
 #endif /* #ifndef H_LIBCW_REC */
