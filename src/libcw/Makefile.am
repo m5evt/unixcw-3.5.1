@@ -38,7 +38,7 @@ EXTRA_DIST=include.awk libdoc.awk libfuncs.awk libpc.awk libsigs.awk \
 # These files are used to build two different targets - list them only
 # once. I can't compile these files into an utility library because
 # the two targets are compiled with different CPPFLAGS.
-LIBCW_BASE_C_FILES = libcw.c \
+LIBCW_BASE_C_FILES = \
 	libcw_gen.c libcw_rec.c libcw_tq.c libcw_key.c \
 	libcw_null.c libcw_console.c libcw_oss.c libcw_alsa.c libcw_pa.c \
 	libcw_debug.c libcw_signal.c libcw_data.c libcw_utils.c
@@ -87,7 +87,7 @@ libcw_test_public_LDADD = -L./.libs -lcw
 
 
 # target: libcw_test_internal, a test program invoking unit tests for
-# (internal) functions defined in libcw.c and libcw_xyz.c;
+# (internal) functions defined in libcw_xyz.c files;
 # main() is defined in libcw_test_internal.c.
 
 # source code files used to build libcw_test_internal program
@@ -125,7 +125,7 @@ libcw_test_simple_gen_CFLAGS = -rdynamic
 
 
 # target: libcw man page
-libcw.3: libcw.3.m4 libcw.c
+libcw.3: libcw.3.m4
 	cat $(top_srcdir)/src/libcw/*.c | $(AC_AWK) -f $(top_srcdir)/src/libcw/libdoc.awk | $(AC_AWK) -f $(top_srcdir)/src/libcw/libsigs.awk  > signatures
 	cat $(top_srcdir)/src/libcw/*.c | $(AC_AWK) -f $(top_srcdir)/src/libcw/libdoc.awk | $(AC_AWK) -f $(top_srcdir)/src/libcw/libfuncs.awk > functions
 	$(AC_AWK) -f $(top_srcdir)/src/libcw/include.awk < $(top_srcdir)/src/libcw/libcw.3.m4 >libcw.3
