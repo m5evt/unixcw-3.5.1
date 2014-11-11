@@ -132,6 +132,10 @@ static void cw_receiver_update_adaptive_tracking_internal(cw_rec_t *rec, int ele
 static int  cw_receiver_add_element_internal(cw_rec_t *rec, const struct timeval *timestamp, char element);
 
 
+static int cw_rec_mark_begin(cw_rec_t *rec, const struct timeval *timestamp);
+static int cw_rec_mark_end(cw_rec_t *rec, const struct timeval *timestamp);
+
+
 
 
 
@@ -732,17 +736,28 @@ bool cw_get_adaptive_receive_state(void)
 */
 int cw_start_receive_tone(const struct timeval *timestamp)
 {
+	int rv = cw_rec_mark_begin(&cw_receiver, timestamp);
+	return rv;
+}
+
+
+
+
+
+/* For top-level comment see cw_start_receive_tone(). */
+int cw_rec_mark_begin(cw_rec_t *rec, const struct timeval *timestamp)
+{
 	/* If the receive state is not idle or after a tone, this is
 	   a state error.  A receive tone start can only happen while
 	   we are idle, or between marks of a current character. */
-	if (cw_receiver.state != RS_IDLE && cw_receiver.state != RS_AFTER_TONE) {
+	if (rec->state != RS_IDLE && rec->state != RS_AFTER_TONE) {
 		errno = ERANGE;
 		return CW_FAILURE;
 	}
 
 	/* Validate and save the timestamp, or get one and then save
 	   it.  This is a beginning of mark.*/
-	if (!cw_timestamp_validate_internal(&cw_receiver.tone_start, timestamp)) {
+	if (!cw_timestamp_validate_internal(&(rec->tone_start), timestamp)) {
 		return CW_FAILURE;
 	}
 
@@ -754,9 +769,9 @@ int cw_start_receive_tone(const struct timeval *timestamp)
 	   extreme cases, by cw_receiver_add_element_internal().
 
 	   Do that, then, and update the relevant statistics. */
-	if (cw_receiver.state == RS_AFTER_TONE) {
-		int space_len_usec = cw_timestamp_compare_internal(&cw_receiver.tone_end,
-								   &cw_receiver.tone_start);
+	if (rec->state == RS_AFTER_TONE) {
+		int space_len_usec = cw_timestamp_compare_internal(&(rec->tone_end),
+								   &(rec->tone_start));
 		cw_receiver_add_statistic_internal(&cw_receiver, STAT_END_ELEMENT, space_len_usec);
 
 		/* TODO: this may have been a very long space. Should
@@ -766,10 +781,10 @@ int cw_start_receive_tone(const struct timeval *timestamp)
 	/* Set state to indicate we are inside a tone. We don't know
 	   yet if it will be recognized as valid tone (it may be
 	   shorter than a threshold). */
-	cw_receiver.state = RS_IN_TONE;
+	rec->state = RS_IN_TONE;
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-		      "libcw: receive state -> %s", cw_receiver_states[cw_receiver.state]);
+		      "libcw: receive state -> %s", cw_receiver_states[rec->state]);
 
 	return CW_SUCCESS;
 }
@@ -992,28 +1007,39 @@ void cw_receiver_update_adaptive_tracking_internal(cw_rec_t *rec, int element_le
 */
 int cw_end_receive_tone(const struct timeval *timestamp)
 {
-	/* The receive state is expected to be inside a tone. */
-	if (cw_receiver.state != RS_IN_TONE) {
+	int rv = cw_rec_mark_end(&cw_receiver, timestamp);
+	return rv;
+}
+
+
+
+
+
+/* For top-level comment see cw_end_receive_tone(). */
+int cw_rec_mark_end(cw_rec_t *rec, const struct timeval *timestamp)
+{
+	/* The receive state is expected to be inside of a mark. */
+	if (rec->state != RS_IN_TONE) {
 		errno = ERANGE;
 		return CW_FAILURE;
 	}
 
 	/* Take a safe copy of the current end timestamp, in case we need
 	   to put it back if we decide this tone is really just noise. */
-	struct timeval saved_end_timestamp = cw_receiver.tone_end;
+	struct timeval saved_end_timestamp = rec->tone_end;
 
 	/* Save the timestamp passed in, or get one. */
-	if (!cw_timestamp_validate_internal(&cw_receiver.tone_end, timestamp)) {
+	if (!cw_timestamp_validate_internal(&(rec->tone_end), timestamp)) {
 		return CW_FAILURE;
 	}
 
 	/* Compare the timestamps to determine the length of the mark. */
-	int mark_len_usecs = cw_timestamp_compare_internal(&cw_receiver.tone_start,
-							   &cw_receiver.tone_end);
+	int mark_len_usecs = cw_timestamp_compare_internal(&(rec->tone_start),
+							   &(rec->tone_end));
 
 
-	if (cw_receiver.noise_spike_threshold > 0
-	    && mark_len_usecs <= cw_receiver.noise_spike_threshold) {
+	if (rec->noise_spike_threshold > 0
+	    && mark_len_usecs <= rec->noise_spike_threshold) {
 
 		/* This pair of start()/stop() calls is just a noise,
 		   ignore it.
@@ -1027,17 +1053,17 @@ int cw_end_receive_tone(const struct timeval *timestamp)
 		   marks are in the buffer) to see in which state the
 		   receiver was *before* start() function call, and
 		   restore this state. */
-		cw_receiver.state = cw_receiver.representation_ind == 0 ? RS_IDLE : RS_AFTER_TONE;
+		rec->state = rec->representation_ind == 0 ? RS_IDLE : RS_AFTER_TONE;
 
 		/* Put the end tone timestamp back to how it was when we
 		   came in to the routine. */
-		cw_receiver.tone_end = saved_end_timestamp;
+		rec->tone_end = saved_end_timestamp;
 
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
 			      "libcw: '%d [us]' mark identified as spike noise (threshold = '%d [us]')",
-			      mark_len_usecs, cw_receiver.noise_spike_threshold);
+			      mark_len_usecs, rec->noise_spike_threshold);
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-			      "libcw: receive state -> %s", cw_receiver_states[cw_receiver.state]);
+			      "libcw: receive state -> %s", cw_receiver_states[rec->state]);
 
 		errno = EAGAIN;
 		return CW_FAILURE;
@@ -1051,7 +1077,7 @@ int cw_end_receive_tone(const struct timeval *timestamp)
 	   error which we return to the caller.  Otherwise, it returns
 	   a mark (dot or dash), for us to buffer. */
 	char representation;
-	int status = cw_rec_identify_tone_internal(&cw_receiver, mark_len_usecs, &representation);
+	int status = cw_rec_identify_tone_internal(rec, mark_len_usecs, &representation);
 	if (!status) {
 		return CW_FAILURE;
 	}
@@ -1060,8 +1086,8 @@ int cw_end_receive_tone(const struct timeval *timestamp)
 	   received Morse speed stays up to date.  But only do this if we
 	   have set adaptive receiving; don't fiddle about trying to track
 	   for fixed speed receive. */
-	if (cw_receiver.is_adaptive_receive_enabled) {
-		cw_receiver_update_adaptive_tracking_internal(&cw_receiver, mark_len_usecs, representation);
+	if (rec->is_adaptive_receive_enabled) {
+		cw_receiver_update_adaptive_tracking_internal(rec, mark_len_usecs, representation);
 	}
 
 	/* Update dot and dash timing statistics.  It may seem odd to do
@@ -1072,36 +1098,36 @@ int cw_end_receive_tone(const struct timeval *timestamp)
 	   observed speeds.  So by doing this here, we can at least
 	   ameliorate this effect, if not eliminate it. */
 	if (representation == CW_DOT_REPRESENTATION) {
-		cw_receiver_add_statistic_internal(&cw_receiver, STAT_DOT, mark_len_usecs);
+		cw_receiver_add_statistic_internal(rec, STAT_DOT, mark_len_usecs);
 	} else {
-		cw_receiver_add_statistic_internal(&cw_receiver, STAT_DASH, mark_len_usecs);
+		cw_receiver_add_statistic_internal(rec, STAT_DASH, mark_len_usecs);
 	}
 
 	/* Add the representation character to the receiver's buffer. */
-	cw_receiver.representation[cw_receiver.representation_ind++] = representation;
+	rec->representation[rec->representation_ind++] = representation;
 
 	/* We just added a representation to the receive buffer.  If it's
 	   full, then we have to do something, even though it's unlikely.
 	   What we'll do is make a unilateral declaration that if we get
 	   this far, we go to end-of-char error state automatically. */
-	if (cw_receiver.representation_ind == CW_REC_REPRESENTATION_CAPACITY - 1) {
-		cw_receiver.state = RS_ERR_CHAR;
+	if (rec->representation_ind == CW_REC_REPRESENTATION_CAPACITY - 1) {
+		rec->state = RS_ERR_CHAR;
 
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
 			      "libcw: receiver's representation buffer is full");
 
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-			      "libcw: receive state -> %s", cw_receiver_states[cw_receiver.state]);
+			      "libcw: receive state -> %s", cw_receiver_states[rec->state]);
 
 		errno = ENOMEM;
 		return CW_FAILURE;
 	}
 
 	/* All is well.  Move to the more normal after-tone state. */
-	cw_receiver.state = RS_AFTER_TONE;
+	rec->state = RS_AFTER_TONE;
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-		      "libcw: receive state -> %s", cw_receiver_states[cw_receiver.state]);
+		      "libcw: receive state -> %s", cw_receiver_states[rec->state]);
 
 	return CW_SUCCESS;
 }
