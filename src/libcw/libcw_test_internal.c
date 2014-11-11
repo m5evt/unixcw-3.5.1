@@ -31,6 +31,7 @@
 
 #include "libcw.h"
 
+#include "libcw_rec.h"
 #include "libcw_debug.h"
 #include "libcw_data.h"
 #include "libcw_tq.h"
@@ -88,6 +89,9 @@ static cw_test_function_t cw_unit_tests[] = {
 	test_cw_timestamp_validate_internal,
 
 	test_cw_usecs_to_timespec_internal,
+
+	test_cw_rec_mark_identify_internal,
+
 	NULL
 };
 
