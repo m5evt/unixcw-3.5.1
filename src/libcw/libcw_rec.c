@@ -127,13 +127,13 @@ cw_rec_t cw_receiver = { .state = RS_IDLE,
 
 
 static void cw_receiver_set_adaptive_internal(cw_rec_t *rec, bool flag);
-static int  cw_rec_identify_tone_internal(cw_rec_t *rec, int element_len_usecs, char *representation);
-static void cw_receiver_update_adaptive_tracking_internal(cw_rec_t *rec, int element_len_usecs, char element);
-static int  cw_receiver_add_element_internal(cw_rec_t *rec, const struct timeval *timestamp, char element);
+static void cw_receiver_update_adaptive_tracking_internal(cw_rec_t *rec, int mark_len_usecs, char mark);
+static int  cw_receiver_add_mark_internal(cw_rec_t *rec, const struct timeval *timestamp, char mark);
 
 
 static int cw_rec_mark_begin(cw_rec_t *rec, const struct timeval *timestamp);
 static int cw_rec_mark_end(cw_rec_t *rec, const struct timeval *timestamp);
+static int cw_rec_mark_identify_internal(cw_rec_t *rec, int mark_len_usecs, char *representation);
 
 
 
@@ -143,7 +143,7 @@ static int cw_rec_mark_end(cw_rec_t *rec, const struct timeval *timestamp);
 static void   cw_receiver_add_statistic_internal(cw_rec_t *rec, stat_type_t type, int usecs);
 static double cw_receiver_get_statistic_internal(cw_rec_t *rec, stat_type_t type);
 static void   cw_reset_adaptive_average_internal(cw_tracking_t *tracking, int initial);
-static void   cw_update_adaptive_average_internal(cw_tracking_t *tracking, int element_len_usecs);
+static void   cw_update_adaptive_average_internal(cw_tracking_t *tracking, int mark_len_usecs);
 static int    cw_get_adaptive_average_internal(cw_tracking_t *tracking);
 
 
@@ -405,17 +405,17 @@ void cw_reset_adaptive_average_internal(cw_tracking_t *tracking, int initial)
 
 
 /**
-   \brief Add new "length of element" value to tracking data structure
+   \brief Add new "length of mark" value to tracking data structure
 
    Moving average function for smoothed tracking of dot and dash lengths.
 
    \param tracking - tracking data structure
-   \param element_len_usec - new "length of element" value to add to tracking data
+   \param mark_len_usec - new "length of mark" value to add to tracking data
 */
-void cw_update_adaptive_average_internal(cw_tracking_t *tracking, int element_len_usecs)
+void cw_update_adaptive_average_internal(cw_tracking_t *tracking, int mark_len_usecs)
 {
-	tracking->sum += element_len_usecs - tracking->buffer[tracking->cursor];
-	tracking->buffer[tracking->cursor++] = element_len_usecs;
+	tracking->sum += mark_len_usecs - tracking->buffer[tracking->cursor];
+	tracking->buffer[tracking->cursor++] = mark_len_usecs;
 	tracking->cursor %= CW_REC_AVERAGE_ARRAY_LENGTH;
 
 	return;
@@ -442,17 +442,17 @@ int cw_get_adaptive_average_internal(cw_tracking_t *tracking)
 
 
 /**
-   \brief Add an element timing to statistics
+   \brief Add a mark timing to statistics
 
-   Add an element timing with a given statistic type to the circular
+   Add a mark timing with a given statistic type to the circular
    statistics buffer.  The buffer stores only the delta from the ideal
    value; the ideal is inferred from the type passed in.
 
    \p type may be: STAT_DOT or STAT_DASH or STAT_END_ELEMENT or STAT_END_CHARACTER
 
    \param rec - receiver
-   \param type - element type
-   \param usecs - timing of an element
+   \param type - mark type
+   \param usecs - timing of a mark
 */
 void cw_receiver_add_statistic_internal(cw_rec_t *rec, stat_type_t type, int usecs)
 {
@@ -490,8 +490,8 @@ void cw_receiver_add_statistic_internal(cw_rec_t *rec, stat_type_t type, int use
 */
 double cw_receiver_get_statistic_internal(cw_rec_t *rec, stat_type_t type)
 {
-	/* Sum and count elements matching the given type.  A cleared
-	   buffer always begins refilling at element zero, so to optimize
+	/* Sum and count marks matching the given type.  A cleared
+	   buffer always begins refilling at zeroth mark, so to optimize
 	   we can stop on the first unoccupied slot in the circular buffer. */
 	double sum_of_squares = 0.0;
 	int count = 0;
@@ -505,7 +505,7 @@ double cw_receiver_get_statistic_internal(cw_rec_t *rec, stat_type_t type)
 		}
 	}
 
-	/* Return the standard deviation, or zero if no matching elements. */
+	/* Return the standard deviation, or zero if no matching mark. */
 	return count > 0 ? sqrt (sum_of_squares / (double) count) : 0.0;
 }
 
@@ -762,7 +762,7 @@ int cw_rec_mark_begin(cw_rec_t *rec, const struct timeval *timestamp)
 	}
 
 	/* If this function has been called while received is in "after
-	   tone" state, we can measure the inter-element gap (between
+	   tone" state, we can measure the inter-mark gap (between
 	   previous tone and this tone) by comparing the start
 	   timestamp with the last end one, guaranteed set by getting
 	   to the "after tone" state via cw_end_receive tone(), or in
@@ -796,7 +796,7 @@ int cw_rec_mark_begin(cw_rec_t *rec, const struct timeval *timestamp)
 /**
    \brief Analyze a mark and identify it as a dot or dash
 
-   Identify an element (dot/dash) represented by a duration of mark.
+   Identify a mark (dot/dash) represented by a duration of mark.
    The duration is provided in \p mark_len_usecs.
 
    Identification is done using the ranges provided by the low level
@@ -816,12 +816,12 @@ int cw_rec_mark_begin(cw_rec_t *rec, const struct timeval *timestamp)
 
    \param rec - receiver
    \param mark_len_usecs - length of mark to analyze
-   \param representation - variable to store identified element (output variable)
+   \param representation - variable to store identified mark (output variable)
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_rec_identify_tone_internal(cw_rec_t *rec, int mark_len_usecs, /* out */ char *representation)
+int cw_rec_mark_identify_internal(cw_rec_t *rec, int mark_len_usecs, /* out */ char *representation)
 {
 	cw_assert (representation, "Output parameter is NULL");
 
@@ -853,7 +853,7 @@ int cw_rec_identify_tone_internal(cw_rec_t *rec, int mark_len_usecs, /* out */ c
 		return CW_SUCCESS;
 	}
 
-	/* This element is not a dot or a dash, so we have an error
+	/* This mark is not a dot or a dash, so we have an error
 	   case. */
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
 		      "libcw: unrecognized mark, len = %d [us]", mark_len_usecs);
@@ -916,10 +916,10 @@ int cw_rec_identify_tone_internal(cw_rec_t *rec, int mark_len_usecs, /* out */ c
    the adaptive threshold for the next receive tone.
 
    \param rec - receiver
-   \param element_len_usecs
-   \param element
+   \param mark_len_usecs
+   \param mark
 */
-void cw_receiver_update_adaptive_tracking_internal(cw_rec_t *rec, int element_len_usecs, char element)
+void cw_receiver_update_adaptive_tracking_internal(cw_rec_t *rec, int mark_len_usecs, char mark)
 {
 	/* We are not going to tolerate being called in fixed speed mode. */
 	if (!rec->is_adaptive_receive_enabled) {
@@ -931,13 +931,13 @@ void cw_receiver_update_adaptive_tracking_internal(cw_rec_t *rec, int element_le
 	/* We will update the information held for either dots or dashes.
 	   Which we pick depends only on what the representation of the
 	   character was identified as earlier. */
-	if (element == CW_DOT_REPRESENTATION) {
-		cw_update_adaptive_average_internal(&rec->dot_tracking, element_len_usecs);
-	} else if (element == CW_DASH_REPRESENTATION) {
-		cw_update_adaptive_average_internal(&rec->dash_tracking, element_len_usecs);
+	if (mark == CW_DOT_REPRESENTATION) {
+		cw_update_adaptive_average_internal(&rec->dot_tracking, mark_len_usecs);
+	} else if (mark == CW_DASH_REPRESENTATION) {
+		cw_update_adaptive_average_internal(&rec->dash_tracking, mark_len_usecs);
 	} else {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
-			      "Unknown element %d\n", element);
+			      "Unknown mark %d\n", mark);
 		return;
 	}
 
@@ -1073,11 +1073,11 @@ int cw_rec_mark_end(cw_rec_t *rec, const struct timeval *timestamp)
 	/* This was not a noise. At this point, we have to make a
 	   decision about the mark just received.  We'll use a
 	   routine that compares ranges to tell us what it thinks this
-	   element is.  If it can't decide, it will hand us back an
+	   mark is.  If it can't decide, it will hand us back an
 	   error which we return to the caller.  Otherwise, it returns
 	   a mark (dot or dash), for us to buffer. */
 	char representation;
-	int status = cw_rec_identify_tone_internal(rec, mark_len_usecs, &representation);
+	int status = cw_rec_mark_identify_internal(rec, mark_len_usecs, &representation);
 	if (!status) {
 		return CW_FAILURE;
 	}
@@ -1139,25 +1139,25 @@ int cw_rec_mark_end(cw_rec_t *rec, const struct timeval *timestamp)
 /**
    \brief Add dot or dash to receiver's representation buffer
 
-   Function adds an \p element (either a dot or a dash) to the
+   Function adds a \p mark (either a dot or a dash) to the
    receiver's representation buffer.
 
-   Since we can't add an element to the buffer without any
+   Since we can't add a mark to the buffer without any
    accompanying timing information, the function also accepts
-   \p timestamp of the "end of element" event.  If the \p timestamp
+   \p timestamp of the "end of mark" event.  If the \p timestamp
    is NULL, the timestamp for current time is used.
 
    The receiver's state is updated as if we had just received a call
    to cw_end_receive_tone().
 
    \param rec - receiver
-   \param timestamp - timestamp of "end of element" event
-   \param element - element to be inserted into receiver's representation buffer
+   \param timestamp - timestamp of "end of mark" event
+   \param mark - mark to be inserted into receiver's representation buffer
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_receiver_add_element_internal(cw_rec_t *rec, const struct timeval *timestamp, char element)
+int cw_receiver_add_mark_internal(cw_rec_t *rec, const struct timeval *timestamp, char mark)
 {
 	/* The receiver's state is expected to be idle or after a tone in
 	   order to use this routine. */
@@ -1171,9 +1171,9 @@ int cw_receiver_add_element_internal(cw_rec_t *rec, const struct timeval *timest
 
 	   It doesn't matter that we don't know timestamp of start of
 	   this tone: start timestamp would be needed only to
-	   determine tone length and element type (dot/dash). But
-	   since the element type has been determined by \p element,
-	   we don't need timestamp for start of element.
+	   determine tone length and mark type (dot/dash). But
+	   since the mark type has been determined by \p mark,
+	   we don't need timestamp for beginning of mark.
 
 	   What does matter is timestamp of end of this tone. This is
 	   because the receiver representation routines that may be
@@ -1184,10 +1184,10 @@ int cw_receiver_add_element_internal(cw_rec_t *rec, const struct timeval *timest
 		return CW_FAILURE;
 	}
 
-	/* Add the element to the receiver's representation buffer. */
-	rec->representation[rec->representation_ind++] = element;
+	/* Add the mark to the receiver's representation buffer. */
+	rec->representation[rec->representation_ind++] = mark;
 
-	/* We just added an element to the receiver's buffer.  As
+	/* We just added a mark to the receiver's buffer.  As
 	   above, if it's full, then we have to do something, even
 	   though it's unlikely to actually be full. */
 	if (rec->representation_ind == CW_REC_REPRESENTATION_CAPACITY - 1) {
@@ -1247,7 +1247,7 @@ int cw_receiver_add_element_internal(cw_rec_t *rec, const struct timeval *timest
 */
 int cw_receive_buffer_dot(const struct timeval *timestamp)
 {
-	return cw_receiver_add_element_internal(&cw_receiver, timestamp, CW_DOT_REPRESENTATION);
+	return cw_receiver_add_mark_internal(&cw_receiver, timestamp, CW_DOT_REPRESENTATION);
 }
 
 
@@ -1266,7 +1266,7 @@ int cw_receive_buffer_dot(const struct timeval *timestamp)
 */
 int cw_receive_buffer_dash(const struct timeval *timestamp)
 {
-	return cw_receiver_add_element_internal(&cw_receiver, timestamp, CW_DASH_REPRESENTATION);
+	return cw_receiver_add_mark_internal(&cw_receiver, timestamp, CW_DASH_REPRESENTATION);
 }
 
 
