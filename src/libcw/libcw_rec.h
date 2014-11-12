@@ -8,6 +8,7 @@
 
 
 #include "libcw.h"
+#include "libcw_gen.h"
 
 
 
@@ -144,6 +145,11 @@ typedef struct {
 } cw_rec_t;
 
 
+
+
+
+void cw_rec_reset_receive_parameters_internal(cw_rec_t *rec);
+void cw_rec_sync_parameters_internal(cw_rec_t *rec, cw_gen_t *gen);
 
 
 
