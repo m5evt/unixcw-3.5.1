@@ -1,3 +1,7 @@
+2014-11-12 Kamil Ignacak
+	Proceeding with changes, simplifications and refactoring in
+	receiver module. Generator module is also affected.
+
 2014-11-11 Kamil Ignacak
 	Creating new module: libcw_rec. Moving code related to receiver
 	from libcw.c to libcw_rec.c. Moving other code from libcw.c to
