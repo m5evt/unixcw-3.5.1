@@ -40,7 +40,6 @@
 
 
 #include "libcw.h"
-#include "libcw_internal.h"
 #include "libcw_data.h"
 #include "libcw_utils.h"
 #include "libcw_gen.h"

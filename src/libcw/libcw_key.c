@@ -33,7 +33,6 @@
 #include "libcw_debug.h"
 #include "libcw_key.h"
 #include "libcw_gen.h"
-#include "libcw_internal.h"
 #include "libcw_signal.h"
 #include "libcw_utils.h"
 

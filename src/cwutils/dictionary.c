@@ -41,7 +41,6 @@
 #include "i18n.h"
 
 
-#include "libcw_internal.h"
 #include "libcw_debug.h"
 
 
