@@ -52,7 +52,6 @@
 
 
 extern cw_gen_t *cw_generator;
-extern bool cw_is_in_sync;
 
 extern cw_debug_t cw_debug_object;
 extern cw_debug_t cw_debug_object_ev;
@@ -96,6 +95,8 @@ cw_rec_t cw_receiver = { .state = RS_IDLE,
 			 .is_adaptive_receive_enabled = CW_REC_ADAPTIVE_INITIAL,
 			 .adaptive_receive_threshold = CW_REC_INITIAL_THRESHOLD,
 			 .tolerance = CW_TOLERANCE_INITIAL,
+
+			 .parameters_in_sync = false,
 
 			 .tone_start = { 0, 0 },
 			 .tone_end =   { 0, 0 },
@@ -183,7 +184,7 @@ int cw_set_receive_speed(int new_value)
 		cw_receiver.speed = new_value;
 
 		/* Changes of receive speed require resynchronization. */
-		cw_is_in_sync = false;
+		cw_receiver.parameters_in_sync = false;
 		cw_sync_parameters_internal(cw_generator, &cw_receiver);
 	}
 
@@ -235,7 +236,7 @@ int cw_set_tolerance(int new_value)
 		cw_receiver.tolerance = new_value;
 
 		/* Changes of tolerance require resynchronization. */
-		cw_is_in_sync = false;
+		cw_receiver.parameters_in_sync = false;
 		cw_sync_parameters_internal(cw_generator, &cw_receiver);
 	}
 
@@ -639,7 +640,7 @@ void cw_receiver_set_adaptive_internal(cw_rec_t *rec, bool flag)
 		rec->is_adaptive_receive_enabled = flag;
 
 		/* Changing the flag forces a change in low-level parameters. */
-		cw_is_in_sync = false;
+		rec->parameters_in_sync = false;
 		cw_sync_parameters_internal(cw_generator, rec);
 
 		/* If we have just switched to adaptive mode, (re-)initialize
@@ -960,17 +961,18 @@ void cw_receiver_update_adaptive_tracking_internal(cw_rec_t *rec, int mark_len_u
 	   recalculates everything else according to fixed speed; so, we
 	   then have to reset adaptive and resyncing one more time, to get
 	   all other timing parameters back to where they should be. */
-	cw_is_in_sync = false;
+
+	rec->parameters_in_sync = false;
 	cw_sync_parameters_internal(cw_generator, rec);
 	if (rec->speed < CW_SPEED_MIN || rec->speed > CW_SPEED_MAX) {
-		rec->speed = rec->speed < CW_SPEED_MIN
-			? CW_SPEED_MIN : CW_SPEED_MAX;
+		rec->speed = rec->speed < CW_SPEED_MIN ? CW_SPEED_MIN : CW_SPEED_MAX;
+
 		rec->is_adaptive_receive_enabled = false;
-		cw_is_in_sync = false;
+		rec->parameters_in_sync = false;
 		cw_sync_parameters_internal(cw_generator, rec);
 
 		rec->is_adaptive_receive_enabled = true;
-		cw_is_in_sync = false;
+		rec->parameters_in_sync = false;
 		cw_sync_parameters_internal(cw_generator, rec);
 	}
 

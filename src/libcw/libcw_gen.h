@@ -261,6 +261,13 @@ struct cw_gen_struct {
 
 
 
+	/* After changing sending speed, gap or weighting, some
+	   generator's internal parameters need to be
+	   re-calculated. This is a flag that shows when this needs to
+	   be done. */
+	bool parameters_in_sync;
+
+
 	int sample_rate; /* set to the same value of sample rate as
 			    you have used when configuring sound card */
 

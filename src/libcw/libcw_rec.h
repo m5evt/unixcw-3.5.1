@@ -99,6 +99,15 @@ typedef struct {
 	   level timing parameters. */
 	int tolerance;
 
+
+	/* After changing receiver's receive speed, tolerance or adaptive mode,
+	   some receiver's internal parameters need to be
+	   re-calculated. This is a flag that shows when this needs to
+	   be done. */
+	bool parameters_in_sync;
+
+
+
 	/* Retained tone start and end timestamps. */
 	struct timeval tone_start;
 	struct timeval tone_end;

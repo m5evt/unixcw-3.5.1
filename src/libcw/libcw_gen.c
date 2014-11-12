@@ -110,10 +110,6 @@ extern cw_debug_t cw_debug_object_dev;
 extern volatile cw_key_t cw_key;
 
 
-/* From libcw.c. */
-extern bool cw_is_in_sync;
-
-
 
 
 
@@ -551,6 +547,8 @@ cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 	gen->gap = CW_GAP_INITIAL;
 	gen->weighting = CW_WEIGHTING_INITIAL;
 
+
+	gen->parameters_in_sync = false;
 
 
 	gen->buffer = NULL;
@@ -1617,7 +1615,7 @@ int cw_set_send_speed(int new_value)
 		cw_generator->send_speed = new_value;
 
 		/* Changes of send speed require resynchronization. */
-		cw_is_in_sync = false;
+		cw_generator->parameters_in_sync = false;
 		cw_sync_parameters_internal(cw_generator, &cw_receiver);
 	}
 
@@ -1729,7 +1727,7 @@ int cw_set_gap(int new_value)
 		cw_generator->gap = new_value;
 
 		/* Changes of gap require resynchronization. */
-		cw_is_in_sync = false;
+		cw_generator->parameters_in_sync = false;
 		cw_sync_parameters_internal(cw_generator, &cw_receiver);
 	}
 
@@ -1765,7 +1763,7 @@ int cw_set_weighting(int new_value)
 		cw_generator->weighting = new_value;
 
 		/* Changes of weighting require resynchronization. */
-		cw_is_in_sync = false;
+		cw_generator->parameters_in_sync = false;
 		cw_sync_parameters_internal(cw_generator, &cw_receiver);
 	}
 
@@ -2394,19 +2392,6 @@ int cw_send_string(const char *string)
 
 
 
-/* Both generator and receiver contain a group of low-level timing
-   parameters that should be recalculated (synchronized) on some
-   events. This is a flag that allows us to decide whether it's time
-   to recalculate the low-level parameters.
-
-   TODO: this variable should be a field in either cw_gen_t or
-   cw_receiver_t. */
-bool cw_is_in_sync = false;
-
-
-
-
-
 /**
    \brief Synchronize send/receive parameters of the library
 
@@ -2424,7 +2409,7 @@ bool cw_is_in_sync = false;
 void cw_sync_parameters_internal(cw_gen_t *gen, cw_rec_t *rec)
 {
 	/* Do nothing if we are already synchronized with speed/gap. */
-	if (cw_is_in_sync) {
+	if (gen->parameters_in_sync && rec->parameters_in_sync) {
 		return;
 	}
 
@@ -2435,7 +2420,8 @@ void cw_sync_parameters_internal(cw_gen_t *gen, cw_rec_t *rec)
 	cw_rec_sync_parameters_internal(rec, gen);
 
 	/* Parameters are now in sync. */
-	cw_is_in_sync = true;
+	gen->parameters_in_sync = true;
+	rec->parameters_in_sync = true;
 
 	return;
 }
@@ -2457,8 +2443,10 @@ void cw_reset_send_receive_parameters(void)
 	cw_gen_reset_send_parameters_internal(cw_generator);
 	cw_rec_reset_receive_parameters_internal(&cw_receiver);
 
-	/* Changes require resynchronization. */
-	cw_is_in_sync = false;
+	/* Reset requires resynchronization. */
+	cw_generator->parameters_in_sync = false;
+	cw_receiver.parameters_in_sync = false;
+
 	cw_sync_parameters_internal(cw_generator, &cw_receiver);
 
 	return;
