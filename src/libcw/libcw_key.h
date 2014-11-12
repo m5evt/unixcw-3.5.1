@@ -21,13 +21,16 @@
 
 typedef struct cw_key_struct {
 	/* Straight key and iambic keyer needs a generator to produce
-	   a sound on "Key Down" events.
+	   a sound on "Key Down" events. Maybe we don't always need a
+	   sound, but sometimes we do want to have it.
 
 	   Additionally iambic keyer needs a generator for timing
 	   purposes.
 
 	   In any case - a key needs to have access to a generator
-	   (but a generator doesn't need a key). */
+	   (but a generator doesn't need a key). This is why the key
+	   data type has a "generator" field, not the other way
+	   around. */
 	cw_gen_t *gen;
 
 
