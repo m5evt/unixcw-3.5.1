@@ -33,6 +33,7 @@
 #include "libcw_debug.h"
 #include "libcw_key.h"
 #include "libcw_gen.h"
+#include "libcw_rec.h"
 #include "libcw_signal.h"
 #include "libcw_utils.h"
 
@@ -628,7 +629,8 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *keyer)
 	keyer->ik.lock = true;
 
 	/* Synchronize low level timing parameters if required. */
-	cw_sync_parameters_internal(keyer->gen, &cw_receiver);
+	cw_gen_sync_parameters_internal(keyer->gen);
+	cw_rec_sync_parameters_internal(&cw_receiver);
 
 	int cw_iambic_keyer_state_old = keyer->ik.graph_state;
 
