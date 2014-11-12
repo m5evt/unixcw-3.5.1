@@ -31,6 +31,7 @@
 
 #include "libcw.h"
 
+#include "libcw_gen.h"
 #include "libcw_rec.h"
 #include "libcw_debug.h"
 #include "libcw_data.h"
@@ -61,7 +62,6 @@
 #include <stdio.h>
 #include <assert.h>
 
-#include "libcw_internal.h"
 
 
 
