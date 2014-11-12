@@ -80,11 +80,14 @@ typedef struct cw_tracking_struct {
 
 
 
+
 typedef struct {
 	/* State of receiver state machine. */
 	int state;
 
 	int speed;
+
+	int gap; /* Inter-mark gap, similar as in generator. */
 
 	int noise_spike_threshold;
 	bool is_adaptive_receive_enabled;
@@ -141,6 +144,13 @@ typedef struct {
 	int eoc_range_maximum;    /* Longest end of char allowable */
 	int eoc_range_ideal;      /* Ideal end of char, for stats */
 
+	/* These two fields have the same function as in
+	   cw_gen_t. They are needed in function re-synchronizing
+	   parameters. */
+	int additional_delay;     /* More delay at the end of a char */
+	int adjustment_delay;     /* More delay at the end of a word */
+
+
 
 	/* Receiver statistics */
 	cw_statistics_t statistics[CW_REC_STATISTICS_CAPACITY];
@@ -158,7 +168,7 @@ typedef struct {
 
 
 void cw_rec_reset_receive_parameters_internal(cw_rec_t *rec);
-void cw_rec_sync_parameters_internal(cw_rec_t *rec, cw_gen_t *gen);
+void cw_rec_sync_parameters_internal(cw_rec_t *rec);
 
 
 
