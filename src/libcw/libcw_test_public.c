@@ -47,9 +47,10 @@
 #include "libcw.h"
 #include "libcw_test.h"
 #include "libcw_debug.h"
-#include "libcw_internal.h"
 #include "libcw_tq.h"
 #include "libcw_utils.h"
+#include "libcw_gen.h"
+#include "libcw_rec.h"
 
 
 typedef struct {
