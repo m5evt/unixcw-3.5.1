@@ -18,6 +18,28 @@
 */
 
 
+
+
+/**
+   \file libcw_rec.c
+
+   Receiver. Receive marks and spaces. Interpret them as characters.
+
+   Receiver for straight key does not require generator (in theory,
+   probably, maybe). Receiver will simply measure itself time periods
+   between key down and key up events, and will calculate duration of
+   spaces and marks (in theory, probably, maybe). In case of straight
+   key, duration of dots and dashes is not enforced by generator.
+
+   Receiver for iambic key requires a generator to measure time
+   periods that form dot and/or dash when dot and/or dash paddle is
+   pressed (in theory, probably, maybe). In case of iambic keyer,
+   duration of dots and dashes is enforced by send speed of generator.
+
+   Generator does not need a receiver.  Receiver (sometimes) need a
+   generator.
+*/
+
 #include "config.h"
 
 
@@ -35,23 +57,28 @@
 # include <sys/param.h>
 #endif
 
+#if defined(HAVE_STRING_H)
+# include <string.h>
+#endif
+
+#if defined(HAVE_STRINGS_H)
+# include <strings.h>
+#endif
 
 
 
 
 #include "libcw.h"
+#include "libcw_gen.h"
+#include "libcw_rec.h"
 #include "libcw_data.h"
 #include "libcw_utils.h"
-#include "libcw_gen.h"
 #include "libcw_debug.h"
-#include "libcw_rec.h"
 #include "libcw_test.h"
 
 
 
 
-
-extern cw_gen_t *cw_generator;
 
 extern cw_debug_t cw_debug_object;
 extern cw_debug_t cw_debug_object_ev;
@@ -91,6 +118,8 @@ cw_rec_t cw_receiver = { .state = RS_IDLE,
 
 			 .speed = CW_SPEED_INITIAL,
 
+			 .gap = CW_GAP_INITIAL,
+
 			 .noise_spike_threshold = CW_REC_INITIAL_NOISE_THRESHOLD,
 			 .is_adaptive_receive_enabled = CW_REC_ADAPTIVE_INITIAL,
 			 .adaptive_receive_threshold = CW_REC_INITIAL_THRESHOLD,
@@ -116,11 +145,14 @@ cw_rec_t cw_receiver = { .state = RS_IDLE,
 			 .eoc_range_maximum = 0,
 			 .eoc_range_ideal = 0,
 
+			 .additional_delay = 0,
+			 .adjustment_delay = 0
+
 			 .statistics_ind = 0,
 			 .statistics = { {0, 0} },
 
 			 .dot_tracking  = { {0}, 0, 0 },
-			 .dash_tracking = { {0}, 0, 0 }
+			 .dash_tracking = { {0}, 0, 0 },
 };
 
 
@@ -185,7 +217,7 @@ int cw_set_receive_speed(int new_value)
 
 		/* Changes of receive speed require resynchronization. */
 		cw_receiver.parameters_in_sync = false;
-		cw_sync_parameters_internal(cw_generator, &cw_receiver);
+		cw_rec_sync_parameters_internal(&cw_receiver);
 	}
 
 	return CW_SUCCESS;
@@ -237,7 +269,7 @@ int cw_set_tolerance(int new_value)
 
 		/* Changes of tolerance require resynchronization. */
 		cw_receiver.parameters_in_sync = false;
-		cw_sync_parameters_internal(cw_generator, &cw_receiver);
+		cw_rec_sync_parameters_internal(&cw_receiver);
 	}
 
 	return CW_SUCCESS;
@@ -297,7 +329,7 @@ void cw_get_receive_parameters(int *dot_usecs, int *dash_usecs,
 			       int *end_of_character_ideal_usecs,
 			       int *adaptive_threshold)
 {
-	cw_sync_parameters_internal(cw_generator, &cw_receiver);
+	cw_rec_sync_parameters_internal(&cw_receiver);
 
 	if (dot_usecs)      *dot_usecs = cw_receiver.dot_length;
 	if (dash_usecs)     *dash_usecs = cw_receiver.dash_length;
@@ -458,7 +490,7 @@ int cw_get_adaptive_average_internal(cw_tracking_t *tracking)
 void cw_receiver_add_statistic_internal(cw_rec_t *rec, stat_type_t type, int usecs)
 {
 	/* Synchronize low-level timings if required. */
-	cw_sync_parameters_internal(cw_generator, rec);
+	cw_rec_sync_parameters_internal(rec);
 
 	/* Calculate delta as difference between usec and the ideal value. */
 	int delta = usecs - ((type == STAT_DOT) ? rec->dot_length
@@ -641,7 +673,7 @@ void cw_receiver_set_adaptive_internal(cw_rec_t *rec, bool flag)
 
 		/* Changing the flag forces a change in low-level parameters. */
 		rec->parameters_in_sync = false;
-		cw_sync_parameters_internal(cw_generator, rec);
+		cw_rec_sync_parameters_internal(rec);
 
 		/* If we have just switched to adaptive mode, (re-)initialize
 		   the averages array to the current dot/dash lengths, so
@@ -829,7 +861,7 @@ int cw_rec_mark_identify_internal(cw_rec_t *rec, int mark_len_usecs, /* out */ c
 	cw_assert (representation, "Output parameter is NULL");
 
 	/* Synchronize low level timings if required */
-	cw_sync_parameters_internal(cw_generator, rec);
+	cw_rec_sync_parameters_internal(rec);
 
 	/* If the timing was, within tolerance, a dot, return dot to
 	   the caller.  */
@@ -963,17 +995,18 @@ void cw_receiver_update_adaptive_tracking_internal(cw_rec_t *rec, int mark_len_u
 	   all other timing parameters back to where they should be. */
 
 	rec->parameters_in_sync = false;
-	cw_sync_parameters_internal(cw_generator, rec);
+	cw_rec_sync_parameters_internal(rec);
+
 	if (rec->speed < CW_SPEED_MIN || rec->speed > CW_SPEED_MAX) {
 		rec->speed = rec->speed < CW_SPEED_MIN ? CW_SPEED_MIN : CW_SPEED_MAX;
 
 		rec->is_adaptive_receive_enabled = false;
 		rec->parameters_in_sync = false;
-		cw_sync_parameters_internal(cw_generator, rec);
+		cw_rec_sync_parameters_internal(rec);
 
 		rec->is_adaptive_receive_enabled = true;
 		rec->parameters_in_sync = false;
-		cw_sync_parameters_internal(cw_generator, rec);
+		cw_rec_sync_parameters_internal(rec);
 	}
 
 	return;
@@ -1401,7 +1434,7 @@ int cw_receive_representation(const struct timeval *timestamp,
 	}
 
 	/* Synchronize low level timings if required */
-	cw_sync_parameters_internal(cw_generator, &cw_receiver);
+	cw_rec_sync_parameters_internal(&cw_receiver);
 
 
 	if (space_len_usecs >= cw_receiver.eoc_range_minimum
@@ -1660,10 +1693,14 @@ void cw_rec_reset_receive_parameters_internal(cw_rec_t *rec)
 
 
 
-void cw_rec_sync_parameters_internal(cw_rec_t *rec, cw_gen_t *gen)
+void cw_rec_sync_parameters_internal(cw_rec_t *rec)
 {
 	cw_assert (rec, "receiver is NULL");
-	cw_assert (gen, "generator is NULL");
+
+	/* Do nothing if we are already synchronized. */
+	if (rec->parameters_in_sync) {
+		return;
+	}
 
 	/* First, depending on whether we are set for fixed speed or
 	   adaptive speed, calculate either the threshold from the
@@ -1683,6 +1720,13 @@ void cw_rec_sync_parameters_internal(cw_rec_t *rec, cw_gen_t *gen)
 	/* Calculate the basic receive dot and dash lengths. */
 	rec->dot_length = unit_length;
 	rec->dash_length = 3 * unit_length;
+
+
+	/* These two lines mimic calculations done in
+	   cw_gen_sync_parameters_internal().  See the function for
+	   more comments. */
+	rec->additional_delay = rec->gap * unit_length;
+	rec->adjustment_delay = (7 * rec->additional_delay) / 3;
 
 	/* Set the ranges of respectable timing elements depending
 	   very much on whether we are required to adapt to the
@@ -1718,25 +1762,20 @@ void cw_rec_sync_parameters_internal(cw_rec_t *rec, cw_gen_t *gen)
 		rec->dash_range_maximum = rec->dash_length + tolerance;
 
 		/* Make the inter-element gap the same as the Dot
-		   range.  Make the inter-character gap, expected
-		   to be three Dots, the same as Dash range at the
-		   lower end, but make it the same as the Dash range
-		   _plus_ the "Farnsworth" delay at the top of the
-		   range.
-
-		   Any gap longer than this is by implication
-		   inter-word. */
+		   range. */
 		rec->eoe_range_minimum = rec->dot_range_minimum;
 		rec->eoe_range_maximum = rec->dot_range_maximum;
+
+		/* Make the inter-character gap, expected to be three
+		   Dots, the same as Dash range at the lower end, but
+		   make it the same as the Dash range _plus_ the
+		   "Farnsworth" delay at the top of the range. */
 		rec->eoc_range_minimum = rec->dash_range_minimum;
 		rec->eoc_range_maximum = rec->dash_range_maximum
-			/* NOTE: the only reference to generator
-			   variables in code setting receiver
-			   variables.  Maybe we could/should do a full
-			   separation, and create
-			   rec->additional_delay and
-			   rec->adjustment_delay? */
-			+ gen->additional_delay + gen->adjustment_delay;
+			+ rec->additional_delay + rec->adjustment_delay;
+
+		/* Any gap longer than this is by implication
+		   inter-word. */
 	}
 
 	/* For statistical purposes, calculate the ideal end of
@@ -1752,6 +1791,9 @@ void cw_rec_sync_parameters_internal(cw_rec_t *rec, cw_gen_t *gen)
 		      rec->eoe_range_minimum, rec->eoe_range_maximum, rec->eoe_range_ideal,
 		      rec->eoc_range_minimum, rec->eoc_range_maximum, rec->eoc_range_ideal,
 		      rec->adaptive_receive_threshold);
+
+	/* Receiver parameters are now in sync. */
+	rec->parameters_in_sync = true;
 
 	return;
 }
