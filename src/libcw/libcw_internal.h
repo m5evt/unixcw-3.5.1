@@ -19,7 +19,7 @@
 
 
 /* From libcw.c, needed in libcw_key.c. */
-void cw_sync_parameters_internal(cw_gen_t *gen, cw_rec_t *rec);
+
 
 
 
