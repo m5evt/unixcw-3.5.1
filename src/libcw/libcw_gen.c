@@ -157,7 +157,7 @@ static int       cw_gen_calculate_sine_wave_internal(cw_gen_t *gen, cw_tone_t *t
 static int       cw_gen_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone);
 static int       cw_gen_write_to_soundcard_internal(cw_gen_t *gen, int queue_state, cw_tone_t *tone);
 
-static void cw_gen_sync_parameters_internal(cw_gen_t *gen);
+
 static void cw_gen_reset_send_parameters_internal(cw_gen_t *gen);
 
 static int cw_send_element_internal(cw_gen_t *gen, char element);
@@ -1616,7 +1616,7 @@ int cw_set_send_speed(int new_value)
 
 		/* Changes of send speed require resynchronization. */
 		cw_generator->parameters_in_sync = false;
-		cw_sync_parameters_internal(cw_generator, &cw_receiver);
+		cw_gen_sync_parameters_internal(cw_generator);
 	}
 
 	return CW_SUCCESS;
@@ -1725,10 +1725,22 @@ int cw_set_gap(int new_value)
 
 	if (new_value != cw_generator->gap) {
 		cw_generator->gap = new_value;
-
 		/* Changes of gap require resynchronization. */
 		cw_generator->parameters_in_sync = false;
-		cw_sync_parameters_internal(cw_generator, &cw_receiver);
+		cw_gen_sync_parameters_internal(cw_generator);
+
+
+		/* Ideally generator and receiver should have their
+		   own, separate cw_set_gap() functions. Unfortunately
+		   this is not the case (for now) so gap should be set
+		   here for receiver as well.
+
+		   TODO: add set_gap() function for receiver.*/
+
+		cw_receiver.gap = new_value;
+		/* Changes of gap require resynchronization. */
+		cw_receiver.parameters_in_sync = false;
+		cw_rec_sync_parameters_internal(&cw_receiver);
 	}
 
 	return CW_SUCCESS;
@@ -1764,7 +1776,7 @@ int cw_set_weighting(int new_value)
 
 		/* Changes of weighting require resynchronization. */
 		cw_generator->parameters_in_sync = false;
-		cw_sync_parameters_internal(cw_generator, &cw_receiver);
+		cw_gen_sync_parameters_internal(cw_generator);
 	}
 
 	return CW_SUCCESS;
@@ -1883,7 +1895,7 @@ void cw_get_send_parameters(int *dot_usecs, int *dash_usecs,
 			    int *end_of_character_usecs, int *end_of_word_usecs,
 			    int *additional_usecs, int *adjustment_usecs)
 {
-	cw_sync_parameters_internal(cw_generator, &cw_receiver);
+	cw_gen_sync_parameters_internal(cw_generator);
 
 	if (dot_usecs)   *dot_usecs = cw_generator->dot_length;
 	if (dash_usecs)  *dash_usecs = cw_generator->dash_length;
@@ -1924,7 +1936,8 @@ int cw_send_element_internal(cw_gen_t *gen, char element)
 	int status;
 
 	/* Synchronize low-level timings if required. */
-	cw_sync_parameters_internal(gen, &cw_receiver);
+	cw_gen_sync_parameters_internal(gen);
+	/* TODO: do we need to synchronize here receiver as well? */
 
 	/* Send either a dot or a dash element, depending on representation. */
 	if (element == CW_DOT_REPRESENTATION) {
@@ -2009,7 +2022,7 @@ int cw_send_dash(void)
 int cw_send_character_space(void)
 {
 	/* Synchronize low-level timing parameters. */
-	cw_sync_parameters_internal(cw_generator, &cw_receiver);
+	cw_gen_sync_parameters_internal(cw_generator);
 
 	/* Delay for the standard end of character period, plus any
 	   additional inter-character gap */
@@ -2032,7 +2045,7 @@ int cw_send_character_space(void)
 int cw_send_word_space(void)
 {
 	/* Synchronize low-level timing parameters. */
-	cw_sync_parameters_internal(cw_generator, &cw_receiver);
+	cw_gen_sync_parameters_internal(cw_generator);
 
 	/* Send silence for the word delay period, plus any adjustment
 	   that may be needed at end of word. */
@@ -2393,44 +2406,6 @@ int cw_send_string(const char *string)
 
 
 /**
-   \brief Synchronize send/receive parameters of the library
-
-   Synchronize the dot, dash, end of element, end of character, and end
-   of word timings and ranges to new values of Morse speed, "Farnsworth"
-   gap, receive tolerance, or weighting.
-
-   All the timing parameters are stored in \p gen and \p rec. The
-   parameters for generator and receiver are almost completely
-   independent. Almost.
-
-   \param gen - generator variable, storing generation parameters
-   \param rec - receiver variable, storing receiving parameters
-*/
-void cw_sync_parameters_internal(cw_gen_t *gen, cw_rec_t *rec)
-{
-	/* Do nothing if we are already synchronized with speed/gap. */
-	if (gen->parameters_in_sync && rec->parameters_in_sync) {
-		return;
-	}
-
-	/* It's important to first synchronize generator, and then
-	   receiver. Code that synchronizes receiver depends on
-	   generator being synchronized. */
-	cw_gen_sync_parameters_internal(gen);
-	cw_rec_sync_parameters_internal(rec, gen);
-
-	/* Parameters are now in sync. */
-	gen->parameters_in_sync = true;
-	rec->parameters_in_sync = true;
-
-	return;
-}
-
-
-
-
-
-/**
    \brief Reset send/receive parameters
 
    Reset the library speed, frequency, volume, gap, tolerance, weighting,
@@ -2447,7 +2422,8 @@ void cw_reset_send_receive_parameters(void)
 	cw_generator->parameters_in_sync = false;
 	cw_receiver.parameters_in_sync = false;
 
-	cw_sync_parameters_internal(cw_generator, &cw_receiver);
+	cw_gen_sync_parameters_internal(cw_generator);
+	cw_rec_sync_parameters_internal(&cw_receiver);
 
 	return;
 }
@@ -2459,7 +2435,7 @@ void cw_reset_send_receive_parameters(void)
 
 /**
   \brief Reset essential sending parameters to their initial values
- */
+*/
 void cw_gen_reset_send_parameters_internal(cw_gen_t *gen)
 {
 	cw_assert (gen, "generator is NULL");
@@ -2482,6 +2458,11 @@ void cw_gen_reset_send_parameters_internal(cw_gen_t *gen)
 void cw_gen_sync_parameters_internal(cw_gen_t *gen)
 {
 	cw_assert (gen, "generator is NULL");
+
+	/* Do nothing if we are already synchronized. */
+	if (gen->parameters_in_sync) {
+		return;
+	}
 
 	/* Set the length of a Dot to be a Unit with any weighting
 	   adjustment, and the length of a Dash as three Dot lengths.
@@ -2522,6 +2503,9 @@ void cw_gen_sync_parameters_internal(cw_gen_t *gen)
 		      gen->send_speed, gen->dot_length, gen->dash_length,
 		      gen->eoe_delay, gen->eoc_delay,
 		      gen->eow_delay, gen->additional_delay, gen->adjustment_delay);
+
+	/* Generator parameters are now in sync. */
+	gen->parameters_in_sync = true;
 
 	return;
 }
