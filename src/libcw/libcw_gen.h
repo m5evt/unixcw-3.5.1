@@ -250,11 +250,16 @@ struct cw_gen_struct {
 	/* output file descriptor for debug data (console, OSS, ALSA, PulseAudio) */
 	int dev_raw_sink;
 
-	int send_speed;
-	int gap;
-	int volume_percent; /* level of sound in percents of maximum allowable level */
-	int volume_abs;     /* level of sound in absolute terms; height of PCM samples */
-	int frequency;   /* this is the frequency of sound that you want to generate */
+
+	/* Essential sending parameters. */
+	int send_speed;     /* [wpm] */
+	int frequency;      /* The frequency of generated sound. [Hz] */
+	int volume_percent; /* Level of sound in percents of maximum allowable level. */
+	int volume_abs;     /* Level of sound in absolute terms; height of PCM samples. */
+	int gap;            /* Inter-mark gap. [number of dot lengths]. */
+	int weighting;      /* Dot/dash weighting. */
+
+
 
 	int sample_rate; /* set to the same value of sample rate as
 			    you have used when configuring sound card */
@@ -285,7 +290,6 @@ struct cw_gen_struct {
 	} client;
 
 
-	int weighting;            /* Dot/dash weighting */
 
 	/* These are basic timing parameters which should be
 	   recalculated each time client code demands changing some
