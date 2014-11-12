@@ -8,7 +8,7 @@
 
 
 #include "libcw.h"
-#include "libcw_gen.h"
+//#include "libcw_gen.h"
 
 
 
@@ -131,18 +131,21 @@ typedef struct {
 	/* These are basic timing parameters which should be
 	   recalculated each time client code demands changing some
 	   higher-level parameter of receiver. */
-	int dot_length;           /* Length of a dot, in usec */
-	int dash_length;          /* Length of a dash, in usec */
-	int dot_range_minimum;    /* Shortest dot period allowable */
-	int dot_range_maximum;    /* Longest dot period allowable */
-	int dash_range_minimum;   /* Shortest dot period allowable */
-	int dash_range_maximum;   /* Longest dot period allowable */
-	int eoe_range_minimum;    /* Shortest end of mark allowable */
-	int eoe_range_maximum;    /* Longest end of mark allowable */
-	int eoe_range_ideal;      /* Ideal end of mark, for stats */
-	int eoc_range_minimum;    /* Shortest end of char allowable */
-	int eoc_range_maximum;    /* Longest end of char allowable */
-	int eoc_range_ideal;      /* Ideal end of char, for stats */
+	int dot_len_ideal;        /* Length of an ideal dot. [us] */
+	int dot_len_min;          /* Minimal length of mark that will be identified as dot. [us] */
+	int dot_len_max;          /* Maximal length of mark that will be identified as dot. [us] */
+
+	int dash_len_ideal;       /* Length of an ideal dash. [us] */
+	int dash_len_min;         /* Minimal length of mark that will be identified as dash. [us] */
+	int dash_len_max;         /* Maximal length of mark that will be identified as dash. [us] */
+
+	int eoe_len_ideal;        /* Ideal end of mark, for stats */
+	int eoe_len_min;          /* Shortest end of mark allowable */
+	int eoe_len_max;          /* Longest end of mark allowable */
+
+	int eoc_len_ideal;        /* Ideal end of char, for stats */
+	int eoc_len_min;          /* Shortest end of char allowable */
+	int eoc_len_max;          /* Longest end of char allowable */
 
 	/* These two fields have the same function as in
 	   cw_gen_t. They are needed in function re-synchronizing
