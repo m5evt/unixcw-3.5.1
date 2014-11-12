@@ -55,6 +55,7 @@
 
 
 #include "libcw_gen.h"
+#include "libcw_rec.h"
 #include "libcw_debug.h"
 #include "libcw_console.h"
 #include "libcw_key.h"
@@ -159,6 +160,9 @@ static void     *cw_gen_dequeue_and_play_internal(void *arg);
 static int       cw_gen_calculate_sine_wave_internal(cw_gen_t *gen, cw_tone_t *tone);
 static int       cw_gen_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone);
 static int       cw_gen_write_to_soundcard_internal(cw_gen_t *gen, int queue_state, cw_tone_t *tone);
+
+static void cw_gen_sync_parameters_internal(cw_gen_t *gen);
+static void cw_gen_reset_send_parameters_internal(cw_gen_t *gen);
 
 static int cw_send_element_internal(cw_gen_t *gen, char element);
 static int cw_send_representation_internal(cw_gen_t *gen, const char *representation, bool partial);
@@ -537,11 +541,18 @@ cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 	//gen->audio_system = audio_system;
 	gen->audio_device_is_open = false;
 	gen->dev_raw_sink = -1;
+
+
+	/* Essential sending parameters. */
 	gen->send_speed = CW_SPEED_INITIAL,
 	gen->frequency = CW_FREQUENCY_INITIAL;
 	gen->volume_percent = CW_VOLUME_INITIAL;
 	gen->volume_abs = (gen->volume_percent * CW_AUDIO_VOLUME_RANGE) / 100;
 	gen->gap = CW_GAP_INITIAL;
+	gen->weighting = CW_WEIGHTING_INITIAL;
+
+
+
 	gen->buffer = NULL;
 	gen->buffer_n_samples = -1;
 
@@ -573,7 +584,6 @@ cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 	pthread_attr_init(&gen->thread.attr);
 	pthread_attr_setdetachstate(&gen->thread.attr, PTHREAD_CREATE_DETACHED);
 
-	gen->weighting = CW_WEIGHTING_INITIAL;
 
 	gen->dot_length = 0;
 	gen->dash_length = 0;
@@ -2418,8 +2428,72 @@ void cw_sync_parameters_internal(cw_gen_t *gen, cw_rec_t *rec)
 		return;
 	}
 
+	/* It's important to first synchronize generator, and then
+	   receiver. Code that synchronizes receiver depends on
+	   generator being synchronized. */
+	cw_gen_sync_parameters_internal(gen);
+	cw_rec_sync_parameters_internal(rec, gen);
 
-	/* Generator parameters */
+	/* Parameters are now in sync. */
+	cw_is_in_sync = true;
+
+	return;
+}
+
+
+
+
+
+/**
+   \brief Reset send/receive parameters
+
+   Reset the library speed, frequency, volume, gap, tolerance, weighting,
+   adaptive receive, and noise spike threshold to their initial default
+   values: send/receive speed 12 WPM, volume 70 %, frequency 800 Hz,
+   gap 0 dots, tolerance 50 %, and weighting 50 %.
+*/
+void cw_reset_send_receive_parameters(void)
+{
+	cw_gen_reset_send_parameters_internal(cw_generator);
+	cw_rec_reset_receive_parameters_internal(&cw_receiver);
+
+	/* Changes require resynchronization. */
+	cw_is_in_sync = false;
+	cw_sync_parameters_internal(cw_generator, &cw_receiver);
+
+	return;
+}
+
+
+
+
+
+
+/**
+  \brief Reset essential sending parameters to their initial values
+ */
+void cw_gen_reset_send_parameters_internal(cw_gen_t *gen)
+{
+	cw_assert (gen, "generator is NULL");
+
+	gen->send_speed = CW_SPEED_INITIAL;
+	gen->frequency = CW_FREQUENCY_INITIAL;
+	gen->volume_percent = CW_VOLUME_INITIAL;
+	gen->volume_abs = (cw_generator->volume_percent * CW_AUDIO_VOLUME_RANGE) / 100;
+	gen->gap = CW_GAP_INITIAL;
+	gen->weighting = CW_WEIGHTING_INITIAL;
+
+	return;
+
+}
+
+
+
+
+
+void cw_gen_sync_parameters_internal(cw_gen_t *gen)
+{
+	cw_assert (gen, "generator is NULL");
 
 	/* Set the length of a Dot to be a Unit with any weighting
 	   adjustment, and the length of a Dash as three Dot lengths.
@@ -2460,138 +2534,6 @@ void cw_sync_parameters_internal(cw_gen_t *gen, cw_rec_t *rec)
 		      gen->send_speed, gen->dot_length, gen->dash_length,
 		      gen->eoe_delay, gen->eoc_delay,
 		      gen->eow_delay, gen->additional_delay, gen->adjustment_delay);
-
-
-
-
-
-	/* Receiver parameters */
-
-	/* First, depending on whether we are set for fixed speed or
-	   adaptive speed, calculate either the threshold from the
-	   receive speed, or the receive speed from the threshold,
-	   knowing that the threshold is always, effectively, two dot
-	   lengths.  Weighting is ignored for receive parameters,
-	   although the core unit length is recalculated for the
-	   receive speed, which may differ from the send speed. */
-	unit_length = DOT_CALIBRATION / rec->speed;
-	if (rec->is_adaptive_receive_enabled) {
-		rec->speed = DOT_CALIBRATION
-			/ (rec->adaptive_receive_threshold / 2);
-	} else {
-		rec->adaptive_receive_threshold = 2 * unit_length;
-	}
-
-	/* Calculate the basic receive dot and dash lengths. */
-	rec->dot_length = unit_length;
-	rec->dash_length = 3 * unit_length;
-
-	/* Set the ranges of respectable timing elements depending
-	   very much on whether we are required to adapt to the
-	   incoming Morse code speeds. */
-	if (rec->is_adaptive_receive_enabled) {
-		/* For adaptive timing, calculate the Dot and
-		   Dash timing ranges as zero to two Dots is a
-		   Dot, and anything, anything at all, larger than
-		   this is a Dash. */
-		rec->dot_range_minimum = 0;
-		rec->dot_range_maximum = 2 * rec->dot_length;
-		rec->dash_range_minimum = rec->dot_range_maximum;
-		rec->dash_range_maximum = INT_MAX;
-
-		/* Make the inter-element gap be anything up to
-		   the adaptive threshold lengths - that is two
-		   Dots.  And the end of character gap is anything
-		   longer than that, and shorter than five dots. */
-		rec->eoe_range_minimum = rec->dot_range_minimum;
-		rec->eoe_range_maximum = rec->dot_range_maximum;
-		rec->eoc_range_minimum = rec->eoe_range_maximum;
-		rec->eoc_range_maximum = 5 * rec->dot_length;
-
-	} else {
-		/* For fixed speed receiving, calculate the Dot
-		   timing range as the Dot length +/- dot*tolerance%,
-		   and the Dash timing range as the Dash length
-		   including +/- dot*tolerance% as well. */
-		int tolerance = (rec->dot_length * rec->tolerance) / 100;
-		rec->dot_range_minimum = rec->dot_length - tolerance;
-		rec->dot_range_maximum = rec->dot_length + tolerance;
-		rec->dash_range_minimum = rec->dash_length - tolerance;
-		rec->dash_range_maximum = rec->dash_length + tolerance;
-
-		/* Make the inter-element gap the same as the Dot
-		   range.  Make the inter-character gap, expected
-		   to be three Dots, the same as Dash range at the
-		   lower end, but make it the same as the Dash range
-		   _plus_ the "Farnsworth" delay at the top of the
-		   range.
-
-		   Any gap longer than this is by implication
-		   inter-word. */
-		rec->eoe_range_minimum = rec->dot_range_minimum;
-		rec->eoe_range_maximum = rec->dot_range_maximum;
-		rec->eoc_range_minimum = rec->dash_range_minimum;
-		rec->eoc_range_maximum = rec->dash_range_maximum
-			/* NOTE: the only reference to generator
-			   variables in code setting receiver
-			   variables.  Maybe we could/should do a full
-			   separation, and create
-			   rec->additional_delay and
-			   rec->adjustment_delay? */
-			+ gen->additional_delay + gen->adjustment_delay;
-	}
-
-	/* For statistical purposes, calculate the ideal end of
-	   element and end of character timings. */
-	rec->eoe_range_ideal = unit_length;
-	rec->eoc_range_ideal = 3 * unit_length;
-
-	cw_debug_msg ((&cw_debug_object), CW_DEBUG_PARAMETERS, CW_DEBUG_INFO,
-		      "libcw: receive usec timings <%d [wpm]>: dot: %d-%d [ms], dash: %d-%d [ms], %d-%d[%d], %d-%d[%d], thres: %d",
-		      rec->speed,
-		      rec->dot_range_minimum, rec->dot_range_maximum,
-		      rec->dash_range_minimum, rec->dash_range_maximum,
-		      rec->eoe_range_minimum, rec->eoe_range_maximum, rec->eoe_range_ideal,
-		      rec->eoc_range_minimum, rec->eoc_range_maximum, rec->eoc_range_ideal,
-		      rec->adaptive_receive_threshold);
-
-
-
-	/* Set the "parameters in sync" flag. */
-	cw_is_in_sync = true;
-
-	return;
-}
-
-
-
-
-
-/**
-   \brief Reset send/receive parameters
-
-   Reset the library speed, frequency, volume, gap, tolerance, weighting,
-   adaptive receive, and noise spike threshold to their initial default
-   values: send/receive speed 12 WPM, volume 70 %, frequency 800 Hz,
-   gap 0 dots, tolerance 50 %, and weighting 50 %.
-*/
-void cw_reset_send_receive_parameters(void)
-{
-	cw_generator->send_speed = CW_SPEED_INITIAL;
-	cw_generator->frequency = CW_FREQUENCY_INITIAL;
-	cw_generator->volume_percent = CW_VOLUME_INITIAL;
-	cw_generator->volume_abs = (cw_generator->volume_percent * CW_AUDIO_VOLUME_RANGE) / 100;
-	cw_generator->gap = CW_GAP_INITIAL;
-	cw_generator->weighting = CW_WEIGHTING_INITIAL;
-
-	cw_receiver.speed = CW_SPEED_INITIAL;
-	cw_receiver.tolerance = CW_TOLERANCE_INITIAL;
-	cw_receiver.is_adaptive_receive_enabled = CW_REC_ADAPTIVE_INITIAL;
-	cw_receiver.noise_spike_threshold = CW_REC_INITIAL_NOISE_THRESHOLD;
-
-	/* Changes require resynchronization. */
-	cw_is_in_sync = false;
-	cw_sync_parameters_internal(cw_generator, &cw_receiver);
 
 	return;
 }
