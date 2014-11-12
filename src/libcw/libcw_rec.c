@@ -1639,6 +1639,125 @@ void cw_reset_receive(void)
 
 
 
+/**
+  \brief Reset essential receive parameters to their initial values
+*/
+void cw_rec_reset_receive_parameters_internal(cw_rec_t *rec)
+{
+	cw_assert (rec, "receiver is NULL");
+
+	rec->speed = CW_SPEED_INITIAL;
+	rec->tolerance = CW_TOLERANCE_INITIAL;
+	rec->is_adaptive_receive_enabled = CW_REC_ADAPTIVE_INITIAL;
+	rec->noise_spike_threshold = CW_REC_INITIAL_NOISE_THRESHOLD;
+
+	return;
+}
+
+
+
+
+
+void cw_rec_sync_parameters_internal(cw_rec_t *rec, cw_gen_t *gen)
+{
+	cw_assert (rec, "receiver is NULL");
+	cw_assert (gen, "generator is NULL");
+
+	/* First, depending on whether we are set for fixed speed or
+	   adaptive speed, calculate either the threshold from the
+	   receive speed, or the receive speed from the threshold,
+	   knowing that the threshold is always, effectively, two dot
+	   lengths.  Weighting is ignored for receive parameters,
+	   although the core unit length is recalculated for the
+	   receive speed, which may differ from the send speed. */
+	int unit_length = DOT_CALIBRATION / rec->speed;
+	if (rec->is_adaptive_receive_enabled) {
+		rec->speed = DOT_CALIBRATION
+			/ (rec->adaptive_receive_threshold / 2);
+	} else {
+		rec->adaptive_receive_threshold = 2 * unit_length;
+	}
+
+	/* Calculate the basic receive dot and dash lengths. */
+	rec->dot_length = unit_length;
+	rec->dash_length = 3 * unit_length;
+
+	/* Set the ranges of respectable timing elements depending
+	   very much on whether we are required to adapt to the
+	   incoming Morse code speeds. */
+	if (rec->is_adaptive_receive_enabled) {
+		/* For adaptive timing, calculate the Dot and
+		   Dash timing ranges as zero to two Dots is a
+		   Dot, and anything, anything at all, larger than
+		   this is a Dash. */
+		rec->dot_range_minimum = 0;
+		rec->dot_range_maximum = 2 * rec->dot_length;
+		rec->dash_range_minimum = rec->dot_range_maximum;
+		rec->dash_range_maximum = INT_MAX;
+
+		/* Make the inter-element gap be anything up to
+		   the adaptive threshold lengths - that is two
+		   Dots.  And the end of character gap is anything
+		   longer than that, and shorter than five dots. */
+		rec->eoe_range_minimum = rec->dot_range_minimum;
+		rec->eoe_range_maximum = rec->dot_range_maximum;
+		rec->eoc_range_minimum = rec->eoe_range_maximum;
+		rec->eoc_range_maximum = 5 * rec->dot_length;
+
+	} else {
+		/* For fixed speed receiving, calculate the Dot
+		   timing range as the Dot length +/- dot*tolerance%,
+		   and the Dash timing range as the Dash length
+		   including +/- dot*tolerance% as well. */
+		int tolerance = (rec->dot_length * rec->tolerance) / 100;
+		rec->dot_range_minimum = rec->dot_length - tolerance;
+		rec->dot_range_maximum = rec->dot_length + tolerance;
+		rec->dash_range_minimum = rec->dash_length - tolerance;
+		rec->dash_range_maximum = rec->dash_length + tolerance;
+
+		/* Make the inter-element gap the same as the Dot
+		   range.  Make the inter-character gap, expected
+		   to be three Dots, the same as Dash range at the
+		   lower end, but make it the same as the Dash range
+		   _plus_ the "Farnsworth" delay at the top of the
+		   range.
+
+		   Any gap longer than this is by implication
+		   inter-word. */
+		rec->eoe_range_minimum = rec->dot_range_minimum;
+		rec->eoe_range_maximum = rec->dot_range_maximum;
+		rec->eoc_range_minimum = rec->dash_range_minimum;
+		rec->eoc_range_maximum = rec->dash_range_maximum
+			/* NOTE: the only reference to generator
+			   variables in code setting receiver
+			   variables.  Maybe we could/should do a full
+			   separation, and create
+			   rec->additional_delay and
+			   rec->adjustment_delay? */
+			+ gen->additional_delay + gen->adjustment_delay;
+	}
+
+	/* For statistical purposes, calculate the ideal end of
+	   element and end of character timings. */
+	rec->eoe_range_ideal = unit_length;
+	rec->eoc_range_ideal = 3 * unit_length;
+
+	cw_debug_msg ((&cw_debug_object), CW_DEBUG_PARAMETERS, CW_DEBUG_INFO,
+		      "libcw: receive usec timings <%d [wpm]>: dot: %d-%d [ms], dash: %d-%d [ms], %d-%d[%d], %d-%d[%d], thres: %d",
+		      rec->speed,
+		      rec->dot_range_minimum, rec->dot_range_maximum,
+		      rec->dash_range_minimum, rec->dash_range_maximum,
+		      rec->eoe_range_minimum, rec->eoe_range_maximum, rec->eoe_range_ideal,
+		      rec->eoc_range_minimum, rec->eoc_range_maximum, rec->eoc_range_ideal,
+		      rec->adaptive_receive_threshold);
+
+	return;
+}
+
+
+
+
+
 #ifdef LIBCW_UNIT_TESTS
 
 
