@@ -83,30 +83,26 @@ typedef struct {
 	/* State of receiver state machine. */
 	int state;
 
-	int speed;
-
 	int gap; /* Inter-mark gap, similar as in generator. */
 
-	int noise_spike_threshold;
-	bool is_adaptive_receive_enabled;
-
-	/* Library variable which is automatically maintained from the Morse input
-	   stream, rather than being settable by the user.
-	   Initially 2-dot threshold for adaptive speed */
-	int adaptive_receive_threshold;
 
 
-	/* Setting this value may trigger a recalculation of some low
-	   level timing parameters. */
+	/* Essential receive parameters. */
+	/* Changing values of speed, tolerance or
+	   is_adaptive_receive_mode will trigger a recalculation of
+	   low level timing parameters. */
+
+	int speed; /* [wpm] */
 	int tolerance;
+	bool is_adaptive_receive_mode;
+	int noise_spike_threshold;
 
 
-	/* After changing receiver's receive speed, tolerance or adaptive mode,
-	   some receiver's internal parameters need to be
-	   re-calculated. This is a flag that shows when this needs to
-	   be done. */
-	bool parameters_in_sync;
 
+	/* Library variable which is automatically maintained from the
+	   Morse input stream, rather than being settable by the
+	   user. */
+	int adaptive_receive_threshold;
 
 
 	/* Retained tone start and end timestamps. */
@@ -125,11 +121,13 @@ typedef struct {
 
 
 
-	/* Receiver timing parameters */
+	/* Receiver's low-level timing parameters */
+
 	/* These are basic timing parameters which should be
 	   recalculated each time client code demands changing some
-	   higher-level parameter of receiver. */
-	int dot_len_ideal;        /* Length of an ideal dot. [us] */
+	   higher-level parameter of receiver.  How these values are
+	   calculated depends on receiving mode (fixed/adaptive). */
+	int dot_len_ideal;        /* Length of an ideal dot. [microseconds]/[us] */
 	int dot_len_min;          /* Minimal length of mark that will be identified as dot. [us] */
 	int dot_len_max;          /* Maximal length of mark that will be identified as dot. [us] */
 
@@ -137,9 +135,9 @@ typedef struct {
 	int dash_len_min;         /* Minimal length of mark that will be identified as dash. [us] */
 	int dash_len_max;         /* Maximal length of mark that will be identified as dash. [us] */
 
-	int eoe_len_ideal;        /* Ideal end of mark, for stats */
-	int eoe_len_min;          /* Shortest end of mark allowable */
-	int eoe_len_max;          /* Longest end of mark allowable */
+	int eom_len_ideal;        /* Ideal end of mark, for stats */
+	int eom_len_min;          /* Shortest end of mark allowable */
+	int eom_len_max;          /* Longest end of mark allowable */
 
 	int eoc_len_ideal;        /* Ideal end of char, for stats */
 	int eoc_len_min;          /* Shortest end of char allowable */
@@ -150,6 +148,16 @@ typedef struct {
 	   parameters. */
 	int additional_delay;     /* More delay at the end of a char */
 	int adjustment_delay;     /* More delay at the end of a word */
+
+
+
+	/* Are receiver's low-level parameters in synch?
+
+	   After changing receiver's receive speed, tolerance or
+	   adaptive mode, some receiver's internal parameters need to
+	   be re-calculated. This is a flag that shows when this needs
+	   to be done. */
+	bool parameters_in_sync;
 
 
 
