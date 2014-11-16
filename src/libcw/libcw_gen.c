@@ -2468,7 +2468,7 @@ void cw_gen_sync_parameters_internal(cw_gen_t *gen)
 	   adjustment, and the length of a Dash as three Dot lengths.
 	   The weighting adjustment is by adding or subtracting a
 	   length based on 50 % as a neutral weighting. */
-	int unit_length = DOT_CALIBRATION / gen->send_speed;
+	int unit_length = CW_DOT_CALIBRATION / gen->send_speed;
 	int weighting_length = (2 * (gen->weighting - 50) * unit_length) / 100;
 	gen->dot_length = unit_length + weighting_length;
 	gen->dash_length = 3 * gen->dot_length;
