@@ -124,9 +124,9 @@ cw_rec_t cw_receiver = { .state = RS_IDLE,
 
 			 .gap = CW_GAP_INITIAL,
 
-			 .noise_spike_threshold = CW_REC_INITIAL_NOISE_THRESHOLD,
+			 .noise_spike_threshold = CW_REC_NOISE_THRESHOLD_INITIAL,
 			 .is_adaptive_receive_enabled = CW_REC_ADAPTIVE_INITIAL,
-			 .adaptive_receive_threshold = CW_REC_INITIAL_THRESHOLD,
+			 .adaptive_receive_threshold = CW_REC_THRESHOLD_INITIAL,
 			 .tolerance = CW_TOLERANCE_INITIAL,
 
 			 .parameters_in_sync = false,
@@ -490,7 +490,7 @@ int cw_get_adaptive_average_internal(cw_tracking_t *tracking)
    statistics buffer.  The buffer stores only the delta from the ideal
    value; the ideal is inferred from the type passed in.
 
-   \p type may be: STAT_DOT or STAT_DASH or STAT_END_ELEMENT or STAT_END_CHARACTER
+   \p type may be: CW_REC_STAT_DOT or CW_REC_STAT_DASH or CW_REC_STAT_MARK_END or CW_REC_STAT_CHAR_END
 
    \param rec - receiver
    \param type - mark type
@@ -502,10 +502,10 @@ void cw_receiver_add_statistic_internal(cw_rec_t *rec, stat_type_t type, int use
 	cw_rec_sync_parameters_internal(rec);
 
 	/* Calculate delta as difference between usec and the ideal value. */
-	int delta = usecs - ((type == STAT_DOT) ? rec->dot_len_ideal
-			     : (type == STAT_DASH) ? rec->dash_len_ideal
-			     : (type == STAT_END_ELEMENT) ? rec->eoe_len_ideal
-			     : (type == STAT_END_CHARACTER) ? rec->eoc_len_ideal : usecs);
+	int delta = usecs - ((type == CW_REC_STAT_DOT) ? rec->dot_len_ideal
+			     : (type == CW_REC_STAT_DASH) ? rec->dash_len_ideal
+			     : (type == CW_REC_STAT_MARK_END) ? rec->eoe_len_ideal
+			     : (type == CW_REC_STAT_CHAR_END) ? rec->eoc_len_ideal : usecs);
 
 	/* Add this statistic to the buffer. */
 	rec->statistics[rec->statistics_ind].type = type;
@@ -522,7 +522,7 @@ void cw_receiver_add_statistic_internal(cw_rec_t *rec, stat_type_t type, int use
 /**
    \brief Calculate and return one given timing statistic type
 
-   \p type may be: STAT_DOT or STAT_DASH or STAT_END_ELEMENT or STAT_END_CHARACTER
+   \p type may be: CW_REC_STAT_DOT or CW_REC_STAT_DASH or CW_REC_STAT_MARK_END or CW_REC_STAT_CHAR_END
 
    \param rec - receiver
    \param type - type of statistics
@@ -542,7 +542,7 @@ double cw_receiver_get_statistic_internal(cw_rec_t *rec, stat_type_t type)
 			int delta = rec->statistics[i].delta;
 			sum_of_squares += (double) delta * (double) delta;
 			count++;
-		} else if (rec->statistics[i].type == STAT_NONE) {
+		} else if (rec->statistics[i].type == CW_REC_STAT_NONE) {
 			break;
 		}
 	}
@@ -576,16 +576,16 @@ void cw_get_receive_statistics(double *dot_sd, double *dash_sd,
 			       double *element_end_sd, double *character_end_sd)
 {
 	if (dot_sd) {
-		*dot_sd = cw_receiver_get_statistic_internal(&cw_receiver, STAT_DOT);
+		*dot_sd = cw_receiver_get_statistic_internal(&cw_receiver, CW_REC_STAT_DOT);
 	}
 	if (dash_sd) {
-		*dash_sd = cw_receiver_get_statistic_internal(&cw_receiver, STAT_DASH);
+		*dash_sd = cw_receiver_get_statistic_internal(&cw_receiver, CW_REC_STAT_DASH);
 	}
 	if (element_end_sd) {
-		*element_end_sd = cw_receiver_get_statistic_internal(&cw_receiver, STAT_END_ELEMENT);
+		*element_end_sd = cw_receiver_get_statistic_internal(&cw_receiver, CW_REC_STAT_MARK_END);
 	}
 	if (character_end_sd) {
-		*character_end_sd = cw_receiver_get_statistic_internal(&cw_receiver, STAT_END_CHARACTER);
+		*character_end_sd = cw_receiver_get_statistic_internal(&cw_receiver, CW_REC_STAT_CHAR_END);
 	}
 	return;
 }
@@ -603,7 +603,7 @@ void cw_get_receive_statistics(double *dot_sd, double *dash_sd,
 void cw_reset_receive_statistics(void)
 {
 	for (int i = 0; i < CW_REC_STATISTICS_CAPACITY; i++) {
-		cw_receiver.statistics[i].type = STAT_NONE;
+		cw_receiver.statistics[i].type = CW_REC_STAT_NONE;
 		cw_receiver.statistics[i].delta = 0;
 	}
 	cw_receiver.statistics_ind = 0;
@@ -814,7 +814,7 @@ int cw_rec_mark_begin(cw_rec_t *rec, const struct timeval *timestamp)
 	if (rec->state == RS_AFTER_TONE) {
 		int space_len_usec = cw_timestamp_compare_internal(&(rec->tone_end),
 								   &(rec->tone_start));
-		cw_receiver_add_statistic_internal(&cw_receiver, STAT_END_ELEMENT, space_len_usec);
+		cw_receiver_add_statistic_internal(&cw_receiver, CW_REC_STAT_MARK_END, space_len_usec);
 
 		/* TODO: this may have been a very long space. Should
 		   we accept a very long space inside a character? */
@@ -1144,9 +1144,9 @@ int cw_rec_mark_end(cw_rec_t *rec, const struct timeval *timestamp)
 	   observed speeds.  So by doing this here, we can at least
 	   ameliorate this effect, if not eliminate it. */
 	if (representation == CW_DOT_REPRESENTATION) {
-		cw_receiver_add_statistic_internal(rec, STAT_DOT, mark_len_usecs);
+		cw_receiver_add_statistic_internal(rec, CW_REC_STAT_DOT, mark_len_usecs);
 	} else {
-		cw_receiver_add_statistic_internal(rec, STAT_DASH, mark_len_usecs);
+		cw_receiver_add_statistic_internal(rec, CW_REC_STAT_DASH, mark_len_usecs);
 	}
 
 	/* Add the representation character to the receiver's buffer. */
@@ -1460,7 +1460,7 @@ int cw_receive_representation(const struct timeval *timestamp,
 			   updating the state, update timing
 			   statistics for an identified end of
 			   character as well. */
-			cw_receiver_add_statistic_internal(&cw_receiver, STAT_END_CHARACTER, space_len_usecs);
+			cw_receiver_add_statistic_internal(&cw_receiver, CW_REC_STAT_CHAR_END, space_len_usecs);
 			cw_receiver.state = RS_END_CHAR;
 		} else {
 			/* We are already in RS_END_CHAR or
@@ -1693,7 +1693,7 @@ void cw_rec_reset_receive_parameters_internal(cw_rec_t *rec)
 	rec->speed = CW_SPEED_INITIAL;
 	rec->tolerance = CW_TOLERANCE_INITIAL;
 	rec->is_adaptive_receive_enabled = CW_REC_ADAPTIVE_INITIAL;
-	rec->noise_spike_threshold = CW_REC_INITIAL_NOISE_THRESHOLD;
+	rec->noise_spike_threshold = CW_REC_NOISE_THRESHOLD_INITIAL;
 
 	return;
 }
@@ -1718,9 +1718,9 @@ void cw_rec_sync_parameters_internal(cw_rec_t *rec)
 	   lengths.  Weighting is ignored for receive parameters,
 	   although the core unit length is recalculated for the
 	   receive speed, which may differ from the send speed. */
-	int unit_len = DOT_CALIBRATION / rec->speed;
+	int unit_len = CW_DOT_CALIBRATION / rec->speed;
 	if (rec->is_adaptive_receive_enabled) {
-		rec->speed = DOT_CALIBRATION
+		rec->speed = CW_DOT_CALIBRATION
 			/ (rec->adaptive_receive_threshold / 2);
 	} else {
 		rec->adaptive_receive_threshold = 2 * unit_len;

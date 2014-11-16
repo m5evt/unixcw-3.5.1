@@ -8,22 +8,20 @@
 
 
 #include "libcw.h"
-//#include "libcw_gen.h"
 
 
 
 /* Morse code controls and timing parameters */
 
-/* Dot length magic number; from PARIS calibration, 1 Dot=1200000/WPM usec. */
-enum { DOT_CALIBRATION = 1200000 };
-
+/* Dot length magic number; from PARIS calibration, 1 Dot=1200000/WPM
+   usec.
+   This variable is used in generator code as well. */
+enum { CW_DOT_CALIBRATION = 1200000 };
 
 /* Default initial values for library controls. */
-enum {
-	CW_REC_ADAPTIVE_INITIAL  = false,  /* Initial adaptive receive setting */
-	CW_REC_INITIAL_THRESHOLD = (DOT_CALIBRATION / CW_SPEED_INITIAL) * 2,   /* Initial adaptive speed threshold */
-	CW_REC_INITIAL_NOISE_THRESHOLD = (DOT_CALIBRATION / CW_SPEED_MAX) / 2  /* Initial noise filter threshold */
-};
+enum { CW_REC_ADAPTIVE_INITIAL = false };                                           /* Initial adaptive receive setting. */
+enum { CW_REC_THRESHOLD_INITIAL = (CW_DOT_CALIBRATION / CW_SPEED_INITIAL) * 2 };    /* Initial adaptive speed threshold. */
+enum { CW_REC_NOISE_THRESHOLD_INITIAL = (CW_DOT_CALIBRATION / CW_SPEED_MAX) / 2 };  /* Initial noise filter threshold. */
 
 
 
@@ -53,11 +51,11 @@ enum { CW_REC_AVERAGE_ARRAY_LENGTH = 4 };
    type of statistic held, and a circular buffer pointer.
    STAT_NONE must be zero so that the statistics buffer is initially empty. */
 typedef enum {
-	STAT_NONE = 0,
-	STAT_DOT,
-	STAT_DASH,
-	STAT_END_ELEMENT,
-	STAT_END_CHARACTER
+	CW_REC_STAT_NONE = 0,
+	CW_REC_STAT_DOT,
+	CW_REC_STAT_DASH,
+	CW_REC_STAT_MARK_END,
+	CW_REC_STAT_CHAR_END
 } stat_type_t;
 
 
