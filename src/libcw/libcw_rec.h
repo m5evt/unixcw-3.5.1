@@ -20,7 +20,7 @@ enum { CW_DOT_CALIBRATION = 1200000 };
 
 /* Default initial values for library controls. */
 enum { CW_REC_ADAPTIVE_INITIAL = false };                                           /* Initial adaptive receive setting. */
-enum { CW_REC_THRESHOLD_INITIAL = (CW_DOT_CALIBRATION / CW_SPEED_INITIAL) * 2 };    /* Initial adaptive speed threshold. */
+enum { CW_REC_THRESHOLD_INITIAL = (CW_DOT_CALIBRATION / CW_SPEED_INITIAL) * 2 };    /* Initial adaptive speed threshold. [us] */
 enum { CW_REC_NOISE_THRESHOLD_INITIAL = (CW_DOT_CALIBRATION / CW_SPEED_MAX) / 2 };  /* Initial noise filter threshold. */
 
 
@@ -40,8 +40,10 @@ enum { CW_REC_REPRESENTATION_CAPACITY = 256 };
 
 
 
-/* Adaptive speed tracking for receiving. */
-enum { CW_REC_AVERAGE_ARRAY_LENGTH = 4 };
+/* Length of array used to calculate average length of a mark. Average
+   length of a mark is used in adaptive receiving mode to track speed
+   of incoming Morse data. */
+enum { CW_REC_AVERAGING_ARRAY_LENGTH = 4 };
 
 
 
@@ -67,14 +69,14 @@ typedef struct {
 
 
 
-/* A moving averages structure, comprising a small array of mark
-   lengths, a circular index into the array, and a running sum of
-   lengths of marks for efficient calculation of moving averages. */
-typedef struct cw_tracking_struct {
-	int buffer[CW_REC_AVERAGE_ARRAY_LENGTH];  /* Buffered mark lengths */
-	int cursor;                               /* Circular buffer cursor */
-	int sum;                                  /* Running sum */
-} cw_tracking_t;
+/* A moving averages structure - circular buffer. Used for calculating
+   averaged length ([us]) of dots and dashes. */
+typedef struct {
+	int buffer[CW_REC_AVERAGING_ARRAY_LENGTH];  /* Buffered mark lengths. */
+	int cursor;                                 /* Circular buffer cursor. */
+	int sum;                                    /* Running sum of lengths of marks. [us] */
+	int average;                                /* Averaged length of a mark. [us] */
+} cw_rec_averaging_t;
 
 
 
@@ -102,7 +104,7 @@ typedef struct {
 	/* Library variable which is automatically maintained from the
 	   Morse input stream, rather than being settable by the
 	   user. */
-	int adaptive_receive_threshold;
+	int adaptive_receive_threshold; /* [us] */
 
 
 	/* Retained tone start and end timestamps. */
@@ -151,7 +153,7 @@ typedef struct {
 
 
 
-	/* Are receiver's low-level parameters in synch?
+	/* Are receiver's parameters in sync?
 
 	   After changing receiver's receive speed, tolerance or
 	   adaptive mode, some receiver's internal parameters need to
@@ -166,9 +168,11 @@ typedef struct {
 	int statistics_ind;
 
 
-	/* Receiver speed tracking */
-	cw_tracking_t dot_tracking;
-	cw_tracking_t dash_tracking;
+	/* Data structures for calculating averaged length of dots and
+	   dashes. The averaged lengths are used for adaptive tracking
+	   of receiver's speed (tracking of speed of incoming data). */
+	cw_rec_averaging_t dot_averaging;
+	cw_rec_averaging_t dash_averaging;
 
 } cw_rec_t;
 
