@@ -52,9 +52,7 @@
 
 #include <unistd.h>
 #include <stdlib.h>
-
 #include <errno.h>
-#include <assert.h>
 #include <stdbool.h>
 #include <math.h>  /* sqrt() */
 
@@ -76,7 +74,6 @@
 
 
 #include "libcw.h"
-#include "libcw_gen.h"
 #include "libcw_rec.h"
 #include "libcw_data.h"
 #include "libcw_utils.h"
@@ -173,8 +170,8 @@ cw_rec_t cw_receiver = { .state = RS_IDLE,
 			 .statistics_ind = 0,
 			 .statistics = { {0, 0} },
 
-			 .dot_tracking  = { {0}, 0, 0 },
-			 .dash_tracking = { {0}, 0, 0 },
+			 .dot_averaging  = { {0}, 0, 0, 0 },
+			 .dash_averaging = { {0}, 0, 0, 0 },
 };
 
 
@@ -182,7 +179,7 @@ cw_rec_t cw_receiver = { .state = RS_IDLE,
 
 
 static void cw_receiver_set_adaptive_internal(cw_rec_t *rec, bool adaptive);
-static void cw_receiver_update_adaptive_tracking_internal(cw_rec_t *rec, int mark_len, char mark);
+
 static int  cw_receiver_add_mark_internal(cw_rec_t *rec, const struct timeval *timestamp, char mark);
 
 
@@ -192,12 +189,16 @@ static int cw_rec_mark_end_internal(cw_rec_t *rec, const struct timeval *timesta
 static int cw_rec_mark_identify_internal(cw_rec_t *rec, int mark_len, char *representation);
 
 
-/* Helpers for receiving tracking and statistics. */
+/* Functions handling receiver statistics. */
 static void   cw_receiver_add_statistic_internal(cw_rec_t *rec, stat_type_t type, int len);
 static double cw_receiver_get_statistic_internal(cw_rec_t *rec, stat_type_t type);
-static void   cw_reset_adaptive_average_internal(cw_tracking_t *tracking, int initial);
-static void   cw_update_adaptive_average_internal(cw_tracking_t *tracking, int mark_len);
-static int    cw_get_adaptive_average_internal(cw_tracking_t *tracking);
+
+
+/* Functions handling averaging data structure in adaptive receiving
+   mode. */
+static void cw_rec_averaging_push_internal(cw_rec_averaging_t *avg, int mark_len);
+static void cw_rec_averaging_update_internal(cw_rec_t *rec, int mark_len, char mark);
+static void cw_rec_averaging_reset_internal(cw_rec_averaging_t *avg, int initial);
 
 
 
@@ -427,31 +428,29 @@ int cw_get_noise_spike_threshold(void)
 
 
 
-
-/* ******************************************************************** */
-/*            Section:Receive tracking and statistics helpers           */
-/* ******************************************************************** */
+/* Functions handling average lengths of dot and dashes in adaptive
+   receiving mode. */
 
 
 
 
 
 /**
-   \brief Reset tracking data structure
+   \brief Reset averaging data structure
 
-   Moving average function for smoothed tracking of dot and dash lengths.
+   Reset averaging data structure to initial state.
 
-   \param tracking - tracking data structure
-   \param initial - initial value to be put in table of tracking data structure
+   \param avg - averaging data structure (for dot or for dash)
+   \param initial - initial value to be put in table of averaging data structure
 */
-void cw_reset_adaptive_average_internal(cw_tracking_t *tracking, int initial)
+void cw_rec_averaging_reset_internal(cw_rec_averaging_t *avg, int initial)
 {
-	for (int i = 0; i < CW_REC_AVERAGE_ARRAY_LENGTH; i++) {
-		tracking->buffer[i] = initial;
+	for (int i = 0; i < CW_REC_AVERAGING_ARRAY_LENGTH; i++) {
+		avg->buffer[i] = initial;
 	}
 
-	tracking->sum = initial * CW_REC_AVERAGE_ARRAY_LENGTH;
-	tracking->cursor = 0;
+	avg->sum = initial * CW_REC_AVERAGING_ARRAY_LENGTH;
+	avg->cursor = 0;
 
 	return;
 }
@@ -461,18 +460,28 @@ void cw_reset_adaptive_average_internal(cw_tracking_t *tracking, int initial)
 
 
 /**
-   \brief Add new "length of mark" value to tracking data structure
+   \brief Update value of average "length of mark"
 
-   Moving average function for smoothed tracking of dot and dash lengths.
+   Update table of values used to calculate averaged "length of
+   mark". The averaged length of a mark is calculated with moving
+   average function.
 
-   \param tracking - tracking data structure
-   \param mark_len - new "length of mark" value to add to tracking data
+   The new \p mark_len is added to \p avg, and the oldest is
+   discarded. New averaged sum is calculated using updated data.
+
+   \param avg - averaging data structure (for dot or for dash)
+   \param mark_len - new "length of mark" value to add to averaging data
 */
-void cw_update_adaptive_average_internal(cw_tracking_t *tracking, int mark_len)
+void cw_rec_averaging_push_internal(cw_rec_averaging_t *avg, int mark_len)
 {
-	tracking->sum += mark_len - tracking->buffer[tracking->cursor];
-	tracking->buffer[tracking->cursor++] = mark_len;
-	tracking->cursor %= CW_REC_AVERAGE_ARRAY_LENGTH;
+	/* Oldest mark length goes out, new goes in. */
+	avg->sum -= avg->buffer[avg->cursor];
+	avg->sum += mark_len;
+
+	avg->average = avg->sum / CW_REC_AVERAGING_ARRAY_LENGTH;
+
+	avg->buffer[avg->cursor++] = mark_len;
+	avg->cursor %= CW_REC_AVERAGING_ARRAY_LENGTH;
 
 	return;
 }
@@ -481,17 +490,7 @@ void cw_update_adaptive_average_internal(cw_tracking_t *tracking, int mark_len)
 
 
 
-/**
-   \brief Get average sum from tracking data structure
-
-   \param tracking - tracking data structure
-
-   \return average sum
-*/
-int cw_get_adaptive_average_internal(cw_tracking_t *tracking)
-{
-	return tracking->sum / CW_REC_AVERAGE_ARRAY_LENGTH;
-}
+/* Functions handling receiver statistics. */
 
 
 
@@ -512,7 +511,7 @@ int cw_get_adaptive_average_internal(cw_tracking_t *tracking)
 */
 void cw_receiver_add_statistic_internal(cw_rec_t *rec, stat_type_t type, int len)
 {
-	/* Synchronize low level parameters if required. */
+	/* Synchronize parameters if required. */
 	cw_rec_sync_parameters_internal(rec);
 
 	/* Calculate delta as difference between given length (len)
@@ -706,8 +705,8 @@ void cw_receiver_set_adaptive_internal(cw_rec_t *rec, bool adaptive)
 		   the averages array to the current dot/dash lengths, so
 		   that initial averages match the current speed. */
 		if (rec->is_adaptive_receive_mode) {
-			cw_reset_adaptive_average_internal(&rec->dot_tracking, rec->dot_len_ideal);
-			cw_reset_adaptive_average_internal(&rec->dash_tracking, rec->dash_len_ideal);
+			cw_rec_averaging_reset_internal(&rec->dot_averaging, rec->dot_len_ideal);
+			cw_rec_averaging_reset_internal(&rec->dash_averaging, rec->dash_len_ideal);
 		}
 	}
 
@@ -727,7 +726,7 @@ void cw_receiver_set_adaptive_internal(cw_rec_t *rec, bool adaptive)
    functions will use fixed speed settings, and reject incoming Morse
    which is not at the expected speed.
 
-   Adaptive speed tracking uses a moving average of the past four elements
+   Adaptive speed tracking uses a moving average length of the past N marks
    as its baseline for tracking speeds.  The default state is adaptive speed
    tracking disabled.
 */
@@ -947,10 +946,12 @@ int cw_rec_mark_end_internal(cw_rec_t *rec, const struct timeval *timestamp)
 
 	/* This was not a noise. At this point, we have to make a
 	   decision about the mark just received.  We'll use a routine
-	   that compares length ranges to tell us what it thinks this
-	   mark is.  If it can't decide, it will hand us back an error
-	   which we return to the caller.  Otherwise, it returns a
-	   mark (dot or dash), for us to buffer. */
+	   that compares length of a mark against pre-calculated dot
+	   and dash length ranges to tell us what it thinks this mark
+	   is (dot or dash).  If the routing can't decide, it will
+	   hand us back an error which we return to the caller.
+	   Otherwise, it returns a mark (dot or dash), for us to put
+	   in representation buffer. */
 	char representation;
 	int status = cw_rec_mark_identify_internal(rec, mark_len, &representation);
 	if (!status) {
@@ -961,14 +962,14 @@ int cw_rec_mark_end_internal(cw_rec_t *rec, const struct timeval *timestamp)
 		/* Update the averaging buffers so that the adaptive
 		   tracking of received Morse speed stays up to
 		   date. */
-		cw_receiver_update_adaptive_tracking_internal(rec, mark_len, representation);
+		cw_rec_averaging_update_internal(rec, mark_len, representation);
 	} else {
 		/* Do nothing. Don't fiddle about trying to track for
 		   fixed speed receive. */
 	}
 
 	/* Update dot and dash length statistics.  It may seem odd to do
-	   this after calling cw_receiver_update_adaptive_tracking_internal(),
+	   this after calling cw_rec_averaging_update_internal(),
 	   rather than before, as this function changes the ideal values we're
 	   measuring against.  But if we're on a speed change slope, the
 	   adaptive tracking smoothing will cause the ideals to lag the
@@ -1047,7 +1048,7 @@ int cw_rec_mark_identify_internal(cw_rec_t *rec, int mark_len, /* out */ char *r
 {
 	cw_assert (representation, "Output parameter is NULL");
 
-	/* Synchronize low level parameters if required */
+	/* Synchronize parameters if required */
 	cw_rec_sync_parameters_internal(rec);
 
 	/* If the length was, within tolerance, a dot, return dot to
@@ -1134,16 +1135,17 @@ int cw_rec_mark_identify_internal(cw_rec_t *rec, int mark_len, /* out */ char *r
 
 
 /**
-   \brief Update adaptive tracking data
+   \brief Update receiver's averaging data structures with most recent data
 
-   Function updates the averages of dot and dash lengths, and recalculates
-   the adaptive threshold for the next receive tone.
+   When in adaptive receiving mode, function updates the averages of
+   dot and dash lengths with given \p mark_len, and recalculates the
+   adaptive threshold for the next receive tone.
 
    \param rec - receiver
-   \param mark_len
-   \param mark
+   \param mark_len - length of a mark (dot or dash)
+   \param mark - CW_DOT_REPRESENTATION or CW_DASH_REPRESENTATION
 */
-void cw_receiver_update_adaptive_tracking_internal(cw_rec_t *rec, int mark_len, char mark)
+void cw_rec_averaging_update_internal(cw_rec_t *rec, int mark_len, char mark)
 {
 	/* We are not going to tolerate being called in fixed speed mode. */
 	if (!rec->is_adaptive_receive_mode) {
@@ -1152,42 +1154,43 @@ void cw_receiver_update_adaptive_tracking_internal(cw_rec_t *rec, int mark_len, 
 		return;
 	}
 
-	/* We will update the information held for either dots or dashes.
-	   Which we pick depends only on what the representation of the
-	   character was identified as earlier. */
+	/* Update moving averages for dots or dashes. */
 	if (mark == CW_DOT_REPRESENTATION) {
-		cw_update_adaptive_average_internal(&rec->dot_tracking, mark_len);
+		cw_rec_averaging_push_internal(&rec->dot_averaging, mark_len);
 	} else if (mark == CW_DASH_REPRESENTATION) {
-		cw_update_adaptive_average_internal(&rec->dash_tracking, mark_len);
+		cw_rec_averaging_push_internal(&rec->dash_averaging, mark_len);
 	} else {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
 			      "Unknown mark %d\n", mark);
 		return;
 	}
 
-	/* Recalculate the adaptive threshold from the values currently
-	   held in the moving averages.  The threshold is calculated as
-	   (avg dash length - avg dot length) / 2 + avg dot_len. */
-	int average_dot = cw_get_adaptive_average_internal(&rec->dot_tracking);
-	int average_dash = cw_get_adaptive_average_internal(&rec->dash_tracking);
-	rec->adaptive_receive_threshold = (average_dash - average_dot) / 2
-		+ average_dot;
+	/* Recalculate the adaptive threshold. */
+	int avg_dot_len = rec->dot_averaging.average;
+	int avg_dash_len = rec->dash_averaging.average;
+	rec->adaptive_receive_threshold = (avg_dash_len - avg_dot_len) / 2 + avg_dot_len;
 
-	/* Resynchronize the low level parameters following recalculation.
-	   If the resultant recalculated speed is outside the limits,
-	   clamp the speed to the limit value and recalculate again.
-
-	   Resetting the speed directly really means unsetting adaptive mode,
-	   resyncing to calculate the new threshold, which unfortunately
-	   recalculates everything else according to fixed speed; so, we
-	   then have to reset adaptive and resyncing one more time, to get
-	   all other parameters back to where they should be. */
-
+	/* We are in adaptive mode. Since ->adaptive_receive_threshold
+	   has changed, we need to calculate new ->speed with sync().
+	   Low-level parameters will also be re-synchronized to new
+	   threshold/speed. */
 	rec->parameters_in_sync = false;
 	cw_rec_sync_parameters_internal(rec);
 
 	if (rec->speed < CW_SPEED_MIN || rec->speed > CW_SPEED_MAX) {
+
+		/* Clamp the speed. */
 		rec->speed = rec->speed < CW_SPEED_MIN ? CW_SPEED_MIN : CW_SPEED_MAX;
+
+		/* Direct manipulation of speed in line above
+		   (clamping) requires resetting adaptive mode and
+		   re-synchronizing to calculate the new threshold,
+		   which unfortunately recalculates everything else
+		   according to fixed speed.
+
+		   So, we then have to reset adaptive mode and
+		   re-synchronize one more time, to get all other
+		   parameters back to where they should be. */
 
 		rec->is_adaptive_receive_mode = false;
 		rec->parameters_in_sync = false;
@@ -1465,7 +1468,7 @@ int cw_receive_representation(const struct timeval *timestamp,
 		return CW_FAILURE;
 	}
 
-	/* Synchronize low level parameters if required */
+	/* Synchronize parameters if required */
 	cw_rec_sync_parameters_internal(&cw_receiver);
 
 
@@ -1741,13 +1744,19 @@ void cw_rec_sync_parameters_internal(cw_rec_t *rec)
 	   lengths.  Weighting is ignored for receive parameters,
 	   although the core unit length is recalculated for the
 	   receive speed, which may differ from the send speed. */
+
+	/* FIXME: shouldn't we move the calculation of unit_len (that
+	   depends on rec->speed) after the calculation of
+	   rec->speed? */
 	int unit_len = CW_DOT_CALIBRATION / rec->speed;
-	if (rec->is_adaptive_move) {
-		rec->speed = CW_DOT_CALIBRATION
-			/ (rec->adaptive_receive_threshold / 2);
+
+	if (rec->is_adaptive_receive_mode) {
+		rec->speed = CW_DOT_CALIBRATION	/ (rec->adaptive_receive_threshold / 2);
 	} else {
 		rec->adaptive_receive_threshold = 2 * unit_len;
 	}
+
+
 
 	/* Calculate the basic receiver's dot and dash lengths. */
 	rec->dot_len_ideal = unit_len;
@@ -1817,7 +1826,7 @@ void cw_rec_sync_parameters_internal(cw_rec_t *rec)
 	}
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_PARAMETERS, CW_DEBUG_INFO,
-		      "libcw: receive usec timings <%d [wpm]>: dot: %d-%d [ms], dash: %d-%d [ms], %d-%d[%d], %d-%d[%d], thres: %d",
+		      "libcw: receive usec timings <%d [wpm]>: dot: %d-%d [ms], dash: %d-%d [ms], %d-%d[%d], %d-%d[%d], thres: %d [us]",
 		      rec->speed,
 		      rec->dot_len_min, rec->dot_len_max,
 		      rec->dash_len_min, rec->dash_len_max,
@@ -1836,6 +1845,12 @@ void cw_rec_sync_parameters_internal(cw_rec_t *rec)
 
 
 #ifdef LIBCW_UNIT_TESTS
+
+
+
+
+
+#include "libcw_gen.h"
 
 
 
