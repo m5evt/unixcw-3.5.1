@@ -50,25 +50,22 @@ enum { CW_REC_AVERAGING_ARRAY_LENGTH = 4 };
 
 
 
-/* Receive timing statistics.
-   A circular buffer of entries indicating the difference between the
-   actual and the ideal timing for a receive mark, tagged with the
-   type of statistic held, and a circular buffer pointer.
-   STAT_NONE must be zero so that the statistics buffer is initially empty. */
+/* Types of receiver's timing statistics.
+   CW_REC_STAT_NONE must be zero so that the statistics buffer is initially empty. */
 typedef enum {
 	CW_REC_STAT_NONE = 0,
-	CW_REC_STAT_DOT,
-	CW_REC_STAT_DASH,
-	CW_REC_STAT_MARK_END,
-	CW_REC_STAT_CHAR_END
+	CW_REC_STAT_DOT,           /* Dot mark. */
+	CW_REC_STAT_DASH,          /* Dash mark. */
+	CW_REC_STAT_IMARK_SPACE,   /* Inter-mark space. */
+	CW_REC_STAT_ICHAR_SPACE    /* Inter-character space. */
 } stat_type_t;
 
 
 
 typedef struct {
 	stat_type_t type;  /* Record type */
-	int delta;         /* Difference between actual and ideal timing */
-} cw_statistics_t;
+	int delta;         /* Difference between actual and ideal length of mark or space. [us] */
+} cw_rec_statistics_t;
 
 
 
@@ -168,9 +165,14 @@ typedef struct {
 
 
 
-	/* Receiver statistics */
-	cw_statistics_t statistics[CW_REC_STATISTICS_CAPACITY];
+	/* Receiver statistics.
+	   A circular buffer of entries indicating the difference
+	   between the actual and the ideal length of received mark or
+	   space, tagged with the type of statistic held, and a
+	   circular buffer pointer. */
+	cw_rec_statistics_t statistics[CW_REC_STATISTICS_CAPACITY];
 	int statistics_ind;
+
 
 
 	/* Data structures for calculating averaged length of dots and
