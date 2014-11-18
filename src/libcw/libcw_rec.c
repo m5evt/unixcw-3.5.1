@@ -126,12 +126,19 @@ cw_rec_t cw_receiver = { .state = RS_IDLE,
 
 			 .speed                      = CW_SPEED_INITIAL,
 			 .tolerance                  = CW_TOLERANCE_INITIAL,
-			 .is_adaptive_receive_mode   = CW_REC_ADAPTIVE_INITIAL,
+			 .is_adaptive_receive_mode   = CW_REC_ADAPTIVE_MODE_INITIAL,
 			 .noise_spike_threshold      = CW_REC_NOISE_THRESHOLD_INITIAL,
 
 
 
-			 .adaptive_receive_threshold = CW_REC_THRESHOLD_INITIAL,
+			 /* TODO: this variable is not set in
+			    cw_rec_reset_receive_parameters_internal(). Why
+			    is it separated from the four main
+			    variables? Is it because it is a
+			    derivative of speed? But speed is a
+			    derivative of this variable in adaptive
+			    speed mode. */
+			 .adaptive_speed_threshold = CW_REC_SPEED_THRESHOLD_INITIAL,
 
 
 
@@ -369,7 +376,7 @@ void cw_get_receive_parameters(int *dot_usecs, int *dash_usecs,
 	if (end_of_character_max_usecs)   *end_of_character_max_usecs = cw_receiver.eoc_len_max;
 	if (end_of_character_ideal_usecs) *end_of_character_ideal_usecs = cw_receiver.eoc_len_ideal;
 
-	if (adaptive_threshold) *adaptive_threshold = cw_receiver.adaptive_receive_threshold;
+	if (adaptive_threshold) *adaptive_threshold = cw_receiver.adaptive_speed_threshold;
 
 	return;
 }
@@ -1168,9 +1175,9 @@ void cw_rec_averaging_update_internal(cw_rec_t *rec, int mark_len, char mark)
 	/* Recalculate the adaptive threshold. */
 	int avg_dot_len = rec->dot_averaging.average;
 	int avg_dash_len = rec->dash_averaging.average;
-	rec->adaptive_receive_threshold = (avg_dash_len - avg_dot_len) / 2 + avg_dot_len;
+	rec->adaptive_speed_threshold = (avg_dash_len - avg_dot_len) / 2 + avg_dot_len;
 
-	/* We are in adaptive mode. Since ->adaptive_receive_threshold
+	/* We are in adaptive mode. Since ->adaptive_speed_threshold
 	   has changed, we need to calculate new ->speed with sync().
 	   Low-level parameters will also be re-synchronized to new
 	   threshold/speed. */
@@ -1718,7 +1725,7 @@ void cw_rec_reset_receive_parameters_internal(cw_rec_t *rec)
 
 	rec->speed = CW_SPEED_INITIAL;
 	rec->tolerance = CW_TOLERANCE_INITIAL;
-	rec->is_adaptive_receive_mode = CW_REC_ADAPTIVE_INITIAL;
+	rec->is_adaptive_receive_mode = CW_REC_ADAPTIVE_MODE_INITIAL;
 	rec->noise_spike_threshold = CW_REC_NOISE_THRESHOLD_INITIAL;
 
 	return;
@@ -1751,9 +1758,9 @@ void cw_rec_sync_parameters_internal(cw_rec_t *rec)
 	int unit_len = CW_DOT_CALIBRATION / rec->speed;
 
 	if (rec->is_adaptive_receive_mode) {
-		rec->speed = CW_DOT_CALIBRATION	/ (rec->adaptive_receive_threshold / 2);
+		rec->speed = CW_DOT_CALIBRATION	/ (rec->adaptive_speed_threshold / 2);
 	} else {
-		rec->adaptive_receive_threshold = 2 * unit_len;
+		rec->adaptive_speed_threshold = 2 * unit_len;
 	}
 
 
@@ -1832,7 +1839,7 @@ void cw_rec_sync_parameters_internal(cw_rec_t *rec)
 		      rec->dash_len_min, rec->dash_len_max,
 		      rec->eom_len_min, rec->eom_len_max, rec->eom_len_ideal,
 		      rec->eoc_len_min, rec->eoc_len_max, rec->eoc_len_ideal,
-		      rec->adaptive_receive_threshold);
+		      rec->adaptive_speed_threshold);
 
 	/* Receiver parameters are now in sync. */
 	rec->parameters_in_sync = true;

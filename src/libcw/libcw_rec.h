@@ -19,9 +19,12 @@
 enum { CW_DOT_CALIBRATION = 1200000 };
 
 /* Default initial values for library controls. */
-enum { CW_REC_ADAPTIVE_INITIAL = false };                                           /* Initial adaptive receive setting. */
-enum { CW_REC_THRESHOLD_INITIAL = (CW_DOT_CALIBRATION / CW_SPEED_INITIAL) * 2 };    /* Initial adaptive speed threshold. [us] */
-enum { CW_REC_NOISE_THRESHOLD_INITIAL = (CW_DOT_CALIBRATION / CW_SPEED_MAX) / 2 };  /* Initial noise filter threshold. */
+enum { CW_REC_ADAPTIVE_MODE_INITIAL = false };                                            /* Initial adaptive receive setting. */
+
+/* TODO: it would be interesting to track (in debug mode) relationship
+   between "speed threshold" and "noise threshold" parameters. */
+enum { CW_REC_SPEED_THRESHOLD_INITIAL = (CW_DOT_CALIBRATION / CW_SPEED_INITIAL) * 2 };    /* Initial adaptive speed threshold. [us] */
+enum { CW_REC_NOISE_THRESHOLD_INITIAL = (CW_DOT_CALIBRATION / CW_SPEED_MAX) / 2 };        /* Initial noise filter threshold. */
 
 
 
@@ -103,8 +106,10 @@ typedef struct {
 
 	/* Library variable which is automatically maintained from the
 	   Morse input stream, rather than being settable by the
-	   user. */
-	int adaptive_receive_threshold; /* [us] */
+	   user.
+	   Not exactly a "speed", but for a lack of a better
+	   name... */
+	int adaptive_speed_threshold; /* [us] */
 
 
 	/* Retained tone start and end timestamps. */
