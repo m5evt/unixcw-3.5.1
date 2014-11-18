@@ -197,8 +197,8 @@ static int cw_rec_mark_identify_internal(cw_rec_t *rec, int mark_len, char *repr
 
 
 /* Functions handling receiver statistics. */
-static void   cw_receiver_add_statistic_internal(cw_rec_t *rec, stat_type_t type, int len);
-static double cw_receiver_get_statistic_internal(cw_rec_t *rec, stat_type_t type);
+static void   cw_rec_stats_add_internal(cw_rec_t *rec, stat_type_t type, int len);
+static double cw_rec_stats_get_internal(cw_rec_t *rec, stat_type_t type);
 
 
 /* Functions handling averaging data structure in adaptive receiving
@@ -504,29 +504,30 @@ void cw_rec_averaging_push_internal(cw_rec_averaging_t *avg, int mark_len)
 
 
 /**
-   \brief Add a mark length to statistics
+   \brief Add a mark or space length to statistics
 
-   Add a mark length with a given statistic type to the circular
-   statistics buffer.  The buffer stores only the delta from the ideal
-   value; the ideal is inferred from the type passed in.
+   Add a mark or space length \p len (type of mark or space is
+   indicated by \p type) to receiver's circular statistics buffer.
+   The buffer stores only the delta from the ideal value; the ideal is
+   inferred from the type \p type passed in.
 
-   \p type may be: CW_REC_STAT_DOT or CW_REC_STAT_DASH or CW_REC_STAT_MARK_END or CW_REC_STAT_CHAR_END
+   \p type may be: CW_REC_STAT_DOT or CW_REC_STAT_DASH or CW_REC_STAT_IMARK_SPACE or CW_REC_STAT_ICHAR_SPACE
 
    \param rec - receiver
    \param type - mark type
    \param len - length of a mark or space
 */
-void cw_receiver_add_statistic_internal(cw_rec_t *rec, stat_type_t type, int len)
+void cw_rec_stats_add_internal(cw_rec_t *rec, stat_type_t type, int len)
 {
 	/* Synchronize parameters if required. */
 	cw_rec_sync_parameters_internal(rec);
 
 	/* Calculate delta as difference between given length (len)
 	   and the ideal length value. */
-	int delta = len - ((type == CW_REC_STAT_DOT)        ? rec->dot_len_ideal
-			   : (type == CW_REC_STAT_DASH)     ? rec->dash_len_ideal
-			   : (type == CW_REC_STAT_MARK_END) ? rec->eom_len_ideal
-			   : (type == CW_REC_STAT_CHAR_END) ? rec->eoc_len_ideal
+	int delta = len - ((type == CW_REC_STAT_DOT)           ? rec->dot_len_ideal
+			   : (type == CW_REC_STAT_DASH)        ? rec->dash_len_ideal
+			   : (type == CW_REC_STAT_IMARK_SPACE) ? rec->eom_len_ideal
+			   : (type == CW_REC_STAT_ICHAR_SPACE) ? rec->eoc_len_ideal
 			   : len);
 
 	/* Add this statistic to the buffer. */
@@ -542,21 +543,22 @@ void cw_receiver_add_statistic_internal(cw_rec_t *rec, stat_type_t type, int len
 
 
 /**
-   \brief Calculate and return one given timing statistic type
+   \brief Calculate and return length statistics for given type of mark or space
 
-   \p type may be: CW_REC_STAT_DOT or CW_REC_STAT_DASH or CW_REC_STAT_MARK_END or CW_REC_STAT_CHAR_END
+   \p type may be: CW_REC_STAT_DOT or CW_REC_STAT_DASH or CW_REC_STAT_IMARK_SPACE or CW_REC_STAT_ICHAR_SPACE
 
    \param rec - receiver
-   \param type - type of statistics
+   \param type - type of mark or space for which to return statistics
 
    \return 0.0 if no record of given type were found
-   \return timing statistics otherwise
+   \return statistics of length otherwise
 */
-double cw_receiver_get_statistic_internal(cw_rec_t *rec, stat_type_t type)
+double cw_rec_stats_get_internal(cw_rec_t *rec, stat_type_t type)
 {
-	/* Sum and count marks matching the given type.  A cleared
-	   buffer always begins refilling at zeroth mark, so to optimize
-	   we can stop on the first unoccupied slot in the circular buffer. */
+	/* Sum and count values for marks/spaces matching the given
+	   type.  A cleared buffer always begins refilling at zeroth
+	   mark, so to optimize we can stop on the first unoccupied
+	   slot in the circular buffer. */
 	double sum_of_squares = 0.0;
 	int count = 0;
 	for (int i = 0; i < CW_REC_STATISTICS_CAPACITY; i++) {
@@ -578,7 +580,7 @@ double cw_receiver_get_statistic_internal(cw_rec_t *rec, stat_type_t type)
 
 
 /**
-   \brief Calculate and return receive timing statistics
+   \brief Calculate and return receiver's timing statistics
 
    These statistics may be used to obtain a measure of the accuracy of
    received CW.  The values \p dot_sd and \p dash_sd contain the standard
@@ -598,16 +600,16 @@ void cw_get_receive_statistics(double *dot_sd, double *dash_sd,
 			       double *element_end_sd, double *character_end_sd)
 {
 	if (dot_sd) {
-		*dot_sd = cw_receiver_get_statistic_internal(&cw_receiver, CW_REC_STAT_DOT);
+		*dot_sd = cw_rec_stats_get_internal(&cw_receiver, CW_REC_STAT_DOT);
 	}
 	if (dash_sd) {
-		*dash_sd = cw_receiver_get_statistic_internal(&cw_receiver, CW_REC_STAT_DASH);
+		*dash_sd = cw_rec_stats_get_internal(&cw_receiver, CW_REC_STAT_DASH);
 	}
 	if (element_end_sd) {
-		*element_end_sd = cw_receiver_get_statistic_internal(&cw_receiver, CW_REC_STAT_MARK_END);
+		*element_end_sd = cw_rec_stats_get_internal(&cw_receiver, CW_REC_STAT_IMARK_SPACE);
 	}
 	if (character_end_sd) {
-		*character_end_sd = cw_receiver_get_statistic_internal(&cw_receiver, CW_REC_STAT_CHAR_END);
+		*character_end_sd = cw_rec_stats_get_internal(&cw_receiver, CW_REC_STAT_ICHAR_SPACE);
 	}
 	return;
 }
@@ -817,28 +819,29 @@ int cw_rec_mark_begin_internal(cw_rec_t *rec, const struct timeval *timestamp)
 	   a state error.  A receive tone start can only happen while
 	   we are idle, or between marks of a current character. */
 	if (rec->state != RS_IDLE && rec->state != RS_AFTER_TONE) {
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
+			      "libcw: receive state not idle and not after tone: %s", cw_receiver_states[rec->state]);
+
 		errno = ERANGE;
 		return CW_FAILURE;
 	}
 
 	/* Validate and save the timestamp, or get one and then save
-	   it.  This is a beginning of mark.*/
+	   it.  This is a beginning of mark. */
 	if (!cw_timestamp_validate_internal(&(rec->tone_start), timestamp)) {
 		return CW_FAILURE;
 	}
 
-	/* If this function has been called while received is in "after
-	   tone" state, we can measure the inter-mark gap (between
-	   previous tone and this tone) by comparing the start
-	   timestamp with the last end one, guaranteed set by getting
-	   to the "after tone" state via cw_end_receive tone(), or in
-	   extreme cases, by cw_receiver_add_element_internal().
-
-	   Do that, then, and update the relevant statistics. */
 	if (rec->state == RS_AFTER_TONE) {
+		/* Measure inter-mark space (just for statistics).
+
+		   rec->tone_end is timestamp of end of previous
+		   mark. It is set at going to the "after tone" state
+		   by cw_end_receive tone(), or in extreme cases, in
+		   cw_receiver_add_mark_internal(). */
 		int space_len = cw_timestamp_compare_internal(&(rec->tone_end),
 							      &(rec->tone_start));
-		cw_receiver_add_statistic_internal(&cw_receiver, CW_REC_STAT_MARK_END, space_len);
+		cw_rec_stats_add_internal(rec, CW_REC_STAT_IMARK_SPACE, space_len);
 
 		/* TODO: this may have been a very long space. Should
 		   we accept a very long space inside a character? */
@@ -983,9 +986,9 @@ int cw_rec_mark_end_internal(cw_rec_t *rec, const struct timeval *timestamp)
 	   observed speeds.  So by doing this here, we can at least
 	   ameliorate this effect, if not eliminate it. */
 	if (representation == CW_DOT_REPRESENTATION) {
-		cw_receiver_add_statistic_internal(rec, CW_REC_STAT_DOT, mark_len);
+		cw_rec_stats_add_internal(rec, CW_REC_STAT_DOT, mark_len);
 	} else {
-		cw_receiver_add_statistic_internal(rec, CW_REC_STAT_DASH, mark_len);
+		cw_rec_stats_add_internal(rec, CW_REC_STAT_DASH, mark_len);
 	}
 
 	/* Add the representation character to the receiver's buffer. */
@@ -1402,22 +1405,22 @@ int cw_receive_representation(const struct timeval *timestamp,
 			      /* out */ char *representation,
 			      /* out */ bool *is_end_of_word, /* out */ bool *is_error)
 {
-
-	/* If the receiver's state indicates that receiver's
-	   representation buffer stores a completed representation at
-	   the end of word, just return the representation via \p
-	   representation.
-
-	   Repeated calls of the function when receiver is in this
-	   state would simply return the same representation over and
-	   over again.
-
-	   Notice that the state of receiver at this point is settled,
-	   so \p timestamp is uninteresting. We don't expect it to
-	   hold any useful information that could influence state of
-	   receiver or content of representation buffer. */
 	if (cw_receiver.state == RS_END_WORD
 	    || cw_receiver.state == RS_ERR_WORD) {
+
+		/* Receiver is settled into "end of word" state
+		   (perhaps with error). Until receiver is notified
+		   about new mark, this state won't change, and
+		   representation stored by receiver won't change.
+
+		   Repeated calls of the function when receiver is in
+		   this state would simply return the same
+		   representation over and over again.
+
+		   Because the state of receiver is settled, \p
+		   timestamp is uninteresting. We don't expect it to
+		   hold any useful information that could influence
+		   receiver's state or representation buffer. */
 
 		if (is_end_of_word) {
 			*is_end_of_word = true;
@@ -1431,13 +1434,16 @@ int cw_receive_representation(const struct timeval *timestamp,
 	}
 
 
+
 	if (cw_receiver.state == RS_IDLE
 	    || cw_receiver.state == RS_IN_TONE) {
 
-		/* Not a good time to call this function. */
+		/* Not a good time to call this poll function. */
 		errno = ERANGE;
 		return CW_FAILURE;
 	}
+
+
 
 	/* Four receiver states were covered above, so we are left
 	   with these three: */
@@ -1447,30 +1453,19 @@ int cw_receive_representation(const struct timeval *timestamp,
 
 		   "Unknown receiver state %d", cw_receiver.state);
 
-	/* We now know the state is after a tone, or end-of-char,
-	   perhaps with error.  For all three of these cases, we're
-	   going to [re-]compare the \p timestamp with the tone_end
-	   timestamp saved in receiver.
-
-	   This could mean that in the case of end-of-char, we revise
-	   our opinion on later calls to end-of-word. This is correct,
-	   since it models reality. */
-
-	/* If we weren't supplied with one, get the current timestamp
-	   for comparison against the tone_end timestamp saved in
-	   receiver. */
+	/* Receiver is either in inter-mark space or in
+	   inter-character space. Calculate length of this space by
+	   comparing current/given timestamp with end of last mark. */
 	struct timeval now_timestamp;
 	if (!cw_timestamp_validate_internal(&now_timestamp, timestamp)) {
 		return CW_FAILURE;
 	}
 
-	/* Now we need to compare the timestamps to determine the length
-	   of the inter-tone gap. */
-	int space_len = cw_timestamp_compare_internal(&cw_receiver.tone_end,
-						      &now_timestamp);
-
+	int space_len = cw_timestamp_compare_internal(&cw_receiver.tone_end, &now_timestamp);
 	if (space_len == INT_MAX) {
-		// fprintf(stderr, "space len == INT_MAX\n");
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
+			      "libcw: space len == INT_MAX");
+
 		errno = EAGAIN;
 		return CW_FAILURE;
 	}
@@ -1479,25 +1474,30 @@ int cw_receive_representation(const struct timeval *timestamp,
 	cw_rec_sync_parameters_internal(&cw_receiver);
 
 
+	/* Reminder: receiver is either in inter-mark space, or in
+	   inter-character space. Test second possibility. */
 	if (space_len >= cw_receiver.eoc_len_min
 	    && space_len <= cw_receiver.eoc_len_max) {
 
-		/* The space is, within tolerance, a character
+		/* The space is, within tolerance, an inter-character
 		   space. A representation of complete character is
 		   now in representation buffer, we can return the
 		   representation via parameter. */
 
 		if (cw_receiver.state == RS_AFTER_TONE) {
-			/* A character space after a tone means end of
-			   character. Update receiver state. On
-			   updating the state, update length
-			   statistics for an identified end of
-			   character as well. */
-			cw_receiver_add_statistic_internal(&cw_receiver, CW_REC_STAT_CHAR_END, space_len);
+			/* Update length statistics for space
+			   identified as "inter-character space". */
+			cw_rec_stats_add_internal(&cw_receiver, CW_REC_STAT_ICHAR_SPACE, space_len);
+
+			/* Transition of state of receiver. */
 			cw_receiver.state = RS_END_CHAR;
 		} else {
 			/* We are already in RS_END_CHAR or
 			   RS_ERR_CHAR, so nothing to do. */
+
+			cw_assert (cw_receiver.state == RS_END_CHAR || cw_receiver.state == RS_ERR_CHAR,
+				   "unexpected state of receiver: %d / %s",
+				   cw_receiver.state, cw_receiver_states[cw_receiver.state])
 		}
 
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
@@ -1515,17 +1515,22 @@ int cw_receive_representation(const struct timeval *timestamp,
 		return CW_SUCCESS;
 	}
 
-	/* If the length of space indicated a word space, again we
-	   have a complete representation and can return it.  In this
-	   case, we also need to inform the client that this looked
-	   like the end of a word, not just a character.
 
-	   Any space length longer than eoc_len_max is, almost
-	   by definition, an "end of word" space. */
+	/* The space is not inter-character space. There is a
+	   possibility that it is long enough that we have to move
+	   from "after character" state to "after word" state.
+
+	   Space longer than eoc_len_max is, almost by definition, an
+	   "after word" space. */
 	if (space_len > cw_receiver.eoc_len_max) {
 
-		/* The space is a word space. Update receiver state,
-		   remember to preserve error state (if any). */
+		/* We have a complete representation and can return
+		   it.  In this case, we also need to inform the
+		   client that this looked like the "after word"
+		   situation, not just an "after character".
+
+		   Update receiver state, remember to preserve error
+		   state (if any). */
 		cw_receiver.state = cw_receiver.state == RS_ERR_CHAR
 			? RS_ERR_WORD : RS_END_WORD;
 
