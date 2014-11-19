@@ -95,23 +95,23 @@ extern cw_debug_t cw_debug_object_dev;
 /* "RS" stands for "Receiver State" */
 enum {
 	RS_IDLE,          /* Representation buffer is empty and ready to accept data. */
-	RS_IN_TONE,       /* Mark */
-	RS_AFTER_TONE,    /* Space */
-	RS_END_CHAR,      /* After receiving a character, without error (EOC, end-of-character). */
-	RS_END_WORD,      /* After receiving a word, without error (EOW, end-of-word). */
-	RS_ERR_CHAR,      /* After receiving a character, but with error (EOC_ERR). */
-	RS_ERR_WORD       /* After receiving a word, but with error (EOW_ERR). */
+	RS_MARK,          /* Mark. */
+	RS_SPACE,         /* Space (inter-mark-space). */
+	RS_EOC_GAP,       /* Gap after a character, without error (EOC = end-of-character). */
+	RS_EOW_GAP,       /* Gap after a word, without error (EOW = end-of-word). */
+	RS_EOC_GAP_ERR,   /* Gap after a character, with error. */
+	RS_EOW_GAP_ERR    /* Gap after a word, with error. */
 };
 
 
 static const char *cw_receiver_states[] = {
 	"RS_IDLE",
-	"RS_IN_TONE",
-	"RS_AFTER_TONE",
-	"RS_END_CHAR",
-	"RS_END_WORD",
-	"RS_ERR_CHAR",
-	"RS_ERR_WORD"
+	"RS_MARK",
+	"RS_SPACE",
+	"RS_EOC_GAP",
+	"RS_EOW_GAP",
+	"RS_EOC_GAP_ERR",
+	"RS_EOW_GAP_ERR"
 };
 
 
@@ -655,11 +655,11 @@ void cw_reset_receive_statistics(void)
 /*
  * The CW receive functions implement the following state graph:
  *
- *        +----------------- RS_ERR_WORD <-----------------------+
+ *        +--------------- RS_EOW_GAP_ERR <----------------------+
  *        |(clear)                ^                              |
  *        |           (delay=long)|                              |
  *        |                       |                              |
- *        +----------------- RS_ERR_CHAR <-------------+         |
+ *        +---------------- RS_EOC_GAP_ERR <-----------+         |
  *        |(clear)                ^  |                 |         |
  *        |                       |  +-----------------+         |(error,
  *        |                       |   (delay=short)              | delay=long)
@@ -670,19 +670,19 @@ void cw_reset_receive_statistics(void)
  *        |             (noise)|  |  |
  *        |                    |  |  |
  *        v    (start tone)    |  |  |  (end tone,noise)
- * --> RS_IDLE ------------> RS_IN_TONE ----------------> RS_AFTER_TONE <------- +
+ * --> RS_IDLE --------------> RS_MARK ------------------>  RS_SPACE  <--------- +
  *     |  ^                           ^                   | |    | ^ |           |
  *     |  |                           |                   | |    | | |           |
  *     |  |          (delay=short)    +-------------------+ |    | | +-----------+
  *     |  |        +--------------+     (start tone)        |    | |   (not ready,
  *     |  |        |              |                         |    | |    buffer dot,
- *     |  |        +-------> RS_END_CHAR <------------------+    | |    buffer dash)
+ *     |  |        +-------> RS_EOC_GAP <-------------------+    | |    buffer dash)
  *     |  |                   |   |       (delay=short)          | |
  *     |  +-------------------+   |                              | |
  *     |  |(clear)                |                              | |
  *     |  |           (delay=long)|                              | |
  *     |  |                       v                              | |
- *     |  +----------------- RS_END_WORD <-----------------------+ |
+ *     |  +----------------- RS_EOW_GAP <------------------------+ |
  *     |   (clear)                        (delay=long)             |(buffer dot,
  *     |                                                           | buffer dash)
  *     +-----------------------------------------------------------+
@@ -820,12 +820,12 @@ int cw_start_receive_tone(const struct timeval *timestamp)
 /* For top-level comment see cw_start_receive_tone(). */
 int cw_rec_mark_begin_internal(cw_rec_t *rec, const struct timeval *timestamp)
 {
-	/* If the receive state is not idle or after a tone, this is
-	   a state error.  A receive tone start can only happen while
-	   we are idle, or between marks of a current character. */
-	if (rec->state != RS_IDLE && rec->state != RS_AFTER_TONE) {
+	/* If the receive state is not idle or inter-mark-space, this is a
+	   state error.  A start of mark can only happen while we are
+	   idle, or in inter-mark-space of a current character. */
+	if (rec->state != RS_IDLE && rec->state != RS_SPACE) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
-			      "libcw: receive state not idle and not after tone: %s", cw_receiver_states[rec->state]);
+			      "libcw: receive state not idle and not inter-mark-space: %s", cw_receiver_states[rec->state]);
 
 		errno = ERANGE;
 		return CW_FAILURE;
@@ -837,13 +837,13 @@ int cw_rec_mark_begin_internal(cw_rec_t *rec, const struct timeval *timestamp)
 		return CW_FAILURE;
 	}
 
-	if (rec->state == RS_AFTER_TONE) {
+	if (rec->state == RS_SPACE) {
 		/* Measure inter-mark space (just for statistics).
 
 		   rec->tone_end is timestamp of end of previous
-		   mark. It is set at going to the "after tone" state
-		   by cw_end_receive tone(), or in extreme cases, in
-		   cw_receiver_add_mark_internal(). */
+		   mark. It is set at going to the inter-mark-space
+		   state by cw_end_receive tone(), or in extreme
+		   cases, in cw_receiver_add_mark_internal(). */
 		int space_len = cw_timestamp_compare_internal(&(rec->tone_end),
 							      &(rec->tone_start));
 		cw_rec_stats_add_internal(rec, CW_REC_STAT_IMARK_SPACE, space_len);
@@ -852,10 +852,10 @@ int cw_rec_mark_begin_internal(cw_rec_t *rec, const struct timeval *timestamp)
 		   we accept a very long space inside a character? */
 	}
 
-	/* Set state to indicate we are inside a tone. We don't know
-	   yet if it will be recognized as valid tone (it may be
+	/* Set state to indicate we are inside a mark. We don't know
+	   yet if it will be recognized as valid mark (it may be
 	   shorter than a threshold). */
-	rec->state = RS_IN_TONE;
+	rec->state = RS_MARK;
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
 		      "libcw: receive state -> %s", cw_receiver_states[rec->state]);
@@ -907,7 +907,7 @@ int cw_end_receive_tone(const struct timeval *timestamp)
 int cw_rec_mark_end_internal(cw_rec_t *rec, const struct timeval *timestamp)
 {
 	/* The receive state is expected to be inside of a mark. */
-	if (rec->state != RS_IN_TONE) {
+	if (rec->state != RS_MARK) {
 		errno = ERANGE;
 		return CW_FAILURE;
 	}
@@ -935,14 +935,14 @@ int cw_rec_mark_end_internal(cw_rec_t *rec, const struct timeval *timestamp)
 		   Revert to state of receiver as it was before
 		   complementary cw_rec_mark_begin_internal(). After
 		   call to mark_begin() the state was changed to
-		   RS_IN_TONE, but what state it was before call to
+		   mark, but what state it was before call to
 		   start()?
 
 		   Check position in representation buffer (how many
 		   marks are in the buffer) to see in which state the
 		   receiver was *before* mark_begin() function call,
 		   and restore this state. */
-		rec->state = rec->representation_ind == 0 ? RS_IDLE : RS_AFTER_TONE;
+		rec->state = rec->representation_ind == 0 ? RS_IDLE : RS_SPACE;
 
 		/* Put the end tone timestamp back to how it was when we
 		   came in to the routine. */
@@ -1004,7 +1004,7 @@ int cw_rec_mark_end_internal(cw_rec_t *rec, const struct timeval *timestamp)
 	   What we'll do is make a unilateral declaration that if we get
 	   this far, we go to end-of-char error state automatically. */
 	if (rec->representation_ind == CW_REC_REPRESENTATION_CAPACITY - 1) {
-		rec->state = RS_ERR_CHAR;
+		rec->state = RS_EOC_GAP_ERR;
 
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
 			      "libcw: receiver's representation buffer is full");
@@ -1016,8 +1016,9 @@ int cw_rec_mark_end_internal(cw_rec_t *rec, const struct timeval *timestamp)
 		return CW_FAILURE;
 	}
 
-	/* All is well.  Move to the more normal after-tone state. */
-	rec->state = RS_AFTER_TONE;
+	/* All is well.  Move to the more normal inter-mark-space
+	   state. */
+	rec->state = RS_SPACE;
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
 		      "libcw: receive state -> %s", cw_receiver_states[rec->state]);
@@ -1130,10 +1131,10 @@ int cw_rec_mark_identify_internal(cw_rec_t *rec, int mark_len, /* out */ char *r
 	   called because client code has received a *mark*, not a
 	   space. Are we sure that we now want to treat the
 	   mark_len as length of *space*? And do we want to
-	   move to either RS_ERR_WORD or RS_ERR_CHAR pretending that
+	   move to either RS_EOW_GAP_ERR or RS_EOC_GAP_ERR pretending that
 	   this is a length of *space*? */
 	rec->state = mark_len > rec->eoc_len_max
-		? RS_ERR_WORD : RS_ERR_CHAR;
+		? RS_EOW_GAP_ERR : RS_EOC_GAP_ERR;
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
 		      "libcw: receive state -> %s", cw_receiver_states[rec->state]);
@@ -1246,9 +1247,9 @@ void cw_rec_averaging_update_internal(cw_rec_t *rec, int mark_len, char mark)
 */
 int cw_receiver_add_mark_internal(cw_rec_t *rec, const struct timeval *timestamp, char mark)
 {
-	/* The receiver's state is expected to be idle or after a tone in
+	/* The receiver's state is expected to be idle or inter-mark-space in
 	   order to use this routine. */
-	if (rec->state != RS_IDLE && rec->state != RS_AFTER_TONE) {
+	if (rec->state != RS_IDLE && rec->state != RS_SPACE) {
 		errno = ERANGE;
 		return CW_FAILURE;
 	}
@@ -1278,7 +1279,7 @@ int cw_receiver_add_mark_internal(cw_rec_t *rec, const struct timeval *timestamp
 	   above, if it's full, then we have to do something, even
 	   though it's unlikely to actually be full. */
 	if (rec->representation_ind == CW_REC_REPRESENTATION_CAPACITY - 1) {
-		rec->state = RS_ERR_CHAR;
+		rec->state = RS_EOC_GAP_ERR;
 
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
 			      "libcw: receiver's representation buffer is full");
@@ -1290,9 +1291,9 @@ int cw_receiver_add_mark_internal(cw_rec_t *rec, const struct timeval *timestamp
 		return CW_FAILURE;
 	}
 
-	/* Since we effectively just saw the end of a tone, move to
-	   the after-tone state. */
-	rec->state = RS_AFTER_TONE;
+	/* Since we effectively just saw the end of a mark, move to
+	   the inter-mark-space state. */
+	rec->state = RS_SPACE;
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
 		      "libcw: receive state -> %s", cw_receiver_states[rec->state]);
@@ -1430,8 +1431,8 @@ int cw_rec_poll_representation_internal(cw_rec_t *rec,
 					/* out */ bool *is_end_of_word,
 					/* out */ bool *is_error)
 {
-	if (rec->state == RS_END_WORD
-	    || rec->state == RS_ERR_WORD) {
+	if (rec->state == RS_EOW_GAP
+	    || rec->state == RS_EOW_GAP_ERR) {
 
 		/* Until receiver is notified about new mark, its
 		   state won't change, and representation stored by
@@ -1450,7 +1451,7 @@ int cw_rec_poll_representation_internal(cw_rec_t *rec,
 		return CW_SUCCESS;
 
 	} else if (rec->state == RS_IDLE
-		   || rec->state == RS_IN_TONE) {
+		   || rec->state == RS_MARK) {
 
 		/* Not a good time/state to call this get()
 		   function. */
@@ -1465,9 +1466,9 @@ int cw_rec_poll_representation_internal(cw_rec_t *rec,
 
 	/* Four receiver states were covered above, so we are left
 	   with these three: */
-	cw_assert (rec->state == RS_AFTER_TONE
-		   || rec->state == RS_END_CHAR
-		   || rec->state == RS_ERR_CHAR,
+	cw_assert (rec->state == RS_SPACE
+		   || rec->state == RS_EOC_GAP
+		   || rec->state == RS_EOC_GAP_ERR,
 
 		   "Unknown receiver state %d", rec->state);
 
@@ -1539,18 +1540,21 @@ void cw_rec_poll_representation_eoc_internal(cw_rec_t *rec, int space_len,
 					     /* out */ bool *is_end_of_word,
 					     /* out */ bool *is_error)
 {
-	if (rec->state == RS_AFTER_TONE) {
-		/* Update length statistics for space identified as
+	if (rec->state == RS_SPACE) {
+		/* State of receiver is inter-mark-space, but real
+		   length of current space turned out to be a bit
+		   longer than acceptable inter-mark-space. Update
+		   length statistics for space identified as
 		   end-of-character gap. */
 		cw_rec_stats_add_internal(rec, CW_REC_STAT_ICHAR_SPACE, space_len);
 
 		/* Transition of state of receiver. */
-		rec->state = RS_END_CHAR;
+		rec->state = RS_EOC_GAP;
 	} else {
-		/* We are already in RS_END_CHAR or
-		   RS_ERR_CHAR, so nothing to do. */
+		/* We are already in RS_EOC_GAP or
+		   RS_EOC_GAP_ERR, so nothing to do. */
 
-		cw_assert (rec->state == RS_END_CHAR || rec->state == RS_ERR_CHAR,
+		cw_assert (rec->state == RS_EOC_GAP || rec->state == RS_EOC_GAP_ERR,
 			   "unexpected state of receiver: %d / %s",
 			   rec->state, cw_receiver_states[rec->state]);
 	}
@@ -1563,7 +1567,7 @@ void cw_rec_poll_representation_eoc_internal(cw_rec_t *rec, int space_len,
 		*is_end_of_word = false;
 	}
 	if (is_error) {
-		*is_error = (rec->state == RS_ERR_CHAR);
+		*is_error = (rec->state == RS_EOC_GAP_ERR);
 	}
 	*representation = '\0'; /* TODO: why do this? */
 	strncat(representation, rec->representation, rec->representation_ind);
@@ -1580,13 +1584,13 @@ void cw_rec_poll_representation_eow_internal(cw_rec_t *rec,
 					     /* out */ bool *is_end_of_word,
 					     /* out */ bool *is_error)
 {
-	if (rec->state == RS_END_CHAR || rec->state == RS_AFTER_TONE) {
-		rec->state = RS_END_WORD;   /* Transition of state. */
+	if (rec->state == RS_EOC_GAP || rec->state == RS_SPACE) {
+		rec->state = RS_EOW_GAP;   /* Transition of state. */
 
-	} else if (rec->state == RS_ERR_CHAR) {
-		rec->state = RS_ERR_WORD;   /* Transition of state with preserving error. */
+	} else if (rec->state == RS_EOC_GAP_ERR) {
+		rec->state = RS_EOW_GAP_ERR;   /* Transition of state with preserving error. */
 
-	} else if (rec->state == RS_ERR_WORD || rec->state == RS_END_WORD) {
+	} else if (rec->state == RS_EOW_GAP_ERR || rec->state == RS_EOW_GAP) {
 		rec->state = rec->state;    /* No need to change state. */
 
 	} else {
@@ -1601,7 +1605,7 @@ void cw_rec_poll_representation_eow_internal(cw_rec_t *rec,
 		*is_end_of_word = true;
 	}
 	if (is_error) {
-		*is_error = (rec->state == RS_ERR_WORD);
+		*is_error = (rec->state == RS_EOW_GAP_ERR);
 	}
 	*representation = '\0'; /* TODO: why do this? */
 	strncat(representation, rec->representation, rec->representation_ind);
