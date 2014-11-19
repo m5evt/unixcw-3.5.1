@@ -212,7 +212,7 @@ static void cw_rec_averaging_reset_internal(cw_rec_averaging_t *avg, int initial
 static int  cw_rec_poll_representation_internal(cw_rec_t *rec, const struct timeval *timestamp, char *representation, bool *is_end_of_word, bool *is_error);
 static void cw_rec_poll_representation_eoc_internal(cw_rec_t *rec, int space_len, char *representation, bool *is_end_of_word, bool *is_error);
 static void cw_rec_poll_representation_eow_internal(cw_rec_t *rec, char *representation, bool *is_end_of_word, bool *is_error);
-
+static int  cw_rec_poll_character_internal(cw_rec_t *rec, const struct timeval *timestamp, char *c, bool *is_end_of_word, bool *is_error);
 
 
 
@@ -1517,17 +1517,14 @@ int cw_rec_poll_representation_internal(cw_rec_t *rec,
 		cw_rec_poll_representation_eow_internal(rec, representation, is_end_of_word, is_error);
 		return CW_SUCCESS;
 
-	} else {
-		/* The space is neither an
-		   end-of-character gap, nor end-of-word gap. If none of
-		   these conditions holds, then we cannot *yet* make a
-		   judgement on what we have in the buffer, so return
-		   EAGAIN.
+	} else { /* space_len < rec->eoc_len_min */
+		/* We are still inside a character (inside an
+		   inter-mark space, to be precise). The receiver
+		   can't return a representation, because building a
+		   representation is not finished yet.
 
-		   Just for clarification: if none of the situations
-		   is valid, then the only possibility is that we are
-		   in inter-mark space. So it is too early to return a
-		   representation, because it's not complete yet. */
+		   So it is too early to return a representation,
+		   because it's not complete yet. */
 		errno = EAGAIN;
 		return CW_FAILURE;
 	}
@@ -1657,14 +1654,34 @@ void cw_rec_poll_representation_eow_internal(cw_rec_t *rec,
 */
 int cw_receive_character(const struct timeval *timestamp,
 			 /* out */ char *c,
-			 /* out */ bool *is_end_of_word, /* out */ bool *is_error)
+			 /* out */ bool *is_end_of_word,
+			 /* out */ bool *is_error)
 {
+	int rv = cw_rec_poll_character_internal(&cw_receiver, timestamp, c, is_end_of_word, is_error);
+	return rv;
+}
+
+
+
+
+
+int cw_rec_poll_character_internal(cw_rec_t *rec,
+				   const struct timeval *timestamp,
+				   /* out */ char *c,
+				   /* out */ bool *is_end_of_word,
+				   /* out */ bool *is_error)
+{
+	/* TODO: in theory we don't need these intermediate bool
+	   variables, since is_end_of_word and is_error won't be
+	   modified by any function on !success. */
 	bool end_of_word, error;
+
 	char representation[CW_REC_REPRESENTATION_CAPACITY + 1];
 
 	/* See if we can obtain a representation from receiver. */
-	int status = cw_receive_representation(timestamp, representation,
-					       &end_of_word, &error);
+	int status = cw_rec_poll_representation_internal(rec, timestamp,
+							 representation,
+							 &end_of_word, &error);
 	if (!status) {
 		return CW_FAILURE;
 	}
