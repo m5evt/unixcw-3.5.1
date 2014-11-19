@@ -1,3 +1,12 @@
+2014-11-19 Kamil Ignacak
+	More changes in receiver module. Refactoring and moving public
+	functions' code to _internal() functions that accept pointer to
+	receiver as first argument. Updating comments.
+
+	If you depend on Receiver State names (strings starting with RS_),
+	you may want to check changed values of RS enum and corresponding
+	strings on top of libcw_rec.c - they have been changed.
+
 2014-11-12 Kamil Ignacak
 	Proceeding with changes, simplifications and refactoring in
 	receiver module. Generator module is also affected.
