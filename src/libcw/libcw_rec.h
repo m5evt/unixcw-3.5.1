@@ -85,7 +85,7 @@ typedef struct {
 	/* State of receiver state machine. */
 	int state;
 
-	int gap; /* Inter-mark gap, similar as in generator. */
+	int gap; /* Inter-character-gap, similar as in generator. */
 
 
 
