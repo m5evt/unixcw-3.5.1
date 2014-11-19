@@ -655,37 +655,46 @@ void cw_reset_receive_statistics(void)
 /*
  * The CW receive functions implement the following state graph:
  *
- *        +--------------- RS_EOW_GAP_ERR <----------------------+
- *        |(clear)                ^                              |
- *        |           (delay=long)|                              |
- *        |                       |                              |
- *        +---------------- RS_EOC_GAP_ERR <-----------+         |
- *        |(clear)                ^  |                 |         |
- *        |                       |  +-----------------+         |(error,
- *        |                       |   (delay=short)              | delay=long)
- *        |    (error,delay=short)|                              |
- *        |                       |  +---------------------------+
- *        |                       |  |
- *        +--------------------+  |  |
- *        |             (noise)|  |  |
- *        |                    |  |  |
- *        v    (start mark)    |  |  |  (end mark,noise)
- * --> RS_IDLE --------------> RS_MARK ------------------>  RS_SPACE  <--------- +
- *     |  ^                           ^                   | |    | ^ |           |
- *     |  |                           |                   | |    | | |           |
- *     |  |          (delay=short)    +-------------------+ |    | | +-----------+
- *     |  |        +--------------+     (start mark)        |    | |   (not ready,
- *     |  |        |              |                         |    | |    buffer dot,
- *     |  |        +-------> RS_EOC_GAP <-------------------+    | |    buffer dash)
- *     |  |                   |   |       (delay=short)          | |
- *     |  +-------------------+   |                              | |
- *     |  |(clear)                |                              | |
- *     |  |           (delay=long)|                              | |
- *     |  |                       v                              | |
- *     |  +----------------- RS_EOW_GAP <------------------------+ |
- *     |   (clear)                        (delay=long)             |(buffer dot,
- *     |                                                           | buffer dash)
- *     +-----------------------------------------------------------+
+ *        +-----------<------- RS_EOW_GAP_ERR ------------<--------------+
+ *        |(clear)                    ^                                  |
+ *        |                (pull() +  |                                  |
+ *        |       space len > eoc len)|                                  |
+ *        |                           |                                  |
+ *        +-----------<-------- RS_EOC_GAP_ERR <---------------+         |
+ *        |(clear)                    ^  |                     |         |
+ *        |                           |  +---------------------+         |(error,
+ *        |                           |    (pull() +                     |space len > eoc len)
+ *        |                           |    space len = eoc len)          |
+ *        v                    (error,|                                  |
+ *        |       space len = eoc len)|  +------------->-----------------+
+ *        |                           |  |
+ *        +-----------<------------+  |  |
+ *        |                        |  |  |
+ *        |              (is noise)|  |  |
+ *        |                        |  |  |
+ *        v        (begin mark)    |  |  |    (end mark,noise)
+ * --> RS_IDLE ------->----------- RS_MARK ------------>----------> RS_SPACE <------------- +
+ *     v  ^                              ^                          v v v ^ |               |
+ *     |  |                              |    (begin mark)          | | | | |               |
+ *     |  |     (pull() +                +-------------<------------+ | | | +---------------+
+ *     |  |     space len = eoc len)                                  | | |      (not ready,
+ *     |  |     +-----<------------+          (pull() +               | | |      buffer dot,
+ *     |  |     |                  |          space len = eoc len)    | | |      buffer dash)
+ *     |  |     +-----------> RS_EOC_GAP <-------------<--------------+ | |
+ *     |  |                     |  |                                    | |
+ *     |  |(clear)              |  |                                    | |
+ *     |  +-----------<---------+  |                                    | |
+ *     |  |                        |                                    | |
+ *     |  |              (pull() + |                                    | |
+ *     |  |    space len > eoc len)|                                    | |
+ *     |  |                        |          (pull() +                 | |
+ *     |  |(clear)                 v          space len > eoc len)      | |
+ *     |  +-----------<------ RS_EOW_GAP <-------------<----------------+ |
+ *     |                                                                  |
+ *     |                                                                  |
+ *     |               (buffer dot,                                       |
+ *     |               buffer dash)                                       |
+ *     +------------------------------->----------------------------------+
  */
 
 
