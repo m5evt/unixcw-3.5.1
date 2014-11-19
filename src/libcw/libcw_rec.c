@@ -97,10 +97,10 @@ enum {
 	RS_IDLE,          /* Representation buffer is empty and ready to accept data. */
 	RS_IN_TONE,       /* Mark */
 	RS_AFTER_TONE,    /* Space */
-	RS_END_CHAR,      /* After receiving a character, without error. */
-	RS_END_WORD,      /* After receiving a word, without error. */
-	RS_ERR_CHAR,      /* TODO: shouldn't it be RS_END_CHAR_ERR, as in, "After receiving a character, but with error"? */
-	RS_ERR_WORD       /* TODO: shouldn't it be RS_END_WORD_ERR, as in, "After receiving a word, but with error"? */
+	RS_END_CHAR,      /* After receiving a character, without error (EOC, end-of-character). */
+	RS_END_WORD,      /* After receiving a word, without error (EOW, end-of-word). */
+	RS_ERR_CHAR,      /* After receiving a character, but with error (EOC_ERR). */
+	RS_ERR_WORD       /* After receiving a word, but with error (EOW_ERR). */
 };
 
 
@@ -207,6 +207,11 @@ static void cw_rec_averaging_push_internal(cw_rec_averaging_t *avg, int mark_len
 static void cw_rec_averaging_update_internal(cw_rec_t *rec, int mark_len, char mark);
 static void cw_rec_averaging_reset_internal(cw_rec_averaging_t *avg, int initial);
 
+
+
+static int  cw_rec_poll_representation_internal(cw_rec_t *rec, const struct timeval *timestamp, char *representation, bool *is_end_of_word, bool *is_error);
+static void cw_rec_poll_representation_eoc_internal(cw_rec_t *rec, int space_len, char *representation, bool *is_end_of_word, bool *is_error);
+static void cw_rec_poll_representation_eow_internal(cw_rec_t *rec, char *representation, bool *is_end_of_word, bool *is_error);
 
 
 
@@ -1110,9 +1115,9 @@ int cw_rec_mark_identify_internal(cw_rec_t *rec, int mark_len, /* out */ char *r
 	   out of scope of this function. Move the part below to
 	   separate function. */
 
-	/* If we cannot send back through \p representation any result,
-	   let's move to either "in error after character" or "in
-	   error after word" state, which is an "in space" state.
+	/* If we can't send back any result through \p representation,
+	   let's move to either "end-of-character, in error" or
+	   "end-of-word, in error" state.
 
 	   We will treat \p mark_len as length of space.
 
@@ -1369,31 +1374,31 @@ int cw_receive_buffer_dash(const struct timeval *timestamp)
    EINVAL if the timestamp passed in is invalid,
    EAGAIN if the call is made too early to determine whether a
    complete representation has yet been placed in the buffer (that is,
-   less than the inter-character gap period elapsed since the last
+   less than the end-of-character gap period elapsed since the last
    cw_end_receive_tone or cw_receive_buffer_dot/dash call). This is
    not a *hard* error, just an information that the caller should try
    to get the representation later.
 
-   \p is_end_of_word indicates that the delay after the last tone
-   received is longer that the inter-word gap.
+   \p is_end_of_word indicates that the space after the last tone
+   received is longer that the end-of-character gap, so it must be
+   qualified as end-of-word gap.
 
    \p is_error indicates that the representation was terminated by an
    error condition.
 
-   TODO: the function should be called cw_receiver_get_representation().
+   TODO: the function should be called cw_receiver_poll_representation().
 
-   TODO: why we pass \p timestamp to the function when all we want
-   from it is a representation from representation buffer? It seems
-   that the function can be called with timestamp for last event,
-   i.e. on end of last space. "last space" may mean space after last
-   mark (dot/dash) in a character, or a space between two
-   characters, or (a bit different case) a space between
-   words. Timestamp for end of space would be the same timestamp as
-   for beginning of new tone (?).
+   The function is called periodically (poll()-like function) by
+   client code in hope that at some attempt receiver will be ready to
+   pass \p representation. The attempt succeeds only if data stream is
+   in "space" state. To mark end of the space, client code has to
+   provide a timestamp (or pass NULL timestamp, the function will get
+   time stamp at function call). The receiver needs to know the "end
+   of space" event - thus the \p timestamp parameter.
 
    testedin::test_helper_receive_tests()
 
-   \param timestamp - timestamp of event that ends "end-of-character" space or "end-of-word" space
+   \param timestamp - timestamp of event that ends "end-of-character" gap or "end-of-word" gap
    \param representation - buffer for representation (output parameter)
    \param is_end_of_word - buffer for "is end of word" state (output parameter)
    \param is_error - buffer for "error" state (output parameter)
@@ -1403,65 +1408,82 @@ int cw_receive_buffer_dash(const struct timeval *timestamp)
 */
 int cw_receive_representation(const struct timeval *timestamp,
 			      /* out */ char *representation,
-			      /* out */ bool *is_end_of_word, /* out */ bool *is_error)
+			      /* out */ bool *is_end_of_word,
+			      /* out */ bool *is_error)
 {
-	if (cw_receiver.state == RS_END_WORD
-	    || cw_receiver.state == RS_ERR_WORD) {
+	int rv = cw_rec_poll_representation_internal(&cw_receiver,
+						     timestamp,
+						     representation,
+						     is_end_of_word,
+						     is_error);
 
-		/* Receiver is settled into "end of word" state
-		   (perhaps with error). Until receiver is notified
-		   about new mark, this state won't change, and
-		   representation stored by receiver won't change.
+	return rv;
+}
 
-		   Repeated calls of the function when receiver is in
-		   this state would simply return the same
-		   representation over and over again.
+
+
+
+
+int cw_rec_poll_representation_internal(cw_rec_t *rec,
+					const struct timeval *timestamp,
+					/* out */ char *representation,
+					/* out */ bool *is_end_of_word,
+					/* out */ bool *is_error)
+{
+	if (rec->state == RS_END_WORD
+	    || rec->state == RS_ERR_WORD) {
+
+		/* Until receiver is notified about new mark, its
+		   state won't change, and representation stored by
+		   receiver's buffer won't change.
+
+		   Repeated calls of the cw_receive_representation()
+		   function when receiver is in this state will simply
+		   return the same representation over and over again.
 
 		   Because the state of receiver is settled, \p
 		   timestamp is uninteresting. We don't expect it to
 		   hold any useful information that could influence
 		   receiver's state or representation buffer. */
 
-		if (is_end_of_word) {
-			*is_end_of_word = true;
-		}
-		if (is_error) {
-			*is_error = (cw_receiver.state == RS_ERR_WORD);
-		}
-		*representation = '\0'; /* TODO: why do this? */
-		strncat(representation, cw_receiver.representation, cw_receiver.representation_ind);
+		cw_rec_poll_representation_eow_internal(rec, representation, is_end_of_word, is_error);
 		return CW_SUCCESS;
-	}
 
+	} else if (rec->state == RS_IDLE
+		   || rec->state == RS_IN_TONE) {
 
-
-	if (cw_receiver.state == RS_IDLE
-	    || cw_receiver.state == RS_IN_TONE) {
-
-		/* Not a good time to call this poll function. */
+		/* Not a good time/state to call this get()
+		   function. */
 		errno = ERANGE;
 		return CW_FAILURE;
+
+	} else {
+		/* Pass to handling other states. */
 	}
 
 
 
 	/* Four receiver states were covered above, so we are left
 	   with these three: */
-	cw_assert (cw_receiver.state == RS_AFTER_TONE
-		   || cw_receiver.state == RS_END_CHAR
-		   || cw_receiver.state == RS_ERR_CHAR,
+	cw_assert (rec->state == RS_AFTER_TONE
+		   || rec->state == RS_END_CHAR
+		   || rec->state == RS_ERR_CHAR,
 
-		   "Unknown receiver state %d", cw_receiver.state);
+		   "Unknown receiver state %d", rec->state);
 
-	/* Receiver is either in inter-mark space or in
-	   inter-character space. Calculate length of this space by
-	   comparing current/given timestamp with end of last mark. */
+	/* Stream of data is in one of these states
+	   - inter-mark space, or
+	   - end-of-character gap, or
+	   - end-of-word gap.
+	   To see which case is true, calculate length of this space
+	   by comparing current/given timestamp with end of last
+	   mark. */
 	struct timeval now_timestamp;
 	if (!cw_timestamp_validate_internal(&now_timestamp, timestamp)) {
 		return CW_FAILURE;
 	}
 
-	int space_len = cw_timestamp_compare_internal(&cw_receiver.tone_end, &now_timestamp);
+	int space_len = cw_timestamp_compare_internal(&rec->tone_end, &now_timestamp);
 	if (space_len == INT_MAX) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
 			      "libcw: space len == INT_MAX");
@@ -1471,91 +1493,123 @@ int cw_receive_representation(const struct timeval *timestamp,
 	}
 
 	/* Synchronize parameters if required */
-	cw_rec_sync_parameters_internal(&cw_receiver);
+	cw_rec_sync_parameters_internal(rec);
 
+	if (space_len >= rec->eoc_len_min
+	    && space_len <= rec->eoc_len_max) {
 
-	/* Reminder: receiver is either in inter-mark space, or in
-	   inter-character space. Test second possibility. */
-	if (space_len >= cw_receiver.eoc_len_min
-	    && space_len <= cw_receiver.eoc_len_max) {
+		/* The space is, within tolerance, an end-of-character
+		   gap.
 
-		/* The space is, within tolerance, an inter-character
-		   space. A representation of complete character is
-		   now in representation buffer, we can return the
-		   representation via parameter. */
-
-		if (cw_receiver.state == RS_AFTER_TONE) {
-			/* Update length statistics for space
-			   identified as "inter-character space". */
-			cw_rec_stats_add_internal(&cw_receiver, CW_REC_STAT_ICHAR_SPACE, space_len);
-
-			/* Transition of state of receiver. */
-			cw_receiver.state = RS_END_CHAR;
-		} else {
-			/* We are already in RS_END_CHAR or
-			   RS_ERR_CHAR, so nothing to do. */
-
-			cw_assert (cw_receiver.state == RS_END_CHAR || cw_receiver.state == RS_ERR_CHAR,
-				   "unexpected state of receiver: %d / %s",
-				   cw_receiver.state, cw_receiver_states[cw_receiver.state])
-		}
-
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-			      "libcw: receive state -> %s", cw_receiver_states[cw_receiver.state]);
-
-		/* Return the representation from receiver's buffer. */
-		if (is_end_of_word) {
-			*is_end_of_word = false;
-		}
-		if (is_error) {
-			*is_error = (cw_receiver.state == RS_ERR_CHAR);
-		}
-		*representation = '\0'; /* TODO: why do this? */
-		strncat(representation, cw_receiver.representation, cw_receiver.representation_ind);
+		   We have a complete character representation in
+		   receiver's buffer and we can return it. */
+		cw_rec_poll_representation_eoc_internal(rec, space_len, representation, is_end_of_word, is_error);
 		return CW_SUCCESS;
+
+	} else if (space_len > rec->eoc_len_max) {
+
+		/* The space is too long for end-of-character
+		   state. This should be end-of-word state. We have
+		   to inform client code about this, too.
+
+		   We have a complete character representation in
+		   receiver's buffer and we can return it. */
+		cw_rec_poll_representation_eow_internal(rec, representation, is_end_of_word, is_error);
+		return CW_SUCCESS;
+
+	} else {
+		/* The space is neither an
+		   end-of-character gap, nor end-of-word gap. If none of
+		   these conditions holds, then we cannot *yet* make a
+		   judgement on what we have in the buffer, so return
+		   EAGAIN.
+
+		   Just for clarification: if none of the situations
+		   is valid, then the only possibility is that we are
+		   in inter-mark space. So it is too early to return a
+		   representation, because it's not complete yet. */
+		errno = EAGAIN;
+		return CW_FAILURE;
+	}
+}
+
+
+
+
+
+void cw_rec_poll_representation_eoc_internal(cw_rec_t *rec, int space_len,
+					     /* out */ char *representation,
+					     /* out */ bool *is_end_of_word,
+					     /* out */ bool *is_error)
+{
+	if (rec->state == RS_AFTER_TONE) {
+		/* Update length statistics for space identified as
+		   end-of-character gap. */
+		cw_rec_stats_add_internal(rec, CW_REC_STAT_ICHAR_SPACE, space_len);
+
+		/* Transition of state of receiver. */
+		rec->state = RS_END_CHAR;
+	} else {
+		/* We are already in RS_END_CHAR or
+		   RS_ERR_CHAR, so nothing to do. */
+
+		cw_assert (rec->state == RS_END_CHAR || rec->state == RS_ERR_CHAR,
+			   "unexpected state of receiver: %d / %s",
+			   rec->state, cw_receiver_states[rec->state]);
 	}
 
+	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
+		      "libcw: receive state -> %s", cw_receiver_states[rec->state]);
 
-	/* The space is not inter-character space. There is a
-	   possibility that it is long enough that we have to move
-	   from "after character" state to "after word" state.
+	/* Return the representation from receiver's buffer. */
+	if (is_end_of_word) {
+		*is_end_of_word = false;
+	}
+	if (is_error) {
+		*is_error = (rec->state == RS_ERR_CHAR);
+	}
+	*representation = '\0'; /* TODO: why do this? */
+	strncat(representation, rec->representation, rec->representation_ind);
 
-	   Space longer than eoc_len_max is, almost by definition, an
-	   "after word" space. */
-	if (space_len > cw_receiver.eoc_len_max) {
+	return;
+}
 
-		/* We have a complete representation and can return
-		   it.  In this case, we also need to inform the
-		   client that this looked like the "after word"
-		   situation, not just an "after character".
 
-		   Update receiver state, remember to preserve error
-		   state (if any). */
-		cw_receiver.state = cw_receiver.state == RS_ERR_CHAR
-			? RS_ERR_WORD : RS_END_WORD;
 
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-			      "libcw: receive state -> %s", cw_receiver_states[cw_receiver.state]);
 
-		/* Return the representation from receiver's buffer. */
-		if (is_end_of_word) {
-			*is_end_of_word = true;
-		}
-		if (is_error) {
-			*is_error = (cw_receiver.state == RS_ERR_WORD);
-		}
-		*representation = '\0'; /* TODO: why do this? */
-		strncat(representation, cw_receiver.representation, cw_receiver.representation_ind);
-		return CW_SUCCESS;
+
+void cw_rec_poll_representation_eow_internal(cw_rec_t *rec,
+					     /* out */ char *representation,
+					     /* out */ bool *is_end_of_word,
+					     /* out */ bool *is_error)
+{
+	if (rec->state == RS_END_CHAR || rec->state == RS_AFTER_TONE) {
+		rec->state = RS_END_WORD;   /* Transition of state. */
+
+	} else if (rec->state == RS_ERR_CHAR) {
+		rec->state = RS_ERR_WORD;   /* Transition of state with preserving error. */
+
+	} else if (rec->state == RS_ERR_WORD || rec->state == RS_END_WORD) {
+		rec->state = rec->state;    /* No need to change state. */
+
+	} else {
+		cw_assert (0, "unexpected receiver state %d / %s", rec->state, cw_receiver_states[rec->state]);
 	}
 
-	/* The space - judging by \p timestamp - is neither an
-	   inter-character space, nor inter-word space. If none of
-	   these conditions holds, then we cannot *yet* make a
-	   judgement on what we have in the buffer, so return
-	   EAGAIN. */
-	errno = EAGAIN;
-	return CW_FAILURE;
+	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
+		      "libcw: receive state -> %s", cw_receiver_states[rec->state]);
+
+	/* Return the representation from receiver's buffer. */
+	if (is_end_of_word) {
+		*is_end_of_word = true;
+	}
+	if (is_error) {
+		*is_error = (rec->state == RS_ERR_WORD);
+	}
+	*representation = '\0'; /* TODO: why do this? */
+	strncat(representation, rec->representation, rec->representation_ind);
+
+	return;
 }
 
 
@@ -1580,19 +1634,20 @@ int cw_receive_representation(const struct timeval *timestamp,
    EINVAL if the timestamp passed in is invalid, or
    EAGAIN if the call is made too early to determine whether a
    complete character has yet been placed in the buffer (that is, less
-   than the inter-character gap period elapsed since the last
+   than the end-of-character gap period elapsed since the last
    cw_end_receive_tone() or cw_receive_buffer_dot/dash call).
    ENOENT if character stored in receiver cannot be recognized as valid
 
-   \p is_end_of_word indicates that the delay after the last tone
-   received is longer that the inter-word gap.
+   \p is_end_of_word indicates that the space after the last tone
+   received is longer that the end-of-character gap, so it must be
+   qualified as end-of-word gap.
 
    \p is_error indicates that the character was terminated by an error
    condition.
 
    testedin::test_helper_receive_tests()
 
-   \param timestamp - timestamp of event that ends "end-of-character" space or "end-of-word" space
+   \param timestamp - timestamp of event that ends end-of-character gap or end-of-word gap
    \param c - buffer for character (output parameter)
    \param is_end_of_word - buffer for "is end of word" state (output parameter)
    \param is_error - buffer for "error" state (output parameter)
@@ -1800,10 +1855,10 @@ void cw_rec_sync_parameters_internal(cw_rec_t *rec)
 		rec->dash_len_min = rec->dot_len_max;
 		rec->dash_len_max = INT_MAX;
 
-		/* Make the inter-element gap be anything up to
-		   the adaptive threshold lengths - that is two
-		   dots.  And the end of character gap is anything
-		   longer than that, and shorter than five dots. */
+		/* Make the inter-mark space be anything up to the
+		   adaptive threshold lengths - that is two dots.  And
+		   the end-of-character gap is anything longer than
+		   that, and shorter than five dots. */
 		rec->eom_len_min = rec->dot_len_min;
 		rec->eom_len_max = rec->dot_len_max;
 		rec->eoc_len_min = rec->eom_len_max;
@@ -1819,22 +1874,22 @@ void cw_rec_sync_parameters_internal(cw_rec_t *rec)
 		rec->dash_len_min = rec->dash_len_ideal - tolerance;
 		rec->dash_len_max = rec->dash_len_ideal + tolerance;
 
-		/* Make the inter-mark gap the same as the dot
+		/* Make the inter-mark space the same as the dot
 		   length range. */
 		rec->eom_len_min = rec->dot_len_min;
 		rec->eom_len_max = rec->dot_len_max;
 
-		/* Make the inter-character gap, expected to be three
-		   dots, the same as dash length range at the lower
-		   end, but make it the same as the Dash length range
-		   _plus_ the "Farnsworth" delay at the top of the
-		   length range. */
+		/* Make the end-of-character gap, expected to be
+		   three dots, the same as dash length range at the
+		   lower end, but make it the same as the dash length
+		   range _plus_ the "Farnsworth" delay at the top of
+		   the length range. */
 		rec->eoc_len_min = rec->dash_len_min;
 		rec->eoc_len_max = rec->dash_len_max
 			+ rec->additional_delay + rec->adjustment_delay;
 
 		/* Any gap longer than eoc_len_max is by implication
-		   inter-word. */
+		   end-of-word gap. */
 	}
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_PARAMETERS, CW_DEBUG_INFO,
