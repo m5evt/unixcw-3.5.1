@@ -142,8 +142,8 @@ cw_rec_t cw_receiver = { .state = RS_IDLE,
 
 
 
-			 .tone_start = { 0, 0 },
-			 .tone_end   = { 0, 0 },
+			 .mark_start = { 0, 0 },
+			 .mark_end   = { 0, 0 },
 
 			 .representation_ind = 0,
 
@@ -393,12 +393,12 @@ void cw_get_receive_parameters(int *dot_usecs, int *dash_usecs,
 /**
    \brief Set noise spike threshold for receiver
 
-   Set the period shorter than which, on receive, received tones are ignored.
-   This allows the receive tone functions to apply noise canceling for very
-   short apparent tones.
+   Set the period shorter than which, on receive, received marks are ignored.
+   This allows the "receive mark" functions to apply noise canceling for very
+   short apparent marks.
    For useful results the value should never exceed the dot length of a dot at
    maximum speed: 20000 microseconds (the dot length at 60WPM).
-   Setting a noise threshold of zero turns off receive tone noise canceling.
+   Setting a noise threshold of zero turns off receive mark noise canceling.
 
    The default noise spike threshold is 10000 microseconds.
 
@@ -669,12 +669,12 @@ void cw_reset_receive_statistics(void)
  *        +--------------------+  |  |
  *        |             (noise)|  |  |
  *        |                    |  |  |
- *        v    (start tone)    |  |  |  (end tone,noise)
+ *        v    (start mark)    |  |  |  (end mark,noise)
  * --> RS_IDLE --------------> RS_MARK ------------------>  RS_SPACE  <--------- +
  *     |  ^                           ^                   | |    | ^ |           |
  *     |  |                           |                   | |    | | |           |
  *     |  |          (delay=short)    +-------------------+ |    | | +-----------+
- *     |  |        +--------------+     (start tone)        |    | |   (not ready,
+ *     |  |        +--------------+     (start mark)        |    | |   (not ready,
  *     |  |        |              |                         |    | |    buffer dot,
  *     |  |        +-------> RS_EOC_GAP <-------------------+    | |    buffer dash)
  *     |  |                   |   |       (delay=short)          | |
@@ -788,10 +788,10 @@ bool cw_get_adaptive_receive_state(void)
 
 
 /**
-   \brief Mark beginning of receive tone
+   \brief Signal beginning of receive mark
 
-   Called on the start of a receive tone.  If the \p timestamp is NULL, the
-   current timestamp is used as beginning of tone.
+   Called on the start of a receive mark.  If the \p timestamp is NULL, the
+   current timestamp is used as beginning of mark.
 
    The function should be called by client application when pressing a
    key down (closing a circuit) has been detected by client
@@ -833,19 +833,19 @@ int cw_rec_mark_begin_internal(cw_rec_t *rec, const struct timeval *timestamp)
 
 	/* Validate and save the timestamp, or get one and then save
 	   it.  This is a beginning of mark. */
-	if (!cw_timestamp_validate_internal(&(rec->tone_start), timestamp)) {
+	if (!cw_timestamp_validate_internal(&(rec->mark_start), timestamp)) {
 		return CW_FAILURE;
 	}
 
 	if (rec->state == RS_SPACE) {
 		/* Measure inter-mark space (just for statistics).
 
-		   rec->tone_end is timestamp of end of previous
+		   rec->mark_end is timestamp of end of previous
 		   mark. It is set at going to the inter-mark-space
 		   state by cw_end_receive tone(), or in extreme
 		   cases, in cw_receiver_add_mark_internal(). */
-		int space_len = cw_timestamp_compare_internal(&(rec->tone_end),
-							      &(rec->tone_start));
+		int space_len = cw_timestamp_compare_internal(&(rec->mark_end),
+							      &(rec->mark_start));
 		cw_rec_stats_add_internal(rec, CW_REC_STAT_IMARK_SPACE, space_len);
 
 		/* TODO: this may have been a very long space. Should
@@ -868,13 +868,13 @@ int cw_rec_mark_begin_internal(cw_rec_t *rec, const struct timeval *timestamp)
 
 
 /**
-   \brief Mark end of tone
+   \brief Signal end of mark
 
    The function should be called by client application when releasing
    a key (opening a circuit) has been detected by client application.
 
    If the \p timestamp is NULL, the current time is used as timestamp
-   of end of tone.
+   of end of mark.
 
    On success, the routine adds a dot or dash to the receiver's
    representation buffer, and returns CW_SUCCESS.
@@ -882,10 +882,10 @@ int cw_rec_mark_begin_internal(cw_rec_t *rec, const struct timeval *timestamp)
    On failure, it returns CW_FAIURE, with errno set to:
    ERANGE if the call was not preceded by a cw_start_receive_tone() call,
    EINVAL if the timestamp passed in is not valid,
-   ENOENT if the tone length was out of bounds for the permissible
+   ENOENT if the mark length was out of bounds for the permissible
    dot and dash lengths and fixed speed receiving is selected,
    ENOMEM if the receiver's representation buffer is full,
-   EAGAIN if the tone was shorter than the threshold for noise and was
+   EAGAIN if the mark was shorter than the threshold for noise and was
    therefore ignored.
 
    \param timestamp - time stamp of "key up" event
@@ -913,17 +913,17 @@ int cw_rec_mark_end_internal(cw_rec_t *rec, const struct timeval *timestamp)
 	}
 
 	/* Take a safe copy of the current end timestamp, in case we need
-	   to put it back if we decide this tone is really just noise. */
-	struct timeval saved_end_timestamp = rec->tone_end;
+	   to put it back if we decide this mark is really just noise. */
+	struct timeval saved_end_timestamp = rec->mark_end;
 
 	/* Save the timestamp passed in, or get one. */
-	if (!cw_timestamp_validate_internal(&(rec->tone_end), timestamp)) {
+	if (!cw_timestamp_validate_internal(&(rec->mark_end), timestamp)) {
 		return CW_FAILURE;
 	}
 
 	/* Compare the timestamps to determine the length of the mark. */
-	int mark_len = cw_timestamp_compare_internal(&(rec->tone_start),
-						     &(rec->tone_end));
+	int mark_len = cw_timestamp_compare_internal(&(rec->mark_start),
+						     &(rec->mark_end));
 
 
 	if (rec->noise_spike_threshold > 0
@@ -944,9 +944,9 @@ int cw_rec_mark_end_internal(cw_rec_t *rec, const struct timeval *timestamp)
 		   and restore this state. */
 		rec->state = rec->representation_ind == 0 ? RS_IDLE : RS_SPACE;
 
-		/* Put the end tone timestamp back to how it was when we
+		/* Put the end-of-mark timestamp back to how it was when we
 		   came in to the routine. */
-		rec->tone_end = saved_end_timestamp;
+		rec->mark_end = saved_end_timestamp;
 
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
 			      "libcw: '%d [us]' mark identified as spike noise (threshold = '%d [us]')",
@@ -1155,7 +1155,7 @@ int cw_rec_mark_identify_internal(cw_rec_t *rec, int mark_len, /* out */ char *r
 
    When in adaptive receiving mode, function updates the averages of
    dot and dash lengths with given \p mark_len, and recalculates the
-   adaptive threshold for the next receive tone.
+   adaptive threshold for the next receive mark.
 
    \param rec - receiver
    \param mark_len - length of a mark (dot or dash)
@@ -1254,21 +1254,21 @@ int cw_receiver_add_mark_internal(cw_rec_t *rec, const struct timeval *timestamp
 		return CW_FAILURE;
 	}
 
-	/* This routine functions as if we have just seen a tone end,
-	   yet without really seeing a tone start.
+	/* This routine functions as if we have just seen a mark end,
+	   yet without really seeing a mark start.
 
 	   It doesn't matter that we don't know timestamp of start of
-	   this tone: start timestamp would be needed only to
-	   determine tone length and mark type (dot/dash). But
+	   this mark: start timestamp would be needed only to
+	   determine mark length and mark type (dot/dash). But
 	   since the mark type has been determined by \p mark,
 	   we don't need timestamp for beginning of mark.
 
-	   What does matter is timestamp of end of this tone. This is
+	   What does matter is timestamp of end of this mark. This is
 	   because the receiver representation routines that may be
-	   called later look at the time since the last end of tone
+	   called later look at the time since the last end of mark
 	   to determine whether we are at the end of a word, or just
 	   at the end of a character. */
-	if (!cw_timestamp_validate_internal(&rec->tone_end, timestamp)) {
+	if (!cw_timestamp_validate_internal(&rec->mark_end, timestamp)) {
 		return CW_FAILURE;
 	}
 
@@ -1323,8 +1323,8 @@ int cw_receiver_add_mark_internal(cw_rec_t *rec, const struct timeval *timestamp
    representation buffer.
 
    On failure, the routines return CW_FAILURE, with errno set to
-   ERANGE if preceded by a cw_start_receive_tone call with no matching
-   cw_end_receive_tone or if an error condition currently exists
+   ERANGE if preceded by a cw_start_receive_tone() call with no matching
+   cw_end_receive_tone() or if an error condition currently exists
    within the receiver's buffer, or ENOMEM if the receiver's
    representation buffer is full.
 
@@ -1369,18 +1369,18 @@ int cw_receive_buffer_dash(const struct timeval *timestamp)
    CW_SUCCESS.
 
    On failure, it returns CW_FAILURE and sets errno to:
-   ERANGE if not preceded by a cw_end_receive_tone call, a prior
+   ERANGE if not preceded by a cw_end_receive_tone() call, a prior
    successful cw_receive_representation call, or a prior
    cw_receive_buffer_dot or cw_receive_buffer_dash,
    EINVAL if the timestamp passed in is invalid,
    EAGAIN if the call is made too early to determine whether a
    complete representation has yet been placed in the buffer (that is,
    less than the end-of-character gap period elapsed since the last
-   cw_end_receive_tone or cw_receive_buffer_dot/dash call). This is
+   cw_end_receive_tone() or cw_receive_buffer_dot/dash call). This is
    not a *hard* error, just an information that the caller should try
    to get the representation later.
 
-   \p is_end_of_word indicates that the space after the last tone
+   \p is_end_of_word indicates that the space after the last mark
    received is longer that the end-of-character gap, so it must be
    qualified as end-of-word gap.
 
@@ -1484,7 +1484,7 @@ int cw_rec_poll_representation_internal(cw_rec_t *rec,
 		return CW_FAILURE;
 	}
 
-	int space_len = cw_timestamp_compare_internal(&rec->tone_end, &now_timestamp);
+	int space_len = cw_timestamp_compare_internal(&rec->mark_end, &now_timestamp);
 	if (space_len == INT_MAX) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
 			      "libcw: space len == INT_MAX");
@@ -1639,7 +1639,7 @@ void cw_rec_poll_representation_eow_internal(cw_rec_t *rec,
    cw_end_receive_tone() or cw_receive_buffer_dot/dash call).
    ENOENT if character stored in receiver cannot be recognized as valid
 
-   \p is_end_of_word indicates that the space after the last tone
+   \p is_end_of_word indicates that the space after the last mark
    received is longer that the end-of-character gap, so it must be
    qualified as end-of-word gap.
 
@@ -1718,11 +1718,12 @@ int cw_rec_poll_character_internal(cw_rec_t *rec,
    \brief Clear receiver's representation buffer
 
    Clears the receiver's representation buffer, resets receiver's
-   internal state. This prepares the receiver to receive tones again.
+   internal state. This prepares the receiver to receive marks and
+   spaces again.
 
    This routine must be called after successful, or terminating,
    cw_receive_representation() or cw_receive_character() calls, to
-   clear the states and prepare the buffer to receive more tones.
+   clear the states and prepare the buffer to receive more marks and spaces.
 */
 void cw_clear_receive_buffer(void)
 {
