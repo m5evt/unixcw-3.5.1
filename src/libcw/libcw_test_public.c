@@ -1955,6 +1955,9 @@ void test_fixed_receive(cw_test_stats_t *stats)
 	   error states. */
 	printf("libcw: cw_get_receive_buffer_capacity(): %d\n", cw_get_receive_buffer_capacity());
 
+	/* To recover from any previous errors. */
+	cw_clear_receive_buffer();
+
 	cw_set_receive_speed(60);
 	cw_set_tolerance(35);
 	cw_disable_adaptive_receive();
@@ -2030,6 +2033,9 @@ int test_adaptive_receive_scale(const int usecs, float factor)
 void test_adaptive_receive(cw_test_stats_t *stats)
 {
 	printf("libcw: %s():\n", __func__);
+
+	/* To recover from any previous errors. */
+	cw_clear_receive_buffer();
 
 	/* Test adaptive receive functions in much the same sort of
 	   way.  Again, this is a _very_ minimal test, omitting all
