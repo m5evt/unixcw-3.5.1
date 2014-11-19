@@ -7,6 +7,10 @@
 	you may want to check changed values of RS enum and corresponding
 	strings on top of libcw_rec.c - they have been changed.
 
+	Making some terminology changes in libcw_rec.c - some things are
+	now named in more consistent way (variable names, names of
+	things).
+
 2014-11-12 Kamil Ignacak
 	Proceeding with changes, simplifications and refactoring in
 	receiver module. Generator module is also affected.
