@@ -109,9 +109,9 @@ typedef struct {
 	int adaptive_speed_threshold; /* [us] */
 
 
-	/* Retained tone start and end timestamps. */
-	struct timeval tone_start;
-	struct timeval tone_end;
+	/* Retained timestamps of mark's begin and end. */
+	struct timeval mark_start;
+	struct timeval mark_end;
 
 	/* Buffer for received representation (dots/dashes). This is a
 	   fixed-length buffer, filled in as tone on/off timings are
