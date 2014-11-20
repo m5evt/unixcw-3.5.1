@@ -23,26 +23,39 @@
 /**
    \file libcw_rec.c
 
-   Receiver. Receive marks and spaces. Interpret them as characters.
+   Receiver. Receive string of marks and spaces. Interpret them as
+   characters.
 
-   Receiver for straight key does not require generator (in theory,
-   probably, maybe). Receiver will simply measure itself time periods
-   between key down and key up events, and will calculate length of
-   marks and spaces (in theory, probably, maybe). In case of straight
-   key, length of dots and dashes is not enforced by generator.
 
-   Receiver for iambic key requires a generator to measure time
-   periods that form dot and/or dash when dot and/or dash paddle is
-   pressed (in theory, probably, maybe). In case of iambic keyer,
-   length of dots and dashes is enforced/dictated by send speed of
-   generator.
+   There are two ways of adding marks and spaces to receiver.
 
-   Generator does not need a receiver.  Receiver (sometimes) need a
-   generator.
+   First of them is to notify receiver about "begin of mark" and "end
+   of mark" events. Receiver then tries to figure out how long a mark
+   or space is, what type of mark (dot/dash) or space (inter-mark,
+   inter-character, inter-word) it is, and when a full character has
+   been received.
 
-   Duration (length) of marks, spaces and few other things are in
+   This is done with cw_start_receive_tone() and cw_end_receive_tone()
+   functions.
+
+   The second method is to inform receiver not about start and stop of
+   marks (dots/dashes), but about full marks themselves.  This is done
+   with cw_receive_buffer_dot() and cw_receive_buffer_dash() - two
+   functions that are one level of abstraction above functions from
+   first method.
+
+
+   Currently there is only one method of passing received data
+   (characters) between receiver and client code. This is done by
+   client code cyclically polling the receiver with
+   cw_receive_representation() or with cw_receive_character() which is
+   built on top of cw_receive_representation().
+
+
+   Duration (length) of marks, spaces and few other things is in
    microseconds [us], unless specified otherwise.
 */
+
 
 
 
@@ -57,7 +70,6 @@
 #include <math.h>  /* sqrt() */
 
 
-
 #if (defined(__unix__) || defined(unix)) && !defined(USG)
 # include <sys/param.h>
 #endif
@@ -69,8 +81,6 @@
 #if defined(HAVE_STRINGS_H)
 # include <strings.h>
 #endif
-
-
 
 
 #include "libcw.h"
@@ -185,27 +195,28 @@ cw_rec_t cw_receiver = { .state = RS_IDLE,
 
 
 
-static void cw_receiver_set_adaptive_internal(cw_rec_t *rec, bool adaptive);
+static void cw_rec_set_adaptive_internal(cw_rec_t *rec, bool adaptive);
 
-static int  cw_receiver_add_mark_internal(cw_rec_t *rec, const struct timeval *timestamp, char mark);
+
 
 
 /* Receive and identify a mark. */
 static int cw_rec_mark_begin_internal(cw_rec_t *rec, const struct timeval *timestamp);
 static int cw_rec_mark_end_internal(cw_rec_t *rec, const struct timeval *timestamp);
-static int cw_rec_mark_identify_internal(cw_rec_t *rec, int mark_len, char *representation);
+static int cw_rec_identify_mark_internal(cw_rec_t *rec, int mark_len, char *representation);
+static int cw_rec_add_mark_internal(cw_rec_t *rec, const struct timeval *timestamp, char mark);
 
 
 /* Functions handling receiver statistics. */
-static void   cw_rec_stats_add_internal(cw_rec_t *rec, stat_type_t type, int len);
-static double cw_rec_stats_get_internal(cw_rec_t *rec, stat_type_t type);
+static void   cw_rec_update_stats_internal(cw_rec_t *rec, stat_type_t type, int len);
+static double cw_rec_get_stats_internal(cw_rec_t *rec, stat_type_t type);
 
 
 /* Functions handling averaging data structure in adaptive receiving
    mode. */
-static void cw_rec_averaging_push_internal(cw_rec_averaging_t *avg, int mark_len);
-static void cw_rec_averaging_update_internal(cw_rec_t *rec, int mark_len, char mark);
-static void cw_rec_averaging_reset_internal(cw_rec_averaging_t *avg, int initial);
+static void cw_rec_update_average_internal(cw_rec_averaging_t *avg, int mark_len);
+static void cw_rec_update_averages_internal(cw_rec_t *rec, int mark_len, char mark);
+static void cw_rec_reset_average_internal(cw_rec_averaging_t *avg, int initial);
 
 
 
@@ -455,7 +466,7 @@ int cw_get_noise_spike_threshold(void)
    \param avg - averaging data structure (for dot or for dash)
    \param initial - initial value to be put in table of averaging data structure
 */
-void cw_rec_averaging_reset_internal(cw_rec_averaging_t *avg, int initial)
+void cw_rec_reset_average_internal(cw_rec_averaging_t *avg, int initial)
 {
 	for (int i = 0; i < CW_REC_AVERAGING_ARRAY_LENGTH; i++) {
 		avg->buffer[i] = initial;
@@ -484,7 +495,7 @@ void cw_rec_averaging_reset_internal(cw_rec_averaging_t *avg, int initial)
    \param avg - averaging data structure (for dot or for dash)
    \param mark_len - new "length of mark" value to add to averaging data
 */
-void cw_rec_averaging_push_internal(cw_rec_averaging_t *avg, int mark_len)
+void cw_rec_update_average_internal(cw_rec_averaging_t *avg, int mark_len)
 {
 	/* Oldest mark length goes out, new goes in. */
 	avg->sum -= avg->buffer[avg->cursor];
@@ -522,7 +533,7 @@ void cw_rec_averaging_push_internal(cw_rec_averaging_t *avg, int mark_len)
    \param type - mark type
    \param len - length of a mark or space
 */
-void cw_rec_stats_add_internal(cw_rec_t *rec, stat_type_t type, int len)
+void cw_rec_update_stats_internal(cw_rec_t *rec, stat_type_t type, int len)
 {
 	/* Synchronize parameters if required. */
 	cw_rec_sync_parameters_internal(rec);
@@ -558,7 +569,7 @@ void cw_rec_stats_add_internal(cw_rec_t *rec, stat_type_t type, int len)
    \return 0.0 if no record of given type were found
    \return statistics of length otherwise
 */
-double cw_rec_stats_get_internal(cw_rec_t *rec, stat_type_t type)
+double cw_rec_get_stats_internal(cw_rec_t *rec, stat_type_t type)
 {
 	/* Sum and count values for marks/spaces matching the given
 	   type.  A cleared buffer always begins refilling at zeroth
@@ -605,16 +616,16 @@ void cw_get_receive_statistics(double *dot_sd, double *dash_sd,
 			       double *element_end_sd, double *character_end_sd)
 {
 	if (dot_sd) {
-		*dot_sd = cw_rec_stats_get_internal(&cw_receiver, CW_REC_STAT_DOT);
+		*dot_sd = cw_rec_get_stats_internal(&cw_receiver, CW_REC_STAT_DOT);
 	}
 	if (dash_sd) {
-		*dash_sd = cw_rec_stats_get_internal(&cw_receiver, CW_REC_STAT_DASH);
+		*dash_sd = cw_rec_get_stats_internal(&cw_receiver, CW_REC_STAT_DASH);
 	}
 	if (element_end_sd) {
-		*element_end_sd = cw_rec_stats_get_internal(&cw_receiver, CW_REC_STAT_IMARK_SPACE);
+		*element_end_sd = cw_rec_get_stats_internal(&cw_receiver, CW_REC_STAT_IMARK_SPACE);
 	}
 	if (character_end_sd) {
-		*character_end_sd = cw_rec_stats_get_internal(&cw_receiver, CW_REC_STAT_ICHAR_SPACE);
+		*character_end_sd = cw_rec_get_stats_internal(&cw_receiver, CW_REC_STAT_ICHAR_SPACE);
 	}
 	return;
 }
@@ -713,7 +724,7 @@ void cw_reset_receive_statistics(void)
    \param rec - receiver for which to set the mode
    \param adaptive - value of receiver's "adaptive mode" to be set
 */
-void cw_receiver_set_adaptive_internal(cw_rec_t *rec, bool adaptive)
+void cw_rec_set_adaptive_internal(cw_rec_t *rec, bool adaptive)
 {
 	/* Look for change of adaptive receive state. */
 	if (rec->is_adaptive_receive_mode != adaptive) {
@@ -728,8 +739,8 @@ void cw_receiver_set_adaptive_internal(cw_rec_t *rec, bool adaptive)
 		   the averages array to the current dot/dash lengths, so
 		   that initial averages match the current speed. */
 		if (rec->is_adaptive_receive_mode) {
-			cw_rec_averaging_reset_internal(&rec->dot_averaging, rec->dot_len_ideal);
-			cw_rec_averaging_reset_internal(&rec->dash_averaging, rec->dash_len_ideal);
+			cw_rec_reset_average_internal(&rec->dot_averaging, rec->dot_len_ideal);
+			cw_rec_reset_average_internal(&rec->dash_averaging, rec->dash_len_ideal);
 		}
 	}
 
@@ -755,7 +766,7 @@ void cw_receiver_set_adaptive_internal(cw_rec_t *rec, bool adaptive)
 */
 void cw_enable_adaptive_receive(void)
 {
-	cw_receiver_set_adaptive_internal(&cw_receiver, true);
+	cw_rec_set_adaptive_internal(&cw_receiver, true);
 	return;
 }
 
@@ -770,7 +781,7 @@ void cw_enable_adaptive_receive(void)
 */
 void cw_disable_adaptive_receive(void)
 {
-	cw_receiver_set_adaptive_internal(&cw_receiver, false);
+	cw_rec_set_adaptive_internal(&cw_receiver, false);
 	return;
 }
 
@@ -851,11 +862,11 @@ int cw_rec_mark_begin_internal(cw_rec_t *rec, const struct timeval *timestamp)
 
 		   rec->mark_end is timestamp of end of previous
 		   mark. It is set at going to the inter-mark-space
-		   state by cw_end_receive tone(), or in extreme
-		   cases, in cw_receiver_add_mark_internal(). */
+		   state by cw_end_receive tone() or by
+		   cw_rec_add_mark_internal(). */
 		int space_len = cw_timestamp_compare_internal(&(rec->mark_end),
 							      &(rec->mark_start));
-		cw_rec_stats_add_internal(rec, CW_REC_STAT_IMARK_SPACE, space_len);
+		cw_rec_update_stats_internal(rec, CW_REC_STAT_IMARK_SPACE, space_len);
 
 		/* TODO: this may have been a very long space. Should
 		   we accept a very long space inside a character? */
@@ -976,8 +987,8 @@ int cw_rec_mark_end_internal(cw_rec_t *rec, const struct timeval *timestamp)
 	   hand us back an error which we return to the caller.
 	   Otherwise, it returns a mark (dot or dash), for us to put
 	   in representation buffer. */
-	char representation;
-	int status = cw_rec_mark_identify_internal(rec, mark_len, &representation);
+	char mark;
+	int status = cw_rec_identify_mark_internal(rec, mark_len, &mark);
 	if (!status) {
 		return CW_FAILURE;
 	}
@@ -986,32 +997,33 @@ int cw_rec_mark_end_internal(cw_rec_t *rec, const struct timeval *timestamp)
 		/* Update the averaging buffers so that the adaptive
 		   tracking of received Morse speed stays up to
 		   date. */
-		cw_rec_averaging_update_internal(rec, mark_len, representation);
+		cw_rec_update_averages_internal(rec, mark_len, mark);
 	} else {
 		/* Do nothing. Don't fiddle about trying to track for
 		   fixed speed receive. */
 	}
 
 	/* Update dot and dash length statistics.  It may seem odd to do
-	   this after calling cw_rec_averaging_update_internal(),
+	   this after calling cw_rec_update_averages_internal(),
 	   rather than before, as this function changes the ideal values we're
 	   measuring against.  But if we're on a speed change slope, the
 	   adaptive tracking smoothing will cause the ideals to lag the
 	   observed speeds.  So by doing this here, we can at least
 	   ameliorate this effect, if not eliminate it. */
-	if (representation == CW_DOT_REPRESENTATION) {
-		cw_rec_stats_add_internal(rec, CW_REC_STAT_DOT, mark_len);
+	if (mark == CW_DOT_REPRESENTATION) {
+		cw_rec_update_stats_internal(rec, CW_REC_STAT_DOT, mark_len);
 	} else {
-		cw_rec_stats_add_internal(rec, CW_REC_STAT_DASH, mark_len);
+		cw_rec_update_stats_internal(rec, CW_REC_STAT_DASH, mark_len);
 	}
 
-	/* Add the representation character to the receiver's buffer. */
-	rec->representation[rec->representation_ind++] = representation;
+	/* Add the mark to the receiver's representation buffer. */
+	rec->representation[rec->representation_ind++] = mark;
 
-	/* We just added a representation to the receive buffer.  If it's
-	   full, then we have to do something, even though it's unlikely.
-	   What we'll do is make a unilateral declaration that if we get
-	   this far, we go to end-of-char error state automatically. */
+	/* We just added a mark to the receive buffer.  If it's full,
+	   then we have to do something, even though it's unlikely.
+	   What we'll do is make a unilateral declaration that if we
+	   get this far, we go to end-of-char error state
+	   automatically. */
 	if (rec->representation_ind == CW_REC_REPRESENTATION_CAPACITY - 1) {
 		rec->state = RS_EOC_GAP_ERR;
 
@@ -1049,7 +1061,7 @@ int cw_rec_mark_end_internal(cw_rec_t *rec, const struct timeval *timestamp)
    level timing parameters.
 
    On success function returns CW_SUCCESS and sends back either a dot
-   or a dash through \p representation.
+   or a dash through \p mark.
 
    On failure it returns CW_FAILURE with errno set to ENOENT if the
    mark is not recognizable as either a dot or a dash, and sets the
@@ -1060,18 +1072,18 @@ int cw_rec_mark_end_internal(cw_rec_t *rec, const struct timeval *timestamp)
    as a dot or a dash, because the length ranges will have been set to
    cover 0 to INT_MAX.
 
-   testedin::test_cw_rec_mark_identify_internal()
+   testedin::test_cw_rec_identify_mark_internal()
 
    \param rec - receiver
    \param mark_len - length of mark to analyze
-   \param representation - variable to store identified mark (output variable)
+   \param mark - variable to store identified mark (output variable)
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_rec_mark_identify_internal(cw_rec_t *rec, int mark_len, /* out */ char *representation)
+int cw_rec_identify_mark_internal(cw_rec_t *rec, int mark_len, /* out */ char *mark)
 {
-	cw_assert (representation, "Output parameter is NULL");
+	cw_assert (mark, "Output parameter is NULL");
 
 	/* Synchronize parameters if required */
 	cw_rec_sync_parameters_internal(rec);
@@ -1085,7 +1097,7 @@ int cw_rec_mark_identify_internal(cw_rec_t *rec, int mark_len, /* out */ char *r
 			      "libcw: mark '%d [us]' recognized as DOT (limits: %d - %d [us])",
 			      mark_len, rec->dot_len_min, rec->dot_len_max);
 
-		*representation = CW_DOT_REPRESENTATION;
+		*mark = CW_DOT_REPRESENTATION;
 		return CW_SUCCESS;
 	}
 
@@ -1097,7 +1109,7 @@ int cw_rec_mark_identify_internal(cw_rec_t *rec, int mark_len, /* out */ char *r
 			      "libcw: mark '%d [us]' recognized as DASH (limits: %d - %d [us])",
 			      mark_len, rec->dash_len_min, rec->dash_len_max);
 
-		*representation = CW_DASH_REPRESENTATION;
+		*mark = CW_DASH_REPRESENTATION;
 		return CW_SUCCESS;
 	}
 
@@ -1125,7 +1137,7 @@ int cw_rec_mark_identify_internal(cw_rec_t *rec, int mark_len, /* out */ char *r
 	   out of scope of this function. Move the part below to
 	   separate function. */
 
-	/* If we can't send back any result through \p representation,
+	/* If we can't send back any result through \p mark,
 	   let's move to either "end-of-character, in error" or
 	   "end-of-word, in error" state.
 
@@ -1170,7 +1182,7 @@ int cw_rec_mark_identify_internal(cw_rec_t *rec, int mark_len, /* out */ char *r
    \param mark_len - length of a mark (dot or dash)
    \param mark - CW_DOT_REPRESENTATION or CW_DASH_REPRESENTATION
 */
-void cw_rec_averaging_update_internal(cw_rec_t *rec, int mark_len, char mark)
+void cw_rec_update_averages_internal(cw_rec_t *rec, int mark_len, char mark)
 {
 	/* We are not going to tolerate being called in fixed speed mode. */
 	if (!rec->is_adaptive_receive_mode) {
@@ -1181,9 +1193,9 @@ void cw_rec_averaging_update_internal(cw_rec_t *rec, int mark_len, char mark)
 
 	/* Update moving averages for dots or dashes. */
 	if (mark == CW_DOT_REPRESENTATION) {
-		cw_rec_averaging_push_internal(&rec->dot_averaging, mark_len);
+		cw_rec_update_average_internal(&rec->dot_averaging, mark_len);
 	} else if (mark == CW_DASH_REPRESENTATION) {
-		cw_rec_averaging_push_internal(&rec->dash_averaging, mark_len);
+		cw_rec_update_average_internal(&rec->dash_averaging, mark_len);
 	} else {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
 			      "Unknown mark %d\n", mark);
@@ -1254,10 +1266,10 @@ void cw_rec_averaging_update_internal(cw_rec_t *rec, int mark_len, char mark)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_receiver_add_mark_internal(cw_rec_t *rec, const struct timeval *timestamp, char mark)
+int cw_rec_add_mark_internal(cw_rec_t *rec, const struct timeval *timestamp, char mark)
 {
-	/* The receiver's state is expected to be idle or inter-mark-space in
-	   order to use this routine. */
+	/* The receiver's state is expected to be idle or
+	   inter-mark-space in order to use this routine. */
 	if (rec->state != RS_IDLE && rec->state != RS_SPACE) {
 		errno = ERANGE;
 		return CW_FAILURE;
@@ -1268,9 +1280,10 @@ int cw_receiver_add_mark_internal(cw_rec_t *rec, const struct timeval *timestamp
 
 	   It doesn't matter that we don't know timestamp of start of
 	   this mark: start timestamp would be needed only to
-	   determine mark length and mark type (dot/dash). But
-	   since the mark type has been determined by \p mark,
-	   we don't need timestamp for beginning of mark.
+	   determine mark length (and from the mark length to
+	   determine mark type (dot/dash)). But since the mark type
+	   has been determined by \p mark, we don't need timestamp for
+	   beginning of mark.
 
 	   What does matter is timestamp of end of this mark. This is
 	   because the receiver representation routines that may be
@@ -1344,7 +1357,7 @@ int cw_receiver_add_mark_internal(cw_rec_t *rec, const struct timeval *timestamp
 */
 int cw_receive_buffer_dot(const struct timeval *timestamp)
 {
-	return cw_receiver_add_mark_internal(&cw_receiver, timestamp, CW_DOT_REPRESENTATION);
+	return cw_rec_add_mark_internal(&cw_receiver, timestamp, CW_DOT_REPRESENTATION);
 }
 
 
@@ -1363,7 +1376,7 @@ int cw_receive_buffer_dot(const struct timeval *timestamp)
 */
 int cw_receive_buffer_dash(const struct timeval *timestamp)
 {
-	return cw_receiver_add_mark_internal(&cw_receiver, timestamp, CW_DASH_REPRESENTATION);
+	return cw_rec_add_mark_internal(&cw_receiver, timestamp, CW_DASH_REPRESENTATION);
 }
 
 
@@ -1555,7 +1568,7 @@ void cw_rec_poll_representation_eoc_internal(cw_rec_t *rec, int space_len,
 		   longer than acceptable inter-mark-space. Update
 		   length statistics for space identified as
 		   end-of-character gap. */
-		cw_rec_stats_add_internal(rec, CW_REC_STAT_ICHAR_SPACE, space_len);
+		cw_rec_update_stats_internal(rec, CW_REC_STAT_ICHAR_SPACE, space_len);
 
 		/* Transition of state of receiver. */
 		rec->state = RS_EOC_GAP;
@@ -1955,7 +1968,7 @@ void cw_rec_sync_parameters_internal(cw_rec_t *rec)
 
 
 /**
-   tests::cw_rec_mark_identify_internal()
+   tests::cw_rec_identify_mark_internal()
 
    Test if function correctly recognizes dots and dashes for a range
    of receive speeds.  This test function also checks if marks of
@@ -1965,9 +1978,9 @@ void cw_rec_sync_parameters_internal(cw_rec_t *rec)
 
    Currently the function only works for non-adaptive receiving.
 */
-unsigned int test_cw_rec_mark_identify_internal(void)
+unsigned int test_cw_rec_identify_mark_internal(void)
 {
-	int p = fprintf(stderr, "libcw: cw_rec_mark_identify_internal() (non-adaptive):");
+	int p = fprintf(stderr, "libcw: cw_rec_identify_mark_internal() (non-adaptive):");
 
 	cw_disable_adaptive_receive();
 
@@ -1986,18 +1999,18 @@ unsigned int test_cw_rec_mark_identify_internal(void)
 		/* Test marks of length within allowed lengths of dots. */
 		int len_step = (cw_receiver.dot_len_max - cw_receiver.dot_len_min) / 10;
 		for (int j = cw_receiver.dot_len_min; j < cw_receiver.dot_len_max; j += len_step) {
-			rv = cw_rec_mark_identify_internal(&cw_receiver, j, &representation);
+			rv = cw_rec_identify_mark_internal(&cw_receiver, j, &representation);
 			cw_assert (rv, "failed to identify dot for speed = %d [wpm], len = %d [us]", i, j);
 
 			cw_assert (representation == CW_DOT_REPRESENTATION, "got something else than dot for speed = %d [wpm], len = %d [us]", i, j);
 		}
 
 		/* Test mark shorter than minimal length of dot. */
-		rv = cw_rec_mark_identify_internal(&cw_receiver, cw_receiver.dot_len_min - 1, &representation);
+		rv = cw_rec_identify_mark_internal(&cw_receiver, cw_receiver.dot_len_min - 1, &representation);
 		cw_assert (!rv, "incorrectly identified short mark as a dot for speed = %d [wpm]", i);
 
 		/* Test mark longer than maximal length of dot (but shorter than minimal length of dash). */
-		rv = cw_rec_mark_identify_internal(&cw_receiver, cw_receiver.dot_len_max + 1, &representation);
+		rv = cw_rec_identify_mark_internal(&cw_receiver, cw_receiver.dot_len_max + 1, &representation);
 		cw_assert (!rv, "incorrectly identified long mark as a dot for speed = %d [wpm]", i);
 
 
@@ -2006,18 +2019,18 @@ unsigned int test_cw_rec_mark_identify_internal(void)
 		/* Test marks of length within allowed lengths of dashes. */
 		len_step = (cw_receiver.dash_len_max - cw_receiver.dash_len_min) / 10;
 		for (int j = cw_receiver.dash_len_min; j < cw_receiver.dash_len_max; j += len_step) {
-			rv = cw_rec_mark_identify_internal(&cw_receiver, j, &representation);
+			rv = cw_rec_identify_mark_internal(&cw_receiver, j, &representation);
 			cw_assert (rv, "failed to identify dash for speed = %d [wpm], len = %d [us]", i, j);
 
 			cw_assert (representation == CW_DASH_REPRESENTATION, "got something else than dash for speed = %d [wpm], len = %d [us]", i, j);
 		}
 
 		/* Test mark shorter than minimal length of dash (but longer than maximal length of dot). */
-		rv = cw_rec_mark_identify_internal(&cw_receiver, cw_receiver.dash_len_min - 1, &representation);
+		rv = cw_rec_identify_mark_internal(&cw_receiver, cw_receiver.dash_len_min - 1, &representation);
 		cw_assert (!rv, "incorrectly identified short mark as a dash for speed = %d [wpm]", i);
 
 		/* Test mark longer than maximal length of dash. */
-		rv = cw_rec_mark_identify_internal(&cw_receiver, cw_receiver.dash_len_max + 1, &representation);
+		rv = cw_rec_identify_mark_internal(&cw_receiver, cw_receiver.dash_len_max + 1, &representation);
 		cw_assert (!rv, "incorrectly identified long mark as a dash for speed = %d [wpm]", i);
 	}
 
