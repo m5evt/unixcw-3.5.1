@@ -1728,18 +1728,16 @@ int cw_set_gap(int new_value)
 		/* Changes of gap require resynchronization. */
 		cw_generator->parameters_in_sync = false;
 		cw_gen_sync_parameters_internal(cw_generator);
-
-
-		/* Ideally generator and receiver should have their
-		   own, separate cw_set_gap() functions. Unfortunately
-		   this is not the case (for now) so gap should be set
-		   here for receiver as well.
-
-		   TODO: add cw_set_gap() function for receiver.*/
-		cw_rec_set_gap_internal(&cw_receiver, new_value);
 	}
 
-	return CW_SUCCESS;
+	/* Ideally generator and receiver should have their
+	   own, separate cw_set_gap() functions. Unfortunately
+	   this is not the case (for now) so gap should be set
+	   here for receiver as well.
+
+	   TODO: add cw_set_gap() function for receiver. */
+	int rv = cw_rec_set_gap_internal(&cw_receiver, new_value);
+	return rv;
 }
 
 
