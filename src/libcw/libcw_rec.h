@@ -27,7 +27,7 @@ typedef struct cw_rec_struct cw_rec_t;
 
 
 
-
+int  cw_rec_set_gap_internal(cw_rec_t *rec, int new_value);
 void cw_rec_reset_receive_parameters_internal(cw_rec_t *rec);
 void cw_rec_sync_parameters_internal(cw_rec_t *rec);
 
