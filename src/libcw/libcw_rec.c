@@ -143,12 +143,6 @@ enum { CW_REC_NOISE_THRESHOLD_INITIAL = (CW_DOT_CALIBRATION / CW_SPEED_MAX) / 2 
 enum { CW_REC_STATISTICS_CAPACITY = 256 };
 
 
-/* Receiver contains a fixed-length buffer for representation of received data.
-   Capacity of the buffer is vastly longer than any practical representation.
-   Don't know why, a legacy thing. */
-enum { CW_REC_REPRESENTATION_CAPACITY = 256 };
-
-
 /* Length of array used to calculate average length of a mark. Average
    length of a mark is used in adaptive receiving mode to track speed
    of incoming Morse data. */
