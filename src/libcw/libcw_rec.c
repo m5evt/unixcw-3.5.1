@@ -131,6 +131,7 @@ static const char *cw_receiver_states[] = {
 /* Default initial values for library controls. */
 enum { CW_REC_ADAPTIVE_MODE_INITIAL = false };                                            /* Initial adaptive receive setting. */
 
+
 /* TODO: it would be interesting to track (in debug mode) relationship
    between "speed threshold" and "noise threshold" parameters. */
 enum { CW_REC_SPEED_THRESHOLD_INITIAL = (CW_DOT_CALIBRATION / CW_SPEED_INITIAL) * 2 };    /* Initial adaptive speed threshold. [us] */
@@ -191,31 +192,32 @@ typedef struct {
 
 
 struct cw_rec_struct {
+
 	/* State of receiver state machine. */
 	int state;
 
-	int gap; /* Inter-character-gap, similar as in generator. */
 
 
-
-	/* Essential receive parameters. */
-	/* Changing values of speed, tolerance or
+	/* Essential parameters. */
+	/* Changing values of speed, tolerance, gap or
 	   is_adaptive_receive_mode will trigger a recalculation of
 	   low level timing parameters. */
-
-	int speed; /* [wpm] */
+	int speed;       /* [wpm] */
 	int tolerance;
+	int gap;         /* Inter-character-gap, similar as in generator. */
 	bool is_adaptive_receive_mode;
 	int noise_spike_threshold;
+	/* Library variable which is automatically adjusted based on
+	   incoming Morse data stream, rather than being settable by
+	   the user.
 
+	   Not exactly a *speed* threshold, but for a lack of a better
+	   name...
 
-
-	/* Library variable which is automatically maintained from the
-	   Morse input stream, rather than being settable by the
-	   user.
-	   Not exactly a "speed", but for a lack of a better
-	   name... */
+	   When the library changes internally value of this variable,
+	   it recalculates low level timing parameters too. */
 	int adaptive_speed_threshold; /* [us] */
+
 
 
 	/* Retained timestamps of mark's begin and end. */
@@ -265,11 +267,9 @@ struct cw_rec_struct {
 
 
 	/* Are receiver's parameters in sync?
-
-	   After changing receiver's receive speed, tolerance or
-	   adaptive mode, some receiver's internal parameters need to
-	   be re-calculated. This is a flag that shows when this needs
-	   to be done. */
+	   After changing receiver's essential parameters, its
+	   low-level timing parameters need to be re-calculated. This
+	   is a flag that shows when this needs to be done. */
 	bool parameters_in_sync;
 
 
@@ -289,7 +289,6 @@ struct cw_rec_struct {
 	   of receiver's speed (tracking of speed of incoming data). */
 	cw_rec_averaging_t dot_averaging;
 	cw_rec_averaging_t dash_averaging;
-
 };
 
 
@@ -613,6 +612,30 @@ int cw_set_noise_spike_threshold(int new_value)
 int cw_get_noise_spike_threshold(void)
 {
 	return cw_receiver.noise_spike_threshold;
+}
+
+
+
+
+
+/* TODO: this function probably should have its old-style version in
+   libcw.h as well. */
+int cw_rec_set_gap_internal(cw_rec_t *rec, int new_value)
+{
+	if (new_value < CW_GAP_MIN || new_value > CW_GAP_MAX) {
+		errno = EINVAL;
+		return CW_FAILURE;
+	}
+
+	if (new_value != rec->gap) {
+		rec->gap = new_value;
+
+		/* Changes of gap require resynchronization. */
+		rec->parameters_in_sync = false;
+		cw_rec_sync_parameters_internal(rec);
+	}
+
+	return CW_SUCCESS;
 }
 
 
@@ -1999,6 +2022,10 @@ void cw_rec_reset_receive_parameters_internal(cw_rec_t *rec)
 	rec->tolerance = CW_TOLERANCE_INITIAL;
 	rec->is_adaptive_receive_mode = CW_REC_ADAPTIVE_MODE_INITIAL;
 	rec->noise_spike_threshold = CW_REC_NOISE_THRESHOLD_INITIAL;
+
+	/* FIXME: consider resetting ->gap as well. */
+
+	rec->parameters_in_sync = false;
 
 	return;
 }
