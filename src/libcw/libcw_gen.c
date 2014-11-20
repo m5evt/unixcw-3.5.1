@@ -1735,12 +1735,8 @@ int cw_set_gap(int new_value)
 		   this is not the case (for now) so gap should be set
 		   here for receiver as well.
 
-		   TODO: add set_gap() function for receiver.*/
-
-		cw_receiver.gap = new_value;
-		/* Changes of gap require resynchronization. */
-		cw_receiver.parameters_in_sync = false;
-		cw_rec_sync_parameters_internal(&cw_receiver);
+		   TODO: add cw_set_gap() function for receiver.*/
+		cw_rec_set_gap_internal(&cw_receiver, new_value);
 	}
 
 	return CW_SUCCESS;
@@ -2419,9 +2415,6 @@ void cw_reset_send_receive_parameters(void)
 	cw_rec_reset_receive_parameters_internal(&cw_receiver);
 
 	/* Reset requires resynchronization. */
-	cw_generator->parameters_in_sync = false;
-	cw_receiver.parameters_in_sync = false;
-
 	cw_gen_sync_parameters_internal(cw_generator);
 	cw_rec_sync_parameters_internal(&cw_receiver);
 
@@ -2446,6 +2439,8 @@ void cw_gen_reset_send_parameters_internal(cw_gen_t *gen)
 	gen->volume_abs = (cw_generator->volume_percent * CW_AUDIO_VOLUME_RANGE) / 100;
 	gen->gap = CW_GAP_INITIAL;
 	gen->weighting = CW_WEIGHTING_INITIAL;
+
+	cw_generator->parameters_in_sync = false;
 
 	return;
 
