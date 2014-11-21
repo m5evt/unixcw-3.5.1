@@ -897,6 +897,19 @@ void cw_reset_receive_statistics(void)
 
 
 
+#define CW_REC_SET_STATE(m_rec, m_new_state, m_debug_object)		\
+	{								\
+		cw_debug_msg ((m_debug_object),				\
+			      CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,	\
+			      "libcw: receive state %s -> %s",		\
+			      cw_receiver_states[m_rec->state], cw_receiver_states[m_new_state]); \
+		m_rec->state = m_new_state;				\
+	}
+
+
+
+
+
 /**
    \brief Enable or disable receiver's "adaptive receiving" mode
 
@@ -1060,10 +1073,7 @@ int cw_rec_mark_begin_internal(cw_rec_t *rec, const struct timeval *timestamp)
 	/* Set state to indicate we are inside a mark. We don't know
 	   yet if it will be recognized as valid mark (it may be
 	   shorter than a threshold). */
-	rec->state = RS_MARK;
-
-	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-		      "libcw: receive state -> %s", cw_receiver_states[rec->state]);
+	CW_REC_SET_STATE (rec, RS_MARK, (&cw_debug_object));
 
 	return CW_SUCCESS;
 }
@@ -1147,7 +1157,7 @@ int cw_rec_mark_end_internal(cw_rec_t *rec, const struct timeval *timestamp)
 		   marks are in the buffer) to see in which state the
 		   receiver was *before* mark_begin() function call,
 		   and restore this state. */
-		rec->state = rec->representation_ind == 0 ? RS_IDLE : RS_SPACE;
+		CW_REC_SET_STATE (rec, (rec->representation_ind == 0 ? RS_IDLE : RS_SPACE), (&cw_debug_object));
 
 		/* Put the end-of-mark timestamp back to how it was when we
 		   came in to the routine. */
@@ -1156,8 +1166,6 @@ int cw_rec_mark_end_internal(cw_rec_t *rec, const struct timeval *timestamp)
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
 			      "libcw: '%d [us]' mark identified as spike noise (threshold = '%d [us]')",
 			      mark_len, rec->noise_spike_threshold);
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-			      "libcw: receive state -> %s", cw_receiver_states[rec->state]);
 
 		errno = EAGAIN;
 		return CW_FAILURE;
@@ -1210,13 +1218,11 @@ int cw_rec_mark_end_internal(cw_rec_t *rec, const struct timeval *timestamp)
 	   get this far, we go to end-of-char error state
 	   automatically. */
 	if (rec->representation_ind == CW_REC_REPRESENTATION_CAPACITY - 1) {
-		rec->state = RS_EOC_GAP_ERR;
+
+		CW_REC_SET_STATE (rec, RS_EOC_GAP_ERR, (&cw_debug_object));
 
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
 			      "libcw: receiver's representation buffer is full");
-
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-			      "libcw: receive state -> %s", cw_receiver_states[rec->state]);
 
 		errno = ENOMEM;
 		return CW_FAILURE;
@@ -1224,10 +1230,7 @@ int cw_rec_mark_end_internal(cw_rec_t *rec, const struct timeval *timestamp)
 
 	/* All is well.  Move to the more normal inter-mark-space
 	   state. */
-	rec->state = RS_SPACE;
-
-	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-		      "libcw: receive state -> %s", cw_receiver_states[rec->state]);
+	CW_REC_SET_STATE (rec, RS_SPACE, (&cw_debug_object));
 
 	return CW_SUCCESS;
 }
@@ -1339,12 +1342,7 @@ int cw_rec_identify_mark_internal(cw_rec_t *rec, int mark_len, /* out */ char *m
 	   mark_len as length of *space*? And do we want to
 	   move to either RS_EOW_GAP_ERR or RS_EOC_GAP_ERR pretending that
 	   this is a length of *space*? */
-	rec->state = mark_len > rec->eoc_len_max
-		? RS_EOW_GAP_ERR : RS_EOC_GAP_ERR;
-
-	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-		      "libcw: receive state -> %s", cw_receiver_states[rec->state]);
-
+	CW_REC_SET_STATE (rec, (mark_len > rec->eoc_len_max ? RS_EOW_GAP_ERR : RS_EOC_GAP_ERR), (&cw_debug_object));
 
 
 	/* Return ENOENT to the caller. */
@@ -1486,13 +1484,11 @@ int cw_rec_add_mark_internal(cw_rec_t *rec, const struct timeval *timestamp, cha
 	   above, if it's full, then we have to do something, even
 	   though it's unlikely to actually be full. */
 	if (rec->representation_ind == CW_REC_REPRESENTATION_CAPACITY - 1) {
-		rec->state = RS_EOC_GAP_ERR;
+
+		CW_REC_SET_STATE (rec, RS_EOC_GAP_ERR, (&cw_debug_object));
 
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
 			      "libcw: receiver's representation buffer is full");
-
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-			      "libcw: receive state -> %s", cw_receiver_states[rec->state]);
 
 		errno = ENOMEM;
 		return CW_FAILURE;
@@ -1500,10 +1496,7 @@ int cw_rec_add_mark_internal(cw_rec_t *rec, const struct timeval *timestamp, cha
 
 	/* Since we effectively just saw the end of a mark, move to
 	   the inter-mark-space state. */
-	rec->state = RS_SPACE;
-
-	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-		      "libcw: receive state -> %s", cw_receiver_states[rec->state]);
+	CW_REC_SET_STATE (rec, RS_SPACE, (&cw_debug_object));
 
 	return CW_SUCCESS;
 }
@@ -1756,7 +1749,7 @@ void cw_rec_poll_representation_eoc_internal(cw_rec_t *rec, int space_len,
 		cw_rec_update_stats_internal(rec, CW_REC_STAT_ICHAR_SPACE, space_len);
 
 		/* Transition of state of receiver. */
-		rec->state = RS_EOC_GAP;
+		CW_REC_SET_STATE (rec, RS_EOC_GAP, (&cw_debug_object));
 	} else {
 		/* We are already in RS_EOC_GAP or
 		   RS_EOC_GAP_ERR, so nothing to do. */
@@ -1792,20 +1785,17 @@ void cw_rec_poll_representation_eow_internal(cw_rec_t *rec,
 					     /* out */ bool *is_error)
 {
 	if (rec->state == RS_EOC_GAP || rec->state == RS_SPACE) {
-		rec->state = RS_EOW_GAP;   /* Transition of state. */
+		CW_REC_SET_STATE (rec, RS_EOW_GAP, (&cw_debug_object)); /* Transition of state. */
 
 	} else if (rec->state == RS_EOC_GAP_ERR) {
-		rec->state = RS_EOW_GAP_ERR;   /* Transition of state with preserving error. */
+		CW_REC_SET_STATE (rec, RS_EOW_GAP_ERR, (&cw_debug_object)); /* Transition of state with preserving error. */
 
 	} else if (rec->state == RS_EOW_GAP_ERR || rec->state == RS_EOW_GAP) {
-		rec->state = rec->state;    /* No need to change state. */
+		; /* No need to change state. */
 
 	} else {
 		cw_assert (0, "unexpected receiver state %d / %s", rec->state, cw_receiver_states[rec->state]);
 	}
-
-	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-		      "libcw: receive state -> %s", cw_receiver_states[rec->state]);
 
 	/* Return the representation from receiver's buffer. */
 	if (is_end_of_word) {
@@ -1935,10 +1925,7 @@ int cw_rec_poll_character_internal(cw_rec_t *rec,
 void cw_clear_receive_buffer(void)
 {
 	cw_receiver.representation_ind = 0;
-	cw_receiver.state = RS_IDLE;
-
-	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-		      "libcw: receive state -> %s", cw_receiver_states[cw_receiver.state]);
+	CW_REC_SET_STATE ((&cw_receiver), RS_IDLE, (&cw_debug_object));
 
 	return;
 }
@@ -1991,12 +1978,9 @@ int cw_get_receive_buffer_length(void)
 void cw_reset_receive(void)
 {
 	cw_receiver.representation_ind = 0;
-	cw_receiver.state = RS_IDLE;
+	CW_REC_SET_STATE ((&cw_receiver), RS_IDLE, (&cw_debug_object));
 
 	cw_reset_receive_statistics();
-
-	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-		      "libcw: receive state -> %s (reset)", cw_receiver_states[cw_receiver.state]);
 
 	return;
 }
