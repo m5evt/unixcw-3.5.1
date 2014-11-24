@@ -34,7 +34,7 @@ static const int cw_test_print_width = 75;
 	}
 
 
-int cw_test_args(int argc, char *const argv[], char *sound_systems, size_t systems_max);
+int cw_test_args(int argc, char *const argv[], char *sound_systems, size_t systems_max, char *modules, size_t modules_max);
 void cw_test_print_help(const char *progname);
 
 
