@@ -69,8 +69,8 @@ static cw_test_stats_t cw_stats_pa      = { .successes = 0, .failures = 0 };
 
 static void cw_test_setup(void);
 static int  cw_test_independent(void);
-static int  cw_test_dependent(const char *audio_systems);
-static int  cw_test_dependent_with(int audio_system, cw_test_stats_t *stats);
+static int  cw_test_dependent(const char *audio_systems, const char *modules);
+static int  cw_test_dependent_with(int audio_system, cw_test_stats_t *stats, const char *modules);
 static void cw_test_print_stats(void);
 
 
@@ -2789,24 +2789,58 @@ static void (*const CW_TEST_FUNCTIONS_INDEP[])(cw_test_stats_t *) = {
 
 
 /* Tests that are dependent on a sound system being configured. */
-static void (*const CW_TEST_FUNCTIONS_DEP[])(cw_test_stats_t *) = {
-	test_parameter_ranges,
+static void (*const CW_TEST_FUNCTIONS_DEP_R[])(cw_test_stats_t *) = {
+	test_fixed_receive,
+	test_adaptive_receive,
+
+	//cw_test_delayed_release,
+	//cw_test_signal_handling, /* FIXME - not sure why this test fails :( */
+
+	NULL
+};
+
+
+/* Tests that are dependent on a sound system being configured.
+   Tone queue module functions */
+static void (*const CW_TEST_FUNCTIONS_DEP_T[])(cw_test_stats_t *) = {
 	test_tone_queue_0,
 	test_tone_queue_1,
 	test_tone_queue_2,
 	test_tone_queue_3,
 	test_tone_queue_callback,
+
+	NULL
+};
+
+
+/* Tests that are dependent on a sound system being configured.
+   Generator module functions. */
+static void (*const CW_TEST_FUNCTIONS_DEP_G[])(cw_test_stats_t *) = {
 	test_volume_functions,
 	test_send_primitives,
-	test_representations,
-	test_validate_character_and_string,
 	test_send_character_and_string,
-	test_fixed_receive,
-	test_adaptive_receive,
+
+	NULL
+};
+
+
+/* Tests that are dependent on a sound system being configured.
+   Morse key module functions */
+static void (*const CW_TEST_FUNCTIONS_DEP_K[])(cw_test_stats_t *) = {
 	test_keyer,
 	test_straight_key,
-	//cw_test_delayed_release,
-	//cw_test_signal_handling, /* FIXME - not sure why this test fails :( */
+
+	NULL
+};
+
+
+/* Tests that are dependent on a sound system being configured.
+   Other modules' functions. */
+static void (*const CW_TEST_FUNCTIONS_DEP_O[])(cw_test_stats_t *) = {
+	test_parameter_ranges,
+	test_representations,
+	test_validate_character_and_string,
+
 	NULL
 };
 
@@ -2828,7 +2862,7 @@ static void (*const CW_TEST_FUNCTIONS_DEP[])(cw_test_stats_t *) = {
    \return 0 if tests were run, and no errors occurred
    \return 1 if tests were run, and some errors occurred
 */
-int cw_test_dependent_with(int audio_system, cw_test_stats_t *stats)
+int cw_test_dependent_with(int audio_system, cw_test_stats_t *stats, const char *modules)
 {
 	int rv = cw_generator_new(audio_system, NULL);
 	if (rv != 1) {
@@ -2842,10 +2876,46 @@ int cw_test_dependent_with(int audio_system, cw_test_stats_t *stats)
 		return -1;
 	}
 
-	for (int test = 0; CW_TEST_FUNCTIONS_DEP[test]; test++) {
-		cw_test_setup();
-		(*CW_TEST_FUNCTIONS_DEP[test])(stats);
+
+       	if (strstr(modules, "r")) {
+		for (int test = 0; CW_TEST_FUNCTIONS_DEP_R[test]; test++) {
+			cw_test_setup();
+			(*CW_TEST_FUNCTIONS_DEP_R[test])(stats);
+		}
 	}
+
+
+	if (strstr(modules, "t")) {
+		for (int test = 0; CW_TEST_FUNCTIONS_DEP_T[test]; test++) {
+			cw_test_setup();
+			(*CW_TEST_FUNCTIONS_DEP_T[test])(stats);
+		}
+	}
+
+
+	if (strstr(modules, "g")) {
+		for (int test = 0; CW_TEST_FUNCTIONS_DEP_G[test]; test++) {
+			cw_test_setup();
+			(*CW_TEST_FUNCTIONS_DEP_G[test])(stats);
+		}
+	}
+
+
+	if (strstr(modules, "k")) {
+		for (int test = 0; CW_TEST_FUNCTIONS_DEP_K[test]; test++) {
+			cw_test_setup();
+			(*CW_TEST_FUNCTIONS_DEP_K[test])(stats);
+		}
+	}
+
+
+	if (strstr(modules, "o")) {
+		for (int test = 0; CW_TEST_FUNCTIONS_DEP_O[test]; test++) {
+			cw_test_setup();
+			(*CW_TEST_FUNCTIONS_DEP_O[test])(stats);
+		}
+	}
+
 
 	sleep(1);
 	cw_generator_stop();
@@ -2893,7 +2963,7 @@ int cw_test_independent(void)
 
    \param audio_systems - list of audio systems to be tested
 */
-int cw_test_dependent(const char *audio_systems)
+int cw_test_dependent(const char *audio_systems, const char *modules)
 {
 	int n = 0, c = 0, o = 0, a = 0, p = 0;
 
@@ -2902,7 +2972,7 @@ int cw_test_dependent(const char *audio_systems)
 		if (cw_is_null_possible(NULL)) {
 			fprintf(stderr, "========================================\n");
 			fprintf(stderr, "libcw: testing with null output\n");
-			n = cw_test_dependent_with(CW_AUDIO_NULL, &cw_stats_null);
+			n = cw_test_dependent_with(CW_AUDIO_NULL, &cw_stats_null, modules);
 		} else {
 			fprintf(stderr, "libcw: null output not available\n");
 		}
@@ -2912,7 +2982,7 @@ int cw_test_dependent(const char *audio_systems)
 		if (cw_is_console_possible(NULL)) {
 			fprintf(stderr, "========================================\n");
 			fprintf(stderr, "libcw: testing with console output\n");
-			c = cw_test_dependent_with(CW_AUDIO_CONSOLE, &cw_stats_console);
+			c = cw_test_dependent_with(CW_AUDIO_CONSOLE, &cw_stats_console, modules);
 		} else {
 			fprintf(stderr, "libcw: console output not available\n");
 		}
@@ -2922,7 +2992,7 @@ int cw_test_dependent(const char *audio_systems)
 		if (cw_is_oss_possible(NULL)) {
 			fprintf(stderr, "========================================\n");
 			fprintf(stderr, "libcw: testing with OSS output\n");
-			o = cw_test_dependent_with(CW_AUDIO_OSS, &cw_stats_oss);
+			o = cw_test_dependent_with(CW_AUDIO_OSS, &cw_stats_oss, modules);
 		} else {
 			fprintf(stderr, "libcw: OSS output not available\n");
 		}
@@ -2932,7 +3002,7 @@ int cw_test_dependent(const char *audio_systems)
 		if (cw_is_alsa_possible(NULL)) {
 			fprintf(stderr, "========================================\n");
 			fprintf(stderr, "libcw: testing with ALSA output\n");
-			a = cw_test_dependent_with(CW_AUDIO_ALSA, &cw_stats_alsa);
+			a = cw_test_dependent_with(CW_AUDIO_ALSA, &cw_stats_alsa, modules);
 		} else {
 			fprintf(stderr, "libcw: Alsa output not available\n");
 		}
@@ -2942,7 +3012,7 @@ int cw_test_dependent(const char *audio_systems)
 		if (cw_is_pa_possible(NULL)) {
 			fprintf(stderr, "========================================\n");
 			fprintf(stderr, "libcw: testing with PulseAudio output\n");
-			p = cw_test_dependent_with(CW_AUDIO_PA, &cw_stats_pa);
+			p = cw_test_dependent_with(CW_AUDIO_PA, &cw_stats_pa, modules);
 		} else {
 			fprintf(stderr, "libcw: PulseAudio output not available\n");
 		}
@@ -2989,8 +3059,11 @@ int main(int argc, char *const argv[])
 
 #define CW_SYSTEMS_MAX 5
 	char sound_systems[CW_SYSTEMS_MAX + 1];
+#define CW_MODULES_MAX 5
+	char modules[CW_MODULES_MAX + 1];
+	modules[0] = '\0';
 
-	if (!cw_test_args(argc, argv, sound_systems, CW_SYSTEMS_MAX)) {
+	if (!cw_test_args(argc, argv, sound_systems, CW_SYSTEMS_MAX, modules, CW_MODULES_MAX)) {
 		cw_test_print_help(argv[0]);
 		exit(EXIT_FAILURE);
 	}
@@ -3006,7 +3079,7 @@ int main(int argc, char *const argv[])
 	}
 
 	int rv1 = cw_test_independent();
-	int rv2 = cw_test_dependent(sound_systems);
+	int rv2 = cw_test_dependent(sound_systems, modules);
 
 	return rv1 == 0 && rv2 == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }
