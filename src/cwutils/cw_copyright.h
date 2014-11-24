@@ -17,8 +17,8 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef _CWCOPYRIGHT_H
-#define _CWCOPYRIGHT_H
+#ifndef H_CW_COPYRIGHT
+#define H_CW_COPYRIGHT
 
 #include "i18n.h"
 
@@ -38,4 +38,4 @@ static const char *const CW_COPYRIGHT =
 #if defined(__cplusplus)
 }
 #endif
-#endif  /* _CWCOPYRIGHT_H */
+#endif  /* H_CW_COPYRIGHT */
