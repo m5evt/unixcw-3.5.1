@@ -52,18 +52,24 @@
 
 
 
-int cw_test_args(int argc, char *const argv[], char *sound_systems, size_t systems_max)
+int cw_test_args(int argc, char *const argv[],
+		 char *sound_systems, size_t systems_max,
+		 char *modules, size_t modules_max)
 {
+	strncpy(modules, "rgtko", modules_max);
+	modules[modules_max] = '\0';
+
 	if (argc == 1) {
 		strncpy(sound_systems, "ncoap", systems_max);
 		sound_systems[systems_max] = '\0';
 
 		fprintf(stderr, "sound systems = \"%s\"\n", sound_systems);
+		fprintf(stderr, "modules = \"%s\"\n", modules);
 		return CW_SUCCESS;
 	}
 
 	int opt;
-	while ((opt = getopt(argc, argv, "s:")) != -1) {
+	while ((opt = getopt(argc, argv, "m:s:")) != -1) {
 		switch (opt) {
 		case 's':
 			{
@@ -88,6 +94,31 @@ int cw_test_args(int argc, char *const argv[], char *sound_systems, size_t syste
 				}
 				sound_systems[j] = '\0';
 			}
+			break;
+		case 'm':
+			{
+				size_t len = strlen(optarg);
+				if (!len || len > modules_max) {
+					return CW_FAILURE;
+				}
+
+				int j = 0;
+				for (size_t i = 0; i < len; i++) {
+					if (optarg[i] != 'r'       /* Receiver. */
+					    && optarg[i] != 't'    /* Tone queue. */
+					    && optarg[i] != 'g'    /* Generator. */
+					    && optarg[i] != 'k'    /* Morse key. */
+					    && optarg[i] != 'o') { /* Other. */
+
+						return CW_FAILURE;
+					} else {
+						modules[j] = optarg[i];
+						j++;
+					}
+				}
+				modules[j] = '\0';
+
+			}
 
 			break;
 		default: /* '?' */
@@ -96,6 +127,7 @@ int cw_test_args(int argc, char *const argv[], char *sound_systems, size_t syste
 	}
 
 	fprintf(stderr, "sound systems = \"%s\"\n", sound_systems);
+	fprintf(stderr, "modules = \"%s\"\n", modules);
 	return CW_SUCCESS;
 }
 
