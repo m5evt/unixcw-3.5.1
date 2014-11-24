@@ -67,7 +67,11 @@ int main(int argc, char *const argv[])
 #define CW_SYSTEMS_MAX 5
 	char sound_systems[CW_SYSTEMS_MAX + 1];
 
-	if (!cw_test_args(argc, argv, sound_systems, CW_SYSTEMS_MAX)) {
+	/* TODO: modules aren't necessary here. Make cw_test_args() accept modules==NULL. */
+#define CW_MODULES_MAX 5
+	char modules[CW_MODULES_MAX + 1];
+
+	if (!cw_test_args(argc, argv, sound_systems, CW_SYSTEMS_MAX, modules, CW_MODULES_MAX)) {
 		cw_test_print_help(argv[0]);
 		exit(EXIT_FAILURE);
 	}
