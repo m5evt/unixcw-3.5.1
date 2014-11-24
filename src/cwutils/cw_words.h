@@ -17,8 +17,8 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef _CWWORDS_H
-#define _CWWORDS_H
+#ifndef H_CW_WORDS
+#define H_CW_WORDS
 
 #include <stdlib.h> /* NULL */
 
@@ -365,4 +365,4 @@ static const char *const CW_CW_WORDS[] = {
   "SA","STN","SUM","SWL","TRX","WID",NULL};
 static const char *const CW_PARIS[] = {"PARIS",NULL};
 
-#endif  /* _CWWORDS_H */
+#endif  /* H_CW_WORDS */
