@@ -88,42 +88,40 @@ combine_arguments (const char *env_variable,
                    int argc, char *const argv[],
                    int *new_argc, char **new_argv[])
 {
-  int local_argc;
-  char **local_argv, *env_options;
-  int arg;
+	int local_argc;
+	char **local_argv, *env_options;
+	int arg;
 
-  /* Begin with argv[0], which stays in place. */
-  local_argv = safe_malloc (sizeof (*local_argv));
-  local_argc = 0;
-  local_argv[local_argc++] = argv[0];
+	/* Begin with argv[0], which stays in place. */
+	local_argv = safe_malloc (sizeof (*local_argv));
+	local_argc = 0;
+	local_argv[local_argc++] = argv[0];
 
-  /* If options are given in an environment variable, add these next. */
-  env_options = getenv (env_variable);
-  if (env_options)
-    {
-      char *options, *option;
+	/* If options are given in an environment variable, add these next. */
+	env_options = getenv (env_variable);
+	if (env_options) {
+		char *options, *option;
 
-      options = safe_strdup (env_options);
-      for (option = strtok (options, " \t"); option;
-           option = strtok (NULL, " \t"))
-        {
-          local_argv = safe_realloc (local_argv,
-                                     sizeof (*local_argv) * (local_argc + 1));
-          local_argv[local_argc++] = option;
-        }
-    }
+		options = safe_strdup(env_options);
+		for (option = strtok(options, " \t");
+		     option;
+		     option = strtok(NULL, " \t")) {
+			local_argv = safe_realloc(local_argv,
+						  sizeof (*local_argv) * (local_argc + 1));
+			local_argv[local_argc++] = option;
+		}
+	}
 
-  /* Append the options given on the command line itself. */
-  for (arg = 1; arg < argc; arg++)
-    {
-      local_argv = safe_realloc (local_argv,
-                                 sizeof (*local_argv) * (local_argc + 1));
-      local_argv[local_argc++] = argv[arg];
-    }
+	/* Append the options given on the command line itself. */
+	for (arg = 1; arg < argc; arg++) {
+		local_argv = safe_realloc(local_argv,
+					  sizeof (*local_argv) * (local_argc + 1));
+		local_argv[local_argc++] = argv[arg];
+	}
 
-  /* Return the constructed argc/argv. */
-  *new_argc = local_argc;
-  *new_argv = local_argv;
+	/* Return the constructed argc/argv. */
+	*new_argc = local_argc;
+	*new_argv = local_argv;
 }
 
 
@@ -161,114 +159,111 @@ bool has_longopts(void)
  * short form option ('c'), ':' if it requires an argument, and the long form
  * option.
  */
-int
-get_option (int argc, char *const argv[],
-            const char *descriptor,
-            int *option, char **argument)
+int get_option(int argc, char *const argv[],
+	       const char *descriptor,
+	       int *option, char **argument)
 {
-  static char *option_string = NULL;          /* Standard getopt() string */
+	static char *option_string = NULL;          /* Standard getopt() string */
 #if defined(HAVE_GETOPT_LONG)
-  static struct option *long_options = NULL;  /* getopt_long() structure */
-  static char **long_names = NULL;            /* Allocated names array */
-  static int long_count = 0;                  /* Entries in long_options */
+	static struct option *long_options = NULL;  /* getopt_long() structure */
+	static char **long_names = NULL;            /* Allocated names array */
+	static int long_count = 0;                  /* Entries in long_options */
 #endif
 
-  int opt;
+	int opt;
 
-  /*
-   * If this is the first call, build a new option_string and a matching
-   * set of long options.
-   */
-  if (!option_string)
-    {
-      char *options, *element;
+	/*
+	 * If this is the first call, build a new option_string and a matching
+	 * set of long options.
+	 */
+	if (!option_string) {
+		char *options, *element;
 
-      /* Begin with an empty short options string. */
-      option_string = safe_strdup ("");
+		/* Begin with an empty short options string. */
+		option_string = safe_strdup("");
 
-      /* Break the descriptor into comma-separated elements. */
-      options = safe_strdup (descriptor);
-      for (element = strtok (options, ","); element;
-           element = strtok (NULL, ","))
-        {
-          int needs_arg;
+		/* Break the descriptor into comma-separated elements. */
+		options = safe_strdup(descriptor);
+		for (element = strtok(options, ",");
+		     element;
+		     element = strtok(NULL, ",")) {
+			int needs_arg;
 
-          /* Determine if this option requires an argument. */
-          needs_arg = element[1] == ':';
+			/* Determine if this option requires an argument. */
+			needs_arg = element[1] == ':';
 
-          /*
-           * Append the short option character, and ':' if present, to the
-           * short options string.  For simplicity in reallocating, assume
-           * that the ':' is always there.
-           */
-          option_string = safe_realloc (option_string,
-                                        strlen (option_string) + 3);
-          strncat (option_string, element, needs_arg ? 2 : 1);
+			/*
+			 * Append the short option character, and ':' if present, to the
+			 * short options string.  For simplicity in reallocating, assume
+			 * that the ':' is always there.
+			 */
+			option_string = safe_realloc(option_string,
+						      strlen (option_string) + 3);
+			strncat(option_string, element, needs_arg ? 2 : 1);
 
 #if defined(HAVE_GETOPT_LONG)
-          /*
-           * Take a copy of the long name and add it to a retained array.
-           * Because struct option makes name a const char*, we can't just
-           * store it in there and then free later.
-           */
-          long_names = safe_realloc (long_names,
-                                     sizeof (*long_names) * (long_count + 1));
-          long_names[long_count] = safe_strdup (element + (needs_arg ? 3 : 2));
+			/*
+			 * Take a copy of the long name and add it to a retained array.
+			 * Because struct option makes name a const char*, we can't just
+			 * store it in there and then free later.
+			 */
+			long_names = safe_realloc(long_names,
+						  sizeof (*long_names) * (long_count + 1));
+			long_names[long_count] = safe_strdup(element + (needs_arg ? 3 : 2));
 
-          /* Add a new entry to the long options array. */
-          long_options = safe_realloc (long_options,
-                                     sizeof (*long_options) * (long_count + 2));
-          long_options[long_count].name = long_names[long_count];
-          long_options[long_count].has_arg = needs_arg;
-          long_options[long_count].flag = NULL;
-          long_options[long_count].val = element[0];
-          long_count++;
+			/* Add a new entry to the long options array. */
+			long_options = safe_realloc(long_options,
+						     sizeof (*long_options) * (long_count + 2));
+			long_options[long_count].name = long_names[long_count];
+			long_options[long_count].has_arg = needs_arg;
+			long_options[long_count].flag = NULL;
+			long_options[long_count].val = element[0];
+			long_count++;
 
-          /* Set the end sentry to all zeroes. */
-          memset (long_options + long_count, 0, sizeof (*long_options));
+			/* Set the end sentry to all zeroes. */
+			memset(long_options + long_count, 0, sizeof (*long_options));
 #endif
-        }
+		}
 
-      free (options);
-    }
+		free(options);
+	}
 
-    /* Call the appropriate getopt function to get the first/next option. */
+	/* Call the appropriate getopt function to get the first/next option. */
 #if defined(HAVE_GETOPT_LONG)
-    opt = getopt_long (argc, argv, option_string, long_options, NULL);
+	opt = getopt_long(argc, argv, option_string, long_options, NULL);
 #else
-    opt = getopt (argc, argv, option_string);
+	opt = getopt(argc, argv, option_string);
 #endif
 
-    /* If no more options, clean up allocated memory before returning. */
-    if (opt == -1)
-      {
+	/* If no more options, clean up allocated memory before returning. */
+	if (opt == -1) {
 #if defined(HAVE_GETOPT_LONG)
-        int index;
+		int index;
 
-        /*
-         * Free each long option string created above, using the long_names
-         * growable array because the long_options[i].name aliased to it is
-         * a const char*.  Then free long_names itself, and reset pointer.
-         */
-        for (index = 0; index < long_count; index++)
-          free (long_names[index]);
-        free (long_names);
-        long_names = NULL;
+		/*
+		 * Free each long option string created above, using the long_names
+		 * growable array because the long_options[i].name aliased to it is
+		 * a const char*.  Then free long_names itself, and reset pointer.
+		 */
+		for (index = 0; index < long_count; index++)
+			free(long_names[index]);
+		free(long_names);
+		long_names = NULL;
 
-        /* Free the long options structure, and reset pointer and counter. */
-        free (long_options);
-        long_options = NULL;
-        long_count = 0;
+		/* Free the long options structure, and reset pointer and counter. */
+		free(long_options);
+		long_options = NULL;
+		long_count = 0;
 #endif
-        /* Free and reset the retained short options string. */
-        free (option_string);
-        option_string = NULL;
-      }
+		/* Free and reset the retained short options string. */
+		free(option_string);
+		option_string = NULL;
+	}
 
-    /* Return the option and argument, with false if no more arguments. */
-    *option = opt;
-    *argument = optarg;
-    return !(opt == -1);
+	/* Return the option and argument, with false if no more arguments. */
+	*option = opt;
+	*argument = optarg;
+	return !(opt == -1);
 }
 
 
