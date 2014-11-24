@@ -1,3 +1,12 @@
+2014-11-24 Kamil Ignacak
+	Test executables for libcw now accept -m option, which allows me
+	to specify libcw module(s) to be tested. Option's values are:
+	'r' - receiver
+	't' - tone queue
+	'g' - generator
+	'k' - Morse key
+	'o' - other
+
 2014-11-19 Kamil Ignacak
 	More changes in receiver module. Refactoring and moving public
 	functions' code to _internal() functions that accept pointer to
