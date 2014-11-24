@@ -73,39 +73,44 @@ const char *cw_program_basename(const char *argv0)
 }
 
 
-/*
- * combine_arguments()
- *
- * Build a new argc and argv by combining command line and environment
- * options.
- *
- * The new values are held in the heap, and the malloc'ed addresses are not
- * retained, so do not call this function repeatedly, otherwise it will leak
- * memory.
- */
-void
-combine_arguments (const char *env_variable,
-                   int argc, char *const argv[],
-                   int *new_argc, char **new_argv[])
-{
-	int local_argc;
-	char **local_argv, *env_options;
-	int arg;
 
+
+
+/**
+   \brief Combine command line options and environment options
+
+   Build a new argc and argv by combining command line and environment
+   options.
+
+   The new values are held in the heap, and the malloc'ed addresses
+   are not retained, so do not call this function repeatedly,
+   otherwise it will leak memory.
+
+   Combined values are returned through \p new_argc and \p new_argv.
+
+   \param env_variable - name of environment variable to read from
+   \param argc - argc of program's main()
+   \param argv - argv[] of program's main()
+   \param new_argc - combined argc
+   \param new_argv[] - combined argv
+*/
+void combine_arguments(const char *env_variable,
+		       int argc, char *const argv[],
+		       /* out */ int *new_argc, /* out */ char **new_argv[])
+{
 	/* Begin with argv[0], which stays in place. */
-	local_argv = safe_malloc (sizeof (*local_argv));
-	local_argc = 0;
+	char **local_argv = safe_malloc(sizeof (*local_argv));
+	int local_argc = 0;
 	local_argv[local_argc++] = argv[0];
 
 	/* If options are given in an environment variable, add these next. */
-	env_options = getenv (env_variable);
+	char *env_options = getenv(env_variable);
 	if (env_options) {
-		char *options, *option;
-
-		options = safe_strdup(env_options);
-		for (option = strtok(options, " \t");
+		char *options = safe_strdup(env_options);
+		for (char *option = strtok(options, " \t");
 		     option;
 		     option = strtok(NULL, " \t")) {
+
 			local_argv = safe_realloc(local_argv,
 						  sizeof (*local_argv) * (local_argc + 1));
 			local_argv[local_argc++] = option;
@@ -113,7 +118,7 @@ combine_arguments (const char *env_variable,
 	}
 
 	/* Append the options given on the command line itself. */
-	for (arg = 1; arg < argc; arg++) {
+	for (int arg = 1; arg < argc; arg++) {
 		local_argv = safe_realloc(local_argv,
 					  sizeof (*local_argv) * (local_argc + 1));
 		local_argv[local_argc++] = argv[arg];
@@ -122,12 +127,18 @@ combine_arguments (const char *env_variable,
 	/* Return the constructed argc/argv. */
 	*new_argc = local_argc;
 	*new_argv = local_argv;
+
+	return;
 }
+
+
+
 
 
 /*---------------------------------------------------------------------*/
 /*  Option handling helpers                                            */
 /*---------------------------------------------------------------------*/
+
 
 
 
@@ -151,14 +162,22 @@ bool has_longopts(void)
 
 
 
-/*
- * get_option()
- *
- * Adapter wrapper round getopt() and getopt_long().  Descriptor strings are
- * comma-separated groups of elements of the form "c[:]|longopt", giving the
- * short form option ('c'), ':' if it requires an argument, and the long form
- * option.
- */
+/**
+   \brief Adapter wrapper round getopt() and getopt_long()
+
+   Descriptor strings are comma-separated groups of elements of the
+   form "c[:]|longopt", giving the short form option ('c'), ':' if it
+   requires an argument, and the long form option.
+
+   \param argc
+   \param argv
+   \param descriptor
+   \param option
+   \param argument
+
+   \return true if there are still options in argv to be drawn
+   \return false if argv is exhausted
+*/
 int get_option(int argc, char *const argv[],
 	       const char *descriptor,
 	       int *option, char **argument)
@@ -172,41 +191,34 @@ int get_option(int argc, char *const argv[],
 
 	int opt;
 
-	/*
-	 * If this is the first call, build a new option_string and a matching
-	 * set of long options.
-	 */
+	/* If this is the first call, build a new option_string and a
+	   matching set of long options.  */
 	if (!option_string) {
-		char *options, *element;
-
 		/* Begin with an empty short options string. */
 		option_string = safe_strdup("");
 
 		/* Break the descriptor into comma-separated elements. */
-		options = safe_strdup(descriptor);
-		for (element = strtok(options, ",");
+		char *options = safe_strdup(descriptor);
+		for (char *element = strtok(options, ",");
 		     element;
 		     element = strtok(NULL, ",")) {
-			int needs_arg;
 
 			/* Determine if this option requires an argument. */
-			needs_arg = element[1] == ':';
+			int needs_arg = element[1] == ':';
 
-			/*
-			 * Append the short option character, and ':' if present, to the
-			 * short options string.  For simplicity in reallocating, assume
-			 * that the ':' is always there.
-			 */
+			/* Append the short option character, and ':'
+			   if present, to the short options string.
+			   For simplicity in reallocating, assume that
+			   the ':' is always there. */
 			option_string = safe_realloc(option_string,
-						      strlen (option_string) + 3);
+						      strlen(option_string) + 3);
 			strncat(option_string, element, needs_arg ? 2 : 1);
 
 #if defined(HAVE_GETOPT_LONG)
-			/*
-			 * Take a copy of the long name and add it to a retained array.
-			 * Because struct option makes name a const char*, we can't just
-			 * store it in there and then free later.
-			 */
+			/* Take a copy of the long name and add it to
+			   a retained array.  Because struct option
+			   makes name a const char*, we can't just
+			   store it in there and then free later. */
 			long_names = safe_realloc(long_names,
 						  sizeof (*long_names) * (long_count + 1));
 			long_names[long_count] = safe_strdup(element + (needs_arg ? 3 : 2));
@@ -228,29 +240,34 @@ int get_option(int argc, char *const argv[],
 		free(options);
 	}
 
-	/* Call the appropriate getopt function to get the first/next option. */
+	/* Call the appropriate getopt function to get the first/next
+	   option. */
 #if defined(HAVE_GETOPT_LONG)
 	opt = getopt_long(argc, argv, option_string, long_options, NULL);
 #else
 	opt = getopt(argc, argv, option_string);
 #endif
 
-	/* If no more options, clean up allocated memory before returning. */
+	/* If no more options, clean up allocated memory before
+	   returning. */
 	if (opt == -1) {
 #if defined(HAVE_GETOPT_LONG)
-		int index;
 
-		/*
-		 * Free each long option string created above, using the long_names
-		 * growable array because the long_options[i].name aliased to it is
-		 * a const char*.  Then free long_names itself, and reset pointer.
-		 */
-		for (index = 0; index < long_count; index++)
-			free(long_names[index]);
+		/* Free each long option string created above, using
+		   the long_names growable array because the
+		   long_options[i].name aliased to it is a const
+		   char*.  Then free long_names itself, and reset
+		   pointer. */
+		for (int i = 0; i < long_count; i++) {
+			free(long_names[i]);
+			long_names[i] = NULL;
+		}
+
 		free(long_names);
 		long_names = NULL;
 
-		/* Free the long options structure, and reset pointer and counter. */
+		/* Free the long options structure, and reset pointer
+		   and counter. */
 		free(long_options);
 		long_options = NULL;
 		long_count = 0;
@@ -260,23 +277,26 @@ int get_option(int argc, char *const argv[],
 		option_string = NULL;
 	}
 
-	/* Return the option and argument, with false if no more arguments. */
+	/* Return the option and argument, with false if no more
+	   arguments. */
 	*option = opt;
 	*argument = optarg;
 	return !(opt == -1);
 }
 
 
-/*
- * get_optind()
- *
- * Return the value of getopt()'s optind after get_options() calls complete.
- */
-int
-get_optind (void)
+
+
+
+/**
+   Return the value of getopt()'s optind after get_options() calls complete.
+*/
+int get_optind(void)
 {
-  return optind;
+	return optind;
 }
+
+
 
 
 
