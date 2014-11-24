@@ -42,7 +42,7 @@
 
 #include "i18n.h"
 #include "cmdline.h"
-#include "copyright.h"
+#include "cw_copyright.h"
 #include "dictionary.h"
 
 

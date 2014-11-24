@@ -57,7 +57,7 @@
 #include "libcw.h"
 
 #include "i18n.h"
-#include "copyright.h"
+#include "cw_copyright.h"
 
 
 namespace cw {

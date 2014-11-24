@@ -60,7 +60,7 @@
 #include "libcw_debug.h"
 #include "libcw_utils.h"
 #include "libcw_signal.h"
-#include "copyright.h"
+#include "cw_copyright.h"
 
 
 

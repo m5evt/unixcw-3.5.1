@@ -36,7 +36,7 @@
 #include "libcw.h"
 
 #include "dictionary.h"
-#include "cwwords.h"
+#include "cw_words.h"
 #include "memory.h"
 #include "i18n.h"
 

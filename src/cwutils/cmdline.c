@@ -39,7 +39,7 @@
 #include "cmdline.h"
 #include "i18n.h"
 #include "memory.h"
-#include "copyright.h"
+#include "cw_copyright.h"
 
 
 static int cw_process_option(int opt, const char *optarg, cw_config_t *config);
