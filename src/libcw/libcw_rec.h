@@ -17,9 +17,13 @@
 enum { CW_DOT_CALIBRATION = 1200000 };
 
 
-/* Receiver contains a fixed-length buffer for representation of received data.
-   Capacity of the buffer is vastly longer than any practical representation.
-   Don't know why, a legacy thing. */
+/* Receiver contains a fixed-length buffer for representation of
+   received data.  Capacity of the buffer is vastly longer than any
+   practical representation.  Don't know why, a legacy thing.
+
+   Representation can be presented as a char string. This is the
+   maximal length of the string. This value does not include string's
+   ending NULL. */
 enum { CW_REC_REPRESENTATION_CAPACITY = 256 };
 
 
