@@ -225,7 +225,7 @@ struct cw_rec_struct {
 
 	   Along with it we maintain a cursor indicating the current
 	   write position. */
-	char representation[CW_REC_REPRESENTATION_CAPACITY];
+	char representation[CW_REC_REPRESENTATION_CAPACITY + 1];
 	int representation_ind;
 
 
@@ -1771,6 +1771,7 @@ void cw_rec_poll_representation_eoc_internal(cw_rec_t *rec, int space_len,
 	}
 	*representation = '\0'; /* TODO: why do this? */
 	strncat(representation, rec->representation, rec->representation_ind);
+	rec->representation[rec->representation_ind] = '\0';
 
 	return;
 }
@@ -1806,6 +1807,7 @@ void cw_rec_poll_representation_eow_internal(cw_rec_t *rec,
 	}
 	*representation = '\0'; /* TODO: why do this? */
 	strncat(representation, rec->representation, rec->representation_ind);
+	rec->representation[rec->representation_ind] = '\0';
 
 	return;
 }
