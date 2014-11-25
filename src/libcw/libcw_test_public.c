@@ -82,33 +82,48 @@ typedef struct {
 	const int usecs[15];
 } cw_test_receive_data_t;
 
-static void test_helper_receive_tests(bool adaptive, const cw_test_receive_data_t *data, cw_test_stats_t *stats, bool fixed_speed);
+static void test_helper_receive_tests(bool adaptive, const cw_test_receive_data_t *data, cw_test_stats_t *stats);
 static void cw_test_helper_tq_callback(void *data);
 
+
+
+/* Functions independent of audio system. */
 static void test_cw_version(cw_test_stats_t *stats);
 static void test_cw_license(cw_test_stats_t *stats);
 static void test_cw_debug_flags(cw_test_stats_t *stats);
 static void test_cw_get_x_limits(cw_test_stats_t *stats);
-static void test_parameter_ranges(cw_test_stats_t *stats);
+static void test_character_lookups(cw_test_stats_t *stats);   /* "data" module. */
+static void test_prosign_lookups(cw_test_stats_t *stats);     /* "data" module. */
+static void test_phonetic_lookups(cw_test_stats_t *stats);    /* "data" module. */
+
+/* Receiver module. */
+static void test_fixed_receive(cw_test_stats_t *stats);
+static int  test_fixed_receive_add_jitter(const int usecs, bool is_space);
+static void test_adaptive_receive(cw_test_stats_t *stats);
+static int  test_adaptive_receive_scale(const int usecs, float factor);
+
+/* Tone queue module. */
 static void test_tone_queue_0(cw_test_stats_t *stats);
 static void test_tone_queue_1(cw_test_stats_t *stats);
 static void test_tone_queue_2(cw_test_stats_t *stats);
 static void test_tone_queue_3(cw_test_stats_t *stats);
 static void test_tone_queue_callback(cw_test_stats_t *stats);
+
+/* Generator module. */
 static void test_volume_functions(cw_test_stats_t *stats);
-static void test_character_lookups(cw_test_stats_t *stats);
-static void test_prosign_lookups(cw_test_stats_t *stats);
-static void test_phonetic_lookups(cw_test_stats_t *stats);
 static void test_send_primitives(cw_test_stats_t *stats);
-static void test_representations(cw_test_stats_t *stats);
-static void test_validate_character_and_string(cw_test_stats_t *stats);
 static void test_send_character_and_string(cw_test_stats_t *stats);
-static void test_fixed_receive(cw_test_stats_t *stats);
-static int  test_fixed_receive_add_jitter(const int usecs, bool is_space);
-static void test_adaptive_receive(cw_test_stats_t *stats);
-static int  test_adaptive_receive_scale(const int usecs, float factor);
+
+/* Morse key module. */
 static void test_keyer(cw_test_stats_t *stats);
 static void test_straight_key(cw_test_stats_t *stats);
+
+/* Other. */
+static void test_parameter_ranges(cw_test_stats_t *stats);
+static void test_representations(cw_test_stats_t *stats);   /* "data" and "generator" modules. TODO: split this function in two. */
+static void test_validate_character_and_string(cw_test_stats_t *stats);  /* "data" module. */
+
+
 // static void cw_test_delayed_release(cw_test_stats_t *stats);
 
 
@@ -1806,89 +1821,89 @@ void test_send_character_and_string(cw_test_stats_t *stats)
    applied in separate step, by function call. TODO: apply
    jitter.*/
 static const cw_test_receive_data_t TEST_DATA_RAW[] = {
-	/*                  ./-    ' '     ./-    ' '     ./-    ' '     ./-    ' '     ./-    ' '     ./-    ' '     ./-       ending space, guard */
+	/*     length of:    mark   space   mark   space   mark   space   mark   space   mark   space   mark   space   mark      ending space;  guard */
 	/* ASCII 7bit letters */
-	{ 'A', ".-",       { 20000, 20000,  60000,                                                                               60000, 0 }},
-	{ 'B', "-...",     { 60000, 20000,  20000, 20000,  20000, 20000,  20000,                                                 60000, 0 }},
-	{ 'C', "-.-.",     { 60000, 20000,  20000, 20000,  60000, 20000,  20000,                                                 60000, 0 }},
-	{ 'D', "-..",      { 60000, 20000,  20000, 20000,  20000,                                                                60000, 0 }},
-	{ 'E', ".",        { 20000,                                                                                              60000, 0 }},
-	{ 'F', "..-.",     { 20000, 20000,  20000, 20000,  60000, 20000,  20000,                                                 60000, 0 }},
-	{ 'G', "--.",      { 60000, 20000,  60000, 20000,  20000,                                                                60000, 0 }},
-	{ 'H', "....",     { 20000, 20000,  20000, 20000,  20000, 20000,  20000,                                                 60000, 0 }},
-	{ 'I', "..",       { 20000, 20000,  20000,                                                                               60000, 0 }},
-	{ 'J', ".---",     { 20000, 20000,  60000, 20000,  60000, 20000,  60000,                                                 60000, 0 }},
-	{ 'K', "-.-",      { 60000, 20000,  20000, 20000,  60000,                                                                60000, 0 }},
-	{ 'L', ".-..",     { 20000, 20000,  60000, 20000,  20000, 20000,  20000,                                                 60000, 0 }},
-	{ 'M', "--",       { 60000, 20000,  60000,                                                                               60000, 0 }},
-	{ 'N', "-.",       { 60000, 20000,  20000,                                                                               60000, 0 }},
-	{ 'O', "---",      { 60000, 20000,  60000, 20000,  60000,                                                                60000, 0 }},
-	{ 'P', ".--.",     { 20000, 20000,  60000, 20000,  60000, 20000,  20000,                                                 60000, 0 }},
-	{ 'Q', "--.-",     { 60000, 20000,  60000, 20000,  20000, 20000,  60000,                                                 60000, 0 }},
-	{ 'R', ".-.",      { 20000, 20000,  60000, 20000,  20000,                                                                60000, 0 }},
-	{ 'S', "...",      { 20000, 20000,  20000, 20000,  20000,                                                                60000, 0 }},
-	{ 'T', "-",        { 60000,                                                                                              60000, 0 }},
-	{ 'U', "..-",      { 20000, 20000,  20000, 20000,  60000,                                                                60000, 0 }},
-	{ 'V', "...-",     { 20000, 20000,  20000, 20000,  20000, 20000,  60000,                                                 60000, 0 }},
-	{ 'W', ".--",      { 20000, 20000,  60000, 20000,  60000,                                                                60000, 0 }},
-	{ 'X', "-..-",     { 60000, 20000,  20000, 20000,  20000, 20000,  60000,                                                 60000, 0 }},
-	{ 'Y', "-.--",     { 60000, 20000,  20000, 20000,  60000, 20000,  60000,                                                 60000, 0 }},
-	{ 'Z', "--..",     { 60000, 20000,  60000, 20000,  20000, 20000,  20000,                                                 60000, 0 }},
+	{ 'A', ".-",       { 20000, 20000,  60000,                                                                               60000,         0 }},
+	{ 'B', "-...",     { 60000, 20000,  20000, 20000,  20000, 20000,  20000,                                                 60000,         0 }},
+	{ 'C', "-.-.",     { 60000, 20000,  20000, 20000,  60000, 20000,  20000,                                                 60000,         0 }},
+	{ 'D', "-..",      { 60000, 20000,  20000, 20000,  20000,                                                                60000,         0 }},
+	{ 'E', ".",        { 20000,                                                                                              60000,         0 }},
+	{ 'F', "..-.",     { 20000, 20000,  20000, 20000,  60000, 20000,  20000,                                                 60000,         0 }},
+	{ 'G', "--.",      { 60000, 20000,  60000, 20000,  20000,                                                                60000,         0 }},
+	{ 'H', "....",     { 20000, 20000,  20000, 20000,  20000, 20000,  20000,                                                 60000,         0 }},
+	{ 'I', "..",       { 20000, 20000,  20000,                                                                               60000,         0 }},
+	{ 'J', ".---",     { 20000, 20000,  60000, 20000,  60000, 20000,  60000,                                                 60000,         0 }},
+	{ 'K', "-.-",      { 60000, 20000,  20000, 20000,  60000,                                                                60000,         0 }},
+	{ 'L', ".-..",     { 20000, 20000,  60000, 20000,  20000, 20000,  20000,                                                 60000,         0 }},
+	{ 'M', "--",       { 60000, 20000,  60000,                                                                               60000,         0 }},
+	{ 'N', "-.",       { 60000, 20000,  20000,                                                                               60000,         0 }},
+	{ 'O', "---",      { 60000, 20000,  60000, 20000,  60000,                                                                60000,         0 }},
+	{ 'P', ".--.",     { 20000, 20000,  60000, 20000,  60000, 20000,  20000,                                                 60000,         0 }},
+	{ 'Q', "--.-",     { 60000, 20000,  60000, 20000,  20000, 20000,  60000,                                                 60000,         0 }},
+	{ 'R', ".-.",      { 20000, 20000,  60000, 20000,  20000,                                                                60000,         0 }},
+	{ 'S', "...",      { 20000, 20000,  20000, 20000,  20000,                                                                60000,         0 }},
+	{ 'T', "-",        { 60000,                                                                                              60000,         0 }},
+	{ 'U', "..-",      { 20000, 20000,  20000, 20000,  60000,                                                                60000,         0 }},
+	{ 'V', "...-",     { 20000, 20000,  20000, 20000,  20000, 20000,  60000,                                                 60000,         0 }},
+	{ 'W', ".--",      { 20000, 20000,  60000, 20000,  60000,                                                                60000,         0 }},
+	{ 'X', "-..-",     { 60000, 20000,  20000, 20000,  20000, 20000,  60000,                                                 60000,         0 }},
+	{ 'Y', "-.--",     { 60000, 20000,  20000, 20000,  60000, 20000,  60000,                                                 60000,         0 }},
+	{ 'Z', "--..",     { 60000, 20000,  60000, 20000,  20000, 20000,  20000,                                                 60000,         0 }},
 
 	/* Numerals */
-	{ '0', "-----",    { 60000, 20000,  60000, 20000,  60000, 20000,  60000, 20000,  60000,                                  60000, 0 }},
-	{ '1', ".----",    { 20000, 20000,  60000, 20000,  60000, 20000,  60000, 20000,  60000,                                  60000, 0 }},
-	{ '2', "..---",    { 20000, 20000,  20000, 20000,  60000, 20000,  60000, 20000,  60000,                                  60000, 0 }},
-	{ '3', "...--",    { 20000, 20000,  20000, 20000,  20000, 20000,  60000, 20000,  60000,                                  60000, 0 }},
-	{ '4', "....-",    { 20000, 20000,  20000, 20000,  20000, 20000,  20000, 20000,  60000,                                  60000, 0 }},
-	{ '5', ".....",    { 20000, 20000,  20000, 20000,  20000, 20000,  20000, 20000,  20000,                                  60000, 0 }},
-	{ '6', "-....",    { 60000, 20000,  20000, 20000,  20000, 20000,  20000, 20000,  20000,                                  60000, 0 }},
-	{ '7', "--...",    { 60000, 20000,  60000, 20000,  20000, 20000,  20000, 20000,  20000,                                  60000, 0 }},
-	{ '8', "---..",    { 60000, 20000,  60000, 20000,  60000, 20000,  20000, 20000,  20000,                                  60000, 0 }},
-	{ '9', "----.",    { 60000, 20000,  60000, 20000,  60000, 20000,  60000, 20000,  20000,                                  60000, 0 }},
+	{ '0', "-----",    { 60000, 20000,  60000, 20000,  60000, 20000,  60000, 20000,  60000,                                  60000,         0 }},
+	{ '1', ".----",    { 20000, 20000,  60000, 20000,  60000, 20000,  60000, 20000,  60000,                                  60000,         0 }},
+	{ '2', "..---",    { 20000, 20000,  20000, 20000,  60000, 20000,  60000, 20000,  60000,                                  60000,         0 }},
+	{ '3', "...--",    { 20000, 20000,  20000, 20000,  20000, 20000,  60000, 20000,  60000,                                  60000,         0 }},
+	{ '4', "....-",    { 20000, 20000,  20000, 20000,  20000, 20000,  20000, 20000,  60000,                                  60000,         0 }},
+	{ '5', ".....",    { 20000, 20000,  20000, 20000,  20000, 20000,  20000, 20000,  20000,                                  60000,         0 }},
+	{ '6', "-....",    { 60000, 20000,  20000, 20000,  20000, 20000,  20000, 20000,  20000,                                  60000,         0 }},
+	{ '7', "--...",    { 60000, 20000,  60000, 20000,  20000, 20000,  20000, 20000,  20000,                                  60000,         0 }},
+	{ '8', "---..",    { 60000, 20000,  60000, 20000,  60000, 20000,  20000, 20000,  20000,                                  60000,         0 }},
+	{ '9', "----.",    { 60000, 20000,  60000, 20000,  60000, 20000,  60000, 20000,  20000,                                  60000,         0 }},
 
 	/* Punctuation */
-	{ '"', ".-..-.",   { 20000, 20000,  60000, 20000,  20000, 20000,  20000, 20000,  60000, 20000,  20000,                   60000, 0 }},
-	{ '\'', ".----.",  { 20000, 20000,  60000, 20000,  60000, 20000,  60000, 20000,  60000, 20000,  20000,                   60000, 0 }},
-	{ '$', "...-..-",  { 20000, 20000,  20000, 20000,  20000, 20000,  60000, 20000,  20000, 20000,  20000, 20000,  60000,    60000, 0 }},
-	{ '(', "-.--.",    { 60000, 20000,  20000, 20000,  60000, 20000,  60000, 20000,  20000,                                  60000, 0 }},
-	{ ')', "-.--.-",   { 60000, 20000,  20000, 20000,  60000, 20000,  60000, 20000,  20000, 20000,  60000,                   60000, 0 }},
-	{ '+', ".-.-." ,   { 20000, 20000,  60000, 20000,  20000, 20000,  60000, 20000,  20000,                                  60000, 0 }},
-	{ ',', "--..--",   { 60000, 20000,  60000, 20000,  20000, 20000,  20000, 20000,  60000, 20000,  60000,                   60000, 0 }},
-	{ '-', "-....-",   { 60000, 20000,  20000, 20000,  20000, 20000,  20000, 20000,  20000, 20000,  60000,                   60000, 0 }},
-	{ '.', ".-.-.-",   { 20000, 20000,  60000, 20000,  20000, 20000,  60000, 20000,  20000, 20000,  60000,                   60000, 0 }},
-	{ '/', "-..-.",    { 60000, 20000,  20000, 20000,  20000, 20000,  60000, 20000,  20000,                                  60000, 0 }},
-	{ ':', "---...",   { 60000, 20000,  60000, 20000,  60000, 20000,  20000, 20000,  20000, 20000,  20000,                   60000, 0 }},
-	{ ';', "-.-.-.",   { 60000, 20000,  20000, 20000,  60000, 20000,  20000, 20000,  60000, 20000,  20000,                   60000, 0 }},
-	{ '=', "-...-",    { 60000, 20000,  20000, 20000,  20000, 20000,  20000, 20000,  60000,                                  60000, 0 }},
-	{ '?', "..--..",   { 20000, 20000,  20000, 20000,  60000, 20000,  60000, 20000,  20000, 20000,  20000,                   60000, 0 }},
-	{ '_', "..--.-",   { 20000, 20000,  20000, 20000,  60000, 20000,  60000, 20000,  20000, 20000,  60000,                   60000, 0 }},
-	{ '@', ".--.-.",   { 20000, 20000,  60000, 20000,  60000, 20000,  20000, 20000,  60000, 20000,  20000,                   60000, 0 }},
+	{ '"', ".-..-.",   { 20000, 20000,  60000, 20000,  20000, 20000,  20000, 20000,  60000, 20000,  20000,                   60000,         0 }},
+	{ '\'', ".----.",  { 20000, 20000,  60000, 20000,  60000, 20000,  60000, 20000,  60000, 20000,  20000,                   60000,         0 }},
+	{ '$', "...-..-",  { 20000, 20000,  20000, 20000,  20000, 20000,  60000, 20000,  20000, 20000,  20000, 20000,  60000,    60000,         0 }},
+	{ '(', "-.--.",    { 60000, 20000,  20000, 20000,  60000, 20000,  60000, 20000,  20000,                                  60000,         0 }},
+	{ ')', "-.--.-",   { 60000, 20000,  20000, 20000,  60000, 20000,  60000, 20000,  20000, 20000,  60000,                   60000,         0 }},
+	{ '+', ".-.-." ,   { 20000, 20000,  60000, 20000,  20000, 20000,  60000, 20000,  20000,                                  60000,         0 }},
+	{ ',', "--..--",   { 60000, 20000,  60000, 20000,  20000, 20000,  20000, 20000,  60000, 20000,  60000,                   60000,         0 }},
+	{ '-', "-....-",   { 60000, 20000,  20000, 20000,  20000, 20000,  20000, 20000,  20000, 20000,  60000,                   60000,         0 }},
+	{ '.', ".-.-.-",   { 20000, 20000,  60000, 20000,  20000, 20000,  60000, 20000,  20000, 20000,  60000,                   60000,         0 }},
+	{ '/', "-..-.",    { 60000, 20000,  20000, 20000,  20000, 20000,  60000, 20000,  20000,                                  60000,         0 }},
+	{ ':', "---...",   { 60000, 20000,  60000, 20000,  60000, 20000,  20000, 20000,  20000, 20000,  20000,                   60000,         0 }},
+	{ ';', "-.-.-.",   { 60000, 20000,  20000, 20000,  60000, 20000,  20000, 20000,  60000, 20000,  20000,                   60000,         0 }},
+	{ '=', "-...-",    { 60000, 20000,  20000, 20000,  20000, 20000,  20000, 20000,  60000,                                  60000,         0 }},
+	{ '?', "..--..",   { 20000, 20000,  20000, 20000,  60000, 20000,  60000, 20000,  20000, 20000,  20000,                   60000,         0 }},
+	{ '_', "..--.-",   { 20000, 20000,  20000, 20000,  60000, 20000,  60000, 20000,  20000, 20000,  60000,                   60000,         0 }},
+	{ '@', ".--.-.",   { 20000, 20000,  60000, 20000,  60000, 20000,  20000, 20000,  60000, 20000,  20000,                   60000,         0 }},
 
 	/* ISO 8859-1 accented characters */
-	{ '\334', "..--",  { 20000, 20000,  20000, 20000,  60000, 20000,  60000,                                                 60000, 0 }},   /* U with diaeresis */
-	{ '\304', ".-.-",  { 20000, 20000,  60000, 20000,  20000, 20000,  60000,                                                 60000, 0 }},   /* A with diaeresis */
-	{ '\307', "-.-..", { 60000, 20000,  20000, 20000,  60000, 20000,  20000, 20000,  20000,                                  60000, 0 }},   /* C with cedilla */
-	{ '\326', "---.",  { 60000, 20000,  60000, 20000,  60000, 20000,  20000,                                                 60000, 0 }},   /* O with diaeresis */
-	{ '\311', "..-..", { 20000, 20000,  20000, 20000,  60000, 20000,  20000, 20000,  20000,                                  60000, 0 }},   /* E with acute */
-	{ '\310', ".-..-", { 20000, 20000,  60000, 20000,  20000, 20000,  20000, 20000,  60000,                                  60000, 0 }},   /* E with grave */
-	{ '\300', ".--.-", { 20000, 20000,  60000, 20000,  60000, 20000,  20000, 20000,  60000,                                  60000, 0 }},   /* A with grave */
-	{ '\321', "--.--", { 60000, 20000,  60000, 20000,  20000, 20000,  60000, 20000,  60000,                                  60000, 0 }},   /* N with tilde */
+	{ '\334', "..--",  { 20000, 20000,  20000, 20000,  60000, 20000,  60000,                                                 60000,         0 }},   /* U with diaeresis */
+	{ '\304', ".-.-",  { 20000, 20000,  60000, 20000,  20000, 20000,  60000,                                                 60000,         0 }},   /* A with diaeresis */
+	{ '\307', "-.-..", { 60000, 20000,  20000, 20000,  60000, 20000,  20000, 20000,  20000,                                  60000,         0 }},   /* C with cedilla */
+	{ '\326', "---.",  { 60000, 20000,  60000, 20000,  60000, 20000,  20000,                                                 60000,         0 }},   /* O with diaeresis */
+	{ '\311', "..-..", { 20000, 20000,  20000, 20000,  60000, 20000,  20000, 20000,  20000,                                  60000,         0 }},   /* E with acute */
+	{ '\310', ".-..-", { 20000, 20000,  60000, 20000,  20000, 20000,  20000, 20000,  60000,                                  60000,         0 }},   /* E with grave */
+	{ '\300', ".--.-", { 20000, 20000,  60000, 20000,  60000, 20000,  20000, 20000,  60000,                                  60000,         0 }},   /* A with grave */
+	{ '\321', "--.--", { 60000, 20000,  60000, 20000,  20000, 20000,  60000, 20000,  60000,                                  60000,         0 }},   /* N with tilde */
 
 	/* ISO 8859-2 accented characters */
-	{ '\252', "----",  { 60000, 20000,  60000, 20000,  60000, 20000,  60000,                                                 60000, 0 }},   /* S with cedilla */
-	{ '\256', "--..-", { 60000, 20000,  60000, 20000,  20000, 20000,  20000, 20000,  60000,                                  60000, 0 }},   /* Z with dot above */
+	{ '\252', "----",  { 60000, 20000,  60000, 20000,  60000, 20000,  60000,                                                 60000,         0 }},   /* S with cedilla */
+	{ '\256', "--..-", { 60000, 20000,  60000, 20000,  20000, 20000,  20000, 20000,  60000,                                  60000,         0 }},   /* Z with dot above */
 
 	/* Non-standard procedural signal extensions to standard CW characters. */
-	{ '<', "...-.-",   { 20000, 20000,  20000, 20000,  20000, 20000,  60000, 20000,  20000, 20000,  60000,                   60000, 0 }},    /* VA/SK, end of work */
-	{ '>', "-...-.-",  { 60000, 20000,  20000, 20000,  20000, 20000,  20000, 20000,  60000, 20000,  20000, 20000,  60000,    60000, 0 }},    /* BK, break */
-	{ '!', "...-." ,   { 20000, 20000,  20000, 20000,  20000, 20000,  60000, 20000,  20000,                                  60000, 0 }},    /* SN, understood */
-	{ '&', ".-..." ,   { 20000, 20000,  60000, 20000,  20000, 20000,  20000, 20000,  20000,                                  60000, 0 }},    /* AS, wait */
-	{ '^', "-.-.-" ,   { 60000, 20000,  20000, 20000,  60000, 20000,  20000, 20000,  60000,                                  60000, 0 }},    /* KA, starting signal */
-	{ '~', ".-.-..",   { 20000, 20000,  60000, 20000,  20000, 20000,  60000, 20000,  20000, 20000,  20000,                   60000, 0 }},    /* AL, paragraph */
+	{ '<', "...-.-",   { 20000, 20000,  20000, 20000,  20000, 20000,  60000, 20000,  20000, 20000,  60000,                   60000,         0 }},    /* VA/SK, end of work */
+	{ '>', "-...-.-",  { 60000, 20000,  20000, 20000,  20000, 20000,  20000, 20000,  60000, 20000,  20000, 20000,  60000,    60000,         0 }},    /* BK, break */
+	{ '!', "...-." ,   { 20000, 20000,  20000, 20000,  20000, 20000,  60000, 20000,  20000,                                  60000,         0 }},    /* SN, understood */
+	{ '&', ".-..." ,   { 20000, 20000,  60000, 20000,  20000, 20000,  20000, 20000,  20000,                                  60000,         0 }},    /* AS, wait */
+	{ '^', "-.-.-" ,   { 60000, 20000,  20000, 20000,  60000, 20000,  20000, 20000,  60000,                                  60000,         0 }},    /* KA, starting signal */
+	{ '~', ".-.-..",   { 20000, 20000,  60000, 20000,  20000, 20000,  60000, 20000,  20000, 20000,  20000,                   60000,         0 }},    /* AL, paragraph */
 
 	/* This line is exclusively for adaptive receiving speed tracking. */
-	{ 'P', ".--.",     { 20000, 20000,  60000, 20000,  60000, 20000,  20000,                                               1200000, -1 }},  /* Includes word end delay (120000 > 5 * 20000), -1 indicator */
+	{ 'P', ".--.",     { 20000, 20000,  60000, 20000,  60000, 20000,  20000,                                               1200000,        -1 }},  /* Includes word end delay (120000 > 5 * 20000), -1 indicator */
 
 
 #if 0 /* Legacy test units, now we have test data for full set of supported characters defined above. */
@@ -1962,7 +1977,7 @@ void test_fixed_receive(cw_test_stats_t *stats)
 	cw_set_tolerance(35);
 	cw_disable_adaptive_receive();
 
-	test_helper_receive_tests(false, TEST_DATA_RAW, stats, true);
+	test_helper_receive_tests(false, TEST_DATA_RAW, stats);
 
 
 	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
@@ -1996,7 +2011,7 @@ int test_fixed_receive_add_jitter(const int usecs, bool is_space)
 
 	int jittered = usecs + r;
 
-	//fprintf(stderr, "%s: %d\n", is_space? "SPACE" : "MARK", jittered);
+	//fprintf(stderr, "%s: %d\n", is_space ? "SPACE" : "MARK", jittered);
 
 	return jittered;
 }
@@ -2044,7 +2059,7 @@ void test_adaptive_receive(cw_test_stats_t *stats)
 	cw_set_tolerance(35);
 	cw_enable_adaptive_receive();
 
-	test_helper_receive_tests(true, TEST_DATA_RAW, stats, false);
+	test_helper_receive_tests(true, TEST_DATA_RAW, stats);
 
 
 	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
@@ -2064,7 +2079,7 @@ void test_adaptive_receive(cw_test_stats_t *stats)
    tests::cw_receive_representation()
    tests::cw_receive_character()
 */
-void test_helper_receive_tests(bool adaptive, const cw_test_receive_data_t *data, cw_test_stats_t *stats, bool fixed_speed)
+void test_helper_receive_tests(bool adaptive, const cw_test_receive_data_t *data, cw_test_stats_t *stats)
 {
 	struct timeval tv;
 	tv.tv_sec = 0;
@@ -2082,7 +2097,7 @@ void test_helper_receive_tests(bool adaptive, const cw_test_receive_data_t *data
 		   good assumption when we have a speed of tens of
 		   WPM. If the speed will be lower, the assumption
 		   will be false. */
-		tv.tv_sec++;
+		tv.tv_sec = 0;
 		tv.tv_usec = 0;
 
 		/* This loop simulates "key down" and "key up" events
@@ -2090,25 +2105,42 @@ void test_helper_receive_tests(bool adaptive, const cw_test_receive_data_t *data
 		   intervals.
 
 		   key down -> call to cw_start_receive_tone()
-		   key up -> call to cw_end_receive_tone()
+		   key up -> call to cw_end_receive_tone().
 
-		   First moment is at 0 seconds 0 microseconds. Time
-		   of every following event is calculated by iterating
-		   over times specified in data table. */
-		int entry;
-		for (entry = 0; data[i].usecs[entry] > 0; entry++) {
-			entry & 1 ? cw_end_receive_tone(&tv) : cw_start_receive_tone(&tv);
-			if (fixed_speed) {
-				tv.tv_usec += test_fixed_receive_add_jitter(data[i].usecs[entry], (bool) (entry & 1));
+		   First "key down" event is at 0 seconds 0
+		   microseconds. Time of every following event is
+		   calculated by iterating over tone lengths specified
+		   in data table. */
+		int tone;
+		for (tone = 0; data[i].usecs[tone] > 0; tone++) {
+
+			/* Here we just assume that
+			   {start|end}_receive_tone() functions just
+			   work. No checking of return values. */
+			if (tone % 2) {
+				cw_end_receive_tone(&tv);
 			} else {
+				cw_start_receive_tone(&tv);
+			}
+
+
+			if (adaptive) {
+				/* Vary speed a bit. */
 				float factor = test_adaptive_receive_factors[i % TEST_ADAPTIVE_RECEIVE_FACTORS_MAX];
-				tv.tv_usec += test_adaptive_receive_scale(data[i].usecs[entry], factor);
+				tv.tv_usec += test_adaptive_receive_scale(data[i].usecs[tone], factor);
+			} else {
+				/* Add "noise" to timestamp. */
+				tv.tv_usec += test_fixed_receive_add_jitter(data[i].usecs[tone], (bool) (tone % 2));
 			}
 
 			if (tv.tv_usec > CW_USECS_PER_SEC) {
+				/* Moving event to next second. */
 				tv.tv_usec %= CW_USECS_PER_SEC;
 				tv.tv_sec++;
 			}
+			/* If we exit the loop at this point, the last
+			   'tv' will be used below in
+			   cw_receive_representation(). */
 		}
 
 
@@ -2135,7 +2167,7 @@ void test_helper_receive_tests(bool adaptive, const cw_test_receive_data_t *data
 
 
 		/* Test: getting representation from receiver's buffer. */
-		char representation[CW_REC_REPRESENTATION_CAPACITY];
+		char representation[CW_REC_REPRESENTATION_CAPACITY + 1];
 		{
 			/* Get representation (dots and dashes)
 			   accumulated by receiver. Check for
@@ -2148,9 +2180,11 @@ void test_helper_receive_tests(bool adaptive, const cw_test_receive_data_t *data
 			   in the input data represents end of final space - a
 			   space ending a character.
 
-			   With this final passing of "end of space" timestamp
-			   to libcw we make a statement, informing libcw about
-			   ??? (TODO: about what?).
+			   With this final passing of "end of space"
+			   timestamp to libcw the test code informs
+			   receiver, that end-of-character space has
+			   occurred, i.e. a full character has been
+			   passed to receiver.
 
 			   The space length in input data is (3 x dot +
 			   jitter). In libcw maximum recognizable length of
@@ -2179,10 +2213,10 @@ void test_helper_receive_tests(bool adaptive, const cw_test_receive_data_t *data
 			}
 
 			if (adaptive
-			    || data[i].usecs[entry] == -1) { /* The test data row that is exclusively for adaptive speed tracking. */
+			    || data[i].usecs[tone] == -1) { /* The test data row that is exclusively for adaptive speed tracking. */
 
-				if ((data[i].usecs[entry] == 0 && is_word)
-				    || (data[i].usecs[entry] < 0 && !is_word)) {
+				if ((data[i].usecs[tone] == 0 && is_word)
+				    || (data[i].usecs[tone] < 0 && !is_word)) {
 
 					stats->failures++;
 					int n = printf("libcw: cw_receive_representation(): not a %s: ", is_word ? "char" : "word");
