@@ -2163,8 +2163,7 @@ unsigned int test_cw_rec_identify_mark_internal(void)
 
 	int speed_step = (CW_SPEED_MAX - CW_SPEED_MIN) / 10;
 
-	for (int i = CW_SPEED_MIN; i < CW_SPEED_MAX; i += speed_step)
-	{
+	for (int i = CW_SPEED_MIN; i < CW_SPEED_MAX; i += speed_step) {
 		cw_set_receive_speed(i);
 
 		char representation;
@@ -2214,6 +2213,105 @@ unsigned int test_cw_rec_identify_mark_internal(void)
 	cw_generator_delete();
 
 	CW_TEST_PRINT_TEST_RESULT(false, p);
+
+	return 0;
+}
+
+
+
+
+
+struct cw_rec_test_data {
+	char c;
+	char *representation;
+	char *data;
+};
+
+
+
+
+
+unsigned int test_cw_rec_build_data(void)
+{
+	int n = cw_get_character_count();
+	char *all_characters = (char *) malloc((n + 1) * sizeof (char));
+	cw_assert (all_characters, "malloc() failed");
+
+	cw_list_characters(all_characters);
+
+	/* I'm using the highest speed allowed because later it will
+	   be easier to recalculate time values from highest speed to
+	   lower speeds than it would be recalculate them from lower
+	   speed into higher speeds. */
+	int speed = CW_SPEED_MAX; /* [wpm] */
+	int unit_len = CW_DOT_CALIBRATION / speed; /* Dot length, [us]. Used as basis for other elements. */
+	fprintf(stderr, "unit_len = %d [us] for speed = %d [wpm]\n", unit_len, speed);
+
+	for (int i = 0; i < n; i++) {
+
+		char c = all_characters[i];
+		char *r = cw_character_to_representation(c);
+		cw_assert (r, "cw_character_to_representation() failed for char #%d: %c\n", i, c);
+
+
+
+		/* Build table of times for given representation. */
+
+#define TEST_CW_DATA_LEN_MAX 30 /* There is no character that would have data that long. */
+		int data[TEST_CW_DATA_LEN_MAX];
+		size_t d = 0;
+
+		size_t rep_length = strlen(r);
+		for (size_t j = 0; j < rep_length; j++) {
+
+			/* Length of mark. */
+			if (r[j] == CW_DOT_REPRESENTATION) {
+				data[d] = unit_len;
+
+			} else if (r[j] == CW_DASH_REPRESENTATION) {
+				data[d] = unit_len * 3;
+
+			} else {
+				cw_assert (0, "unknown char in representation: '%c'\n", r[j]);
+			}
+			d++;
+
+
+			/* Length of space (inter-mark space). Mark
+			   and space always go in pair. */
+			data[d] = unit_len;
+			d++;
+		}
+
+		data[d - 1] = (unit_len * 5) + unit_len;  /* Extended end-of-word space in place of regular space. */
+
+
+		/* Mark and space always go in pair. */
+		cw_assert (! (d % 2), "number of times is not even");
+		/* Mark/space pair per each dot or dash. */
+		cw_assert (d == 2 * rep_length, "number of times incorrect: %zd != 2 * %zd\n", d, rep_length);
+
+
+
+		/* Debug output. */
+		if (!(i % 10)) {
+			/* Print header. */
+			fprintf(stderr, "char  repr         mark     space      mark     space      mark     space      mark     space      mark     space      mark     space      mark     space\n");
+		}
+		fprintf(stderr, "%c     %-7s ", c, r);
+		for (size_t k = 0; k < d; k++) {
+			fprintf(stderr, "%9d ", data[k]);
+		}
+		fprintf(stderr, "\n");
+
+
+
+		free(r);
+		r = (char *) NULL;
+	}
+
+	free(all_characters);
+	all_characters = NULL;
 
 	return 0;
 }
