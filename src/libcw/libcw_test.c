@@ -56,13 +56,13 @@ int cw_test_args(int argc, char *const argv[],
 		 char *sound_systems, size_t systems_max,
 		 char *modules, size_t modules_max)
 {
-	strncpy(modules, "rgtko", modules_max);
+	strncpy(sound_systems, "ncoap", systems_max);
+	sound_systems[systems_max] = '\0';
+
+	strncpy(modules, "rgtkod", modules_max);
 	modules[modules_max] = '\0';
 
 	if (argc == 1) {
-		strncpy(sound_systems, "ncoap", systems_max);
-		sound_systems[systems_max] = '\0';
-
 		fprintf(stderr, "sound systems = \"%s\"\n", sound_systems);
 		fprintf(stderr, "modules = \"%s\"\n", modules);
 		return CW_SUCCESS;
@@ -108,6 +108,7 @@ int cw_test_args(int argc, char *const argv[],
 					    && optarg[i] != 't'    /* Tone queue. */
 					    && optarg[i] != 'g'    /* Generator. */
 					    && optarg[i] != 'k'    /* Morse key. */
+					    && optarg[i] != 'd'    /* Data. */
 					    && optarg[i] != 'o') { /* Other. */
 
 						return CW_FAILURE;
@@ -137,7 +138,7 @@ int cw_test_args(int argc, char *const argv[],
 
 void cw_test_print_help(const char *progname)
 {
-	fprintf(stderr, "Usage: %s [-s <sound systems>]\n\n", progname);
+	fprintf(stderr, "Usage: %s [-s <sound systems>] [-m <module>]\n\n", progname);
 	fprintf(stderr, "       <sound system> is one or more of those:\n");
 	fprintf(stderr, "       n - null\n");
 	fprintf(stderr, "       c - console\n");
@@ -145,7 +146,15 @@ void cw_test_print_help(const char *progname)
 	fprintf(stderr, "       a - ALSA\n");
 	fprintf(stderr, "       p - PulseAudio\n");
 	fprintf(stderr, "\n");
-	fprintf(stderr, "       If no argument is provided, the program will attempt to test all audio systems\n");
+	fprintf(stderr, "       <module> is one or more of those:\n");
+	fprintf(stderr, "       r - receiver\n");
+	fprintf(stderr, "       g - generator\n");
+	fprintf(stderr, "       t - tone queue\n");
+	fprintf(stderr, "       k - Morse key\n");
+	fprintf(stderr, "       d - Data\n");
+	fprintf(stderr, "       o - other\n");
+	fprintf(stderr, "\n");
+	fprintf(stderr, "       If no argument is provided, the program will attempt to test all audio systems and all modules\n");
 
 	return;
 }
