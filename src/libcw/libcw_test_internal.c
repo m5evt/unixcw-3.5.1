@@ -91,7 +91,7 @@ static cw_test_function_t cw_unit_tests[] = {
 	test_cw_usecs_to_timespec_internal,
 
 	test_cw_rec_identify_mark_internal,
-	test_cw_rec_build_data,
+	test_cw_rec_fixed_receive,
 
 	NULL
 };
