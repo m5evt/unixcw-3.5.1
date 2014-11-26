@@ -2142,6 +2142,25 @@ void cw_rec_sync_parameters_internal(cw_rec_t *rec)
 
 
 
+#define TEST_CW_REC_DATA_LEN_MAX 30 /* There is no character that would have data that long. */
+struct cw_rec_test_data {
+	char c;                           /* Character. */
+	char *r;                          /* Character's representation (dots and dashes). */
+	int d[TEST_CW_REC_DATA_LEN_MAX];  /* Data - time information for marks and spaces. */
+	int nd;                           /* Length of data. */
+};
+
+
+
+
+
+static struct cw_rec_test_data *test_cw_rec_data_new(void);
+static void                     test_cw_rec_data_delete(struct cw_rec_test_data **data);
+static void                     test_cw_rec_print_data(struct cw_rec_test_data *data);
+
+
+
+
 /**
    tests::cw_rec_identify_mark_internal()
 
@@ -2221,17 +2240,43 @@ unsigned int test_cw_rec_identify_mark_internal(void)
 
 
 
-struct cw_rec_test_data {
-	char c;
-	char *representation;
-	char *data;
-};
+unsigned int test_cw_rec_fixed_receive(void)
+{
+	struct cw_rec_test_data *data = test_cw_rec_data_new();
+	cw_assert (data, "failed to get test data");
+
+	test_cw_rec_print_data(data);
+
+	/* Actual tests of receiver functions to be put here. */
+
+	test_cw_rec_data_delete(&data);
+
+	return 0;
+}
 
 
 
 
 
-unsigned int test_cw_rec_build_data(void)
+/**
+   \brief Create timing data used for testing a receiver
+
+   The function allocates a table with timing data (and some other
+   data as well) that can be used to test receiver's functions that
+   accept timestamp argument.
+
+   The data is valid and represents valid Morse representations. If
+   you want to feed invalid data or valid data of invalid
+   representations, you have to use some other function.
+
+   Last element in the created table (a guard) has 'r' field set to
+   NULL.
+
+   Use test_cw_rec_data_delete() to deallocate the timing data table.
+
+   \return table of timing data sets
+*/
+struct cw_rec_test_data *test_cw_rec_data_new(void)
 {
 	int n = cw_get_character_count();
 	char *all_characters = (char *) malloc((n + 1) * sizeof (char));
@@ -2247,73 +2292,125 @@ unsigned int test_cw_rec_build_data(void)
 	int unit_len = CW_DOT_CALIBRATION / speed; /* Dot length, [us]. Used as basis for other elements. */
 	fprintf(stderr, "unit_len = %d [us] for speed = %d [wpm]\n", unit_len, speed);
 
+
+	/* +1 for guard. */
+	struct cw_rec_test_data *test_data = (struct cw_rec_test_data *) malloc((n + 1) * sizeof(struct cw_rec_test_data));
+	cw_assert (test_data, "malloc() failed");
+
 	for (int i = 0; i < n; i++) {
 
-		char c = all_characters[i];
-		char *r = cw_character_to_representation(c);
-		cw_assert (r, "cw_character_to_representation() failed for char #%d: %c\n", i, c);
+		test_data[i].c = all_characters[i];
+		test_data[i].r = cw_character_to_representation(test_data[i].c);
+		cw_assert (test_data[i].r,
+			   "cw_character_to_representation() failed for char #%d: %c\n",
+			   i, test_data[i].c);
 
 
 
 		/* Build table of times for given representation. */
 
-#define TEST_CW_DATA_LEN_MAX 30 /* There is no character that would have data that long. */
-		int data[TEST_CW_DATA_LEN_MAX];
-		size_t d = 0;
 
-		size_t rep_length = strlen(r);
+		size_t nd = 0;
+
+		size_t rep_length = strlen(test_data[i].r);
 		for (size_t j = 0; j < rep_length; j++) {
 
 			/* Length of mark. */
-			if (r[j] == CW_DOT_REPRESENTATION) {
-				data[d] = unit_len;
+			if (test_data[i].r[j] == CW_DOT_REPRESENTATION) {
+				test_data[i].d[nd] = unit_len;
 
-			} else if (r[j] == CW_DASH_REPRESENTATION) {
-				data[d] = unit_len * 3;
+			} else if (test_data[i].r[j] == CW_DASH_REPRESENTATION) {
+				test_data[i].d[nd] = unit_len * 3;
 
 			} else {
-				cw_assert (0, "unknown char in representation: '%c'\n", r[j]);
+				cw_assert (0, "unknown char in representation: '%c'\n", test_data[i].r[j]);
 			}
-			d++;
+			nd++;
 
 
 			/* Length of space (inter-mark space). Mark
 			   and space always go in pair. */
-			data[d] = unit_len;
-			d++;
+			test_data[i].d[nd] = unit_len;
+			nd++;
 		}
 
-		data[d - 1] = (unit_len * 5) + unit_len;  /* Extended end-of-word space in place of regular space. */
+		test_data[i].d[nd - 1] = (unit_len * 5) + unit_len;  /* Extended end-of-word space in place of regular space. */
 
 
 		/* Mark and space always go in pair. */
-		cw_assert (! (d % 2), "number of times is not even");
+		cw_assert (! (nd % 2), "number of times is not even");
 		/* Mark/space pair per each dot or dash. */
-		cw_assert (d == 2 * rep_length, "number of times incorrect: %zd != 2 * %zd\n", d, rep_length);
+		cw_assert (nd == 2 * rep_length, "number of times incorrect: %zd != 2 * %zd\n", nd, rep_length);
+
+
+		test_data[i].nd = nd;
+	}
+
+
+	/* Guard. */
+	test_data[n].r = (char *) NULL;
+
+
+	free(all_characters);
+	all_characters = NULL;
+
+	return test_data;
+}
 
 
 
+
+
+/**
+   \brief Deallocate timing data used for testing a receiver
+
+   \param data - pointer to data to be deallocated
+*/
+void test_cw_rec_data_delete(struct cw_rec_test_data **data)
+{
+	int i = 0;
+	while ((*data)[i].r) {
+		free((*data)[i].r);
+		(*data)[i].r = (char *) NULL;
+
+		i++;
+	}
+
+	free(*data);
+	*data = NULL;
+
+	return;
+}
+
+
+
+
+
+/**
+   \brief Pretty-print timing data used for testing a receiver
+
+   \param data timing data to be printed
+*/
+void test_cw_rec_print_data(struct cw_rec_test_data *data)
+{
+	int i = 0;
+
+	while (data[i].r) {
 		/* Debug output. */
 		if (!(i % 10)) {
 			/* Print header. */
 			fprintf(stderr, "char  repr         mark     space      mark     space      mark     space      mark     space      mark     space      mark     space      mark     space\n");
 		}
-		fprintf(stderr, "%c     %-7s ", c, r);
-		for (size_t k = 0; k < d; k++) {
-			fprintf(stderr, "%9d ", data[k]);
+		fprintf(stderr, "%c     %-7s ", data[i].c, data[i].r);
+		for (int j = 0; j < data[i].nd; j++) {
+			fprintf(stderr, "%9d ", data[i].d[j]);
 		}
 		fprintf(stderr, "\n");
 
-
-
-		free(r);
-		r = (char *) NULL;
+		i++;
 	}
 
-	free(all_characters);
-	all_characters = NULL;
-
-	return 0;
+	return;
 }
 
 
