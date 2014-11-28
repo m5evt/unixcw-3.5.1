@@ -2146,6 +2146,7 @@ void cw_rec_sync_parameters_internal(cw_rec_t *rec)
 struct cw_rec_test_data {
 	char c;                           /* Character. */
 	char *r;                          /* Character's representation (dots and dashes). */
+	float s;                          /* Send speed (speed at which the character is incoming). */
 	int d[TEST_CW_REC_DATA_LEN_MAX];  /* Data - time information for marks and spaces. */
 	int nd;                           /* Length of data. */
 };
@@ -2154,9 +2155,12 @@ struct cw_rec_test_data {
 
 
 
-static struct cw_rec_test_data *test_cw_rec_data_new(void);
+static struct cw_rec_test_data *test_cw_rec_data_new(const char *characters, float speeds[], int fuzz_percent);
+static struct cw_rec_test_data *test_cw_rec_data_new_fixed_valid_1(int speed, int fuzz_percent);
 static void                     test_cw_rec_data_delete(struct cw_rec_test_data **data);
 static void                     test_cw_rec_print_data(struct cw_rec_test_data *data);
+static void                     test_cw_rec_test_begin_end(cw_rec_t *rec, struct cw_rec_test_data *data);
+
 
 
 
@@ -2240,16 +2244,29 @@ unsigned int test_cw_rec_identify_mark_internal(void)
 
 
 
-unsigned int test_cw_rec_fixed_receive(void)
+/* Test 1 uses timing data that represents all characters supported by
+   libcw. */
+unsigned int test_cw_rec_fixed_receive_1(void)
 {
-	struct cw_rec_test_data *data = test_cw_rec_data_new();
-	cw_assert (data, "failed to get test data");
+	for (int speed = CW_SPEED_MIN; speed <= CW_SPEED_MAX; speed++) {
+		struct cw_rec_test_data *data = test_cw_rec_data_new_fixed_valid_1(speed, 0);
+		test_cw_rec_print_data(data);
 
-	test_cw_rec_print_data(data);
+		/* Reset. */
+		cw_reset_receive();
+		cw_clear_receive_buffer();
 
-	/* Actual tests of receiver functions to be put here. */
+		cw_set_receive_speed(speed);
+		cw_disable_adaptive_receive();
 
-	test_cw_rec_data_delete(&data);
+		cw_assert (cw_get_receive_speed() == speed, "incorrect receive speed: %d != %d", cw_get_receive_speed(), speed);
+
+		/* Actual tests of receiver functions are here. */
+		test_cw_rec_test_begin_end(&cw_receiver, data);
+
+
+		test_cw_rec_data_delete(&data);
+	}
 
 	return 0;
 }
@@ -2259,56 +2276,126 @@ unsigned int test_cw_rec_fixed_receive(void)
 
 
 /**
+   \brief The core test function, testing receiver's "begin" and "end" functions
+
+   As mentioned in file's top-level comment, there are two main
+   methods to add data to receiver. This function tests first method:
+   using cw_start_receive_tone() and cw_end_receive_tone() functions
+   (or cw_rec_mark_begin_internal() and cw_rec_mark_end_internal()
+   functions that are used to implement them).
+
+   Other helper functions are used/tested here as well, because adding
+   marks and spaces to receiver is just half of the job necessary to
+   receive Morse code. You have to interpret the marks and spaces,
+   too.
+
+   \param rec - receiver variable used during tests
+   \param data - table with timings, used to test the receiver
+*/
+void test_cw_rec_test_begin_end(cw_rec_t *rec, struct cw_rec_test_data *data)
+{
+
+
+
+	return;
+}
+
+
+
+
+
+/* Test 1 uses timing data that represents all characters supported by
+   libcw. */
+struct cw_rec_test_data *test_cw_rec_data_new_fixed_valid_1(int speed, int fuzz_percent)
+{
+	/* All characters supported by libcw. */
+	int n = cw_get_character_count();
+	char *all_characters = (char *) malloc((n + 1) * sizeof (char));
+	cw_assert (all_characters, "malloc() failed");
+	cw_list_characters(all_characters);
+
+
+	/* Fixed speed receive mode - speed is constant for all
+	   characters. */
+	float *speeds = (float *) malloc((n + 1) * sizeof (float));
+	cw_assert (speeds, "malloc() failed");
+	for (int i = 0; i < n; i++) {
+		speeds[i] = (float) speed;
+	}
+
+
+	/* Generate timing data for given set of characters, each
+	   character is sent with speed dictated by speeds[]. */
+	struct cw_rec_test_data *data = test_cw_rec_data_new(all_characters, speeds, fuzz_percent);
+	cw_assert (data, "failed to get test data");
+
+
+	free(all_characters);
+	all_characters = NULL;
+
+	return data;
+}
+
+
+
+
+
+/**
    \brief Create timing data used for testing a receiver
+
+   This is a generic function that can generate different sets of data
+   depending on input parameters. It is to be used by wrapper
+   functions that first specify parameters of test data, and then pass
+   the parameters to this function.
 
    The function allocates a table with timing data (and some other
    data as well) that can be used to test receiver's functions that
    accept timestamp argument.
 
-   The data is valid and represents valid Morse representations. If
-   you want to feed invalid data or valid data of invalid
-   representations, you have to use some other function.
+   All characters in \p characters must be valid (i.e. they must be
+   accepted by cw_character_is_valid()).
+
+   All values in \p speeds must be valid (i.e. must be between
+   CW_SPEED_MIN and CW_SPEED_MAX, inclusive).
+
+   Size of \p characters and \p speeds must be equal.
+
+   The data is valid and represents valid Morse representations.  If
+   you want to generate invalid data or to generate data based on
+   invalid representations, you have to use some other function.
 
    Last element in the created table (a guard) has 'r' field set to
    NULL.
 
    Use test_cw_rec_data_delete() to deallocate the timing data table.
 
+   \brief characters - list of characters for which to generate table with timing data
+   \brief speeds - list of speeds (per-character)
+
    \return table of timing data sets
 */
-struct cw_rec_test_data *test_cw_rec_data_new(void)
+struct cw_rec_test_data *test_cw_rec_data_new(const char *characters, float speeds[], int fuzz_percent)
 {
-	int n = cw_get_character_count();
-	char *all_characters = (char *) malloc((n + 1) * sizeof (char));
-	cw_assert (all_characters, "malloc() failed");
-
-	cw_list_characters(all_characters);
-
-	/* I'm using the highest speed allowed because later it will
-	   be easier to recalculate time values from highest speed to
-	   lower speeds than it would be recalculate them from lower
-	   speed into higher speeds. */
-	int speed = CW_SPEED_MAX; /* [wpm] */
-	int unit_len = CW_DOT_CALIBRATION / speed; /* Dot length, [us]. Used as basis for other elements. */
-	fprintf(stderr, "unit_len = %d [us] for speed = %d [wpm]\n", unit_len, speed);
-
-
+	size_t n = strlen(characters);
 	/* +1 for guard. */
 	struct cw_rec_test_data *test_data = (struct cw_rec_test_data *) malloc((n + 1) * sizeof(struct cw_rec_test_data));
 	cw_assert (test_data, "malloc() failed");
 
-	for (int i = 0; i < n; i++) {
+	for (size_t i = 0; i < n; i++) {
 
-		test_data[i].c = all_characters[i];
+		test_data[i].c = characters[i];
 		test_data[i].r = cw_character_to_representation(test_data[i].c);
 		cw_assert (test_data[i].r,
-			   "cw_character_to_representation() failed for char #%d: %c\n",
+			   "cw_character_to_representation() failed for char #%zd: %c\n",
 			   i, test_data[i].c);
-
+		test_data[i].s = speeds[i];
 
 
 		/* Build table of times for given representation. */
 
+
+		int unit_len = CW_DOT_CALIBRATION / speeds[i]; /* Dot length, [us]. Used as basis for other elements. */
+		// fprintf(stderr, "unit_len = %d [us] for speed = %d [wpm]\n", unit_len, speed);
 
 		size_t nd = 0;
 
@@ -2351,9 +2438,6 @@ struct cw_rec_test_data *test_cw_rec_data_new(void)
 	test_data[n].r = (char *) NULL;
 
 
-	free(all_characters);
-	all_characters = NULL;
-
 	return test_data;
 }
 
@@ -2395,13 +2479,14 @@ void test_cw_rec_print_data(struct cw_rec_test_data *data)
 {
 	int i = 0;
 
+	fprintf(stderr, "---------------------------------------------------------------------------------------------------------------------------------------------------------\n");
 	while (data[i].r) {
 		/* Debug output. */
 		if (!(i % 10)) {
 			/* Print header. */
-			fprintf(stderr, "char  repr         mark     space      mark     space      mark     space      mark     space      mark     space      mark     space      mark     space\n");
+			fprintf(stderr, "char  repr      [wpm]    mark     space      mark     space      mark     space      mark     space      mark     space      mark     space      mark     space\n");
 		}
-		fprintf(stderr, "%c     %-7s ", data[i].c, data[i].r);
+		fprintf(stderr, "%c     %-7s  %02.2f", data[i].c, data[i].r, data[i].s);
 		for (int j = 0; j < data[i].nd; j++) {
 			fprintf(stderr, "%9d ", data[i].d[j]);
 		}
