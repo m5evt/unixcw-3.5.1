@@ -1,3 +1,9 @@
+2014-11-28 Kamil Ignacak
+	* tests: improving unit tests for receiver module. Working on
+	functions that will automatically generate test data (input data
+	for cw_start_receive_tone() and cw_end_receive_tone() functions)
+	with different parameters
+
 2014-11-24 Kamil Ignacak
 	* tests: Test executables for libcw now accept -m option, which
 	allows me to specify libcw module(s) to be tested. Option's values
