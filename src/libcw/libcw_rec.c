@@ -388,6 +388,15 @@ static int  cw_rec_poll_character_internal(cw_rec_t *rec, const struct timeval *
 
 
 
+
+
+static int  cw_rec_get_buffer_length_internal(cw_rec_t *rec);
+static void cw_rec_clear_buffer_internal(cw_rec_t *rec);
+static int  cw_rec_get_speed_internal(cw_rec_t *rec);
+
+
+
+
 /**
    \brief Set receiving speed of receiver
 
@@ -441,7 +450,17 @@ int cw_set_receive_speed(int new_value)
 */
 int cw_get_receive_speed(void)
 {
-	return cw_receiver.speed;
+	int rv = cw_rec_get_speed_internal(&cw_receiver);
+	return rv;
+}
+
+
+
+
+
+int cw_rec_get_speed_internal(cw_rec_t *rec)
+{
+	return rec->speed;
 }
 
 
@@ -1140,6 +1159,12 @@ int cw_rec_mark_end_internal(cw_rec_t *rec, const struct timeval *timestamp)
 	int mark_len = cw_timestamp_compare_internal(&(rec->mark_start),
 						     &(rec->mark_end));
 
+#if 0
+	fprintf(stderr, "------- %d.%d - %d.%d = %d (%d)\n",
+		rec->mark_end.tv_sec, rec->mark_end.tv_usec,
+		rec->mark_start.tv_sec, rec->mark_start.tv_usec,
+		mark_len, cw_timestamp_compare_internal(&(rec->mark_start), &(rec->mark_end)));
+#endif
 
 	if (rec->noise_spike_threshold > 0
 	    && mark_len <= rec->noise_spike_threshold) {
@@ -1926,8 +1951,19 @@ int cw_rec_poll_character_internal(cw_rec_t *rec,
 */
 void cw_clear_receive_buffer(void)
 {
-	cw_receiver.representation_ind = 0;
-	CW_REC_SET_STATE ((&cw_receiver), RS_IDLE, (&cw_debug_object));
+	cw_rec_clear_buffer_internal(&cw_receiver);
+
+	return;
+}
+
+
+
+
+
+void cw_rec_clear_buffer_internal(cw_rec_t *rec)
+{
+	rec->representation_ind = 0;
+	CW_REC_SET_STATE (rec, RS_IDLE, (&cw_debug_object));
 
 	return;
 }
@@ -1963,7 +1999,17 @@ int cw_get_receive_buffer_capacity(void)
 */
 int cw_get_receive_buffer_length(void)
 {
-	return cw_receiver.representation_ind;
+	int rv = cw_rec_get_buffer_length_internal(&cw_receiver);
+	return rv;
+}
+
+
+
+
+
+int cw_rec_get_buffer_length_internal(cw_rec_t *rec)
+{
+	return rec->representation_ind;
 }
 
 
@@ -2294,7 +2340,226 @@ unsigned int test_cw_rec_fixed_receive_1(void)
 */
 void test_cw_rec_test_begin_end(cw_rec_t *rec, struct cw_rec_test_data *data)
 {
+	struct timeval tv;
+	tv.tv_sec = 0;
+	tv.tv_usec = 0;
 
+	for (int i = 0; data[i].r; i++) {
+
+		printf("\nlibcw: testing character #%d / %c / %s / %d times\n", i, data[i].c, data[i].r, data[i].nd);
+
+		/* Start sending every character at the beginning of a
+		   new second.
+
+		   TODO: here we make an assumption that every
+		   character is sent in less than a second. Which is a
+		   good assumption when we have a speed of tens of
+		   WPM. If the speed will be lower, the assumption
+		   will be false. */
+		//tv.tv_sec = 0;
+		//tv.tv_usec = 0;
+
+		/* This loop simulates "key down" and "key up" events
+		   in specific moments, and in specific time
+		   intervals.
+
+		   key down -> call to cw_start_receive_tone()
+		   key up -> call to cw_end_receive_tone().
+
+		   First "key down" event is at 0 seconds 0
+		   microseconds. Time of every following event is
+		   calculated by iterating over tone lengths specified
+		   in data table. */
+		int tone;
+		for (tone = 0; data[i].d[tone] > 0; tone++) {
+
+			fprintf(stderr, "+++++++++++++++\n");
+
+			/* Here we just assume that
+			   cw_rec_mark_bein{start|end}_receive_tone() functions just
+			   work. No checking of return values. */
+			if (tone % 2) {
+				bool failure = !cw_rec_mark_end_internal(rec, &tv);
+				int n = printf("libcw: cw_rec_mark_end_internal(): %d.%d", tv.tv_sec, tv.tv_usec);
+				CW_TEST_PRINT_TEST_RESULT (failure, n);
+				cw_assert (!failure, "");
+			} else {
+				bool failure = !cw_rec_mark_begin_internal(rec, &tv);
+				int n = printf("libcw: cw_rec_mark_begin_internal(): %d.%d", tv.tv_sec, tv.tv_usec);
+				CW_TEST_PRINT_TEST_RESULT (failure, n);
+				cw_assert (!failure, "");
+			}
+
+			tv.tv_usec += data[i].d[tone];
+			if (tv.tv_usec >= CW_USECS_PER_SEC) {
+				/* Moving event to next second. */
+				tv.tv_usec %= CW_USECS_PER_SEC;
+				tv.tv_sec++;
+			}
+			/* If we exit the loop at this point, the last
+			   'tv' with length of end-of-character space
+			   will be used below in
+			   cw_receive_representation(). */
+		}
+
+		fprintf(stderr, "==============\n");
+
+
+
+
+
+		/* Test: length of receiver's buffer (only marks!)
+		   after adding a representation of a single character
+		   to receiver's buffer. */
+		{
+			/* Check number of dots and dashes accumulated in receiver. */
+			bool failure = (cw_rec_get_buffer_length_internal(rec) != (int) strlen(data[i].r));
+
+			int n = printf("libcw: cw_get_receive_buffer_length() <nonempty>:  %d %s %zd",
+				       cw_get_receive_buffer_length(),
+				       failure ? "!=" : "==",
+				       strlen(data[i].r));
+			CW_TEST_PRINT_TEST_RESULT (failure, n);
+			if (failure) break;
+		}
+
+
+
+
+		/* Test: getting representation from receiver's buffer. */
+		char representation[CW_REC_REPRESENTATION_CAPACITY + 1];
+		{
+			/* Get representation (dots and dashes)
+			   accumulated by receiver. Check for
+			   errors. */
+
+			bool is_word, is_error;
+
+			/* Notice that we call the function with last
+			   timestamp (tv) from input data. The last
+			   timestamp in the input data represents end
+			   of final space (end-of-character space).
+
+			   With this final passing of "end of space"
+			   timestamp to libcw the test code informs
+			   receiver, that end-of-character space has
+			   occurred, i.e. a full character has been
+			   passed to receiver.
+
+			   The space length in input data is (3 x dot
+			   + jitter). In libcw maximum recognizable
+			   length of "end of character" space is 5 x
+			   dot. */
+			int rv = cw_rec_poll_representation_internal(rec, &tv, representation, &is_word, &is_error);
+			if (!rv) {
+				int n = printf("libcw: cw_rec_poll_representation_internal() (1):");
+				CW_TEST_PRINT_TEST_RESULT (true, n);
+				break;
+			}
+
+			if (strcmp(representation, data[i].r) != 0) {
+				fprintf(stderr, "\"%s\"   !=   \"%s\"\n",
+					representation, data[i].r);
+				int n = printf("libcw: cw_rec_poll_representation_internal() (2):");
+				CW_TEST_PRINT_TEST_RESULT (true, n);
+				break;
+			}
+
+			if (is_error) {
+				int n = printf("libcw: cw_rec_poll_representation_internal() (3):");
+				CW_TEST_PRINT_TEST_RESULT (true, n);
+				break;
+			}
+
+#if 0
+			if (adaptive
+			    || data[i].d[tone] == -1) { /* The test data row that is exclusively for adaptive speed tracking. */
+
+				if ((data[i].d[tone] == 0 && is_word)
+				    || (data[i].d[tone] < 0 && !is_word)) {
+
+					int n = printf("libcw: cw_rec_poll_representation_internal(): not a %s: ", is_word ? "char" : "word");
+					CW_TEST_PRINT_TEST_RESULT (true, n);
+					break;
+				}
+			} else {
+				if (is_word) {
+					int n = printf("libcw: cw_rec_poll_representation_internal() (4):");
+					CW_TEST_PRINT_TEST_RESULT (true, n);
+					break;
+				}
+			}
+#endif
+
+			int n = printf("libcw: cw_rec_poll_representation_internal():");
+			CW_TEST_PRINT_TEST_RESULT (false, n);
+		}
+
+
+
+
+
+		char c;
+		/* Test: getting character from receiver's buffer. */
+		{
+			bool is_word, is_error;
+
+			/* The representation is still held in
+			   receiver. Ask receiver for converting the
+			   representation to character. */
+			int success = cw_rec_poll_character_internal(rec, &tv, &c, &is_word, &is_error);
+			if (!success) {
+				int n = printf("libcw: cw_rec_poll_character_internal() (1):");
+				CW_TEST_PRINT_TEST_RESULT (true, n);
+				break;
+			}
+
+			success = c == data[i].c;
+			if (!success) {
+				int n = printf("libcw: cw_rec_poll_character_internal() (2):");
+				CW_TEST_PRINT_TEST_RESULT (true, n);
+				break;
+			}
+
+			int n = printf("libcw: cw_rec_poll_character_internal():");
+			CW_TEST_PRINT_TEST_RESULT (false, n);
+		}
+
+
+
+
+
+
+
+		/* Test: getting length of receiver's representation
+		   buffer after cleaning the buffer. */
+		{
+			/* We have a copy of received representation,
+			   we have a copy of character. The receiver
+			   no longer needs to store the
+			   representation. If I understand this
+			   correctly, the call to clear() is necessary
+			   to prepare the receiver for receiving next
+			   character. */
+			cw_rec_clear_buffer_internal(rec);
+			bool failure = cw_rec_get_buffer_length_internal(rec) != 0;
+
+			int n = printf("libcw: cw_get_receive_buffer_length() <empty>:");
+			CW_TEST_PRINT_TEST_RESULT (failure, n);
+			if (failure) break;
+		}
+
+
+		printf("libcw: cw_receive_representation(): <%s>\n", representation);
+		printf("libcw: cw_receive_character(): <%c>\n", c);
+
+#if 0
+		if (adaptive) {
+			printf("libcw: adaptive speed tracking reports %d wpm\n",
+			       cw_rec_get_speed_internal(rec));
+		}
+#endif
+	}
 
 
 	return;
@@ -2364,8 +2629,15 @@ struct cw_rec_test_data *test_cw_rec_data_new_fixed_valid_1(int speed, int fuzz_
    you want to generate invalid data or to generate data based on
    invalid representations, you have to use some other function.
 
-   Last element in the created table (a guard) has 'r' field set to
-   NULL.
+   For each character the last timing parameter represents
+   end-of-character space or end-of-word space. The next timing
+   parameter after the space is zero. For character 'A' that would
+   look like this:
+
+   .-    ==   40000 (dot); 40000 (space); 120000 (dash); 240000 (end-of-word space); 0 (guard, zero timing)
+
+   Last element in the created table (a guard "pseudo-character") has
+   'r' field set to NULL.
 
    Use test_cw_rec_data_delete() to deallocate the timing data table.
 
@@ -2422,6 +2694,7 @@ struct cw_rec_test_data *test_cw_rec_data_new(const char *characters, float spee
 		}
 
 		test_data[i].d[nd - 1] = (unit_len * 5) + unit_len;  /* Extended end-of-word space in place of regular space. */
+		test_data[i].d[nd] = 0; /* Guard. */
 
 
 		/* Mark and space always go in pair. */
