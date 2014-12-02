@@ -1,3 +1,11 @@
+2014-12-02 Kamil Ignacak
+	* tests: improving unit tests for receiver module.  The receiver's
+	test code from libcw_test_public.c is being slowly moved to
+	libcw_rec.c. receiver module is fairly independent from a
+	generator or audio sinks, so it's ok to mat the tests internal in
+	the libcw_rec.c file. They can be executed with simple "make
+	check", and the execution takes very little time.
+
 2014-11-28 Kamil Ignacak
 	* tests: improving unit tests for receiver module. Working on
 	functions that will automatically generate test data (input data
