@@ -28,6 +28,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/time.h> /* gettimeofday() */
 
 #include "libcw.h"
 
@@ -98,6 +99,7 @@ static cw_test_function_t cw_unit_tests[] = {
 
 	test_cw_rec_identify_mark_internal,
 	test_cw_rec_fixed_receive_1,
+	test_cw_rec_fixed_receive_2,
 
 	NULL
 };
@@ -109,8 +111,13 @@ int main(void)
 {
 	fprintf(stderr, "libcw unit tests for library's internal functions\n\n");
 
-	cw_debug_set_flags(&cw_debug_object, CW_DEBUG_RECEIVE_STATES);
-	cw_debug_object.level = CW_DEBUG_INFO;
+
+	struct timeval tv;
+	gettimeofday(&tv, NULL);
+	srand((int) tv.tv_usec);
+
+	//cw_debug_set_flags(&cw_debug_object, CW_DEBUG_RECEIVE_STATES);
+	//cw_debug_object.level = CW_DEBUG_INFO;
 
 	int i = 0;
 	while (cw_unit_tests[i]) {
