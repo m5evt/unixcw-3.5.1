@@ -46,6 +46,12 @@
 
 
 
+extern cw_debug_t cw_debug_object;
+
+
+
+
+
 /* ******************************************************************** */
 /*                 Unit tests for internal functions                    */
 /* ******************************************************************** */
@@ -103,8 +109,8 @@ int main(void)
 {
 	fprintf(stderr, "libcw unit tests for library's internal functions\n\n");
 
-	// cw_debug_set_flags(&cw_debug_object_dev, CW_DEBUG_TONE_QUEUE);
-	// cw_debug_object_dev.level = CW_DEBUG_ERROR;
+	cw_debug_set_flags(&cw_debug_object, CW_DEBUG_RECEIVE_STATES);
+	cw_debug_object.level = CW_DEBUG_INFO;
 
 	int i = 0;
 	while (cw_unit_tests[i]) {
