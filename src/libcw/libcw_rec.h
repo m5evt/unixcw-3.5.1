@@ -49,6 +49,7 @@ void cw_rec_sync_parameters_internal(cw_rec_t *rec);
 
 unsigned int test_cw_rec_identify_mark_internal(void);
 unsigned int test_cw_rec_fixed_receive_1(void);
+unsigned int test_cw_rec_fixed_receive_2(void);
 
 #endif /* #ifdef LIBCW_UNIT_TESTS */
 
