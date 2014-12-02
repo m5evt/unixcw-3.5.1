@@ -1706,6 +1706,7 @@ int cw_rec_poll_representation_internal(cw_rec_t *rec,
 	   mark. */
 	struct timeval now_timestamp;
 	if (!cw_timestamp_validate_internal(&now_timestamp, timestamp)) {
+
 		return CW_FAILURE;
 	}
 
@@ -1751,6 +1752,7 @@ int cw_rec_poll_representation_internal(cw_rec_t *rec,
 
 		   So it is too early to return a representation,
 		   because it's not complete yet. */
+
 		errno = EAGAIN;
 		return CW_FAILURE;
 	}
@@ -2203,6 +2205,7 @@ struct cw_rec_test_data {
 
 static struct cw_rec_test_data *test_cw_rec_data_new(const char *characters, float speeds[], int fuzz_percent);
 static struct cw_rec_test_data *test_cw_rec_data_new_fixed_valid_1(int speed, int fuzz_percent);
+static struct cw_rec_test_data *test_cw_rec_data_new_fixed_valid_2(int speed, int fuzz_percent);
 static void                     test_cw_rec_data_delete(struct cw_rec_test_data **data);
 static void                     test_cw_rec_print_data(struct cw_rec_test_data *data);
 static void                     test_cw_rec_test_begin_end(cw_rec_t *rec, struct cw_rec_test_data *data);
@@ -2296,7 +2299,7 @@ unsigned int test_cw_rec_fixed_receive_1(void)
 {
 	for (int speed = CW_SPEED_MIN; speed <= CW_SPEED_MAX; speed++) {
 		struct cw_rec_test_data *data = test_cw_rec_data_new_fixed_valid_1(speed, 0);
-		test_cw_rec_print_data(data);
+		//test_cw_rec_print_data(data);
 
 		/* Reset. */
 		cw_reset_receive();
@@ -2346,7 +2349,8 @@ void test_cw_rec_test_begin_end(cw_rec_t *rec, struct cw_rec_test_data *data)
 
 	for (int i = 0; data[i].r; i++) {
 
-		printf("\nlibcw: testing character #%d / %c / %s / %d times\n", i, data[i].c, data[i].r, data[i].nd);
+		printf("\nlibcw: testing character #%d / <%c> / %s / %d time values / %.2f [wpm]\n",
+		       i, data[i].c, data[i].r, data[i].nd, data[i].s);
 
 		/* Start sending every character at the beginning of a
 		   new second.
@@ -2373,21 +2377,23 @@ void test_cw_rec_test_begin_end(cw_rec_t *rec, struct cw_rec_test_data *data)
 		int tone;
 		for (tone = 0; data[i].d[tone] > 0; tone++) {
 
-			fprintf(stderr, "+++++++++++++++\n");
-
 			/* Here we just assume that
 			   cw_rec_mark_bein{start|end}_receive_tone() functions just
 			   work. No checking of return values. */
 			if (tone % 2) {
 				bool failure = !cw_rec_mark_end_internal(rec, &tv);
-				int n = printf("libcw: cw_rec_mark_end_internal(): %d.%d", tv.tv_sec, tv.tv_usec);
-				CW_TEST_PRINT_TEST_RESULT (failure, n);
-				cw_assert (!failure, "");
+				if (failure) {
+					int n = printf("libcw: cw_rec_mark_end_internal(): %d.%d", (int) tv.tv_sec, (int) tv.tv_usec);
+					CW_TEST_PRINT_TEST_RESULT (failure, n);
+					cw_assert (!failure, "mark end");
+				}
 			} else {
 				bool failure = !cw_rec_mark_begin_internal(rec, &tv);
-				int n = printf("libcw: cw_rec_mark_begin_internal(): %d.%d", tv.tv_sec, tv.tv_usec);
-				CW_TEST_PRINT_TEST_RESULT (failure, n);
-				cw_assert (!failure, "");
+				if (failure) {
+					int n = printf("libcw: cw_rec_mark_begin_internal(): %d.%d", (int) tv.tv_sec, (int) tv.tv_usec);
+					CW_TEST_PRINT_TEST_RESULT (failure, n);
+					cw_assert (!failure, "mark begin");
+				}
 			}
 
 			tv.tv_usec += data[i].d[tone];
@@ -2402,8 +2408,6 @@ void test_cw_rec_test_begin_end(cw_rec_t *rec, struct cw_rec_test_data *data)
 			   cw_receive_representation(). */
 		}
 
-		fprintf(stderr, "==============\n");
-
 
 
 
@@ -2415,12 +2419,12 @@ void test_cw_rec_test_begin_end(cw_rec_t *rec, struct cw_rec_test_data *data)
 			/* Check number of dots and dashes accumulated in receiver. */
 			bool failure = (cw_rec_get_buffer_length_internal(rec) != (int) strlen(data[i].r));
 
-			int n = printf("libcw: cw_get_receive_buffer_length() <nonempty>:  %d %s %zd",
-				       cw_get_receive_buffer_length(),
+			int n = printf("libcw: cw_rec_get_buffer_length_internal() <nonempty>:  %d %s %zd",
+				       cw_rec_get_buffer_length_internal(rec),
 				       failure ? "!=" : "==",
 				       strlen(data[i].r));
 			CW_TEST_PRINT_TEST_RESULT (failure, n);
-			if (failure) break;
+			cw_assert (!failure, "get buffer length");
 		}
 
 
@@ -2516,7 +2520,8 @@ void test_cw_rec_test_begin_end(cw_rec_t *rec, struct cw_rec_test_data *data)
 
 			success = c == data[i].c;
 			if (!success) {
-				int n = printf("libcw: cw_rec_poll_character_internal() (2):");
+				int n = printf("libcw: cw_rec_poll_character_internal(): '%c' != '%c':",
+					       c, data[i].c);
 				CW_TEST_PRINT_TEST_RESULT (true, n);
 				break;
 			}
@@ -2598,6 +2603,112 @@ struct cw_rec_test_data *test_cw_rec_data_new_fixed_valid_1(int speed, int fuzz_
 	free(all_characters);
 	all_characters = NULL;
 
+	free(speeds);
+	speeds = NULL;
+
+	return data;
+}
+
+
+
+
+
+/* Test 2 uses timing data that represents all characters supported by
+   libcw (similar to test 1), but with plenty of spaces. */
+unsigned int test_cw_rec_fixed_receive_2(void)
+{
+	for (int speed = CW_SPEED_MIN; speed <= CW_SPEED_MAX; speed++) {
+		struct cw_rec_test_data *data = test_cw_rec_data_new_fixed_valid_2(speed, 0);
+		//test_cw_rec_print_data(data);
+
+		/* Reset. */
+		cw_reset_receive();
+		cw_clear_receive_buffer();
+
+		cw_set_receive_speed(speed);
+		cw_disable_adaptive_receive();
+
+		cw_assert (cw_get_receive_speed() == speed, "incorrect receive speed: %d != %d", cw_get_receive_speed(), speed);
+
+		/* Actual tests of receiver functions are here. */
+		test_cw_rec_test_begin_end(&cw_receiver, data);
+
+
+		test_cw_rec_data_delete(&data);
+	}
+
+	return 0;
+}
+
+
+
+
+
+/* Test 2 uses timing data that represents all characters supported by
+   libcw (similar to test 1), but with plenty of spaces. */
+struct cw_rec_test_data *test_cw_rec_data_new_fixed_valid_2(int speed, int fuzz_percent)
+{
+	/* All characters supported by libcw - this will be an input
+	   set of all characters. */
+	int n = cw_get_character_count();
+	char *all_characters = (char *) malloc((n + 1) * sizeof (char));
+	cw_assert (all_characters, "malloc() failed");
+	cw_list_characters(all_characters);
+
+
+	int m = 30 * n;
+	char *characters = (char *) malloc ((m + 1) * sizeof (char));
+	cw_assert (characters, "malloc() failed");
+	for (int i = 0; i < m; i++) {
+		int r = rand() % n;
+		if (!(r % 3)) {
+			characters[i] = ' ';
+
+			/* To prevent two consecutive spaces. */
+			i++;
+			characters[i] = all_characters[r];
+		} else {
+			characters[i] = all_characters[r];
+		}
+	}
+
+	/* First character in input data can't be a space - we can't
+	   start a receiver's state machine with space. Also when a
+	   end-of-word space appears in input character set, it is
+	   added as last time value at the end of time values table
+	   for "previous char". We couldn't do this for -1st char. */
+	characters[0] = 'K'; /* Use capital letter. libcw uses capital letters internally. */
+
+	characters[m] = '\0';
+
+	fprintf(stderr, "%s\n", characters);
+
+
+
+	/* Fixed speed receive mode - speed is constant for all
+	   characters. */
+	float *speeds = (float *) malloc((m + 1) * sizeof (float));
+	cw_assert (speeds, "malloc() failed");
+	for (int i = 0; i < m; i++) {
+		speeds[i] = (float) speed;
+	}
+
+
+	/* Generate timing data for given set of characters, each
+	   character is sent with speed dictated by speeds[]. */
+	struct cw_rec_test_data *data = test_cw_rec_data_new(characters, speeds, fuzz_percent);
+	cw_assert (data, "failed to get test data");
+
+
+	free(all_characters);
+	all_characters = NULL;
+
+	free(characters);
+	characters = NULL;
+
+	free(speeds);
+	speeds = NULL;
+
 	return data;
 }
 
@@ -2653,48 +2764,65 @@ struct cw_rec_test_data *test_cw_rec_data_new(const char *characters, float spee
 	struct cw_rec_test_data *test_data = (struct cw_rec_test_data *) malloc((n + 1) * sizeof(struct cw_rec_test_data));
 	cw_assert (test_data, "malloc() failed");
 
+	size_t j = 0; /* For indexing output data table. */
 	for (size_t i = 0; i < n; i++) {
 
-		test_data[i].c = characters[i];
-		test_data[i].r = cw_character_to_representation(test_data[i].c);
-		cw_assert (test_data[i].r,
-			   "cw_character_to_representation() failed for char #%zd: %c\n",
-			   i, test_data[i].c);
-		test_data[i].s = speeds[i];
+		int unit_len = CW_DOT_CALIBRATION / speeds[i]; /* Dot length, [us]. Used as basis for other elements. */
+		// fprintf(stderr, "unit_len = %d [us] for speed = %d [wpm]\n", unit_len, speed);
+
+
+		/* First handle a special case: end-of-word
+		   space. This long space will be put at the end of
+		   table of time values for previous
+		   representation. */
+		if (characters[i] == ' ') {
+			test_data[j - 1].d[test_data[j - 1].nd - 1] = unit_len * 6; /* unit_len * 5 is the minimal end-of-word space. */
+
+			continue;
+		} else {
+			/* A regular character, handled below. */
+		}
+
+
+		test_data[j].c = characters[i];
+		test_data[j].r = cw_character_to_representation(test_data[j].c);
+		cw_assert (test_data[j].r,
+			   "cw_character_to_representation() failed for input char #%zd: '%c'\n",
+			   i, characters[i]);
+		test_data[j].s = speeds[i];
 
 
 		/* Build table of times for given representation. */
 
 
-		int unit_len = CW_DOT_CALIBRATION / speeds[i]; /* Dot length, [us]. Used as basis for other elements. */
-		// fprintf(stderr, "unit_len = %d [us] for speed = %d [wpm]\n", unit_len, speed);
-
 		size_t nd = 0;
 
-		size_t rep_length = strlen(test_data[i].r);
-		for (size_t j = 0; j < rep_length; j++) {
+		size_t rep_length = strlen(test_data[j].r);
+		for (size_t k = 0; k < rep_length; k++) {
 
 			/* Length of mark. */
-			if (test_data[i].r[j] == CW_DOT_REPRESENTATION) {
-				test_data[i].d[nd] = unit_len;
+			if (test_data[j].r[k] == CW_DOT_REPRESENTATION) {
+				test_data[j].d[nd] = unit_len;
 
-			} else if (test_data[i].r[j] == CW_DASH_REPRESENTATION) {
-				test_data[i].d[nd] = unit_len * 3;
+			} else if (test_data[j].r[k] == CW_DASH_REPRESENTATION) {
+				test_data[j].d[nd] = unit_len * 3;
 
 			} else {
-				cw_assert (0, "unknown char in representation: '%c'\n", test_data[i].r[j]);
+				cw_assert (0, "unknown char in representation: '%c'\n", test_data[j].r[k]);
 			}
 			nd++;
 
 
 			/* Length of space (inter-mark space). Mark
 			   and space always go in pair. */
-			test_data[i].d[nd] = unit_len;
+			test_data[j].d[nd] = unit_len;
 			nd++;
 		}
 
-		test_data[i].d[nd - 1] = (unit_len * 5) + unit_len;  /* Extended end-of-word space in place of regular space. */
-		test_data[i].d[nd] = 0; /* Guard. */
+		cw_assert (nd > 0, "number of times is %zd for representation '%s'\n", nd, test_data[j].r);
+
+		test_data[j].d[nd - 1] = (unit_len * 3) + (unit_len / 2);  /* end-of-character space. */
+		test_data[j].d[nd] = 0; /* Guard. */
 
 
 		/* Mark and space always go in pair. */
@@ -2703,7 +2831,9 @@ struct cw_rec_test_data *test_cw_rec_data_new(const char *characters, float spee
 		cw_assert (nd == 2 * rep_length, "number of times incorrect: %zd != 2 * %zd\n", nd, rep_length);
 
 
-		test_data[i].nd = nd;
+		test_data[j].nd = (size_t ) nd;
+
+		j++;
 	}
 
 
