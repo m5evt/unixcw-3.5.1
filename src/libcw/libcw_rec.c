@@ -1725,6 +1725,8 @@ int cw_rec_poll_representation_internal(cw_rec_t *rec,
 	if (space_len >= rec->eoc_len_min
 	    && space_len <= rec->eoc_len_max) {
 
+		// fprintf(stderr, "EOC: space len = %d (%d - %d)\n", space_len, rec->eoc_len_min, rec->eoc_len_max);
+
 		/* The space is, within tolerance, an end-of-character
 		   gap.
 
@@ -1734,6 +1736,8 @@ int cw_rec_poll_representation_internal(cw_rec_t *rec,
 		return CW_SUCCESS;
 
 	} else if (space_len > rec->eoc_len_max) {
+
+		// fprintf(stderr, "EOW: space len = %d (> %d)\n", space_len, rec->eoc_len_max);
 
 		/* The space is too long for end-of-character
 		   state. This should be end-of-word state. We have
@@ -2197,6 +2201,8 @@ struct cw_rec_test_data {
 	float s;                          /* Send speed (speed at which the character is incoming). */
 	int d[TEST_CW_REC_DATA_LEN_MAX];  /* Data - time information for marks and spaces. */
 	int nd;                           /* Length of data. */
+
+	bool is_last_in_word;              /* Is this character a last character in a word? (is it followed by end-of-word space?) */
 };
 
 
@@ -2399,8 +2405,9 @@ void test_cw_rec_test_begin_end(cw_rec_t *rec, struct cw_rec_test_data *data)
 			tv.tv_usec += data[i].d[tone];
 			if (tv.tv_usec >= CW_USECS_PER_SEC) {
 				/* Moving event to next second. */
+				tv.tv_sec += tv.tv_usec / CW_USECS_PER_SEC;
 				tv.tv_usec %= CW_USECS_PER_SEC;
-				tv.tv_sec++;
+
 			}
 			/* If we exit the loop at this point, the last
 			   'tv' with length of end-of-character space
@@ -2475,24 +2482,29 @@ void test_cw_rec_test_begin_end(cw_rec_t *rec, struct cw_rec_test_data *data)
 				break;
 			}
 
+
 #if 0
-			if (adaptive
-			    || data[i].d[tone] == -1) { /* The test data row that is exclusively for adaptive speed tracking. */
-
-				if ((data[i].d[tone] == 0 && is_word)
-				    || (data[i].d[tone] < 0 && !is_word)) {
-
-					int n = printf("libcw: cw_rec_poll_representation_internal(): not a %s: ", is_word ? "char" : "word");
-					CW_TEST_PRINT_TEST_RESULT (true, n);
-					break;
-				}
-			} else {
-				if (is_word) {
-					int n = printf("libcw: cw_rec_poll_representation_internal() (4):");
-					CW_TEST_PRINT_TEST_RESULT (true, n);
-					break;
+			/* Debug code. Print times of character with
+			   end-of-word space to verify length of the
+			   space. */
+			if (data[i].is_last_in_word) {
+				fprintf(stderr, "------- character '%c' is last in word\n", data[i].c);
+				for (int m = 0; m < data[i].nd; m++) {
+					fprintf(stderr, "#%d: %d\n", m, data[i].d[m]);
 				}
 			}
+#endif
+
+
+#if 1
+			/* If the last space in character's data is
+			   end-of-word space (which is indicated by
+			   is_last_in_word), then is_word should be
+			   set by poll() to true. Otherwise both
+			   values should be false. */
+			cw_assert (is_word == data[i].is_last_in_word,
+				   "'is_word' flag error: function returns '%d', data is tagged with '%d'",
+				   is_word, data[i].is_last_in_word);
 #endif
 
 			int n = printf("libcw: cw_rec_poll_representation_internal():");
@@ -2778,6 +2790,8 @@ struct cw_rec_test_data *test_cw_rec_data_new(const char *characters, float spee
 		if (characters[i] == ' ') {
 			test_data[j - 1].d[test_data[j - 1].nd - 1] = unit_len * 6; /* unit_len * 5 is the minimal end-of-word space. */
 
+			test_data[j - 1].is_last_in_word = true;
+
 			continue;
 		} else {
 			/* A regular character, handled below. */
@@ -2832,6 +2846,10 @@ struct cw_rec_test_data *test_cw_rec_data_new(const char *characters, float spee
 
 
 		test_data[j].nd = (size_t ) nd;
+
+		/* This may be overwritten by this function when a
+		   space is encountered in input string. */
+		test_data[j].is_last_in_word = false;
 
 		j++;
 	}
