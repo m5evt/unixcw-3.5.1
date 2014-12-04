@@ -2355,8 +2355,8 @@ void test_cw_rec_test_begin_end(cw_rec_t *rec, struct cw_rec_test_data *data)
 
 	for (int i = 0; data[i].r; i++) {
 
-		printf("\nlibcw: testing character #%d / <%c> / %s / %d time values / %.2f [wpm]\n",
-		       i, data[i].c, data[i].r, data[i].nd, data[i].s);
+		printf("\nlibcw: input test data #%d: <%c> / <%s> @ %.2f [wpm] (%d time values)\n",
+		       i, data[i].c, data[i].r, data[i].s, data[i].nd);
 
 		/* Start sending every character at the beginning of a
 		   new second.
@@ -2387,19 +2387,11 @@ void test_cw_rec_test_begin_end(cw_rec_t *rec, struct cw_rec_test_data *data)
 			   cw_rec_mark_bein{start|end}_receive_tone() functions just
 			   work. No checking of return values. */
 			if (tone % 2) {
-				bool failure = !cw_rec_mark_end_internal(rec, &tv);
-				if (failure) {
-					int n = printf("libcw: cw_rec_mark_end_internal(): %d.%d", (int) tv.tv_sec, (int) tv.tv_usec);
-					CW_TEST_PRINT_TEST_RESULT (failure, n);
-					cw_assert (!failure, "mark end");
-				}
+				cw_assert (cw_rec_mark_end_internal(rec, &tv),
+					   "cw_rec_mark_end_internal(): %d.%d", (int) tv.tv_sec, (int) tv.tv_usec);
 			} else {
-				bool failure = !cw_rec_mark_begin_internal(rec, &tv);
-				if (failure) {
-					int n = printf("libcw: cw_rec_mark_begin_internal(): %d.%d", (int) tv.tv_sec, (int) tv.tv_usec);
-					CW_TEST_PRINT_TEST_RESULT (failure, n);
-					cw_assert (!failure, "mark begin");
-				}
+				cw_assert (cw_rec_mark_begin_internal(rec, &tv),
+					   "cw_rec_mark_begin_internal(): %d.%d", (int) tv.tv_sec, (int) tv.tv_usec);
 			}
 
 			tv.tv_usec += data[i].d[tone];
@@ -2423,15 +2415,10 @@ void test_cw_rec_test_begin_end(cw_rec_t *rec, struct cw_rec_test_data *data)
 		   after adding a representation of a single character
 		   to receiver's buffer. */
 		{
-			/* Check number of dots and dashes accumulated in receiver. */
-			bool failure = (cw_rec_get_buffer_length_internal(rec) != (int) strlen(data[i].r));
-
-			int n = printf("libcw: cw_rec_get_buffer_length_internal() <nonempty>:  %d %s %zd",
-				       cw_rec_get_buffer_length_internal(rec),
-				       failure ? "!=" : "==",
-				       strlen(data[i].r));
-			CW_TEST_PRINT_TEST_RESULT (failure, n);
-			cw_assert (!failure, "get buffer length");
+			int n = cw_rec_get_buffer_length_internal(rec);
+			cw_assert (n == (int) strlen(data[i].r),
+				   "cw_rec_get_buffer_length_internal() <nonempty>:  %d != %zd",
+				   n, strlen(data[i].r));
 		}
 
 
@@ -2461,27 +2448,24 @@ void test_cw_rec_test_begin_end(cw_rec_t *rec, struct cw_rec_test_data *data)
 			   + jitter). In libcw maximum recognizable
 			   length of "end of character" space is 5 x
 			   dot. */
-			int rv = cw_rec_poll_representation_internal(rec, &tv, representation, &is_word, &is_error);
-			if (!rv) {
-				int n = printf("libcw: cw_rec_poll_representation_internal() (1):");
-				CW_TEST_PRINT_TEST_RESULT (true, n);
-				break;
-			}
+			cw_assert (cw_rec_poll_representation_internal(rec, &tv, representation, &is_word, &is_error),
+				   "cw_rec_poll_representation_internal() returns false");
 
-			if (strcmp(representation, data[i].r) != 0) {
-				fprintf(stderr, "\"%s\"   !=   \"%s\"\n",
-					representation, data[i].r);
-				int n = printf("libcw: cw_rec_poll_representation_internal() (2):");
-				CW_TEST_PRINT_TEST_RESULT (true, n);
-				break;
-			}
+			cw_assert (strcmp(representation, data[i].r) == 0,
+				   "cw_rec_poll_representation_internal(): polled representation does not match test representation:" \
+				   "\"%s\"   !=   \"%s\"", representation, data[i].r);
 
-			if (is_error) {
-				int n = printf("libcw: cw_rec_poll_representation_internal() (3):");
-				CW_TEST_PRINT_TEST_RESULT (true, n);
-				break;
-			}
+			cw_assert (!is_error,
+				   "cw_rec_poll_representation_internal() sets is_error to true");
 
+			/* If the last space in character's data is
+			   end-of-word space (which is indicated by
+			   is_last_in_word), then is_word should be
+			   set by poll() to true. Otherwise both
+			   values should be false. */
+			cw_assert (is_word == data[i].is_last_in_word,
+				   "'is_word' flag error: function returns '%d', data is tagged with '%d'",
+				   is_word, data[i].is_last_in_word);
 
 #if 0
 			/* Debug code. Print times of character with
@@ -2495,20 +2479,6 @@ void test_cw_rec_test_begin_end(cw_rec_t *rec, struct cw_rec_test_data *data)
 			}
 #endif
 
-
-#if 1
-			/* If the last space in character's data is
-			   end-of-word space (which is indicated by
-			   is_last_in_word), then is_word should be
-			   set by poll() to true. Otherwise both
-			   values should be false. */
-			cw_assert (is_word == data[i].is_last_in_word,
-				   "'is_word' flag error: function returns '%d', data is tagged with '%d'",
-				   is_word, data[i].is_last_in_word);
-#endif
-
-			int n = printf("libcw: cw_rec_poll_representation_internal():");
-			CW_TEST_PRINT_TEST_RESULT (false, n);
 		}
 
 
@@ -2523,23 +2493,12 @@ void test_cw_rec_test_begin_end(cw_rec_t *rec, struct cw_rec_test_data *data)
 			/* The representation is still held in
 			   receiver. Ask receiver for converting the
 			   representation to character. */
-			int success = cw_rec_poll_character_internal(rec, &tv, &c, &is_word, &is_error);
-			if (!success) {
-				int n = printf("libcw: cw_rec_poll_character_internal() (1):");
-				CW_TEST_PRINT_TEST_RESULT (true, n);
-				break;
-			}
+			cw_assert (cw_rec_poll_character_internal(rec, &tv, &c, &is_word, &is_error),
+				   "cw_rec_poll_character_internal() returns false");
 
-			success = c == data[i].c;
-			if (!success) {
-				int n = printf("libcw: cw_rec_poll_character_internal(): '%c' != '%c':",
-					       c, data[i].c);
-				CW_TEST_PRINT_TEST_RESULT (true, n);
-				break;
-			}
-
-			int n = printf("libcw: cw_rec_poll_character_internal():");
-			CW_TEST_PRINT_TEST_RESULT (false, n);
+			cw_assert (c == data[i].c,
+				   "cw_rec_poll_character_internal(): polled character does not match test character:" \
+				   "'%c' != '%c':", c, data[i].c);
 		}
 
 
@@ -2559,21 +2518,23 @@ void test_cw_rec_test_begin_end(cw_rec_t *rec, struct cw_rec_test_data *data)
 			   to prepare the receiver for receiving next
 			   character. */
 			cw_rec_clear_buffer_internal(rec);
-			bool failure = cw_rec_get_buffer_length_internal(rec) != 0;
-
-			int n = printf("libcw: cw_get_receive_buffer_length() <empty>:");
-			CW_TEST_PRINT_TEST_RESULT (failure, n);
-			if (failure) break;
+			int length = cw_rec_get_buffer_length_internal(rec);
+			cw_assert (length == 0,
+				   "cw_get_receive_buffer_length(): length of cleared buffer is non zero (is %d)",
+				   length);
 		}
 
 
-		printf("libcw: cw_receive_representation(): <%s>\n", representation);
-		printf("libcw: cw_receive_character(): <%c>\n", c);
+		float speed = (float) cw_rec_get_speed_internal(rec);
+
+
+		printf("libcw: received data #%d:   <%c> / <%s> @ %0.2f [wpm]\n",
+		       i, c, representation, speed);
 
 #if 0
 		if (adaptive) {
 			printf("libcw: adaptive speed tracking reports %d wpm\n",
-			       cw_rec_get_speed_internal(rec));
+			       );
 		}
 #endif
 	}
