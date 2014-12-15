@@ -2217,6 +2217,13 @@ static void                     test_cw_rec_print_data(struct cw_rec_test_data *
 static void                     test_cw_rec_test_begin_end(cw_rec_t *rec, struct cw_rec_test_data *data);
 
 
+/* Functions creating tables of test values: characters and speeds.
+   Characters and speeds will be combined into test (timing) data. */
+static char  *test_cw_rec_get_base_characters_set(void);
+static char  *test_cw_rec_get_random_characters_set(int multiples);
+static float *test_cw_rec_get_speeds_fixed(int speed, size_t m);
+
+
 
 
 
@@ -2551,30 +2558,31 @@ void test_cw_rec_test_begin_end(cw_rec_t *rec, struct cw_rec_test_data *data)
    libcw. */
 struct cw_rec_test_data *test_cw_rec_data_new_fixed_valid_1(int speed, int fuzz_percent)
 {
-	/* All characters supported by libcw. */
-	int n = cw_get_character_count();
-	char *all_characters = (char *) malloc((n + 1) * sizeof (char));
-	cw_assert (all_characters, "malloc() failed");
-	cw_list_characters(all_characters);
+	/* All characters supported by libcw.  Don't use
+	   get_characters_random(): for this test get a small table of
+	   all characters supported by libcw. This should be a quick
+	   test, and it should cover all characters. */
+	char *base_characters = test_cw_rec_get_base_characters_set();
+	cw_assert (base_characters, "test_cw_rec_get_base_characters_set() failed");
+
+
+	size_t n = strlen(base_characters);
 
 
 	/* Fixed speed receive mode - speed is constant for all
 	   characters. */
-	float *speeds = (float *) malloc((n + 1) * sizeof (float));
-	cw_assert (speeds, "malloc() failed");
-	for (int i = 0; i < n; i++) {
-		speeds[i] = (float) speed;
-	}
+	float *speeds = test_cw_rec_get_speeds_fixed(speed, n);
+	cw_assert (speeds, "test_cw_rec_get_speeds_fixed() failed");
 
 
 	/* Generate timing data for given set of characters, each
 	   character is sent with speed dictated by speeds[]. */
-	struct cw_rec_test_data *data = test_cw_rec_data_new(all_characters, speeds, fuzz_percent);
+	struct cw_rec_test_data *data = test_cw_rec_data_new(base_characters, speeds, fuzz_percent);
 	cw_assert (data, "failed to get test data");
 
 
-	free(all_characters);
-	all_characters = NULL;
+	free(base_characters);
+	base_characters = NULL;
 
 	free(speeds);
 	speeds = NULL;
@@ -2621,15 +2629,60 @@ unsigned int test_cw_rec_fixed_receive_2(void)
    libcw (similar to test 1), but with plenty of spaces. */
 struct cw_rec_test_data *test_cw_rec_data_new_fixed_valid_2(int speed, int fuzz_percent)
 {
+	char *characters = test_cw_rec_get_random_characters_set(30);
+	cw_assert (characters, "test_cw_rec_get_random_characters_set() failed");
+
+	size_t m = strlen(characters);
+
+	/* Fixed speed receive mode - speed is constant for all
+	   characters. */
+	float *speeds = test_cw_rec_get_speeds_fixed(speed, m);
+	cw_assert (speeds, "test_cw_rec_get_speeds_fixed() failed");
+
+
+	/* Generate timing data for given set of characters, each
+	   character is sent with speed dictated by speeds[]. */
+	struct cw_rec_test_data *data = test_cw_rec_data_new(characters, speeds, fuzz_percent);
+	cw_assert (data, "failed to get test data");
+
+
+	free(characters);
+	characters = NULL;
+
+	free(speeds);
+	speeds = NULL;
+
+	return data;
+}
+
+
+
+
+
+char *test_cw_rec_get_base_characters_set(void)
+{
+	int n = cw_get_character_count();
+	char *base_characters = (char *) malloc((n + 1) * sizeof (char));
+	cw_assert (base_characters, "malloc() failed");
+	cw_list_characters(base_characters);
+
+	return base_characters;
+}
+
+
+
+
+
+char *test_cw_rec_get_random_characters_set(int multiples)
+{
 	/* All characters supported by libcw - this will be an input
 	   set of all characters. */
-	int n = cw_get_character_count();
-	char *all_characters = (char *) malloc((n + 1) * sizeof (char));
-	cw_assert (all_characters, "malloc() failed");
-	cw_list_characters(all_characters);
+	char *base_characters = test_cw_rec_get_base_characters_set();
+	cw_assert (base_characters, "test_cw_rec_get_base_characters_set() failed");
 
+	size_t n = strlen(base_characters);
 
-	int m = 30 * n;
+	int m = multiples * n;
 	char *characters = (char *) malloc ((m + 1) * sizeof (char));
 	cw_assert (characters, "malloc() failed");
 	for (int i = 0; i < m; i++) {
@@ -2639,9 +2692,9 @@ struct cw_rec_test_data *test_cw_rec_data_new_fixed_valid_2(int speed, int fuzz_
 
 			/* To prevent two consecutive spaces. */
 			i++;
-			characters[i] = all_characters[r];
+			characters[i] = base_characters[r];
 		} else {
-			characters[i] = all_characters[r];
+			characters[i] = base_characters[r];
 		}
 	}
 
@@ -2657,32 +2710,28 @@ struct cw_rec_test_data *test_cw_rec_data_new_fixed_valid_2(int speed, int fuzz_
 	fprintf(stderr, "%s\n", characters);
 
 
+	free(base_characters);
+	base_characters = NULL;
 
+
+	return characters;
+}
+
+
+
+
+
+float *test_cw_rec_get_speeds_fixed(int speed, size_t m)
+{
 	/* Fixed speed receive mode - speed is constant for all
 	   characters. */
 	float *speeds = (float *) malloc((m + 1) * sizeof (float));
 	cw_assert (speeds, "malloc() failed");
-	for (int i = 0; i < m; i++) {
+	for (size_t i = 0; i < m; i++) {
 		speeds[i] = (float) speed;
 	}
 
-
-	/* Generate timing data for given set of characters, each
-	   character is sent with speed dictated by speeds[]. */
-	struct cw_rec_test_data *data = test_cw_rec_data_new(characters, speeds, fuzz_percent);
-	cw_assert (data, "failed to get test data");
-
-
-	free(all_characters);
-	all_characters = NULL;
-
-	free(characters);
-	characters = NULL;
-
-	free(speeds);
-	speeds = NULL;
-
-	return data;
+	return speeds;
 }
 
 
