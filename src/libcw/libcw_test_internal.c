@@ -100,6 +100,7 @@ static cw_test_function_t cw_unit_tests[] = {
 	test_cw_rec_identify_mark_internal,
 	test_cw_rec_with_base_data_fixed,
 	test_cw_rec_with_random_data_fixed,
+	test_cw_rec_with_random_data_adaptive,
 
 	NULL
 };
