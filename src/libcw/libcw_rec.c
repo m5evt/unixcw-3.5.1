@@ -426,8 +426,9 @@ int cw_set_receive_speed(int new_value)
 		return CW_FAILURE;
 	}
 
-	float diff = abs(new_value - cw_receiver.speed);
-	if (diff > 0.5) {
+	/* TODO: verify this comparison. */
+	float diff = abs((1.0 * new_value) - cw_receiver.speed);
+	if (diff >= 0.5) {
 		cw_receiver.speed = new_value;
 
 		/* Changes of receive speed require resynchronization. */
