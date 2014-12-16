@@ -196,7 +196,7 @@ struct cw_rec_struct {
 	/* Changing values of speed, tolerance, gap or
 	   is_adaptive_receive_mode will trigger a recalculation of
 	   low level timing parameters. */
-	int speed;       /* [wpm] */
+	float speed;       /* [wpm] */
 	int tolerance;
 	int gap;         /* Inter-character-gap, similar as in generator. */
 	bool is_adaptive_receive_mode;
@@ -210,7 +210,7 @@ struct cw_rec_struct {
 
 	   When the library changes internally value of this variable,
 	   it recalculates low level timing parameters too. */
-	int adaptive_speed_threshold; /* [us] */
+	int adaptive_speed_threshold; /* [microseconds]/[us] */
 
 
 
@@ -390,9 +390,9 @@ static int  cw_rec_poll_character_internal(cw_rec_t *rec, const struct timeval *
 
 
 
-static int  cw_rec_get_buffer_length_internal(cw_rec_t *rec);
-static void cw_rec_clear_buffer_internal(cw_rec_t *rec);
-static int  cw_rec_get_speed_internal(cw_rec_t *rec);
+static int   cw_rec_get_buffer_length_internal(cw_rec_t *rec);
+static void  cw_rec_clear_buffer_internal(cw_rec_t *rec);
+static float cw_rec_get_speed_internal(cw_rec_t *rec);
 
 
 
@@ -426,7 +426,8 @@ int cw_set_receive_speed(int new_value)
 		return CW_FAILURE;
 	}
 
-	if (new_value != cw_receiver.speed) {
+	float diff = abs(new_value - cw_receiver.speed);
+	if (diff > 0.5) {
 		cw_receiver.speed = new_value;
 
 		/* Changes of receive speed require resynchronization. */
@@ -450,7 +451,7 @@ int cw_set_receive_speed(int new_value)
 */
 int cw_get_receive_speed(void)
 {
-	int rv = cw_rec_get_speed_internal(&cw_receiver);
+	int rv = (int) cw_rec_get_speed_internal(&cw_receiver);
 	return rv;
 }
 
@@ -458,7 +459,7 @@ int cw_get_receive_speed(void)
 
 
 
-int cw_rec_get_speed_internal(cw_rec_t *rec)
+float cw_rec_get_speed_internal(cw_rec_t *rec)
 {
 	return rec->speed;
 }
@@ -2091,7 +2092,7 @@ void cw_rec_sync_parameters_internal(cw_rec_t *rec)
 	int unit_len = CW_DOT_CALIBRATION / rec->speed;
 
 	if (rec->is_adaptive_receive_mode) {
-		rec->speed = CW_DOT_CALIBRATION	/ (rec->adaptive_speed_threshold / 2);
+		rec->speed = CW_DOT_CALIBRATION	/ (rec->adaptive_speed_threshold / 2.0);
 	} else {
 		rec->adaptive_speed_threshold = 2 * unit_len;
 	}
@@ -2172,7 +2173,7 @@ void cw_rec_sync_parameters_internal(cw_rec_t *rec)
 	}
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_PARAMETERS, CW_DEBUG_INFO,
-		      "libcw: receive usec timings <%d [wpm]>: dot: %d-%d [ms], dash: %d-%d [ms], %d-%d[%d], %d-%d[%d], thres: %d [us]",
+		      "libcw: receive usec timings <%.2f [wpm]>: dot: %d-%d [ms], dash: %d-%d [ms], %d-%d[%d], %d-%d[%d], thres: %d [us]",
 		      rec->speed,
 		      rec->dot_len_min, rec->dot_len_max,
 		      rec->dash_len_min, rec->dash_len_max,
@@ -2544,10 +2545,10 @@ void test_cw_rec_test_begin_end(cw_rec_t *rec, struct cw_rec_test_data *data)
 		}
 
 
-		float speed = (float) cw_rec_get_speed_internal(rec);
+		float speed = cw_rec_get_speed_internal(rec);
 
 
-		printf("libcw: received data #%d:   <%c> / <%s> @ %0.2f [wpm]\n",
+		printf("libcw: received data #%d:   <%c> / <%s> @ %.2f [wpm]\n",
 		       i, c, representation, speed);
 
 #if 0
