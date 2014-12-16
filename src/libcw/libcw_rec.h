@@ -50,6 +50,7 @@ void cw_rec_sync_parameters_internal(cw_rec_t *rec);
 unsigned int test_cw_rec_identify_mark_internal(void);
 unsigned int test_cw_rec_with_base_data_fixed(void);
 unsigned int test_cw_rec_with_random_data_fixed(void);
+unsigned int test_cw_rec_with_random_data_adaptive(void);
 
 #endif /* #ifdef LIBCW_UNIT_TESTS */
 
