@@ -153,54 +153,54 @@ static dictionary *
 dictionary_new (dictionary *tail,
                 const char *description, const char *const wordlist[],
                 void *mutable_description, void *mutable_wordlist,
-                void *mutable_wordlist_data)
+				  void *mutable_wordlist_data)
 {
   /* Count words in the wordlist, and look for multicharacter entries. */
-  int words = 0;
-  bool is_multicharacter = false;
+	int words = 0;
+	bool is_multicharacter = false;
   for (int word = 0; wordlist[word]; word++)
     {
-      is_multicharacter |= strlen (wordlist[word]) > 1;
-      words++;
-    }
+		is_multicharacter |= strlen(wordlist[word]) > 1;
+		words++;
+	}
 
   /*
    * Create a new dictionary and fill in the main fields.  Group size is
    * set to one for multicharacter word lists, five otherwise.
    */
-  dictionary *dict = safe_malloc (sizeof (*dict));
-  dict->description = description;
-  dict->wordlist = wordlist;
-  dict->wordlist_length = words;
-  dict->group_size = is_multicharacter ? 1 : 5;
-  dict->next = NULL;
+	dictionary *dict = safe_malloc(sizeof (*dict));
+	dict->description = description;
+	dict->wordlist = wordlist;
+	dict->wordlist_length = words;
+	dict->group_size = is_multicharacter ? 1 : 5;
+	dict->next = NULL;
 
-  /* Add mutable pointers passed in. */
-  dict->mutable_description = mutable_description;
-  dict->mutable_wordlist = mutable_wordlist;
-  dict->mutable_wordlist_data = mutable_wordlist_data;
+	/* Add mutable pointers passed in. */
+	dict->mutable_description = mutable_description;
+	dict->mutable_wordlist = mutable_wordlist;
+	dict->mutable_wordlist_data = mutable_wordlist_data;
 
-  /* Add to the list tail passed in, if any. */
+	/* Add to the list tail passed in, if any. */
   if (tail)
-    tail->next = dict;
+		tail->next = dict;
 
-  return dict;
+	return dict;
 }
 
 static dictionary *
 dictionary_new_const (dictionary *tail,
                       const char *description, const char *const wordlist[])
 {
-  return dictionary_new (tail, description, wordlist, NULL, NULL, NULL);
+	return dictionary_new(tail, description, wordlist, NULL, NULL, NULL);
 }
 
 static dictionary *
 dictionary_new_mutable (dictionary *tail,
                         char *description, const char *wordlist[],
-                        void *wordlist_data)
+					  void *wordlist_data)
 {
-  return dictionary_new (tail, description, wordlist,
-                         description, wordlist, wordlist_data);
+	return dictionary_new(tail, description, wordlist,
+			      description, wordlist, wordlist_data);
 }
 
 
@@ -250,34 +250,6 @@ void dictionary_unload(void)
 {
 	cw_dictionaries_unload();
 	return;
-}
-
-
-
-
-
-/*
- * dictionary_getline()
- *
- * Helper function for cw_dictionaries_read().  Returns the next file line (or
- * false if no more lines), stripped of any trailing nl/cr.
- */
-static bool
-dictionary_getline (FILE *stream, char *buffer, int length, int *line_number)
-{
-  if (!feof (stream) && fgets (buffer, length, stream))
-    {
-      int bytes;
-
-      bytes = strlen (buffer);
-      while (bytes > 0 && strchr ("\r\n", buffer[bytes - 1]))
-        buffer[--bytes] = '\0';
-
-      *line_number += 1;
-      return true;
-    }
-
-  return false;
 }
 
 
