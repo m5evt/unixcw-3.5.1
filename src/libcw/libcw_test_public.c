@@ -346,7 +346,6 @@ void test_parameter_ranges(cw_test_stats_t *stats)
 {
 	printf("libcw: %s():\n", __func__);
 
-	int status;
 	int txdot_usecs, txdash_usecs, end_of_element_usecs, end_of_character_usecs,
 		end_of_word_usecs, additional_usecs, adjustment_usecs,
 		rxdot_usecs, rxdash_usecs, dot_min_usecs, dot_max_usecs, dash_min_usecs,
@@ -416,8 +415,10 @@ void test_parameter_ranges(cw_test_stats_t *stats)
 	};
 
 
-	bool failure = false;
 	for (int i = 0; test_data[i].get_limits; i++) {
+
+		int status;
+		bool failure;
 
 		/* Get limits of values to be tested. */
 		/* Notice that getters of parameter limits are tested
