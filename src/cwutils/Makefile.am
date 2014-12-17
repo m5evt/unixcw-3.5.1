@@ -23,7 +23,7 @@ check_PROGRAMS=cw_dictionary_tests
 
 
 # source code files used to build cw_dictionary_tests program
-cw_dictionary_tests_SOURCES = dictionary.c memory.c i18n.c
+cw_dictionary_tests_SOURCES = dictionary.c memory.c i18n.c cw_common.c
 
 # target-specific preprocessor flags (#defs and include dirs)
 cw_dictionary_tests_CPPFLAGS = $(AM_CPPFLAGS) -DCW_DICTIONARY_UNIT_TESTS
