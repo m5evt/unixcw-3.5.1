@@ -27,6 +27,7 @@ extern "C" {
 
 
 #include <stdbool.h>
+#include <stdio.h>
 
 
 #define CW_PRACTICE_TIME_MIN        1
@@ -80,7 +81,7 @@ extern int cw_generator_new_from_config(cw_config_t *config);
 
 extern void cw_start_beep(void);
 extern void cw_end_beep(void);
-
+extern bool cw_getline(FILE *stream, char *buffer, int buffer_size);
 
 
 #if defined(__cplusplus)
