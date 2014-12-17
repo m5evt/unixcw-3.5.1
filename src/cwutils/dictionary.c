@@ -471,7 +471,9 @@ cw_dictionary_t *cw_dictionaries_create_from_stream(FILE *stream, const char *fi
 	dictionary *tail = NULL;
 
 	/* Parse input lines to create a new dictionary. */
-	while (dictionary_getline(stream, line, MAX_LINE, &line_number)) {
+	while (cw_getline(stream, line, MAX_LINE + 1)) {
+		line_number++;
+
 		char *new_name;
 
 		if (cw_dictionary_parse_is_comment(line)) {
