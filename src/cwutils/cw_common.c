@@ -397,3 +397,36 @@ void cw_end_beep(void)
       cw_wait_for_tone_queue();
       return;
 }
+
+
+
+
+/**
+   \brief Get line from FILE
+
+   Line of text is returned through \p buffer that should be allocated
+   by caller. Total buffer size (including space for ending NUL) is
+   given by \p buffer_size.
+
+   The function adds ending NULL.
+
+   Function strips newline character from the line read from file. The
+   newline character is not put into \p buffer.
+
+   \return true on successful reading of line
+   \return false otherwise
+*/
+bool cw_getline(FILE *stream, char *buffer, int buffer_size)
+{
+	if (!feof(stream) && fgets(buffer, buffer_size, stream)) {
+
+		size_t bytes = strlen(buffer);
+		while (bytes > 0 && strchr("\r\n", buffer[bytes - 1])) {
+			buffer[--bytes] = '\0';
+		}
+
+		return true;
+	}
+
+	return false;
+}
