@@ -1034,7 +1034,7 @@ int cw_queue_tone(int usecs, int frequency)
 	   do nothing here to protect the caller from setting up
 	   neverending (0 usecs) tones, if that's what they want to do. */
 	if (usecs < 0
-	    || frequency < 0 /* TODO: Is this line necessary? We have CW_FREQUENCY_MIN/MAX below. */
+	    // || frequency < 0 /* TODO: Is this line necessary? We have CW_FREQUENCY_MIN/MAX below. */
 	    || frequency < CW_FREQUENCY_MIN
 	    || frequency > CW_FREQUENCY_MAX) {
 
