@@ -2202,12 +2202,6 @@ void cw_rec_sync_parameters_internal(cw_rec_t *rec)
 
 
 
-#include "libcw_gen.h"
-
-
-
-
-
 #define TEST_CW_REC_DATA_LEN_MAX 30 /* There is no character that would have data that long. */
 struct cw_rec_test_data {
 	char c;                           /* Character. */
@@ -2260,8 +2254,6 @@ unsigned int test_cw_rec_identify_mark_internal(void)
 
 	cw_disable_adaptive_receive();
 
-	cw_generator_new(CW_AUDIO_NULL, "null");
-
 	int speed_step = (CW_SPEED_MAX - CW_SPEED_MIN) / 10;
 
 	for (int i = CW_SPEED_MIN; i < CW_SPEED_MAX; i += speed_step) {
@@ -2310,8 +2302,6 @@ unsigned int test_cw_rec_identify_mark_internal(void)
 	}
 
 
-
-	cw_generator_delete();
 
 	CW_TEST_PRINT_TEST_RESULT(false, p);
 
