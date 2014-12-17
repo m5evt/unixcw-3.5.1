@@ -291,12 +291,11 @@ struct cw_rec_struct {
 
 cw_rec_t cw_receiver = { .state = RS_IDLE,
 
-			 .gap = CW_GAP_INITIAL,
-
 
 
 			 .speed                      = CW_SPEED_INITIAL,
 			 .tolerance                  = CW_TOLERANCE_INITIAL,
+			 .gap = CW_GAP_INITIAL,
 			 .is_adaptive_receive_mode   = CW_REC_ADAPTIVE_MODE_INITIAL,
 			 .noise_spike_threshold      = CW_REC_NOISE_THRESHOLD_INITIAL,
 
@@ -348,8 +347,10 @@ cw_rec_t cw_receiver = { .state = RS_IDLE,
 
 
 
-			 .statistics_ind = 0,
 			 .statistics = { {0, 0} },
+			 .statistics_ind = 0,
+
+
 
 			 .dot_averaging  = { {0}, 0, 0, 0 },
 			 .dash_averaging = { {0}, 0, 0, 0 },
