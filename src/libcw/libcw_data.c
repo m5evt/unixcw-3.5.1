@@ -1332,7 +1332,7 @@ unsigned int test_cw_representation_to_hash_internal(void)
 	for (int i = 0; i < rep; i++) {
 		unsigned int hash = cw_representation_to_hash_internal(input[i]);
 		/* The function returns values in range 2 - 255. */
-		cw_assert (hash >= 2 && hash <= 255, "Invalid hash #%d: %d\n", i, hash)
+		cw_assert (hash >= 2 && hash <= 255, "Invalid hash #%d: %u\n", i, hash)
 	}
 
 	CW_TEST_PRINT_TEST_RESULT(false, p);
@@ -1404,7 +1404,7 @@ unsigned int test_cw_representation_to_character_internal_speed(void)
 	gettimeofday(&start, NULL);
 	for (int i = 0; i < N; i++) {
 		for (const cw_entry_t *cw_entry = CW_TABLE; cw_entry->character; cw_entry++) {
-			int rv = cw_representation_to_character_direct_internal(cw_entry->representation);
+			__attribute__((unused)) int rv = cw_representation_to_character_direct_internal(cw_entry->representation);
 		}
 	}
 	gettimeofday(&stop, NULL);
