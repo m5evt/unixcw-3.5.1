@@ -316,6 +316,9 @@ cw_rec_t cw_receiver = { .state = RS_IDLE,
 			 .mark_start = { 0, 0 },
 			 .mark_end   = { 0, 0 },
 
+
+
+			 .representation[0] = '\0',
 			 .representation_ind = 0,
 
 
@@ -2406,11 +2409,11 @@ void test_cw_rec_test_begin_end(cw_rec_t *rec, struct cw_rec_test_data *data)
 			   cw_rec_mark_bein{start|end}_receive_tone() functions just
 			   work. No checking of return values. */
 			if (tone % 2) {
-				cw_assert (cw_rec_mark_end_internal(rec, &tv),
-					   "cw_rec_mark_end_internal(): %d.%d", (int) tv.tv_sec, (int) tv.tv_usec);
+				int rv = cw_rec_mark_end_internal(rec, &tv);
+				cw_assert (rv, "cw_rec_mark_end_internal(): %d.%d", (int) tv.tv_sec, (int) tv.tv_usec);
 			} else {
-				cw_assert (cw_rec_mark_begin_internal(rec, &tv),
-					   "cw_rec_mark_begin_internal(): %d.%d", (int) tv.tv_sec, (int) tv.tv_usec);
+				int rv = cw_rec_mark_begin_internal(rec, &tv);
+				cw_assert (rv, "cw_rec_mark_begin_internal(): %d.%d", (int) tv.tv_sec, (int) tv.tv_usec);
 			}
 
 			tv.tv_usec += data[i].d[tone];
@@ -2975,7 +2978,7 @@ struct cw_rec_test_data *test_cw_rec_new_data(const char *characters, float spee
 		test_data[j].c = characters[i];
 		test_data[j].r = cw_character_to_representation(test_data[j].c);
 		cw_assert (test_data[j].r,
-			   "cw_character_to_representation() failed for input char #%zd: '%c'\n",
+			   "cw_character_to_representation() failed for input char #%zu: '%c'\n",
 			   i, characters[i]);
 		test_data[j].s = speeds[i];
 
@@ -3007,7 +3010,7 @@ struct cw_rec_test_data *test_cw_rec_new_data(const char *characters, float spee
 			nd++;
 		}
 
-		cw_assert (nd > 0, "number of times is %zd for representation '%s'\n", nd, test_data[j].r);
+		cw_assert (nd > 0, "number of times is %zu for representation '%s'\n", nd, test_data[j].r);
 
 		test_data[j].d[nd - 1] = (unit_len * 3) + (unit_len / 2);  /* end-of-character space. */
 		test_data[j].d[nd] = 0; /* Guard. */
@@ -3016,7 +3019,7 @@ struct cw_rec_test_data *test_cw_rec_new_data(const char *characters, float spee
 		/* Mark and space always go in pair. */
 		cw_assert (! (nd % 2), "number of times is not even");
 		/* Mark/space pair per each dot or dash. */
-		cw_assert (nd == 2 * rep_length, "number of times incorrect: %zd != 2 * %zd\n", nd, rep_length);
+		cw_assert (nd == 2 * rep_length, "number of times incorrect: %zu != 2 * %zu\n", nd, rep_length);
 
 
 		test_data[j].nd = (size_t ) nd;
