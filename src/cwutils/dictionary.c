@@ -37,6 +37,7 @@
 
 #include "dictionary.h"
 #include "cw_words.h"
+#include "cw_common.h"
 #include "memory.h"
 #include "i18n.h"
 
@@ -149,25 +150,25 @@ static cw_dictionary_t *dictionaries_head = NULL;
  * plus any mutable pointers that need to be freed on destroying the
  * dictionary.  The const and mutable variants are convenience interfaces.
  */
-static dictionary *
-dictionary_new (dictionary *tail,
-                const char *description, const char *const wordlist[],
-                void *mutable_description, void *mutable_wordlist,
+static dictionary *dictionary_new(dictionary *tail,
+				  const char *description,
+				  const char *const wordlist[],
+				  void *mutable_description,
+				  void *mutable_wordlist,
 				  void *mutable_wordlist_data)
 {
-  /* Count words in the wordlist, and look for multicharacter entries. */
+	/* Count words in the wordlist, and look for multicharacter
+	   entries. */
 	int words = 0;
 	bool is_multicharacter = false;
-  for (int word = 0; wordlist[word]; word++)
-    {
+	for (int word = 0; wordlist[word]; word++) {
 		is_multicharacter |= strlen(wordlist[word]) > 1;
 		words++;
 	}
 
-  /*
-   * Create a new dictionary and fill in the main fields.  Group size is
-   * set to one for multicharacter word lists, five otherwise.
-   */
+	/* Create a new dictionary and fill in the main fields.  Group
+	   size is set to one for multicharacter word lists, five
+	   otherwise. */
 	dictionary *dict = safe_malloc(sizeof (*dict));
 	dict->description = description;
 	dict->wordlist = wordlist;
@@ -181,22 +182,31 @@ dictionary_new (dictionary *tail,
 	dict->mutable_wordlist_data = mutable_wordlist_data;
 
 	/* Add to the list tail passed in, if any. */
-  if (tail)
+	if (tail) {
 		tail->next = dict;
+	}
 
 	return dict;
 }
 
-static dictionary *
-dictionary_new_const (dictionary *tail,
-                      const char *description, const char *const wordlist[])
+
+
+
+
+static dictionary *dictionary_new_const(dictionary *tail,
+					const char *description,
+					const char *const wordlist[])
 {
 	return dictionary_new(tail, description, wordlist, NULL, NULL, NULL);
 }
 
-static dictionary *
-dictionary_new_mutable (dictionary *tail,
-                        char *description, const char *wordlist[],
+
+
+
+
+static dictionary *dictionary_new_mutable(dictionary *tail,
+					  char *description,
+					  const char *wordlist[],
 					  void *wordlist_data)
 {
 	return dictionary_new(tail, description, wordlist,
