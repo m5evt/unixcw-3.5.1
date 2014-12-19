@@ -84,6 +84,8 @@ static cw_test_function_t cw_unit_tests[] = {
 	test_character_lookups_internal,
 	test_prosign_lookups_internal,
 	test_phonetic_lookups_internal,
+	test_validate_character_and_string_internal,
+
 
 	// test_cw_forever,
 
