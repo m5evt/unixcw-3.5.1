@@ -76,9 +76,15 @@ extern cw_debug_t cw_debug_object;
 typedef unsigned int (*cw_test_function_t)(void);
 
 static cw_test_function_t cw_unit_tests[] = {
+
+	/* cw_data module */
 	test_cw_representation_to_hash_internal,
 	test_cw_representation_to_character_internal,
 	test_cw_representation_to_character_internal_speed,
+	test_character_lookups_internal,
+	test_prosign_lookups_internal,
+	test_phonetic_lookups_internal,
+
 	// test_cw_forever,
 
 	test_cw_tq_new_internal,
@@ -110,7 +116,7 @@ static cw_test_function_t cw_unit_tests[] = {
 
 int main(void)
 {
-	fprintf(stderr, "libcw unit tests for library's internal functions\n\n");
+	fprintf(stderr, "libcw unit tests for library's functions\n\n");
 
 
 	struct timeval tv;
