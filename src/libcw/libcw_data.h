@@ -43,6 +43,10 @@ const char  *cw_lookup_procedural_character_internal(int c, bool *is_usually_exp
 unsigned int test_cw_representation_to_hash_internal(void);
 unsigned int test_cw_representation_to_character_internal(void);
 unsigned int test_cw_representation_to_character_internal_speed(void);
+unsigned int test_character_lookups_internal(void);
+unsigned int test_prosign_lookups_internal(void);
+unsigned int test_phonetic_lookups_internal(void);
+
 
 #endif /* #ifdef LIBCW_UNIT_TESTS */
 
