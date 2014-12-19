@@ -134,7 +134,7 @@ static const cw_entry_t CW_TABLE[] = {
    \li ISO 8859-2 accented characters,
    \li non-standard procedural signal extensions to standard CW characters.
 
-   testedin::test_character_lookups()
+   testedin::test_character_lookups_internal()
 
    \return number of characters known to libcw
 */
@@ -174,7 +174,7 @@ int cw_get_character_count(void)
    of characters represented in the character lookup table, returned
    by cw_get_character_count().
 
-   testedin::test_character_lookups()
+   testedin::test_character_lookups_internal()
 
    \param list - pointer to space to be filled by function
 */
@@ -203,7 +203,7 @@ void cw_list_characters(char *list)
    Function returns the string length of the longest representation in the
    character lookup table.
 
-   testedin::test_character_lookups()
+   testedin::test_character_lookups_internal()
 
    \return a positive number - length of the longest representation
 */
@@ -348,7 +348,7 @@ int cw_lookup_character(char c, char *representation)
    ENOMEM indicates that character has been found, but function failed
    to strdup() representation.
 
-   testedin::test_character_lookups()
+   testedin::test_character_lookups_internal()
 
    \param c - character to look up
 
@@ -782,7 +782,7 @@ int cw_lookup_representation(const char *representation, char *c)
    character of the representation is invalid, or ENOENT to indicate that
    the character represented by \p representation could not be found.
 
-   testedin::test_character_lookups()
+   testedin::test_character_lookups_internal()
 
    \param representation - representation of a character to look up
 
@@ -861,7 +861,7 @@ static const cw_prosign_entry_t CW_PROSIGN_TABLE[] = {
 /**
    \brief Get number of procedural signals
 
-   testedin::test_prosign_lookups()
+   testedin::test_prosign_lookups_internal()
 
    \return the number of characters represented in the procedural signal expansion lookup table
 */
@@ -894,7 +894,7 @@ int cw_get_procedural_character_count(void)
 
    \p list is managed by caller
 
-   testedin::test_prosign_lookups()
+   testedin::test_prosign_lookups_internal()
 
    \param list - space for returned characters
 */
@@ -921,7 +921,7 @@ void cw_list_procedural_characters(char *list)
    Function returns the string length of the longest expansion
    in the procedural signal expansion table.
 
-   testedin::test_prosign_lookups()
+   testedin::test_prosign_lookups_internal()
 
    \return length
 */
@@ -1032,7 +1032,7 @@ const char *cw_lookup_procedural_character_internal(int c, bool *is_usually_expa
    If procedural signal character \p c cannot be found, the function sets
    errno to ENOENT and returns CW_FAILURE.
 
-   testedin::test_prosign_lookups()
+   testedin::test_prosign_lookups_internal()
 
    \param c - character to look up
    \param expansion - output, space to fill with expansion of the character
@@ -1113,7 +1113,7 @@ static const char *const CW_PHONETICS[27] = {
 /**
    \brief Get maximum length of a phonetic
 
-   testedin::test_phonetic_lookups()
+   testedin::test_phonetic_lookups_internal()
 
    \return the string length of the longest phonetic in the phonetics lookup table
 */
@@ -1150,7 +1150,7 @@ int cw_get_maximum_phonetic_length(void)
 
    If character cannot be found, the function sets errno to ENOENT.
 
-   testedin::test_phonetic_lookups()
+   testedin::test_phonetic_lookups_internal()
 
    \param c - character to look up
    \param phonetic - output, space for phonetic of a character
@@ -1265,6 +1265,8 @@ int cw_check_string(const char *string)
 #ifdef LIBCW_UNIT_TESTS
 
 
+#include <stdlib.h> /* free() */
+
 #include "libcw_utils.h"
 
 
@@ -1295,7 +1297,7 @@ int cw_check_string(const char *string)
 */
 unsigned int test_cw_representation_to_hash_internal(void)
 {
-	int p = fprintf(stderr, "libcw: cw_representation_to_hash_internal():");
+	int p = fprintf(stderr, "libcw/data: cw_representation_to_hash_internal():");
 
 
 	char input[REPRESENTATION_TABLE_SIZE][REPRESENTATION_LEN + 1];
@@ -1349,7 +1351,7 @@ unsigned int test_cw_representation_to_hash_internal(void)
 */
 unsigned int test_cw_representation_to_character_internal(void)
 {
-	int p = fprintf(stderr, "libcw: cw_representation_to_character_internal():");
+	int p = fprintf(stderr, "libcw/data: cw_representation_to_character_internal():");
 
 	/* The test is performed by comparing results of function
 	   using fast lookup table, and function using direct
@@ -1375,7 +1377,7 @@ unsigned int test_cw_representation_to_character_internal(void)
 
 unsigned int test_cw_representation_to_character_internal_speed(void)
 {
-	int p = fprintf(stderr, "libcw: cw_representation_to_character_internal() speed gain: ");
+	int p = fprintf(stderr, "libcw/data: cw_representation_to_character() speed gain: ");
 
 
 	/* Testing speed gain between function with direct lookup, and
@@ -1411,13 +1413,271 @@ unsigned int test_cw_representation_to_character_internal_speed(void)
 
 	int direct = cw_timestamp_compare_internal(&start, &stop);
 
-	p += fprintf(stderr, "%.2f:", 1.0 * direct / lookup);
+	p += fprintf(stderr, "%.2f", 1.0 * direct / lookup);
 
 
 	CW_TEST_PRINT_TEST_RESULT(false, p);
 
 	return 0;
 }
+
+
+
+
+
+/**
+   \brief Test functions looking up characters and their representation.
+
+   tests::cw_get_character_count()
+   tests::cw_list_characters()
+   tests::cw_get_maximum_representation_length()
+   tests::cw_character_to_representation()
+   tests::cw_representation_to_character()
+*/
+unsigned int test_character_lookups_internal(void)
+{
+	int count = 0; /* Number of characters. */
+
+	/* Test: get number of characters known to libcw. */
+	{
+		/* libcw doesn't define a constant describing the
+		   number of known/supported/recognized characters,
+		   but there is a function calculating the number. One
+		   thing is certain: the number is larger than
+		   zero. */
+		count = cw_get_character_count();
+		cw_assert (count > 0, "Invalid number of characters: %d\n", count);
+
+		int n = printf("libcw/data: cw_get_character_count(): %d:", count);
+		CW_TEST_PRINT_TEST_RESULT (false, n);
+	}
+
+
+	char charlist[UCHAR_MAX + 1];
+	/* Test: get list of characters supported by libcw. */
+	{
+		/* Of course length of the list must match the
+		   character count discovered above. */
+
+		cw_list_characters(charlist);
+		printf("libcw/data: cw_list_characters():\n"
+		       "libcw/data: %s\n", charlist);
+		size_t len = strlen(charlist);
+		cw_assert (count == (int) len,
+			   "Number of characters don't match: %d != %zd\n",
+			   count, len);
+
+		int n = printf("libcw/data: character count correct (%d == %d)", count, (int) len);
+		CW_TEST_PRINT_TEST_RESULT (false, n);
+	}
+
+
+
+	/* Test: get maximum length of a representation (a string of dots/dashes). */
+	{
+		/* This test is rather not related to any other, but
+		   since we are doing tests of other functions related
+		   to representations, let's do this as well. */
+
+		int rep_len = cw_get_maximum_representation_length();
+		cw_assert (rep_len > 0, "Maximum representation length invalid: %d\n", rep_len);
+
+		int n = printf("libcw/data: cw_get_maximum_representation_length(): %d:", rep_len);
+		CW_TEST_PRINT_TEST_RESULT (false, n);
+	}
+
+
+
+	/* Test: character <--> representation lookup. */
+	{
+		/* For each character, look up its representation, the
+		   look up each representation in the opposite
+		   direction. */
+
+		for (int i = 0; charlist[i] != '\0'; i++) {
+
+			char *representation = cw_character_to_representation(charlist[i]);
+			cw_assert (representation, "Failed to get a representation string (#%d)\n", i);
+
+
+			/* Here we convert the representation into an output char 'c'. */
+			char c = cw_representation_to_character(representation);
+			cw_assert (c, "Failed to get character for a representation (#%d)\n", i);
+
+
+			/* Compare output char with input char. */
+			cw_assert (charlist[i] == c, "Two-way lookup failure for char %c (#%d)\n", c, i);
+
+			free(representation);
+			representation = NULL;
+		}
+
+		int n = printf("libcw/data: cw_character_to_representation():");
+		CW_TEST_PRINT_TEST_RESULT (false, n);
+
+
+		n = printf("libcw/data: cw_representation_to_character():");
+		CW_TEST_PRINT_TEST_RESULT (false, n);
+
+
+		n = printf("libcw/data: two-way lookup for character lookups:");
+		CW_TEST_PRINT_TEST_RESULT (false, n);
+	}
+
+	return 0;
+}
+
+
+
+
+
+/**
+   \brief Test functions looking up procedural characters and their representation.
+
+   tests::cw_get_procedural_character_count()
+   tests::cw_list_procedural_characters()
+   tests::cw_get_maximum_procedural_expansion_length()
+   tests::cw_lookup_procedural_character()
+*/
+unsigned int test_prosign_lookups_internal(void)
+{
+	/* Collect and print out a list of characters in the
+	   procedural signals expansion table. */
+
+	int count = 0; /* Number of prosigns. */
+
+	/* Test: get number of prosigns known to libcw. */
+	{
+		count = cw_get_procedural_character_count();
+		cw_assert (count > 0, "Invalid number of procedural characters: %d\n", count);
+
+		int n = printf("libcw/data: cw_get_procedural_character_count(): %d", count);
+		CW_TEST_PRINT_TEST_RESULT (false, n);
+	}
+
+
+
+	char charlist[UCHAR_MAX + 1];
+	/* Test: get list of characters supported by libcw. */
+	{
+		cw_list_procedural_characters(charlist);
+		printf("libcw/data: cw_list_procedural_characters():\n"
+		       "libcw/data: %s\n", charlist);
+		size_t len = strlen(charlist);
+		cw_assert (count == (int) len,
+			   "Number of characters don't match: %d != %zd\n",
+			   count, len);
+
+		int n = printf("libcw/data: procedural character count correct (%d == %d)", count, (int) len);
+		CW_TEST_PRINT_TEST_RESULT (false, n);
+	}
+
+
+
+	/* Test: expansion length. */
+	{
+		int exp_len = cw_get_maximum_procedural_expansion_length();
+		cw_assert (exp_len > 0,
+			   "Expansion length invalid: %d\n", exp_len);
+
+		int n = printf("libcw/data: cw_get_maximum_procedural_expansion_length(): %d", exp_len);
+		CW_TEST_PRINT_TEST_RESULT (false, n);
+	}
+
+
+
+	/* Test: lookup. */
+	{
+		/* For each procedural character, look up its
+		   expansion and check for two or three characters,
+		   and a true/false assignment to the display hint. */
+
+		for (int i = 0; charlist[i] != '\0'; i++) {
+			char expansion[256];
+			int is_usually_expanded = -1;
+
+			cw_assert (cw_lookup_procedural_character(charlist[i],
+								  expansion,
+								  &is_usually_expanded),
+				   "Lookup of character %c (#%d) failed", charlist[i], i);
+
+
+			/* TODO: comment, please. */
+			if ((strlen(expansion) != 2 && strlen(expansion) != 3)
+			    || is_usually_expanded == -1) {
+
+				cw_assert (0, "Expansion check failed\n");
+			}
+		}
+
+		int n = printf("libcw/data: cw_lookup_procedural_character():");
+		CW_TEST_PRINT_TEST_RESULT (false, n);
+
+		n = printf("libcw/data: cw_lookup_procedural_() mapping:");
+		CW_TEST_PRINT_TEST_RESULT (false, n);
+
+	}
+
+	return 0;
+}
+
+
+
+
+
+/**
+   tests::cw_get_maximum_phonetic_length()
+   tests::cw_lookup_phonetic()
+*/
+unsigned int test_phonetic_lookups_internal(void)
+{
+	/* For each ASCII character, look up its phonetic and check
+	   for a string that start with this character, if alphabetic,
+	   and false otherwise. */
+
+	/* Test: check that maximum phonetic length is larger than
+	   zero. */
+	{
+		int len = cw_get_maximum_phonetic_length();
+		cw_assert (len > 0, "Maximum phonetic length invalid: %d\n", len);
+
+		int n = printf("libcw/data: cw_get_maximum_phonetic_length(): %d", len);
+		CW_TEST_PRINT_TEST_RESULT (false, n);
+	}
+
+
+	/* Test: lookup of phonetic + reverse lookup. */
+	{
+		for (int i = 0; i < UCHAR_MAX; i++) {
+			char phonetic[256];
+
+			int status = cw_lookup_phonetic((char) i, phonetic);
+			cw_assert (status == (bool) isalpha(i),
+				   "Lookup of phonetic %c (#%d) failed\n", (char ) i, i);
+
+			if (status && (bool) isalpha(i)) {
+				/* We have looked up a letter, it has
+				   a phonetic.  Almost by definition,
+				   the first letter of phonetic should
+				   be the same as the looked up
+				   letter. */
+				cw_assert (phonetic[0] == toupper((char) i),
+					   "Reverse lookup failed for phonetic \"%s\" (%c / #%d)\n",
+					   phonetic, (char) i, i);
+			}
+		}
+
+		int n = printf("libcw/data: cw_lookup_phonetic():");
+		CW_TEST_PRINT_TEST_RESULT (false, n);
+
+		n = printf("libcw/data: reverse lookup for phonetic characters:");
+		CW_TEST_PRINT_TEST_RESULT (false, n);
+	}
+
+	return 0;
+}
+
+
 
 
 
