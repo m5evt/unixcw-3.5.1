@@ -106,7 +106,6 @@ static void test_straight_key(cw_test_stats_t *stats);
 /* Other functions. */
 static void test_parameter_ranges(cw_test_stats_t *stats);
 static void test_representations(cw_test_stats_t *stats);   /* "data" and "generator" modules. TODO: split this function in two. */
-static void test_validate_character_and_string(cw_test_stats_t *stats);  /* "data" module. */
 
 
 // static void cw_test_delayed_release(cw_test_stats_t *stats);
@@ -1316,89 +1315,6 @@ void test_representations(cw_test_stats_t *stats)
 
 
 /**
-   Validate all supported characters, first each characters individually, then as a string.
-
-   tests::cw_character_is_valid()
-   tests::cw_string_is_valid()
-*/
-void test_validate_character_and_string(cw_test_stats_t *stats)
-{
-	printf("libcw: %s():\n", __func__);
-
-	/* Test: validation of individual characters. */
-	{
-		char charlist[UCHAR_MAX + 1];
-		cw_list_characters(charlist);
-
-		bool valid_failure = false;
-		bool invalid_failure = false;
-		for (int i = 0; i < UCHAR_MAX; i++) {
-			if (i == ' '
-			    || (i != 0 && strchr(charlist, toupper(i)) != NULL)) {
-
-				/* Here we have a valid character, that is
-				   recognized/supported as 'sendable' by
-				   libcw.  cw_character_is_valid() should
-				   confirm it. */
-				if (!cw_character_is_valid(i)) {
-					valid_failure = true;
-					break;
-				}
-			} else {
-				/* The 'i' character is not
-				   recognized/supported by libcw.
-				   cw_character_is_valid() should return false
-				   to signify that the char is invalid. */
-				if (cw_character_is_valid(i)) {
-					invalid_failure = true;
-					break;
-				}
-			}
-		}
-
-		valid_failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_character_is_valid(<valid>):");
-		CW_TEST_PRINT_TEST_RESULT (valid_failure, n);
-
-		invalid_failure ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_character_is_valid(<invalid>):");
-		CW_TEST_PRINT_TEST_RESULT (invalid_failure, n);
-	}
-
-
-
-	/* Test: validation of string as a whole. */
-	{
-		/* Check the whole charlist item as a single string,
-		   then check a known invalid string. */
-
-		char charlist[UCHAR_MAX + 1];
-		cw_list_characters(charlist);
-		bool failure = !cw_string_is_valid(charlist);
-
-		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_string_is_valid(<valid>):");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-
-		/* Test invalid string. */
-		failure = cw_string_is_valid("%INVALID%");
-
-		failure ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_string_is_valid(<invalid>):");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-	}
-
-
-	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
-
-	return;
-}
-
-
-
-
-
-/**
    Send all supported characters: first as individual characters, and then as a string.
 
    tests::cw_send_character()
@@ -2022,7 +1938,6 @@ static void (*const CW_TEST_FUNCTIONS_DEP_K[])(cw_test_stats_t *) = {
 static void (*const CW_TEST_FUNCTIONS_DEP_O[])(cw_test_stats_t *) = {
 	test_parameter_ranges,
 	test_representations,
-	test_validate_character_and_string,
 
 	//cw_test_delayed_release,
 	//cw_test_signal_handling, /* FIXME - not sure why this test fails :( */
