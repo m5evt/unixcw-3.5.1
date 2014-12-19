@@ -1183,7 +1183,7 @@ int cw_lookup_phonetic(char c, char *phonetic)
 
    Function sets errno to ENOENT on failure.
 
-   testedin::test_validate_character_and_string()
+   testedin::test_validate_character_and_string_internal()
 
    \param c - character to check
 
@@ -1223,7 +1223,7 @@ int cw_check_character(char c)
 
    Function sets errno to EINVAL on failure
 
-   testedin::test_validate_character_and_string()
+   testedin::test_validate_character_and_string_internal()
 
    \param string - string to check
 
@@ -1467,7 +1467,7 @@ unsigned int test_character_lookups_internal(void)
 			   "Number of characters don't match: %d != %zd\n",
 			   count, len);
 
-		int n = printf("libcw/data: character count correct (%d == %d)", count, (int) len);
+		int n = printf("libcw/data: character count is correct (%d == %d)", count, (int) len);
 		CW_TEST_PRINT_TEST_RESULT (false, n);
 	}
 
@@ -1506,7 +1506,7 @@ unsigned int test_character_lookups_internal(void)
 
 
 			/* Compare output char with input char. */
-			cw_assert (charlist[i] == c, "Two-way lookup failure for char %c (#%d)\n", c, i);
+			cw_assert (charlist[i] == c, "Two-way lookup failure for char '%c' (#%d)\n", c, i);
 
 			free(representation);
 			representation = NULL;
@@ -1568,7 +1568,7 @@ unsigned int test_prosign_lookups_internal(void)
 			   "Number of characters don't match: %d != %zd\n",
 			   count, len);
 
-		int n = printf("libcw/data: procedural character count correct (%d == %d)", count, (int) len);
+		int n = printf("libcw/data: procedural character count is correct (%d == %d)", count, (int) len);
 		CW_TEST_PRINT_TEST_RESULT (false, n);
 	}
 
@@ -1599,7 +1599,7 @@ unsigned int test_prosign_lookups_internal(void)
 			cw_assert (cw_lookup_procedural_character(charlist[i],
 								  expansion,
 								  &is_usually_expanded),
-				   "Lookup of character %c (#%d) failed", charlist[i], i);
+				   "Lookup of character '%c' (#%d) failed", charlist[i], i);
 
 
 			/* TODO: comment, please. */
@@ -1653,7 +1653,7 @@ unsigned int test_phonetic_lookups_internal(void)
 
 			int status = cw_lookup_phonetic((char) i, phonetic);
 			cw_assert (status == (bool) isalpha(i),
-				   "Lookup of phonetic %c (#%d) failed\n", (char ) i, i);
+				   "Lookup of phonetic '%c' (#%d) failed\n", (char ) i, i);
 
 			if (status && (bool) isalpha(i)) {
 				/* We have looked up a letter, it has
@@ -1662,7 +1662,7 @@ unsigned int test_phonetic_lookups_internal(void)
 				   be the same as the looked up
 				   letter. */
 				cw_assert (phonetic[0] == toupper((char) i),
-					   "Reverse lookup failed for phonetic \"%s\" (%c / #%d)\n",
+					   "Reverse lookup failed for phonetic \"%s\" ('%c' / #%d)\n",
 					   phonetic, (char) i, i);
 			}
 		}
@@ -1673,6 +1673,79 @@ unsigned int test_phonetic_lookups_internal(void)
 		n = printf("libcw/data: reverse lookup for phonetic characters:");
 		CW_TEST_PRINT_TEST_RESULT (false, n);
 	}
+
+	return 0;
+}
+
+
+
+
+
+/**
+   Validate all supported characters, first each characters individually, then as a string.
+
+   tests::cw_character_is_valid()
+   tests::cw_string_is_valid()
+*/
+unsigned int test_validate_character_and_string_internal(void)
+{
+	/* Test: validation of individual characters. */
+	{
+		char charlist[UCHAR_MAX + 1];
+		cw_list_characters(charlist);
+
+		for (int i = 0; i < UCHAR_MAX; i++) {
+			if (i == ' '
+			    || (i != 0 && strchr(charlist, toupper(i)) != NULL)) {
+
+				/* Here we have a valid character, that is
+				   recognized/supported as 'sendable' by
+				   libcw.  cw_character_is_valid() should
+				   confirm it. */
+				cw_assert (cw_character_is_valid(i),
+					   "Valid character '%c' / #%d not recognized as valid\n",
+					   (char ) i, i);
+			} else {
+				/* The 'i' character is not
+				   recognized/supported by libcw.
+				   cw_character_is_valid() should return false
+				   to signify that the char is invalid. */
+				cw_assert (!cw_character_is_valid(i),
+					   "Invalid character '%c' / #%d recognized as valid\n",
+					   (char ) i, i);
+			}
+		}
+
+		int n = printf("libcw/data: cw_character_is_valid(<valid>):");
+		CW_TEST_PRINT_TEST_RESULT (false, n);
+
+		n = printf("libcw/data: cw_character_is_valid(<invalid>):");
+		CW_TEST_PRINT_TEST_RESULT (false, n);
+	}
+
+
+
+	/* Test: validation of string as a whole. */
+	{
+		/* Check the whole charlist item as a single string,
+		   then check a known invalid string. */
+
+		char charlist[UCHAR_MAX + 1];
+		cw_list_characters(charlist);
+		cw_assert (cw_string_is_valid(charlist),
+			   "String with valid characters not recognized as valid\n");
+
+		int n = printf("libcw/data: cw_string_is_valid(<valid>):");
+		CW_TEST_PRINT_TEST_RESULT (false, n);
+
+		/* Test invalid string. */
+		cw_assert (!cw_string_is_valid("%INVALID%"),
+			   "String with invalid characters recognized as valid\n");
+
+		n = printf("libcw/data: cw_string_is_valid(<invalid>):");
+		CW_TEST_PRINT_TEST_RESULT (false, n);
+	}
+
 
 	return 0;
 }
