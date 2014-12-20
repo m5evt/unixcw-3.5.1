@@ -473,12 +473,12 @@ void cw_key_sk_enqueue_symbol_internal(volatile cw_key_t *key, int key_value)
 			tone.usecs = key->gen->tone_slope.length_usecs;
 			tone.frequency = key->gen->frequency;
 			tone.slope_mode = CW_SLOPE_MODE_RISING_SLOPE;
-			cw_tone_queue_enqueue_internal(key->gen->tq, &tone);
+			cw_tq_enqueue_internal(key->gen->tq, &tone);
 
 			tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
 			tone.usecs = CW_AUDIO_FOREVER_USECS;
 			tone.frequency = key->gen->frequency;
-			cw_tone_queue_enqueue_internal(key->gen->tq, &tone);
+			cw_tq_enqueue_internal(key->gen->tq, &tone);
 
 			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
 				      "libcw: tone queue: len = %"PRIu32"", cw_tone_queue_length_internal(key->gen->tq));
@@ -493,7 +493,7 @@ void cw_key_sk_enqueue_symbol_internal(volatile cw_key_t *key, int key_value)
 				tone.usecs = CW_AUDIO_QUANTUM_USECS;
 				tone.frequency = 0;
 				tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-				cw_tone_queue_enqueue_internal(key->gen->tq, &tone);
+				cw_tq_enqueue_internal(key->gen->tq, &tone);
 			} else {
 				/* For soundcards a falling slope with
 				   volume from max to zero should be
@@ -502,7 +502,7 @@ void cw_key_sk_enqueue_symbol_internal(volatile cw_key_t *key, int key_value)
 				tone.usecs = key->gen->tone_slope.length_usecs;
 				tone.frequency = key->gen->frequency;
 				tone.slope_mode = CW_SLOPE_MODE_FALLING_SLOPE;
-				cw_tone_queue_enqueue_internal(key->gen->tq, &tone);
+				cw_tq_enqueue_internal(key->gen->tq, &tone);
 
 				/* On some occasions, on some platforms, some
 				   sound systems may need to constantly play
@@ -519,7 +519,7 @@ void cw_key_sk_enqueue_symbol_internal(volatile cw_key_t *key, int key_value)
 				tone.usecs = CW_AUDIO_FOREVER_USECS;
 				tone.frequency = 0;
 				tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-				cw_tone_queue_enqueue_internal(key->gen->tq, &tone);
+				cw_tq_enqueue_internal(key->gen->tq, &tone);
 			}
 		}
 	}
@@ -596,13 +596,13 @@ void cw_key_ik_enqueue_symbol_internal(volatile cw_key_t *keyer, int key_value, 
 			tone.slope_mode = CW_SLOPE_MODE_STANDARD_SLOPES;
 			tone.usecs = usecs;
 			tone.frequency = keyer->gen->frequency;
-			cw_tone_queue_enqueue_internal(keyer->gen->tq, &tone);
+			cw_tq_enqueue_internal(keyer->gen->tq, &tone);
 		} else {
 			cw_tone_t tone;
 			tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
 			tone.usecs = usecs;
 			tone.frequency = 0;
-			cw_tone_queue_enqueue_internal(keyer->gen->tq, &tone);
+			cw_tq_enqueue_internal(keyer->gen->tq, &tone);
 		}
 	}
 
