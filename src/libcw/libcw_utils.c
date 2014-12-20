@@ -742,6 +742,9 @@ void cw_complete_reset(void)
 #ifdef LIBCW_UNIT_TESTS
 
 
+
+
+
 #include "libcw_gen.h"
 
 
@@ -751,7 +754,7 @@ extern cw_gen_t *cw_generator;
 
 unsigned int test_cw_forever(void)
 {
-	int p = fprintf(stderr, "libcw: CW_AUDIO_FOREVER_USECS:");
+	int p = fprintf(stderr, "libcw/utils: CW_AUDIO_FOREVER_USECS:");
 
 	int rv = cw_generator_new(CW_AUDIO_OSS, NULL);
 	assert (rv);
@@ -799,7 +802,7 @@ unsigned int test_cw_forever(void)
 */
 unsigned int test_cw_timestamp_compare_internal(void)
 {
-	int p = fprintf(stderr, "libcw: cw_timestamp_compare_internal():");
+	int p = fprintf(stderr, "libcw/utils: cw_timestamp_compare_internal():");
 
 	struct timeval earlier_timestamp;
 	struct timeval later_timestamp;
@@ -848,7 +851,7 @@ unsigned int test_cw_timestamp_compare_internal(void)
 */
 unsigned int test_cw_timestamp_validate_internal(void)
 {
-	int p = fprintf(stderr, "libcw: cw_timestamp_validate_internal():");
+	int p = fprintf(stderr, "libcw/utils: cw_timestamp_validate_internal():");
 
 	struct timeval out_timestamp;
 	struct timeval in_timestamp;
@@ -939,7 +942,7 @@ unsigned int test_cw_timestamp_validate_internal(void)
 */
 unsigned int test_cw_usecs_to_timespec_internal(void)
 {
-	int p = fprintf(stderr, "libcw: cw_usecs_to_timespec_internal():");
+	int p = fprintf(stderr, "libcw/utils: cw_usecs_to_timespec_internal():");
 
 	struct {
 		int input;
@@ -968,7 +971,144 @@ unsigned int test_cw_usecs_to_timespec_internal(void)
 		i++;
 	}
 
-	CW_TEST_PRINT_TEST_RESULT(false, p);
+	CW_TEST_PRINT_TEST_RESULT (false, p);
+
+	return 0;
+}
+
+
+
+
+
+
+/**
+   tests::cw_version()
+*/
+unsigned int test_cw_version_internal(void)
+{
+	bool failure = false;
+	int rv = cw_version();
+	int major = rv >> 16;
+	int minor = rv & 0xff;
+
+	/* Library's version is defined in LIBCW_VERSION. cw_version()
+	   uses three calls to strtol() to get three parts of the
+	   library version.
+
+	   Let's use a different approach to convert LIBCW_VERSION
+	   into numbers. */
+
+
+	int current = 0, revision = 0;
+	__attribute__((unused)) int age = 0;
+
+	char *str = strdup(LIBCW_VERSION);
+
+	for (int i = 0; ; i++, str = NULL) {
+
+		char *token = strtok(str, ":");
+		if (token == NULL) {
+			break;
+		}
+
+		if (i == 0) {
+			current = atoi(token);
+		} else if (i == 1) {
+			revision = atoi(token);
+		} else if (i == 2) {
+			age = atoi(token);
+		} else {
+			cw_assert (0, "too many tokens in \"%s\"\n", LIBCW_VERSION);
+		}
+	}
+
+	free(str);
+	str = NULL;
+
+	cw_assert (major == current, "Incorrect \"current\": %d != %d\n", major, current);
+	cw_assert (minor == revision, "Incorrect \"revision\": %d != %d\n", minor, revision);
+
+	int n = fprintf(stderr, "libcw/utils: get version: %d.%d:", major, minor);
+	CW_TEST_PRINT_TEST_RESULT (false, n);
+
+	return 0;
+}
+
+
+
+
+
+/**
+   tests::cw_license()
+*/
+unsigned int test_cw_license_internal(void)
+{
+	/* Well, there isn't much to test here. The function just
+	   prints the license to stdout, and that's it. */
+
+	cw_license();
+
+	int n = fprintf(stderr, "libcw/utils: printing license:");
+	CW_TEST_PRINT_TEST_RESULT (false, n);
+
+	return 0;
+}
+
+
+
+
+
+/**
+   \brief Ensure that we can obtain correct values of main parameter limits
+
+   tests::cw_get_speed_limits()
+   tests::cw_get_frequency_limits()
+   tests::cw_get_volume_limits()
+   tests::cw_get_gap_limits()
+   tests::cw_get_tolerance_limits()
+   tests::cw_get_weighting_limits()
+*/
+unsigned int test_cw_get_x_limits_internal(void)
+{
+	struct {
+		void (* getter)(int *min, int *max);
+		int min;     /* Minimum hardwired in library. */
+		int max;     /* Maximum hardwired in library. */
+		int get_min; /* Minimum received in function call. */
+		int get_max; /* Maximum received in function call. */
+
+		const char *name;
+	} test_data[] = {
+		/*                                                                initial values                */
+		{ cw_get_speed_limits,      CW_SPEED_MIN,      CW_SPEED_MAX,      10000,  -10000,  "speed"     },
+		{ cw_get_frequency_limits,  CW_FREQUENCY_MIN,  CW_FREQUENCY_MAX,  10000,  -10000,  "frequency" },
+		{ cw_get_volume_limits,     CW_VOLUME_MIN,     CW_VOLUME_MAX,     10000,  -10000,  "volume"    },
+		{ cw_get_gap_limits,        CW_GAP_MIN,        CW_GAP_MAX,        10000,  -10000,  "gap"       },
+		{ cw_get_tolerance_limits,  CW_TOLERANCE_MIN,  CW_TOLERANCE_MAX,  10000,  -10000,  "tolerance" },
+		{ cw_get_weighting_limits,  CW_WEIGHTING_MIN,  CW_WEIGHTING_MAX,  10000,  -10000,  "weighting" },
+		{ NULL,                     0,                 0,                      0,      0,  NULL        }
+
+	};
+
+	for (int i = 0; test_data[i].getter; i++) {
+
+		/* Get limits of a parameter. */
+		test_data[i].getter(&test_data[i].get_min, &test_data[i].get_max);
+
+		/* Test that limits are as expected (values received
+		   by function call match those defined in library's
+		   header file). */
+		cw_assert (test_data[i].get_min == test_data[i].min,
+			   "Failed to get correct minimum of %s\n",
+			   test_data[i].name);
+
+		cw_assert (test_data[i].get_max == test_data[i].max,
+			   "Failed to get correct maximum of %s\n",
+			   test_data[i].name);
+	}
+
+	int n = fprintf(stderr, "libcw/utils: cw_get_X_limits():");
+	CW_TEST_PRINT_TEST_RESULT (false, n);
 
 	return 0;
 }
