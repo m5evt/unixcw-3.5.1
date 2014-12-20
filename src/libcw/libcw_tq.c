@@ -1138,7 +1138,7 @@ static cw_tone_queue_t *test_tone_queue = NULL;
 */
 unsigned int test_cw_tq_new_internal(void)
 {
-	int p = fprintf(stderr, "libwc: cw_tq_new_internal():");
+	int p = fprintf(stderr, "libcw: cw_tq_new_internal():");
 	test_tone_queue = cw_tq_new_internal();
 	assert (test_tone_queue);
 
