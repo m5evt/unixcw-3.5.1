@@ -394,3 +394,59 @@ void cw_debug_event_internal(cw_debug_t *debug_object, uint32_t flag, uint32_t e
 
 
 #endif /* #ifdef LIBCW_WITH_DEV */
+
+
+
+
+
+/* Unit tests. */
+
+#ifdef LIBCW_UNIT_TESTS
+
+
+
+
+
+#include <inttypes.h>
+
+#include "libcw_test.h"
+
+
+
+
+
+/**
+   \brief Test getting and setting of debug flags.
+
+   tests::cw_debug_set_flags()
+   tests::cw_debug_get_flags()
+*/
+unsigned int test_cw_debug_flags_internal(void)
+{
+	/* Store current flags for period of tests. */
+	uint32_t flags_backup = cw_debug_get_flags(&cw_debug_object);
+
+	for (uint32_t i = 1; i <= CW_DEBUG_MASK; i++) {
+		cw_debug_set_flags(&cw_debug_object, i);
+
+		cw_assert ((&cw_debug_object)->flags & i,
+			   "Failed to set debug flag %"PRIu32"\n", i);
+
+		cw_assert (cw_debug_get_flags(&cw_debug_object) == i,
+			   "Failed to get debug flag %"PRIu32"\n", i);
+	}
+
+	int n = printf("libcw/debug: cw_debug_set/get_flags():");
+	CW_TEST_PRINT_TEST_RESULT (false, n);
+
+	/* Restore original flags. */
+	cw_debug_set_flags(&cw_debug_object, flags_backup);
+
+	return 0;
+}
+
+
+
+
+
+#endif /* #ifdef LIBCW_UNIT_TESTS */
