@@ -67,7 +67,6 @@ static cw_test_stats_t cw_stats_pa      = { .successes = 0, .failures = 0 };
 
 
 static void cw_test_setup(void);
-static int  cw_test_independent(const char *modules, cw_test_stats_t *stats);
 static int  cw_test_dependent(const char *audio_systems, const char *modules);
 static int  cw_test_dependent_with(int audio_system, const char *modules, cw_test_stats_t *stats);
 static void cw_test_print_stats(void);
@@ -79,13 +78,8 @@ static void cw_test_helper_tq_callback(void *data);
 
 
 
-/* Functions independent of audio system. */
-/* Other functions. */
-static void test_cw_debug_flags(cw_test_stats_t *stats);
 
 
-
-/* Functions depending on audio system. */
 /* Tone queue module. */
 static void test_tone_queue_0(cw_test_stats_t *stats);
 static void test_tone_queue_1(cw_test_stats_t *stats);
@@ -119,43 +113,6 @@ static void test_representations(cw_test_stats_t *stats);   /* "data" and "gener
 
 
 
-
-extern cw_debug_t cw_debug_object;
-
-
-/**
-   \brief Test getting and setting of debug flags.
-
-   tests::cw_debug_set_flags()
-   tests::cw_debug_get_flags()
-*/
-void test_cw_debug_flags(cw_test_stats_t *stats)
-{
-	printf("libcw: %s():\n", __func__);
-
-	/* Store current flags for period of tests. */
-	uint32_t flags_backup = cw_debug_get_flags(&cw_debug_object);
-
-	bool failure = false;
-	for (uint32_t i = 0; i <= CW_DEBUG_MASK; i++) {
-		cw_debug_set_flags(&cw_debug_object, i);
-		if (cw_debug_get_flags(&cw_debug_object) != i) {
-			failure = true;
-			break;
-		}
-	}
-
-	failure ? stats->failures++ : stats->successes++;
-	int n = printf("libcw: cw_debug_set/get_flags():");
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
-
-	/* Restore original flags. */
-	cw_debug_set_flags(&cw_debug_object, flags_backup);
-
-	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
-
-	return;
-}
 
 
 
@@ -1732,14 +1689,6 @@ void cw_test_setup(void)
 
 
 
-/* Tests that don't depend on any audio system being open. */
-static void (*const CW_TEST_FUNCTIONS_INDEP_O[])(cw_test_stats_t *) = {
-	test_cw_debug_flags,
-
-	NULL
-};
-
-
 /* Tests that are dependent on a sound system being configured.
    Tone queue module functions */
 static void (*const CW_TEST_FUNCTIONS_DEP_T[])(cw_test_stats_t *) = {
@@ -1859,26 +1808,6 @@ int cw_test_dependent_with(int audio_system, const char *modules, cw_test_stats_
 
 	/* All tests done; return success if no failures,
 	   otherwise return an error status code. */
-	return stats->failures ? 1 : 0;
-}
-
-
-
-
-
-int cw_test_independent(const char *modules, cw_test_stats_t *stats)
-{
-	fprintf(stderr, "========================================\n");
-	fprintf(stderr, "libcw: testing functions independent from audio system\n");
-
-	if (strstr(modules, "o")) {
-		for (int test = 0; CW_TEST_FUNCTIONS_INDEP_O[test]; test++) {
-			(*CW_TEST_FUNCTIONS_INDEP_O[test])(stats);
-		}
-	}
-
-	sleep(1);
-
 	return stats->failures ? 1 : 0;
 }
 
@@ -2015,10 +1944,9 @@ int main(int argc, char *const argv[])
 		}
 	}
 
-	int rv1 = cw_test_independent(modules, &cw_stats_indep);
-	int rv2 = cw_test_dependent(sound_systems, modules);
+	int rv = cw_test_dependent(sound_systems, modules);
 
-	return rv1 == 0 && rv2 == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
+	return rv == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
 
