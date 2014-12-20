@@ -484,7 +484,7 @@ int cw_gen_silence_internal(cw_gen_t *gen)
 		tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
 		tone.frequency = 0;
 		tone.usecs = CW_AUDIO_QUANTUM_USECS;
-		status = cw_tone_queue_enqueue_internal(gen->tq, &tone);
+		status = cw_tq_enqueue_internal(gen->tq, &tone);
 
 		/* allow some time for playing the last tone */
 		usleep(2 * CW_AUDIO_QUANTUM_USECS);
@@ -894,7 +894,7 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 	// POSSIBLE ALTERNATIVE IMPLEMENTATION: int old_state = QS_IDLE;
 
 	while (gen->generate) {
-		int state = cw_tone_queue_dequeue_internal(gen->tq, &tone);
+		int state = cw_tq_dequeue_internal(gen->tq, &tone);
 		if (state == CW_TQ_STILL_EMPTY) {
 		// POSSIBLE ALTERNATIVE IMPLEMENTATION: if (state == QS_IDLE && old_state == QS_IDLE) {
 
@@ -1939,13 +1939,13 @@ int cw_send_element_internal(cw_gen_t *gen, char element)
 		tone.slope_mode = CW_SLOPE_MODE_STANDARD_SLOPES;
 		tone.usecs = gen->dot_length;
 		tone.frequency = gen->frequency;
-		status = cw_tone_queue_enqueue_internal(gen->tq, &tone);
+		status = cw_tq_enqueue_internal(gen->tq, &tone);
 	} else if (element == CW_DASH_REPRESENTATION) {
 		cw_tone_t tone;
 		tone.slope_mode = CW_SLOPE_MODE_STANDARD_SLOPES;
 		tone.usecs = gen->dash_length;
 		tone.frequency = gen->frequency;
-		status = cw_tone_queue_enqueue_internal(gen->tq, &tone);
+		status = cw_tq_enqueue_internal(gen->tq, &tone);
 	} else {
 		errno = EINVAL;
 		status = CW_FAILURE;
@@ -1960,7 +1960,7 @@ int cw_send_element_internal(cw_gen_t *gen, char element)
 	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
 	tone.usecs = gen->eoe_delay;
 	tone.frequency = 0;
-	if (!cw_tone_queue_enqueue_internal(gen->tq, &tone)) {
+	if (!cw_tq_enqueue_internal(gen->tq, &tone)) {
 		return CW_FAILURE;
 	} else {
 		return CW_SUCCESS;
@@ -2024,7 +2024,7 @@ int cw_send_character_space(void)
 	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
 	tone.usecs = cw_generator->eoc_delay + cw_generator->additional_delay;
 	tone.frequency = 0;
-	return cw_tone_queue_enqueue_internal(cw_generator->tq, &tone);
+	return cw_tq_enqueue_internal(cw_generator->tq, &tone);
 }
 
 
@@ -2082,7 +2082,7 @@ int cw_send_word_space(void)
 	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
 	tone.usecs = cw_generator->eow_delay;
 	tone.frequency = 0;
-	int a = cw_tone_queue_enqueue_internal(cw_generator->tq, &tone);
+	int a = cw_tq_enqueue_internal(cw_generator->tq, &tone);
 
 	int b = CW_FAILURE;
 
@@ -2090,7 +2090,7 @@ int cw_send_word_space(void)
 		tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
 		tone.usecs = cw_generator->adjustment_delay;
 		tone.frequency = 0;
-		b = cw_tone_queue_enqueue_internal(cw_generator->tq, &tone);
+		b = cw_tq_enqueue_internal(cw_generator->tq, &tone);
 	}
 
 	return a && b;
@@ -2102,7 +2102,7 @@ int cw_send_word_space(void)
 	tone.usecs = cw_generator->eow_delay + cw_generator->adjustment_delay;
 	tone.frequency = 0;
 
-	return cw_tone_queue_enqueue_internal(cw_generator->tq, &tone);
+	return cw_tq_enqueue_internal(cw_generator->tq, &tone);
 #endif
 }
 
