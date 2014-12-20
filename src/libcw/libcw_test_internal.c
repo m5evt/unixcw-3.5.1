@@ -117,6 +117,7 @@ static cw_test_function_t cw_unit_tests[] = {
 	test_cw_rec_with_base_data_fixed,
 	test_cw_rec_with_random_data_fixed,
 	test_cw_rec_with_random_data_adaptive,
+	test_cw_get_receive_parameters,
 
 
 	/* cw_debug module */
@@ -131,7 +132,7 @@ static cw_test_function_t cw_unit_tests[] = {
 
 int main(void)
 {
-	fprintf(stderr, "libcw unit tests for library's functions\n\n");
+	fprintf(stderr, "libcw unit tests\n\n");
 
 
 	struct timeval tv;
