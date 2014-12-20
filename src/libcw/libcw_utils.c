@@ -752,6 +752,8 @@ extern cw_gen_t *cw_generator;
 
 
 
+/* FIXME: shouldn't this function be in libcw_test_public.c or
+   something? */
 unsigned int test_cw_forever(void)
 {
 	int p = fprintf(stderr, "libcw/utils: CW_AUDIO_FOREVER_USECS:");
@@ -768,12 +770,12 @@ unsigned int test_cw_forever(void)
 	tone.usecs = 100;
 	tone.frequency = 500;
 	tone.slope_mode = CW_SLOPE_MODE_RISING_SLOPE;
-	cw_tone_queue_enqueue_internal(cw_generator->tq, &tone);
+	cw_tq_enqueue_internal(cw_generator->tq, &tone);
 
 	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
 	tone.usecs = CW_AUDIO_FOREVER_USECS;
 	tone.frequency = 500;
-	cw_tone_queue_enqueue_internal(cw_generator->tq, &tone);
+	cw_tq_enqueue_internal(cw_generator->tq, &tone);
 
 	cw_wait_for_tone_queue();
 
@@ -782,7 +784,7 @@ unsigned int test_cw_forever(void)
 	tone.usecs = 100;
 	tone.frequency = 500;
 	tone.slope_mode = CW_SLOPE_MODE_FALLING_SLOPE;
-	cw_tone_queue_enqueue_internal(cw_generator->tq, &tone);
+	cw_tq_enqueue_internal(cw_generator->tq, &tone);
 
 	cw_generator_stop();
 	cw_generator_delete();
