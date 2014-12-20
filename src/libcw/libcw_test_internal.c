@@ -64,7 +64,7 @@ extern cw_debug_t cw_debug_object;
 /* Unit tests for internal functions (and also some public functions)
    defined in libcw.c.
 
-   For unit tests of library's public interfaces see libcwtest.c. */
+   See also libcw_test_public.c and libcw_test_simple_gen.c. */
 
 #include <stdio.h>
 #include <assert.h>
@@ -89,6 +89,8 @@ static cw_test_function_t cw_unit_tests[] = {
 
 	// test_cw_forever,
 
+
+	/* cw_tq module */
 	test_cw_tq_new_internal,
 	test_cw_tone_queue_get_capacity_internal,
 	test_cw_tone_queue_prev_index_internal,
@@ -100,11 +102,17 @@ static cw_test_function_t cw_unit_tests[] = {
 	test_cw_tone_queue_test_capacity1,
 	test_cw_tone_queue_test_capacity2,
 
+
+	/* cw_utils module */
 	test_cw_timestamp_compare_internal,
 	test_cw_timestamp_validate_internal,
-
 	test_cw_usecs_to_timespec_internal,
+	test_cw_version_internal,
+	test_cw_license_internal,
+	test_cw_get_x_limits_internal,
 
+
+	/* cw_rec module */
 	test_cw_rec_identify_mark_internal,
 	test_cw_rec_with_base_data_fixed,
 	test_cw_rec_with_random_data_fixed,
