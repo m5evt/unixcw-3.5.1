@@ -118,6 +118,11 @@ static cw_test_function_t cw_unit_tests[] = {
 	test_cw_rec_with_random_data_fixed,
 	test_cw_rec_with_random_data_adaptive,
 
+
+	/* cw_debug module */
+	test_cw_debug_flags_internal,
+
+
 	NULL
 };
 
