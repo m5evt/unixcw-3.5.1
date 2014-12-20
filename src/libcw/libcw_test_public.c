@@ -81,7 +81,6 @@ static void cw_test_helper_tq_callback(void *data);
 
 
 /* Tone queue module. */
-static void test_tone_queue_0(cw_test_stats_t *stats);
 static void test_tone_queue_1(cw_test_stats_t *stats);
 static void test_tone_queue_2(cw_test_stats_t *stats);
 static void test_tone_queue_3(cw_test_stats_t *stats);
@@ -238,60 +237,6 @@ void test_parameter_ranges(cw_test_stats_t *stats)
 
 		failure = false;
 	}
-
-
-	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
-
-	return;
-}
-
-
-
-
-
-/**
-   \brief Test the limits of the parameters to the tone queue routine.
-
-   tests::cw_queue_tone()
-*/
-void test_tone_queue_0(cw_test_stats_t *stats)
-{
-	printf("libcw: %s():\n", __func__);
-
-	int f_min, f_max;
-	cw_get_frequency_limits(&f_min, &f_max);
-
-
-	/* Test 1: invalid duration of tone. */
-	errno = 0;
-	int status = cw_queue_tone(-1, f_min);
-	bool failure = status || errno != EINVAL;
-
-	failure ? stats->failures++ : stats->successes++;
-	int n = printf("libcw: cw_queue_tone(-1, cw_min_frequency):");
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
-
-
-
-	/* Test 2: tone's frequency too low. */
-	errno = 0;
-	status = cw_queue_tone(1, f_min - 1);
-	failure = status || errno != EINVAL;
-
-	failure ? stats->failures++ : stats->successes++;
-	n = printf("libcw: cw_queue_tone(1, cw_min_frequency - 1):");
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
-
-
-
-	/* Test 3: tone's frequency too high. */
-	errno = 0;
-	status = cw_queue_tone(1, f_max + 1);
-	failure = status || errno != EINVAL;
-
-	failure ? stats->failures++ : stats->successes++;
-	n = printf("libcw: cw_queue_tone(1, cw_max_frequency + 1):");
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
@@ -1667,7 +1612,6 @@ void cw_test_setup(void)
 /* Tests that are dependent on a sound system being configured.
    Tone queue module functions */
 static void (*const CW_TEST_FUNCTIONS_DEP_T[])(cw_test_stats_t *) = {
-	test_tone_queue_0,
 	test_tone_queue_1,
 	test_tone_queue_2,
 	test_tone_queue_3,
