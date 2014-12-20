@@ -18,7 +18,7 @@
 
 
 
-/* Return values from cw_tone_queue_dequeue_internal(). */
+/* Return values from cw_tq_dequeue_internal(). */
 enum {
 	CW_TQ_JUST_EMPTIED = 0,
 	CW_TQ_STILL_EMPTY  = 1,
@@ -164,8 +164,8 @@ void             cw_tq_flush_internal(cw_tone_queue_t *tq);
 
 uint32_t cw_tone_queue_get_capacity_internal(cw_tone_queue_t *tq);
 uint32_t cw_tone_queue_length_internal(cw_tone_queue_t *tq);
-int      cw_tone_queue_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone);
-int      cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone);
+int      cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone);
+int      cw_tq_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone);
 
 
 
@@ -179,8 +179,8 @@ unsigned int test_cw_tone_queue_get_capacity_internal(void);
 unsigned int test_cw_tone_queue_prev_index_internal(void);
 unsigned int test_cw_tone_queue_next_index_internal(void);
 unsigned int test_cw_tone_queue_length_internal(void);
-unsigned int test_cw_tone_queue_enqueue_internal(void);
-unsigned int test_cw_tone_queue_dequeue_internal(void);
+unsigned int test_cw_tq_enqueue_internal(void);
+unsigned int test_cw_tq_dequeue_internal(void);
 unsigned int test_cw_tone_queue_is_full_internal(void);
 unsigned int test_cw_tone_queue_test_capacity1(void);
 unsigned int test_cw_tone_queue_test_capacity2(void);
