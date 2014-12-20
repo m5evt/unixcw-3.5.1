@@ -3091,4 +3091,125 @@ void test_cw_rec_print_data(struct cw_rec_test_data *data)
 
 
 
+unsigned int test_cw_get_receive_parameters(void)
+{
+	cw_rec_reset_receive_parameters_internal(&cw_receiver);
+	cw_rec_sync_parameters_internal(&cw_receiver);
+
+	int dot_len_ideal = 0,
+		dash_len_ideal = 0,
+
+		dot_len_min = 0,
+		dot_len_max = 0,
+
+		dash_len_min = 0,
+		dash_len_max = 0,
+
+		eom_len_min = 0,
+		eom_len_max = 0,
+		eom_len_ideal = 0,
+
+		eoc_len_min = 0,
+		eoc_len_max = 0,
+		eoc_len_ideal = 0,
+
+		adaptive_speed_threshold = 0;
+
+	cw_get_receive_parameters(&dot_len_ideal, &dash_len_ideal,
+				  &dot_len_min, &dot_len_max,
+				  &dash_len_min, &dash_len_max,
+
+				  &eom_len_min,
+				  &eom_len_max,
+				  &eom_len_ideal,
+
+				  &eoc_len_min,
+				  &eoc_len_max,
+				  &eoc_len_ideal,
+
+				  &adaptive_speed_threshold);
+
+	printf("libcw/rec: cw_get_receive_parameters():\n" \
+	       "libcw/rec: dot/dash:  %d, %d, %d, %d, %d, %d\n" \
+	       "libcw/rec: eom:       %d, %d, %d\n" \
+	       "libcw/rec: eoc:       %d, %d, %d\n" \
+	       "libcw/rec: threshold: %d\n",
+
+	       dot_len_ideal, dash_len_ideal,
+	       dot_len_min, dot_len_max,
+	       dash_len_min, dash_len_max,
+
+	       eom_len_min,
+	       eom_len_max,
+	       eom_len_ideal,
+
+	       eoc_len_min,
+	       eoc_len_max,
+	       eoc_len_ideal,
+
+	       adaptive_speed_threshold);
+
+
+	cw_assert (dot_len_ideal > 0
+		   && dash_len_ideal > 0
+		   && dot_len_min > 0
+		   && dot_len_max > 0
+		   && dash_len_min > 0
+		   && dash_len_max > 0
+
+		   && eom_len_min > 0
+		   && eom_len_max > 0
+		   && eom_len_ideal > 0
+
+		   && eoc_len_min > 0
+		   && eoc_len_max > 0
+		   && eoc_len_ideal > 0
+
+		   && adaptive_speed_threshold > 0,
+
+		   "One of parameters is non-positive\n");
+
+
+
+	cw_assert (dot_len_max < dash_len_min,
+		   "Maximum dot length is no smaller than minimum dash length: %d - %d\n",
+		   dot_len_max, dash_len_min);
+
+	cw_assert (dot_len_min < dot_len_ideal
+		   && dot_len_ideal < dot_len_max,
+		   "Inconsistency in dot lengths: %d - %d - %d\n",
+		   dot_len_min, dot_len_ideal, dot_len_max);
+
+	cw_assert (dash_len_min < dash_len_ideal
+		   && dash_len_ideal < dash_len_max,
+		   "Inconsistency in dash lengths: %d - %d - %d\n",
+		   dash_len_min, dash_len_ideal, dash_len_max);
+
+
+
+	cw_assert (eom_len_max < eoc_len_min,
+		   "Maximum eom length is no smaller than minimum eoc length: %d - %d\n",
+		   eom_len_max, eoc_len_min);
+
+	cw_assert (eom_len_min < eom_len_ideal
+		   && eom_len_ideal < eom_len_max,
+		   "Inconsistency in eom lengths: %d - %d - %d\n",
+		   eom_len_min, eom_len_ideal, eom_len_max);
+
+	cw_assert (eoc_len_min < eoc_len_ideal
+		   && eoc_len_ideal < eoc_len_max,
+		   "Inconsistency in eoc lengths: %d - %d - %d\n",
+		   eoc_len_min, eoc_len_ideal, eoc_len_max);
+
+
+	int n = printf("libcw/rec: cw_get_receive_parameters():");
+	CW_TEST_PRINT_TEST_RESULT (false, n);
+
+	return 0;
+}
+
+
+
+
+
 #endif /* #ifdef LIBCW_UNIT_TESTS */
