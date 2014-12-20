@@ -386,7 +386,7 @@ uint32_t cw_tone_queue_next_index_internal(cw_tone_queue_t *tq, uint32_t ind)
    returning (through \p tone) the tone on every call, until a new tone is
    added to the queue after the "CW_AUDIO_FOREVER_USECS" tone.
 
-   testedin::test_cw_tone_queue_dequeue_internal()
+   testedin::test_cw_tq_dequeue_internal()
    testedin::test_cw_tone_queue_test_capacity2()
 
    \param tq - tone queue
@@ -396,7 +396,7 @@ uint32_t cw_tone_queue_next_index_internal(cw_tone_queue_t *tq, uint32_t ind)
    \return CW_TQ_STILL_EMPTY (see information above)
    \return CW_TQ_NONEMPTY (see information above)
 */
-int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
+int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 {
 	pthread_mutex_lock(&(tq->mutex));
 
@@ -621,7 +621,7 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *ton
    The function does accept tones with negative values of usecs,
    representing special tones.
 
-   testedin::test_cw_tone_queue_enqueue_internal()
+   testedin::test_cw_tq_enqueue_internal()
    testedin::test_cw_tone_queue_test_capacity1()
    testedin::test_cw_tone_queue_test_capacity2()
 
@@ -631,8 +631,20 @@ int cw_tone_queue_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *ton
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_tone_queue_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
+int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 {
+	/* Check the arguments given for realistic values.  Note that we
+	   do nothing here to protect the caller from setting up
+	   neverending (0 usecs) tones, if that's what they want to do. */
+	if (tone->usecs < 0
+	    || tone->frequency < CW_FREQUENCY_MIN
+	    || tone->frequency > CW_FREQUENCY_MAX) {
+
+		errno = EINVAL;
+		return CW_FAILURE;
+	}
+
+
 	if (!tone->usecs) {
 		/* Drop empty tone. It won't be played anyway, and for
 		   now there are no other good reasons to enqueue
@@ -1030,23 +1042,13 @@ void cw_flush_tone_queue(void)
 */
 int cw_queue_tone(int usecs, int frequency)
 {
-	/* Check the arguments given for realistic values.  Note that we
-	   do nothing here to protect the caller from setting up
-	   neverending (0 usecs) tones, if that's what they want to do. */
-	if (usecs < 0
-	    // || frequency < 0 /* TODO: Is this line necessary? We have CW_FREQUENCY_MIN/MAX below. */
-	    || frequency < CW_FREQUENCY_MIN
-	    || frequency > CW_FREQUENCY_MAX) {
-
-		errno = EINVAL;
-		return CW_FAILURE;
-	}
-
 	cw_tone_t tone;
 	tone.slope_mode = CW_SLOPE_MODE_STANDARD_SLOPES;
 	tone.usecs = usecs;
 	tone.frequency = frequency;
-	return cw_tone_queue_enqueue_internal(cw_generator->tq, &tone);
+	int rv = cw_tq_enqueue_internal(cw_generator->tq, &tone);
+
+	return rv;
 }
 
 
@@ -1336,11 +1338,11 @@ unsigned int test_cw_tone_queue_length_internal(void)
 
 
 /**
-   tests::cw_tone_queue_enqueue_internal()
+   tests::cw_tq_enqueue_internal()
 */
-unsigned int test_cw_tone_queue_enqueue_internal(void)
+unsigned int test_cw_tq_enqueue_internal(void)
 {
-	int p = fprintf(stderr, "libcw: cw_tone_queue_enqueue_internal():");
+	int p = fprintf(stderr, "libcw: cw_tq_enqueue_internal():");
 
 	/* At this point cw_tone_queue_length_internal() should be
 	   tested, so we can use it to verify correctness of 'enqueue'
@@ -1354,7 +1356,7 @@ unsigned int test_cw_tone_queue_enqueue_internal(void)
 	for (uint32_t i = 0; i < test_tone_queue->capacity; i++) {
 
 		/* This tests for potential problems with function call. */
-		int rv = cw_tone_queue_enqueue_internal(test_tone_queue, &tone);
+		int rv = cw_tq_enqueue_internal(test_tone_queue, &tone);
 		assert (rv);
 
 		/* This tests for correctness of working of the 'enqueue' function. */
@@ -1366,7 +1368,7 @@ unsigned int test_cw_tone_queue_enqueue_internal(void)
 	/* Try adding a tone to full tq. */
 	/* This tests for potential problems with function call.
 	   Enqueueing should fail when the queue is full. */
-	int rv = cw_tone_queue_enqueue_internal(test_tone_queue, &tone);
+	int rv = cw_tq_enqueue_internal(test_tone_queue, &tone);
 	assert (rv == CW_FAILURE);
 
 	/* This tests for correctness of working of the 'enqueue'
@@ -1383,11 +1385,11 @@ unsigned int test_cw_tone_queue_enqueue_internal(void)
 
 
 /**
-   tests::cw_tone_queue_dequeue_internal()
+   tests::cw_tq_dequeue_internal()
 */
-unsigned int test_cw_tone_queue_dequeue_internal(void)
+unsigned int test_cw_tq_dequeue_internal(void)
 {
-	int p = fprintf(stderr, "libcw: cw_tone_queue_dequeue_internal():");
+	int p = fprintf(stderr, "libcw: cw_tq_dequeue_internal():");
 
 	/* At this point cw_tone_queue_length_internal() should be
 	   tested, so we can use it to verify correctness of 'deenqueue'
@@ -1412,7 +1414,7 @@ unsigned int test_cw_tone_queue_dequeue_internal(void)
 			   i, test_tone_queue->len);
 
 		/* This tests for potential problems with function call. */
-		int rv = cw_tone_queue_dequeue_internal(test_tone_queue, &tone);
+		int rv = cw_tq_dequeue_internal(test_tone_queue, &tone);
 		assert (rv == CW_TQ_NONEMPTY);
 
 		/* Length of tone queue after dequeue. */
@@ -1423,7 +1425,7 @@ unsigned int test_cw_tone_queue_dequeue_internal(void)
 
 	/* Try removing a tone from empty queue. */
 	/* This tests for potential problems with function call. */
-	int rv = cw_tone_queue_dequeue_internal(test_tone_queue, &tone);
+	int rv = cw_tq_dequeue_internal(test_tone_queue, &tone);
 	assert (rv == CW_TQ_JUST_EMPTIED);
 
 	/* This tests for correctness of working of the 'dequeue'
@@ -1436,7 +1438,7 @@ unsigned int test_cw_tone_queue_dequeue_internal(void)
 
 	/* Try removing a tone from empty queue. */
 	/* This time we should get CW_TQ_STILL_EMPTY return value. */
-	rv = cw_tone_queue_dequeue_internal(test_tone_queue, &tone);
+	rv = cw_tq_dequeue_internal(test_tone_queue, &tone);
 	assert (rv == CW_TQ_STILL_EMPTY);
 
 	CW_TEST_PRINT_TEST_RESULT(false, p);
@@ -1475,7 +1477,7 @@ unsigned int test_cw_tone_queue_is_full_internal(void)
 	   place in tq free so that is_full() called in the loop
 	   always returns false. */
 	for (uint32_t i = 0; i < test_tone_queue->capacity - 1; i++) {
-		int rv = cw_tone_queue_enqueue_internal(test_tone_queue, &tone);
+		int rv = cw_tq_enqueue_internal(test_tone_queue, &tone);
 		/* The 'enqueue' function has been already tested, but
 		   it won't hurt to check this simple assertion here
 		   as well. */
@@ -1487,7 +1489,7 @@ unsigned int test_cw_tone_queue_is_full_internal(void)
 
 	/* At this point there is still place in tq for one more
 	   tone. Enqueue it and verify that the tq is now full. */
-	int rv = cw_tone_queue_enqueue_internal(test_tone_queue, &tone);
+	int rv = cw_tq_enqueue_internal(test_tone_queue, &tone);
 	assert (rv == CW_SUCCESS);
 
 	assert (cw_tone_queue_is_full_internal(test_tone_queue));
@@ -1508,11 +1510,11 @@ unsigned int test_cw_tone_queue_is_full_internal(void)
    related properties: head and tail.
 
    In this function it is done by first enqueueing N known tones to a
-   tone queue using cw_tone_queue_enqueue_internal(), and then
+   tone queue using cw_tq_enqueue_internal(), and then
    "manually" checking content of tone queue to be sure that all the
    tones are in place.
 
-   tests::cw_tone_queue_enqueue_internal()
+   tests::cw_tq_enqueue_internal()
 */
 unsigned int test_cw_tone_queue_test_capacity1(void)
 {
@@ -1549,7 +1551,7 @@ unsigned int test_cw_tone_queue_test_capacity1(void)
 			cw_tone_t tone;
 			tone.frequency = (int) i;
 			tone.usecs = 1000;
-			rv = cw_tone_queue_enqueue_internal(test_tone_queue, &tone);
+			rv = cw_tq_enqueue_internal(test_tone_queue, &tone);
 			assert (rv == CW_SUCCESS);
 		}
 
@@ -1588,13 +1590,13 @@ unsigned int test_cw_tone_queue_test_capacity1(void)
    related properties: head and tail.
 
    In this function it is done by first enqueueing N known tones to a
-   tone queue using cw_tone_queue_enqueue_internal(), then dequeueing
-   the tones with cw_tone_queue_dequeue_internal() and then checking
+   tone queue using cw_tq_enqueue_internal(), then dequeueing
+   the tones with cw_tq_dequeue_internal() and then checking
    that enqueued tones are the ones that we were expecting to get.
 
-   tests::cw_tone_queue_enqueue_internal()
+   tests::cw_tq_enqueue_internal()
 
-   tests::cw_tone_queue_dequeue_internal()
+   tests::cw_tq_dequeue_internal()
 */
 unsigned int test_cw_tone_queue_test_capacity2(void)
 {
@@ -1631,7 +1633,7 @@ unsigned int test_cw_tone_queue_test_capacity2(void)
 			cw_tone_t tone;
 			tone.frequency = (int) i;
 			tone.usecs = 1000;
-			rv = cw_tone_queue_enqueue_internal(test_tone_queue, &tone);
+			rv = cw_tq_enqueue_internal(test_tone_queue, &tone);
 			assert (rv == CW_SUCCESS);
 			//fprintf(stderr, "Tone %d enqueued\n", i);
 		}
@@ -1655,7 +1657,7 @@ unsigned int test_cw_tone_queue_test_capacity2(void)
 		uint32_t i = 0;
 		cw_tone_t tone;
 
-		while ((rv = cw_tone_queue_dequeue_internal(test_tone_queue, &tone))
+		while ((rv = cw_tq_dequeue_internal(test_tone_queue, &tone))
 		       && rv == CW_TQ_NONEMPTY) {
 
 			uint32_t shifted = (i + head_shifts[s]) % (test_tone_queue->capacity);
