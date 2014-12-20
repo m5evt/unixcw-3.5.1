@@ -986,7 +986,6 @@ unsigned int test_cw_usecs_to_timespec_internal(void)
 */
 unsigned int test_cw_version_internal(void)
 {
-	bool failure = false;
 	int rv = cw_version();
 	int major = rv >> 16;
 	int minor = rv & 0xff;
