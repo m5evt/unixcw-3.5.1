@@ -51,6 +51,7 @@ unsigned int test_cw_rec_identify_mark_internal(void);
 unsigned int test_cw_rec_with_base_data_fixed(void);
 unsigned int test_cw_rec_with_random_data_fixed(void);
 unsigned int test_cw_rec_with_random_data_adaptive(void);
+unsigned int test_cw_get_receive_parameters(void);
 
 #endif /* #ifdef LIBCW_UNIT_TESTS */
 
