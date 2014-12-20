@@ -144,12 +144,7 @@ void test_parameter_ranges(cw_test_stats_t *stats)
 	printf("libcw: %s():\n", __func__);
 
 	int txdot_usecs, txdash_usecs, end_of_element_usecs, end_of_character_usecs,
-		end_of_word_usecs, additional_usecs, adjustment_usecs,
-		rxdot_usecs, rxdash_usecs, dot_min_usecs, dot_max_usecs, dash_min_usecs,
-		dash_max_usecs, end_of_element_min_usecs, end_of_element_max_usecs,
-		end_of_element_ideal_usecs, end_of_character_min_usecs,
-		end_of_character_max_usecs, end_of_character_ideal_usecs,
-		adaptive_threshold;
+		end_of_word_usecs, additional_usecs, adjustment_usecs;
 
 	/* Print default low level timing values. */
 	cw_reset_send_receive_parameters();
@@ -162,26 +157,6 @@ void test_parameter_ranges(cw_test_stats_t *stats)
 	       txdot_usecs, txdash_usecs, end_of_element_usecs,
 	       end_of_character_usecs,end_of_word_usecs, additional_usecs,
 	       adjustment_usecs);
-
-	cw_get_receive_parameters(&rxdot_usecs, &rxdash_usecs,
-				  &dot_min_usecs, &dot_max_usecs,
-				  &dash_min_usecs, &dash_max_usecs,
-				  &end_of_element_min_usecs,
-				  &end_of_element_max_usecs,
-				  &end_of_element_ideal_usecs,
-				  &end_of_character_min_usecs,
-				  &end_of_character_max_usecs,
-				  &end_of_character_ideal_usecs,
-				  &adaptive_threshold);
-	printf("libcw: cw_get_receive_parameters():\n"
-	       "libcw:     %d, %d, %d, %d, %d, %d, %d, %d\n"
-	       "libcw:     %d, %d, %d, %d, %d\n",
-	       rxdot_usecs, rxdash_usecs, dot_min_usecs, dot_max_usecs,
-	       dash_min_usecs, dash_max_usecs, end_of_element_min_usecs,
-	       end_of_element_max_usecs, end_of_element_ideal_usecs,
-	       end_of_character_min_usecs, end_of_character_max_usecs,
-	       end_of_character_ideal_usecs, adaptive_threshold);
-
 
 
 	/* Test setting and getting of some basic parameters. */
