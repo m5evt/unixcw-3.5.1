@@ -48,6 +48,9 @@ unsigned int test_cw_forever(void);
 unsigned int test_cw_timestamp_compare_internal(void);
 unsigned int test_cw_timestamp_validate_internal(void);
 unsigned int test_cw_usecs_to_timespec_internal(void);
+unsigned int test_cw_version_internal(void);
+unsigned int test_cw_license_internal(void);
+unsigned int test_cw_get_x_limits_internal(void);
 
 #endif /* #ifdef LIBCW_UNIT_TESTS */
 
