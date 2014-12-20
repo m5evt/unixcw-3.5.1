@@ -1,3 +1,20 @@
+2014-12-20 Kamil Ignacak
+	* tests: moving as much code as possible from libcw_test_public.c
+	to respective module files. The tests that are still in
+	libcw_test_public.c test library functions that depend on
+	different modules (mostly tone queue and generator). Those library
+	functions that can be tested in separation are tested in their
+	module files.
+
+	This should shorten the libcw_test_public.c file and ensure that
+	test functions are defined as close to library functions as
+	possible, so that library code and related test code are grouped
+	together (thus improving modularization of library).
+
+	There is still some work to be done in this area, but a good
+	progress has been made. In the process of moving test functions to
+	their modules, some test functions have been improved a bit.
+
 2014-12-02 Kamil Ignacak
 	* tests: improving unit tests for receiver module.  The receiver's
 	test code from libcw_test_public.c is being slowly moved to
