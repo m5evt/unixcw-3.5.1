@@ -80,12 +80,8 @@ static void cw_test_helper_tq_callback(void *data);
 
 
 /* Functions independent of audio system. */
-/* Data module. */
 /* Other functions. */
-static void test_cw_version(cw_test_stats_t *stats);
-static void test_cw_license(cw_test_stats_t *stats);
 static void test_cw_debug_flags(cw_test_stats_t *stats);
-static void test_cw_get_x_limits(cw_test_stats_t *stats);
 
 
 
@@ -119,99 +115,6 @@ static void test_representations(cw_test_stats_t *stats);   /* "data" and "gener
 /*---------------------------------------------------------------------*/
 /*  Unit tests                                                         */
 /*---------------------------------------------------------------------*/
-
-
-
-
-
-/**
-   tests::cw_version()
-*/
-void test_cw_version(cw_test_stats_t *stats)
-{
-	printf("libcw: %s():\n", __func__);
-
-	/* Test the cw_version() function. */
-
-	bool failure = false;
-	int rv = cw_version();
-	int major = rv >> 16;
-	int minor = rv & 0xff;
-
-	/* Library's version is defined in LIBCW_VERSION. cw_version()
-	   uses three calls to strtol() to get three parts of the
-	   library version.
-
-	   Let's use a different approach to convert LIBCW_VERSION
-	   into numbers. */
-
-
-	int current = 0, revision = 0;
-	__attribute__((unused)) int age = 0;
-
-	char *str = strdup(LIBCW_VERSION);
-
-	for (int i = 0; ; i++, str = NULL) {
-
-		char *token = strtok(str, ":");
-		if (token == NULL) {
-			break;
-		}
-
-		if (i == 0) {
-			current = atoi(token);
-		} else if (i == 1) {
-			revision = atoi(token);
-		} else if (i == 2) {
-			age = atoi(token);
-		} else {
-			cw_assert (0, "too many tokens in \"%s\"\n", LIBCW_VERSION);
-		}
-	}
-
-	free(str);
-	str = NULL;
-
-	if (major == current) {
-		stats->successes++;
-	} else {
-		stats->failures++;
-		failure = true;
-	}
-
-	if (minor == revision) {
-		stats->successes++;
-	} else {
-		stats->failures++;
-		failure = true;
-	}
-
-	int n = fprintf(stderr, "libcw: version %d.%d:", major, minor);
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
-
-	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
-
-	return;
-}
-
-
-
-
-
-/**
-   tests::cw_license()
-*/
-void test_cw_license(__attribute__((unused)) cw_test_stats_t *stats)
-{
-	printf("libcw: %s():\n", __func__);
-
-	/* Test the cw_license() function. */
-	cw_license();
-
-	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
-
-	return;
-}
 
 
 
@@ -255,65 +158,6 @@ void test_cw_debug_flags(cw_test_stats_t *stats)
 }
 
 
-
-
-
-/**
-   \brief Ensure that we can obtain correct values of main parameter limits
-
-   tests::cw_get_speed_limits()
-   tests::cw_get_frequency_limits()
-   tests::cw_get_volume_limits()
-   tests::cw_get_gap_limits()
-   tests::cw_get_tolerance_limits()
-   tests::cw_get_weighting_limits()
-*/
-void test_cw_get_x_limits(cw_test_stats_t *stats)
-{
-	printf("libcw: %s():\n", __func__);
-
-	struct {
-		void (* get_limits)(int *min, int *max);
-		int min;     /* Minimum hardwired in library. */
-		int max;     /* Maximum hardwired in library. */
-		int get_min; /* Minimum received in function call. */
-		int get_max; /* Maximum received in function call. */
-
-		const char *name;
-	} test_data[] = {
-		{ cw_get_speed_limits,      CW_SPEED_MIN,      CW_SPEED_MAX,      10000,  -10000,  "speed"     },
-		{ cw_get_frequency_limits,  CW_FREQUENCY_MIN,  CW_FREQUENCY_MAX,  10000,  -10000,  "frequency" },
-		{ cw_get_volume_limits,     CW_VOLUME_MIN,     CW_VOLUME_MAX,     10000,  -10000,  "volume"    },
-		{ cw_get_gap_limits,        CW_GAP_MIN,        CW_GAP_MAX,        10000,  -10000,  "gap"       },
-		{ cw_get_tolerance_limits,  CW_TOLERANCE_MIN,  CW_TOLERANCE_MAX,  10000,  -10000,  "tolerance" },
-		{ cw_get_weighting_limits,  CW_WEIGHTING_MIN,  CW_WEIGHTING_MAX,  10000,  -10000,  "weighting" },
-		{ NULL,                     0,                 0,                      0,      0,  NULL        }
-
-	};
-
-	for (int i = 0; test_data[i].get_limits; i++) {
-
-		/* Get limits of a parameter. */
-		test_data[i].get_limits(&test_data[i].get_min, &test_data[i].get_max);
-
-		/* Test that limits are as expected (values received
-		   by function call match those defined in library's
-		   header file). */
-		bool failure = test_data[i].get_min != test_data[i].min
-			|| test_data[i].get_max != test_data[i].max;
-
-		/* Act upon result of test. */
-		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_get_%s_limits(): %d,%d:",
-			       test_data[i].name, test_data[i].get_min, test_data[i].get_max);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-	}
-
-
-	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
-
-	return;
-}
 
 
 
@@ -1890,10 +1734,7 @@ void cw_test_setup(void)
 
 /* Tests that don't depend on any audio system being open. */
 static void (*const CW_TEST_FUNCTIONS_INDEP_O[])(cw_test_stats_t *) = {
-	test_cw_version,
-	test_cw_license,
 	test_cw_debug_flags,
-	test_cw_get_x_limits,
 
 	NULL
 };
