@@ -95,7 +95,7 @@ static void test_straight_key(cw_test_stats_t *stats);
 /* Other functions. */
 static void test_parameter_ranges(cw_test_stats_t *stats);
 static void test_representations(cw_test_stats_t *stats);   /* "data" and "generator" modules. TODO: split this function in two. */
-
+static void test_cw_forever(cw_test_stats_t *stats);
 
 // static void cw_test_delayed_release(cw_test_stats_t *stats);
 
@@ -1578,6 +1578,47 @@ void cw_test_signal_handling(cw_test_stats_t *stats)
 
 
 
+extern cw_gen_t *cw_generator;
+
+
+
+void test_cw_forever(cw_test_stats_t *stats)
+{
+	int sleep_period = 5;
+	printf("libcw: %s() (%d seconds):\n", __func__, sleep_period);
+
+	sleep(1);
+	cw_tone_t tone;
+
+	tone.usecs = 100;
+	tone.frequency = 500;
+	tone.slope_mode = CW_SLOPE_MODE_RISING_SLOPE;
+	cw_tq_enqueue_internal(cw_generator->tq, &tone);
+
+	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
+	tone.usecs = CW_AUDIO_FOREVER_USECS;
+	tone.frequency = 500;
+	int rv = cw_tq_enqueue_internal(cw_generator->tq, &tone);
+	rv ? stats->successes++ : stats->failures++;
+
+	struct timespec t;
+	cw_usecs_to_timespec_internal(&t, sleep_period * 1000000);
+	cw_nanosleep_internal(&t);
+
+	tone.usecs = 100;
+	tone.frequency = 500;
+	tone.slope_mode = CW_SLOPE_MODE_FALLING_SLOPE;
+	rv = cw_tq_enqueue_internal(cw_generator->tq, &tone);
+	rv ? stats->successes++ : stats->failures++;
+
+	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
+
+	return;
+}
+
+
+
+
 
 /*---------------------------------------------------------------------*/
 /*  Unit tests drivers                                                 */
@@ -1647,6 +1688,7 @@ static void (*const CW_TEST_FUNCTIONS_DEP_K[])(cw_test_stats_t *) = {
 static void (*const CW_TEST_FUNCTIONS_DEP_O[])(cw_test_stats_t *) = {
 	test_parameter_ranges,
 	test_representations,
+	test_cw_forever,
 
 	//cw_test_delayed_release,
 	//cw_test_signal_handling, /* FIXME - not sure why this test fails :( */
