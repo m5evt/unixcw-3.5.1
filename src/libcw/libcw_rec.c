@@ -27,7 +27,7 @@
    characters.
 
 
-   There are two ways of adding marks and spaces to receiver.
+   There are two ways of feeding marks and spaces to receiver.
 
    First of them is to notify receiver about "begin of mark" and "end
    of mark" events. Receiver then tries to figure out how long a mark
@@ -46,8 +46,8 @@
 
 
    Currently there is only one method of passing received data
-   (characters) between receiver and client code. This is done by
-   client code cyclically polling the receiver with
+   (characters) from receiver to client code. This is done by client
+   code cyclically polling the receiver with
    cw_receive_representation() or with cw_receive_character() which is
    built on top of cw_receive_representation().
 
@@ -128,14 +128,24 @@ static const char *cw_receiver_states[] = {
 
 
 
-/* Default initial values for library controls. */
-enum { CW_REC_ADAPTIVE_MODE_INITIAL = false };                                            /* Initial adaptive receive setting. */
+/* Does receiver initially adapt to varying speed of input data? */
+enum { CW_REC_ADAPTIVE_MODE_INITIAL = false };
 
 
 /* TODO: it would be interesting to track (in debug mode) relationship
    between "speed threshold" and "noise threshold" parameters. */
 enum { CW_REC_SPEED_THRESHOLD_INITIAL = (CW_DOT_CALIBRATION / CW_SPEED_INITIAL) * 2 };    /* Initial adaptive speed threshold. [us] */
 enum { CW_REC_NOISE_THRESHOLD_INITIAL = (CW_DOT_CALIBRATION / CW_SPEED_MAX) / 2 };        /* Initial noise filter threshold. */
+
+
+/* Receiver contains a fixed-length buffer for representation of
+   received data.  Capacity of the buffer is vastly longer than any
+   practical representation.  Don't know why, a legacy thing.
+
+   Representation can be presented as a char string. This is the
+   maximal length of the string. This value does not include string's
+   ending NULL. */
+enum { CW_REC_REPRESENTATION_CAPACITY = 256 };
 
 
 /* TODO: what is the relationship between this constant and CW_REC_REPRESENTATION_CAPACITY?
@@ -1731,7 +1741,7 @@ int cw_rec_poll_representation_internal(cw_rec_t *rec,
 	if (space_len >= rec->eoc_len_min
 	    && space_len <= rec->eoc_len_max) {
 
-		fprintf(stderr, "EOC: space len = %d (%d - %d)\n", space_len, rec->eoc_len_min, rec->eoc_len_max);
+		//fprintf(stderr, "EOC: space len = %d (%d - %d)\n", space_len, rec->eoc_len_min, rec->eoc_len_max);
 
 		/* The space is, within tolerance, an end-of-character
 		   gap.
@@ -1743,7 +1753,7 @@ int cw_rec_poll_representation_internal(cw_rec_t *rec,
 
 	} else if (space_len > rec->eoc_len_max) {
 
-		fprintf(stderr, "EOW: space len = %d (> %d) ------------- \n", space_len, rec->eoc_len_max);
+		// fprintf(stderr, "EOW: space len = %d (> %d) ------------- \n", space_len, rec->eoc_len_max);
 
 		/* The space is too long for end-of-character
 		   state. This should be end-of-word state. We have
@@ -1801,7 +1811,6 @@ void cw_rec_poll_representation_eoc_internal(cw_rec_t *rec, int space_len,
 
 	/* Return the representation from receiver's buffer. */
 	if (is_end_of_word) {
-		fprintf(stderr, "1 eow = false\n");
 		*is_end_of_word = false;
 	}
 	if (is_error) {
@@ -1838,7 +1847,6 @@ void cw_rec_poll_representation_eow_internal(cw_rec_t *rec,
 
 	/* Return the representation from receiver's buffer. */
 	if (is_end_of_word) {
-		fprintf(stderr, "2 eow = true\n");
 		*is_end_of_word = true;
 	}
 	if (is_error) {
@@ -2134,7 +2142,9 @@ void cw_rec_sync_parameters_internal(cw_rec_t *rec)
 		rec->dash_len_min = rec->dot_len_max;
 		rec->dash_len_max = INT_MAX;
 
+#if 0
 		int debug_eoc_len_max = rec->eoc_len_max;
+#endif
 
 		/* Make the inter-mark space be anything up to the
 		   adaptive threshold lengths - that is two dots.  And
@@ -2145,9 +2155,11 @@ void cw_rec_sync_parameters_internal(cw_rec_t *rec)
 		rec->eoc_len_min = rec->eom_len_max;
 		rec->eoc_len_max = 5 * rec->dot_len_ideal;
 
+#if 0
 		if (debug_eoc_len_max != rec->eoc_len_max) {
 			fprintf(stderr, "eoc_len_max changed from %d to %d --------\n", debug_eoc_len_max, rec->eoc_len_max);
 		}
+#endif
 
 	} else {
 		/* Fixed speed receiving mode. */
@@ -2207,8 +2219,8 @@ struct cw_rec_test_data {
 	char c;                           /* Character. */
 	char *r;                          /* Character's representation (dots and dashes). */
 	float s;                          /* Send speed (speed at which the character is incoming). */
-	int d[TEST_CW_REC_DATA_LEN_MAX];  /* Data - time information for marks and spaces. */
-	int nd;                           /* Length of data. */
+	int d[TEST_CW_REC_DATA_LEN_MAX];  /* Data points - time information for marks and spaces. */
+	int nd;                           /* Number of data points. */
 
 	bool is_last_in_word;              /* Is this character a last character in a word? (is it followed by end-of-word space?) */
 };
@@ -2222,9 +2234,9 @@ static struct cw_rec_test_data *test_cw_rec_new_base_data_fixed(int speed, int f
 static struct cw_rec_test_data *test_cw_rec_new_random_data_fixed(int speed, int fuzz_percent);
 static struct cw_rec_test_data *test_cw_rec_new_random_data_adaptive(int speed_min, int speed_max, int fuzz_percent);
 
-static void                     test_cw_rec_delete_data(struct cw_rec_test_data **data);
-static void                     test_cw_rec_print_data(struct cw_rec_test_data *data);
-static void                     test_cw_rec_test_begin_end(cw_rec_t *rec, struct cw_rec_test_data *data);
+static void test_cw_rec_delete_data(struct cw_rec_test_data **data);
+static void test_cw_rec_print_data(struct cw_rec_test_data *data);
+static void test_cw_rec_test_begin_end(cw_rec_t *rec, struct cw_rec_test_data *data);
 
 /* Functions creating tables of test values: characters and speeds.
    Characters and speeds will be combined into test (timing) data. */
@@ -2250,7 +2262,7 @@ static float *test_cw_rec_new_speeds_adaptive(int speed_min, int speed_max, size
 */
 unsigned int test_cw_rec_identify_mark_internal(void)
 {
-	int p = fprintf(stderr, "libcw: cw_rec_identify_mark_internal() (non-adaptive):");
+	int p = fprintf(stdout, "libcw/rec: cw_rec_identify_mark_internal() (non-adaptive):");
 
 	cw_disable_adaptive_receive();
 
@@ -2316,6 +2328,8 @@ unsigned int test_cw_rec_identify_mark_internal(void)
    supported by libcw. The test is done with fixed speed. */
 unsigned int test_cw_rec_with_base_data_fixed(void)
 {
+	int p = fprintf(stdout, "libcw/rec: test begin/end functions base data/fixed speed:");
+
 	for (int speed = CW_SPEED_MIN; speed <= CW_SPEED_MAX; speed++) {
 		struct cw_rec_test_data *data = test_cw_rec_new_base_data_fixed(speed, 0);
 		//test_cw_rec_print_data(data);
@@ -2335,6 +2349,8 @@ unsigned int test_cw_rec_with_base_data_fixed(void)
 
 		test_cw_rec_delete_data(&data);
 	}
+
+	CW_TEST_PRINT_TEST_RESULT(false, p);
 
 	return 0;
 }
@@ -2368,8 +2384,10 @@ void test_cw_rec_test_begin_end(cw_rec_t *rec, struct cw_rec_test_data *data)
 
 	for (int i = 0; data[i].r; i++) {
 
+#ifdef LIBCW_UNIT_TESTS_VERBOSE
 		printf("\nlibcw: input test data #%d: <%c> / <%s> @ %.2f [wpm] (%d time values)\n",
 		       i, data[i].c, data[i].r, data[i].s, data[i].nd);
+#endif
 
 		/* Start sending every character at the beginning of a
 		   new second.
@@ -2540,11 +2558,11 @@ void test_cw_rec_test_begin_end(cw_rec_t *rec, struct cw_rec_test_data *data)
 		}
 
 
+#ifdef LIBCW_UNIT_TESTS_VERBOSE
 		float speed = cw_rec_get_speed_internal(rec);
-
-
 		printf("libcw: received data #%d:   <%c> / <%s> @ %.2f [wpm]\n",
 		       i, c, representation, speed);
+#endif
 
 #if 0
 		if (adaptive) {
@@ -2606,6 +2624,8 @@ struct cw_rec_test_data *test_cw_rec_new_base_data_fixed(int speed, int fuzz_per
    with fixed speed. */
 unsigned int test_cw_rec_with_random_data_fixed(void)
 {
+	int p = fprintf(stdout, "libcw/rec: test begin/end functions random data/fixed speed:");
+
 	for (int speed = CW_SPEED_MIN; speed <= CW_SPEED_MAX; speed++) {
 		struct cw_rec_test_data *data = test_cw_rec_new_random_data_fixed(speed, 0);
 		//test_cw_rec_print_data(data);
@@ -2626,6 +2646,8 @@ unsigned int test_cw_rec_with_random_data_fixed(void)
 		test_cw_rec_delete_data(&data);
 	}
 
+	CW_TEST_PRINT_TEST_RESULT(false, p);
+
 	return 0;
 }
 
@@ -2637,6 +2659,8 @@ unsigned int test_cw_rec_with_random_data_fixed(void)
    with varying speed. */
 unsigned int test_cw_rec_with_random_data_adaptive(void)
 {
+	int p = fprintf(stdout, "libcw/rec: test begin/end functions random data/adaptive:");
+
 	struct cw_rec_test_data *data = test_cw_rec_new_random_data_adaptive(CW_SPEED_MIN, CW_SPEED_MAX, 0);
 	//test_cw_rec_print_data(data);
 
@@ -2652,6 +2676,8 @@ unsigned int test_cw_rec_with_random_data_adaptive(void)
 
 
 	test_cw_rec_delete_data(&data);
+
+	CW_TEST_PRINT_TEST_RESULT(false, p);
 
 	return 0;
 }
@@ -2804,7 +2830,7 @@ char *test_cw_rec_new_random_characters(int n)
 
 	characters[n] = '\0';
 
-	fprintf(stderr, "%s\n", characters);
+	//fprintf(stderr, "%s\n", characters);
 
 
 	free(base_characters);
@@ -2824,10 +2850,10 @@ char *test_cw_rec_new_random_characters(int n)
    Function allocates and returns a table of speeds of constant value
    specified by \p speed. There are \p n valid (non-negative) values
    in the table. After the last valid value there is a small negative
-   value that acts as a guard.
+   value at position 'n' in the table that acts as a guard.
 
    \param speed - a constant value to be used as initializer of the table
-   \param n - size of table (+1 for guard)
+   \param n - size of table (function allocates additional one cell for guard)
 
    \return table of speeds of constant value
 */
@@ -2835,11 +2861,12 @@ float *test_cw_rec_new_speeds_fixed(int speed, size_t n)
 {
 	cw_assert (speed > 0, "speed must be larger than zero");
 
-	/* Fixed speed receive mode - speed is constant for all
-	   characters. */
 	float *speeds = (float *) malloc((n + 1) * sizeof (float));
 	cw_assert (speeds, "malloc() failed");
+
 	for (size_t i = 0; i < n; i++) {
+		/* Fixed speed receive mode - speed is constant for
+		   all characters. */
 		speeds[i] = (float) speed;
 	}
 
@@ -2858,11 +2885,12 @@ float *test_cw_rec_new_speeds_fixed(int speed, size_t n)
    Function allocates and returns a table of speeds of varying values,
    changing between \p speed_min and \p speed_max. There are \p n
    valid (non-negative) values in the table. After the last valid
-   value there is a small negative value that acts as a guard.
+   value there is a small negative value at position 'n' in the table
+   that acts as a guard.
 
    \param speed_min - minimal speed
    \param speed_max - maximal speed
-   \param n - size of table (+1 for guard)
+   \param n - size of table (function allocates additional one cell for guard)
 
    \return table of speeds
 */
@@ -2872,12 +2900,14 @@ float *test_cw_rec_new_speeds_adaptive(int speed_min, int speed_max, size_t n)
 	cw_assert (speed_max > 0, "speed_max must be larger than zero");
 	cw_assert (speed_min <= speed_max, "speed_min can't be larger than speed_max");
 
-	/* Adaptive speed receive mode - speed is constant for all
-	   characters. */
 	float *speeds = (float *) malloc((n + 1) * sizeof (float));
 	cw_assert (speeds, "malloc() failed");
 
 	for (size_t i = 0; i < n; i++) {
+
+		/* Adaptive speed receive mode - speed varies for all
+		   characters. */
+
 		float t = (1.0 * i) / n;
 
 		speeds[i] = (1 + cosf(2 * 3.1415 * t)) / 2.0; /* 0.0 -  1.0 */
@@ -2944,10 +2974,10 @@ struct cw_rec_test_data *test_cw_rec_new_data(const char *characters, float spee
 	struct cw_rec_test_data *test_data = (struct cw_rec_test_data *) malloc((n + 1) * sizeof(struct cw_rec_test_data));
 	cw_assert (test_data, "malloc() failed");
 
-	size_t j = 0; /* For indexing output data table. */
-	for (size_t i = 0; i < n; i++) {
+	size_t out = 0; /* For indexing output data table. */
+	for (size_t in = 0; in < n; in++) {
 
-		int unit_len = CW_DOT_CALIBRATION / speeds[i]; /* Dot length, [us]. Used as basis for other elements. */
+		int unit_len = CW_DOT_CALIBRATION / speeds[in]; /* Dot length, [us]. Used as basis for other elements. */
 		// fprintf(stderr, "unit_len = %d [us] for speed = %d [wpm]\n", unit_len, speed);
 
 
@@ -2955,10 +2985,15 @@ struct cw_rec_test_data *test_cw_rec_new_data(const char *characters, float spee
 		   space. This long space will be put at the end of
 		   table of time values for previous
 		   representation. */
-		if (characters[i] == ' ') {
-			test_data[j - 1].d[test_data[j - 1].nd - 1] = unit_len * 6; /* unit_len * 5 is the minimal end-of-word space. */
+		if (characters[in] == ' ') {
+			/* We don't want to affect current output
+			   character, we want to turn end-of-char
+			   space of previous character into
+			   end-of-word space, hence 'j - 1'. */
+			int ilast = test_data[out - 1].nd - 1;    /* Index of last space (end-of-char, to become end-of-word). */
+			test_data[out - 1].d[ilast] = unit_len * 6; /* unit_len * 5 is the minimal end-of-word space. */
 
-			test_data[j - 1].is_last_in_word = true;
+			test_data[out - 1].is_last_in_word = true;
 
 			continue;
 		} else {
@@ -2966,60 +3001,67 @@ struct cw_rec_test_data *test_cw_rec_new_data(const char *characters, float spee
 		}
 
 
-		test_data[j].c = characters[i];
-		test_data[j].r = cw_character_to_representation(test_data[j].c);
-		cw_assert (test_data[j].r,
+		test_data[out].c = characters[in];
+		test_data[out].r = cw_character_to_representation(test_data[out].c);
+		cw_assert (test_data[out].r,
 			   "cw_character_to_representation() failed for input char #%zu: '%c'\n",
-			   i, characters[i]);
-		test_data[j].s = speeds[i];
+			   in, characters[in]);
+		test_data[out].s = speeds[in];
 
 
-		/* Build table of times for given representation. */
+		/* Build table of times (data points) 'd[]' for given
+		   representation 'r'. */
 
 
-		size_t nd = 0;
+		size_t nd = 0; /* Number of data points in data table. */
 
-		size_t rep_length = strlen(test_data[j].r);
+		size_t rep_length = strlen(test_data[out].r);
 		for (size_t k = 0; k < rep_length; k++) {
 
 			/* Length of mark. */
-			if (test_data[j].r[k] == CW_DOT_REPRESENTATION) {
-				test_data[j].d[nd] = unit_len;
+			if (test_data[out].r[k] == CW_DOT_REPRESENTATION) {
+				test_data[out].d[nd] = unit_len;
 
-			} else if (test_data[j].r[k] == CW_DASH_REPRESENTATION) {
-				test_data[j].d[nd] = unit_len * 3;
+			} else if (test_data[out].r[k] == CW_DASH_REPRESENTATION) {
+				test_data[out].d[nd] = unit_len * 3;
 
 			} else {
-				cw_assert (0, "unknown char in representation: '%c'\n", test_data[j].r[k]);
+				cw_assert (0, "unknown char in representation: '%c'\n", test_data[out].r[k]);
 			}
 			nd++;
 
 
 			/* Length of space (inter-mark space). Mark
 			   and space always go in pair. */
-			test_data[j].d[nd] = unit_len;
+			test_data[out].d[nd] = unit_len;
 			nd++;
 		}
 
-		cw_assert (nd > 0, "number of times is %zu for representation '%s'\n", nd, test_data[j].r);
+		/* Every character has non-zero marks and spaces. */
+		cw_assert (nd > 0, "number of data points is %zu for representation '%s'\n", nd, test_data[out].r);
 
-		test_data[j].d[nd - 1] = (unit_len * 3) + (unit_len / 2);  /* end-of-character space. */
-		test_data[j].d[nd] = 0; /* Guard. */
-
-
-		/* Mark and space always go in pair. */
+		/* Mark and space always go in pair, so nd should be even. */
 		cw_assert (! (nd % 2), "number of times is not even");
+
 		/* Mark/space pair per each dot or dash. */
 		cw_assert (nd == 2 * rep_length, "number of times incorrect: %zu != 2 * %zu\n", nd, rep_length);
 
 
-		test_data[j].nd = (size_t ) nd;
+		/* Graduate that last space (inter-mark space) into
+		   end-of-character space. */
+		test_data[out].d[nd - 1] = (unit_len * 3) + (unit_len / 2);
+
+		/* Guard. */
+		test_data[out].d[nd] = 0;
+
+		test_data[out].nd = (size_t ) nd;
 
 		/* This may be overwritten by this function when a
-		   space is encountered in input string. */
-		test_data[j].is_last_in_word = false;
+		   space character (' ') is encountered in input
+		   string. */
+		test_data[out].is_last_in_word = false;
 
-		j++;
+		out++;
 	}
 
 
