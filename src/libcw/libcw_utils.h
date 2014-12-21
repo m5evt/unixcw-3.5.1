@@ -44,7 +44,6 @@ void cw_finalization_cancel_internal(void);
 
 #ifdef LIBCW_UNIT_TESTS
 
-unsigned int test_cw_forever(void);
 unsigned int test_cw_timestamp_compare_internal(void);
 unsigned int test_cw_timestamp_validate_internal(void);
 unsigned int test_cw_usecs_to_timespec_internal(void);
