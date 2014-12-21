@@ -1297,7 +1297,7 @@ int cw_check_string(const char *string)
 */
 unsigned int test_cw_representation_to_hash_internal(void)
 {
-	int p = fprintf(stderr, "libcw/data: cw_representation_to_hash_internal():");
+	int p = fprintf(stdout, "libcw/data: cw_representation_to_hash_internal():");
 
 
 	char input[REPRESENTATION_TABLE_SIZE][REPRESENTATION_LEN + 1];
@@ -1351,7 +1351,7 @@ unsigned int test_cw_representation_to_hash_internal(void)
 */
 unsigned int test_cw_representation_to_character_internal(void)
 {
-	int p = fprintf(stderr, "libcw/data: cw_representation_to_character_internal():");
+	int p = fprintf(stdout, "libcw/data: cw_representation_to_character_internal():");
 
 	/* The test is performed by comparing results of function
 	   using fast lookup table, and function using direct
@@ -1377,7 +1377,7 @@ unsigned int test_cw_representation_to_character_internal(void)
 
 unsigned int test_cw_representation_to_character_internal_speed(void)
 {
-	int p = fprintf(stderr, "libcw/data: cw_representation_to_character() speed gain: ");
+	int p = fprintf(stdout, "libcw/data: cw_representation_to_character() speed gain: ");
 
 
 	/* Testing speed gain between function with direct lookup, and
@@ -1413,7 +1413,7 @@ unsigned int test_cw_representation_to_character_internal_speed(void)
 
 	int direct = cw_timestamp_compare_internal(&start, &stop);
 
-	p += fprintf(stderr, "%.2f", 1.0 * direct / lookup);
+	p += fprintf(stdout, "%.2f", 1.0 * direct / lookup);
 
 
 	CW_TEST_PRINT_TEST_RESULT(false, p);
