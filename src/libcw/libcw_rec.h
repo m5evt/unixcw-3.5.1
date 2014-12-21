@@ -10,29 +10,21 @@
 
 
 
-/* Dot length magic number; from PARIS calibration, 1 Dot=1200000/WPM
-   usec.
+/* Dot length magic number.
+
+   From PARIS calibration, 1 dot length [us] = 1200000 / speed [wpm].
 
    This variable is used in generator code as well. */
 enum { CW_DOT_CALIBRATION = 1200000 };
 
 
-/* Receiver contains a fixed-length buffer for representation of
-   received data.  Capacity of the buffer is vastly longer than any
-   practical representation.  Don't know why, a legacy thing.
-
-   Representation can be presented as a char string. This is the
-   maximal length of the string. This value does not include string's
-   ending NULL. */
-enum { CW_REC_REPRESENTATION_CAPACITY = 256 };
 
 
 
-
-
-/* Forward declaration of a type. */
+/* Forward declaration of a data type. */
 struct cw_rec_struct;
 typedef struct cw_rec_struct cw_rec_t;
+
 
 
 
