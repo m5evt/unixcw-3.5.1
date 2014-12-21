@@ -745,66 +745,12 @@ void cw_complete_reset(void)
 
 
 
-#include "libcw_gen.h"
-
-
-extern cw_gen_t *cw_generator;
-
-
-
-/* FIXME: shouldn't this function be in libcw_test_public.c or
-   something? */
-unsigned int test_cw_forever(void)
-{
-	int p = fprintf(stderr, "libcw/utils: CW_AUDIO_FOREVER_USECS:");
-
-	int rv = cw_generator_new(CW_AUDIO_OSS, NULL);
-	assert (rv);
-
-	cw_generator_start();
-
-	sleep(1);
-
-	cw_tone_t tone;
-
-	tone.usecs = 100;
-	tone.frequency = 500;
-	tone.slope_mode = CW_SLOPE_MODE_RISING_SLOPE;
-	cw_tq_enqueue_internal(cw_generator->tq, &tone);
-
-	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-	tone.usecs = CW_AUDIO_FOREVER_USECS;
-	tone.frequency = 500;
-	cw_tq_enqueue_internal(cw_generator->tq, &tone);
-
-	cw_wait_for_tone_queue();
-
-	sleep(6);
-
-	tone.usecs = 100;
-	tone.frequency = 500;
-	tone.slope_mode = CW_SLOPE_MODE_FALLING_SLOPE;
-	cw_tq_enqueue_internal(cw_generator->tq, &tone);
-
-	cw_generator_stop();
-	cw_generator_delete();
-
-
-	CW_TEST_PRINT_TEST_RESULT(false, p);
-
-	return 0;
-}
-
-
-
-
-
 /**
    tests::cw_timestamp_compare_internal()
 */
 unsigned int test_cw_timestamp_compare_internal(void)
 {
-	int p = fprintf(stderr, "libcw/utils: cw_timestamp_compare_internal():");
+	int p = fprintf(stdout, "libcw/utils: cw_timestamp_compare_internal():");
 
 	struct timeval earlier_timestamp;
 	struct timeval later_timestamp;
@@ -853,7 +799,7 @@ unsigned int test_cw_timestamp_compare_internal(void)
 */
 unsigned int test_cw_timestamp_validate_internal(void)
 {
-	int p = fprintf(stderr, "libcw/utils: cw_timestamp_validate_internal():");
+	int p = fprintf(stdout, "libcw/utils: cw_timestamp_validate_internal():");
 
 	struct timeval out_timestamp;
 	struct timeval in_timestamp;
@@ -944,7 +890,7 @@ unsigned int test_cw_timestamp_validate_internal(void)
 */
 unsigned int test_cw_usecs_to_timespec_internal(void)
 {
-	int p = fprintf(stderr, "libcw/utils: cw_usecs_to_timespec_internal():");
+	int p = fprintf(stdout, "libcw/utils: cw_usecs_to_timespec_internal():");
 
 	struct {
 		int input;
@@ -1029,7 +975,7 @@ unsigned int test_cw_version_internal(void)
 	cw_assert (major == current, "Incorrect \"current\": %d != %d\n", major, current);
 	cw_assert (minor == revision, "Incorrect \"revision\": %d != %d\n", minor, revision);
 
-	int n = fprintf(stderr, "libcw/utils: get version: %d.%d:", major, minor);
+	int n = fprintf(stdout, "libcw/utils: get version: %d.%d:", major, minor);
 	CW_TEST_PRINT_TEST_RESULT (false, n);
 
 	return 0;
@@ -1049,7 +995,7 @@ unsigned int test_cw_license_internal(void)
 
 	cw_license();
 
-	int n = fprintf(stderr, "libcw/utils: printing license:");
+	int n = fprintf(stdout, "libcw/utils: printing license:");
 	CW_TEST_PRINT_TEST_RESULT (false, n);
 
 	return 0;
@@ -1108,7 +1054,7 @@ unsigned int test_cw_get_x_limits_internal(void)
 			   test_data[i].name);
 	}
 
-	int n = fprintf(stderr, "libcw/utils: cw_get_X_limits():");
+	int n = fprintf(stdout, "libcw/utils: cw_get_X_limits():");
 	CW_TEST_PRINT_TEST_RESULT (false, n);
 
 	return 0;
