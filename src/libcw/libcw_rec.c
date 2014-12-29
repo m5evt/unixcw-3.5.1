@@ -206,6 +206,13 @@ struct cw_rec_struct {
 	/* Changing values of speed, tolerance, gap or
 	   is_adaptive_receive_mode will trigger a recalculation of
 	   low level timing parameters. */
+
+	/* 'speed' is float instead of being 'int' on purpose.  It
+	   makes adaptation to varying speed of incoming data more
+	   smooth. This is especially important at low speeds, where
+	   change/adaptation from (int) 5wpm to (int) 4wpm would
+	   mean a sharp decrease by 20%. With 'float' data type the
+	   adjustment of receive speeds is more gradual. */
 	float speed;       /* [wpm] */
 	int tolerance;
 	int gap;         /* Inter-character-gap, similar as in generator. */
@@ -254,19 +261,19 @@ struct cw_rec_struct {
 	int dash_len_min;         /* Minimal length of mark that will be identified as dash. [us] */
 	int dash_len_max;         /* Maximal length of mark that will be identified as dash. [us] */
 
-	int eom_len_ideal;        /* Ideal end of mark, for stats */
-	int eom_len_min;          /* Shortest end of mark allowable */
-	int eom_len_max;          /* Longest end of mark allowable */
+	int eom_len_ideal;        /* Ideal end of mark, for stats. [us] */
+	int eom_len_min;          /* Shortest end of mark allowable. [us] */
+	int eom_len_max;          /* Longest end of mark allowable. [us] */
 
-	int eoc_len_ideal;        /* Ideal end of char, for stats */
-	int eoc_len_min;          /* Shortest end of char allowable */
-	int eoc_len_max;          /* Longest end of char allowable */
+	int eoc_len_ideal;        /* Ideal end of char, for stats. [us] */
+	int eoc_len_min;          /* Shortest end of char allowable. [us] */
+	int eoc_len_max;          /* Longest end of char allowable. [us] */
 
 	/* These two fields have the same function as in
 	   cw_gen_t. They are needed in function re-synchronizing
 	   parameters. */
-	int additional_delay;     /* More delay at the end of a char */
-	int adjustment_delay;     /* More delay at the end of a word */
+	int additional_delay;     /* More delay at the end of a char. [us] */
+	int adjustment_delay;     /* More delay at the end of a word. [us] */
 
 
 
@@ -394,19 +401,16 @@ static void cw_rec_update_averages_internal(cw_rec_t *rec, int mark_len, char ma
 static void cw_rec_reset_average_internal(cw_rec_averaging_t *avg, int initial);
 
 
-
 static int  cw_rec_poll_representation_internal(cw_rec_t *rec, const struct timeval *timestamp, char *representation, bool *is_end_of_word, bool *is_error);
 static void cw_rec_poll_representation_eoc_internal(cw_rec_t *rec, int space_len, char *representation, bool *is_end_of_word, bool *is_error);
 static void cw_rec_poll_representation_eow_internal(cw_rec_t *rec, char *representation, bool *is_end_of_word, bool *is_error);
 static int  cw_rec_poll_character_internal(cw_rec_t *rec, const struct timeval *timestamp, char *c, bool *is_end_of_word, bool *is_error);
 
 
-
-
-
 static int   cw_rec_get_buffer_length_internal(cw_rec_t *rec);
 static void  cw_rec_clear_buffer_internal(cw_rec_t *rec);
 static float cw_rec_get_speed_internal(cw_rec_t *rec);
+
 
 
 
@@ -768,7 +772,9 @@ void cw_rec_update_stats_internal(cw_rec_t *rec, stat_type_t type, int len)
 
 	/* Add this statistic to the buffer. */
 	rec->statistics[rec->statistics_ind].type = type;
-	rec->statistics[rec->statistics_ind++].delta = delta;
+	rec->statistics[rec->statistics_ind].delta = delta;
+
+	rec->statistics_ind++;
 	rec->statistics_ind %= CW_REC_STATISTICS_CAPACITY;
 
 	return;
@@ -1782,6 +1788,21 @@ int cw_rec_poll_representation_internal(cw_rec_t *rec,
 
 
 
+/**
+   \brief Prepare return values at end-of-character
+
+   Return representation and receiver's state flags after receiver has
+   encountered end-of-character gap.
+
+   Update receiver's state (\p rec) so that it matches end-of-character state.
+
+   Since this is _eoc_function, \p is_end_of_word is set to false.
+
+   \p rec - receiver
+   \p representation - representation of character from receiver's buffer
+   \p is_end_of_word - end-of-word flag
+   \p is_error - error flag
+*/
 void cw_rec_poll_representation_eoc_internal(cw_rec_t *rec, int space_len,
 					     /* out */ char *representation,
 					     /* out */ bool *is_end_of_word,
@@ -1827,6 +1848,21 @@ void cw_rec_poll_representation_eoc_internal(cw_rec_t *rec, int space_len,
 
 
 
+/**
+   \brief Prepare return values at end-of-word
+
+   Return representation and receiver's state flags after receiver has
+   encountered end-of-word gap.
+
+   Update receiver's state (\p rec) so that it matches end-of-word state.
+
+   Since this is _eow_function, \p is_end_of_word is set to true.
+
+   \p rec - receiver
+   \p representation - representation of character from receiver's buffer
+   \p is_end_of_word - end-of-word flag
+   \p is_error - error flag
+*/
 void cw_rec_poll_representation_eow_internal(cw_rec_t *rec,
 					     /* out */ char *representation,
 					     /* out */ bool *is_end_of_word,
