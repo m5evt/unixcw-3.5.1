@@ -89,12 +89,13 @@ static void test_tone_queue_callback(cw_test_stats_t *stats);
 static void test_volume_functions(cw_test_stats_t *stats);
 static void test_send_primitives(cw_test_stats_t *stats);
 static void test_send_character_and_string(cw_test_stats_t *stats);
+static void test_representations(cw_test_stats_t *stats);
 /* Morse key module. */
 static void test_keyer(cw_test_stats_t *stats);
 static void test_straight_key(cw_test_stats_t *stats);
 /* Other functions. */
 static void test_parameter_ranges(cw_test_stats_t *stats);
-static void test_representations(cw_test_stats_t *stats);   /* "data" and "generator" modules. TODO: split this function in two. */
+
 static void test_cw_forever(cw_test_stats_t *stats);
 
 // static void cw_test_delayed_release(cw_test_stats_t *stats);
@@ -949,41 +950,14 @@ void test_send_primitives(cw_test_stats_t *stats)
 
 
 /**
-   \brief Testing and playing representations of characters
+   \brief Playing representations of characters
 
-   tests::cw_representation_is_valid()
    tests::cw_send_representation()
    tests::cw_send_representation_partial()
 */
 void test_representations(cw_test_stats_t *stats)
 {
 	printf("libcw: %s():\n", __func__);
-
-	/* Test: validating valid representations. */
-	{
-		bool failure = !cw_representation_is_valid(".-.-.-")
-			|| !cw_representation_is_valid(".-")
-			|| !cw_representation_is_valid("---")
-			|| !cw_representation_is_valid("...-");
-
-		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_representation_is_valid(<valid>):");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-	}
-
-
-
-	/* Test: validating invalid representations. */
-	{
-		bool failure = cw_representation_is_valid("INVALID")
-			|| cw_representation_is_valid("_._")
-			|| cw_representation_is_valid("-_-");
-
-		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_representation_is_valid(<invalid>):");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-	}
-
 
 
 	/* Test: sending valid representations. */
@@ -1668,6 +1642,7 @@ static void (*const CW_TEST_FUNCTIONS_DEP_G[])(cw_test_stats_t *) = {
 	test_volume_functions,
 	test_send_primitives,
 	test_send_character_and_string,
+	test_representations,
 
 	NULL
 };
@@ -1687,7 +1662,6 @@ static void (*const CW_TEST_FUNCTIONS_DEP_K[])(cw_test_stats_t *) = {
    Other modules' functions. */
 static void (*const CW_TEST_FUNCTIONS_DEP_O[])(cw_test_stats_t *) = {
 	test_parameter_ranges,
-	test_representations,
 	test_cw_forever,
 
 	//cw_test_delayed_release,
