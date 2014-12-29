@@ -697,7 +697,7 @@ int cw_check_representation(const char *representation)
    If representation is invalid, function returns false and sets
    errno to EINVAL.
 
-   testedin::test_representations()
+   testedin::test_validate_representation_internal()
 
    \param representation - representation of a character to check
 
@@ -1746,6 +1746,42 @@ unsigned int test_validate_character_and_string_internal(void)
 		CW_TEST_PRINT_TEST_RESULT (false, n);
 	}
 
+
+	return 0;
+}
+
+
+
+
+
+/**
+   \brief Validating representations of characters
+
+   tests::cw_representation_is_valid()
+*/
+unsigned int test_validate_representation_internal(void)
+{
+	/* Test: validating valid representations. */
+	{
+		cw_assert (cw_representation_is_valid(".-.-.-"), "Valid representation #1 not recognized as valid.\n");
+		cw_assert (cw_representation_is_valid(".-"),     "Valid representation #2 not recognized as valid.\n");
+		cw_assert (cw_representation_is_valid("---"),    "Valid representation #3 not recognized as valid.\n");
+		cw_assert (cw_representation_is_valid("...-"),   "Valid representation #4 not recognized as valid.\n");
+
+		int n = printf("libcw/data: cw_representation_is_valid(<valid>):");
+		CW_TEST_PRINT_TEST_RESULT (false, n);
+	}
+
+
+	/* Test: validating invalid representations. */
+	{
+		cw_assert (!cw_representation_is_valid("INVALID"), "Invalid representation #1 not recognized as invalid.\n");
+		cw_assert (!cw_representation_is_valid("_._"),     "Invalid representation #2 not recognized as invalid.\n");
+		cw_assert (!cw_representation_is_valid("-_-"),     "Invalid representation #3 not recognized as invalid.\n");
+
+		int n = printf("libcw/data: cw_representation_is_valid(<invalid>):");
+		CW_TEST_PRINT_TEST_RESULT (false, n);
+	}
 
 	return 0;
 }
