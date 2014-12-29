@@ -47,7 +47,7 @@ unsigned int test_character_lookups_internal(void);
 unsigned int test_prosign_lookups_internal(void);
 unsigned int test_phonetic_lookups_internal(void);
 unsigned int test_validate_character_and_string_internal(void);
-
+unsigned int test_validate_representation_internal(void);
 
 #endif /* #ifdef LIBCW_UNIT_TESTS */
 
