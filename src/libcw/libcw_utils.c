@@ -949,7 +949,16 @@ unsigned int test_cw_version_internal(void)
 	int current = 0, revision = 0;
 	__attribute__((unused)) int age = 0;
 
-	char *str = strdup(LIBCW_VERSION);
+
+#define VERSION_LEN_MAX 30
+	cw_assert (strlen(LIBCW_VERSION) <= VERSION_LEN_MAX, "LIBCW_VERSION longer than expected!\n");
+
+	char buffer[VERSION_LEN_MAX + 1];
+	strncpy(buffer, LIBCW_VERSION, VERSION_LEN_MAX);
+	buffer[VERSION_LEN_MAX] = '\0';
+#undef VERSION_LEN_MAX
+
+	char *str = buffer;
 
 	for (int i = 0; ; i++, str = NULL) {
 
@@ -968,9 +977,6 @@ unsigned int test_cw_version_internal(void)
 			cw_assert (0, "too many tokens in \"%s\"\n", LIBCW_VERSION);
 		}
 	}
-
-	free(str);
-	str = NULL;
 
 	cw_assert (major == current, "Incorrect \"current\": %d != %d\n", major, current);
 	cw_assert (minor == revision, "Incorrect \"revision\": %d != %d\n", minor, revision);
