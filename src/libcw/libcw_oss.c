@@ -492,7 +492,6 @@ int cw_oss_get_version_internal(int fd, int *x, int *y, int *z)
 
 
 #include <stdbool.h>
-#include "libcw_internal.h"
 #include "libcw_oss.h"
 
 
