@@ -40,6 +40,7 @@
 #include <stdbool.h>
 #include <math.h>
 #include <signal.h>
+#include <errno.h>
 
 #if (defined(__unix__) || defined(unix)) && !defined(USG)
 # include <sys/param.h> /* INT_MAX */
