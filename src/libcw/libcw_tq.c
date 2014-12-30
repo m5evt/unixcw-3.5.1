@@ -156,6 +156,9 @@ cw_tone_queue_t *cw_tq_new_internal(void)
 	tq->low_water_callback = NULL;
 	tq->low_water_callback_arg = NULL;
 
+	tq->gen = (cw_gen_t *) NULL;
+
+
 	rv = cw_tone_queue_set_capacity_internal(tq, CW_TONE_QUEUE_CAPACITY_MAX, CW_TONE_QUEUE_HIGH_WATER_MARK_MAX);
 	assert (rv);
 
@@ -1590,6 +1593,11 @@ unsigned int test_cw_tone_queue_test_capacity_1(void)
 			}
 		}
 
+
+		/* Matches tone queue creation made in
+		   test_cw_tone_queue_capacity_test_init(). */
+		cw_tq_delete_internal(&test_tone_queue);
+
 		s++;
 	}
 
@@ -1690,6 +1698,12 @@ unsigned int test_cw_tone_queue_test_capacity_2(void)
 		cw_assert (i == test_tone_queue->capacity,
 			   "Number of dequeues (%"PRIu32") is different than capacity (%"PRIu32")\n",
 			   i, test_tone_queue->capacity);
+
+
+		/* Matches tone queue creation made in
+		   test_cw_tone_queue_capacity_test_init(). */
+		cw_tq_delete_internal(&test_tone_queue);
+
 
 		s++;
 	}
