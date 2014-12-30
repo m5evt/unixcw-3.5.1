@@ -3010,6 +3010,11 @@ struct cw_rec_test_data *test_cw_rec_new_data(const char *characters, float spee
 	struct cw_rec_test_data *test_data = (struct cw_rec_test_data *) malloc((n + 1) * sizeof(struct cw_rec_test_data));
 	cw_assert (test_data, "malloc() failed");
 
+	/* Initialization. */
+	for (size_t i = 0; i < n + 1; i++) {
+		test_data[i].r = (char *) NULL;
+	}
+
 	size_t out = 0; /* For indexing output data table. */
 	for (size_t in = 0; in < n; in++) {
 
