@@ -1,3 +1,8 @@
+2014-12-30 Kamil Ignacak
+	* valgrind: running valgrind on libcw_test_internal reveals few
+	small problems in test code, and one small problem in "production"
+	code. Fixing the problems. Thanks valgrind!
+
 2014-12-20 Kamil Ignacak
 	* tests: moving as much code as possible from libcw_test_public.c
 	to respective module files. The tests that are still in
