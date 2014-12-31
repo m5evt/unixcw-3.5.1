@@ -76,6 +76,11 @@ Version 3.4.0 contains two changes in source code:
  - refreshment of cwcp code;
  - splitting libcw.c into parts.
 Additionally the build system has been updated to correctly build
-unixcw on FreeBSD 10 (x86_64-unknown-freebsd10.0, with clang 3.3).
-unixcw can be also compiled on FreeBSD 9.3 (freebsd9.3 with gcc
-4.2.1).
+unixcw on:
+ - FreeBSD 10 (x86_64-unknown-freebsd10.0, with clang 3.3);
+ - FreeBSD 9.3 (freebsd9.3 with gcc 4.2.1);
+ - OpenBSD 5.5 (amd64-unknown-openbsd5.5 with gcc 4.2.1);
+
+Version 3.4.1 focused on internal changes in libcw. All library code
+is now split between separate module files. Some test code from
+libcw_test_public.c has been moved to respective modules.
