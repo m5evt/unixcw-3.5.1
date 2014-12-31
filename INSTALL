@@ -1,4 +1,4 @@
-This is INSTALL file for unixcw 3.4.0.
+This is INSTALL file for unixcw 3.4.1.
 
 
 
@@ -72,7 +72,12 @@ Build-time requirements for unixcw:
 
 
 
-unixcw (or at least parts of it) was successfully compiled on
+
+unixcw 3.4.1 (or at least parts of it) was successfully compiled on
+following platforms:
+ - Debian GNU/Linux jessie/sid, x86_64, gcc 4.9.1;
+
+unixcw 3.4.0 (or at least parts of it) was successfully compiled on
 following platforms:
  - Debian GNU/Linux jessie/sid, x86_64, gcc 4.9.1;
  - FreeBSD 10.0 (x86_64-unknown-freebsd10.0, with clang 3.3);
