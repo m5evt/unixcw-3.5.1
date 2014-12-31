@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2001-2006  Simon Baldwin (simon_baldwin@yahoo.com)
- * Copyright (C) 2011-2014  Kamil Ignacak (acerion@wp.pl)
+ * Copyright (C) 2011-2015  Kamil Ignacak (acerion@wp.pl)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -925,9 +925,9 @@ bool mode_is_sending_active(void)
  * character limit imposed by ISO C89 on string literal lengths.
  */
 static const char *const INTRODUCTION = N_(
-  "UNIX/Linux Morse Tutor v3.4.0\n"
+  "UNIX/Linux Morse Tutor v3.4.1\n"
   "Copyright (C) 1997-2006 Simon Baldwin\n"
-  "Copyright (C) 2011-2014 Kamil Ignacak\n"
+  "Copyright (C) 2011-2015 Kamil Ignacak\n"
   "---------------------------------------------------------\n"
   "Cwcp is an interactive Morse code tutor program, designed\n"
   "both for learning Morse code for the first time, and for\n"
