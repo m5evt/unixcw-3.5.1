@@ -1,17 +1,35 @@
 #!/bin/bash
 
-PACKAGE="unixcw"
-VERSION="3.4.0"
-
 
 # setup
+PACKAGE="unixcw"
+VERSION="3.4.1"
+
+debuild_command='debuild -us -uc'
+
 REPO=`pwd`
 cd ../../build
 BUILD=`pwd`
 
-
 echo "REPO = " $REPO
 echo "BUILD = " $BUILD
+
+# "-n 1" - no need to confirm a character with Enter
+read -r -n 1 -p "Directories are OK? [y/N] " response
+echo
+case $response in
+    [yY][eE][sS]|[yY])
+        echo "OK"
+        ;;
+    *)
+	echo "Aborting build"
+	exit
+        ;;
+esac
+
+
+
+
 
 if [ "$REPO" == x"" ]; then
     echo "REPO is empty"
@@ -66,4 +84,23 @@ tar cvfz $PACKAGE\_$VERSION.orig.tar.gz $PACKAGE-$VERSION --exclude=debian
 cd $PACKAGE-$VERSION
 echo ""
 echo `pwd`
-debuild -us -uc
+eval $debuild_command
+
+
+
+
+
+# "-n 1" - no need to confirm a character with Enter
+read -r -n 1 -p "Test second build in build directory? [Y/n] " response
+echo
+case $response in
+    [Nn][Oo]|[Nn])
+	echo "Not executing second build"
+	# pass
+        ;;
+    *)
+	eval $debuild_command
+	echo "Second build completed"
+        ;;
+esac
+echo
