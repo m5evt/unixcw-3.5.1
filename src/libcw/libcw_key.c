@@ -18,12 +18,15 @@
 */
 
 
-
 /**
    \file libcw_key.c
 
-
+   \brief Straight key and keyer.
 */
+
+
+
+
 
 #include <stdbool.h>
 #include <inttypes.h> /* uint32_t */

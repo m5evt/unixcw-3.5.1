@@ -18,6 +18,16 @@
 */
 
 
+/**
+   \file libcw_oss.c
+
+   \brief OSS audio sink.
+*/
+
+
+
+
+
 #include "config.h"
 
 

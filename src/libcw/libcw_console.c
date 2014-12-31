@@ -18,6 +18,16 @@
 */
 
 
+/**
+   \file libcw_console.c
+
+   \brief Console buzzer audio sink.
+*/
+
+
+
+
+
 #include "config.h"
 
 

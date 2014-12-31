@@ -21,7 +21,7 @@
 /**
    \file libcw_utils.c
 
-   Utility functions.
+   \brief Utility functions that should be put in a common place.
 
    One of the utilities is cw_dlopen_internal() - a function that
    allowed me to drop compile-time dependency on ALSA libs and
@@ -49,9 +49,6 @@
 #if (defined(__unix__) || defined(unix)) && !defined(USG)
 # include <sys/param.h>
 #endif
-
-
-
 
 
 #include "libcw.h"

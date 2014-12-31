@@ -22,10 +22,12 @@
 /**
    \file libcw_debug.c
 
-   \brief An attempt to do some smart debugging facility to libcw and
-   applications using the library.
-
+   \brief An attempt to create some smart debugging facility to libcw
+   and applications using the library.
 */
+
+
+
 
 
 #include "config.h"

@@ -18,6 +18,16 @@
 */
 
 
+/**
+   \file libcw_alsa.c
+
+   \brief ALSA audio sink.
+*/
+
+
+
+
+
 #include "config.h"
 
 
@@ -26,8 +36,8 @@
 
 
 #include <dlfcn.h> /* dlopen() and related symbols */
-
 #include <alsa/asoundlib.h>
+
 
 #include "libcw.h"
 #include "libcw_alsa.h"
@@ -37,6 +47,9 @@
 
 
 #define CW_ALSA_HW_BUFFER_CONFIG  0  /* set up hw buffer/period parameters; unnecessary and probably harmful */
+
+
+
 
 
 extern cw_debug_t cw_debug_object;

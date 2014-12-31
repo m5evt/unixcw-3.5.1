@@ -18,13 +18,11 @@
 */
 
 
-
-
 /**
    \file libcw_rec.c
 
-   Receiver. Receive a series of marks and spaces. Interpret them as
-   characters.
+   \brief Receiver. Receive a series of marks and spaces. Interpret
+   them as characters.
 
 
    There are two ways of feeding marks and spaces to receiver.

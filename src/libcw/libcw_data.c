@@ -21,6 +21,8 @@
 /**
    \file libcw_data.c
 
+   \brief Characters, representations, lookup and validation functions.
+
    The only hard data stored by libcw library seems to be:
    \li characters and their representations
    \li procedural signals
@@ -34,6 +36,9 @@
 */
 
 
+
+
+
 #include <stdio.h>
 #include <limits.h> /* UCHAR_MAX */
 #include <string.h>
@@ -41,10 +46,13 @@
 #include <errno.h>
 #include <ctype.h>
 
+
 #include "libcw.h"
 #include "libcw_debug.h"
 #include "libcw_data.h"
 #include "libcw_test.h"
+
+
 
 
 

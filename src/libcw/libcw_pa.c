@@ -18,6 +18,16 @@
 */
 
 
+/**
+   \file libcw_pa.c
+
+   \brief PulseAudio audio sink.
+*/
+
+
+
+
+
 #include "config.h"
 
 
@@ -32,16 +42,19 @@
 #include <dlfcn.h> /* dlopen() and related symbols */
 #include <string.h>
 #include <assert.h>
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+
 
 #include "libcw.h"
 #include "libcw_pa.h"
 #include "libcw_debug.h"
 #include "libcw_utils.h"
 #include "libcw_gen.h"
+
+
+
 
 
 extern cw_debug_t cw_debug_object;

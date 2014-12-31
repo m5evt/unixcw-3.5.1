@@ -18,7 +18,16 @@
 */
 
 
-//#include "config.h"
+/**
+   \file libcw_null.c
+
+   \brief Null audio sink.
+
+   No sound is being played, but time periods necessary for generator
+   to operate are being measured.
+*/
+
+
 
 
 
@@ -31,6 +40,9 @@
 #include "libcw_null.h"
 #include "libcw_utils.h"
 #include "libcw_gen.h"
+
+
+
 
 
 static int  cw_null_open_device_internal(cw_gen_t *gen);

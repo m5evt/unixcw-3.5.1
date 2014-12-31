@@ -21,7 +21,7 @@
 /**
    \file libcw_signal.c
 
-   Signal handling routines.
+   \brief Signal handling routines.
 
    There are some static variables in this file, maybe they should be
    moved to some common structure. I've noticed that these functions
@@ -36,15 +36,9 @@
 #include "config.h"
 
 
-
-
-
 #include <signal.h>
 #include <errno.h>
 #include <stdlib.h>
-
-
-
 
 
 #include "libcw.h"
@@ -52,9 +46,6 @@
 #include "libcw_debug.h"
 #include "libcw_gen.h"
 #include "libcw_utils.h"
-
-
-
 
 
 #if defined(HAVE_STRING_H)

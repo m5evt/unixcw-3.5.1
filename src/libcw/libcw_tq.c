@@ -18,14 +18,29 @@
 */
 
 
+/**
+   \file libcw_tq.c
+
+   \brief Queue of tones to be converted by generator to pcm data and
+   sent to audio sink.
+
+   Tone queue - a circular list of tone durations and frequencies pending,
+   and a pair of indexes, tail (enqueue) and head (dequeue) to manage
+   additions and asynchronous sending.
+
+   The tone queue (the circular list) is implemented using constant
+   size table.
+*/
+
+
+
+
+
 #include <inttypes.h> /* "PRIu32" */
 #include <stdlib.h>
 #include <errno.h>
 #include <pthread.h>
 #include <signal.h> /* SIGALRM */
-
-
-
 
 
 #include "libcw_debug.h"
@@ -38,16 +53,7 @@
 
 
 
-/**
-   \file libcw_tq.c
-
-   Tone queue - a circular list of tone durations and frequencies pending,
-   and a pair of indexes, tail (enqueue) and head (dequeue) to manage
-   additions and asynchronous sending.
-
-   The tone queue (the circular list) is implemented using constant
-   size table.
-
+/*
    The CW tone queue functions implement the following state graph:
 
                               (queue empty)
@@ -77,7 +83,6 @@
    with generator etc. There is very little (or even no) need to
    explicitly reveal to client code this implementation detail called
    "tone queue".
-
 */
 
 

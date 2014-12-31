@@ -21,6 +21,9 @@
 /**
    \file libcw_gen.c
 
+   \brief Generate pcm samples according to tones from tone queue, and
+   send them to audio sink.
+
    Functions operating on one of core elements of libcw: a generator.
 
    Generator is an object that has access to audio sink (soundcard,
@@ -30,6 +33,9 @@
    You can request generator to produce audio by using *_send_*()
    functions (these functions are still in libcw.c).
 */
+
+
+
 
 
 #include "config.h"
@@ -66,6 +72,7 @@
 #include "libcw_key.h"
 #include "libcw_signal.h"
 #include "libcw_data.h"
+
 
 
 
