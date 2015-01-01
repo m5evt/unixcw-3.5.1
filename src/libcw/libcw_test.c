@@ -18,6 +18,16 @@
  */
 
 
+/**
+   \file libcw_test.c
+
+   \brief Utility functions for test executables.
+*/
+
+
+
+
+
 #include "config.h"
 
 
@@ -36,7 +46,6 @@
 #include <getopt.h>
 #include <assert.h>
 
-
 #if defined(HAVE_STRING_H)
 # include <string.h>
 #endif
@@ -45,9 +54,11 @@
 # include <strings.h>
 #endif
 
+
 #include "libcw.h"
 #include "libcw_debug.h"
 #include "libcw_test.h"
+
 
 
 
@@ -59,7 +70,7 @@ int cw_test_args(int argc, char *const argv[],
 	strncpy(sound_systems, "ncoap", systems_max);
 	sound_systems[systems_max] = '\0';
 
-	strncpy(modules, "rgtkod", modules_max);
+	strncpy(modules, "gtko", modules_max);
 	modules[modules_max] = '\0';
 
 	if (argc == 1) {
@@ -104,11 +115,9 @@ int cw_test_args(int argc, char *const argv[],
 
 				int j = 0;
 				for (size_t i = 0; i < len; i++) {
-					if (optarg[i] != 'r'       /* Receiver. */
+					if (optarg[i] != 'g'       /* Generator. */
 					    && optarg[i] != 't'    /* Tone queue. */
-					    && optarg[i] != 'g'    /* Generator. */
 					    && optarg[i] != 'k'    /* Morse key. */
-					    && optarg[i] != 'd'    /* Data. */
 					    && optarg[i] != 'o') { /* Other. */
 
 						return CW_FAILURE;
@@ -138,7 +147,7 @@ int cw_test_args(int argc, char *const argv[],
 
 void cw_test_print_help(const char *progname)
 {
-	fprintf(stderr, "Usage: %s [-s <sound systems>] [-m <module>]\n\n", progname);
+	fprintf(stderr, "Usage: %s [-s <sound systems>] [-m <modules>]\n\n", progname);
 	fprintf(stderr, "       <sound system> is one or more of those:\n");
 	fprintf(stderr, "       n - null\n");
 	fprintf(stderr, "       c - console\n");
@@ -146,12 +155,10 @@ void cw_test_print_help(const char *progname)
 	fprintf(stderr, "       a - ALSA\n");
 	fprintf(stderr, "       p - PulseAudio\n");
 	fprintf(stderr, "\n");
-	fprintf(stderr, "       <module> is one or more of those:\n");
-	fprintf(stderr, "       r - receiver\n");
+	fprintf(stderr, "       <modules> is one or more of those:\n");
 	fprintf(stderr, "       g - generator\n");
 	fprintf(stderr, "       t - tone queue\n");
 	fprintf(stderr, "       k - Morse key\n");
-	fprintf(stderr, "       d - Data\n");
 	fprintf(stderr, "       o - other\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "       If no argument is provided, the program will attempt to test all audio systems and all modules\n");
