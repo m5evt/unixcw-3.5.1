@@ -258,7 +258,7 @@ int cw_oss_open_device_internal(cw_gen_t *gen)
 		return CW_FAILURE;
         } else {
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_INFO,
-			      "cw_oss: OS fragment size = %d", size);
+			      "cw_oss: OSS fragment size = %d", size);
 	}
 	gen->buffer_n_samples = size;
 
@@ -407,8 +407,8 @@ int cw_oss_open_device_ioctls_internal(int *fd, int *sample_rate)
 			      "cw_oss: ioctl(SNDCTL_DSP_SETFRAGMENT): \"%s\"", strerror(errno));
 		return CW_FAILURE;
         }
-	cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
-		      "cw_oss: fragment size is %d", parameter & 0x0000ffff);
+	cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_INFO,
+		      "cw_oss: fragment size is 2^%d = %d", parameter & 0x0000ffff, 2 << ((parameter & 0x0000ffff) - 1));
 
 	/* Query fragment size just to get the driver buffers set. */
 	if (ioctl(*fd, SNDCTL_DSP_GETBLKSIZE, &parameter) == -1) {
