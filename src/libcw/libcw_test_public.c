@@ -52,6 +52,9 @@
 #include "libcw_gen.h"
 
 
+
+
+
 typedef struct {
 	int successes;
 	int failures;
@@ -95,7 +98,6 @@ static void test_keyer(cw_test_stats_t *stats);
 static void test_straight_key(cw_test_stats_t *stats);
 /* Other functions. */
 static void test_parameter_ranges(cw_test_stats_t *stats);
-
 static void test_cw_forever(cw_test_stats_t *stats);
 
 // static void cw_test_delayed_release(cw_test_stats_t *stats);
@@ -104,18 +106,9 @@ static void test_cw_forever(cw_test_stats_t *stats);
 
 
 
-
-
 /*---------------------------------------------------------------------*/
 /*  Unit tests                                                         */
 /*---------------------------------------------------------------------*/
-
-
-
-
-
-
-
 
 
 
@@ -1860,7 +1853,7 @@ int main(int argc, char *const argv[])
 
 #define CW_SYSTEMS_MAX 5
 	char sound_systems[CW_SYSTEMS_MAX + 1];
-#define CW_MODULES_MAX 6
+#define CW_MODULES_MAX 4  /* g, t, k, o */
 	char modules[CW_MODULES_MAX + 1];
 	modules[0] = '\0';
 
