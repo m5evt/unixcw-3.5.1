@@ -95,7 +95,7 @@ void Receiver::handle_key_event(QKeyEvent *event, const Mode *current_mode,
 		return;
 	}
 
-	fprintf(stderr, "\n\n");
+	//fprintf(stderr, "\n\n");
 
 	// If this is a key press that is not the first one of an
 	// autorepeating key, ignore the event.  This prevents
