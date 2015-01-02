@@ -591,23 +591,23 @@ AC_OUTPUT
 
 # Put this at the very end, so that these are the last lines seen by
 # user on console with low number of rows.
-AC_MSG_NOTICE([----------------------------------------------------])
-AC_MSG_NOTICE([------------ unixcw build configuration ------------])
-AC_MSG_NOTICE([operating system:  ............................  $host_os])
-AC_MSG_NOTICE([build libcw:  .................................  yes])
-AC_MSG_NOTICE([build cw & cwgen:  ............................  yes])
-AC_MSG_NOTICE([build cwcp:  ..................................  $WITH_CWCP])
-AC_MSG_NOTICE([build xcwcp:  .................................  $WITH_XCWCP])
+AC_MSG_NOTICE([----------------------------------------------])
+AC_MSG_NOTICE([------ $PACKAGE_NAME $PACKAGE_VERSION build configuration ------])
+AC_MSG_NOTICE([operating system:  ......................  $host_os])
+AC_MSG_NOTICE([build libcw:  ...........................  yes])
+AC_MSG_NOTICE([build cw & cwgen:  ......................  yes])
+AC_MSG_NOTICE([build cwcp:  ............................  $WITH_CWCP])
+AC_MSG_NOTICE([build xcwcp:  ...........................  $WITH_XCWCP])
 if test "$WITH_XCWCP" = 'yes' ; then
     AC_MSG_NOTICE([    Qt4 CFLAGS is $QT4_CFLAGS])
     AC_MSG_NOTICE([    Qt4 LIBS is $QT4_LIBS])
     AC_MSG_NOTICE([    Qt4 MOC is $MOC])
 fi
-AC_MSG_NOTICE([include console buzzer support:  ..............  $WITH_CONSOLE])
-AC_MSG_NOTICE([include OSS support:  .........................  $WITH_OSS])
-AC_MSG_NOTICE([include ALSA support:  ........................  $WITH_ALSA])
-AC_MSG_NOTICE([include PulseAudio support:  ..................  $WITH_PULSEAUDIO])
+AC_MSG_NOTICE([include console buzzer support:  ........  $WITH_CONSOLE])
+AC_MSG_NOTICE([include OSS support:  ...................  $WITH_OSS])
+AC_MSG_NOTICE([include ALSA support:  ..................  $WITH_ALSA])
+AC_MSG_NOTICE([include PulseAudio support:  ............  $WITH_PULSEAUDIO])
 if test "$WITH_DEV" = 'yes' ; then
-   AC_MSG_NOTICE([enable dev support: ...........................  yes])
+   AC_MSG_NOTICE([enable dev support: .....................  yes])
 fi
-AC_MSG_NOTICE([----------------------------------------------------])
+AC_MSG_NOTICE([----------------------------------------------])
