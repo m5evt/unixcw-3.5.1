@@ -2,7 +2,7 @@ unixcw (3.4.1-1) unstable; urgency=low
 
   * New upstream release (refactoring of libcw).
 
- -- Kamil Ignacak <acerion@wp.pl>  Wed, 31 Dec 2014 18:56:10 +0100
+ -- Kamil Ignacak <acerion@wp.pl>  Fri, 02 Jan 2015 11:45:30 +0100
 
 unixcw (3.4.0-1) unstable; urgency=low
 
