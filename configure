@@ -20674,28 +20674,30 @@ $as_echo "$as_me: ------ $PACKAGE_NAME $PACKAGE_VERSION build configuration ----
 $as_echo "$as_me: operating system:  ......................  $host_os" >&6;}
 { $as_echo "$as_me:${as_lineno-$LINENO}: build libcw:  ...........................  yes" >&5
 $as_echo "$as_me: build libcw:  ...........................  yes" >&6;}
-{ $as_echo "$as_me:${as_lineno-$LINENO}: build cw & cwgen:  ......................  yes" >&5
-$as_echo "$as_me: build cw & cwgen:  ......................  yes" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}:     include console buzzer support:  ....  $WITH_CONSOLE" >&5
+$as_echo "$as_me:     include console buzzer support:  ....  $WITH_CONSOLE" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}:     include OSS support:  ...............  $WITH_OSS" >&5
+$as_echo "$as_me:     include OSS support:  ...............  $WITH_OSS" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}:     include ALSA support:  ..............  $WITH_ALSA" >&5
+$as_echo "$as_me:     include ALSA support:  ..............  $WITH_ALSA" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}:     include PulseAudio support:  ........  $WITH_PULSEAUDIO" >&5
+$as_echo "$as_me:     include PulseAudio support:  ........  $WITH_PULSEAUDIO" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}: build cw:  ..............................  yes" >&5
+$as_echo "$as_me: build cw:  ..............................  yes" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}: build cwgen:  ...........................  yes" >&5
+$as_echo "$as_me: build cwgen:  ...........................  yes" >&6;}
 { $as_echo "$as_me:${as_lineno-$LINENO}: build cwcp:  ............................  $WITH_CWCP" >&5
 $as_echo "$as_me: build cwcp:  ............................  $WITH_CWCP" >&6;}
 { $as_echo "$as_me:${as_lineno-$LINENO}: build xcwcp:  ...........................  $WITH_XCWCP" >&5
 $as_echo "$as_me: build xcwcp:  ...........................  $WITH_XCWCP" >&6;}
 if test "$WITH_XCWCP" = 'yes' ; then
-    { $as_echo "$as_me:${as_lineno-$LINENO}:     Qt4 CFLAGS is $QT4_CFLAGS" >&5
-$as_echo "$as_me:     Qt4 CFLAGS is $QT4_CFLAGS" >&6;}
-    { $as_echo "$as_me:${as_lineno-$LINENO}:     Qt4 LIBS is $QT4_LIBS" >&5
-$as_echo "$as_me:     Qt4 LIBS is $QT4_LIBS" >&6;}
-    { $as_echo "$as_me:${as_lineno-$LINENO}:     Qt4 MOC is $MOC" >&5
-$as_echo "$as_me:     Qt4 MOC is $MOC" >&6;}
+    { $as_echo "$as_me:${as_lineno-$LINENO}:     Qt4 CFLAGS:  $QT4_CFLAGS" >&5
+$as_echo "$as_me:     Qt4 CFLAGS:  $QT4_CFLAGS" >&6;}
+    { $as_echo "$as_me:${as_lineno-$LINENO}:     Qt4 LIBS:    $QT4_LIBS" >&5
+$as_echo "$as_me:     Qt4 LIBS:    $QT4_LIBS" >&6;}
+    { $as_echo "$as_me:${as_lineno-$LINENO}:     Qt4 MOC:     $MOC" >&5
+$as_echo "$as_me:     Qt4 MOC:     $MOC" >&6;}
 fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: include console buzzer support:  ........  $WITH_CONSOLE" >&5
-$as_echo "$as_me: include console buzzer support:  ........  $WITH_CONSOLE" >&6;}
-{ $as_echo "$as_me:${as_lineno-$LINENO}: include OSS support:  ...................  $WITH_OSS" >&5
-$as_echo "$as_me: include OSS support:  ...................  $WITH_OSS" >&6;}
-{ $as_echo "$as_me:${as_lineno-$LINENO}: include ALSA support:  ..................  $WITH_ALSA" >&5
-$as_echo "$as_me: include ALSA support:  ..................  $WITH_ALSA" >&6;}
-{ $as_echo "$as_me:${as_lineno-$LINENO}: include PulseAudio support:  ............  $WITH_PULSEAUDIO" >&5
-$as_echo "$as_me: include PulseAudio support:  ............  $WITH_PULSEAUDIO" >&6;}
 if test "$WITH_DEV" = 'yes' ; then
    { $as_echo "$as_me:${as_lineno-$LINENO}: enable dev support: .....................  yes" >&5
 $as_echo "$as_me: enable dev support: .....................  yes" >&6;}
