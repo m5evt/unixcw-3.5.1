@@ -38,6 +38,7 @@ EXTRA_DIST=include.awk libdoc.awk libfuncs.awk libpc.awk libsigs.awk \
 # once. I can't compile these files into an utility library because
 # the two targets are compiled with different CPPFLAGS.
 LIBCW_BASE_C_FILES = \
+	libcw.c \
 	libcw_gen.c libcw_rec.c \
 	libcw_tq.c libcw_data.c libcw_key.c libcw_utils.c libcw_signal.c \
 	libcw_null.c libcw_console.c libcw_oss.c libcw_alsa.c libcw_pa.c \
