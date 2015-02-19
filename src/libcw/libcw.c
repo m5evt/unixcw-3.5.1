@@ -29,6 +29,7 @@
 
 #include "libcw.h"
 #include "libcw_gen.h"
+#include "libcw_rec.h"
 #include "libcw_key.h"
 #include "libcw_debug.h"
 
@@ -63,6 +64,13 @@ extern cw_debug_t cw_debug_object_dev;
 
 /* From libcw_key.c. */
 extern volatile cw_key_t cw_key;
+
+
+
+
+
+/* From libcw_rec.c. */
+extern cw_rec_t cw_receiver;
 
 
 
@@ -686,4 +694,28 @@ int cw_send_character_partial(char c)
 int cw_send_string(const char *string)
 {
 	return cw_gen_play_string_internal(cw_generator, string);
+}
+
+
+
+
+
+/**
+   \brief Reset send/receive parameters
+
+   Reset the library speed, frequency, volume, gap, tolerance, weighting,
+   adaptive receive, and noise spike threshold to their initial default
+   values: send/receive speed 12 WPM, volume 70 %, frequency 800 Hz,
+   gap 0 dots, tolerance 50 %, and weighting 50 %.
+*/
+void cw_reset_send_receive_parameters(void)
+{
+	cw_gen_reset_send_parameters_internal(cw_generator);
+	cw_rec_reset_receive_parameters_internal(&cw_receiver);
+
+	/* Reset requires resynchronization. */
+	cw_gen_sync_parameters_internal(cw_generator);
+	cw_rec_sync_parameters_internal(&cw_receiver);
+
+	return;
 }
