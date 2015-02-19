@@ -356,10 +356,16 @@ void cw_gen_get_send_parameters_internal(cw_gen_t *gen, int *dot_usecs, int *das
 
 
 
-
+/* Generator's 'play' primitives. */
 int cw_gen_play_mark_internal(cw_gen_t *gen, char mark);
 int cw_gen_play_character_space_internal(cw_gen_t *gen);
 int cw_gen_play_word_space_internal(cw_gen_t *gen);
+
+
+
+
+
+int cw_gen_play_representation_internal(cw_gen_t *gen, const char *representation, bool partial);
 
 
 
