@@ -158,7 +158,7 @@ static int       cw_gen_write_to_soundcard_internal(cw_gen_t *gen, int queue_sta
 static void cw_gen_reset_send_parameters_internal(cw_gen_t *gen);
 
 
-static int cw_send_representation_internal(cw_gen_t *gen, const char *representation, bool partial);
+
 static int cw_send_character_internal(cw_gen_t *gen, char character, int partial);
 
 
@@ -1970,10 +1970,12 @@ int cw_gen_play_word_space_internal(cw_gen_t *gen)
 
 
 /**
-   Send the given string as dots and dashes, adding the post-character gap.
+   \brief Play the given string as marks and spaces, adding the post-character gap
 
-   Function sets EAGAIN if there is not enough space in tone queue to
+   Function sets errno to EAGAIN if there is not enough space in tone queue to
    enqueue \p representation.
+
+   Function sets errno to EINVAL if \p representation is not valid.
 
    \param gen
    \param representation
@@ -1982,15 +1984,20 @@ int cw_gen_play_word_space_internal(cw_gen_t *gen)
    \return CW_FAILURE on failure
    \return CW_SUCCESS on success
 */
-int cw_send_representation_internal(cw_gen_t *gen, const char *representation, bool partial)
+int cw_gen_play_representation_internal(cw_gen_t *gen, const char *representation, bool partial)
 {
+	if (!cw_representation_is_valid(representation)) {
+		errno = EINVAL;
+		return CW_FAILURE;
+	}
+
 	/* Before we let this representation loose on tone generation,
 	   we'd really like to know that all of its tones will get queued
 	   up successfully.  The right way to do this is to calculate the
 	   number of tones in our representation, then check that the space
 	   exists in the tone queue. However, since the queue is comfortably
 	   long, we can get away with just looking for a high water mark.  */
-	if ((uint32_t) cw_get_tone_queue_length() >= gen->tq->high_water_mark) {
+	if (cw_tone_queue_length_internal(gen->tq) >= gen->tq->high_water_mark) {
 		errno = EAGAIN;
 		return CW_FAILURE;
 	}
@@ -2007,7 +2014,7 @@ int cw_send_representation_internal(cw_gen_t *gen, const char *representation, b
 	/* If this representation is stated as being "partial", then
 	   suppress any and all end of character delays.*/
 	if (!partial) {
-		if (!cw_send_character_space()) {
+		if (!cw_gen_play_character_space_internal(gen)) {
 			return CW_FAILURE;
 		}
 	}
@@ -2042,12 +2049,7 @@ int cw_send_representation_internal(cw_gen_t *gen, const char *representation, b
 */
 int cw_send_representation(const char *representation)
 {
-	if (!cw_representation_is_valid(representation)) {
-		errno = EINVAL;
-		return CW_FAILURE;
-	} else {
-		return cw_send_representation_internal(cw_generator, representation, false);
-	}
+	return cw_gen_play_representation_internal(cw_generator, representation, false);
 }
 
 
@@ -2072,12 +2074,7 @@ int cw_send_representation(const char *representation)
 */
 int cw_send_representation_partial(const char *representation)
 {
-	if (!cw_representation_is_valid(representation)) {
-		errno = ENOENT;
-		return CW_FAILURE;
-	} else {
-		return cw_send_representation_internal(cw_generator, representation, true);
-	}
+	return cw_gen_play_representation_internal(cw_generator, representation, true);
 }
 
 
@@ -2119,7 +2116,7 @@ int cw_send_character_internal(cw_gen_t *gen, char character, int partial)
 		return CW_FAILURE;
 	}
 
-	if (!cw_send_representation_internal(gen, representation, partial)) {
+	if (!cw_gen_play_representation_internal(gen, representation, partial)) {
 		return CW_FAILURE;
 	} else {
 		return CW_SUCCESS;
