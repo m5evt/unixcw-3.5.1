@@ -1,3 +1,16 @@
+2015-02-19 Kamil Ignacak
+	* libcw.c: I have (re)created the file. It will contain all the
+	functions that use global variables cw_generator, cw_receiver and
+	maybe cw_key as implicit arguments. After moving such functions
+	from other modules into libcw.c, other modules major should be
+	completely free of global variables, and should only contain
+	functions that operate on generators, receivers and keys as
+	explicit function arguments.
+
+	Then the function will have the old interface, and the new
+	interface. And it will be easy to have multiple generators (or
+	receivers) in the same application.
+
 2014-12-30 Kamil Ignacak
 	* valgrind: running valgrind on libcw_test_internal reveals few
 	small problems in test code, and one small problem in "production"
