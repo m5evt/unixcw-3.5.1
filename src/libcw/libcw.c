@@ -442,3 +442,96 @@ void cw_get_send_parameters(int *dot_usecs, int *dash_usecs,
 
 	return;
 }
+
+
+
+
+
+/**
+   \brief Low-level primitive for sending a dot mark
+
+   Low-level primitive function able to play/send single dot mark. The
+   function appends to a tone queue a normal inter-mark gap after the
+   dot mark.
+
+   testedin::test_send_primitives()
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+
+
+
+
+   Low level primitives, available to send single dots, dashes, character
+   spaces, and word spaces.
+
+     These functions return true on success, or false
+   with errno set to EBUSY or EAGAIN on error.
+
+
+*/
+int cw_send_dot(void)
+{
+	return cw_gen_play_mark_internal(cw_generator, CW_DOT_REPRESENTATION);
+}
+
+
+
+
+
+/**
+   \brief Low-level primitive for sending a dash mark
+
+   Low-level primitive function able to play/send single dash mark.
+   The function appends to a tone queue a normal inter-mark gap after
+   the dash mark.
+
+   testedin::test_send_primitives()
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
+int cw_send_dash(void)
+{
+	return cw_gen_play_mark_internal(cw_generator, CW_DASH_REPRESENTATION);
+}
+
+
+
+
+
+/**
+
+   The function plays space timed to exclude the expected prior
+   dot/dash inter-mark gap.
+   FIXME: fix this description.
+
+   testedin::test_send_primitives()
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
+int cw_send_character_space(void)
+{
+	return cw_gen_play_character_space_internal(cw_generator);
+}
+
+
+
+
+
+/**
+
+   The function sends space timed to exclude both the expected prior
+   dot/dash inter-mark gap and the prior end of character space.
+   FIXME: fix this description.
+
+   testedin::test_send_primitives()
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
+int cw_send_word_space(void)
+{
+	return cw_gen_play_word_space_internal(cw_generator);
+}
