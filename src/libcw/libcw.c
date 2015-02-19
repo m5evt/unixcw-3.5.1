@@ -458,17 +458,6 @@ void cw_get_send_parameters(int *dot_usecs, int *dash_usecs,
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
-
-
-
-
-   Low level primitives, available to send single dots, dashes, character
-   spaces, and word spaces.
-
-     These functions return true on success, or false
-   with errno set to EBUSY or EAGAIN on error.
-
-
 */
 int cw_send_dot(void)
 {
@@ -534,4 +523,167 @@ int cw_send_character_space(void)
 int cw_send_word_space(void)
 {
 	return cw_gen_play_word_space_internal(cw_generator);
+}
+
+
+
+
+
+/**
+   \brief Check, then send the given string as dots and dashes.
+
+   The representation passed in is assumed to be a complete Morse
+   character; that is, all post-character delays will be added when
+   the character is sent.
+
+   On success, the routine returns CW_SUCCESS.
+   On failure, it returns CW_FAILURE, with errno set to EINVAL if any
+   character of the representation is invalid, EBUSY if the sound card,
+   console speaker, or keying system is busy, or EAGAIN if the tone
+   queue is full, or if there is insufficient space to queue the tones
+   or the representation.
+
+   testedin::test_representations()
+
+   \param representation - representation to send
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
+int cw_send_representation(const char *representation)
+{
+	return cw_gen_play_representation_internal(cw_generator, representation, false);
+}
+
+
+
+
+
+/**
+   \brief Check, then send the given string as dots and dashes
+
+   The \p representation passed in is assumed to be only part of a larger
+   Morse representation; that is, no post-character delays will be added
+   when the character is sent.
+
+   On success, the routine returns CW_SUCCESS.
+   On failure, it returns CW_FAILURE, with errno set to EINVAL if any
+   character of the representation is invalid, EBUSY if the sound card,
+   console speaker, or keying system is busy, or EAGAIN if the tone queue
+   is full, or if there is insufficient space to queue the tones for
+   the representation.
+
+   testedin::test_representations()
+*/
+int cw_send_representation_partial(const char *representation)
+{
+	return cw_gen_play_representation_internal(cw_generator, representation, true);
+}
+
+
+
+
+
+/**
+   \brief Look up and send a given ASCII character as Morse
+
+   The end of character delay is appended to the Morse sent.
+
+   On success the routine returns CW_SUCCESS.
+   On failure the function returns CW_FAILURE and sets errno.
+
+   errno is set to ENOENT if the given character \p c is not a valid
+   Morse character.
+   errno is set to EBUSY if current audio sink or keying system is
+   busy.
+   errno is set to EAGAIN if the generator's tone queue is full, or if
+   there is insufficient space to queue the tones for the character.
+
+   This routine returns as soon as the character has been successfully
+   queued for sending; that is, almost immediately.  The actual sending
+   happens in background processing.  See cw_wait_for_tone() and
+   cw_wait_for_tone_queue() for ways to check the progress of sending.
+
+   testedin::test_send_character_and_string()
+
+   \param c - character to send
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
+int cw_send_character(char c)
+{
+	return cw_gen_play_character_internal(cw_generator, c);
+}
+
+
+
+
+
+/**
+   \brief Look up and send a given ASCII character as Morse code
+
+   "partial" means that the "end of character" delay is not appended
+   to the Morse code sent by the function, to support the formation of
+   combination characters.
+
+   On success the function returns CW_SUCCESS.
+   On failure the function returns CW_FAILURE and sets errno.
+
+   errno is set to ENOENT if the given character \p c is not a valid
+   Morse character.
+   errno is set to EBUSY if the audio sink or keying system is busy.
+   errno is set to EAGAIN if the tone queue is full, or if there is
+   insufficient space to queue the tones for the character.
+
+   This routine queues its arguments for background processing.  See
+   cw_wait_for_tone() and cw_wait_for_tone_queue() for ways to check
+   the progress of sending.
+
+   \param c - character to send
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
+int cw_send_character_partial(char c)
+{
+	return cw_gen_play_character_parital_internal(cw_generator, c);
+}
+
+
+
+
+
+/**
+   \brief Send a given ASCII string in Morse code
+
+   errno is set to ENOENT if any character in the string is not a
+   valid Morse character.
+
+   errno is set to EBUSY if audio sink or keying system is busy.
+
+   errno is set to EAGAIN if the tone queue is full or if the tone
+   queue runs out of space part way through queueing the string.
+   However, an indeterminate number of the characters from the string
+   will have already been queued.
+
+   For safety, clients can ensure the tone queue is empty before
+   queueing a string, or use cw_send_character() if they need finer
+   control.
+
+   This routine queues its arguments for background processing, the
+   actual sending happens in background processing. See
+   cw_wait_for_tone() and cw_wait_for_tone_queue() for ways to check
+   the progress of sending.
+
+   testedin::test_send_character_and_string()
+
+   \param string - string to send
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
+int cw_send_string(const char *string)
+{
+	return cw_gen_play_string_internal(cw_generator, string);
 }
