@@ -320,3 +320,125 @@ int cw_set_weighting(int new_value)
 	int rv = cw_gen_set_weighting_internal(cw_generator, new_value);
 	return rv;
 }
+
+
+
+
+
+/**
+   \brief Get sending speed from generator
+
+   testedin::test_parameter_ranges()
+
+   \return current value of the generator's send speed
+*/
+int cw_get_send_speed(void)
+{
+	return cw_gen_get_speed_internal(cw_generator);
+}
+
+
+
+
+
+/**
+   \brief Get frequency from generator
+
+   Function returns "frequency" parameter of generator,
+   even if the generator is stopped, or volume of generated sound is zero.
+
+   testedin::test_parameter_ranges()
+
+   \return current value of generator's frequency
+*/
+int cw_get_frequency(void)
+{
+	return cw_gen_get_frequency_internal(cw_generator);
+}
+
+
+
+
+
+/**
+   \brief Get sound volume from generator
+
+   Function returns "volume" parameter of generator,
+   even if the generator is stopped.
+
+   testedin::test_volume_functions()
+   testedin::test_parameter_ranges()
+
+   \return current value of generator's sound volume
+*/
+int cw_get_volume(void)
+{
+	return cw_gen_get_volume_internal(cw_generator);
+}
+
+
+
+
+
+/**
+   \brief Get sending gap from generator
+
+   testedin::test_parameter_ranges()
+
+   \return current value of generator's sending gap
+*/
+int cw_get_gap(void)
+{
+	return cw_gen_get_gap_internal(cw_generator);
+}
+
+
+
+
+
+/**
+   \brief Get sending weighting from generator
+
+   testedin::test_parameter_ranges()
+
+   \return current value of generator's sending weighting
+*/
+int cw_get_weighting(void)
+{
+	return cw_gen_get_weighting_internal(cw_generator);
+}
+
+
+
+
+
+/**
+   \brief Get timing parameters for sending
+
+   Return the low-level timing parameters calculated from the speed, gap,
+   tolerance, and weighting set.  Parameter values are returned in
+   microseconds.
+
+   Use NULL for the pointer argument to any parameter value not required.
+
+   \param dot_usecs
+   \param dash_usecs
+   \param end_of_element_usecs
+   \param end_of_character_usecs
+   \param end_of_word_usecs
+   \param additional_usecs
+   \param adjustment_usecs
+*/
+void cw_get_send_parameters(int *dot_usecs, int *dash_usecs,
+			    int *end_of_element_usecs,
+			    int *end_of_character_usecs, int *end_of_word_usecs,
+			    int *additional_usecs, int *adjustment_usecs)
+{
+	cw_gen_get_send_parameters_internal(cw_generator,
+					    dot_usecs, dash_usecs,
+					    end_of_element_usecs,
+					    end_of_character_usecs, end_of_word_usecs,
+					    additional_usecs, adjustment_usecs);
+
+	return;
+}
