@@ -155,7 +155,7 @@ static int       cw_gen_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *t
 static int       cw_gen_write_to_soundcard_internal(cw_gen_t *gen, int queue_state, cw_tone_t *tone);
 
 
-static void cw_gen_reset_send_parameters_internal(cw_gen_t *gen);
+
 
 
 
@@ -2221,39 +2221,6 @@ int cw_gen_play_string_internal(cw_gen_t *gen, const char *string)
 
 
 
-/* ******************************************************************** */
-/*               Section:Reset and synchronize parameters               */
-/* ******************************************************************** */
-
-
-
-
-
-/**
-   \brief Reset send/receive parameters
-
-   Reset the library speed, frequency, volume, gap, tolerance, weighting,
-   adaptive receive, and noise spike threshold to their initial default
-   values: send/receive speed 12 WPM, volume 70 %, frequency 800 Hz,
-   gap 0 dots, tolerance 50 %, and weighting 50 %.
-*/
-void cw_reset_send_receive_parameters(void)
-{
-	cw_gen_reset_send_parameters_internal(cw_generator);
-	cw_rec_reset_receive_parameters_internal(&cw_receiver);
-
-	/* Reset requires resynchronization. */
-	cw_gen_sync_parameters_internal(cw_generator);
-	cw_rec_sync_parameters_internal(&cw_receiver);
-
-	return;
-}
-
-
-
-
-
-
 /**
   \brief Reset essential sending parameters to their initial values
 */
@@ -2264,11 +2231,11 @@ void cw_gen_reset_send_parameters_internal(cw_gen_t *gen)
 	gen->send_speed = CW_SPEED_INITIAL;
 	gen->frequency = CW_FREQUENCY_INITIAL;
 	gen->volume_percent = CW_VOLUME_INITIAL;
-	gen->volume_abs = (cw_generator->volume_percent * CW_AUDIO_VOLUME_RANGE) / 100;
+	gen->volume_abs = (gen->volume_percent * CW_AUDIO_VOLUME_RANGE) / 100;
 	gen->gap = CW_GAP_INITIAL;
 	gen->weighting = CW_WEIGHTING_INITIAL;
 
-	cw_generator->parameters_in_sync = false;
+	gen->parameters_in_sync = false;
 
 	return;
 
