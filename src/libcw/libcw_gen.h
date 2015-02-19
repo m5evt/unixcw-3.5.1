@@ -340,6 +340,22 @@ int cw_gen_set_weighting_internal(cw_gen_t *gen, int new_value);
 
 
 
+/* Getters of generator's basic parameters. */
+int cw_gen_get_speed_internal(cw_gen_t *gen);
+int cw_gen_get_frequency_internal(cw_gen_t *gen);
+int cw_gen_get_volume_internal(cw_gen_t *gen);
+int cw_gen_get_gap_internal(cw_gen_t *gen);
+int cw_gen_get_weighting_internal(cw_gen_t *gen);
+
+
+
+
+
+void cw_gen_get_send_parameters_internal(cw_gen_t *gen, int *dot_usecs, int *dash_usecs, int *end_of_element_usecs, int *end_of_character_usecs, int *end_of_word_usecs, int *additional_usecs, int *adjustment_usecs);
+
+
+
+
 
 int  cw_gen_set_audio_device_internal(cw_gen_t *gen, const char *device);
 int  cw_gen_silence_internal(cw_gen_t *gen);
