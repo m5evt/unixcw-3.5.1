@@ -378,7 +378,7 @@ int  cw_gen_silence_internal(cw_gen_t *gen);
 
 void cw_generator_delete_internal(void);
 
-
+void cw_gen_reset_send_parameters_internal(cw_gen_t *gen);
 void cw_gen_sync_parameters_internal(cw_gen_t *gen);
 
 
