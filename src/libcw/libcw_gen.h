@@ -366,7 +366,9 @@ int cw_gen_play_word_space_internal(cw_gen_t *gen);
 
 
 int cw_gen_play_representation_internal(cw_gen_t *gen, const char *representation, bool partial);
-
+int cw_gen_play_character_internal(cw_gen_t *gen, char c);
+int cw_gen_play_character_parital_internal(cw_gen_t *gen, char c);
+int cw_gen_play_string_internal(cw_gen_t *gen, const char *string);
 
 
 
