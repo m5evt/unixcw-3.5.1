@@ -1664,13 +1664,13 @@ int cw_gen_set_weighting_internal(cw_gen_t *gen, int new_value)
 /**
    \brief Get sending speed from generator
 
-   testedin::test_parameter_ranges()
+   \param gen - generator from which to get the parameter
 
    \return current value of the generator's send speed
 */
-int cw_get_send_speed(void)
+int cw_gen_get_speed_internal(cw_gen_t *gen)
 {
-	return cw_generator->send_speed;
+	return gen->send_speed;
 }
 
 
@@ -1683,13 +1683,13 @@ int cw_get_send_speed(void)
    Function returns "frequency" parameter of generator,
    even if the generator is stopped, or volume of generated sound is zero.
 
-   testedin::test_parameter_ranges()
+   \param gen - generator from which to get the parameter
 
    \return current value of generator's frequency
 */
-int cw_get_frequency(void)
+int cw_gen_get_frequency_internal(cw_gen_t *gen)
 {
-	return cw_generator->frequency;
+	return gen->frequency;
 }
 
 
@@ -1702,15 +1702,17 @@ int cw_get_frequency(void)
    Function returns "volume" parameter of generator,
    even if the generator is stopped.
 
-   testedin::test_volume_functions()
-   testedin::test_parameter_ranges()
+   \param gen - generator from which to get the parameter
 
    \return current value of generator's sound volume
 */
-int cw_get_volume(void)
+int cw_gen_get_volume_internal(cw_gen_t *gen)
 {
-	return cw_generator->volume_percent;
+	return gen->volume_percent;
 }
+
+
+
 
 
 
@@ -1719,13 +1721,13 @@ int cw_get_volume(void)
 /**
    \brief Get sending gap from generator
 
-   testedin::test_parameter_ranges()
+   \param gen - generator from which to get the parameter
 
    \return current value of generator's sending gap
 */
-int cw_get_gap(void)
+int cw_gen_get_gap_internal(cw_gen_t *gen)
 {
-	return cw_generator->gap;
+	return gen->gap;
 }
 
 
@@ -1735,13 +1737,13 @@ int cw_get_gap(void)
 /**
    \brief Get sending weighting from generator
 
-   testedin::test_parameter_ranges()
+   \param gen - generator from which to get the parameter
 
    \return current value of generator's sending weighting
 */
-int cw_get_weighting(void)
+int cw_gen_get_weighting_internal(cw_gen_t *gen)
 {
-	return cw_generator->weighting;
+	return gen->weighting;
 }
 
 
@@ -1757,6 +1759,7 @@ int cw_get_weighting(void)
 
    Use NULL for the pointer argument to any parameter value not required.
 
+   \param gen
    \param dot_usecs
    \param dash_usecs
    \param end_of_element_usecs
@@ -1765,22 +1768,23 @@ int cw_get_weighting(void)
    \param additional_usecs
    \param adjustment_usecs
 */
-void cw_get_send_parameters(int *dot_usecs, int *dash_usecs,
-			    int *end_of_element_usecs,
-			    int *end_of_character_usecs, int *end_of_word_usecs,
-			    int *additional_usecs, int *adjustment_usecs)
+void cw_gen_get_send_parameters_internal(cw_gen_t *gen,
+					 int *dot_usecs, int *dash_usecs,
+					 int *end_of_element_usecs,
+					 int *end_of_character_usecs, int *end_of_word_usecs,
+					 int *additional_usecs, int *adjustment_usecs)
 {
-	cw_gen_sync_parameters_internal(cw_generator);
+	cw_gen_sync_parameters_internal(gen);
 
-	if (dot_usecs)   *dot_usecs = cw_generator->dot_length;
-	if (dash_usecs)  *dash_usecs = cw_generator->dash_length;
+	if (dot_usecs)   *dot_usecs = gen->dot_length;
+	if (dash_usecs)  *dash_usecs = gen->dash_length;
 
-	if (end_of_element_usecs)    *end_of_element_usecs = cw_generator->eoe_delay;
-	if (end_of_character_usecs)  *end_of_character_usecs = cw_generator->eoc_delay;
-	if (end_of_word_usecs)       *end_of_word_usecs = cw_generator->eow_delay;
+	if (end_of_element_usecs)    *end_of_element_usecs = gen->eoe_delay;
+	if (end_of_character_usecs)  *end_of_character_usecs = gen->eoc_delay;
+	if (end_of_word_usecs)       *end_of_word_usecs = gen->eow_delay;
 
-	if (additional_usecs)    *additional_usecs = cw_generator->additional_delay;
-	if (adjustment_usecs)    *adjustment_usecs = cw_generator->adjustment_delay;
+	if (additional_usecs)    *additional_usecs = gen->additional_delay;
+	if (adjustment_usecs)    *adjustment_usecs = gen->adjustment_delay;
 
 	return;
 }
