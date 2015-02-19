@@ -157,7 +157,7 @@ static int       cw_gen_write_to_soundcard_internal(cw_gen_t *gen, int queue_sta
 
 static void cw_gen_reset_send_parameters_internal(cw_gen_t *gen);
 
-static int cw_send_element_internal(cw_gen_t *gen, char element);
+
 static int cw_send_representation_internal(cw_gen_t *gen, const char *representation, bool partial);
 static int cw_send_character_internal(cw_gen_t *gen, char character, int partial);
 
@@ -1794,23 +1794,24 @@ void cw_gen_get_send_parameters_internal(cw_gen_t *gen,
 
 
 /**
-   \brief Send an element
+   \brief Play a mark (dot or dash)
 
-   Low level primitive to send a tone element of the given type, followed
-   by the standard inter-element silence.
+   Low level primitive to play a tone for mark of the given type, followed
+   by the standard inter-mark space (inter-mark silence).
 
-   Function sets errno to EINVAL if an argument is invalid, and returns
-   CW_FAILURE.
-   Function also returns failure if adding the element to queue of elements
-   failed.
+   Function sets errno to EINVAL if an argument is invalid, and
+   returns CW_FAILURE.
 
-   \param gen - generator to be used to send an element
-   \param element - element to send - dot (CW_DOT_REPRESENTATION) or dash (CW_DASH_REPRESENTATION)
+   Function also returns CW_FAILURE if adding the element to queue of
+   marks failed.
+
+   \param gen - generator to be used to play a mark
+   \param mark - mark to send: dot (CW_DOT_REPRESENTATION) or dash (CW_DASH_REPRESENTATION)
 
    \return CW_FAILURE on failure
    \return CW_SUCCESS on success
 */
-int cw_send_element_internal(cw_gen_t *gen, char element)
+int cw_gen_play_mark_internal(cw_gen_t *gen, char mark)
 {
 	int status;
 
@@ -1818,14 +1819,14 @@ int cw_send_element_internal(cw_gen_t *gen, char element)
 	cw_gen_sync_parameters_internal(gen);
 	/* TODO: do we need to synchronize here receiver as well? */
 
-	/* Send either a dot or a dash element, depending on representation. */
-	if (element == CW_DOT_REPRESENTATION) {
+	/* Send either a dot or a dash mark, depending on representation. */
+	if (mark == CW_DOT_REPRESENTATION) {
 		cw_tone_t tone;
 		tone.slope_mode = CW_SLOPE_MODE_STANDARD_SLOPES;
 		tone.usecs = gen->dot_length;
 		tone.frequency = gen->frequency;
 		status = cw_tq_enqueue_internal(gen->tq, &tone);
-	} else if (element == CW_DASH_REPRESENTATION) {
+	} else if (mark == CW_DASH_REPRESENTATION) {
 		cw_tone_t tone;
 		tone.slope_mode = CW_SLOPE_MODE_STANDARD_SLOPES;
 		tone.usecs = gen->dash_length;
@@ -1840,7 +1841,7 @@ int cw_send_element_internal(cw_gen_t *gen, char element)
 		return CW_FAILURE;
 	}
 
-	/* Send the inter-element gap. */
+	/* Send the inter-mark space. */
 	cw_tone_t tone;
 	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
 	tone.usecs = gen->eoe_delay;
@@ -1857,59 +1858,26 @@ int cw_send_element_internal(cw_gen_t *gen, char element)
 
 
 /**
-   cw_send_[dot|dash|character_space|word_space]()
+   The function plays space timed to exclude the expected prior
+   dot/dash inter-mark gap.  FIXME: fix this description.
 
-   Low level primitives, available to send single dots, dashes, character
-   spaces, and word spaces.  The dot and dash routines always append the
-   normal inter-element gap after the tone sent.  The cw_send_character_space
-   routine sends space timed to exclude the expected prior dot/dash
-   inter-element gap.  The cw_send_word_space routine sends space timed to
-   exclude both the expected prior dot/dash inter-element gap and the prior
-   end of character space.  These functions return true on success, or false
-   with errno set to EBUSY or EAGAIN on error.
+   \param gen
 
-   testedin::test_send_primitives()
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
 */
-int cw_send_dot(void)
-{
-	return cw_send_element_internal(cw_generator, CW_DOT_REPRESENTATION);
-}
-
-
-
-
-
-/**
-   See documentation of cw_send_dot() for more information
-
-   testedin::test_send_primitives()
-*/
-int cw_send_dash(void)
-{
-	return cw_send_element_internal(cw_generator, CW_DASH_REPRESENTATION);
-}
-
-
-
-
-
-/**
-   See documentation of cw_send_dot() for more information
-
-   testedin::test_send_primitives()
-*/
-int cw_send_character_space(void)
+int cw_gen_play_character_space_internal(cw_gen_t *gen)
 {
 	/* Synchronize low-level timing parameters. */
-	cw_gen_sync_parameters_internal(cw_generator);
+	cw_gen_sync_parameters_internal(gen);
 
 	/* Delay for the standard end of character period, plus any
 	   additional inter-character gap */
 	cw_tone_t tone;
 	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-	tone.usecs = cw_generator->eoc_delay + cw_generator->additional_delay;
+	tone.usecs = gen->eoc_delay + gen->additional_delay;
 	tone.frequency = 0;
-	return cw_tq_enqueue_internal(cw_generator->tq, &tone);
+	return cw_tq_enqueue_internal(gen->tq, &tone);
 }
 
 
@@ -1917,14 +1885,20 @@ int cw_send_character_space(void)
 
 
 /**
-   See documentation of cw_send_dot() for more information
 
-   testedin::test_send_primitives()
+   The function sends space timed to exclude both the expected prior
+   dot/dash inter-mark gap and the prior end of character space.
+   FIXME: fix this description.
+
+   \param gen
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
 */
-int cw_send_word_space(void)
+int cw_gen_play_word_space_internal(cw_gen_t *gen)
 {
 	/* Synchronize low-level timing parameters. */
-	cw_gen_sync_parameters_internal(cw_generator);
+	cw_gen_sync_parameters_internal(gen);
 
 	/* Send silence for the word delay period, plus any adjustment
 	   that may be needed at end of word. */
@@ -1965,17 +1939,17 @@ int cw_send_word_space(void)
 
 	cw_tone_t tone;
 	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-	tone.usecs = cw_generator->eow_delay;
+	tone.usecs = gen->eow_delay;
 	tone.frequency = 0;
-	int a = cw_tq_enqueue_internal(cw_generator->tq, &tone);
+	int a = cw_tq_enqueue_internal(gen->tq, &tone);
 
 	int b = CW_FAILURE;
 
 	if (a == CW_SUCCESS) {
 		tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-		tone.usecs = cw_generator->adjustment_delay;
+		tone.usecs = gen->adjustment_delay;
 		tone.frequency = 0;
-		b = cw_tq_enqueue_internal(cw_generator->tq, &tone);
+		b = cw_tq_enqueue_internal(gen->tq, &tone);
 	}
 
 	return a && b;
@@ -1984,10 +1958,10 @@ int cw_send_word_space(void)
 
 	cw_tone_t tone;
 	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-	tone.usecs = cw_generator->eow_delay + cw_generator->adjustment_delay;
+	tone.usecs = gen->eow_delay + gen->adjustment_delay;
 	tone.frequency = 0;
 
-	return cw_tq_enqueue_internal(cw_generator->tq, &tone);
+	return cw_tq_enqueue_internal(gen->tq, &tone);
 #endif
 }
 
@@ -2025,7 +1999,7 @@ int cw_send_representation_internal(cw_gen_t *gen, const char *representation, b
 	for (int i = 0; representation[i] != '\0'; i++) {
 		/* Send a tone of dot or dash length, followed by the
 		   normal, standard, inter-element gap. */
-		if (!cw_send_element_internal(gen, representation[i])) {
+		if (!cw_gen_play_mark_internal(gen, representation[i])) {
 			return CW_FAILURE;
 		}
 	}
