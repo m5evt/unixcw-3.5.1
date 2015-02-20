@@ -302,6 +302,15 @@ int cw_set_volume(int new_value)
 int cw_set_gap(int new_value)
 {
 	int rv = cw_gen_set_gap_internal(cw_generator, new_value);
+	if (rv != CW_FAILURE) {
+		/* Ideally generator and receiver should have their
+		   own, separate cw_set_gap() functions. Unfortunately
+		   this is not the case (for now) so gap should be set
+		   here for receiver as well.
+
+		   TODO: add cw_set_gap() function for receiver. */
+		rv = cw_rec_set_gap_internal(&cw_receiver, new_value);
+	}
 	return rv;
 }
 
@@ -718,4 +727,53 @@ void cw_reset_send_receive_parameters(void)
 	cw_rec_sync_parameters_internal(&cw_receiver);
 
 	return;
+}
+
+
+
+
+
+/**
+   \brief Return char string with console device path
+
+   Returned pointer is owned by library.
+
+   \return char string with current console device path
+*/
+const char *cw_get_console_device(void)
+{
+	return cw_generator->audio_device;
+}
+
+
+
+
+
+/**
+   \brief Return char string with soundcard device name/path
+
+   Returned pointer is owned by library.
+
+   \return char string with current soundcard device name or device path
+*/
+const char *cw_get_soundcard_device(void)
+{
+	return cw_generator->audio_device;
+}
+
+
+
+
+
+/**
+   \brief Get a readable label of current audio system
+
+   The function returns one of following strings:
+   None, Null, Console, OSS, ALSA, PulseAudio, Soundcard
+
+   \return audio system's label
+*/
+const char *cw_generator_get_audio_system_label(void)
+{
+	return cw_get_audio_system_label(cw_generator->audio_system);
 }
