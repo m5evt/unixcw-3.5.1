@@ -30,8 +30,8 @@
    console buzzer, null audio device) and that can play dots and
    dashes using the audio sink.
 
-   You can request generator to produce audio by using *_send_*()
-   functions (these functions are still in libcw.c).
+   You can request generator to produce audio by using *_play_*()
+   functions.
 */
 
 
@@ -42,15 +42,14 @@
 
 #include <stdlib.h>
 #include <unistd.h>
-#include <assert.h>
 #include <stdbool.h>
 #include <math.h>
 #include <signal.h>
 #include <errno.h>
 
-#if (defined(__unix__) || defined(unix)) && !defined(USG)
-# include <sys/param.h> /* INT_MAX */
-#endif
+//#if (defined(__unix__) || defined(unix)) && !defined(USG)
+//# include <sys/param.h> /* INT_MAX */
+//#endif
 
 #if defined(HAVE_STRING_H)
 # include <string.h>
@@ -61,17 +60,18 @@
 #endif
 
 
+
+
+
 #include "libcw_gen.h"
-#include "libcw_rec.h"
 #include "libcw_debug.h"
-#include "libcw_console.h"
-#include "libcw_key.h"
 #include "libcw_utils.h"
-#include "libcw_null.h"
-#include "libcw_oss.h"
-#include "libcw_key.h"
 #include "libcw_signal.h"
 #include "libcw_data.h"
+
+#include "libcw_null.h"
+#include "libcw_console.h"
+#include "libcw_oss.h"
 
 
 
@@ -85,27 +85,10 @@
 
 
 
-extern cw_gen_t *cw_generator;
-
-
-
-
-
-/* From libcw_rec.c. */
-extern cw_rec_t cw_receiver;
-
-
-
-
-
 /* From libcw_debug.c. */
 extern cw_debug_t cw_debug_object;
 extern cw_debug_t cw_debug_object_ev;
 extern cw_debug_t cw_debug_object_dev;
-
-
-/* From libcw_key.c. */
-extern volatile cw_key_t cw_key;
 
 
 
@@ -165,17 +148,35 @@ static int cw_gen_play_valid_character_internal(cw_gen_t *gen, char character, i
 
 
 
-/**
-   \brief Get a readable label of current audio system
 
-   The function returns one of following strings:
-   None, Null, Console, OSS, ALSA, PulseAudio, Soundcard
+/**
+   \brief Get a copy of readable label of current audio system
+
+   Get a copy of human-readable string describing audio system
+   associated currently with given \p gen.
+
+   The function returns newly allocated pointer to one of following
+   strings: "None", "Null", "Console", "OSS", "ALSA", "PulseAudio",
+   "Soundcard".
+
+   The pointer is owned by caller.
+
+   Notice that the function returns a new pointer to newly allocated
+   string. cw_generator_get_audio_system_label() returns a pointer to
+   static string owned by library.
+
+   \param gen - generator for which to check audio system label
 
    \return audio system's label
 */
-const char *cw_generator_get_audio_system_label(void)
+char *cw_gen_get_audio_system_label_internal(cw_gen_t *gen)
 {
-	return cw_get_audio_system_label(cw_generator->audio_system);
+	char *s = strdup(cw_get_audio_system_label(gen->audio_system));
+	if (!s) {
+		cw_vdm ("failed to strdup() audio system label for audio system %d\n", gen->audio_system);
+	}
+
+	return s;
 }
 
 
@@ -225,38 +226,6 @@ int cw_gen_start_internal(cw_gen_t *gen)
 	}
 
 	return CW_FAILURE;
-}
-
-
-
-
-
-/**
-   \brief Return char string with console device path
-
-   Returned pointer is owned by library.
-
-   \return char string with current console device path
-*/
-const char *cw_get_console_device(void)
-{
-	return cw_generator->audio_device;
-}
-
-
-
-
-
-/**
-   \brief Return char string with soundcard device name/path
-
-   Returned pointer is owned by library.
-
-   \return char string with current soundcard device name or device path
-*/
-const char *cw_get_soundcard_device(void)
-{
-	return cw_generator->audio_device;
 }
 
 
@@ -1586,9 +1555,6 @@ int cw_gen_set_volume_internal(cw_gen_t *gen, int new_value)
    value of gap.
    errno is set to EINVAL if \p new_value is out of range.
 
-   Notice that for now the same gap value is set for global
-   cw_receiver.
-
    \param gen - generator for which to set gap
    \param new_value - new value of gap to be assigned to generator
 
@@ -1609,17 +1575,7 @@ int cw_gen_set_gap_internal(cw_gen_t *gen, int new_value)
 		cw_gen_sync_parameters_internal(gen);
 	}
 
-	/* Ideally generator and receiver should have their
-	   own, separate cw_set_gap() functions. Unfortunately
-	   this is not the case (for now) so gap should be set
-	   here for receiver as well.
-
-	   TODO: add cw_set_gap() function for receiver. */
-	/* FIXME. The issue now became a FIXME. Since this file should
-	   be purely for generator, this reference to cw_receiver
-	   global variable should not be here. */
-	int rv = cw_rec_set_gap_internal(&cw_receiver, new_value);
-	return rv;
+	return CW_SUCCESS;
 }
 
 
