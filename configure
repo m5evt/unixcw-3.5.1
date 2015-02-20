@@ -20674,6 +20674,8 @@ $as_echo "$as_me: ------ $PACKAGE_NAME $PACKAGE_VERSION build configuration ----
 $as_echo "$as_me: operating system:  ......................  $host_os" >&6;}
 { $as_echo "$as_me:${as_lineno-$LINENO}: build libcw:  ...........................  yes" >&5
 $as_echo "$as_me: build libcw:  ...........................  yes" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}:     libcw soname version:  ..............  $LIBCW_VERSION" >&5
+$as_echo "$as_me:     libcw soname version:  ..............  $LIBCW_VERSION" >&6;}
 { $as_echo "$as_me:${as_lineno-$LINENO}:     include console buzzer support:  ....  $WITH_CONSOLE" >&5
 $as_echo "$as_me:     include console buzzer support:  ....  $WITH_CONSOLE" >&6;}
 { $as_echo "$as_me:${as_lineno-$LINENO}:     include OSS support:  ...............  $WITH_OSS" >&5
