@@ -375,6 +375,7 @@ int cw_gen_play_string_internal(cw_gen_t *gen, const char *string);
 int  cw_gen_set_audio_device_internal(cw_gen_t *gen, const char *device);
 int  cw_gen_silence_internal(cw_gen_t *gen);
 //int cw_gen_release_internal(cw_gen_t **gen);
+char *cw_gen_get_audio_system_label_internal(cw_gen_t *gen);
 
 void cw_generator_delete_internal(void);
 
