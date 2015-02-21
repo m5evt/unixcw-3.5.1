@@ -1684,10 +1684,7 @@ void cw_clear_receive_buffer(void)
 */
 int cw_get_receive_buffer_capacity(void)
 {
-	/* TODO: perhaps the symbolic name
-	   CW_REC_REPRESENTATION_CAPACITY from libcw_rec.c should be
-	   moved to libcw_rec.h or even libcw.h? */
-	return cw_rec_get_receive_buffer_capacity_internal();
+	return CW_REC_REPRESENTATION_CAPACITY;
 }
 
 
