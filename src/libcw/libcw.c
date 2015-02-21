@@ -76,6 +76,14 @@ extern cw_rec_t cw_receiver;
 
 
 
+/* ******************************************************************** */
+/*                              Generator                               */
+/* ******************************************************************** */
+
+
+
+
+
 /**
    \brief Create new generator
 
@@ -776,4 +784,283 @@ const char *cw_get_soundcard_device(void)
 const char *cw_generator_get_audio_system_label(void)
 {
 	return cw_get_audio_system_label(cw_generator->audio_system);
+}
+
+
+
+
+
+/* ******************************************************************** */
+/*                             Tone queue                               */
+/* ******************************************************************** */
+
+
+
+
+
+/**
+   \brief Register callback for low queue state
+
+   Register a function to be called automatically by the dequeue routine
+   whenever the tone queue falls to a given \p level. To be more precise:
+   the callback is called by queue manager if, after dequeueing a tone,
+   the manager notices that tone queue length has become equal or less
+   than \p level.
+
+   \p callback_arg may be used to give a value passed back on callback
+   calls.  A NULL function pointer suppresses callbacks.  On success,
+   the routine returns CW_SUCCESS.
+
+   If \p level is invalid, the routine returns CW_FAILURE with errno set to
+   EINVAL.  Any callback supplied will be called in signal handler context.
+
+   testedin::test_tone_queue_callback()
+
+   \param callback_func - callback function to be registered
+   \param callback_arg - argument for callback_func to pass return value
+   \param level - low level of queue triggering callback call
+
+   \return CW_SUCCESS on successful registration
+   \return CW_FAILURE on failure
+*/
+int cw_register_tone_queue_low_callback(void (*callback_func)(void*), void *callback_arg, int level)
+{
+	return cw_tq_register_low_level_callback_internal(cw_generator->tq, callback_func, callback_arg, level);
+}
+
+
+
+
+
+
+
+
+
+/**
+   \brief Check if tone sender is busy
+
+   Indicate if the tone sender is busy.
+
+   \return true if there are still entries in the tone queue
+   \return false if the queue is empty
+*/
+bool cw_is_tone_busy(void)
+{
+	return cw_tq_is_busy_internal(cw_generator->tq);
+}
+
+
+
+
+
+/**
+   \brief Wait for the current tone to complete
+
+   The routine returns CW_SUCCESS on success.  If called with SIGALRM
+   blocked, the routine returns CW_FAILURE, with errno set to EDEADLK,
+   to avoid indefinite waits.
+
+   testedin::test_tone_queue_1()
+   testedin::test_tone_queue_2()
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
+int cw_wait_for_tone(void)
+{
+	return cw_tq_wait_for_tone_internal(cw_generator->tq);
+}
+
+
+
+
+
+/**
+   \brief Wait for the tone queue to drain
+
+   The routine returns CW_SUCCESS on success. If called with SIGALRM
+   blocked, the routine returns false, with errno set to EDEADLK,
+   to avoid indefinite waits.
+
+   testedin::test_tone_queue_1()
+   testedin::test_tone_queue_2()
+   testedin::test_tone_queue_3()
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
+int cw_wait_for_tone_queue(void)
+{
+	return cw_tq_wait_for_tone_queue_internal(cw_generator->tq);
+}
+
+
+
+
+
+
+/**
+   \brief Wait for the tone queue to drain until only as many tones as given in level remain queued
+
+   This routine is for use by programs that want to optimize themselves
+   to avoid the cleanup that happens when the tone queue drains completely;
+   such programs have a short time in which to add more tones to the queue.
+
+   The routine returns CW_SUCCESS on success.  If called with SIGALRM
+   blocked, the routine returns false, with errno set to EDEADLK, to
+   avoid indefinite waits.
+
+   \param level - low level in queue, at which to return
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
+int cw_wait_for_tone_queue_critical(int level)
+{
+	return cw_tq_wait_for_level_internal(cw_generator->tq, (uint32_t) level);
+}
+
+
+
+
+
+/**
+   \brief Indicate if the tone queue is full
+
+   testedin::test_cw_tq_is_full_internal()
+
+   \return true if tone queue is full
+   \return false if tone queue is not full
+*/
+bool cw_is_tone_queue_full(void)
+{
+	return cw_tq_is_full_internal(cw_generator->tq);
+}
+
+
+
+
+
+/**
+   \brief Return the number of entries the tone queue can accommodate
+
+   testedin::test_tone_queue_3()
+   testedin::test_cw_tq_get_capacity_internal()
+*/
+int cw_get_tone_queue_capacity(void)
+{
+	return (int) cw_tq_get_capacity_internal(cw_generator->tq);
+}
+
+
+
+
+
+/**
+   \brief Return the number of entries currently pending in the tone queue
+
+   testedin::test_cw_tq_length_internal()
+   testedin::test_tone_queue_1()
+   testedin::test_tone_queue_3()
+*/
+int cw_get_tone_queue_length(void)
+{
+	return (int) cw_tq_length_internal(cw_generator->tq);
+}
+
+
+
+
+
+/**
+   \brief Cancel all pending queued tones, and return to silence.
+
+   If there is a tone in progress, the function will wait until this
+   last one has completed, then silence the tones.
+
+   This function may be called with SIGALRM blocked, in which case it
+   will empty the queue as best it can, then return without waiting for
+   the final tone to complete.  In this case, it may not be possible to
+   guarantee silence after the call.
+*/
+void cw_flush_tone_queue(void)
+{
+	/* This function locks and unlocks mutex. */
+	cw_tq_flush_internal(cw_generator->tq);
+
+	/* Force silence on the speaker anyway, and stop any background
+	   soundcard tone generation. */
+	cw_gen_silence_internal(cw_generator);
+	//cw_finalization_schedule_internal();
+
+	return;
+}
+
+
+
+
+
+/**
+   Cancel all pending queued tones, reset any queue low callback registered,
+   and return to silence.  This function is suitable for calling from an
+   application exit handler.
+*/
+void cw_reset_tone_queue(void)
+{
+	cw_tq_reset_internal(cw_generator->tq);
+
+	/* Silence sound and stop any background soundcard tone generation. */
+	cw_gen_silence_internal(cw_generator);
+	//cw_finalization_schedule_internal();
+
+	cw_debug_msg ((&cw_debug_object), CW_DEBUG_TONE_QUEUE, CW_DEBUG_INFO,
+		      "libcw: tone queue: reset");
+
+	return;
+}
+
+
+
+
+
+/**
+   \brief Primitive access to simple tone generation
+
+   This routine queues a tone of given duration and frequency.
+   The routine returns CW_SUCCESS on success.  If usec or frequency
+   are invalid, it returns CW_FAILURE with errno set to EINVAL.
+   If the sound card, console speaker, or keying function are busy,
+   it returns CW_FAILURE  with errno set to EBUSY.  If the tone queue
+   is full, it returns false with errno set to EAGAIN.
+
+   testedin::test_tone_queue_0()
+   testedin::test_tone_queue_1()
+   testedin::test_tone_queue_2()
+   testedin::test_tone_queue_3()
+
+   \param usecs - duration of queued tone, in microseconds
+   \param frequency - frequency of queued tone
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
+int cw_queue_tone(int usecs, int frequency)
+{
+	/* Check the arguments given for realistic values.  This test
+	   is left here for legacy reasons. Don't change it. */
+	if (usecs < 0
+	    || frequency < CW_FREQUENCY_MIN
+	    || frequency > CW_FREQUENCY_MAX) {
+
+		errno = EINVAL;
+		return CW_FAILURE;
+	}
+
+	cw_tone_t tone;
+	tone.slope_mode = CW_SLOPE_MODE_STANDARD_SLOPES;
+	tone.usecs = usecs;
+	tone.frequency = frequency;
+	int rv = cw_tq_enqueue_internal(cw_generator->tq, &tone);
+
+	return rv;
 }
