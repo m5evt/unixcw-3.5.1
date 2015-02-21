@@ -27,7 +27,9 @@ typedef struct cw_rec_struct cw_rec_t;
 
 
 
-
+/* Creator and destructor. */
+cw_rec_t *cw_rec_new_internal(void);
+void      cw_rec_delete_internal(cw_rec_t **rec);
 
 /* Main receive functions. */
 int cw_rec_mark_begin_internal(cw_rec_t *rec, const struct timeval *timestamp);
