@@ -147,6 +147,8 @@ static void cw_rec_poll_representation_eow_internal(cw_rec_t *rec, char *represe
 
    Function may return NULL on malloc() failure.
 
+   testedin::test_cw_rec_identify_mark_internal()
+
    \return freshly allocated, initialized and synchronized receiver on success
    \return NULL pointer on failure
 */
@@ -273,6 +275,8 @@ void cw_rec_delete_internal(cw_rec_t **rec)
 
    Notice that internally the speed is saved as float, and its value
    may be internally a non-integer.
+
+   testedin::test_cw_rec_identify_mark_internal()
 
    \param rec - receiver
    \param new_value - new value of receive speed to be assigned to receiver
@@ -802,6 +806,8 @@ void cw_rec_reset_receive_statistics_internal(cw_rec_t *rec)
 
    In adaptive receiving mode the receiver tracks the speed of the
    received Morse code by adapting to the input stream.
+
+   testedin::test_cw_rec_identify_mark_internal()
 
    \param rec - receiver for which to set the mode
    \param adaptive - value of receiver's "adaptive mode" to be set
@@ -1783,12 +1789,6 @@ void cw_rec_sync_parameters_internal(cw_rec_t *rec)
 
 
 
-extern cw_rec_t cw_receiver;
-
-
-
-
-
 #define TEST_CW_REC_DATA_LEN_MAX 30 /* There is no character that would have data that long. */
 struct cw_rec_test_data {
 	char c;                           /* Character. */
@@ -1839,54 +1839,58 @@ unsigned int test_cw_rec_identify_mark_internal(void)
 {
 	int p = fprintf(stdout, "libcw/rec: cw_rec_identify_mark_internal() (non-adaptive):");
 
-	cw_disable_adaptive_receive();
+	cw_rec_t *rec = cw_rec_new_internal();
+	cw_assert (rec, "Failed to get new receiver\n");
+	cw_rec_set_adaptive_mode_internal(rec, false);
 
 	int speed_step = (CW_SPEED_MAX - CW_SPEED_MIN) / 10;
 
 	for (int i = CW_SPEED_MIN; i < CW_SPEED_MAX; i += speed_step) {
-		cw_set_receive_speed(i);
+		int rv = cw_rec_set_speed_internal(rec, i);
+		cw_assert (rv, "Failed to set receive speed = %d [wpm]\n", i);
+
 
 		char representation;
-		int rv;
-
 
 		/* Test marks of length within allowed lengths of dots. */
-		int len_step = (cw_receiver.dot_len_max - cw_receiver.dot_len_min) / 10;
-		for (int j = cw_receiver.dot_len_min; j < cw_receiver.dot_len_max; j += len_step) {
-			rv = cw_rec_identify_mark_internal(&cw_receiver, j, &representation);
-			cw_assert (rv, "failed to identify dot for speed = %d [wpm], len = %d [us]", i, j);
+		int len_step = (rec->dot_len_max - rec->dot_len_min) / 10;
+		for (int j = rec->dot_len_min; j < rec->dot_len_max; j += len_step) {
+			rv = cw_rec_identify_mark_internal(rec, j, &representation);
 
+			cw_assert (rv, "failed to identify dot for speed = %d [wpm], len = %d [us]", i, j);
 			cw_assert (representation == CW_DOT_REPRESENTATION, "got something else than dot for speed = %d [wpm], len = %d [us]", i, j);
 		}
 
 		/* Test mark shorter than minimal length of dot. */
-		rv = cw_rec_identify_mark_internal(&cw_receiver, cw_receiver.dot_len_min - 1, &representation);
+		rv = cw_rec_identify_mark_internal(rec, rec->dot_len_min - 1, &representation);
 		cw_assert (!rv, "incorrectly identified short mark as a dot for speed = %d [wpm]", i);
 
 		/* Test mark longer than maximal length of dot (but shorter than minimal length of dash). */
-		rv = cw_rec_identify_mark_internal(&cw_receiver, cw_receiver.dot_len_max + 1, &representation);
+		rv = cw_rec_identify_mark_internal(rec, rec->dot_len_max + 1, &representation);
 		cw_assert (!rv, "incorrectly identified long mark as a dot for speed = %d [wpm]", i);
 
 
 
 
 		/* Test marks of length within allowed lengths of dashes. */
-		len_step = (cw_receiver.dash_len_max - cw_receiver.dash_len_min) / 10;
-		for (int j = cw_receiver.dash_len_min; j < cw_receiver.dash_len_max; j += len_step) {
-			rv = cw_rec_identify_mark_internal(&cw_receiver, j, &representation);
-			cw_assert (rv, "failed to identify dash for speed = %d [wpm], len = %d [us]", i, j);
+		len_step = (rec->dash_len_max - rec->dash_len_min) / 10;
+		for (int j = rec->dash_len_min; j < rec->dash_len_max; j += len_step) {
+			rv = cw_rec_identify_mark_internal(rec, j, &representation);
 
+			cw_assert (rv, "failed to identify dash for speed = %d [wpm], len = %d [us]", i, j);
 			cw_assert (representation == CW_DASH_REPRESENTATION, "got something else than dash for speed = %d [wpm], len = %d [us]", i, j);
 		}
 
 		/* Test mark shorter than minimal length of dash (but longer than maximal length of dot). */
-		rv = cw_rec_identify_mark_internal(&cw_receiver, cw_receiver.dash_len_min - 1, &representation);
+		rv = cw_rec_identify_mark_internal(rec, rec->dash_len_min - 1, &representation);
 		cw_assert (!rv, "incorrectly identified short mark as a dash for speed = %d [wpm]", i);
 
 		/* Test mark longer than maximal length of dash. */
-		rv = cw_rec_identify_mark_internal(&cw_receiver, cw_receiver.dash_len_max + 1, &representation);
+		rv = cw_rec_identify_mark_internal(rec, rec->dash_len_max + 1, &representation);
 		cw_assert (!rv, "incorrectly identified long mark as a dash for speed = %d [wpm]", i);
 	}
+
+	cw_rec_delete_internal(&rec);
 
 
 
@@ -1905,25 +1909,33 @@ unsigned int test_cw_rec_with_base_data_fixed(void)
 {
 	int p = fprintf(stdout, "libcw/rec: test begin/end functions base data/fixed speed:");
 
+	cw_rec_t *rec = cw_rec_new_internal();
+	cw_assert (rec, "Failed to get new receiver\n");
+
+
 	for (int speed = CW_SPEED_MIN; speed <= CW_SPEED_MAX; speed++) {
 		struct cw_rec_test_data *data = test_cw_rec_new_base_data_fixed(speed, 0);
 		//test_cw_rec_print_data(data);
 
 		/* Reset. */
-		cw_reset_receive();
-		cw_clear_receive_buffer();
+		cw_rec_reset_internal(rec);
+		cw_rec_clear_buffer_internal(rec);
 
-		cw_set_receive_speed(speed);
-		cw_disable_adaptive_receive();
+		cw_rec_set_speed_internal(rec, speed);
+		cw_rec_set_adaptive_mode_internal(rec, false);
 
-		cw_assert (cw_get_receive_speed() == speed, "incorrect receive speed: %d != %d", cw_get_receive_speed(), speed);
+		float diff = cw_rec_get_speed_internal(rec) - speed;
+		cw_assert (diff < 0.1, "incorrect receive speed: %f != %d",
+			   cw_rec_get_speed_internal(rec), speed);
 
 		/* Actual tests of receiver functions are here. */
-		test_cw_rec_test_begin_end(&cw_receiver, data);
+		test_cw_rec_test_begin_end(rec, data);
 
 
 		test_cw_rec_delete_data(&data);
 	}
+
+	cw_rec_delete_internal(&rec);
 
 	CW_TEST_PRINT_TEST_RESULT(false, p);
 
@@ -1979,8 +1991,8 @@ void test_cw_rec_test_begin_end(cw_rec_t *rec, struct cw_rec_test_data *data)
 		   in specific moments, and in specific time
 		   intervals.
 
-		   key down -> call to cw_start_receive_tone()
-		   key up -> call to cw_end_receive_tone().
+		   key down -> call to cw_rec_mark_begin_internal()
+		   key up -> call to cw_rec_mark_end_internal().
 
 		   First "key down" event is at 0 seconds 0
 		   microseconds. Time of every following event is
@@ -2128,7 +2140,7 @@ void test_cw_rec_test_begin_end(cw_rec_t *rec, struct cw_rec_test_data *data)
 			cw_rec_clear_buffer_internal(rec);
 			int length = cw_rec_get_buffer_length_internal(rec);
 			cw_assert (length == 0,
-				   "cw_get_receive_buffer_length(): length of cleared buffer is non zero (is %d)",
+				   "cw_rec_get_buffer_length_internal(): length of cleared buffer is non zero (is %d)",
 				   length);
 		}
 
@@ -2201,25 +2213,33 @@ unsigned int test_cw_rec_with_random_data_fixed(void)
 {
 	int p = fprintf(stdout, "libcw/rec: test begin/end functions random data/fixed speed:");
 
+	cw_rec_t *rec = cw_rec_new_internal();
+	cw_assert (rec, "Failed to get new receiver\n");
+
+
 	for (int speed = CW_SPEED_MIN; speed <= CW_SPEED_MAX; speed++) {
 		struct cw_rec_test_data *data = test_cw_rec_new_random_data_fixed(speed, 0);
 		//test_cw_rec_print_data(data);
 
 		/* Reset. */
-		cw_reset_receive();
-		cw_clear_receive_buffer();
+		cw_rec_reset_internal(rec);
+		cw_rec_clear_buffer_internal(rec);
 
-		cw_set_receive_speed(speed);
-		cw_disable_adaptive_receive();
+		cw_rec_set_speed_internal(rec, speed);
+		cw_rec_set_adaptive_mode_internal(rec, false);
 
-		cw_assert (cw_get_receive_speed() == speed, "incorrect receive speed: %d != %d", cw_get_receive_speed(), speed);
+		float diff = cw_rec_get_speed_internal(rec) - speed;
+		cw_assert (diff < 0.1, "incorrect receive speed: %f != %d",
+			   cw_rec_get_speed_internal(rec), speed);
 
 		/* Actual tests of receiver functions are here. */
-		test_cw_rec_test_begin_end(&cw_receiver, data);
+		test_cw_rec_test_begin_end(rec, data);
 
 
 		test_cw_rec_delete_data(&data);
 	}
+
+	cw_rec_delete_internal(&rec);
 
 	CW_TEST_PRINT_TEST_RESULT(false, p);
 
@@ -2239,18 +2259,27 @@ unsigned int test_cw_rec_with_random_data_adaptive(void)
 	struct cw_rec_test_data *data = test_cw_rec_new_random_data_adaptive(CW_SPEED_MIN, CW_SPEED_MAX, 0);
 	//test_cw_rec_print_data(data);
 
-	/* Reset. */
-	cw_reset_receive();
-	cw_clear_receive_buffer();
+	cw_rec_t *rec = cw_rec_new_internal();
+	cw_assert (rec, "Failed to get new receiver\n");
 
-	cw_set_receive_speed(CW_SPEED_MAX);
-	cw_enable_adaptive_receive();
+	/* Reset. */
+	cw_rec_reset_internal(rec);
+	cw_rec_clear_buffer_internal(rec);
+
+	cw_rec_set_speed_internal(rec, CW_SPEED_MAX);
+	cw_rec_set_adaptive_mode_internal(rec, true);
+
+	float diff = cw_rec_get_speed_internal(rec) - CW_SPEED_MAX;
+	cw_assert (diff < 0.1, "incorrect receive speed: %f != %d",
+		   cw_rec_get_speed_internal(rec), CW_SPEED_MAX);
 
 	/* Actual tests of receiver functions are here. */
-	test_cw_rec_test_begin_end(&cw_receiver, data);
+	test_cw_rec_test_begin_end(rec, data);
 
 
 	test_cw_rec_delete_data(&data);
+
+	cw_rec_delete_internal(&rec);
 
 	CW_TEST_PRINT_TEST_RESULT(false, p);
 
@@ -2715,8 +2744,11 @@ void test_cw_rec_print_data(struct cw_rec_test_data *data)
 
 unsigned int test_cw_get_receive_parameters(void)
 {
-	cw_rec_reset_receive_parameters_internal(&cw_receiver);
-	cw_rec_sync_parameters_internal(&cw_receiver);
+	cw_rec_t *rec = cw_rec_new_internal();
+	cw_assert (rec, "Failed to get new receiver\n");
+
+	cw_rec_reset_receive_parameters_internal(rec);
+	cw_rec_sync_parameters_internal(rec);
 
 	int dot_len_ideal = 0,
 		dash_len_ideal = 0,
@@ -2737,19 +2769,22 @@ unsigned int test_cw_get_receive_parameters(void)
 
 		adaptive_speed_threshold = 0;
 
-	cw_get_receive_parameters(&dot_len_ideal, &dash_len_ideal,
-				  &dot_len_min, &dot_len_max,
-				  &dash_len_min, &dash_len_max,
+	cw_rec_get_parameters_internal(rec,
+				       &dot_len_ideal, &dash_len_ideal,
+				       &dot_len_min, &dot_len_max,
+				       &dash_len_min, &dash_len_max,
 
-				  &eom_len_min,
-				  &eom_len_max,
-				  &eom_len_ideal,
+				       &eom_len_min,
+				       &eom_len_max,
+				       &eom_len_ideal,
 
-				  &eoc_len_min,
-				  &eoc_len_max,
-				  &eoc_len_ideal,
+				       &eoc_len_min,
+				       &eoc_len_max,
+				       &eoc_len_ideal,
 
-				  &adaptive_speed_threshold);
+				       &adaptive_speed_threshold);
+
+	cw_rec_delete_internal(&rec);
 
 	printf("libcw/rec: cw_get_receive_parameters():\n" \
 	       "libcw/rec: dot/dash:  %d, %d, %d, %d, %d, %d\n" \
@@ -2824,7 +2859,7 @@ unsigned int test_cw_get_receive_parameters(void)
 		   eoc_len_min, eoc_len_ideal, eoc_len_max);
 
 
-	int n = printf("libcw/rec: cw_get_receive_parameters():");
+	int n = printf("libcw/rec: cw_rec_get_parameters_internal():");
 	CW_TEST_PRINT_TEST_RESULT (false, n);
 
 	return 0;
