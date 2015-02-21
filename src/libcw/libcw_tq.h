@@ -167,6 +167,15 @@ uint32_t cw_tq_length_internal(cw_tone_queue_t *tq);
 int      cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone);
 int      cw_tq_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone);
 
+int  cw_tq_wait_for_level_internal(cw_tone_queue_t *tq, uint32_t level);
+int  cw_tq_register_low_level_callback_internal(cw_tone_queue_t *tq, void (*callback_func)(void*), void *callback_arg, int level);
+bool cw_tq_is_busy_internal(cw_tone_queue_t *tq);
+int  cw_tq_wait_for_tone_internal(cw_tone_queue_t *tq);
+int  cw_tq_wait_for_tone_queue_internal(cw_tone_queue_t *tq);
+void cw_tq_reset_internal(cw_tone_queue_t *tq);
+bool cw_tq_is_full_internal(cw_tone_queue_t *tq);
+
+
 
 
 
