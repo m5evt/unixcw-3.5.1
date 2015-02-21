@@ -394,7 +394,8 @@ cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 		cw_gen_delete_internal(&gen);
 		return CW_FAILURE;
 	} else {
-	gen->tq->gen = gen;
+		/* Because libcw_tq.c/cw_tq_enqueue_internal()/pthread_kill(tq->gen->thread.id, SIGALRM); */
+		gen->tq->gen = gen;
 	}
 
 	gen->audio_device = NULL;
