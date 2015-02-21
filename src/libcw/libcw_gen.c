@@ -46,6 +46,7 @@
 #include <math.h>
 #include <signal.h>
 #include <errno.h>
+#include <inttypes.h> /* uint32_t */
 
 //#if (defined(__unix__) || defined(unix)) && !defined(USG)
 //# include <sys/param.h> /* INT_MAX */
@@ -2270,7 +2271,7 @@ void cw_gen_sync_parameters_internal(cw_gen_t *gen)
 
    \param gen - generator
 */
-void cw_gen_start_mark_internal(cw_gen_t *gen)
+void cw_gen_begin_mark_internal(cw_gen_t *gen)
 {
 	/* In case of straight key we don't know at all how long the
 	   tone should be (we don't know for how long the key will be
@@ -2360,14 +2361,14 @@ void cw_gen_begin_space_internal(cw_gen_t *gen)
    for details.
 
    \param gen - generator
+   \param usecs
 */
-void cw_gen_make_mark_internal(cw_gen_t *gen)
+void cw_gen_make_mark_internal(cw_gen_t *gen, int usecs)
 {
-
 	cw_tone_t tone;
 	tone.slope_mode = CW_SLOPE_MODE_STANDARD_SLOPES;
 	tone.usecs = usecs;
-	tone.frequency = keyer->gen->frequency;
+	tone.frequency = gen->frequency;
 	cw_tq_enqueue_internal(gen->tq, &tone);
 
 	return;
@@ -2385,8 +2386,9 @@ void cw_gen_make_mark_internal(cw_gen_t *gen)
    for details.
 
    \param gen - generator
+   \param usecs
 */
-void cw_gen_make_space_internal(cw_gen_t *gen)
+void cw_gen_make_space_internal(cw_gen_t *gen, int usecs)
 {
 	cw_tone_t tone;
 	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
