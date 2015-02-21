@@ -544,9 +544,9 @@ void cw_key_ik_enqueue_symbol_internal(volatile cw_key_t *keyer, int key_value, 
 			/* In case of iambic keyer we know exactly how
 			   long a the mark will be, so let's make a
 			   full mark. */
-			cw_gen_make_mark_internal(keyer->gen);
+			cw_gen_make_mark_internal(keyer->gen, usecs);
 		} else {
-			cw_gen_make_space_internal(keyer->gen);
+			cw_gen_make_space_internal(keyer->gen, usecs);
 		}
 	}
 
