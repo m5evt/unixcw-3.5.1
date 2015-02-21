@@ -1953,7 +1953,7 @@ int cw_gen_play_representation_internal(cw_gen_t *gen, const char *representatio
 	   number of tones in our representation, then check that the space
 	   exists in the tone queue. However, since the queue is comfortably
 	   long, we can get away with just looking for a high water mark.  */
-	if (cw_tone_queue_length_internal(gen->tq) >= gen->tq->high_water_mark) {
+	if (cw_tq_length_internal(gen->tq) >= gen->tq->high_water_mark) {
 		errno = EAGAIN;
 		return CW_FAILURE;
 	}

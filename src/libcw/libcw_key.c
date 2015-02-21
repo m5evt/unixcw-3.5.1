@@ -361,7 +361,7 @@ void cw_iambic_keyer_register_timer(struct timeval *timer)
    external callback function for keying (if configured) is called.
 
    Notice that the function is used only in
-   cw_tone_queue_dequeue_internal(). A generator which owns a tone
+   cw_tq_dequeue_internal(). A generator which owns a tone
    queue is treated as a key, and dequeued tones are treated as key
    values. Dequeueing tones is treated as manipulating a key.
 
@@ -484,7 +484,7 @@ void cw_key_sk_enqueue_symbol_internal(volatile cw_key_t *key, int key_value)
 			cw_tq_enqueue_internal(key->gen->tq, &tone);
 
 			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
-				      "libcw: tone queue: len = %"PRIu32"", cw_tone_queue_length_internal(key->gen->tq));
+				      "libcw: tone queue: len = %"PRIu32"", cw_tq_length_internal(key->gen->tq));
 		} else {
 			/* CW_KEY_STATE_OPEN, time to go from Mark
 			   (audible tone) to Space (silence). */
