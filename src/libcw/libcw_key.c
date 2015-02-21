@@ -467,63 +467,14 @@ void cw_key_sk_enqueue_symbol_internal(volatile cw_key_t *key, int key_value)
 			   all how long the tone should be (we don't
 			   know for how long the key will be closed.
 
-			   Let's enqueue a beginning of tone (rising
-			   slope) + "forever" (constant) tone. The
+			   Let's enqueue a beginning of mark. A
 			   constant tone will be played until function
 			   receives CW_KEY_STATE_OPEN key state. */
-
-			cw_tone_t tone;
-			tone.usecs = key->gen->tone_slope.length_usecs;
-			tone.frequency = key->gen->frequency;
-			tone.slope_mode = CW_SLOPE_MODE_RISING_SLOPE;
-			cw_tq_enqueue_internal(key->gen->tq, &tone);
-
-			tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-			tone.usecs = CW_AUDIO_FOREVER_USECS;
-			tone.frequency = key->gen->frequency;
-			cw_tq_enqueue_internal(key->gen->tq, &tone);
-
-			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
-				      "libcw: tone queue: len = %"PRIu32"", cw_tq_length_internal(key->gen->tq));
+			cw_gen_begin_mark_internal(key->gen);
 		} else {
 			/* CW_KEY_STATE_OPEN, time to go from Mark
 			   (audible tone) to Space (silence). */
-
-			if (key->gen->audio_system == CW_AUDIO_CONSOLE) {
-				/* Play just a bit of silence, just to switch
-				   buzzer from playing a sound to being silent. */
-				cw_tone_t tone;
-				tone.usecs = CW_AUDIO_QUANTUM_USECS;
-				tone.frequency = 0;
-				tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-				cw_tq_enqueue_internal(key->gen->tq, &tone);
-			} else {
-				/* For soundcards a falling slope with
-				   volume from max to zero should be
-				   enough, but... */
-				cw_tone_t tone;
-				tone.usecs = key->gen->tone_slope.length_usecs;
-				tone.frequency = key->gen->frequency;
-				tone.slope_mode = CW_SLOPE_MODE_FALLING_SLOPE;
-				cw_tq_enqueue_internal(key->gen->tq, &tone);
-
-				/* On some occasions, on some platforms, some
-				   sound systems may need to constantly play
-				   "silent" tone. These four lines of code are
-				   just for them.
-
-				   It would be better to avoid queueing silent
-				   "forever" tone because this increases CPU
-				   usage. It would be better to simply not to
-				   queue any new tones after "falling slope"
-				   tone. Silence after the last falling slope
-				   would simply last on itself until there is
-				   new tone on queue to play. */
-				tone.usecs = CW_AUDIO_FOREVER_USECS;
-				tone.frequency = 0;
-				tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-				cw_tq_enqueue_internal(key->gen->tq, &tone);
-			}
+			cw_gen_begin_space_internal(key->gen);
 		}
 	}
 
@@ -590,22 +541,12 @@ void cw_key_ik_enqueue_symbol_internal(volatile cw_key_t *keyer, int key_value, 
 		}
 
 		if (keyer->ik.key_value == CW_KEY_STATE_CLOSED) {
-			/* In case of iambic keyer We know exactly how
-			   long the tone will be, so we can enqueue a
-			   single tone with rising + falling
-			   slopes. */
-
-			cw_tone_t tone;
-			tone.slope_mode = CW_SLOPE_MODE_STANDARD_SLOPES;
-			tone.usecs = usecs;
-			tone.frequency = keyer->gen->frequency;
-			cw_tq_enqueue_internal(keyer->gen->tq, &tone);
+			/* In case of iambic keyer we know exactly how
+			   long a the mark will be, so let's make a
+			   full mark. */
+			cw_gen_make_mark_internal(keyer->gen);
 		} else {
-			cw_tone_t tone;
-			tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-			tone.usecs = usecs;
-			tone.frequency = 0;
-			cw_tq_enqueue_internal(keyer->gen->tq, &tone);
+			cw_gen_make_space_internal(keyer->gen);
 		}
 	}
 
