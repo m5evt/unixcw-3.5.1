@@ -385,8 +385,8 @@ void cw_gen_sync_parameters_internal(cw_gen_t *gen);
 
 void cw_gen_begin_mark_internal(cw_gen_t *gen);
 void cw_gen_begin_space_internal(cw_gen_t *gen);
-void cw_gen_make_mark_internal(cw_gen_t *gen);
-void cw_gen_make_space_internal(cw_gen_t *gen);
+void cw_gen_make_mark_internal(cw_gen_t *gen, int usecs);
+void cw_gen_make_space_internal(cw_gen_t *gen, int usecs);
 
 
 
