@@ -405,7 +405,123 @@ static void cw_rec_poll_representation_eow_internal(cw_rec_t *rec, char *represe
 
 
 
+/**
+   \brief Allocate and initialize new receiver variable
 
+   Before returning, the function calls
+   cw_rec_sync_parameters_internal() for the receiver.
+
+   Function may return NULL on malloc() failure.
+
+   \return freshly allocated, initialized and synchronized receiver on success
+   \return NULL pointer on failure
+*/
+cw_rec_t *cw_rec_new_internal(void)
+{
+	cw_rec_t *rec = (cw_rec_t *) malloc(sizeof (cw_rec_t));
+	if (!rec) {
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+			      "libcw: malloc()");
+		return (cw_rec_t *) NULL;
+	}
+
+
+	rec->state = RS_IDLE;
+
+	rec->speed                      = CW_SPEED_INITIAL;
+	rec->tolerance                  = CW_TOLERANCE_INITIAL;
+	rec->gap                        = CW_GAP_INITIAL;
+	rec->is_adaptive_receive_mode   = CW_REC_ADAPTIVE_MODE_INITIAL;
+	rec->noise_spike_threshold      = CW_REC_NOISE_THRESHOLD_INITIAL;
+
+	/* TODO: this variable is not set in
+	   cw_rec_reset_receive_parameters_internal(). Why
+	   is it separated from the four main
+	   variables? Is it because it is a
+	   derivative of speed? But speed is a
+	   derivative of this variable in adaptive
+	   speed mode. */
+	rec->adaptive_speed_threshold = CW_REC_SPEED_THRESHOLD_INITIAL;
+
+
+	rec->mark_start.tv_sec = 0;
+	rec->mark_start.tv_usec = 0;
+
+	rec->mark_end.tv_sec = 0;
+	rec->mark_end.tv_usec = 0;
+
+	rec->representation[0] = '\0';
+	rec->representation_ind = 0;
+
+
+	rec->dot_len_ideal = 0;
+	rec->dot_len_min = 0;
+	rec->dot_len_max = 0;
+
+	rec->dash_len_ideal = 0;
+	rec->dash_len_min = 0;
+	rec->dash_len_max = 0;
+
+	rec->eom_len_ideal = 0;
+	rec->eom_len_min = 0;
+	rec->eom_len_max = 0;
+
+	rec->eoc_len_ideal = 0;
+	rec->eoc_len_min = 0;
+	rec->eoc_len_max = 0;
+
+	rec->additional_delay = 0;
+	rec->adjustment_delay = 0;
+
+
+	rec->parameters_in_sync = false;
+
+
+	rec->statistics[0].type = 0;
+	rec->statistics[0].delta = 0;
+	rec->statistics_ind = 0;
+
+
+	rec->dot_averaging.cursor = 0;
+	rec->dot_averaging.sum = 0;
+	rec->dot_averaging.average = 0;
+
+	rec->dash_averaging.cursor = 0;
+	rec->dash_averaging.sum = 0;
+	rec->dash_averaging.average = 0;
+
+
+	cw_rec_sync_parameters_internal(rec);
+
+
+	return rec;
+}
+
+
+
+
+
+/**
+   \brief Delete a generator
+
+   Deallocate all memory and free all resources associated with given
+   receiver.
+
+   \parma rec - pointer to receiver
+*/
+void cw_rec_delete_internal(cw_rec_t **rec)
+{
+	cw_assert (rec, "\"rec\" argument can't be NULL\n");
+
+	if (!*rec) {
+		return;
+	}
+
+	free(*rec);
+	*rec = (cw_rec_t *) NULL;
+
+	return;
+}
 
 
 
