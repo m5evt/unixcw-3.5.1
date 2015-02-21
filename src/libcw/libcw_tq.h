@@ -162,8 +162,8 @@ cw_tone_queue_t *cw_tq_new_internal(void);
 void             cw_tq_delete_internal(cw_tone_queue_t **tq);
 void             cw_tq_flush_internal(cw_tone_queue_t *tq);
 
-uint32_t cw_tone_queue_get_capacity_internal(cw_tone_queue_t *tq);
-uint32_t cw_tone_queue_length_internal(cw_tone_queue_t *tq);
+uint32_t cw_tq_get_capacity_internal(cw_tone_queue_t *tq);
+uint32_t cw_tq_length_internal(cw_tone_queue_t *tq);
 int      cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone);
 int      cw_tq_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone);
 
@@ -174,17 +174,17 @@ int      cw_tq_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone);
 #ifdef LIBCW_UNIT_TESTS
 
 unsigned int test_cw_tq_new_internal(void);
-unsigned int test_cw_tone_queue_init_internal(void);
-unsigned int test_cw_tone_queue_get_capacity_internal(void);
-unsigned int test_cw_tone_queue_prev_index_internal(void);
-unsigned int test_cw_tone_queue_next_index_internal(void);
-unsigned int test_cw_tone_queue_length_internal(void);
+unsigned int test_cw_tq_init_internal(void);
+unsigned int test_cw_tq_get_capacity_internal(void);
+unsigned int test_cw_tq_prev_index_internal(void);
+unsigned int test_cw_tq_next_index_internal(void);
+unsigned int test_cw_tq_length_internal(void);
 unsigned int test_cw_tq_enqueue_internal_1(void);
 unsigned int test_cw_tq_enqueue_internal_2(void);
 unsigned int test_cw_tq_dequeue_internal(void);
-unsigned int test_cw_tone_queue_is_full_internal(void);
-unsigned int test_cw_tone_queue_test_capacity_1(void);
-unsigned int test_cw_tone_queue_test_capacity_2(void);
+unsigned int test_cw_tq_is_full_internal(void);
+unsigned int test_cw_tq_test_capacity_1(void);
+unsigned int test_cw_tq_test_capacity_2(void);
 unsigned int test_cw_queue_tone(void);
 
 #endif /* #ifdef LIBCW_UNIT_TESTS */
