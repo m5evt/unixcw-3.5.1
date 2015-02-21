@@ -42,11 +42,10 @@
 #include <pthread.h>
 #include <signal.h> /* SIGALRM */
 
-
-#include "libcw_debug.h"
-#include "libcw_key.h"
-#include "libcw_gen.h"
+#include "libcw.h"
 #include "libcw_tq.h"
+#include "libcw_gen.h"
+#include "libcw_debug.h"
 #include "libcw_signal.h"
 
 
@@ -75,7 +74,7 @@
    important for the function that calls the dequeue function. If you
    ever intend to limit number of return values of dequeue function to
    two, you will also have to re-think how
-   cw_generator_dequeue_and_play_internal() operates.
+   cw_gen_dequeue_and_play_internal() operates.
 
    Future libcw API should (completely) hide tone queue from client
    code. The client code should only operate on a generator - enqueue
@@ -88,27 +87,20 @@
 
 
 
+
 extern cw_debug_t cw_debug_object;
 extern cw_debug_t cw_debug_object_ev;
 extern cw_debug_t cw_debug_object_dev;
-
-extern cw_gen_t *cw_generator;
 
 
 
 
 
 static int      cw_tq_set_capacity_internal(cw_tone_queue_t *tq, uint32_t capacity, uint32_t high_water_mark);
-static bool     cw_tq_is_full_internal(cw_tone_queue_t *tq);
 static uint32_t cw_tq_get_high_water_mark_internal(cw_tone_queue_t *tq) __attribute__((unused));
 static uint32_t cw_tq_prev_index_internal(cw_tone_queue_t *tq, uint32_t current) __attribute__((unused));
 static uint32_t cw_tq_next_index_internal(cw_tone_queue_t *tq, uint32_t current);
 
-static int  cw_tq_register_low_level_callback_internal(cw_tone_queue_t *tq, void (*callback_func)(void*), void *callback_arg, int level);
-static bool cw_tq_is_busy_internal(cw_tone_queue_t *tq);
-static int  cw_tq_wait_for_tone_internal(cw_tone_queue_t *tq);
-static int  cw_tq_wait_for_tone_queue_internal(cw_tone_queue_t *tq);
-static void cw_tq_reset_internal(cw_tone_queue_t *tq);
 
 
 
@@ -722,7 +714,7 @@ int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 		   are some new tones in tone queue. This is a right
 		   place and time to send such a signal. */
 		tq->state = CW_TQ_BUSY;
-		pthread_kill(cw_generator->thread.id, SIGALRM);
+		pthread_kill(tq->gen->thread.id, SIGALRM);
 	}
 
 	pthread_mutex_unlock(&(tq->mutex));
@@ -749,8 +741,7 @@ int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
    If \p level is invalid, the routine returns CW_FAILURE with errno set to
    EINVAL.  Any callback supplied will be called in signal handler context.
 
-   testedin::test_tone_queue_callback()
-
+   \param tq - tone queue
    \param callback_func - callback function to be registered
    \param callback_arg - argument for callback_func to pass return value
    \param level - low level of queue triggering callback call
@@ -758,15 +749,6 @@ int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
    \return CW_SUCCESS on successful registration
    \return CW_FAILURE on failure
 */
-int cw_register_tone_queue_low_callback(void (*callback_func)(void*), void *callback_arg, int level)
-{
-	return cw_tq_register_low_level_callback_internal(cw_generator->tq, callback_func, callback_arg, level);
-}
-
-
-
-
-
 int cw_tq_register_low_level_callback_internal(cw_tone_queue_t *tq, void (*callback_func)(void*), void *callback_arg, int level)
 {
 	if (level < 0 || (uint32_t) level >= tq->capacity) {
@@ -791,18 +773,11 @@ int cw_tq_register_low_level_callback_internal(cw_tone_queue_t *tq, void (*callb
 
    Indicate if the tone sender is busy.
 
+   \param tq - tone queue
+
    \return true if there are still entries in the tone queue
    \return false if the queue is empty
 */
-bool cw_is_tone_busy(void)
-{
-	return cw_tq_is_busy_internal(cw_generator->tq);
-}
-
-
-
-
-
 bool cw_tq_is_busy_internal(cw_tone_queue_t *tq)
 {
 	return tq->state != CW_TQ_IDLE;
@@ -819,21 +794,11 @@ bool cw_tq_is_busy_internal(cw_tone_queue_t *tq)
    blocked, the routine returns CW_FAILURE, with errno set to EDEADLK,
    to avoid indefinite waits.
 
-   testedin::test_tone_queue_1()
-   testedin::test_tone_queue_2()
+   \param tq - tone queue
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_wait_for_tone(void)
-{
-	return cw_tq_wait_for_tone_internal(cw_generator->tq);
-}
-
-
-
-
-
 int cw_tq_wait_for_tone_internal(cw_tone_queue_t *tq)
 {
 	if (cw_sigalrm_is_blocked_internal()) {
@@ -863,22 +828,11 @@ int cw_tq_wait_for_tone_internal(cw_tone_queue_t *tq)
    blocked, the routine returns false, with errno set to EDEADLK,
    to avoid indefinite waits.
 
-   testedin::test_tone_queue_1()
-   testedin::test_tone_queue_2()
-   testedin::test_tone_queue_3()
+   \param tq - tone queue
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_wait_for_tone_queue(void)
-{
-	return cw_tq_wait_for_tone_queue_internal(cw_generator->tq);
-}
-
-
-
-
-
 int cw_tq_wait_for_tone_queue_internal(cw_tone_queue_t *tq)
 {
 	if (cw_sigalrm_is_blocked_internal()) {
@@ -911,12 +865,13 @@ int cw_tq_wait_for_tone_queue_internal(cw_tone_queue_t *tq)
    blocked, the routine returns false, with errno set to EDEADLK, to
    avoid indefinite waits.
 
+   \param tq - tone queue
    \param level - low level in queue, at which to return
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_wait_for_tone_queue_critical(int level)
+int cw_tq_wait_for_level_internal(cw_tone_queue_t *tq, uint32_t level)
 {
 	if (cw_sigalrm_is_blocked_internal()) {
 		/* no point in waiting for event, when signal
@@ -926,28 +881,11 @@ int cw_wait_for_tone_queue_critical(int level)
 	}
 
 	/* Wait until the queue length is at or below criticality. */
-	while (cw_tq_length_internal(cw_generator->tq) > (uint32_t) level) {
+	while (cw_tq_length_internal(tq) > level) {
 		cw_signal_wait_internal();
 	}
 
 	return CW_SUCCESS;
-}
-
-
-
-
-
-/**
-   \brief Indicate if the tone queue is full
-
-   testedin::test_cw_tq_is_full_internal()
-
-   \return true if tone queue is full
-   \return false if tone queue is not full
-*/
-bool cw_is_tone_queue_full(void)
-{
-	return cw_tq_is_full_internal(cw_generator->tq);
 }
 
 
@@ -971,134 +909,6 @@ bool cw_is_tone_queue_full(void)
 bool cw_tq_is_full_internal(cw_tone_queue_t *tq)
 {
 	return tq->len == tq->capacity;
-}
-
-
-
-
-
-/**
-   \brief Return the number of entries the tone queue can accommodate
-
-   testedin::test_tone_queue_3()
-   testedin::test_cw_tq_get_capacity_internal()
-*/
-int cw_get_tone_queue_capacity(void)
-{
-	return (int) cw_tq_get_capacity_internal(cw_generator->tq);
-}
-
-
-
-
-
-/**
-   \brief Return the number of entries currently pending in the tone queue
-
-   testedin::test_cw_tq_length_internal()
-   testedin::test_tone_queue_1()
-   testedin::test_tone_queue_3()
-*/
-int cw_get_tone_queue_length(void)
-{
-	return (int) cw_tq_length_internal(cw_generator->tq);
-}
-
-
-
-
-
-/**
-   \brief Cancel all pending queued tones, and return to silence.
-
-   If there is a tone in progress, the function will wait until this
-   last one has completed, then silence the tones.
-
-   This function may be called with SIGALRM blocked, in which case it
-   will empty the queue as best it can, then return without waiting for
-   the final tone to complete.  In this case, it may not be possible to
-   guarantee silence after the call.
-*/
-void cw_flush_tone_queue(void)
-{
-	/* This function locks and unlocks mutex. */
-	cw_tq_flush_internal(cw_generator->tq);
-
-	/* Force silence on the speaker anyway, and stop any background
-	   soundcard tone generation. */
-	cw_gen_silence_internal(cw_generator);
-	//cw_finalization_schedule_internal();
-
-	return;
-}
-
-
-
-
-
-/**
-   \brief Primitive access to simple tone generation
-
-   This routine queues a tone of given duration and frequency.
-   The routine returns CW_SUCCESS on success.  If usec or frequency
-   are invalid, it returns CW_FAILURE with errno set to EINVAL.
-   If the sound card, console speaker, or keying function are busy,
-   it returns CW_FAILURE  with errno set to EBUSY.  If the tone queue
-   is full, it returns false with errno set to EAGAIN.
-
-   testedin::test_tone_queue_0()
-   testedin::test_tone_queue_1()
-   testedin::test_tone_queue_2()
-   testedin::test_tone_queue_3()
-
-   \param usecs - duration of queued tone, in microseconds
-   \param frequency - frequency of queued tone
-
-   \return CW_SUCCESS on success
-   \return CW_FAILURE on failure
-*/
-int cw_queue_tone(int usecs, int frequency)
-{
-	/* Check the arguments given for realistic values.  This test
-	   is left here for legacy reasons. Don't change it. */
-	if (usecs < 0
-	    || frequency < CW_FREQUENCY_MIN
-	    || frequency > CW_FREQUENCY_MAX) {
-
-		errno = EINVAL;
-		return CW_FAILURE;
-	}
-
-	cw_tone_t tone;
-	tone.slope_mode = CW_SLOPE_MODE_STANDARD_SLOPES;
-	tone.usecs = usecs;
-	tone.frequency = frequency;
-	int rv = cw_tq_enqueue_internal(cw_generator->tq, &tone);
-
-	return rv;
-}
-
-
-
-
-
-/**
-   Cancel all pending queued tones, reset any queue low callback registered,
-   and return to silence.  This function is suitable for calling from an
-   application exit handler.
-*/
-void cw_reset_tone_queue(void)
-{
-	cw_tq_reset_internal(cw_generator->tq);
-
-	/* Silence sound and stop any background soundcard tone generation. */
-	cw_gen_silence_internal(cw_generator);
-	//cw_finalization_schedule_internal();
-
-	cw_debug_msg ((&cw_debug_object), CW_DEBUG_TONE_QUEUE, CW_DEBUG_INFO,
-		      "libcw: tone queue: reset");
-
-	return;
 }
 
 
@@ -1145,7 +955,9 @@ void cw_tq_flush_internal(cw_tone_queue_t *tq)
 
 
 
+
 /* *** Unit tests *** */
+
 
 
 
@@ -1158,6 +970,7 @@ void cw_tq_flush_internal(cw_tone_queue_t *tq)
 static int test_cw_tq_capacity_test_init(uint32_t capacity, uint32_t high_water_mark, int head_shift);
 
 static cw_tone_queue_t *test_tone_queue = NULL;
+
 
 
 
