@@ -1545,14 +1545,14 @@ void cw_test_signal_handling(cw_test_stats_t *stats)
 
 
 
-extern cw_gen_t *cw_generator;
-
-
 
 void test_cw_forever(cw_test_stats_t *stats)
 {
 	int sleep_period = 5;
 	printf("libcw: %s() (%d seconds):\n", __func__, sleep_period);
+
+	cw_gen_t *gen = cw_gen_new_internal(CW_AUDIO_SOUNDCARD, NULL);
+	cw_assert (gen, "ERROR: failed to create generator\n");
 
 	sleep(1);
 	cw_tone_t tone;
@@ -1577,6 +1577,8 @@ void test_cw_forever(cw_test_stats_t *stats)
 	tone.slope_mode = CW_SLOPE_MODE_FALLING_SLOPE;
 	rv = cw_tq_enqueue_internal(cw_generator->tq, &tone);
 	rv ? stats->successes++ : stats->failures++;
+
+	cw_gen_delete_internal(&gen);
 
 	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
 
