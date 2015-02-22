@@ -1860,7 +1860,7 @@ void cw_disable_iambic_curtis_mode_b(void)
 */
 int cw_get_iambic_curtis_mode_b_state(void)
 {
-	return cw_key_ik_get_curtis_mode_b_state_internal(&cw_key);
+	return (int) cw_key_ik_get_curtis_mode_b_state_internal(&cw_key);
 }
 
 
@@ -1909,8 +1909,8 @@ int cw_notify_keyer_paddle_event(int dot_paddle_state, int dash_paddle_state)
    Alter the state of just one of the two iambic keyer paddles.
    The other paddle state of the paddle pair remains unchanged.
 
-   See cw_keyer_paddle_event() for details of iambic keyer background
-   processing, and how to check its status.
+   See cw_notify_keyer_paddle_event() for details of iambic keyer
+   background processing, and how to check its status.
 
    \param dot_paddle_state
 */
