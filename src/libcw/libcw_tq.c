@@ -152,6 +152,7 @@ cw_tone_queue_t *cw_tq_new_internal(void)
 	tq->low_water_mark = 0;
 	tq->low_water_callback = NULL;
 	tq->low_water_callback_arg = NULL;
+	tq->call_callback = false;
 
 	tq->gen = (cw_gen_t *) NULL;
 
@@ -470,21 +471,13 @@ int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 				}
 			}
 
+#if 0
 			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
 				      "libcw: tone queue: dequeue tone %d usec, %d Hz", tone->usecs, tone->frequency);
 			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
 				      "libcw: tone queue: head = %"PRIu32", tail = %"PRIu32", length = %"PRIu32" -> %"PRIu32"",
 				      tq->head, tq->tail, queue_len, tq->len);
-
-			/* Notify the key control function that there
-			   might have been a change of keying state
-			   (and then again, there might not have been;
-			   the function will sort this out by
-			   comparing current key state with its
-			   internal key state). */
-			if (tq->gen && tq->gen->key) {
-				cw_key_tk_set_value_internal(tq->gen->key, tone->frequency ? CW_KEY_STATE_CLOSED : CW_KEY_STATE_OPEN);
-			}
+#endif
 
 #if 0
 			/* If microseconds is zero, leave it at that.  This
@@ -516,7 +509,6 @@ int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 			   the state to idle, since the most likely action
 			   of this routine is to queue tones, and we don't
 			   want to play with the state here after that. */
-			bool call_callback = false;
 			if (tq->low_water_callback) {
 
 				/* If the length we originally calculated
@@ -538,7 +530,7 @@ int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 				       call the callback again. */
 				    && !(tone->usecs == CW_AUDIO_FOREVER_USECS && queue_len == 1)) {
 
-					call_callback = true;
+					tq->call_callback = true;
 				}
 			}
 
@@ -549,9 +541,6 @@ int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 			   put the callback *after* we release
 			   pthread_mutex_unlock() in this function. */
 
-			if (call_callback) {
-				(*(tq->low_water_callback))(tq->low_water_callback_arg);
-			}
 
 			return CW_TQ_NONEMPTY;
 		} else { /* tq->len == 0 */
@@ -566,14 +555,6 @@ int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 			   moment. */
 			tq->state = CW_TQ_IDLE;
 
-			/* There is no tone to dequeue, so don't modify
-			   function's arguments. Client code will learn
-			   about "no tones" state through return value. */
-
-			/* Notify the keying control function about the silence. */
-			if (tq->gen && tq->gen->key) {
-				cw_key_tk_set_value_internal(tq->gen->key, CW_KEY_STATE_OPEN);
-			}
 
 			//cw_finalization_schedule_internal();
 
