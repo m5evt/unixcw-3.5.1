@@ -146,7 +146,7 @@ void cw_key_register_keying_callback_internal(volatile cw_key_t *key, void (*cal
 void cw_key_ik_register_timer_internal(volatile cw_key_t *key, struct timeval *timer);
 void cw_key_ik_enable_curtis_mode_b_internal(volatile cw_key_t *key);
 void cw_key_ik_disable_curtis_mode_b_internal(volatile cw_key_t *key);
-int  cw_key_ik_get_curtis_mode_b_state_internal(volatile cw_key_t *key);
+bool cw_key_ik_get_curtis_mode_b_state_internal(volatile cw_key_t *key);
 int  cw_key_ik_notify_paddle_event_internal(volatile cw_key_t *key, int dot_paddle_state, int dash_paddle_state);
 int  cw_key_ik_notify_dash_paddle_event_internal(volatile cw_key_t *key, int dash_paddle_state);
 int  cw_key_ik_notify_dot_paddle_event_internal(volatile cw_key_t *key, int dot_paddle_state);
