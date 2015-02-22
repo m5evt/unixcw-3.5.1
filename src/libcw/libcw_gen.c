@@ -761,7 +761,51 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 			cw_signal_wait_internal();
 			//usleep(CW_AUDIO_QUANTUM_USECS);
 			continue;
+		} else if (state == CW_TQ_JUST_EMPTIED) {
+
+			/* The last tone in the queue should be (at
+			   least in theory) a space.  Notify the
+			   keying control function about the
+			   silence. */
+			if (gen->key) {
+				cw_key_tk_set_value_internal(gen->key, CW_KEY_STATE_OPEN);
+			}
+
+
+		} else if (state == CW_TQ_NONEMPTY) {
+
+			/* This branch is a bit ugly.
+
+			   I want to keep the order of calling the
+			   callbacks (first the one in
+			   cw_key_tk_set_value_internal() and then the
+			   low water callback). But if I put both in
+			   cw_tq, then the tq would need to refer to
+			   tq->gen->key (which is ugly). If I leave it
+			   like now, the generator has to refer to
+			   gen->tq->low_water*, which I think is a bit
+			   less ugly. */
+
+			/* Notify the key control function that there
+			   might have been a change of keying state
+			   (and then again, there might not have been;
+			   the function will sort this out by
+			   comparing current key state with its
+			   internal key state). */
+			if (gen->key) {
+				cw_key_tk_set_value_internal(gen->key, tone.frequency ? CW_KEY_STATE_CLOSED : CW_KEY_STATE_OPEN);
+			}
+
+
+			if (gen->tq->call_callback) {
+				(*(gen->tq->low_water_callback))(gen->tq->low_water_callback_arg);
+				gen->tq->call_callback = false;
+			}
+
+		} else {
+			cw_assert (0, "unknown tq state %d\n", state);
 		}
+
 
 		// POSSIBLE ALTERNATIVE IMPLEMENTATION: old_state = state;
 
