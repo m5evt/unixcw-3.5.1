@@ -17,6 +17,7 @@
 
 
 #include "libcw_gen.h"
+#include "libcw_rec.h"
 
 
 
@@ -52,6 +53,17 @@ struct cw_key_struct {
 	   data type has a "generator" field, not the other way
 	   around. */
 	cw_gen_t *gen;
+
+
+	/* There should be a binding between key and a receiver.
+
+	   The receiver can get it's properly formed input data (key
+	   down/key up events) from any source, so it's independent
+	   from key. On the other hand the key without receiver is
+	   rather useless. Therefore I think that the key should
+	   contain reference to a receiver, not the other way
+	   around. */
+	cw_rec_t *rec;
 
 
 	/* External "on key state change" callback function and its
@@ -126,6 +138,7 @@ typedef struct cw_key_struct cw_key_t;
 void cw_key_tk_set_value_internal(volatile cw_key_t *key, int key_state);
 
 void cw_key_register_generator_internal(volatile cw_key_t *key, cw_gen_t *gen);
+void cw_key_register_receiver_internal(volatile cw_key_t *key, cw_rec_t *rec);
 
 int  cw_key_ik_update_graph_state_internal(volatile cw_key_t *keyer);
 void cw_key_ik_increment_timer_internal(volatile cw_key_t *keyer, int usecs);
