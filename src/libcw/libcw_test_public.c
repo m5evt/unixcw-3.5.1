@@ -1560,12 +1560,12 @@ void test_cw_forever(cw_test_stats_t *stats)
 	tone.usecs = 100;
 	tone.frequency = 500;
 	tone.slope_mode = CW_SLOPE_MODE_RISING_SLOPE;
-	cw_tq_enqueue_internal(cw_generator->tq, &tone);
+	cw_tq_enqueue_internal(gen->tq, &tone);
 
 	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
 	tone.usecs = CW_AUDIO_FOREVER_USECS;
 	tone.frequency = 500;
-	int rv = cw_tq_enqueue_internal(cw_generator->tq, &tone);
+	int rv = cw_tq_enqueue_internal(gen->tq, &tone);
 	rv ? stats->successes++ : stats->failures++;
 
 	struct timespec t;
@@ -1575,7 +1575,7 @@ void test_cw_forever(cw_test_stats_t *stats)
 	tone.usecs = 100;
 	tone.frequency = 500;
 	tone.slope_mode = CW_SLOPE_MODE_FALLING_SLOPE;
-	rv = cw_tq_enqueue_internal(cw_generator->tq, &tone);
+	rv = cw_tq_enqueue_internal(gen->tq, &tone);
 	rv ? stats->successes++ : stats->failures++;
 
 	cw_gen_delete_internal(&gen);
