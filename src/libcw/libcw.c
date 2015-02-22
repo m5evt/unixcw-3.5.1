@@ -62,14 +62,6 @@ extern cw_debug_t cw_debug_object_dev;
 
 
 
-/* From libcw_key.c. */
-extern volatile cw_key_t cw_key;
-
-
-
-
-
-
 cw_rec_t cw_receiver = { .state = RS_IDLE,
 
 
@@ -127,6 +119,47 @@ cw_rec_t cw_receiver = { .state = RS_IDLE,
 
 			 .dot_averaging  = { {0}, 0, 0, 0 },
 			 .dash_averaging = { {0}, 0, 0, 0 },
+};
+
+
+
+
+
+static volatile cw_key_t cw_key = {
+	.gen = NULL,
+
+
+	.key_callback = NULL,
+	.key_callback_arg = NULL,
+
+
+	.sk = {
+		.key_value = CW_KEY_STATE_OPEN
+	},
+
+
+	.ik = {
+		.graph_state = KS_IDLE,
+		.key_value = CW_KEY_STATE_OPEN,
+
+		.dot_paddle = false,
+		.dash_paddle = false,
+
+		.dot_latch = false,
+		.dash_latch = false,
+
+		.curtis_mode_b = false,
+		.curtis_b_latch = false,
+
+		.lock = false,
+
+		.timer = NULL
+	},
+
+
+	.tk = {
+		.key_value = CW_KEY_STATE_OPEN
+	}
 };
 
 
@@ -1718,5 +1751,404 @@ void cw_reset_receive(void)
 {
 	cw_rec_reset_internal(&cw_receiver);
 
+	return;
+}
+
+
+
+
+
+/* ******************************************************************** */
+/*                                 Key                                  */
+/* ******************************************************************** */
+
+
+
+
+
+/**
+   \brief Register external callback function for keying
+
+   Register a \p callback_func function that should be called when a state
+   of a key changes from "key open" to "key closed", or vice-versa.
+
+   The first argument passed to the registered callback function is the
+   supplied \p callback_arg, if any.  The second argument passed to
+   registered callback function is the key state: CW_KEY_STATE_CLOSED
+   (one/true) for "key closed", and CW_KEY_STATE_OPEN (zero/false) for
+   "key open".
+
+   Calling this routine with a NULL function address disables keying
+   callbacks.  Any callback supplied will be called in signal handler
+   context (??).
+
+   \param callback_func - callback function to be called on key state changes
+   \param callback_arg - first argument to callback_func
+*/
+void cw_register_keying_callback(void (*callback_func)(void*, int), void *callback_arg)
+{
+	cw_key_register_keying_callback_internal(&cw_key, callback_func, callback_arg);
+	return;
+}
+
+
+
+
+
+/*
+  Most of the time libcw just passes around key_callback_arg,
+  not caring of what type it is, and not attempting to do any
+  operations on it. On one occasion however, it needs to know whether
+  key_callback_arg is of type 'struct timeval', and if so, it
+  must do some operation on it. I could pass struct with ID as
+  key_callback_arg, but that may break some old client
+  code. Instead I've created this function that has only one, very
+  specific purpose: to pass to libcw a pointer to timer.
+
+  The timer is owned by client code, and is used to measure and clock
+  iambic keyer.
+*/
+void cw_iambic_keyer_register_timer(struct timeval *timer)
+{
+	cw_key_ik_register_timer_internal(&cw_key, timer);
+	return;
+}
+
+
+
+
+
+/**
+   \brief Enable iambic Curtis mode B
+
+   Normally, the iambic keying functions will emulate Curtis 8044 Keyer
+   mode A.  In this mode, when both paddles are pressed together, the
+   last dot or dash being sent on release is completed, and nothing else
+   is sent. In mode B, when both paddles are pressed together, the last
+   dot or dash being sent on release is completed, then an opposite
+   element is also sent. Some operators prefer mode B, but timing is
+   more critical in this mode. The default mode is Curtis mode A.
+*/
+void cw_enable_iambic_curtis_mode_b(void)
+{
+	cw_key_ik_enable_curtis_mode_b_internal(&cw_key);
+	return;
+}
+
+
+
+
+
+/**
+   See documentation of cw_enable_iambic_curtis_mode_b() for more information
+*/
+void cw_disable_iambic_curtis_mode_b(void)
+{
+	cw_key_ik_disable_curtis_mode_b_internal(&cw_key);
+	return;
+}
+
+
+
+
+
+/**
+   See documentation of cw_enable_iambic_curtis_mode_b() for more information
+*/
+int cw_get_iambic_curtis_mode_b_state(void)
+{
+	return cw_key_ik_get_curtis_mode_b_state_internal(&cw_key);
+}
+
+
+
+
+
+/**
+   \brief Inform about changed state of iambic keyer's paddles
+
+   Function informs the library that the iambic keyer paddles have
+   changed state.  The new paddle states are recorded, and if either
+   transition from false to true, paddle latches, for iambic functions,
+   are also set.
+
+   On success, the routine returns CW_SUCCESS.
+   On failure, it returns CW_FAILURE, with errno set to EBUSY if the
+   tone queue or straight key are using the sound card, console
+   speaker, or keying system.
+
+   If appropriate, this routine starts the keyer functions sending the
+   relevant element.  Element send and timing occurs in the background,
+   so this routine returns almost immediately.  See cw_keyer_element_wait()
+   and cw_keyer_wait() for details about how to check the current status of
+   iambic keyer background processing.
+
+   testedin::test_keyer()
+
+   \param dot_paddle_state
+   \param dash_paddle_state
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
+int cw_notify_keyer_paddle_event(int dot_paddle_state, int dash_paddle_state)
+{
+	return cw_key_ik_notify_paddle_event_internal(&cw_key, dot_paddle_state, dash_paddle_state);
+}
+
+
+
+
+
+/**
+   \brief Change state of dot paddle
+
+   Alter the state of just one of the two iambic keyer paddles.
+   The other paddle state of the paddle pair remains unchanged.
+
+   See cw_keyer_paddle_event() for details of iambic keyer background
+   processing, and how to check its status.
+
+   \param dot_paddle_state
+*/
+int cw_notify_keyer_dot_paddle_event(int dot_paddle_state)
+{
+	return cw_notify_keyer_paddle_event(dot_paddle_state, cw_key.ik.dash_paddle);
+}
+
+
+
+
+
+/**
+   See documentation of cw_notify_keyer_dot_paddle_event() for more information
+*/
+int cw_notify_keyer_dash_paddle_event(int dash_paddle_state)
+{
+	return cw_notify_keyer_paddle_event(cw_key.ik.dot_paddle, dash_paddle_state);
+}
+
+
+
+
+
+/**
+   \brief Get the current saved states of the two paddles
+
+   testedin::test_keyer()
+
+   \param dot_paddle_state
+   \param dash_paddle_state
+*/
+void cw_get_keyer_paddles(int *dot_paddle_state, int *dash_paddle_state)
+{
+	cw_key_ik_get_paddles_internal(&cw_key, dot_paddle_state, dash_paddle_state);
+	return;
+}
+
+
+
+
+
+/**
+   \brief Get the current states of paddle latches
+
+   Function returns the current saved states of the two paddle latches.
+   A paddle latches is set to true when the paddle state becomes true,
+   and is cleared if the paddle state is false when the element finishes
+   sending.
+
+   \param dot_paddle_latch_state
+   \param dash_paddle_latch_state
+*/
+void cw_get_keyer_paddle_latches(int *dot_paddle_latch_state, int *dash_paddle_latch_state)
+{
+	cw_key_ik_get_paddle_latches_internal(&cw_key, dot_paddle_latch_state, dash_paddle_latch_state);
+	return;
+}
+
+
+
+
+
+/**
+   \brief Check if a keyer is busy
+
+   \return true if keyer is busy
+   \return false if keyer is not busy
+*/
+bool cw_is_keyer_busy(void)
+{
+	return cw_key_ik_is_busy_internal(&cw_key);
+}
+
+
+
+
+
+/**
+   \brief Wait for end of element from the keyer
+
+   Waits until the end of the current element, dot or dash, from the keyer.
+
+   On error the function returns CW_FAILURE, with errno set to
+   EDEADLK if SIGALRM is blocked.
+
+   testedin::test_keyer()
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
+int cw_wait_for_keyer_element(void)
+{
+	return cw_key_ik_wait_for_element_internal(&cw_key);
+}
+
+
+
+
+
+/**
+   \brief Wait for the current keyer cycle to complete
+
+   The routine returns CW_SUCCESS on success.  On error, it returns
+   CW_FAILURE, with errno set to EDEADLK if SIGALRM is blocked or if
+   either paddle state is true.
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
+int cw_wait_for_keyer(void)
+{
+	return cw_key_ik_wait_for_keyer_internal(&cw_key);
+}
+
+
+
+
+
+/**
+   \brief Reset iambic keyer data
+
+   Clear all latches and paddle states of iambic keyer, return to
+   Curtis 8044 Keyer mode A, and return to silence.  This function is
+   suitable for calling from an application exit handler.
+*/
+void cw_reset_keyer(void)
+{
+	cw_key_ik_reset_internal(&cw_key);
+	return;
+}
+
+
+
+
+
+#if 0 /* unused */
+/* Period of constant tone generation after which we need another timeout,
+   to ensure that the soundcard doesn't run out of data. */
+static const int STRAIGHT_KEY_TIMEOUT = 500000;
+
+
+
+
+
+/**
+   \brief Generate a tone while straight key is down
+
+   Soundcard tone data is only buffered to last about a second on each
+   cw_generate_sound_internal() call, and holding down the straight key
+   for longer than this could cause a soundcard data underrun.  To guard
+   against this, a timeout is generated every half-second or so while the
+   straight key is down.  The timeout generates a chunk of sound data for
+   the soundcard.
+*/
+void cw_straight_key_clock_internal(void)
+{
+	if (cw_straight_key->key_value == CW_KEY_STATE_CLOSED) {
+		/* Generate a quantum of tone data, and request another
+		   timeout. */
+		// cw_generate_sound_internal();
+		cw_timer_run_with_handler_internal(STRAIGHT_KEY_TIMEOUT, NULL);
+	}
+
+	return;
+}
+#endif
+
+
+
+
+
+/**
+   \brief Inform the library that the straight key has changed state
+
+   This routine returns CW_SUCCESS on success.  On error, it returns CW_FAILURE,
+   with errno set to EBUSY if the tone queue or iambic keyer are using
+   the sound card, console speaker, or keying control system.  If
+   \p key_state indicates no change of state, the call is ignored.
+
+   \p key_state may be either CW_KEY_STATE_OPEN (false) or CW_KEY_STATE_CLOSED (true).
+
+   testedin::test_straight_key()
+
+   \param key_state - state of straight key
+*/
+int cw_notify_straight_key_event(int key_state)
+{
+	return cw_key_sk_notify_event_internal(&cw_key, key_state);
+}
+
+
+
+
+
+/**
+   \brief Get saved state of straight key
+
+   Returns the current saved state of the straight key.
+
+   testedin::test_straight_key()
+
+   \return CW_KEY_STATE_CLOSED (true) if the key is down
+   \return CW_KEY_STATE_OPEN (false) if the key up
+*/
+int cw_get_straight_key_state(void)
+{
+	return cw_key_sk_get_state_internal(&cw_key);
+}
+
+
+
+
+
+/**
+   \brief Check if the straight key is busy
+
+   This routine is just a pseudonym for cw_get_straight_key_state(),
+   and exists to fill a hole in the API naming conventions.
+
+   testedin::test_straight_key()
+
+   \return true if the straight key is busy
+   \return false if the straight key is not busy
+*/
+bool cw_is_straight_key_busy(void)
+{
+	return cw_key_sk_is_busy_internal(&cw_key);
+}
+
+
+
+
+
+/**
+   \brief Clear the straight key state, and return to silence
+
+   This function is suitable for calling from an application exit handler.
+*/
+void cw_reset_straight_key(void)
+{
+	cw_key_sk_reset_internal(&cw_key);
 	return;
 }
