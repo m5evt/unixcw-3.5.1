@@ -248,7 +248,7 @@ void cw_key_tk_set_value_internal(volatile cw_key_t *key, int key_value)
 
 		/* Call a registered callback. */
 		if (key->key_callback) {
-			cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
+			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYING, CW_DEBUG_INFO,
 				      "libcw: tone queue keyer: about to call callback, key value = %d\n", key->tk.key_value);
 
 			(*(key->key_callback))(key->key_callback_arg, key->tk.key_value);
@@ -348,7 +348,7 @@ void cw_key_sk_enqueue_symbol_internal(volatile cw_key_t *key, int key_value)
 
 		/* Call a registered callback. */
 		if (key->key_callback) {
-			cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
+			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYING, CW_DEBUG_INFO,
 				      "libcw: straight key: about to call callback, key value = %d\n", key_value);
 
 			(*(key->key_callback))(key->key_callback_arg, key->sk.key_value);
@@ -428,7 +428,7 @@ void cw_key_ik_enqueue_symbol_internal(volatile cw_key_t *key, int key_value, in
 
 		/* Call a registered callback. */
 		if (key->key_callback) {
-			cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
+			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYING, CW_DEBUG_INFO,
 				      "libcw: iambic keyer: about to call callback, key value = %d\n", key_value);
 
 			(*(key->key_callback))(key->key_callback_arg, key->ik.key_value);
@@ -833,12 +833,19 @@ void cw_key_ik_update_state_initial_internal(volatile cw_key_t *key)
 	cw_assert (key, "NULL keyer\n");
 	cw_assert (key->gen, "NULL gen\n");
 
+	int cw_iambic_keyer_state_old = key->ik.graph_state;
+
 	if (key->ik.dot_paddle) {
 		/* "Dot" paddle pressed. Pretend that we are in "after
 		   dash" space, so that keyer will have to transit
 		   into "dot" mark state. */
 		key->ik.graph_state = key->ik.curtis_b_latch
 			? KS_AFTER_DASH_B : KS_AFTER_DASH_A;
+
+		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
+		      "libcw: cw_keyer_state (init): %s -> %s",
+		      cw_iambic_keyer_states[cw_iambic_keyer_state_old], cw_iambic_keyer_states[key->ik.graph_state]);
+
 
 		if (!cw_key_ik_update_graph_state_internal(key)) {
 			/* just try again, once */
@@ -849,8 +856,13 @@ void cw_key_ik_update_state_initial_internal(volatile cw_key_t *key)
 		/* "Dash" paddle pressed. Pretend that we are in
 		   "after dot" space, so that keyer will have to
 		   transit into "dash" mark state. */
+
 		key->ik.graph_state = key->ik.curtis_b_latch
 			? KS_AFTER_DOT_B : KS_AFTER_DOT_A;
+
+		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
+		      "libcw: cw_keyer_state (init): %s -> %s",
+		      cw_iambic_keyer_states[cw_iambic_keyer_state_old], cw_iambic_keyer_states[key->ik.graph_state]);
 
 		if (!cw_key_ik_update_graph_state_internal(key)) {
 			/* just try again, once */
@@ -1090,7 +1102,7 @@ void cw_key_ik_reset_internal(volatile cw_key_t *key)
 	key->ik.curtis_b_latch = false;
 	key->ik.curtis_mode_b = false;
 
-	cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYER_STATES, CW_DEBUG_INFO,
+	cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
 		      "libcw: assigning to cw_keyer_state %s -> KS_IDLE", cw_iambic_keyer_states[key->ik.graph_state]);
 	key->ik.graph_state = KS_IDLE;
 
@@ -1098,7 +1110,7 @@ void cw_key_ik_reset_internal(volatile cw_key_t *key)
 	cw_gen_silence_internal(key->gen);
 	cw_finalization_schedule_internal();
 
-	cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYER_STATES, CW_DEBUG_INFO,
+	cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
 		      "libcw: keyer -> %s (reset)", cw_iambic_keyer_states[key->ik.graph_state]);
 
 	return;
