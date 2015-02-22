@@ -62,63 +62,63 @@ extern cw_debug_t cw_debug_object_dev;
 
 
 
-static cw_rec_t cw_receiver = { .state = RS_IDLE,
+static cw_rec_t cw_receiver = {
+
+	.state = RS_IDLE,
 
 
-			 .speed                      = CW_SPEED_INITIAL,
-			 .tolerance                  = CW_TOLERANCE_INITIAL,
-			 .gap                        = CW_GAP_INITIAL,
-			 .is_adaptive_receive_mode   = CW_REC_ADAPTIVE_MODE_INITIAL,
-			 .noise_spike_threshold      = CW_REC_NOISE_THRESHOLD_INITIAL,
+	.speed                      = CW_SPEED_INITIAL,
+	.tolerance                  = CW_TOLERANCE_INITIAL,
+	.gap                        = CW_GAP_INITIAL,
+	.is_adaptive_receive_mode   = CW_REC_ADAPTIVE_MODE_INITIAL,
+	.noise_spike_threshold      = CW_REC_NOISE_THRESHOLD_INITIAL,
 
 
-			 /* TODO: this variable is not set in
-			    cw_rec_reset_receive_parameters_internal(). Why
-			    is it separated from the four main
-			    variables? Is it because it is a
-			    derivative of speed? But speed is a
-			    derivative of this variable in adaptive
-			    speed mode. */
-			 .adaptive_speed_threshold = CW_REC_SPEED_THRESHOLD_INITIAL,
+	/* TODO: this variable is not set in
+	   cw_rec_reset_receive_parameters_internal(). Why is it
+	   separated from the four main variables? Is it because it is
+	   a derivative of speed? But speed is a derivative of this
+	   variable in adaptive speed mode. */
+	.adaptive_speed_threshold = CW_REC_SPEED_THRESHOLD_INITIAL,
 
 
-			 .mark_start = { 0, 0 },
-			 .mark_end   = { 0, 0 },
+	.mark_start = { 0, 0 },
+	.mark_end   = { 0, 0 },
 
 
-			 .representation[0] = '\0',
-			 .representation_ind = 0,
+	.representation[0] = '\0',
+	.representation_ind = 0,
 
 
-			 .dot_len_ideal = 0,
-			 .dot_len_min = 0,
-			 .dot_len_max = 0,
+	.dot_len_ideal = 0,
+	.dot_len_min = 0,
+	.dot_len_max = 0,
 
-			 .dash_len_ideal = 0,
-			 .dash_len_min = 0,
-			 .dash_len_max = 0,
+	.dash_len_ideal = 0,
+	.dash_len_min = 0,
+	.dash_len_max = 0,
 
-			 .eom_len_ideal = 0,
-			 .eom_len_min = 0,
-			 .eom_len_max = 0,
+	.eom_len_ideal = 0,
+	.eom_len_min = 0,
+	.eom_len_max = 0,
 
-			 .eoc_len_ideal = 0,
-			 .eoc_len_min = 0,
-			 .eoc_len_max = 0,
+	.eoc_len_ideal = 0,
+	.eoc_len_min = 0,
+	.eoc_len_max = 0,
 
-			 .additional_delay = 0,
-			 .adjustment_delay = 0,
-
-
-			 .parameters_in_sync = false,
+	.additional_delay = 0,
+	.adjustment_delay = 0,
 
 
-			 .statistics = { {0, 0} },
-			 .statistics_ind = 0,
+	.parameters_in_sync = false,
 
 
-			 .dot_averaging  = { {0}, 0, 0, 0 },
-			 .dash_averaging = { {0}, 0, 0, 0 },
+	.statistics = { {0, 0} },
+	.statistics_ind = 0,
+
+
+	.dot_averaging  = { {0}, 0, 0, 0 },
+	.dash_averaging = { {0}, 0, 0, 0 },
 };
 
 
