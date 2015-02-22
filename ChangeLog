@@ -1,3 +1,12 @@
+2015-02-22 Kamil Ignacak
+	* libcw.c: after populating the file with "global" functions for
+	generator, tone queue and receiver modules, I have also moved here
+	the "global" functions from cw_key module.
+
+	At this point the file contains definitions of global variables
+	cw_receiver, cw_generator and cw_key (cw_key is static in this
+	file).
+
 2015-02-19 Kamil Ignacak
 	* libcw.c: I have (re)created the file. It will contain all the
 	functions that use global variables cw_generator, cw_receiver and
