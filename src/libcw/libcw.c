@@ -62,7 +62,7 @@ extern cw_debug_t cw_debug_object_dev;
 
 
 
-cw_rec_t cw_receiver = { .state = RS_IDLE,
+static cw_rec_t cw_receiver = { .state = RS_IDLE,
 
 
 			 .speed                      = CW_SPEED_INITIAL,
@@ -127,6 +127,9 @@ cw_rec_t cw_receiver = { .state = RS_IDLE,
 
 static volatile cw_key_t cw_key = {
 	.gen = NULL,
+
+
+	.rec = &cw_receiver,
 
 
 	.key_callback = NULL,
