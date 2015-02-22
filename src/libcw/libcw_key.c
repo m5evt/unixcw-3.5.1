@@ -50,6 +50,7 @@ extern cw_debug_t cw_debug_object;
 extern cw_debug_t cw_debug_object_ev;
 extern cw_debug_t cw_debug_object_dev;
 
+/* FIXME: this shouldn't be here. */
 extern cw_rec_t cw_receiver;
 
 
