@@ -105,7 +105,7 @@ static uint32_t cw_tq_next_index_internal(cw_tone_queue_t *tq, uint32_t current)
 
 
 
-/* Not used anymore */
+/* Not used anymore. 2015.02.22. */
 #if 0
 /* Remember that tail and head are of unsigned type.  Make sure that
    order of calculations is correct when tail < head. */
@@ -538,7 +538,6 @@ int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 				       call the callback again. */
 				    && !(tone->usecs == CW_AUDIO_FOREVER_USECS && queue_len == 1)) {
 
-					// fprintf(stderr, "libcw: solution 7, calling callback A, %d / %d / %d\n", tq->len, queue_len, tq->low_water_mark);
 					call_callback = true;
 				}
 			}
@@ -551,7 +550,6 @@ int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 			   pthread_mutex_unlock() in this function. */
 
 			if (call_callback) {
-				// fprintf(stderr, "libcw: solution 7, calling callback B, %d / %d / %d\n", tq->len, queue_len, tq->low_water_mark);
 				(*(tq->low_water_callback))(tq->low_water_callback_arg);
 			}
 
@@ -634,9 +632,7 @@ int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 */
 int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 {
-	/* Check the arguments given for realistic values.  Note that we
-	   do nothing here to protect the caller from setting up
-	   neverending (0 usecs) tones, if that's what they want to do. */
+	/* Check the arguments given for realistic values. */
 	if (tone->frequency < CW_FREQUENCY_MIN
 	    || tone->frequency > CW_FREQUENCY_MAX) {
 
@@ -644,16 +640,14 @@ int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 		return CW_FAILURE;
 	}
 
+	if (tone->usecs < 0
+	    && tone->usecs != CW_AUDIO_FOREVER_USECS) {
 
-	if (tone->usecs < 0) {
-		if (tone->usecs != CW_AUDIO_FOREVER_USECS) {
-
-			errno = EINVAL;
-			return CW_FAILURE;
-		}
+		errno = EINVAL;
+		return CW_FAILURE;
 	}
 
-	if (!tone->usecs) {
+	if (tone->usecs == 0) {
 		/* Drop empty tone. It won't be played anyway, and for
 		   now there are no other good reasons to enqueue
 		   it. While it may happen in higher-level code to
@@ -664,19 +658,18 @@ int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 		return CW_SUCCESS;
 	}
 
-	pthread_mutex_lock(&(tq->mutex));
+#if 0 /* This part is no longer in use. It seems that it's not necessary. 2015.02.22. */
 	/* If the keyer or straight key are busy, return an error.
 	   This is because they use the sound card/console tones and key
 	   control, and will interfere with us if we try to use them at
 	   the same time. */
-	// if (cw_is_keyer_busy() || cw_is_straight_key_busy()) {
-	if (0) {
+	if (cw_key_ik_is_busy_internal(tq->gen->key) || cw_key_sk_is_busy_internal(tq->gen->key)) {
 		errno = EBUSY;
-		pthread_mutex_unlock(&(tq->mutex));
 		return CW_FAILURE;
 	}
+#endif
 
-	// fprintf(stderr, "Attempting to enqueue tone #%"PRIu32"\n", tq->len + 1);
+	pthread_mutex_lock(&(tq->mutex));
 
 	if (tq->len == tq->capacity) {
 		/* Tone queue is full. */
@@ -705,7 +698,6 @@ int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 	tq->tail = cw_tq_next_index_internal(tq, tq->tail);
 	tq->len++;
 
-	// fprintf(stderr, "enqueued %"PRIu32" tones\n", tq->len);
 
 	if (tq->state == CW_TQ_IDLE) {
 		/* A loop in write() function may await for the queue
