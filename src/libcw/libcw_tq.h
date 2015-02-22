@@ -149,6 +149,11 @@ typedef struct {
 	volatile uint32_t low_water_mark;
 	void       (*low_water_callback)(void*);
 	void        *low_water_callback_arg;
+	/* Set to true when conditions for calling low water callback
+	   are true. The flag is set in cw_tq module, but the callback
+	   itself may be called outside of the module, e.g. by cw_gen
+	   code. */
+	bool         call_callback;
 
 	pthread_mutex_t mutex;
 
