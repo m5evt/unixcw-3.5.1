@@ -139,7 +139,7 @@ static const char *cw_iambic_keyer_states[] = {
 
 
 static void cw_key_ik_update_state_initial_internal(volatile cw_key_t *key);
-static void cw_key_ik_enqueue_symbol_internal(volatile cw_key_t *key, int key_value, int usecs);
+static void cw_key_ik_enqueue_symbol_internal(volatile cw_key_t *key, int key_value, char symbol);
 
 static void cw_key_sk_enqueue_symbol_internal(volatile cw_key_t *key, int key_value);
 
@@ -389,16 +389,19 @@ void cw_key_sk_enqueue_symbol_internal(volatile cw_key_t *key, int key_value)
    be done in specific time periods. Iambic keyer needs to be notified
    whenever a specific time period has elapsed.
 
-   Generator and its tone queue is used to implement this mechanism.
-   The function enqueues a tone (Mark or Space) of specific length -
-   this is the beginning of period when keyer is in new graph
-   state. Then generator dequeues the tone, counts the time period,
-   and (at the end of the tone/period) notifies keyer about end of
-   period. (Keyer then needs to evaluate state of paddles and decide
-   what's next, but that is a different story).
+   Lengths of the enqueued periods are determined by type of \p symbol
+   (Space, Dot, Dash).
 
-   As a side effect of using generator, a sound is generated on Mark
-   (if generator's sound system is not Null).
+   Generator and its tone queue is used to implement this mechanism.
+   The function enqueues a tone/symbol (Mark or Space) of specific
+   length - this is the beginning of period when keyer is in new graph
+   state. Then generator dequeues the tone/symbol, counts the time
+   period, and (at the end of the tone/period) notifies keyer about
+   end of period. (Keyer then needs to evaluate state of paddles and
+   decide what's next, but that is a different story).
+
+   As a side effect of using generator, a sound is generated (if
+   generator's sound system is not Null).
 
    Function also calls external callback function for keying on every
    change of key's value (if the callback has been registered by
@@ -412,9 +415,9 @@ void cw_key_sk_enqueue_symbol_internal(volatile cw_key_t *key, int key_value)
 
    \param key - current key
    \param key_value - key value to be set (Mark/Space)
-   \param usecs - length of tone to be generated (period)
+   \param symbol - symbol to enqueue (Space, Dot, Dash)
 */
-void cw_key_ik_enqueue_symbol_internal(volatile cw_key_t *key, int key_value, int usecs)
+void cw_key_ik_enqueue_symbol_internal(volatile cw_key_t *key, int key_value, char symbol)
 {
 	cw_assert (key, "keyer is NULL");
 	cw_assert (key->gen, "generator is NULL");
@@ -434,14 +437,8 @@ void cw_key_ik_enqueue_symbol_internal(volatile cw_key_t *key, int key_value, in
 			(*(key->key_callback))(key->key_callback_arg, key->ik.key_value);
 		}
 
-		if (key->ik.key_value == CW_KEY_STATE_CLOSED) {
-			/* In case of iambic keyer we know exactly how
-			   long a the mark will be, so let's make a
-			   full mark. */
-			cw_gen_make_mark_internal(key->gen, usecs);
-		} else {
-			cw_gen_make_space_internal(key->gen, usecs);
-		}
+		/* 'Pure' means without any end-of-mark spaces. */
+		cw_gen_play_pure_symbol_internal(key->gen, symbol);
 		return;
 	} else {
 		/* This may happen when dequeueing 'forever' tone
@@ -588,7 +585,7 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 		   No routine status checks are made since we are in a
 		   signal handler, and can't readily return error
 		   codes to the client. */
-		cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_OPEN, key->gen->eom_space_len);
+		cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_OPEN, ' ');
 		key->ik.graph_state = key->ik.graph_state == KS_IN_DOT_A
 			? KS_AFTER_DOT_A : KS_AFTER_DOT_B;
 		break;
@@ -607,7 +604,7 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 		   No routine status checks are made since we are in a
 		   signal handler, and can't readily return error
 		   codes to the client. */
-		cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_OPEN, key->gen->eom_space_len);
+		cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_OPEN, ' ');
 		key->ik.graph_state = key->ik.graph_state == KS_IN_DASH_A
 			? KS_AFTER_DASH_A : KS_AFTER_DASH_B;
 
@@ -640,10 +637,10 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 		}
 
 		if (key->ik.graph_state == KS_AFTER_DOT_B) {
-			cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_CLOSED, key->gen->dash_len);
+			cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_CLOSED, CW_DASH_REPRESENTATION);
 			key->ik.graph_state = KS_IN_DASH_A;
 		} else if (key->ik.dash_latch) {
-			cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_CLOSED, key->gen->dash_len);
+			cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_CLOSED, CW_DASH_REPRESENTATION);
 			if (key->ik.curtis_b_latch){
 				key->ik.curtis_b_latch = false;
 				key->ik.graph_state = KS_IN_DASH_B;
@@ -651,7 +648,7 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 				key->ik.graph_state = KS_IN_DASH_A;
 			}
 		} else if (key->ik.dot_latch) {
-			cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_CLOSED, key->gen->dot_len);
+			cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_CLOSED, CW_DOT_REPRESENTATION);
 			key->ik.graph_state = KS_IN_DOT_A;
 		} else {
 			key->ik.graph_state = KS_IDLE;
@@ -687,10 +684,10 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 		   idling. */
 
 		if (key->ik.graph_state == KS_AFTER_DASH_B) {
-			cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_CLOSED, key->gen->dot_len);
+			cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_CLOSED, CW_DOT_REPRESENTATION);
 			key->ik.graph_state = KS_IN_DOT_A;
 		} else if (key->ik.dot_latch) {
-			cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_CLOSED, key->gen->dot_len);
+			cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_CLOSED, CW_DOT_REPRESENTATION);
 			if (key->ik.curtis_b_latch) {
 				key->ik.curtis_b_latch = false;
 				key->ik.graph_state = KS_IN_DOT_B;
@@ -698,7 +695,7 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 				key->ik.graph_state = KS_IN_DOT_A;
 			}
 		} else if (key->ik.dash_latch) {
-			cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_CLOSED, key->gen->dash_len);
+			cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_CLOSED, CW_DASH_REPRESENTATION);
 			key->ik.graph_state = KS_IN_DASH_A;
 		} else {
 			key->ik.graph_state = KS_IDLE;
