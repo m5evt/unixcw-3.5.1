@@ -2427,43 +2427,30 @@ void cw_gen_begin_space_internal(cw_gen_t *gen)
    Helper function intended to hide details of tone queue and of
    enqueueing a tone from cw_key module.
 
+   'Pure' means without any end-of-mark spaces.
+
    The function is called in very specific context, see cw_key module
    for details.
 
    \param gen - generator
-   \param usecs
+   \param symbol - symbol to enqueue (Dot or Dash)
 */
-void cw_gen_make_mark_internal(cw_gen_t *gen, int usecs)
+void cw_gen_play_pure_symbol_internal(cw_gen_t *gen, char symbol)
 {
 	cw_tone_t tone;
 	tone.slope_mode = CW_SLOPE_MODE_STANDARD_SLOPES;
-	tone.usecs = usecs;
 	tone.frequency = gen->frequency;
-	cw_tq_enqueue_internal(gen->tq, &tone);
 
-	return;
-}
+	if (symbol == CW_DOT_REPRESENTATION) {
+		tone.usecs = gen->dot_len;
+	} else if (symbol == CW_DASH_REPRESENTATION) {
+		tone.usecs = gen->dash_len;
+	} else if (symbol == ' ') {
+		tone.usecs = gen->eom_space_len;
+	} else {
+		cw_assert (0, "unknown key symbol '%d'\n", symbol);
+	}
 
-
-
-
-
-/**
-   Helper function intended to hide details of tone queue and of
-   enqueueing a tone from cw_key module.
-
-   The function is called in very specific context, see cw_key module
-   for details.
-
-   \param gen - generator
-   \param usecs
-*/
-void cw_gen_make_space_internal(cw_gen_t *gen, int usecs)
-{
-	cw_tone_t tone;
-	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-	tone.usecs = usecs;
-	tone.frequency = 0;
 	cw_tq_enqueue_internal(gen->tq, &tone);
 
 	return;
