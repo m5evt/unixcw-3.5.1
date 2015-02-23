@@ -514,7 +514,7 @@ cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 */
 void cw_gen_delete_internal(cw_gen_t **gen)
 {
-	cw_assert (gen, "\"gen\" argument can't be NULL\n");
+	cw_assert (gen, "generator is NULL");
 
 	if (!*gen) {
 		return;
@@ -742,26 +742,21 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 		  .slope_iterator  = 0,
 		  .slope_n_samples = 0 };
 
-	// POSSIBLE ALTERNATIVE IMPLEMENTATION: int old_state = QS_IDLE;
-
 	while (gen->generate) {
 		int state = cw_tq_dequeue_internal(gen->tq, &tone);
 		if (state == CW_TQ_STILL_EMPTY) {
-		// POSSIBLE ALTERNATIVE IMPLEMENTATION: if (state == QS_IDLE && old_state == QS_IDLE) {
 
 			/* Tone queue has been totally drained with
-			   previous call to dequeue(). No point in
-			   making next iteration of while() and
-			   calling the function again. So don't call
-			   it, wait for signal from enqueue() function
-			   informing that a new tone appeared in tone
-			   queue. */
+			   previous call to cw_tq_dequeue(). No point
+			   in making next iteration of while() and
+			   calling the function again.
 
-			/* TODO: can we / should we specify on which
-			   signal exactly we are waiting for? */
+			   Wait for signal from cw_tq_enqueue()
+			   function informing that a new tone appeared
+			   in tone queue. */
 			cw_signal_wait_internal();
-			//usleep(CW_AUDIO_QUANTUM_USECS);
 			continue;
+
 		} else if (state == CW_TQ_JUST_EMPTIED) {
 
 			/* The last tone in the queue should be (at
@@ -804,11 +799,9 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 			}
 
 		} else {
-			cw_assert (0, "unknown tq state %d\n", state);
+			cw_assert (0, "unknown tq state %d", state);
 		}
 
-
-		// POSSIBLE ALTERNATIVE IMPLEMENTATION: old_state = state;
 
 		cw_key_ik_increment_timer_internal(gen->key, tone.usecs);
 
@@ -824,8 +817,7 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 			cw_gen_write_to_soundcard_internal(gen, state, &tone);
 		}
 
-		/*
-		  When sending text from text input, the signal:
+		/* When sending text from text input, the signal:
 		   - allows client code to observe moment when state of tone
 		     queue is "low/critical"; client code then can add more
 		     characters to the queue; the observation is done using
@@ -836,54 +828,22 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 		pthread_kill(gen->client.thread_id, SIGALRM);
 
 		/* Generator may be used by iambic keyer to measure
-		   periods of time (lengths of Mark and Space) - this
-		   is achieved by enqueueing Marks and Spaces by keyer
-		   in generator.
+		   periods of time (lengths of Space/Dot/Dash) - this
+		   is achieved by enqueueing Spaces/Marks by keyer in
+		   generator (cw_gen_key_pure_symbol_internal()).
 
 		   At this point the generator has finished generating
-		   a tone of specified length. A duration of Mark or
-		   Space has elapsed. Inform iambic keyer that the
-		   tone it has enqueued has elapsed.
+		   a tone of specified length. A duration of Space or
+		   Mark has elapsed. Inform iambic keyer that the
+		   symbol it has enqueued has elapsed.
 
-		   (Whether iambic keyer has enqueued any tones or
-		   not, and whether it is waiting for the
-		   notification, is a different story. We will let the
-		   iambic keyer function called below to decide what
-		   to do with the notification. If keyer is in idle
-		   graph state, it will ignore the notification.)
+		   If the keyer is not in use (it's idle), it will
+		   ignore the notification.
 
 		   Notice that this mechanism is needed only for
 		   iambic keyer. Inner workings of straight key are
 		   much more simple, the straight key doesn't need to
 		   use generator as a timer. */
-
-		/* FIXME: There is a big problem:
-		   cw_gen_write_to_soundcard_internal() call made above may
-		   be pretty good at telling sound card to produce
-		   tones of specific length, but surely is not the
-		   best, the most precise source of timing needed to
-		   control iambic keyer.
-
-		   While lengths of tones passed to the function are
-		   precise, and tones produced by soundcard are also
-		   quite precise, the time of execution of the
-		   function is not constant. I've noticed a situation,
-		   when first call to the function (after dequeueing
-		   first tone from tq) can take ~1000 us, and all
-		   following tones last roughly the same as
-		   tone.usecs, which can be 1-2 orders of magnitude
-		   more.
-
-		   We need to find another place to make the call to
-		   cw_key_ik_update_graph_state_internal(), or at
-		   least pass to it some reliable source of timing.
-
-		   INFO to FIXME: it seems that this problem has been
-		   fixed with call to
-		   cw_key_ik_increment_timer_internal() above,
-		   and all the other new or changed code in libcw and
-		   xcwcp that is related to keyer's timer. */
-
 		if (!cw_key_ik_update_graph_state_internal(gen->key)) {
 			/* just try again, once */
 			usleep(1000);
@@ -1280,7 +1240,7 @@ int cw_generator_set_tone_slope(cw_gen_t *gen, int slope_shape, int slope_usecs)
 		 } else {
 			 /* CW_TONE_SLOPE_SHAPE_RECTANGULAR is covered
 			    before entering this "for" loop. */
-			 cw_assert (0, "Unsupported slope shape %d", gen->tone_slope.shape);
+			 cw_assert (0, "unsupported slope shape %d", gen->tone_slope.shape);
 		 }
 	 }
 
@@ -1355,7 +1315,7 @@ int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, int queue_state, cw_tone_t
 				tone->slope_iterator = -1;
 			}
 		} else {
-			cw_assert (0, "tone->slope_mode = %d", tone->slope_mode);
+			cw_assert (0, "unknown value of tone->slope_mode: %d", tone->slope_mode);
 		}
 
 		/* Length of a tone in samples:
@@ -1437,7 +1397,7 @@ int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, int queue_state, cw_tone_t
 
 		int calculated = cw_gen_calculate_sine_wave_internal(gen, tone);
 		cw_assert (calculated == buffer_sub_n_samples,
-			   "calculated wrong number of samples: %d != %d\n",
+			   "calculated wrong number of samples: %d != %d",
 			   calculated, buffer_sub_n_samples);
 
 
@@ -2336,16 +2296,19 @@ void cw_gen_sync_parameters_internal(cw_gen_t *gen)
    Helper function intended to hide details of tone queue and of
    enqueueing a tone from cw_key module.
 
+   'key' is a verb here. The function should be called only on "key
+   down" (begin mark) event from hardware straight key.
+
    The function is called in very specific context, see cw_key module
    for details.
 
    \param gen - generator
 */
-void cw_gen_begin_mark_internal(cw_gen_t *gen)
+void cw_gen_key_begin_mark_internal(cw_gen_t *gen)
 {
 	/* In case of straight key we don't know at all how long the
 	   tone should be (we don't know for how long the key will be
-	   closed.
+	   closed).
 
 	   Let's enqueue a beginning of mark (rising slope) +
 	   "forever" (constant) tone. The constant tone will be played
@@ -2376,12 +2339,15 @@ void cw_gen_begin_mark_internal(cw_gen_t *gen)
    Helper function intended to hide details of tone queue and of
    enqueueing a tone from cw_key module.
 
+   'key' is a verb here. The function should be called only on "key
+   up" (begin space) event from hardware straight key.
+
    The function is called in very specific context, see cw_key module
    for details.
 
    \param gen - generator
 */
-void cw_gen_begin_space_internal(cw_gen_t *gen)
+void cw_gen_key_begin_space_internal(cw_gen_t *gen)
 {
 	if (gen->audio_system == CW_AUDIO_CONSOLE) {
 		/* Play just a bit of silence, just to switch
@@ -2427,6 +2393,11 @@ void cw_gen_begin_space_internal(cw_gen_t *gen)
    Helper function intended to hide details of tone queue and of
    enqueueing a tone from cw_key module.
 
+   'key' is a verb here. It indicates, that the function should be
+   called on hardware key events only. Since we enqueue symbols, we
+   know that they have limited, specified length. This means that the
+   function should be called for events from iambic keyer.
+
    'Pure' means without any end-of-mark spaces.
 
    The function is called in very specific context, see cw_key module
@@ -2435,7 +2406,7 @@ void cw_gen_begin_space_internal(cw_gen_t *gen)
    \param gen - generator
    \param symbol - symbol to enqueue (Dot or Dash)
 */
-void cw_gen_play_pure_symbol_internal(cw_gen_t *gen, char symbol)
+void cw_gen_key_pure_symbol_internal(cw_gen_t *gen, char symbol)
 {
 	cw_tone_t tone;
 
@@ -2455,7 +2426,7 @@ void cw_gen_play_pure_symbol_internal(cw_gen_t *gen, char symbol)
 		tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
 
 	} else {
-		cw_assert (0, "unknown key symbol '%d'\n", symbol);
+		cw_assert (0, "unknown key symbol '%d'", symbol);
 	}
 
 	cw_tq_enqueue_internal(gen->tq, &tone);
