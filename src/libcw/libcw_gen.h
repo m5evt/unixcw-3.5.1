@@ -302,13 +302,28 @@ struct cw_gen_struct {
 	   recalculated each time client code demands changing some
 	   higher-level parameter of generator (e.g. changing of
 	   sending speed). */
-	int dot_length;           /* Length of a dot, in usec */
-        int dash_length;          /* Length of a dash, in usec */
-        int eoe_delay;            /* End of element delay, extra delay at the end of element */
-	int eoc_delay;            /* End of character delay, extra delay at the end of a char */
-	int eow_delay;            /* End of word delay, extra delay at the end of a word */
-	int additional_delay;     /* More delay at the end of a char */
-	int adjustment_delay;     /* More delay at the end of a word */
+
+	/* Watch out for "additional" key word.
+
+	   WARNING: notice how the eoc and eow spaces are
+	   calculated. They aren't full 3 units and 7 units. They are
+	   2 units (which takes into account preceding eom space
+	   length), and 5 units (which takes into account preceding
+	   eom *and* eoc space length). So these two lengths are
+	   *additional* ones, i.e. in addition to (already existing)
+	   eom and/or eoc space.  Whether this is good or bad idea to
+	   calculate them like this is a separate topic. Just be aware
+	   of this fact.
+
+	   Search the word "*additional*" in libcw_gen.c for
+	   implementation */
+	int dot_len;              /* Length of a dot. [us] */
+	int dash_len;             /* Length of a dash. [us] */
+	int eom_space_len;        /* Length of end-of-mark space (i.e. inter-mark space). [us] */
+	int eoc_space_len;        /* Length of *additional* end-of-character space. [us] */
+	int eow_space_len;        /* Length of *additional* end-of-word space. [us] */
+	int additional_space_len; /* Length of additional space at the end of a character. [us] */
+	int adjustment_space_len; /* Length of adjustment space at the end of a word. [us] */
 
 
 	/* Key that has a generator associated with it. Can be NULL in
@@ -351,7 +366,8 @@ int cw_gen_get_weighting_internal(cw_gen_t *gen);
 
 
 
-void cw_gen_get_send_parameters_internal(cw_gen_t *gen, int *dot_usecs, int *dash_usecs, int *end_of_element_usecs, int *end_of_character_usecs, int *end_of_word_usecs, int *additional_usecs, int *adjustment_usecs);
+void cw_gen_get_send_parameters_internal(cw_gen_t *gen, int *dot_len, int *dash_len, int *eom_space_len, int *eoc_space_len, int *eow_space_len, int *additional_space_len, int *adjustment_space_len);
+
 
 
 
