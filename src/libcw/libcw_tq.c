@@ -364,18 +364,22 @@ uint32_t cw_tq_next_index_internal(cw_tone_queue_t *tq, uint32_t ind)
 
    The queue returns two distinct values when it is empty, and one value
    when it is not empty:
-   \li CW_TQ_EMPTY - when there were no new tones in the queue, but
-       the queue still remembered its "BUSY" state; this return value
-       is a way of telling client code "I've had tones, but no more, you
-       should probably stop playing any sounds and become silent";
    \li CW_TQ_IDLE - when there were no new tones in the queue, and
        the queue can't recall if it was "BUSY" before; this return value
        is a way of telling client code "I don't have any tones, you should
        probably stay silent";
+   \li CW_TQ_EMPTY - when there were no new tones in the queue, but
+       the queue still remembered its "BUSY" state; this return value
+       is a way of telling client code "I've had tones, but no more, you
+       should probably stop playing any sounds and become silent";
    \li CW_TQ_BUSY - when there was at least one tone in the queue;
        client code can call the function again, and the function will
        then return CW_TQ_BUSY (if there is yet another tone), or
        CW_TQ_EMPTY (if the tone from previous call was the last one);
+
+   Notice that returned value does not describe internal state of tone
+   queue. The returned value and state of tone queue are related, but
+   are not the same.
 
    Information about successfully dequeued tone is returned through
    function's argument \p tone.
