@@ -717,8 +717,8 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 		  .slope_n_samples = 0 };
 
 	while (gen->generate) {
-		int state = cw_tq_dequeue_internal(gen->tq, &tone);
-		if (state == CW_TQ_IDLE) {
+		int queue_rv = cw_tq_dequeue_internal(gen->tq, &tone);
+		if (queue_rv == CW_TQ_IDLE) {
 
 			/* Tone queue has been totally drained with
 			   previous call to cw_tq_dequeue(). No point
@@ -731,7 +731,7 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 			cw_signal_wait_internal();
 			continue;
 
-		} else if (state == CW_TQ_EMPTY) {
+		} else if (queue_rv == CW_TQ_EMPTY) {
 
 			/* There are no new tones from the queue.
 			   Since we haven't dequeued any mark, time
@@ -741,7 +741,7 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 			}
 
 
-		} else if (state == CW_TQ_BUSY) {
+		} else if (queue_rv == CW_TQ_BUSY) {
 
 			/* This branch is a bit ugly.
 
@@ -772,10 +772,10 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 			}
 
 		} else {
-			cw_assert (0, "unknown tq state %d", state);
+			cw_assert (0, "unknown value returned by dequeue function: %d", queue_rv);
 		}
 
-		cw_gen_dequeue_and_play_sub_internal(gen, &tone, state);
+		cw_gen_dequeue_and_play_sub_internal(gen, &tone, queue_rv);
 
 	} /* while (gen->generate) */
 
@@ -817,7 +817,7 @@ void cw_gen_dequeue_and_play_sub_internal(cw_gen_t *gen, cw_tone_t *tone, int qu
 	} else if (gen->audio_system == CW_AUDIO_CONSOLE) {
 		cw_console_write(gen, tone);
 	} else {
-		cw_gen_write_to_soundcard_internal(gen, state, tone);
+		cw_gen_write_to_soundcard_internal(gen, tone, queue_rv);
 	}
 
 	/* When sending text from text input, the signal:
@@ -1252,11 +1252,11 @@ int cw_generator_set_tone_slope(cw_gen_t *gen, int slope_shape, int slope_usecs)
 /**
    \brief Write tone to soundcard
 */
-int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, int queue_state, cw_tone_t *tone)
+int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, cw_tone_t *tone, int queue_rv)
 {
-	assert (queue_state != CW_TQ_IDLE);
+	assert (queue_rv != CW_TQ_IDLE);
 
-	if (queue_state == CW_TQ_EMPTY) {
+	if (queue_rv == CW_TQ_EMPTY) {
 		/* All tones have been already dequeued from tone
 		   queue.
 
@@ -1284,6 +1284,9 @@ int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, int queue_state, cw_tone_t
 		   Number of these samples will be stored in
 		   samples_to_write. */
 
+		/* We don't have a valid tone, so let's construct a
+		   fake one for purposes of padding. */
+
 		/* Required length of padding space is from end of
 		   last buffer subarea to end of buffer. */
 		tone->n_samples = gen->buffer_n_samples - (gen->buffer_sub_stop + 1);;
@@ -1296,46 +1299,41 @@ int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, int queue_state, cw_tone_t
 		   already provided by last non-fake and non-silent
 		   tone. */
 		tone->slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-		tone->slope_iterator = -1;
+		tone->slope_iterator = -1; /* This prevents slope iterator from being incremented. */
 		tone->slope_n_samples = 0;
 
 		//fprintf(stderr, "++++ length of padding silence = %d [samples]\n", tone->n_samples);
 
-	} else { /* queue_state == CW_TQ_BUSY */
+	} else { /* queue_rv == CW_TQ_BUSY */
 
 		if (tone->slope_mode == CW_SLOPE_MODE_RISING_SLOPE
 		    || tone->slope_mode == CW_SLOPE_MODE_FALLING_SLOPE
 		    || tone->slope_mode == CW_SLOPE_MODE_STANDARD_SLOPES) {
 
-			/* A regular tone with slope(s). */
-			tone->slope_iterator = 0;
+			tone->slope_iterator = 0; /* This enables slope iterator for increments. */
 
 		} else if (tone->slope_mode == CW_SLOPE_MODE_NO_SLOPES) {
 			if (tone->usecs == CW_AUDIO_FOREVER_USECS) {
 
+				/* CW_AUDIO_FOREVER_USECS is a special
+				   negative value.  Use some valid
+				   value. */
 				tone->usecs = CW_AUDIO_QUANTUM_USECS;
-				tone->slope_iterator = -1;
 			}
+			tone->slope_iterator = -1; /* This prevents slope iterator from being incremented. */
 		} else {
 			cw_assert (0, "unknown value of tone->slope_mode: %d", tone->slope_mode);
 		}
 
-		/* Length of a tone in samples:
-		   - whole standard tone, with rising slope, steady
-		     state and falling slope (slopes' length may be
-		     zero), or
-		   - a part of longer, "forever" tone: either a
-		     fragment being rising slope, or falling slope, or
-		     "no slopes" fragment in between.
 
-		   Either way - a total length of dequeued tone,
-		   converted from microseconds to samples. */
+		/* Recalculate slope parameters from usecs into
+		   samples. After this point the samples will be all
+		   that matters. */
 		tone->n_samples = gen->sample_rate / 100;
 		tone->n_samples *= tone->usecs;
 		tone->n_samples /= 10000;
 
-		/* Length in samples of a single slope (rising or falling)
-		   in standard tone of limited, known in advance length. */
+		/* Length of a single slope (rising or falling). */
 		tone->slope_n_samples = gen->sample_rate / 100;
 		tone->slope_n_samples *= gen->tone_slope.length_usecs;
 		tone->slope_n_samples /= 10000;
@@ -1841,7 +1839,7 @@ int cw_gen_play_mark_internal(cw_gen_t *gen, char mark)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_gen_play_character_space_internal(cw_gen_t *gen)
+int cw_gen_play_eoc_space_internal(cw_gen_t *gen)
 {
 	/* Synchronize low-level timing parameters. */
 	cw_gen_sync_parameters_internal(gen);
@@ -1996,19 +1994,18 @@ int cw_gen_play_representation_internal(cw_gen_t *gen, const char *representatio
 		return CW_FAILURE;
 	}
 
-	/* Sound the elements of the CW equivalent. */
+	/* Play the marks. Every mark is followed by end-of-mark
+	   space. */
 	for (int i = 0; representation[i] != '\0'; i++) {
-		/* Send a tone of dot or dash length, followed by the
-		   normal, standard, inter-element gap. */
 		if (!cw_gen_play_mark_internal(gen, representation[i])) {
 			return CW_FAILURE;
 		}
 	}
 
-	/* If this representation is stated as being "partial", then
-	   suppress any and all end of character delays.*/
+	/* Check if we should append end-of-character space at the end
+	   (in addition to last end-of-mark space). */
 	if (!partial) {
-		if (!cw_gen_play_character_space_internal(gen)) {
+		if (!cw_gen_play_eoc_space_internal(gen)) {
 			return CW_FAILURE;
 		}
 	}
@@ -2043,12 +2040,12 @@ int cw_gen_play_valid_character_internal(cw_gen_t *gen, char character, int part
 		return CW_FAILURE;
 	}
 
-	/* Handle space special case; delay end-of-word and return. */
+	/* ' ' character (i.e. end-of-word space) is a special case. */
 	if (character == ' ') {
-		return cw_send_word_space();
+		return cw_gen_play_eow_space_internal(gen);
 	}
 
-	/* Lookup the character, and sound it. */
+	/* Lookup the character, and play it. */
 	const char *representation = cw_character_to_representation_internal(character);
 	if (!representation) {
 		errno = ENOENT;
@@ -2443,7 +2440,7 @@ void cw_gen_key_pure_symbol_internal(cw_gen_t *gen, char symbol)
 		tone.frequency = gen->frequency;
 		tone.slope_mode = CW_SLOPE_MODE_STANDARD_SLOPES;
 
-	} else if (symbol == ' ') {
+	} else if (symbol == CW_SYMBOL_SPACE) {
 		tone.usecs = gen->eom_space_len;
 		tone.frequency = 0;
 		tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
