@@ -1554,6 +1554,8 @@ void test_cw_forever(cw_test_stats_t *stats)
 	cw_gen_t *gen = cw_gen_new_internal(CW_AUDIO_SOUNDCARD, NULL);
 	cw_assert (gen, "ERROR: failed to create generator\n");
 
+	cw_gen_start_internal(gen);
+
 	sleep(1);
 	cw_tone_t tone;
 
