@@ -18,17 +18,6 @@
 
 
 
-/* Return values from cw_tq_dequeue_internal(). */
-enum {
-	CW_TQ_JUST_EMPTIED = 0,
-	CW_TQ_STILL_EMPTY  = 1,
-	CW_TQ_NONEMPTY     = 2
-};
-
-
-
-
-
 /* Right now there is no function that would calculate number of tones
    representing given character or string, so there is no easy way to
    present exact relationship between capacity of tone queue and
@@ -56,9 +45,16 @@ enum {
 
 
 
+/* Tone queue states, used also as return values from dequeue function. */
 enum cw_queue_state {
-	CW_TQ_IDLE,
-	CW_TQ_BUSY
+	CW_TQ_IDLE  = 0,
+	CW_TQ_BUSY  = 1
+};
+
+
+/* Additional value used as return value from dequeue function. */
+enum {
+	CW_TQ_EMPTY = 2
 };
 
 
