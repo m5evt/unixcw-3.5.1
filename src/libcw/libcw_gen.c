@@ -987,8 +987,8 @@ int cw_gen_calculate_sine_wave_internal(cw_gen_t *gen, cw_tone_t *tone)
 */
 int cw_gen_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone)
 {
-	int amplitude = 0;
 #if 0
+	int amplitude = 0;
 	/* Blunt algorithm for calculating amplitude;
 	   for debug purposes only. */
 	if (tone->frequency) {
@@ -1000,86 +1000,79 @@ int cw_gen_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone)
 	return amplitude;
 #else
 
-	if (tone->frequency > 0) {
-		if (tone->slope_mode == CW_SLOPE_MODE_RISING_SLOPE) {
-			if (tone->slope_iterator < tone->slope_n_samples) {
-				int i = tone->slope_iterator;
-				amplitude = gen->tone_slope.amplitudes[i];
+	if (tone->frequency <= 0) {
+		return 0;
+	}
 
-			} else {
-				amplitude = gen->volume_abs;
-				assert (amplitude >= 0);
-			}
-		} else if (tone->slope_mode == CW_SLOPE_MODE_FALLING_SLOPE) {
-			if (tone->slope_iterator > tone->n_samples - tone->slope_n_samples + 1) {
-				int i = tone->n_samples - tone->slope_iterator - 1;
-				assert (i >= 0);
-				amplitude = gen->tone_slope.amplitudes[i];
-				assert (amplitude >= 0);
 
-			} else {
-				amplitude = gen->volume_abs;
-				assert (amplitude >= 0);
-			}
-		} else if (tone->slope_mode == CW_SLOPE_MODE_NO_SLOPES) {
+	int amplitude = 0;
+	if (tone->slope_mode == CW_SLOPE_MODE_RISING_SLOPE) {
+		if (tone->slope_iterator < tone->slope_n_samples) {
+			/* On a rising slope. */
+			int i = tone->slope_iterator;
+			amplitude = gen->tone_slope.amplitudes[i];
+
+		} else {
+			/* After slope, on plateau. */
+			amplitude = gen->volume_abs;
+			assert (amplitude >= 0);
+		}
+
+	} else if (tone->slope_mode == CW_SLOPE_MODE_FALLING_SLOPE) {
+		if (tone->slope_iterator > tone->n_samples - tone->slope_n_samples + 1) {
+
+			/* On falling slope. */
+			int i = tone->n_samples - tone->slope_iterator - 1;
+			assert (i >= 0);
+			amplitude = gen->tone_slope.amplitudes[i];
+			assert (amplitude >= 0);
+		} else {
+
+			/* Before falling slope, on plateau. */
+			amplitude = gen->volume_abs;
+			assert (amplitude >= 0);
+		}
+
+	} else if (tone->slope_mode == CW_SLOPE_MODE_NO_SLOPES) {
+
+		/* Always on plateau. */
+		amplitude = gen->volume_abs;
+		assert (amplitude >= 0);
+
+	} else if (tone->slope_mode == CW_SLOPE_MODE_STANDARD_SLOPES) {
+
+		/* Rising slope + plateau + falling slope. */
+
+		if (tone->slope_iterator >= 0 && tone->slope_iterator < tone->slope_n_samples) {
+			/* Beginning of tone, rising slope. */
+			int i = tone->slope_iterator;
+			amplitude = gen->tone_slope.amplitudes[i];
+			assert (amplitude >= 0);
+
+		} else if (tone->slope_iterator >= tone->slope_n_samples && tone->slope_iterator < tone->n_samples - tone->slope_n_samples) {
+			/* Middle of tone, plateau, constant amplitude. */
 			amplitude = gen->volume_abs;
 			assert (amplitude >= 0);
 
-		} else { // tone->slope_mode == CW_SLOPE_MODE_STANDARD_SLOPES
-			/* standard algorithm for generating slopes:
-			   single, finite tone with:
-			    - rising slope at the beginning,
-			    - a period of wave with constant amplitude,
-			    - falling slope at the end. */
-			if (tone->slope_iterator >= 0 && tone->slope_iterator < tone->slope_n_samples) {
-				/* beginning of tone, produce rising slope */
-				int i = tone->slope_iterator;
-				amplitude = gen->tone_slope.amplitudes[i];
-				assert (amplitude >= 0);
+		} else if (tone->slope_iterator >= tone->n_samples - tone->slope_n_samples) {
+			/* Falling slope. */
+			int i = tone->n_samples - tone->slope_iterator - 1;
+			assert (i >= 0);
+			amplitude = gen->tone_slope.amplitudes[i];
+			assert (amplitude >= 0);
 
-			} else if (tone->slope_iterator >= tone->slope_n_samples && tone->slope_iterator < tone->n_samples - tone->slope_n_samples) {
-				/* middle of tone, constant amplitude */
-				amplitude = gen->volume_abs;
-				assert (amplitude >= 0);
-
-			} else if (tone->slope_iterator >= tone->n_samples - tone->slope_n_samples) {
-				/* falling slope */
-				int i = tone->n_samples - tone->slope_iterator - 1;
-				assert (i >= 0);
-				amplitude = gen->tone_slope.amplitudes[i];
-				assert (amplitude >= 0);
-			} else {
-				;
-				assert (amplitude >= 0);
-			}
+		} else {
+			;
+			assert (amplitude >= 0);
 		}
+
 	} else {
-		amplitude = 0;
+		cw_assert (0, "unsupported tone slope mode %d\n", tone->slope_mode);
 	}
 
-	assert (amplitude >= 0); /* will fail if calculations above are modified */
-
-#endif
-
-#if 0 /* no longer necessary since calculation of amplitude,
-	 implemented above guarantees that amplitude won't be
-	 less than zero, and amplitude slightly larger than
-	 volume is not an issue */
-
-	/* because CW_AUDIO_VOLUME_RANGE may not be exact multiple
-	   of gen->slope, amplitude may be sometimes out
-	   of range; this may produce audible clicks;
-	   remove values out of range */
-	if (amplitude > CW_AUDIO_VOLUME_RANGE) {
-		amplitude = CW_AUDIO_VOLUME_RANGE;
-	} else if (amplitude < 0) {
-		amplitude = 0;
-	} else {
-		;
-	}
-#endif
-
+	assert (amplitude >= 0);
 	return amplitude;
+#endif
 }
 
 
