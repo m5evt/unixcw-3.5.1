@@ -1851,91 +1851,74 @@ int cw_gen_play_eoc_space_internal(cw_gen_t *gen)
 
 
 /**
-   \brief Play word space
+   \brief Play end-of-word space
 
-   The function plays space long enough to consider total space after
-   last mark an end-of-word space. This function expects that there is
-   already some end-of-mark and end-of-character space played.
+   The function should be used to play a regular ' ' character.
 
-   The "total" space after this function call would then include
-   end-of-mark space + end-of-character space + this end-of-word
-   space. The three combined lengths of space would constitute 7 Units
-   of space.
+   The function plays space of length 5 Units. The function is
+   intended to be used after inter-mark space and end-of-character
+   space have already been played.
+
+   In such situation standard inter-mark space (one Unit) and
+   end-of-character space (two Units) and end-of-word space (five
+   units) form a full standard end-of-word space (seven Units).
+
+   Inter-word adjustment space is added at the end.
 
    \param gen
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_gen_play_word_space_internal(cw_gen_t *gen)
+int cw_gen_play_eow_space_internal(cw_gen_t *gen)
 {
 	/* Synchronize low-level timing parameters. */
 	cw_gen_sync_parameters_internal(gen);
 
 	/* Send silence for the word delay period, plus any adjustment
-	   that may be needed at end of word. */
-#if 1
+	   that may be needed at end of word. Make it in two tones,
+	   and here is why.
 
-	/* Let's say that 'tone queue low watermark' is one element
+	   Let's say that 'tone queue low watermark' is one element
 	   (i.e. one tone).
 
-	  In order for tone queue to recognize that a 'low tone queue'
-	  callback needs to be called, the level in tq needs to drop
-	  from 2 to 1.
+	   In order for tone queue to recognize that a 'low tone
+	   queue' callback needs to be called, the level in tq needs
+	   to drop from 2 to 1.
 
 	   Almost every queued character guarantees that there will be
 	   at least two tones, e.g for 'E' it is dash + following
 	   space. But what about a ' ' character?
 
-	  With the code in second branch of '#if', there is only one
-	  tone, and the tone queue manager can't recognize when the
-	  level drops from 2 to 1 (and thus the 'low tone queue'
-	  callback won't be called).
+	   If we play ' ' character as single tone, there is only one
+	   tone in tone queue, and the tone queue manager can't
+	   recognize when the level drops from 2 to 1 (and thus the
+	   'low level' callback won't be called).
 
-	  The code in first branch of '#if' enqueues ' ' as two tones
-	  (both of them silent). With code in the first branch
-	  active, the tone queue works correctly with 'low tq
-	  watermark' = 1.
-
-	  If tone queue manager could recognize that the only tone
-	  that has been enqueued is a single-tone space, then the code
-	  in first branch would not be necessary. However, this
-	  'recognize a single space character in tq' is a very special
-	  case, and it's hard to justify its implementation.
-
-	  WARNING: queueing two tones instead of one may lead to
-	  additional, unexpected and unwanted delay. This may
-	  negatively influence correctness of timing. */
-
-	/* Queue space character as two separate tones. */
+	   If we play ' ' character as two separate tones (as we do
+	   this in this function), the tone queue manager can
+	   recognize level dropping from 2 to 1. Then the passing of
+	   critical level can be noticed, and "low level" callback can
+	   be called. */
 
 	cw_tone_t tone;
 	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
 	tone.usecs = gen->eow_space_len;
 	tone.frequency = 0;
-	int a = cw_tq_enqueue_internal(gen->tq, &tone);
+	int rv = cw_tq_enqueue_internal(gen->tq, &tone);
 
-	int b = CW_FAILURE;
-
-	if (a == CW_SUCCESS) {
+	if (rv == CW_SUCCESS) {
 		tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
 		tone.usecs = gen->adjustment_space_len;
 		tone.frequency = 0;
-		b = cw_tq_enqueue_internal(gen->tq, &tone);
+		rv = cw_tq_enqueue_internal(gen->tq, &tone);
 	}
 
-	return a && b;
-#else
-	/* Queue space character as a single tone. */
-
-	cw_tone_t tone;
-	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-	tone.usecs = gen->eow_space_len + gen->adjustment_space_len;
-	tone.frequency = 0;
-
-	return cw_tq_enqueue_internal(gen->tq, &tone);
-#endif
+	return rv;
 }
+
+
+
 
 
 /**
