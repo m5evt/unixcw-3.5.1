@@ -132,12 +132,12 @@ static const char *default_audio_devices[] = {
 
 
 
-static int       cw_gen_new_open_internal(cw_gen_t *gen, int audio_system, const char *device);
-static void     *cw_gen_dequeue_and_play_internal(void *arg);
-static int       cw_gen_calculate_sine_wave_internal(cw_gen_t *gen, cw_tone_t *tone);
-static int       cw_gen_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone);
-static int       cw_gen_write_to_soundcard_internal(cw_gen_t *gen, int queue_state, cw_tone_t *tone);
-
+static int   cw_gen_new_open_internal(cw_gen_t *gen, int audio_system, const char *device);
+static void *cw_gen_dequeue_and_play_internal(void *arg);
+static int   cw_gen_calculate_sine_wave_internal(cw_gen_t *gen, cw_tone_t *tone);
+static int   cw_gen_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone);
+static int   cw_gen_write_to_soundcard_internal(cw_gen_t *gen, int queue_state, cw_tone_t *tone);
+static void  cw_gen_dequeue_and_play_sub_internal(cw_gen_t *gen, cw_tone_t *tone, int queue_state);
 
 
 
@@ -802,57 +802,7 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 			cw_assert (0, "unknown tq state %d", state);
 		}
 
-
-		cw_key_ik_increment_timer_internal(gen->key, tone.usecs);
-
-#ifdef LIBCW_WITH_DEV
-		cw_debug_ev ((&cw_debug_object_ev), 0, tone.frequency ? CW_DEBUG_EVENT_TONE_HIGH : CW_DEBUG_EVENT_TONE_LOW);
-#endif
-
-		if (gen->audio_system == CW_AUDIO_NULL) {
-			cw_null_write(gen, &tone);
-		} else if (gen->audio_system == CW_AUDIO_CONSOLE) {
-			cw_console_write(gen, &tone);
-		} else {
-			cw_gen_write_to_soundcard_internal(gen, state, &tone);
-		}
-
-		/* When sending text from text input, the signal:
-		   - allows client code to observe moment when state of tone
-		     queue is "low/critical"; client code then can add more
-		     characters to the queue; the observation is done using
-		     cw_wait_for_tone_queue_critical();
-		   - ...
-
-		 */
-		pthread_kill(gen->client.thread_id, SIGALRM);
-
-		/* Generator may be used by iambic keyer to measure
-		   periods of time (lengths of Space/Dot/Dash) - this
-		   is achieved by enqueueing Spaces/Marks by keyer in
-		   generator (cw_gen_key_pure_symbol_internal()).
-
-		   At this point the generator has finished generating
-		   a tone of specified length. A duration of Space or
-		   Mark has elapsed. Inform iambic keyer that the
-		   symbol it has enqueued has elapsed.
-
-		   If the keyer is not in use (it's idle), it will
-		   ignore the notification.
-
-		   Notice that this mechanism is needed only for
-		   iambic keyer. Inner workings of straight key are
-		   much more simple, the straight key doesn't need to
-		   use generator as a timer. */
-		if (!cw_key_ik_update_graph_state_internal(gen->key)) {
-			/* just try again, once */
-			usleep(1000);
-			cw_key_ik_update_graph_state_internal(gen->key);
-		}
-
-#ifdef LIBCW_WITH_DEV
-		cw_debug_ev ((&cw_debug_object_ev), 0, tone.frequency ? CW_DEBUG_EVENT_TONE_LOW : CW_DEBUG_EVENT_TONE_HIGH);
-#endif
+		cw_gen_dequeue_and_play_sub_internal(gen, &tone, state);
 
 	} /* while(gen->generate) */
 
@@ -868,6 +818,66 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 
 	pthread_kill(gen->client.thread_id, SIGALRM);
 	return NULL;
+}
+
+
+
+
+
+void cw_gen_dequeue_and_play_sub_internal(cw_gen_t *gen, cw_tone_t *tone, int state)
+{
+	cw_key_ik_increment_timer_internal(gen->key, tone->usecs);
+
+#ifdef LIBCW_WITH_DEV
+	cw_debug_ev ((&cw_debug_object_ev), 0, tone->frequency ? CW_DEBUG_EVENT_TONE_HIGH : CW_DEBUG_EVENT_TONE_LOW);
+#endif
+
+	if (gen->audio_system == CW_AUDIO_NULL) {
+		cw_null_write(gen, tone);
+	} else if (gen->audio_system == CW_AUDIO_CONSOLE) {
+		cw_console_write(gen, tone);
+	} else {
+		cw_gen_write_to_soundcard_internal(gen, state, tone);
+	}
+
+	/* When sending text from text input, the signal:
+
+	   - allows client code to observe moment when state of tone
+	     queue is "low/critical"; client code then can add more
+	     characters to the queue; the observation is done using
+	     cw_wait_for_tone_queue_critical();
+	   - ...
+	*/
+	pthread_kill(gen->client.thread_id, SIGALRM);
+
+	/* Generator may be used by iambic keyer to measure periods of
+	   time (lengths of Space/Dot/Dash) - this is achieved by
+	   enqueueing Spaces/Marks by keyer in generator
+	   (cw_gen_key_pure_symbol_internal()).
+
+	   At this point the generator has finished generating a tone
+	   of specified length. A duration of Space or Mark has
+	   elapsed. Inform iambic keyer that the symbol it has
+	   enqueued has elapsed.
+
+	   If the keyer is not in use (it's idle), it will ignore the
+	   notification.
+
+	   Notice that this mechanism is needed only for iambic
+	   keyer. Inner workings of straight key are much more simple,
+	   the straight key doesn't need to use generator as a
+	   timer. */
+	if (!cw_key_ik_update_graph_state_internal(gen->key)) {
+		/* just try again, once */
+		usleep(1000);
+		cw_key_ik_update_graph_state_internal(gen->key);
+	}
+
+#ifdef LIBCW_WITH_DEV
+	cw_debug_ev ((&cw_debug_object_ev), 0, tone->frequency ? CW_DEBUG_EVENT_TONE_LOW : CW_DEBUG_EVENT_TONE_HIGH);
+#endif
+
+	return;
 }
 
 
