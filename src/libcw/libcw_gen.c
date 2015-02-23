@@ -449,13 +449,14 @@ cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 	pthread_attr_setdetachstate(&gen->thread.attr, PTHREAD_CREATE_DETACHED);
 
 
-	gen->dot_length = 0;
-	gen->dash_length = 0;
-	gen->eoe_delay = 0;
-	gen->eoc_delay = 0;
-	gen->additional_delay = 0;
-	gen->eow_delay = 0;
-	gen->adjustment_delay = 0;
+	gen->dot_len = 0;
+	gen->dash_len = 0;
+	gen->eom_space_len = 0;
+	gen->eoc_space_len = 0;
+	gen->eow_space_len = 0;
+
+	gen->additional_space_len = 0;
+	gen->adjustment_space_len = 0;
 
 	gen->buffer_sub_start = 0;
 	gen->buffer_sub_stop  = 0;
@@ -1762,31 +1763,33 @@ int cw_gen_get_weighting_internal(cw_gen_t *gen)
    Use NULL for the pointer argument to any parameter value not required.
 
    \param gen
-   \param dot_usecs
-   \param dash_usecs
-   \param end_of_element_usecs
-   \param end_of_character_usecs
-   \param end_of_word_usecs
-   \param additional_usecs
-   \param adjustment_usecs
+   \param dot_len
+   \param dash_len
+   \param eom_space_len
+   \param eoc_space_len
+   \param eow_space_len
+   \param additional_space_len
+   \param adjustment_space_len
 */
 void cw_gen_get_send_parameters_internal(cw_gen_t *gen,
-					 int *dot_usecs, int *dash_usecs,
-					 int *end_of_element_usecs,
-					 int *end_of_character_usecs, int *end_of_word_usecs,
-					 int *additional_usecs, int *adjustment_usecs)
+					 int *dot_len,
+					 int *dash_len,
+					 int *eom_space_len,
+					 int *eoc_space_len,
+					 int *eow_space_len,
+					 int *additional_space_len, int *adjustment_space_len)
 {
 	cw_gen_sync_parameters_internal(gen);
 
-	if (dot_usecs)   *dot_usecs = gen->dot_length;
-	if (dash_usecs)  *dash_usecs = gen->dash_length;
+	if (dot_len)   *dot_len = gen->dot_len;
+	if (dash_len)  *dash_len = gen->dash_len;
 
-	if (end_of_element_usecs)    *end_of_element_usecs = gen->eoe_delay;
-	if (end_of_character_usecs)  *end_of_character_usecs = gen->eoc_delay;
-	if (end_of_word_usecs)       *end_of_word_usecs = gen->eow_delay;
+	if (eom_space_len)   *eom_space_len = gen->eom_space_len;
+	if (eoc_space_len)   *eoc_space_len = gen->eoc_space_len;
+	if (eow_space_len)   *eow_space_len = gen->eow_space_len;
 
-	if (additional_usecs)    *additional_usecs = gen->additional_delay;
-	if (adjustment_usecs)    *adjustment_usecs = gen->adjustment_delay;
+	if (additional_space_len)    *additional_space_len = gen->additional_space_len;
+	if (adjustment_space_len)    *adjustment_space_len = gen->adjustment_space_len;
 
 	return;
 }
@@ -1825,13 +1828,13 @@ int cw_gen_play_mark_internal(cw_gen_t *gen, char mark)
 	if (mark == CW_DOT_REPRESENTATION) {
 		cw_tone_t tone;
 		tone.slope_mode = CW_SLOPE_MODE_STANDARD_SLOPES;
-		tone.usecs = gen->dot_length;
+		tone.usecs = gen->dot_len;
 		tone.frequency = gen->frequency;
 		status = cw_tq_enqueue_internal(gen->tq, &tone);
 	} else if (mark == CW_DASH_REPRESENTATION) {
 		cw_tone_t tone;
 		tone.slope_mode = CW_SLOPE_MODE_STANDARD_SLOPES;
-		tone.usecs = gen->dash_length;
+		tone.usecs = gen->dash_len;
 		tone.frequency = gen->frequency;
 		status = cw_tq_enqueue_internal(gen->tq, &tone);
 	} else {
@@ -1846,7 +1849,7 @@ int cw_gen_play_mark_internal(cw_gen_t *gen, char mark)
 	/* Send the inter-mark space. */
 	cw_tone_t tone;
 	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-	tone.usecs = gen->eoe_delay;
+	tone.usecs = gen->eom_space_len;
 	tone.frequency = 0;
 	if (!cw_tq_enqueue_internal(gen->tq, &tone)) {
 		return CW_FAILURE;
@@ -1860,8 +1863,15 @@ int cw_gen_play_mark_internal(cw_gen_t *gen, char mark)
 
 
 /**
-   The function plays space timed to exclude the expected prior
-   dot/dash inter-mark gap.  FIXME: fix this description.
+   \brief Play character space
+
+   The function plays space long enough to consider total space after
+   last mark an end-of-character space. This function expects that
+   there is already some end-of-mark space played.
+
+   The "total" space after this function call would then include
+   end-of-mark space + this end-of-word space. The two combined
+   lengths of space would constitute 3 Units of space.
 
    \param gen
 
@@ -1877,7 +1887,7 @@ int cw_gen_play_character_space_internal(cw_gen_t *gen)
 	   additional inter-character gap */
 	cw_tone_t tone;
 	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-	tone.usecs = gen->eoc_delay + gen->additional_delay;
+	tone.usecs = gen->eoc_space_len + gen->additional_space_len;
 	tone.frequency = 0;
 	return cw_tq_enqueue_internal(gen->tq, &tone);
 }
@@ -1887,10 +1897,16 @@ int cw_gen_play_character_space_internal(cw_gen_t *gen)
 
 
 /**
+   \brief Play word space
 
-   The function sends space timed to exclude both the expected prior
-   dot/dash inter-mark gap and the prior end of character space.
-   FIXME: fix this description.
+   The function plays space long enough to consider total space after
+   last mark an end-of-word space. This function expects that there is
+   already some end-of-mark and end-of-character space played.
+
+   The "total" space after this function call would then include
+   end-of-mark space + end-of-character space + this end-of-word
+   space. The three combined lengths of space would constitute 7 Units
+   of space.
 
    \param gen
 
@@ -1941,7 +1957,7 @@ int cw_gen_play_word_space_internal(cw_gen_t *gen)
 
 	cw_tone_t tone;
 	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-	tone.usecs = gen->eow_delay;
+	tone.usecs = gen->eow_space_len;
 	tone.frequency = 0;
 	int a = cw_tq_enqueue_internal(gen->tq, &tone);
 
@@ -1949,7 +1965,7 @@ int cw_gen_play_word_space_internal(cw_gen_t *gen)
 
 	if (a == CW_SUCCESS) {
 		tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-		tone.usecs = gen->adjustment_delay;
+		tone.usecs = gen->adjustment_space_len;
 		tone.frequency = 0;
 		b = cw_tq_enqueue_internal(gen->tq, &tone);
 	}
@@ -1960,7 +1976,7 @@ int cw_gen_play_word_space_internal(cw_gen_t *gen)
 
 	cw_tone_t tone;
 	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-	tone.usecs = gen->eow_delay + gen->adjustment_delay;
+	tone.usecs = gen->eow_space_len + gen->adjustment_space_len;
 	tone.frequency = 0;
 
 	return cw_tq_enqueue_internal(gen->tq, &tone);
@@ -2262,22 +2278,32 @@ void cw_gen_sync_parameters_internal(cw_gen_t *gen)
 	   length based on 50 % as a neutral weighting. */
 	int unit_length = CW_DOT_CALIBRATION / gen->send_speed;
 	int weighting_length = (2 * (gen->weighting - 50) * unit_length) / 100;
-	gen->dot_length = unit_length + weighting_length;
-	gen->dash_length = 3 * gen->dot_length;
+	gen->dot_len = unit_length + weighting_length;
+	gen->dash_len = 3 * gen->dot_len;
 
-	/* An end of element length is one Unit, perhaps adjusted,
-	   the end of character is three Units total, and end of
-	   word is seven Units total.
+	/* End-of-mark space length is one Unit, perhaps adjusted.
+	   End-of-character space length is three Units total.
+	   End-of-word space length is seven Units total.
 
-	   The end of element length is adjusted by 28/22 times
+	   WARNING: notice how the eoc and eow spaces are
+	   calculated. They aren't full 3 units and 7 units. They are
+	   2 units (which takes into account preceding eom space
+	   length), and 5 units (which takes into account preceding
+	   eom *and* eoc space length). So these two lengths are
+	   *additional* ones, i.e. in addition to (already existing)
+	   eom and/or eoc space.  Whether this is good or bad idea to
+	   calculate them like this is a separate topic. Just be aware
+	   of this fact.
+
+	   The end-of-mark length is adjusted by 28/22 times
 	   weighting length to keep PARIS calibration correctly
 	   timed (PARIS has 22 full units, and 28 empty ones).
-	   End of element and end of character delays take
+	   End-of-mark and end of character delays take
 	   weightings into account. */
-	gen->eoe_delay = unit_length - (28 * weighting_length) / 22;
-	gen->eoc_delay = 3 * unit_length - gen->eoe_delay;
-	gen->eow_delay = 7 * unit_length - gen->eoc_delay;
-	gen->additional_delay = gen->gap * unit_length;
+	gen->eom_space_len = unit_length - (28 * weighting_length) / 22;  /* End-of-mark space, a.k.a. regular inter-mark space. */
+	gen->eoc_space_len = 3 * unit_length - gen->eom_space_len;
+	gen->eow_space_len = 7 * unit_length - gen->eoc_space_len;
+	gen->additional_space_len = gen->gap * unit_length;
 
 	/* For "Farnsworth", there also needs to be an adjustment
 	   delay added to the end of words, otherwise the rhythm is
@@ -2288,13 +2314,13 @@ void cw_gen_sync_parameters_internal(cw_gen_t *gen)
 
 	   Thanks to Michael D. Ivey <ivey@gweezlebur.com> for
 	   identifying this in earlier versions of libcw. */
-	gen->adjustment_delay = (7 * gen->additional_delay) / 3;
+	gen->adjustment_space_len = (7 * gen->additional_space_len) / 3;
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_PARAMETERS, CW_DEBUG_INFO,
 		      "libcw: send usec timings <%d [wpm]>: dot: %d, dash: %d, %d, %d, %d, %d, %d",
-		      gen->send_speed, gen->dot_length, gen->dash_length,
-		      gen->eoe_delay, gen->eoc_delay,
-		      gen->eow_delay, gen->additional_delay, gen->adjustment_delay);
+		      gen->send_speed, gen->dot_len, gen->dash_len,
+		      gen->eom_space_len, gen->eoc_space_len,
+		      gen->eow_space_len, gen->additional_space_len, gen->adjustment_space_len);
 
 	/* Generator parameters are now in sync. */
 	gen->parameters_in_sync = true;
