@@ -377,6 +377,12 @@ int cw_gen_play_mark_internal(cw_gen_t *gen, char mark);
 int cw_gen_play_character_space_internal(cw_gen_t *gen);
 int cw_gen_play_word_space_internal(cw_gen_t *gen);
 
+/* These are also 'play' primitives, but are intended to be used on
+   hardware key events. */
+void cw_gen_key_begin_mark_internal(cw_gen_t *gen);
+void cw_gen_key_begin_space_internal(cw_gen_t *gen);
+void cw_gen_key_pure_symbol_internal(cw_gen_t *gen, char symbol);
+
 
 
 
@@ -397,13 +403,6 @@ void cw_generator_delete_internal(void);
 
 void cw_gen_reset_send_parameters_internal(cw_gen_t *gen);
 void cw_gen_sync_parameters_internal(cw_gen_t *gen);
-
-
-void cw_gen_begin_mark_internal(cw_gen_t *gen);
-void cw_gen_begin_space_internal(cw_gen_t *gen);
-
-void cw_gen_play_pure_symbol_internal(cw_gen_t *gen, char symbol);
-
 
 
 
