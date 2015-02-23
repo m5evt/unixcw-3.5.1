@@ -134,15 +134,10 @@ static int   cw_gen_new_open_internal(cw_gen_t *gen, int audio_system, const cha
 static void *cw_gen_dequeue_and_play_internal(void *arg);
 static int   cw_gen_calculate_sine_wave_internal(cw_gen_t *gen, cw_tone_t *tone);
 static int   cw_gen_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone);
-static int   cw_gen_write_to_soundcard_internal(cw_gen_t *gen, int queue_state, cw_tone_t *tone);
-static void  cw_gen_dequeue_and_play_sub_internal(cw_gen_t *gen, cw_tone_t *tone, int queue_state);
-
-
-
-
-
+static int   cw_gen_write_to_soundcard_internal(cw_gen_t *gen, cw_tone_t *tone, int queue_rv);
+static void  cw_gen_dequeue_and_play_sub_internal(cw_gen_t *gen, cw_tone_t *tone, int queue_rv);
 static int   cw_gen_play_valid_character_internal(cw_gen_t *gen, char character, int partial);
-
+static void  cw_gen_recalculate_slopes_internal(cw_gen_t *gen);
 
 
 
@@ -1138,39 +1133,40 @@ int cw_generator_set_tone_slope(cw_gen_t *gen, int slope_shape, int slope_usecs)
 {
 	 assert (gen);
 
+	 /* Handle conflicting values of arguments. */
+	 if (slope_shape == CW_TONE_SLOPE_SHAPE_RECTANGULAR
+	     && slope_usecs > 0) {
+
+		 cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
+			       "libcw: requested a rectangular slope shape, but also requested slope len > 0");
+
+		 return CW_FAILURE;
+	 }
+
+
+	 /* Assign new values from arguments. */
 	 if (slope_shape != -1) {
 		 gen->tone_slope.shape = slope_shape;
 	 }
-
 	 if (slope_usecs != -1) {
 		 gen->tone_slope.length_usecs = slope_usecs;
 	 }
 
-	 if (slope_usecs == 0) {
-		 if (slope_shape != -1 && slope_shape != CW_TONE_SLOPE_SHAPE_RECTANGULAR) {
-			 cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
-				       "libcw: specified a non-rectangular slope shape, but slope len == 0");
-			 assert (0);
-		 }
 
-		 gen->tone_slope.shape = CW_TONE_SLOPE_SHAPE_RECTANGULAR;
-		 gen->tone_slope.length_usecs = 0;
-
-		 return CW_SUCCESS;
-	 }
-
+	 /* Override of slope length. */
 	 if (slope_shape == CW_TONE_SLOPE_SHAPE_RECTANGULAR) {
-		 if (slope_usecs > 0) {
-			 cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
-				       "libcw: specified a rectangular slope shape, but slope len != 0");
-			 assert (0);
-		 }
-
-		 gen->tone_slope.shape = slope_shape;
 		 gen->tone_slope.length_usecs = 0;
+	 }
 
+
+	 /* Handle special case. */
+	 if (slope_shape == CW_TONE_SLOPE_SHAPE_RECTANGULAR) {
+		 /* In case of rectangular slopes the length of slopes
+		    is zero, so no point in going further and trying
+		    to recalculate non-existent slopes. */
 		 return CW_SUCCESS;
 	 }
+
 
 	 int slope_n_samples = ((gen->sample_rate / 100) * gen->tone_slope.length_usecs) / 10000;
 	 assert (slope_n_samples);
@@ -1182,60 +1178,72 @@ int cw_generator_set_tone_slope(cw_gen_t *gen, int slope_shape, int slope_usecs)
 		 return CW_FAILURE;
 	 }
 
-	 /* TODO: from this point until end of function is a code
-	    re-calculating amplitudes table (possibly reallocating it
-	    as well). Consider moving it to separate function, and
-	    perhaps writing unit test code for it. */
 
-	 /* In theory we could reallocate the table every time the
-	    function is called.  In practice the function may be most
-	    often called when user changes volume of tone (and then
-	    the function may be called several times in a row if volume
-	    is changed in steps), and in such circumstances the size
-	    of amplitudes table doesn't change.
+	 /* Reallocate the table of slope amplitudes only when necessary.
 
-	    So to save some time we do this check in "if ()". */
+	    In practice the function will be called foremost when user
+	    changes volume of tone (and then the function may be
+	    called several times in a row if volume is changed in
+	    steps). In such situation the size of amplitudes table
+	    doesn't change. */
 
 	 if (gen->tone_slope.n_amplitudes != slope_n_samples) {
 		 gen->tone_slope.amplitudes = realloc(gen->tone_slope.amplitudes, sizeof(float) * slope_n_samples);
 		 if (!gen->tone_slope.amplitudes) {
 			 cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
-				       "libcw: realloc()");
+				       "libcw: failed to realloc() table of slope amplitudes");
 			 return CW_FAILURE;
 		 }
 		 gen->tone_slope.n_amplitudes = slope_n_samples;
 	 }
 
-	 /* Recalculate amplitudes of PCM samples that form tone's
-	    slopes.
-
-	    The values in amplitudes[] change from zero to max (at
-	    least for any sane slope shape), so naturally they can be
-	    used in forming rising slope. However they can be used in
-	    forming falling slope as well - just iterate the table
-	    from end to beginning. */
-	 for (int i = 0; i < slope_n_samples; i++) {
-
-		 if (gen->tone_slope.shape == CW_TONE_SLOPE_SHAPE_LINEAR) {
-			 gen->tone_slope.amplitudes[i] = 1.0 * gen->volume_abs * i / slope_n_samples;
-
-		 } else if (gen->tone_slope.shape == CW_TONE_SLOPE_SHAPE_SINE) {
-			 float radian = i * (M_PI / 2.0)  / slope_n_samples;
-			 gen->tone_slope.amplitudes[i] = sin(radian) * gen->volume_abs;
-
-
-		 } else if (gen->tone_slope.shape == CW_TONE_SLOPE_SHAPE_RAISED_COSINE) {
-			 float radian = i * M_PI / slope_n_samples;
-			 gen->tone_slope.amplitudes[i] = (1 - ((1 + cos(radian)) / 2)) * gen->volume_abs;
-
-		 } else {
-			 /* CW_TONE_SLOPE_SHAPE_RECTANGULAR is covered
-			    before entering this "for" loop. */
-			 cw_assert (0, "unsupported slope shape %d", gen->tone_slope.shape);
-		 }
-	 }
+	 cw_gen_recalculate_slopes_internal(gen);
 
 	 return CW_SUCCESS;
+}
+
+
+
+
+
+/**
+   \brief Recalculate amplitudes of PCM samples that form tone's slopes
+
+   TODO: consider writing unit test code for the function.
+
+   \param gen - generator
+*/
+void cw_gen_recalculate_slopes_internal(cw_gen_t *gen)
+{
+	/* The values in amplitudes[] change from zero to max (at
+	   least for any sane slope shape), so naturally they can be
+	   used in forming rising slope. However they can be used in
+	   forming falling slope as well - just iterate the table from
+	   end to beginning. */
+	for (int i = 0; i < gen->tone_slope.n_amplitudes; i++) {
+
+		if (gen->tone_slope.shape == CW_TONE_SLOPE_SHAPE_LINEAR) {
+			gen->tone_slope.amplitudes[i] = 1.0 * gen->volume_abs * i / gen->tone_slope.n_amplitudes;
+
+		} else if (gen->tone_slope.shape == CW_TONE_SLOPE_SHAPE_SINE) {
+			float radian = i * (M_PI / 2.0) / gen->tone_slope.n_amplitudes;
+			gen->tone_slope.amplitudes[i] = sin(radian) * gen->volume_abs;
+
+		} else if (gen->tone_slope.shape == CW_TONE_SLOPE_SHAPE_RAISED_COSINE) {
+			float radian = i * M_PI / gen->tone_slope.n_amplitudes;
+			gen->tone_slope.amplitudes[i] = (1 - ((1 + cos(radian)) / 2)) * gen->volume_abs;
+
+		} else if (gen->tone_slope.shape == CW_TONE_SLOPE_SHAPE_RECTANGULAR) {
+			/* CW_TONE_SLOPE_SHAPE_RECTANGULAR is covered
+			   before entering this "for" loop. */
+			cw_assert (0, "we shouldn't be here, calculating rectangular slopes");
+
+		} else {
+			cw_assert (0, "unsupported slope shape %d", gen->tone_slope.shape);
+		}
+	}
+
+	return;
 }
 
 
