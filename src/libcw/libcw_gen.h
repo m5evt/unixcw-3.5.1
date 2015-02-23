@@ -36,6 +36,13 @@
 
 
 
+/* Symbolic name for inter-mark space. */
+enum { CW_SYMBOL_SPACE = ' ' };
+
+
+
+
+
 /* This is used in libcw_gen and libcw_debug. */
 #ifdef LIBCW_WITH_DEV
 #define CW_DEV_RAW_SINK           1  /* Create and use /tmp/cw_file.<audio system>.raw file with audio samples written as raw data. */
@@ -374,8 +381,8 @@ void cw_gen_get_send_parameters_internal(cw_gen_t *gen, int *dot_len, int *dash_
 
 /* Generator's 'play' primitives. */
 int cw_gen_play_mark_internal(cw_gen_t *gen, char mark);
-int cw_gen_play_character_space_internal(cw_gen_t *gen);
-int cw_gen_play_word_space_internal(cw_gen_t *gen);
+int cw_gen_play_eoc_space_internal(cw_gen_t *gen);
+int cw_gen_play_eow_space_internal(cw_gen_t *gen);
 
 /* These are also 'play' primitives, but are intended to be used on
    hardware key events. */
@@ -394,9 +401,8 @@ int cw_gen_play_string_internal(cw_gen_t *gen, const char *string);
 
 
 
-int  cw_gen_set_audio_device_internal(cw_gen_t *gen, const char *device);
-int  cw_gen_silence_internal(cw_gen_t *gen);
-//int cw_gen_release_internal(cw_gen_t **gen);
+int   cw_gen_set_audio_device_internal(cw_gen_t *gen, const char *device);
+int   cw_gen_silence_internal(cw_gen_t *gen);
 char *cw_gen_get_audio_system_label_internal(cw_gen_t *gen);
 
 void cw_generator_delete_internal(void);
