@@ -2438,15 +2438,22 @@ void cw_gen_begin_space_internal(cw_gen_t *gen)
 void cw_gen_play_pure_symbol_internal(cw_gen_t *gen, char symbol)
 {
 	cw_tone_t tone;
-	tone.slope_mode = CW_SLOPE_MODE_STANDARD_SLOPES;
-	tone.frequency = gen->frequency;
 
 	if (symbol == CW_DOT_REPRESENTATION) {
 		tone.usecs = gen->dot_len;
+		tone.frequency = gen->frequency;
+		tone.slope_mode = CW_SLOPE_MODE_STANDARD_SLOPES;
+
 	} else if (symbol == CW_DASH_REPRESENTATION) {
 		tone.usecs = gen->dash_len;
+		tone.frequency = gen->frequency;
+		tone.slope_mode = CW_SLOPE_MODE_STANDARD_SLOPES;
+
 	} else if (symbol == ' ') {
 		tone.usecs = gen->eom_space_len;
+		tone.frequency = 0;
+		tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
+
 	} else {
 		cw_assert (0, "unknown key symbol '%d'\n", symbol);
 	}
