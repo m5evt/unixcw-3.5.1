@@ -620,7 +620,7 @@ int cw_send_dash(void)
 */
 int cw_send_character_space(void)
 {
-	return cw_gen_play_character_space_internal(cw_generator);
+	return cw_gen_play_eoc_space_internal(cw_generator);
 }
 
 
@@ -640,7 +640,7 @@ int cw_send_character_space(void)
 */
 int cw_send_word_space(void)
 {
-	return cw_gen_play_word_space_internal(cw_generator);
+	return cw_gen_play_eow_space_internal(cw_generator);
 }
 
 
