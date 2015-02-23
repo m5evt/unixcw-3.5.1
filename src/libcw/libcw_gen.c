@@ -48,10 +48,6 @@
 #include <errno.h>
 #include <inttypes.h> /* uint32_t */
 
-//#if (defined(__unix__) || defined(unix)) && !defined(USG)
-//# include <sys/param.h> /* INT_MAX */
-//#endif
-
 #if defined(HAVE_STRING_H)
 # include <string.h>
 #endif
@@ -129,6 +125,8 @@ static const char *default_audio_devices[] = {
 	CW_DEFAULT_ALSA_DEVICE,
 	CW_DEFAULT_PA_DEVICE,
 	(char *) NULL }; /* just in case someone decided to index the table with CW_AUDIO_SOUNDCARD */
+
+
 
 
 
@@ -228,30 +226,6 @@ int cw_gen_start_internal(cw_gen_t *gen)
 
 	return CW_FAILURE;
 }
-
-
-
-
-
-#if 0
-/* Not really needed. We may need to first stop generator, then do
-   something else, and only then delete generator. */
-/**
-   \brief Stop and delete generator
-
-   Stop and delete generator.
-   This causes silencing current sound wave.
-
-   \return CW_SUCCESS
-*/
-int cw_gen_release_internal(cw_gen_t **gen)
-{
-	cw_gen_stop_internal(*gen);
-	cw_gen_delete_internal(gen);
-
-	return CW_SUCCESS;
-}
-#endif
 
 
 
@@ -1030,9 +1004,8 @@ int cw_gen_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone)
 		if (tone->slope_mode == CW_SLOPE_MODE_RISING_SLOPE) {
 			if (tone->slope_iterator < tone->slope_n_samples) {
 				int i = tone->slope_iterator;
-				//amplitude = 1.0 * gen->volume_abs * i / tone->slope_n_samples;
 				amplitude = gen->tone_slope.amplitudes[i];
-				//cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG, "libcw: 1: slope: %d, amp: %d", tone->slope_iterator, amplitude);
+
 			} else {
 				amplitude = gen->volume_abs;
 				assert (amplitude >= 0);
@@ -1041,10 +1014,9 @@ int cw_gen_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone)
 			if (tone->slope_iterator > tone->n_samples - tone->slope_n_samples + 1) {
 				int i = tone->n_samples - tone->slope_iterator - 1;
 				assert (i >= 0);
-				//amplitude = 1.0 * gen->volume_abs * i / tone->slope_n_samples;
 				amplitude = gen->tone_slope.amplitudes[i];
-				//cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG, "libcw: 2: slope: %d, amp: %d", tone->slope_iterator, amplitude);
 				assert (amplitude >= 0);
+
 			} else {
 				amplitude = gen->volume_abs;
 				assert (amplitude >= 0);
@@ -1052,6 +1024,7 @@ int cw_gen_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone)
 		} else if (tone->slope_mode == CW_SLOPE_MODE_NO_SLOPES) {
 			amplitude = gen->volume_abs;
 			assert (amplitude >= 0);
+
 		} else { // tone->slope_mode == CW_SLOPE_MODE_STANDARD_SLOPES
 			/* standard algorithm for generating slopes:
 			   single, finite tone with:
@@ -1061,21 +1034,19 @@ int cw_gen_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone)
 			if (tone->slope_iterator >= 0 && tone->slope_iterator < tone->slope_n_samples) {
 				/* beginning of tone, produce rising slope */
 				int i = tone->slope_iterator;
-				//amplitude = 1.0 * gen->volume_abs * i / tone->slope_n_samples;
 				amplitude = gen->tone_slope.amplitudes[i];
-				//cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG, "libcw: rising slope: i = %d, amp = %d", tone->slope_iterator, amplitude);
 				assert (amplitude >= 0);
+
 			} else if (tone->slope_iterator >= tone->slope_n_samples && tone->slope_iterator < tone->n_samples - tone->slope_n_samples) {
 				/* middle of tone, constant amplitude */
 				amplitude = gen->volume_abs;
 				assert (amplitude >= 0);
+
 			} else if (tone->slope_iterator >= tone->n_samples - tone->slope_n_samples) {
 				/* falling slope */
 				int i = tone->n_samples - tone->slope_iterator - 1;
 				assert (i >= 0);
-				//amplitude = 1.0 * gen->volume_abs * i / tone->slope_n_samples;
 				amplitude = gen->tone_slope.amplitudes[i];
-				//cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG, "libcw: falling slope: i = %d, amp = %d", tone->slope_iterator, amplitude);
 				assert (amplitude >= 0);
 			} else {
 				;
