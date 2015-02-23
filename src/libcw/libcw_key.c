@@ -336,7 +336,7 @@ void cw_key_register_receiver_internal(volatile cw_key_t *key, cw_rec_t *rec)
 */
 void cw_key_sk_enqueue_symbol_internal(volatile cw_key_t *key, int key_value)
 {
-	cw_assert (key, "ERROR: key is NULL");
+	cw_assert (key, "key is NULL");
 	cw_assert (key->gen, "generator is NULL");
 
 	if (key->sk.key_value != key_value) {
@@ -362,11 +362,11 @@ void cw_key_sk_enqueue_symbol_internal(volatile cw_key_t *key, int key_value)
 			   Let's enqueue a beginning of mark. A
 			   constant tone will be played until function
 			   receives CW_KEY_STATE_OPEN key state. */
-			cw_gen_begin_mark_internal(key->gen);
+			cw_gen_key_begin_mark_internal(key->gen);
 		} else {
 			/* CW_KEY_STATE_OPEN, time to go from Mark
 			   (audible tone) to Space (silence). */
-			cw_gen_begin_space_internal(key->gen);
+			cw_gen_key_begin_space_internal(key->gen);
 		}
 	} else {
 		/* This may happen when dequeueing 'forever' tone
@@ -438,7 +438,7 @@ void cw_key_ik_enqueue_symbol_internal(volatile cw_key_t *key, int key_value, ch
 		}
 
 		/* 'Pure' means without any end-of-mark spaces. */
-		cw_gen_play_pure_symbol_internal(key->gen, symbol);
+		cw_gen_key_pure_symbol_internal(key->gen, symbol);
 		return;
 	} else {
 		/* This may happen when dequeueing 'forever' tone
@@ -547,7 +547,7 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 	/* This function is called from generator thread function, so
 	   the generator must exist. Be paranoid and check it, just in
 	   case :) */
-	cw_assert (key->gen, "NULL generator");
+	cw_assert (key->gen, "generator is NULL");
 
 
 	if (key->ik.lock) {
@@ -577,7 +577,7 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 		   sync.  We are *at the end* of Mark, so key should
 		   be (still) closed. */
 		cw_assert (key->ik.key_value == CW_KEY_STATE_CLOSED,
-			   "Inconsistency between keyer state (%s) ad key value (%d)",
+			   "inconsistency between keyer state (%s) ad key value (%d)",
 			   cw_iambic_keyer_states[key->ik.graph_state], key->ik.key_value);
 
 		/* We are ending a dot, so turn off tone and begin the
@@ -596,7 +596,7 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 		   sync.  We are *at the end* of Mark, so key should
 		   be (still) closed. */
 		cw_assert (key->ik.key_value == CW_KEY_STATE_CLOSED,
-			   "Inconsistency between keyer state (%s) ad key value (%d)",
+			   "inconsistency between keyer state (%s) ad key value (%d)",
 			   cw_iambic_keyer_states[key->ik.graph_state], key->ik.key_value);
 
 		/* We are ending a dash, so turn off tone and begin
@@ -616,7 +616,7 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 		   sync.  We are *at the end* of Space, so key should
 		   be (still) open. */
 		cw_assert (key->ik.key_value == CW_KEY_STATE_OPEN,
-			   "Inconsistency between keyer state (%s) ad key value (%d)",
+			   "inconsistency between keyer state (%s) ad key value (%d)",
 			   cw_iambic_keyer_states[key->ik.graph_state], key->ik.key_value);
 
 		/* If we have just finished a dot or a dash and its
@@ -663,7 +663,7 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 		   sync.  We are *at the end* of Space, so key should
 		   be (still) open. */
 		cw_assert (key->ik.key_value == CW_KEY_STATE_OPEN,
-			   "Inconsistency between keyer state (%s) ad key value (%d)",
+			   "inconsistency between keyer state (%s) ad key value (%d)",
 			   cw_iambic_keyer_states[key->ik.graph_state], key->ik.key_value);
 
 		if (!key->ik.dash_paddle) {
@@ -827,8 +827,8 @@ int cw_key_ik_notify_paddle_event_internal(volatile cw_key_t *key, int dot_paddl
 */
 void cw_key_ik_update_state_initial_internal(volatile cw_key_t *key)
 {
-	cw_assert (key, "NULL keyer\n");
-	cw_assert (key->gen, "NULL gen\n");
+	cw_assert (key, "keyer is NULL");
+	cw_assert (key->gen, "generator is NULL");
 
 	int cw_iambic_keyer_state_old = key->ik.graph_state;
 
