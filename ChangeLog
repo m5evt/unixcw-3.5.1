@@ -1,4 +1,12 @@
-2015-22-23 Kamil Ignacak
+2015-02-23 Kamil Ignacak
+	* cw_gen: Lots of small updates. Mostly in comments, but I have
+	also removed few unused (commented out) lines of code and renamed
+	some internal functions. One noticeable change was in
+	cw_generator_set_tone_slope() - some corner cases of handling
+	function's arguments were cleared in function's top level
+	comments, and implementation has been updated accordingly.
+
+2015-02-22 Kamil Ignacak
 	* key, generator, tone queue: Small improvements at intersection
 	of these modules. One example: after changing third argument to
 	cw_key_ik_enqueue_symbol_internal(), the function no longer has to
