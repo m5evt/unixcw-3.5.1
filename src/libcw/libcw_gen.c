@@ -744,7 +744,7 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 
 	while (gen->generate) {
 		int state = cw_tq_dequeue_internal(gen->tq, &tone);
-		if (state == CW_TQ_STILL_EMPTY) {
+		if (state == CW_TQ_IDLE) {
 
 			/* Tone queue has been totally drained with
 			   previous call to cw_tq_dequeue(). No point
@@ -757,7 +757,7 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 			cw_signal_wait_internal();
 			continue;
 
-		} else if (state == CW_TQ_JUST_EMPTIED) {
+		} else if (state == CW_TQ_EMPTY) {
 
 			/* There are no new tones from the queue.
 			   Since we haven't dequeued any mark, time
@@ -767,7 +767,7 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 			}
 
 
-		} else if (state == CW_TQ_NONEMPTY) {
+		} else if (state == CW_TQ_BUSY) {
 
 			/* This branch is a bit ugly.
 
@@ -1265,9 +1265,9 @@ int cw_generator_set_tone_slope(cw_gen_t *gen, int slope_shape, int slope_usecs)
 */
 int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, int queue_state, cw_tone_t *tone)
 {
-	assert (queue_state != CW_TQ_STILL_EMPTY);
+	assert (queue_state != CW_TQ_IDLE);
 
-	if (queue_state == CW_TQ_JUST_EMPTIED) {
+	if (queue_state == CW_TQ_EMPTY) {
 		/* All tones have been already dequeued from tone
 		   queue.
 
@@ -1312,7 +1312,7 @@ int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, int queue_state, cw_tone_t
 
 		//fprintf(stderr, "++++ length of padding silence = %d [samples]\n", tone->n_samples);
 
-	} else { /* queue_state == CW_TQ_NONEMPTY */
+	} else { /* queue_state == CW_TQ_BUSY */
 
 		if (tone->slope_mode == CW_SLOPE_MODE_RISING_SLOPE
 		    || tone->slope_mode == CW_SLOPE_MODE_FALLING_SLOPE
