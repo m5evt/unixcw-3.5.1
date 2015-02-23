@@ -585,7 +585,7 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 		   No routine status checks are made since we are in a
 		   signal handler, and can't readily return error
 		   codes to the client. */
-		cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_OPEN, ' ');
+		cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_OPEN, CW_SYMBOL_SPACE);
 		key->ik.graph_state = key->ik.graph_state == KS_IN_DOT_A
 			? KS_AFTER_DOT_A : KS_AFTER_DOT_B;
 		break;
@@ -604,7 +604,7 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 		   No routine status checks are made since we are in a
 		   signal handler, and can't readily return error
 		   codes to the client. */
-		cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_OPEN, ' ');
+		cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_OPEN, CW_SYMBOL_SPACE);
 		key->ik.graph_state = key->ik.graph_state == KS_IN_DASH_A
 			? KS_AFTER_DASH_A : KS_AFTER_DASH_B;
 
