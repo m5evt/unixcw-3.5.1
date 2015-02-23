@@ -759,10 +759,9 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 
 		} else if (state == CW_TQ_JUST_EMPTIED) {
 
-			/* The last tone in the queue should be (at
-			   least in theory) a space.  Notify the
-			   keying control function about the
-			   silence. */
+			/* There are no new tones from the queue.
+			   Since we haven't dequeued any mark, time
+			   for a a space. */
 			if (gen->key) {
 				cw_key_tk_set_value_internal(gen->key, CW_KEY_STATE_OPEN);
 			}
@@ -804,7 +803,7 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 
 		cw_gen_dequeue_and_play_sub_internal(gen, &tone, state);
 
-	} /* while(gen->generate) */
+	} /* while (gen->generate) */
 
 	cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_INFO,
 		      "libcw: EXIT: generator stopped (gen->generate = %d)", gen->generate);
@@ -1283,6 +1282,10 @@ int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, int queue_state, cw_tone_t
 
 		   We need to fill the buffer until it is full and
 		   ready to be sent to audio sink.
+
+		   Since there are no new tones for which we could
+		   generate samples, we need to generate silence
+		   samples.
 
 		   Padding the buffer with silence seems to be a good
 		   idea (it will work regardless of value (Mark/Space)
