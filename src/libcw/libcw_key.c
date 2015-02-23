@@ -249,7 +249,7 @@ void cw_key_tk_set_value_internal(volatile cw_key_t *key, int key_value)
 		/* Call a registered callback. */
 		if (key->key_callback) {
 			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYING, CW_DEBUG_INFO,
-				      "libcw: tone queue keyer: about to call callback, key value = %d\n", key->tk.key_value);
+				      "libcw: ====== tone queue keyer: about to call callback, key value = %d\n", key->tk.key_value);
 
 			(*(key->key_callback))(key->key_callback_arg, key->tk.key_value);
 		}
@@ -349,7 +349,7 @@ void cw_key_sk_enqueue_symbol_internal(volatile cw_key_t *key, int key_value)
 		/* Call a registered callback. */
 		if (key->key_callback) {
 			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYING, CW_DEBUG_INFO,
-				      "libcw: straight key: about to call callback, key value = %d\n", key_value);
+				      "libcw: ++++++ straight key: about to call callback, key value = %d\n", key_value);
 
 			(*(key->key_callback))(key->key_callback_arg, key->sk.key_value);
 		}
@@ -429,7 +429,7 @@ void cw_key_ik_enqueue_symbol_internal(volatile cw_key_t *key, int key_value, in
 		/* Call a registered callback. */
 		if (key->key_callback) {
 			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYING, CW_DEBUG_INFO,
-				      "libcw: iambic keyer: about to call callback, key value = %d\n", key_value);
+				      "libcw: ------ iambic keyer: about to call callback, key value = %d\n", key_value);
 
 			(*(key->key_callback))(key->key_callback_arg, key->ik.key_value);
 		}
@@ -588,7 +588,7 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 		   No routine status checks are made since we are in a
 		   signal handler, and can't readily return error
 		   codes to the client. */
-		cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_OPEN, key->gen->eoe_delay);
+		cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_OPEN, key->gen->eom_space_len);
 		key->ik.graph_state = key->ik.graph_state == KS_IN_DOT_A
 			? KS_AFTER_DOT_A : KS_AFTER_DOT_B;
 		break;
@@ -607,7 +607,7 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 		   No routine status checks are made since we are in a
 		   signal handler, and can't readily return error
 		   codes to the client. */
-		cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_OPEN, key->gen->eoe_delay);
+		cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_OPEN, key->gen->eom_space_len);
 		key->ik.graph_state = key->ik.graph_state == KS_IN_DASH_A
 			? KS_AFTER_DASH_A : KS_AFTER_DASH_B;
 
@@ -640,10 +640,10 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 		}
 
 		if (key->ik.graph_state == KS_AFTER_DOT_B) {
-			cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_CLOSED, key->gen->dash_length);
+			cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_CLOSED, key->gen->dash_len);
 			key->ik.graph_state = KS_IN_DASH_A;
 		} else if (key->ik.dash_latch) {
-			cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_CLOSED, key->gen->dash_length);
+			cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_CLOSED, key->gen->dash_len);
 			if (key->ik.curtis_b_latch){
 				key->ik.curtis_b_latch = false;
 				key->ik.graph_state = KS_IN_DASH_B;
@@ -651,7 +651,7 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 				key->ik.graph_state = KS_IN_DASH_A;
 			}
 		} else if (key->ik.dot_latch) {
-			cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_CLOSED, key->gen->dot_length);
+			cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_CLOSED, key->gen->dot_len);
 			key->ik.graph_state = KS_IN_DOT_A;
 		} else {
 			key->ik.graph_state = KS_IDLE;
@@ -687,10 +687,10 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 		   idling. */
 
 		if (key->ik.graph_state == KS_AFTER_DASH_B) {
-			cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_CLOSED, key->gen->dot_length);
+			cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_CLOSED, key->gen->dot_len);
 			key->ik.graph_state = KS_IN_DOT_A;
 		} else if (key->ik.dot_latch) {
-			cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_CLOSED, key->gen->dot_length);
+			cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_CLOSED, key->gen->dot_len);
 			if (key->ik.curtis_b_latch) {
 				key->ik.curtis_b_latch = false;
 				key->ik.graph_state = KS_IN_DOT_B;
@@ -698,7 +698,7 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 				key->ik.graph_state = KS_IN_DOT_A;
 			}
 		} else if (key->ik.dash_latch) {
-			cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_CLOSED, key->gen->dash_length);
+			cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_CLOSED, key->gen->dash_len);
 			key->ik.graph_state = KS_IN_DASH_A;
 		} else {
 			key->ik.graph_state = KS_IDLE;
