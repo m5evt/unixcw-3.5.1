@@ -143,7 +143,7 @@ static void  cw_gen_dequeue_and_play_sub_internal(cw_gen_t *gen, cw_tone_t *tone
 
 
 
-static int cw_gen_play_valid_character_internal(cw_gen_t *gen, char character, int partial);
+static int   cw_gen_play_valid_character_internal(cw_gen_t *gen, char character, int partial);
 
 
 
@@ -160,7 +160,7 @@ static int cw_gen_play_valid_character_internal(cw_gen_t *gen, char character, i
    strings: "None", "Null", "Console", "OSS", "ALSA", "PulseAudio",
    "Soundcard".
 
-   The pointer is owned by caller.
+   The returned pointer is owned by caller.
 
    Notice that the function returns a new pointer to newly allocated
    string. cw_generator_get_audio_system_label() returns a pointer to
@@ -823,7 +823,14 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 
 
 
-void cw_gen_dequeue_and_play_sub_internal(cw_gen_t *gen, cw_tone_t *tone, int state)
+/**
+   \brief Handle tone dequeued from tone queue
+
+   \param gen
+   \param tone - tone dequeued from tone queue
+   \param queue_rv - value returned by tq's dequeue function
+*/
+void cw_gen_dequeue_and_play_sub_internal(cw_gen_t *gen, cw_tone_t *tone, int queue_rv)
 {
 	cw_key_ik_increment_timer_internal(gen->key, tone->usecs);
 
@@ -1008,8 +1015,8 @@ int cw_gen_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone)
 {
 	int amplitude = 0;
 #if 0
-	/* blunt algorithm for calculating amplitude;
-	   for debug purposes only */
+	/* Blunt algorithm for calculating amplitude;
+	   for debug purposes only. */
 	if (tone->frequency) {
 		amplitude = gen->volume_abs;
 	} else {
@@ -1125,6 +1132,17 @@ int cw_gen_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone)
    You can pass -1 as value of \p slope_shape or \p slope_usecs, the
    function will then either resolve correct values of its arguments,
    or will leave related parameters of slope unchanged.
+
+   Passing rectangular \p slope_shape and non-zero \p slope_length
+   arguments will result in conflict, and in function returning
+   failure.
+
+   If there is no conflict of the two arguments, passing rectangular
+   \p slope_shape will force slope length to be zero, even if \p
+   slope_usecs = -1.
+
+   Notice that the function allows non-rectangular slopes with zero
+   length of the slopes.
 
    The function should be called every time one of following
    parameters change:
@@ -1772,19 +1790,19 @@ void cw_gen_get_send_parameters_internal(cw_gen_t *gen,
 
 
 /**
-   \brief Play a mark (dot or dash)
+   \brief Play a mark (Dot or Dash)
 
    Low level primitive to play a tone for mark of the given type, followed
-   by the standard inter-mark space (inter-mark silence).
+   by the standard inter-mark space.
 
    Function sets errno to EINVAL if an argument is invalid, and
    returns CW_FAILURE.
 
    Function also returns CW_FAILURE if adding the element to queue of
-   marks failed.
+   tones failed.
 
-   \param gen - generator to be used to play a mark
-   \param mark - mark to send: dot (CW_DOT_REPRESENTATION) or dash (CW_DASH_REPRESENTATION)
+   \param gen - generator to be used to play a mark and inter-mark space
+   \param mark - mark to send: Dot (CW_DOT_REPRESENTATION) or Dash (CW_DASH_REPRESENTATION)
 
    \return CW_FAILURE on failure
    \return CW_SUCCESS on success
@@ -1836,15 +1854,16 @@ int cw_gen_play_mark_internal(cw_gen_t *gen, char mark)
 
 
 /**
-   \brief Play character space
+   \brief Play end-of-character space
 
-   The function plays space long enough to consider total space after
-   last mark an end-of-character space. This function expects that
-   there is already some end-of-mark space played.
+   The function plays space of length 2 Units. The function is
+   intended to be used after inter-mark space has already been played.
 
-   The "total" space after this function call would then include
-   end-of-mark space + this end-of-word space. The two combined
-   lengths of space would constitute 3 Units of space.
+   In such situation standard inter-mark space (one Unit) and
+   end-of-character space (two Units) form a full standard
+   end-of-character space (three Units).
+
+   Inter-character adjustment space is added at the end.
 
    \param gen
 
@@ -1896,15 +1915,15 @@ int cw_gen_play_word_space_internal(cw_gen_t *gen)
 #if 1
 
 	/* Let's say that 'tone queue low watermark' is one element
-	  (i.e. one tone).
+	   (i.e. one tone).
 
 	  In order for tone queue to recognize that a 'low tone queue'
 	  callback needs to be called, the level in tq needs to drop
 	  from 2 to 1.
 
-	  Almost every queued character guarantees that there will be
-	  at least two tones, e.g for 'E' it is dash + following
-	  space. But what about a ' ' character?
+	   Almost every queued character guarantees that there will be
+	   at least two tones, e.g for 'E' it is dash + following
+	   space. But what about a ' ' character?
 
 	  With the code in second branch of '#if', there is only one
 	  tone, and the tone queue manager can't recognize when the
@@ -1957,19 +1976,32 @@ int cw_gen_play_word_space_internal(cw_gen_t *gen)
 }
 
 
-
-
-
 /**
-   \brief Play the given string as marks and spaces, adding the post-character gap
+   \brief Play the given representation
 
-   Function sets errno to EAGAIN if there is not enough space in tone queue to
-   enqueue \p representation.
+   Function plays given \p representation using given \p
+   generator. Every mark from the \p representation is followed by a
+   standard inter-mark space.
 
-   Function sets errno to EINVAL if \p representation is not valid.
+   If \p partial is false, the representation is treated as a complete
+   (non-partial) data, and a standard end-of-character space is played
+   at the end (in addition to last inter-mark space). Total length of
+   space at the end (inter-mark space + end-of-character space) is ~3
+   Units.
 
-   \param gen
-   \param representation
+   If \p partial is true, the standard end-of-character space is not
+   appended. However, the standard inter-mark space is played at the
+   end.
+
+   Function sets errno to EAGAIN if there is not enough space in tone
+   queue to enqueue \p representation.
+
+   Function validates \p representation using
+   cw_representation_is_valid().  Function sets errno to EINVAL if \p
+   representation is not valid.
+
+   \param gen - generator used to play the representation
+   \param representation - representation to play
    \param partial
 
    \return CW_FAILURE on failure
@@ -2018,15 +2050,15 @@ int cw_gen_play_representation_internal(cw_gen_t *gen, const char *representatio
 
 
 /**
-   \brief Lookup, and send a given ASCII character as Morse code
+   \brief Look up and play a given ASCII character as Morse code
 
-   If "partial" is set, the end of character delay is not appended to the
-   Morse code sent.
+   If \p partial is set, the end-of-character space is not appended
+   after last mark of Morse code.
 
    Function sets errno to ENOENT if \p character is not a recognized character.
 
-   \param gen - generator to be used to send character
-   \param character - character to send
+   \param gen - generator to be used to play character
+   \param character - character to play
    \param partial
 
    \return CW_SUCCESS on success
@@ -2214,6 +2246,8 @@ int cw_gen_play_string_internal(cw_gen_t *gen, const char *string)
 
 /**
   \brief Reset essential sending parameters to their initial values
+
+  \param gen
 */
 void cw_gen_reset_send_parameters_internal(cw_gen_t *gen)
 {
@@ -2236,6 +2270,11 @@ void cw_gen_reset_send_parameters_internal(cw_gen_t *gen)
 
 
 
+/**
+   \brief Synchronize generator's low level timing parameters
+
+   \param gen - generator
+*/
 void cw_gen_sync_parameters_internal(cw_gen_t *gen)
 {
 	cw_assert (gen, "generator is NULL");
@@ -2417,7 +2456,7 @@ void cw_gen_key_begin_space_internal(cw_gen_t *gen)
    for details.
 
    \param gen - generator
-   \param symbol - symbol to enqueue (Dot or Dash)
+   \param symbol - symbol to enqueue (Space/Dot/Dash)
 */
 void cw_gen_key_pure_symbol_internal(cw_gen_t *gen, char symbol)
 {
