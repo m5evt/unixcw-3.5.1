@@ -1,3 +1,19 @@
+2015-22-23 Kamil Ignacak
+	* key, generator, tone queue: Small improvements at intersection
+	of these modules. One example: after changing third argument to
+	cw_key_ik_enqueue_symbol_internal(), the function no longer has to
+	explicitly refer to length of Space/Dot/Dash stored in
+	generator. Enqueueing symbols with proper length is now
+	exclusively job of generator (at least in case of this function
+	call).
+
+	Also modifying names of some variables (so that they follow a
+	convention used already in receiver) and functions (so that their
+	purpose is more obvious).
+
+	So in a nutshell: small improvements in key, generator and tone
+	queue.
+
 2015-02-22 Kamil Ignacak
 	* libcw.c: after populating the file with "global" functions for
 	generator, tone queue and receiver modules, I have also moved here
