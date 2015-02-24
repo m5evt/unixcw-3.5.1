@@ -729,7 +729,7 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 
 	while (gen->generate) {
 		int tq_rv = cw_tq_dequeue_internal(gen->tq, &tone);
-		if (tq_rv == CW_TQ_STILL_EMPTY) {
+		if (tq_rv == CW_TQ_NDEQUEUED_IDLE) {
 
 			/* Tone queue has been totally drained with
 			   previous call to dequeue(). No point in
@@ -1218,9 +1218,9 @@ void cw_gen_recalculate_slopes_internal(cw_gen_t *gen)
 */
 int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, cw_tone_t *tone, int queue_rv)
 {
-	assert (queue_rv != CW_TQ_IDLE);
+	assert (queue_rv != CW_TQ_NDEQUEUED_IDLE);
 
-	if (queue_rv == CW_TQ_EMPTY) {
+	if (queue_rv == CW_TQ_NDEQUEUED_EMPTY) {
 		/* All tones have been already dequeued from tone
 		   queue.
 
@@ -1268,7 +1268,7 @@ int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, cw_tone_t *tone, int queue
 
 		//fprintf(stderr, "++++ length of padding silence = %d [samples]\n", tone->n_samples);
 
-	} else { /* queue_rv == CW_TQ_BUSY */
+	} else { /* tq_rv == CW_TQ_DEQUEUED */
 
 		if (tone->slope_mode == CW_SLOPE_MODE_RISING_SLOPE
 		    || tone->slope_mode == CW_SLOPE_MODE_FALLING_SLOPE
