@@ -727,12 +727,9 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 		  .slope_iterator  = 0,
 		  .slope_n_samples = 0 };
 
-	// POSSIBLE ALTERNATIVE IMPLEMENTATION: int old_state = QS_IDLE;
-
 	while (gen->generate) {
-		int state = cw_tq_dequeue_internal(gen->tq, &tone);
-		if (state == CW_TQ_STILL_EMPTY) {
-		// POSSIBLE ALTERNATIVE IMPLEMENTATION: if (state == QS_IDLE && old_state == QS_IDLE) {
+		int tq_rv = cw_tq_dequeue_internal(gen->tq, &tone);
+		if (tq_rv == CW_TQ_STILL_EMPTY) {
 
 			/* Tone queue has been totally drained with
 			   previous call to dequeue(). No point in
@@ -745,11 +742,9 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 			/* TODO: can we / should we specify on which
 			   signal exactly we are waiting for? */
 			cw_signal_wait_internal();
-			//usleep(CW_AUDIO_QUANTUM_USECS);
 			continue;
 		}
 
-		// POSSIBLE ALTERNATIVE IMPLEMENTATION: old_state = state;
 
 		cw_key_ik_increment_timer_internal(gen->key, tone.usecs);
 
@@ -762,7 +757,7 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 		} else if (gen->audio_system == CW_AUDIO_CONSOLE) {
 			cw_console_write(gen, &tone);
 		} else {
-			cw_gen_write_to_soundcard_internal(gen, state, &tone);
+			cw_gen_write_to_soundcard_internal(gen, &tone, tq_rv);
 		}
 
 		/*
@@ -797,34 +792,6 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 		   iambic keyer. Inner workings of straight key are
 		   much more simple, the straight key doesn't need to
 		   use generator as a timer. */
-
-		/* FIXME: There is a big problem:
-		   cw_gen_write_to_soundcard_internal() call made above may
-		   be pretty good at telling sound card to produce
-		   tones of specific length, but surely is not the
-		   best, the most precise source of timing needed to
-		   control iambic keyer.
-
-		   While lengths of tones passed to the function are
-		   precise, and tones produced by soundcard are also
-		   quite precise, the time of execution of the
-		   function is not constant. I've noticed a situation,
-		   when first call to the function (after dequeueing
-		   first tone from tq) can take ~1000 us, and all
-		   following tones last roughly the same as
-		   tone.usecs, which can be 1-2 orders of magnitude
-		   more.
-
-		   We need to find another place to make the call to
-		   cw_key_ik_update_graph_state_internal(), or at
-		   least pass to it some reliable source of timing.
-
-		   INFO to FIXME: it seems that this problem has been
-		   fixed with call to
-		   cw_key_ik_increment_timer_internal() above,
-		   and all the other new or changed code in libcw and
-		   xcwcp that is related to keyer's timer. */
-
 		if (!cw_key_ik_update_graph_state_internal(gen->key)) {
 			/* just try again, once */
 			usleep(1000);
