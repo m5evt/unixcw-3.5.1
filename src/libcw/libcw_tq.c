@@ -69,11 +69,11 @@
 
 
    Above diagram shows two states of a queue, but dequeue function
-   returns three distinct values: CW_TQ_EMPTY,
-   CW_TQ_IDLE, CW_TQ_BUSY. Having these three values is
-   important for the function that calls the dequeue function. If you
-   ever intend to limit number of return values of dequeue function to
-   two, you will also have to re-think how
+   returns three distinct values: CW_TQ_DEQUEUED,
+   CW_TQ_NDEQUEUED_EMPTY, CW_TQ_NDEQUEUED_IDLE. Having these three
+   values is important for the function that calls the dequeue
+   function. If you ever intend to limit number of return values of
+   dequeue function to two, you will also have to re-think how
    cw_gen_dequeue_and_play_internal() operates.
 
    Future libcw API should (completely) hide tone queue from client
@@ -362,34 +362,59 @@ uint32_t cw_tq_next_index_internal(cw_tone_queue_t *tq, uint32_t ind)
 
    Dequeue a tone from tone queue.
 
-   The queue returns two distinct values when it is empty, and one value
-   when it is not empty:
-   \li CW_TQ_IDLE - when there were no new tones in the queue, and
-       the queue can't recall if it was "BUSY" before; this return value
-       is a way of telling client code "I don't have any tones, you should
-       probably stay silent";
-   \li CW_TQ_EMPTY - when there were no new tones in the queue, but
-       the queue still remembered its "BUSY" state; this return value
-       is a way of telling client code "I've had tones, but no more, you
-       should probably stop playing any sounds and become silent";
-   \li CW_TQ_BUSY - when there was at least one tone in the queue;
-       client code can call the function again, and the function will
-       then return CW_TQ_BUSY (if there is yet another tone), or
-       CW_TQ_EMPTY (if the tone from previous call was the last one);
+   The queue returns three distinct values. This may seem overly
+   complicated for a tone queue, but it actually works. The way the
+   generator interacts with the tone queue, and the way the enqueueing
+   works, depend on the dequeue function to return three values. If
+   you ever try to make the dequeue function return two values, you
+   would also have to redesign parts of generator and of enqueueing
+   code.
+
+   Look in cw_gen_write_to_soundcard_internal(). The function makes
+   decision based on two distinct tone queue states (described by
+   CW_TQ_DEQUEUED or CW_TQ_NDEQUEUED_EMPTY). So the _write() function
+   must be executed by generator for both return values. But we also
+   need a third return value that will tell the generator not to
+   execute _write() *at all*, but just wait for signal. This third
+   value is CW_TQ_NDEQUEUED_IDLE.
+
+   These three return values are:
+
+   \li CW_TQ_DEQUEUED - dequeue() function successfully dequeues and
+       returns through \p tone a valid tone. dequeue() understands how
+       "forever" tone should be handled: if such tone is the last tone
+       on the queue, the function actually both returns the "forever"
+       tone, and keeps it in queue (until next tone is enqueued).
+
+   \li CW_TQ_NDEQUEUED_EMPTY - dequeue() function can't dequeue a tone
+       from tone queue, because the queue has been just emptied, i.e.
+       previous call to dequeue() was successful and returned
+       CW_TQ_DEQUEUED, but that was the last tone on queue. This
+       return value is a way of telling client code "I've had tones,
+       but no more, you should probably stop playing any sounds and
+       become silent". If no new tones are enqueued, the next call to
+       dequeue() will return CW_TQ_NDEQUEUED_IDLE.
+
+   \li CW_TQ_NDEQUEUED_IDLE - dequeue() function can't dequeue a tone
+       from tone queue, because the queue is empty, and the tone queue
+       has no memory of being non-empty before. This is the value that
+       dequeue() would return for brand new tone queue. This is also
+       value returned by dequeue() when its previous return value was
+       CW_TQ_NDEQUEUED_EMPTY, and no new tones were enqueued since
+       then.
 
    Notice that returned value does not describe internal state of tone
-   queue. The returned value and state of tone queue are related, but
-   are not the same.
+   queue.
 
-   Information about successfully dequeued tone is returned through
-   function's argument \p tone.
-   The function does not modify the arguments if there are no tones to
-   dequeue (CW_TQ_IDLE, CW_TQ_EMPTY).
+   Successfully dequeued tone is returned through function's argument
+   \p tone. The function does not modify the arguments if there are no
+   tones to dequeue (CW_TQ_NDEQUEUED_EMPTY, CW_TQ_NDEQUEUED_IDLE).
 
-   If the last tone in queue has duration "CW_AUDIO_FOREVER_USECS", the function
-   won't permanently dequeue it (won't "destroy" it). Instead, it will keep
-   returning (through \p tone) the tone on every call, until a new tone is
-   added to the queue after the "CW_AUDIO_FOREVER_USECS" tone.
+   As mentioned above, dequeue() understands how "forever" tone works.
+   If the last tone in queue has duration "CW_AUDIO_FOREVER_USECS",
+   the function won't permanently dequeue it. Instead, it will keep
+   returning (through \p tone) the tone on every call, until a new
+   tone is added to the queue after the "CW_AUDIO_FOREVER_USECS" tone.
 
    testedin::test_cw_tq_dequeue_internal()
    testedin::test_cw_tq_test_capacity_2()
@@ -397,9 +422,9 @@ uint32_t cw_tq_next_index_internal(cw_tone_queue_t *tq, uint32_t ind)
    \param tq - tone queue
    \param tone - dequeued tone
 
-   \return CW_TQ_EMPTY (see information above)
-   \return CW_TQ_IDLE (see information above)
-   \return CW_TQ_BUSY (see information above)
+   \return CW_TQ_DEQUEUED (see information above)
+   \return CW_TQ_NDEQUEUED_EMPTY (see information above)
+   \return CW_TQ_NDEQUEUED_IDLE (see information above)
 */
 int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 {
@@ -411,7 +436,7 @@ int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 	case CW_TQ_IDLE:
 		pthread_mutex_unlock(&(tq->mutex));
 		/* Ignore calls if our state is idle. */
-		return CW_TQ_STILL_EMPTY;
+		return CW_TQ_NDEQUEUED_IDLE;
 
 	case CW_TQ_BUSY:
 		/* If there are some tones in queue, dequeue the next
@@ -444,7 +469,7 @@ int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 				   cw_key_tk_set_value_internal(), but
 				   I think that this would be all. */
 			} else {
-				tq->head = cw_tone_queue_next_index_internal(tq, tq->head);;
+				tq->head = cw_tq_next_index_internal(tq, tq->head);;
 				tq->len--;
 
 				if (!tq->len) {
@@ -520,7 +545,7 @@ int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 				(*(tq->low_water_callback))(tq->low_water_callback_arg);
 			}
 
-			return CW_TQ_NONEMPTY;
+			return CW_TQ_DEQUEUED;
 		} else { /* tq->len == 0 */
 			/* State of tone queue (as indicated by
 			   tq->state) is "busy", but it turns out that
@@ -544,14 +569,14 @@ int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 
 
 			pthread_mutex_unlock(&(tq->mutex));
-			return CW_TQ_JUST_EMPTIED;
+			return CW_TQ_NDEQUEUED_EMPTY;
 		}
 	}
 
 	pthread_mutex_unlock(&(tq->mutex));
 	/* will never get here as "queue state" enum has only two values */
 	assert(0);
-	return CW_TQ_STILL_EMPTY;
+	return CW_TQ_NDEQUEUED_IDLE;
 }
 
 
@@ -1204,7 +1229,7 @@ unsigned int test_cw_tq_dequeue_internal(void)
 
 		/* This tests for potential problems with function call. */
 		int rv = cw_tq_dequeue_internal(test_tone_queue, &tone);
-		assert (rv == CW_TQ_BUSY);
+		assert (rv == CW_TQ_DEQUEUED);
 
 		/* Length of tone queue after dequeue. */
 		cw_assert (i - 1 == test_tone_queue->len,
@@ -1215,7 +1240,7 @@ unsigned int test_cw_tq_dequeue_internal(void)
 	/* Try removing a tone from empty queue. */
 	/* This tests for potential problems with function call. */
 	int rv = cw_tq_dequeue_internal(test_tone_queue, &tone);
-	assert (rv == CW_TQ_EMPTY);
+	assert (rv == CW_TQ_NDEQUEUED_EMPTY);
 
 	/* This tests for correctness of working of the 'dequeue'
 	   function.  Empty tq should stay empty. */
@@ -1226,9 +1251,9 @@ unsigned int test_cw_tq_dequeue_internal(void)
 		   test_tone_queue->len);
 
 	/* Try removing a tone from empty queue. */
-	/* This time we should get CW_TQ_IDLE return value. */
+	/* This time we should get CW_TQ_NDEQUEUED_IDLE return value. */
 	rv = cw_tq_dequeue_internal(test_tone_queue, &tone);
-	assert (rv == CW_TQ_IDLE);
+	assert (rv == CW_TQ_NDEQUEUED_IDLE);
 
 	CW_TEST_PRINT_TEST_RESULT(false, p);
 
@@ -1451,7 +1476,7 @@ unsigned int test_cw_tq_test_capacity_2(void)
 		cw_tone_t tone;
 
 		while ((rv = cw_tq_dequeue_internal(test_tone_queue, &tone))
-		       && rv == CW_TQ_BUSY) {
+		       && rv == CW_TQ_DEQUEUED) {
 
 			uint32_t shifted = (i + head_shifts[s]) % (test_tone_queue->capacity);
 
