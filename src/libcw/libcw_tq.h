@@ -45,16 +45,18 @@ enum {
 
 
 
-/* Tone queue states, used also as return values from dequeue function. */
+/* Tone queue states. */
 enum cw_queue_state {
-	CW_TQ_IDLE  = 0,
-	CW_TQ_BUSY  = 1
+	CW_TQ_IDLE = 0,
+	CW_TQ_BUSY = 1
 };
 
 
-/* Additional value used as return value from dequeue function. */
+/* Return values from dequeue function. */
 enum {
-	CW_TQ_EMPTY = 2
+	CW_TQ_DEQUEUED        = 10,
+	CW_TQ_NDEQUEUED_EMPTY = 11,
+	CW_TQ_NDEQUEUED_IDLE  = 12
 };
 
 
