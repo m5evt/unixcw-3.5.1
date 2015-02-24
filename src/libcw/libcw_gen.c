@@ -727,68 +727,115 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 		  .slope_iterator  = 0,
 		  .slope_n_samples = 0 };
 
+	// POSSIBLE ALTERNATIVE IMPLEMENTATION: int old_state = QS_IDLE;
+
 	while (gen->generate) {
-		int queue_rv = cw_tq_dequeue_internal(gen->tq, &tone);
-		if (queue_rv == CW_TQ_IDLE) {
+		int state = cw_tq_dequeue_internal(gen->tq, &tone);
+		if (state == CW_TQ_STILL_EMPTY) {
+		// POSSIBLE ALTERNATIVE IMPLEMENTATION: if (state == QS_IDLE && old_state == QS_IDLE) {
 
 			/* Tone queue has been totally drained with
-			   previous call to cw_tq_dequeue(). No point
-			   in making next iteration of while() and
-			   calling the function again.
+			   previous call to dequeue(). No point in
+			   making next iteration of while() and
+			   calling the function again. So don't call
+			   it, wait for signal from enqueue() function
+			   informing that a new tone appeared in tone
+			   queue. */
 
-			   Wait for signal from cw_tq_enqueue()
-			   function informing that a new tone appeared
-			   in tone queue. */
+			/* TODO: can we / should we specify on which
+			   signal exactly we are waiting for? */
 			cw_signal_wait_internal();
+			//usleep(CW_AUDIO_QUANTUM_USECS);
 			continue;
-
-		} else if (queue_rv == CW_TQ_EMPTY) {
-
-			/* There are no new tones from the queue.
-			   Since we haven't dequeued any mark, time
-			   for a a space. */
-			if (gen->key) {
-				cw_key_tk_set_value_internal(gen->key, CW_KEY_STATE_OPEN);
-			}
-
-
-		} else if (queue_rv == CW_TQ_BUSY) {
-
-			/* This branch is a bit ugly.
-
-			   I want to keep the order of calling the
-			   callbacks (first the one in
-			   cw_key_tk_set_value_internal() and then the
-			   low water callback). But if I put both in
-			   cw_tq, then the tq would need to refer to
-			   tq->gen->key (which is ugly). If I leave it
-			   like now, the generator has to refer to
-			   gen->tq->low_water*, which I think is a bit
-			   less ugly. */
-
-			/* Notify the key control function that there
-			   might have been a change of keying state
-			   (and then again, there might not have been;
-			   the function will sort this out by
-			   comparing current key state with its
-			   internal key state). */
-			if (gen->key) {
-				cw_key_tk_set_value_internal(gen->key, tone.frequency ? CW_KEY_STATE_CLOSED : CW_KEY_STATE_OPEN);
-			}
-
-
-			if (gen->tq->call_callback) {
-				(*(gen->tq->low_water_callback))(gen->tq->low_water_callback_arg);
-				gen->tq->call_callback = false;
-			}
-
-		} else {
-			cw_assert (0, "unknown value returned by dequeue function: %d", queue_rv);
 		}
 
-		cw_gen_dequeue_and_play_sub_internal(gen, &tone, queue_rv);
+		// POSSIBLE ALTERNATIVE IMPLEMENTATION: old_state = state;
 
-	} /* while (gen->generate) */
+		cw_key_ik_increment_timer_internal(gen->key, tone.usecs);
+
+#ifdef LIBCW_WITH_DEV
+		cw_debug_ev ((&cw_debug_object_ev), 0, tone.frequency ? CW_DEBUG_EVENT_TONE_HIGH : CW_DEBUG_EVENT_TONE_LOW);
+#endif
+
+		if (gen->audio_system == CW_AUDIO_NULL) {
+			cw_null_write(gen, &tone);
+		} else if (gen->audio_system == CW_AUDIO_CONSOLE) {
+			cw_console_write(gen, &tone);
+		} else {
+			cw_gen_write_to_soundcard_internal(gen, state, &tone);
+		}
+
+		/*
+		  When sending text from text input, the signal:
+		   - allows client code to observe moment when state of tone
+		     queue is "low/critical"; client code then can add more
+		     characters to the queue; the observation is done using
+		     cw_wait_for_tone_queue_critical();
+		   - ...
+
+		 */
+		pthread_kill(gen->client.thread_id, SIGALRM);
+
+		/* Generator may be used by iambic keyer to measure
+		   periods of time (lengths of Mark and Space) - this
+		   is achieved by enqueueing Marks and Spaces by keyer
+		   in generator.
+
+		   At this point the generator has finished generating
+		   a tone of specified length. A duration of Mark or
+		   Space has elapsed. Inform iambic keyer that the
+		   tone it has enqueued has elapsed.
+
+		   (Whether iambic keyer has enqueued any tones or
+		   not, and whether it is waiting for the
+		   notification, is a different story. We will let the
+		   iambic keyer function called below to decide what
+		   to do with the notification. If keyer is in idle
+		   graph state, it will ignore the notification.)
+
+		   Notice that this mechanism is needed only for
+		   iambic keyer. Inner workings of straight key are
+		   much more simple, the straight key doesn't need to
+		   use generator as a timer. */
+
+		/* FIXME: There is a big problem:
+		   cw_gen_write_to_soundcard_internal() call made above may
+		   be pretty good at telling sound card to produce
+		   tones of specific length, but surely is not the
+		   best, the most precise source of timing needed to
+		   control iambic keyer.
+
+		   While lengths of tones passed to the function are
+		   precise, and tones produced by soundcard are also
+		   quite precise, the time of execution of the
+		   function is not constant. I've noticed a situation,
+		   when first call to the function (after dequeueing
+		   first tone from tq) can take ~1000 us, and all
+		   following tones last roughly the same as
+		   tone.usecs, which can be 1-2 orders of magnitude
+		   more.
+
+		   We need to find another place to make the call to
+		   cw_key_ik_update_graph_state_internal(), or at
+		   least pass to it some reliable source of timing.
+
+		   INFO to FIXME: it seems that this problem has been
+		   fixed with call to
+		   cw_key_ik_increment_timer_internal() above,
+		   and all the other new or changed code in libcw and
+		   xcwcp that is related to keyer's timer. */
+
+		if (!cw_key_ik_update_graph_state_internal(gen->key)) {
+			/* just try again, once */
+			usleep(1000);
+			cw_key_ik_update_graph_state_internal(gen->key);
+		}
+
+#ifdef LIBCW_WITH_DEV
+		cw_debug_ev ((&cw_debug_object_ev), 0, tone.frequency ? CW_DEBUG_EVENT_TONE_LOW : CW_DEBUG_EVENT_TONE_HIGH);
+#endif
+
+	} /* while(gen->generate) */
 
 	cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_INFO,
 		      "libcw: EXIT: generator stopped (gen->generate = %d)", gen->generate);
@@ -802,73 +849,6 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 
 	pthread_kill(gen->client.thread_id, SIGALRM);
 	return NULL;
-}
-
-
-
-
-
-/**
-   \brief Handle tone dequeued from tone queue
-
-   \param gen
-   \param tone - tone dequeued from tone queue
-   \param queue_rv - value returned by tq's dequeue function
-*/
-void cw_gen_dequeue_and_play_sub_internal(cw_gen_t *gen, cw_tone_t *tone, int queue_rv)
-{
-	cw_key_ik_increment_timer_internal(gen->key, tone->usecs);
-
-#ifdef LIBCW_WITH_DEV
-	cw_debug_ev ((&cw_debug_object_ev), 0, tone->frequency ? CW_DEBUG_EVENT_TONE_HIGH : CW_DEBUG_EVENT_TONE_LOW);
-#endif
-
-	if (gen->audio_system == CW_AUDIO_NULL) {
-		cw_null_write(gen, tone);
-	} else if (gen->audio_system == CW_AUDIO_CONSOLE) {
-		cw_console_write(gen, tone);
-	} else {
-		cw_gen_write_to_soundcard_internal(gen, tone, queue_rv);
-	}
-
-	/* When sending text from text input, the signal:
-
-	   - allows client code to observe moment when state of tone
-	     queue is "low/critical"; client code then can add more
-	     characters to the queue; the observation is done using
-	     cw_wait_for_tone_queue_critical();
-	   - ...
-	*/
-	pthread_kill(gen->client.thread_id, SIGALRM);
-
-	/* Generator may be used by iambic keyer to measure periods of
-	   time (lengths of Space/Dot/Dash) - this is achieved by
-	   enqueueing Spaces/Marks by keyer in generator
-	   (cw_gen_key_pure_symbol_internal()).
-
-	   At this point the generator has finished generating a tone
-	   of specified length. A duration of Space or Mark has
-	   elapsed. Inform iambic keyer that the symbol it has
-	   enqueued has elapsed.
-
-	   If the keyer is not in use (it's idle), it will ignore the
-	   notification.
-
-	   Notice that this mechanism is needed only for iambic
-	   keyer. Inner workings of straight key are much more simple,
-	   the straight key doesn't need to use generator as a
-	   timer. */
-	if (!cw_key_ik_update_graph_state_internal(gen->key)) {
-		/* just try again, once */
-		usleep(1000);
-		cw_key_ik_update_graph_state_internal(gen->key);
-	}
-
-#ifdef LIBCW_WITH_DEV
-	cw_debug_ev ((&cw_debug_object_ev), 0, tone->frequency ? CW_DEBUG_EVENT_TONE_LOW : CW_DEBUG_EVENT_TONE_HIGH);
-#endif
-
-	return;
 }
 
 
