@@ -384,7 +384,7 @@ uint32_t cw_tq_next_index_internal(cw_tone_queue_t *tq, uint32_t ind)
    Information about successfully dequeued tone is returned through
    function's argument \p tone.
    The function does not modify the arguments if there are no tones to
-   dequeue.
+   dequeue (CW_TQ_IDLE, CW_TQ_EMPTY).
 
    If the last tone in queue has duration "CW_AUDIO_FOREVER_USECS", the function
    won't permanently dequeue it (won't "destroy" it). Instead, it will keep
@@ -405,140 +405,203 @@ int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 {
 	pthread_mutex_lock(&(tq->mutex));
 
+#ifdef LIBCW_WITH_DEV
+	static enum {
+		REPORTED_STILL_EMPTY,
+		REPORTED_JUST_EMPTIED,
+		REPORTED_NONEMPTY
+	} tq_report = REPORTED_STILL_EMPTY;
+#endif
+
+
+	/* Decide what to do based on the current state. */
 	switch (tq->state) {
 
 	case CW_TQ_IDLE:
-		/* Ignore calls if our state is idle. */
-
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
-			      "libcw: tone queue: still empty");
+#ifdef LIBCW_WITH_DEV
+		if (tq_report != REPORTED_STILL_EMPTY) {
+			/* tone queue is empty */
+			cw_debug_ev ((&cw_debug_object_ev), 0, CW_DEBUG_EVENT_TQ_STILL_EMPTY);
+			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
+				      "libcw: tone queue: still empty");
+			tq_report = REPORTED_STILL_EMPTY;
+		}
+#endif
 		pthread_mutex_unlock(&(tq->mutex));
-
-		return CW_TQ_IDLE;
+		/* Ignore calls if our state is idle. */
+		return CW_TQ_STILL_EMPTY;
 
 	case CW_TQ_BUSY:
 		/* If there are some tones in queue, dequeue the next
 		   tone. If there are no more tones, go to the idle state. */
 		if (tq->len) {
-			cw_tq_dequeue_sub_internal(tq, tone);
+			/* Get the current queue length.  Later on, we'll
+			   compare with the length after we've scanned
+			   over every tone we can omit, and use it to see
+			   if we've crossed the low water mark, if any. */
+			uint32_t queue_len = tq->len;
+
+			/* Get parameters of tone to be played */
+			tone->usecs = tq->queue[tq->head].usecs;
+			tone->frequency = tq->queue[tq->head].frequency;
+			tone->slope_mode = tq->queue[tq->head].slope_mode;
+
+			if (tone->usecs == CW_AUDIO_FOREVER_USECS && queue_len == 1) {
+				/* The last tone currently in queue is
+				   CW_AUDIO_FOREVER_USECS, which means that we
+				   should play certain tone until client
+				   code adds next tone (possibly forever).
+
+				   Don't dequeue this "forever" tone,
+				   don't iterate head.
+
+				   TODO: shouldn't we 'return
+				   CW_TQ_NONEMPTY' at this point?
+				   Since we are in "forever" tone,
+				   what else should we do?  Maybe call
+				   cw_key_tk_set_value_internal(), but
+				   I think that this would be all. */
+			} else {
+				tq->head = cw_tone_queue_next_index_internal(tq, tq->head);;
+				tq->len--;
+
+				if (!tq->len) {
+					/* If tq has been emptied,
+					   head and tail should be
+					   back to initial state. */
+					cw_assert (tq->head == tq->tail,
+						   "Head: %"PRIu32", tail: %"PRIu32"",
+						   tq->head, tq->tail);
+				}
+			}
+
+			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
+				      "libcw: tone queue: dequeue tone %d usec, %d Hz", tone->usecs, tone->frequency);
+			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
+				      "libcw: tone queue: head = %"PRIu32", tail = %"PRIu32", length = %"PRIu32" -> %"PRIu32"",
+				      tq->head, tq->tail, queue_len, tq->len);
+
+			/* Notify the key control function that there
+			   might have been a change of keying state
+			   (and then again, there might not have been;
+			   the function will sort this out by
+			   comparing current key state with its
+			   internal key state). */
+			if (tq->gen && tq->gen->key) {
+				cw_key_tk_set_value_internal(tq->gen->key, tone->frequency ? CW_KEY_STATE_CLOSED : CW_KEY_STATE_OPEN);
+			}
+
+#if 0
+			/* If microseconds is zero, leave it at that.  This
+			   way, a queued tone of 0 usec implies leaving the
+			   sound in this state, and 0 usec and 0 frequency
+			   leaves silence.  */ /* TODO: ??? */
+			if (tone->usecs == 0) {
+				/* Autonomous dequeuing has finished for
+				   the moment. */
+				tq->state = CW_TQ_IDLE;
+				cw_finalization_schedule_internal();
+			}
+#endif
+
+
+#ifdef LIBCW_WITH_DEV
+			if (tq_report != REPORTED_NONEMPTY) {
+				cw_debug_ev ((&cw_debug_object_ev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_EVENT_TQ_NONEMPTY);
+				cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
+					      "libcw: tone queue: nonempty: usecs = %d, freq = %d, slope = %d", tone->usecs, tone->frequency, tone->slope_mode);
+				tq_report = REPORTED_NONEMPTY;
+			}
+#endif
+
+			/* If there is a low water mark callback registered,
+			   and if we passed under the water mark, call the
+			   callback here.  We want to be sure to call this
+			   late in the processing, especially after setting
+			   the state to idle, since the most likely action
+			   of this routine is to queue tones, and we don't
+			   want to play with the state here after that. */
+			bool call_callback = false;
+			if (tq->low_water_callback) {
+
+				/* If the length we originally calculated
+				   was above the low water mark, and the
+				   one we have now is below or equal to it,
+				   call the callback. */
+
+				/* It may seem that the double condition in
+				   'if ()' is redundant, but for some reason
+				   it is necessary. Be very, very careful
+				   when modifying this. */
+				if (queue_len > tq->low_water_mark
+				    && tq->len <= tq->low_water_mark
+
+				    /* Avoid endlessly calling the callback
+				       if the only queued tone is 'forever'
+				       tone. Once client code decides to end the
+				       'forever' tone, we will be ready to
+				       call the callback again. */
+				    && !(tone->usecs == CW_AUDIO_FOREVER_USECS && queue_len == 1)) {
+
+					// fprintf(stderr, "libcw: solution 7, calling callback A, %d / %d / %d\n", tq->len, queue_len, tq->low_water_mark);
+					call_callback = true;
+				}
+			}
+
 			pthread_mutex_unlock(&(tq->mutex));
 
-			return CW_TQ_BUSY;
+			/* Since client's callback can use functions
+			   that call pthread_mutex_lock(), we should
+			   put the callback *after* we release
+			   pthread_mutex_unlock() in this function. */
 
+			if (call_callback) {
+				// fprintf(stderr, "libcw: solution 7, calling callback B, %d / %d / %d\n", tq->len, queue_len, tq->low_water_mark);
+				(*(tq->low_water_callback))(tq->low_water_callback_arg);
+			}
+
+			return CW_TQ_NONEMPTY;
 		} else { /* tq->len == 0 */
-			/* Current state of tq (CW_TQ_BUSY) is a
-			   remainder of previous function call. Time
-			   to bring tq->len and tq->state in sync. */
+			/* State of tone queue (as indicated by
+			   tq->state) is "busy", but it turns out that
+			   there are no tones left on the queue to
+			   play (tq->len == 0).
+
+			   Time to bring tq->state in sync with
+			   len. Set state to idle, indicating that
+			   autonomous dequeuing has finished for the
+			   moment. */
 			tq->state = CW_TQ_IDLE;
 
-			/* If tq is empty, head and tail should be in  initial state. */
-			cw_assert (tq->head == tq->tail, "Head: %"PRIu32", tail: %"PRIu32"",  tq->head, tq->tail);
-			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
-				      "libcw: tone queue: just emptied");
+			/* There is no tone to dequeue, so don't modify
+			   function's arguments. Client code will learn
+			   about "no tones" state through return value. */
+
+			/* Notify the keying control function about the silence. */
+			if (tq->gen && tq->gen->key) {
+				cw_key_tk_set_value_internal(tq->gen->key, CW_KEY_STATE_OPEN);
+			}
+
+			//cw_finalization_schedule_internal();
+
+#ifdef LIBCW_WITH_DEV
+			if (tq_report != REPORTED_JUST_EMPTIED) {
+				cw_debug_ev ((&cw_debug_object_ev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_EVENT_TQ_JUST_EMPTIED);
+				cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
+					      "libcw: tone queue: just emptied");
+				tq_report = REPORTED_JUST_EMPTIED;
+			}
+#endif
 
 			pthread_mutex_unlock(&(tq->mutex));
-			return CW_TQ_EMPTY;
+			return CW_TQ_JUST_EMPTIED;
 		}
 	}
 
 	pthread_mutex_unlock(&(tq->mutex));
 	/* will never get here as "queue state" enum has only two values */
 	assert(0);
-	return CW_TQ_IDLE;
-}
-
-
-
-
-
-int cw_tq_dequeue_sub_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
-{
-	/* Get the current queue length.  Later on, we'll compare with
-	   the length after we've scanned over every tone we can omit,
-	   and use it to see if we've crossed the low water mark, if
-	   any. */
-	uint32_t queue_len = tq->len;
-
-	/* Get parameters of tone to be played */
-	tone->usecs = tq->queue[tq->head].usecs;
-	tone->frequency = tq->queue[tq->head].frequency;
-	tone->slope_mode = tq->queue[tq->head].slope_mode;
-
-	if (tone->usecs == CW_AUDIO_FOREVER_USECS && queue_len == 1) {
-		/* The last tone currently in queue is "forever" tone,
-		   which means that we should play it until client
-		   code adds next tone (possibly forever).
-
-		   Don't dequeue this "forever" tone, don't iterate
-		   head.
-
-		   TODO: shouldn't we 'return CW_TQ_BUSY' at this
-		   point?  Since we are in "forever" tone, what else
-		   should we do?  Maybe call
-		   cw_key_tk_set_value_internal(), but I think that
-		   this would be all. */
-	} else {
-		tq->head = cw_tq_next_index_internal(tq, tq->head);;
-		tq->len--;
-	}
-
-#if 0  /* Debug code, producing lots of output to console. */
-	cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
-		      "libcw: tone queue: dequeue tone %d usec, %d Hz", tone->usecs, tone->frequency);
-	cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
-		      "libcw: tone queue: head = %"PRIu32", tail = %"PRIu32", length = %"PRIu32" -> %"PRIu32"",
-		      tq->head, tq->tail, queue_len, tq->len);
-#endif
-
-#ifdef LIBCW_WITH_DEV
-	if (tq_report != REPORTED_NONEMPTY) {
-		cw_debug_ev ((&cw_debug_object_ev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_EVENT_TQ_NONEMPTY);
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
-			      "libcw: tone queue: nonempty: usecs = %d, freq = %d, slope = %d", tone->usecs, tone->frequency, tone->slope_mode);
-		tq_report = REPORTED_NONEMPTY;
-	}
-#endif
-
-	/* If there is a low water mark callback registered, and if we
-	   passed under the water mark, call the callback here.  We
-	   want to be sure to call this late in the processing,
-	   especially after setting the state to idle, since the most
-	   likely action of this routine is to queue tones, and we
-	   don't want to play with the state here after that. */
-	if (tq->low_water_callback) {
-
-		/* If the length we originally calculated was above
-		   the low water mark, and the one we have now is
-		   below or equal to it, call the callback. */
-
-		/* It may seem that the double condition in 'if ()' is
-		   redundant, but for some reason it is necessary. Be
-		   very, very careful when modifying this. */
-		if (queue_len > tq->low_water_mark
-		    && tq->len <= tq->low_water_mark
-
-		    /* Avoid endlessly calling the callback if the
-		       only queued tone is 'forever' tone. Once client
-		       code decides to end the 'forever' tone, we will
-		       be ready to call the callback again. */
-		    && !(tone->usecs == CW_AUDIO_FOREVER_USECS && queue_len == 1)) {
-
-			/* Client code will have to call the low water callback. */
-			/* Since client's callback can use functions that call
-			   pthread_mutex_lock(), the callback should be called
-			   *after* we release pthread_mutex_unlock() in this
-			   function. */
-			tq->call_callback = true;
-		}
-	}
-
-	/* If tq has been emptied somewhere in this function, head and
-	   tail should be back to initial state. */
-	if (tq->len == 0) {
-		cw_assert (tq->head == tq->tail, "Head: %"PRIu32", tail: %"PRIu32"", tq->head, tq->tail);
-	}
-
-	return 0;
+	return CW_TQ_STILL_EMPTY;
 }
 
 
