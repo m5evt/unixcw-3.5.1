@@ -32,6 +32,22 @@
 
    You can request generator to produce audio by using *_play_*()
    functions.
+
+   The inner workings of the generator seem to be quite simple:
+   1. dequeue tone from tone queue
+   2. recalculate tone length in usecs into length in samples
+   3. for every sample in tone, calculate sine wave sample and
+      put it in generator's constant size buffer
+   4. if buffer is full of sine wave samples, push it to audio sink
+   5. since buffer is shorter than (almost) any tone, you will push
+      the buffer multiple times per tone
+   6. if you iterated over all samples in tone, but you still didn't
+      fill up that last buffer, dequeue next tone from queue, go to #2
+   7. if there are no more tones in queue, pad the buffer with silence,
+      and push the buffer to audio sink.
+
+   Looks simple, right? But it's the little details that ruin it all.
+   One of the details is tone's slopes.
 */
 
 
