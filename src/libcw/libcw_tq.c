@@ -405,28 +405,10 @@ int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 {
 	pthread_mutex_lock(&(tq->mutex));
 
-#ifdef LIBCW_WITH_DEV
-	static enum {
-		REPORTED_STILL_EMPTY,
-		REPORTED_JUST_EMPTIED,
-		REPORTED_NONEMPTY
-	} tq_report = REPORTED_STILL_EMPTY;
-#endif
-
-
 	/* Decide what to do based on the current state. */
 	switch (tq->state) {
 
 	case CW_TQ_IDLE:
-#ifdef LIBCW_WITH_DEV
-		if (tq_report != REPORTED_STILL_EMPTY) {
-			/* tone queue is empty */
-			cw_debug_ev ((&cw_debug_object_ev), 0, CW_DEBUG_EVENT_TQ_STILL_EMPTY);
-			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
-				      "libcw: tone queue: still empty");
-			tq_report = REPORTED_STILL_EMPTY;
-		}
-#endif
 		pthread_mutex_unlock(&(tq->mutex));
 		/* Ignore calls if our state is idle. */
 		return CW_TQ_STILL_EMPTY;
@@ -475,11 +457,14 @@ int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 				}
 			}
 
+#if 0 /* Disabled because these debug messages produce lots of output
+	 to console. Enable only when necessary. */
 			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
 				      "libcw: tone queue: dequeue tone %d usec, %d Hz", tone->usecs, tone->frequency);
 			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
 				      "libcw: tone queue: head = %"PRIu32", tail = %"PRIu32", length = %"PRIu32" -> %"PRIu32"",
 				      tq->head, tq->tail, queue_len, tq->len);
+#endif
 
 			/* Notify the key control function that there
 			   might have been a change of keying state
@@ -490,29 +475,6 @@ int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 			if (tq->gen && tq->gen->key) {
 				cw_key_tk_set_value_internal(tq->gen->key, tone->frequency ? CW_KEY_STATE_CLOSED : CW_KEY_STATE_OPEN);
 			}
-
-#if 0
-			/* If microseconds is zero, leave it at that.  This
-			   way, a queued tone of 0 usec implies leaving the
-			   sound in this state, and 0 usec and 0 frequency
-			   leaves silence.  */ /* TODO: ??? */
-			if (tone->usecs == 0) {
-				/* Autonomous dequeuing has finished for
-				   the moment. */
-				tq->state = CW_TQ_IDLE;
-				cw_finalization_schedule_internal();
-			}
-#endif
-
-
-#ifdef LIBCW_WITH_DEV
-			if (tq_report != REPORTED_NONEMPTY) {
-				cw_debug_ev ((&cw_debug_object_ev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_EVENT_TQ_NONEMPTY);
-				cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
-					      "libcw: tone queue: nonempty: usecs = %d, freq = %d, slope = %d", tone->usecs, tone->frequency, tone->slope_mode);
-				tq_report = REPORTED_NONEMPTY;
-			}
-#endif
 
 			/* If there is a low water mark callback registered,
 			   and if we passed under the water mark, call the
@@ -543,7 +505,6 @@ int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 				       call the callback again. */
 				    && !(tone->usecs == CW_AUDIO_FOREVER_USECS && queue_len == 1)) {
 
-					// fprintf(stderr, "libcw: solution 7, calling callback A, %d / %d / %d\n", tq->len, queue_len, tq->low_water_mark);
 					call_callback = true;
 				}
 			}
@@ -556,7 +517,6 @@ int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 			   pthread_mutex_unlock() in this function. */
 
 			if (call_callback) {
-				// fprintf(stderr, "libcw: solution 7, calling callback B, %d / %d / %d\n", tq->len, queue_len, tq->low_water_mark);
 				(*(tq->low_water_callback))(tq->low_water_callback_arg);
 			}
 
@@ -582,16 +542,6 @@ int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 				cw_key_tk_set_value_internal(tq->gen->key, CW_KEY_STATE_OPEN);
 			}
 
-			//cw_finalization_schedule_internal();
-
-#ifdef LIBCW_WITH_DEV
-			if (tq_report != REPORTED_JUST_EMPTIED) {
-				cw_debug_ev ((&cw_debug_object_ev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_EVENT_TQ_JUST_EMPTIED);
-				cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
-					      "libcw: tone queue: just emptied");
-				tq_report = REPORTED_JUST_EMPTIED;
-			}
-#endif
 
 			pthread_mutex_unlock(&(tq->mutex));
 			return CW_TQ_JUST_EMPTIED;
