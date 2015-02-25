@@ -30,6 +30,29 @@
 
    The tone queue (the circular list) is implemented using constant
    size table.
+
+
+   Explanation of "forever" tone:
+
+   If a "forever" flag is set in a tone that is a last one on a tone
+   queue, the tone should be constantly returned by dequeue function,
+   without removing the tone - as long as it is a last tone on queue.
+
+   Adding new, "non-forever" tone to the queue results in permanent
+   dequeuing "forever" tone and proceeding to newly added tone.
+   Adding new, "non-forever" tone ends generation of "forever" tone.
+
+   The "forever" tone is useful for generating tones of length unknown
+   in advance; length of the tone will be
+           N * CW_AUDIO_QUANTUM_USECS
+   where N is number of dequeue operations before a non-forever tone
+   is added to the queue.
+
+   dequeue() function recognizes the "forever" tone and acts as
+   described above; there is no visible difference between dequeuing N
+   separate "non-forever" tones of duration CW_AUDIO_QUANTUM_USECS,
+   and dequeuing a "forever" tone of duration CW_AUDIO_FOREVER_USECS N
+   times in a row.
 */
 
 
@@ -453,15 +476,14 @@ int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 
 			if (tone->usecs == CW_AUDIO_FOREVER_USECS && queue_len == 1) {
 				/* The last tone currently in queue is
-				   CW_AUDIO_FOREVER_USECS, which means that we
-				   should play certain tone until client
-				   code adds next tone (possibly forever).
-
-				   Don't dequeue this "forever" tone,
-				   don't iterate head.
+				   "forever" tone. This means that tq
+				   manager should keep it in queue
+				   until client code adds next tone
+				   (possibly forever). Queue's head
+				   should not be iterated.
 
 				   TODO: shouldn't we 'return
-				   CW_TQ_NONEMPTY' at this point?
+				   CW_TQ_DEQUEUED' at this point?
 				   Since we are in "forever" tone,
 				   what else should we do?  Maybe call
 				   cw_key_tk_set_value_internal(), but
@@ -489,12 +511,7 @@ int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 				      tq->head, tq->tail, queue_len, tq->len);
 #endif
 
-			/* Notify the key control function that there
-			   might have been a change of keying state
-			   (and then again, there might not have been;
-			   the function will sort this out by
-			   comparing current key state with its
-			   internal key state). */
+			/* Notify the key control function about current tone. */
 			if (tq->gen && tq->gen->key) {
 				cw_key_tk_set_value_internal(tq->gen->key, tone->frequency ? CW_KEY_STATE_CLOSED : CW_KEY_STATE_OPEN);
 			}
@@ -545,26 +562,24 @@ int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 
 			return CW_TQ_DEQUEUED;
 		} else { /* tq->len == 0 */
-			/* State of tone queue (as indicated by
-			   tq->state) is "busy", but it turns out that
-			   there are no tones left on the queue to
-			   play (tq->len == 0).
+			/* State of tone queue is still "busy", but
+			   there are no tones left on the queue.
 
 			   Time to bring tq->state in sync with
-			   len. Set state to idle, indicating that
-			   autonomous dequeuing has finished for the
-			   moment. */
+			   tq->len. Set state to idle, indicating that
+			   dequeuing has finished for the moment. */
 			tq->state = CW_TQ_IDLE;
 
-			/* There is no tone to dequeue, so don't modify
-			   function's arguments. Client code will learn
-			   about "no tones" state through return value. */
+			/* There is no tone to dequeue, so don't
+			   modify function's arguments. Client code
+			   will learn about "no valid tone returned
+			   through function argument" state through
+			   return value. */
 
-			/* Notify the keying control function about the silence. */
+			/* Notify the key control function about current tone. */
 			if (tq->gen && tq->gen->key) {
 				cw_key_tk_set_value_internal(tq->gen->key, CW_KEY_STATE_OPEN);
 			}
-
 
 			pthread_mutex_unlock(&(tq->mutex));
 			return CW_TQ_NDEQUEUED_EMPTY;
