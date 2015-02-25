@@ -70,6 +70,13 @@ typedef struct {
 	/* Duration of a tone, in microseconds. */
 	int usecs;
 
+	/* Is this "forever" tone? See libcw_tq.c for more info about
+	   "forever" tones. */
+	bool forever;
+
+	/* Type of slope. */
+	int slope_mode;
+
 	/* Duration of a tone, in samples.
 	   This is a derived value, a function of usecs and sample rate. */
 
@@ -109,9 +116,25 @@ typedef struct {
 	   currently, if a tone has both slopes (rising and falling), both
 	   slope areas have to have the same length; */
 	int slope_iterator;     /* counter of samples in slope area */
-	int slope_mode;         /* mode/scenario of slope */
 	int slope_n_samples;    /* length of slope area */
 } cw_tone_t;
+
+
+
+
+
+/* Copy values of all fields from one variable of cw_tone_t type to
+   the other. The macro accepts pointers to cw_tone_t variables as
+   arguments. */
+#define CW_TONE_COPY(m_dest, m_source) {				\
+		(m_dest)->frequency       = (m_source)->frequency;	\
+		(m_dest)->usecs           = (m_source)->usecs;		\
+		(m_dest)->slope_mode      = (m_source)->slope_mode;	\
+		(m_dest)->forever         = (m_source)->forever;	\
+		(m_dest)->n_samples       = (m_source)->n_samples;	\
+		(m_dest)->slope_iterator  = (m_source)->slope_iterator;	\
+		(m_dest)->slope_n_samples = (m_source)->slope_n_samples; \
+	};
 
 
 
