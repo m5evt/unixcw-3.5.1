@@ -331,9 +331,7 @@ int cw_gen_silence_internal(cw_gen_t *gen)
 		   || gen->audio_system == CW_AUDIO_PA) {
 
 		cw_tone_t tone;
-		tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-		tone.frequency = 0;
-		tone.usecs = CW_AUDIO_QUANTUM_USECS;
+		CW_TONE_INIT(&tone, 0, CW_AUDIO_QUANTUM_USECS, CW_SLOPE_MODE_NO_SLOPES);
 		status = cw_tq_enqueue_internal(gen->tq, &tone);
 
 		/* allow some time for playing the last tone */
@@ -718,14 +716,8 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 	/* Usually the code that queues tones only sets .frequency,
 	   .usecs. and .slope_mode. Values of rest of fields will be
 	   calculated in lower-level code. */
-	cw_tone_t tone =
-		{ .frequency = 0,
-		  .usecs     = 0,
-		  .slope_mode = CW_SLOPE_MODE_STANDARD_SLOPES,
-
-		  .n_samples       = 0,
-		  .slope_iterator  = 0,
-		  .slope_n_samples = 0 };
+	cw_tone_t tone;
+	CW_TONE_INIT(&tone, 0, 0, CW_SLOPE_MODE_STANDARD_SLOPES);
 
 	while (gen->generate) {
 		int tq_rv = cw_tq_dequeue_internal(gen->tq, &tone);
@@ -1751,15 +1743,11 @@ int cw_gen_play_mark_internal(cw_gen_t *gen, char mark)
 	/* Send either a dot or a dash mark, depending on representation. */
 	if (mark == CW_DOT_REPRESENTATION) {
 		cw_tone_t tone;
-		tone.slope_mode = CW_SLOPE_MODE_STANDARD_SLOPES;
-		tone.usecs = gen->dot_len;
-		tone.frequency = gen->frequency;
+		CW_TONE_INIT(&tone, gen->frequency, gen->dot_len, CW_SLOPE_MODE_STANDARD_SLOPES);
 		status = cw_tq_enqueue_internal(gen->tq, &tone);
 	} else if (mark == CW_DASH_REPRESENTATION) {
 		cw_tone_t tone;
-		tone.slope_mode = CW_SLOPE_MODE_STANDARD_SLOPES;
-		tone.usecs = gen->dash_len;
-		tone.frequency = gen->frequency;
+		CW_TONE_INIT(&tone, gen->frequency, gen->dash_len, CW_SLOPE_MODE_STANDARD_SLOPES);
 		status = cw_tq_enqueue_internal(gen->tq, &tone);
 	} else {
 		errno = EINVAL;
@@ -1772,9 +1760,7 @@ int cw_gen_play_mark_internal(cw_gen_t *gen, char mark)
 
 	/* Send the inter-mark space. */
 	cw_tone_t tone;
-	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-	tone.usecs = gen->eom_space_len;
-	tone.frequency = 0;
+	CW_TONE_INIT(&tone, 0, gen->eom_space_len, CW_SLOPE_MODE_NO_SLOPES);
 	if (!cw_tq_enqueue_internal(gen->tq, &tone)) {
 		return CW_FAILURE;
 	} else {
@@ -1811,9 +1797,7 @@ int cw_gen_play_eoc_space_internal(cw_gen_t *gen)
 	/* Delay for the standard end of character period, plus any
 	   additional inter-character gap */
 	cw_tone_t tone;
-	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-	tone.usecs = gen->eoc_space_len + gen->additional_space_len;
-	tone.frequency = 0;
+	CW_TONE_INIT(&tone, 0, gen->eoc_space_len + gen->additional_space_len, CW_SLOPE_MODE_NO_SLOPES);
 	return cw_tq_enqueue_internal(gen->tq, &tone);
 }
 
@@ -1873,15 +1857,11 @@ int cw_gen_play_eow_space_internal(cw_gen_t *gen)
 	   be called. */
 
 	cw_tone_t tone;
-	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-	tone.usecs = gen->eow_space_len;
-	tone.frequency = 0;
+	CW_TONE_INIT(&tone, 0, gen->eow_space_len, CW_SLOPE_MODE_NO_SLOPES);
 	int rv = cw_tq_enqueue_internal(gen->tq, &tone);
 
 	if (rv == CW_SUCCESS) {
-		tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-		tone.usecs = gen->adjustment_space_len;
-		tone.frequency = 0;
+		CW_TONE_INIT(&tone, 0, gen->adjustment_space_len, CW_SLOPE_MODE_NO_SLOPES);
 		rv = cw_tq_enqueue_internal(gen->tq, &tone);
 	}
 
@@ -2282,14 +2262,10 @@ void cw_gen_key_begin_mark_internal(cw_gen_t *gen)
 	   until function receives CW_KEY_STATE_OPEN key state. */
 
 	cw_tone_t tone;
-	tone.usecs = gen->tone_slope.length_usecs;
-	tone.frequency = gen->frequency;
-	tone.slope_mode = CW_SLOPE_MODE_RISING_SLOPE;
+	CW_TONE_INIT(&tone, gen->frequency, gen->tone_slope.length_usecs, CW_SLOPE_MODE_RISING_SLOPE);
 	cw_tq_enqueue_internal(gen->tq, &tone);
 
-	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-	tone.usecs = CW_AUDIO_FOREVER_USECS;
-	tone.frequency = gen->frequency;
+	CW_TONE_INIT(&tone, gen->frequency, CW_AUDIO_FOREVER_USECS, CW_SLOPE_MODE_NO_SLOPES);
 	cw_tq_enqueue_internal(gen->tq, &tone);
 
 	cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
@@ -2320,17 +2296,13 @@ void cw_gen_key_begin_space_internal(cw_gen_t *gen)
 		/* Play just a bit of silence, just to switch
 		   buzzer from playing a sound to being silent. */
 		cw_tone_t tone;
-		tone.usecs = CW_AUDIO_QUANTUM_USECS;
-		tone.frequency = 0;
-		tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
+		CW_TONE_INIT(&tone, 0, CW_AUDIO_QUANTUM_USECS, CW_SLOPE_MODE_NO_SLOPES);
 		cw_tq_enqueue_internal(gen->tq, &tone);
 	} else {
 		/* For soundcards a falling slope with volume from max
 		   to zero should be enough, but... */
 		cw_tone_t tone;
-		tone.usecs = gen->tone_slope.length_usecs;
-		tone.frequency = gen->frequency;
-		tone.slope_mode = CW_SLOPE_MODE_FALLING_SLOPE;
+		CW_TONE_INIT(&tone, gen->frequency, gen->tone_slope.length_usecs, CW_SLOPE_MODE_FALLING_SLOPE);
 		cw_tq_enqueue_internal(gen->tq, &tone);
 
 		/* On some occasions, on some platforms, some sound
@@ -2343,9 +2315,7 @@ void cw_gen_key_begin_space_internal(cw_gen_t *gen)
 		   tones after "falling slope" tone. Silence after the
 		   last falling slope would simply last on itself
 		   until there is new tone on queue to play. */
-		tone.usecs = CW_AUDIO_FOREVER_USECS;
-		tone.frequency = 0;
-		tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
+		CW_TONE_INIT(&tone, 0, CW_AUDIO_FOREVER_USECS, CW_SLOPE_MODE_NO_SLOPES);
 		cw_tq_enqueue_internal(gen->tq, &tone);
 	}
 
@@ -2378,19 +2348,13 @@ void cw_gen_key_pure_symbol_internal(cw_gen_t *gen, char symbol)
 	cw_tone_t tone;
 
 	if (symbol == CW_DOT_REPRESENTATION) {
-		tone.usecs = gen->dot_len;
-		tone.frequency = gen->frequency;
-		tone.slope_mode = CW_SLOPE_MODE_STANDARD_SLOPES;
+		CW_TONE_INIT(&tone, gen->frequency, gen->dot_len, CW_SLOPE_MODE_STANDARD_SLOPES);
 
 	} else if (symbol == CW_DASH_REPRESENTATION) {
-		tone.usecs = gen->dash_len;
-		tone.frequency = gen->frequency;
-		tone.slope_mode = CW_SLOPE_MODE_STANDARD_SLOPES;
+		CW_TONE_INIT(&tone, gen->frequency, gen->dash_len, CW_SLOPE_MODE_STANDARD_SLOPES);
 
 	} else if (symbol == CW_SYMBOL_SPACE) {
-		tone.usecs = gen->eom_space_len;
-		tone.frequency = 0;
-		tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
+		CW_TONE_INIT(&tone, 0, gen->eom_space_len, CW_SLOPE_MODE_NO_SLOPES);
 
 	} else {
 		cw_assert (0, "unknown key symbol '%d'", symbol);
