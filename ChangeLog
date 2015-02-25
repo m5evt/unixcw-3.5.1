@@ -1,3 +1,24 @@
+2015-02-25 Kamil Ignacak
+	* tq: improving handling of tones in general, and "forever" tones
+	in particular.
+
+	I have created CW_TONE_INIT and CW_TONE_COPY macros that
+	(re-)initialize a tone variable (all of its fields), and that copy
+	values of fields from one cw_tone_t variable to other. There are
+	so many places where I need to set values of fields of cw_tone_t,
+	that I thought it would be beneficial to have some sort of
+	constructor/initializer. A full constructor that mallocs() tone
+	would be too much, but simple macro doing assignments is quite ok.
+
+	Until now the tone queue manager and generator used special value
+	CW_AUDIO_FOREVER_USECS assigned to cw_tone_t.usecs to indicate
+	that a tone is "forever" tone. This had one downside: a regular,
+	plain variable had special value that I had to constantly be aware
+	of. Now the "usecs" is again a regular variable - nothing more
+	than the length of tone. Information whether or not a tone is
+	"forever" tone is now conveyed by new field in cw_tone_t:
+	cw_tone_t.forever.
+
 2015-02-23 Kamil Ignacak
 	* cw_gen: Lots of small updates. Mostly in comments, but I have
 	also removed few unused (commented out) lines of code and renamed
