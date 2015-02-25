@@ -1095,9 +1095,7 @@ unsigned int test_cw_tq_length_internal(void)
 	   length of the list. */
 
 	cw_tone_t tone;
-	tone.usecs = 1;
-	tone.frequency = 1;
-	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
+	CW_TONE_INIT(&tone, 1, 1, CW_SLOPE_MODE_NO_SLOPES);
 
 	for (uint32_t i = 0; i < test_tone_queue->capacity; i++) {
 
@@ -1157,9 +1155,7 @@ unsigned int test_cw_tq_enqueue_internal_1(void)
 	   function. */
 
 	cw_tone_t tone;
-	tone.usecs = 1;
-	tone.frequency = 1;
-	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
+	CW_TONE_INIT(&tone, 1, 1, CW_SLOPE_MODE_NO_SLOPES);
 
 	for (uint32_t i = 0; i < test_tone_queue->capacity; i++) {
 
@@ -1209,10 +1205,10 @@ unsigned int test_cw_tq_dequeue_internal(void)
 	/* Test some assertions about full tq, just to be sure. */
 	cw_assert (test_tone_queue->capacity == test_tone_queue->len,
 		   "Capacity != Len of full queue: %"PRIu32" != %"PRIu32"",
-		   test_tone_queue->capacity, test_tone_queue->len)
+		   test_tone_queue->capacity, test_tone_queue->len);
 
 	cw_tone_t tone;
-	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;;
+	CW_TONE_INIT(&tone, 1, 1, CW_SLOPE_MODE_NO_SLOPES);
 
 	for (uint32_t i = test_tone_queue->capacity; i > 0; i--) {
 
@@ -1277,9 +1273,7 @@ unsigned int test_cw_tq_is_full_internal(void)
 	test_tone_queue->state = CW_TQ_BUSY;
 
 	cw_tone_t tone;
-	tone.usecs = 1;
-	tone.frequency = 1;
-	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;;
+	CW_TONE_INIT(&tone, 1, 1, CW_SLOPE_MODE_NO_SLOPES);
 
 	/* Notice the "capacity - 1" in loop condition: we leave one
 	   place in tq free so that is_full() called in the loop
@@ -1357,8 +1351,8 @@ unsigned int test_cw_tq_test_capacity_1(void)
 		   are nicely wrapped after end of queue. */
 		for (uint32_t i = 0; i < test_tone_queue->capacity; i++) {
 			cw_tone_t tone;
-			tone.frequency = (int) i;
-			tone.usecs = 1000;
+			CW_TONE_INIT(&tone, (int) i, 1000, CW_SLOPE_MODE_NO_SLOPES);
+
 			rv = cw_tq_enqueue_internal(test_tone_queue, &tone);
 			assert (rv == CW_SUCCESS);
 		}
@@ -1443,13 +1437,11 @@ unsigned int test_cw_tq_test_capacity_2(void)
 		   are nicely wrapped after end of queue. */
 		for (uint32_t i = 0; i < test_tone_queue->capacity; i++) {
 			cw_tone_t tone;
-			tone.frequency = (int) i;
-			tone.usecs = 1000;
+			CW_TONE_INIT(&tone, (int) i, 1000, CW_SLOPE_MODE_NO_SLOPES);
+
 			rv = cw_tq_enqueue_internal(test_tone_queue, &tone);
 			assert (rv == CW_SUCCESS);
-			//fprintf(stderr, "Tone %d enqueued\n", i);
 		}
-
 
 
 		/* With the queue filled with valid and known data
@@ -1467,7 +1459,7 @@ unsigned int test_cw_tq_test_capacity_2(void)
 		   the same results). */
 
 		uint32_t i = 0;
-		cw_tone_t tone;
+		cw_tone_t tone; /* For output only, so no need to initialize. */
 
 		while ((rv = cw_tq_dequeue_internal(test_tone_queue, &tone))
 		       && rv == CW_TQ_DEQUEUED) {
@@ -1546,11 +1538,7 @@ int test_cw_tq_capacity_test_init(uint32_t capacity, uint32_t high_water_mark, i
 	   to be 100% sure that all tones in queue table have been
 	   initialized. */
 	for (int i = 0; i < CW_TONE_QUEUE_CAPACITY_MAX; i++) {
-		cw_tone_t tone = { .usecs = 1,
-				   .frequency = 10000 + i,
-				   .slope_mode = CW_SLOPE_MODE_STANDARD_SLOPES };
-
-		CW_TONE_COPY(&(test_tone_queue->queue[i]), &tone);
+		CW_TONE_INIT(&(test_tone_queue->queue[i]), 10000 + i, 1, CW_SLOPE_MODE_STANDARD_SLOPES);
 	}
 
 	/* Move head and tail of empty queue to initial position. The
