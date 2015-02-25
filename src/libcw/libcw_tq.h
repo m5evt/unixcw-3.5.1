@@ -123,6 +123,23 @@ typedef struct {
 
 
 
+/* Set values of tone's fields. Some field are set with values given
+   as arguments to the macro. Other are initialized with default
+   values. The macro should be used like this:
+   cw_tone_t my_tone;
+   CW_TONE_INIT(&tone, 200, 5000, CW_SLOPE_MODE_STANDARD_SLOPES);
+ */
+#define CW_TONE_INIT(m_tone, m_frequency, m_len, m_slope_mode) {	\
+		(m_tone)->frequency       = m_frequency;		\
+		(m_tone)->usecs           = m_len;			\
+		(m_tone)->slope_mode      = m_slope_mode;		\
+		(m_tone)->forever         = false;			\
+		(m_tone)->n_samples       = 0;				\
+		(m_tone)->slope_iterator  = 0;				\
+		(m_tone)->slope_n_samples = 0;				\
+	}
+
+
 /* Copy values of all fields from one variable of cw_tone_t type to
    the other. The macro accepts pointers to cw_tone_t variables as
    arguments. */
