@@ -1565,7 +1565,8 @@ void test_cw_forever(cw_test_stats_t *stats)
 	cw_tq_enqueue_internal(gen->tq, &tone);
 
 	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-	tone.usecs = CW_AUDIO_FOREVER_USECS;
+	tone.usecs = CW_AUDIO_QUANTUM_USECS;
+	tone.forever = true;
 	tone.frequency = 500;
 	int rv = cw_tq_enqueue_internal(gen->tq, &tone);
 	rv ? stats->successes++ : stats->failures++;
