@@ -239,17 +239,10 @@ int cw_console_write(cw_gen_t *gen, cw_tone_t *tone)
 {
 	assert (gen);
 	assert (gen->audio_system == CW_AUDIO_CONSOLE);
-
-	int usecs = tone->usecs;
-	if (usecs == CW_AUDIO_FOREVER_USECS) {
-		/* CW_AUDIO_FOREVER_USECS is a negative value, serving as
-		   a hint for generator. We can't forward negative value to
-		   cw_console_write_low_level_internal(). */
-		usecs = CW_AUDIO_QUANTUM_USECS;
-	}
+	assert (tone->usecs >= 0);
 
 	struct timespec n = { .tv_sec = 0, .tv_nsec = 0 };
-	cw_usecs_to_timespec_internal(&n, usecs);
+	cw_usecs_to_timespec_internal(&n, tone->usecs);
 
 	int rv = cw_console_write_low_level_internal(gen, (bool) tone->frequency);
 	cw_nanosleep_internal(&n);
