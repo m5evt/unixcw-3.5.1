@@ -1150,9 +1150,7 @@ int cw_queue_tone(int usecs, int frequency)
 	}
 
 	cw_tone_t tone;
-	tone.slope_mode = CW_SLOPE_MODE_STANDARD_SLOPES;
-	tone.usecs = usecs;
-	tone.frequency = frequency;
+	CW_TONE_INIT(&tone, frequency, usecs, CW_SLOPE_MODE_STANDARD_SLOPES);
 	int rv = cw_tq_enqueue_internal(cw_generator->tq, &tone);
 
 	return rv;
