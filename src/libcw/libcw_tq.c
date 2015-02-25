@@ -474,7 +474,7 @@ int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 			/* Get parameters of tone to be played */
 			CW_TONE_COPY(tone, &(tq->queue[tq->head]));
 
-			if (tone->usecs == CW_AUDIO_FOREVER_USECS && queue_len == 1) {
+			if (tone->forever && queue_len == 1) {
 				/* The last tone currently in queue is
 				   "forever" tone. This means that tq
 				   manager should keep it in queue
@@ -543,7 +543,7 @@ int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 				       tone. Once client code decides to end the
 				       'forever' tone, we will be ready to
 				       call the callback again. */
-				    && !(tone->usecs == CW_AUDIO_FOREVER_USECS && queue_len == 1)) {
+				    && !(tone->forever && queue_len == 1)) {
 
 					call_callback = true;
 				}
@@ -635,8 +635,7 @@ int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 		return CW_FAILURE;
 	}
 
-	if (tone->usecs < 0
-	    && tone->usecs != CW_AUDIO_FOREVER_USECS) {
+	if (tone->usecs < 0) {
 
 		errno = EINVAL;
 		return CW_FAILURE;
