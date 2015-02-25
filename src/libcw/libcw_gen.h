@@ -386,9 +386,9 @@ int cw_gen_play_eow_space_internal(cw_gen_t *gen);
 
 /* These are also 'play' primitives, but are intended to be used on
    hardware key events. */
-void cw_gen_key_begin_mark_internal(cw_gen_t *gen);
-void cw_gen_key_begin_space_internal(cw_gen_t *gen);
-void cw_gen_key_pure_symbol_internal(cw_gen_t *gen, char symbol);
+int cw_gen_key_begin_mark_internal(cw_gen_t *gen);
+int cw_gen_key_begin_space_internal(cw_gen_t *gen);
+int cw_gen_key_pure_symbol_internal(cw_gen_t *gen, char symbol);
 
 
 
