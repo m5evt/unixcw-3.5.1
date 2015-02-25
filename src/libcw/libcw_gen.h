@@ -74,28 +74,6 @@ static const int        CW_AUDIO_SLOPE_USECS = 5000;          /* length of a sin
 #define CW_AUDIO_QUANTUM_USECS 100
 
 
-/* this is a marker of "forever" tone:
-
-   if a tone with duration ("usecs") set to this value is a last one on a
-   tone queue, it should be constantly returned by dequeue function,
-   without removing the tone - as long as it is a last tone on queue;
-
-   adding new, "non-forever" tone to the queue results in permanent
-   dequeuing "forever" tone and proceeding to newly added tone;
-   adding new, "non-forever" tone ends generation of "forever" tone;
-
-   the "forever" tone is useful for generating of tones of length unknown
-   in advance; length of the tone will be N * (-CW_AUDIO_FOREVER_USECS),
-   where N is number of dequeue operations before a non-forever tone is
-   added to the queue;
-
-   dequeue function recognizes the "forever" tone and acts as described
-   above; there is no visible difference between dequeuing N tones of
-   duration "-CW_AUDIO_QUANTUM_USECS", and dequeuing a tone of duration
-   "CW_AUDIO_FOREVER_USECS" N times in a row; */
-#define CW_AUDIO_FOREVER_USECS (-CW_AUDIO_QUANTUM_USECS)
-
-
 
 
 
