@@ -1266,13 +1266,7 @@ int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, cw_tone_t *tone, int queue
 			tone->slope_iterator = 0; /* This enables slope iterator for increments. */
 
 		} else if (tone->slope_mode == CW_SLOPE_MODE_NO_SLOPES) {
-			if (tone->usecs == CW_AUDIO_FOREVER_USECS) {
 
-				/* CW_AUDIO_FOREVER_USECS is a special
-				   negative value.  Use some valid
-				   value. */
-				tone->usecs = CW_AUDIO_QUANTUM_USECS;
-			}
 			tone->slope_iterator = -1; /* This prevents slope iterator from being incremented. */
 		} else {
 			cw_assert (0, "unknown value of tone->slope_mode: %d", tone->slope_mode);
@@ -2267,7 +2261,8 @@ int cw_gen_key_begin_mark_internal(cw_gen_t *gen)
 
 	if (rv == CW_SUCCESS) {
 
-		CW_TONE_INIT(&tone, gen->frequency, CW_AUDIO_FOREVER_USECS, CW_SLOPE_MODE_NO_SLOPES);
+		CW_TONE_INIT(&tone, gen->frequency, CW_AUDIO_QUANTUM_USECS, CW_SLOPE_MODE_NO_SLOPES);
+		tone.forever = true;
 		rv = cw_tq_enqueue_internal(gen->tq, &tone);
 
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
@@ -2324,7 +2319,8 @@ int cw_gen_key_begin_space_internal(cw_gen_t *gen)
 			   tone. Silence after the last falling slope
 			   would simply last on itself until there is
 			   new tone on queue to play. */
-			CW_TONE_INIT(&tone, 0, CW_AUDIO_FOREVER_USECS, CW_SLOPE_MODE_NO_SLOPES);
+			CW_TONE_INIT(&tone, 0, CW_AUDIO_QUANTUM_USECS, CW_SLOPE_MODE_NO_SLOPES);
+			tone.forever = true;
 			rv = cw_tq_enqueue_internal(gen->tq, &tone);
 		}
 
