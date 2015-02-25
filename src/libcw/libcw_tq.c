@@ -449,9 +449,7 @@ int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 			uint32_t queue_len = tq->len;
 
 			/* Get parameters of tone to be played */
-			tone->usecs = tq->queue[tq->head].usecs;
-			tone->frequency = tq->queue[tq->head].frequency;
-			tone->slope_mode = tq->queue[tq->head].slope_mode;
+			CW_TONE_COPY(tone, &(tq->queue[tq->head]));
 
 			if (tone->usecs == CW_AUDIO_FOREVER_USECS && queue_len == 1) {
 				/* The last tone currently in queue is
@@ -673,9 +671,7 @@ int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 	   Notice that tail is incremented after adding a tone. This
 	   means that for empty tq new tone is inserted at index
 	   tail == head (which should be kind of obvious). */
-	tq->queue[tq->tail].usecs = tone->usecs;
-	tq->queue[tq->tail].frequency = tone->frequency;
-	tq->queue[tq->tail].slope_mode = tone->slope_mode;
+	CW_TONE_COPY(&(tq->queue[tq->tail]), tone);
 
 	tq->tail = cw_tq_next_index_internal(tq, tq->tail);
 	tq->len++;
@@ -1121,9 +1117,7 @@ unsigned int test_cw_tq_length_internal(void)
 			}
 
 			/* Enqueue the new tone and set the new tail index. */
-			test_tone_queue->queue[test_tone_queue->tail].usecs = tone.usecs;
-			test_tone_queue->queue[test_tone_queue->tail].frequency = tone.frequency;
-			test_tone_queue->queue[test_tone_queue->tail].slope_mode = tone.slope_mode;
+			CW_TONE_COPY(&(test_tone_queue->queue[test_tone_queue->tail]), &tone);
 
 			test_tone_queue->tail = cw_tq_next_index_internal(test_tone_queue, test_tone_queue->tail);
 			test_tone_queue->len++;
@@ -1556,9 +1550,7 @@ int test_cw_tq_capacity_test_init(uint32_t capacity, uint32_t high_water_mark, i
 				   .frequency = 10000 + i,
 				   .slope_mode = CW_SLOPE_MODE_STANDARD_SLOPES };
 
-		test_tone_queue->queue[i].usecs = tone.usecs;
-		test_tone_queue->queue[i].frequency = tone.frequency;
-		test_tone_queue->queue[i].slope_mode = tone.slope_mode;
+		CW_TONE_COPY(&(test_tone_queue->queue[i]), &tone);
 	}
 
 	/* Move head and tail of empty queue to initial position. The
