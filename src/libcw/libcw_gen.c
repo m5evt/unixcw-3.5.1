@@ -713,9 +713,6 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 {
 	cw_gen_t *gen = (cw_gen_t *) arg;
 
-	/* Usually the code that queues tones only sets .frequency,
-	   .usecs. and .slope_mode. Values of rest of fields will be
-	   calculated in lower-level code. */
 	cw_tone_t tone;
 	CW_TONE_INIT(&tone, 0, 0, CW_SLOPE_MODE_STANDARD_SLOPES);
 
@@ -2250,8 +2247,11 @@ void cw_gen_sync_parameters_internal(cw_gen_t *gen)
    for details.
 
    \param gen - generator
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
 */
-void cw_gen_key_begin_mark_internal(cw_gen_t *gen)
+int cw_gen_key_begin_mark_internal(cw_gen_t *gen)
 {
 	/* In case of straight key we don't know at all how long the
 	   tone should be (we don't know for how long the key will be
@@ -2263,15 +2263,18 @@ void cw_gen_key_begin_mark_internal(cw_gen_t *gen)
 
 	cw_tone_t tone;
 	CW_TONE_INIT(&tone, gen->frequency, gen->tone_slope.length_usecs, CW_SLOPE_MODE_RISING_SLOPE);
-	cw_tq_enqueue_internal(gen->tq, &tone);
+	int rv = cw_tq_enqueue_internal(gen->tq, &tone);
 
-	CW_TONE_INIT(&tone, gen->frequency, CW_AUDIO_FOREVER_USECS, CW_SLOPE_MODE_NO_SLOPES);
-	cw_tq_enqueue_internal(gen->tq, &tone);
+	if (rv == CW_SUCCESS) {
 
-	cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
-		      "libcw: tone queue: len = %"PRIu32"", cw_tq_length_internal(gen->tq));
+		CW_TONE_INIT(&tone, gen->frequency, CW_AUDIO_FOREVER_USECS, CW_SLOPE_MODE_NO_SLOPES);
+		rv = cw_tq_enqueue_internal(gen->tq, &tone);
 
-	return;
+		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
+			      "libcw: tone queue: len = %"PRIu32"", cw_tq_length_internal(gen->tq));
+	}
+
+	return rv;
 }
 
 
@@ -2289,37 +2292,44 @@ void cw_gen_key_begin_mark_internal(cw_gen_t *gen)
    for details.
 
    \param gen - generator
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
 */
-void cw_gen_key_begin_space_internal(cw_gen_t *gen)
+int cw_gen_key_begin_space_internal(cw_gen_t *gen)
 {
 	if (gen->audio_system == CW_AUDIO_CONSOLE) {
 		/* Play just a bit of silence, just to switch
 		   buzzer from playing a sound to being silent. */
 		cw_tone_t tone;
 		CW_TONE_INIT(&tone, 0, CW_AUDIO_QUANTUM_USECS, CW_SLOPE_MODE_NO_SLOPES);
-		cw_tq_enqueue_internal(gen->tq, &tone);
+		return cw_tq_enqueue_internal(gen->tq, &tone);
 	} else {
 		/* For soundcards a falling slope with volume from max
 		   to zero should be enough, but... */
 		cw_tone_t tone;
 		CW_TONE_INIT(&tone, gen->frequency, gen->tone_slope.length_usecs, CW_SLOPE_MODE_FALLING_SLOPE);
-		cw_tq_enqueue_internal(gen->tq, &tone);
+		int rv = cw_tq_enqueue_internal(gen->tq, &tone);
 
-		/* On some occasions, on some platforms, some sound
-		   systems may need to constantly play "silent"
-		   tone. These four lines of code are just for them.
+		if (rv == CW_SUCCESS) {
+			/* ... but on some occasions, on some
+			   platforms, some sound systems may need to
+			   constantly play "silent" tone. These four
+			   lines of code are just for them.
 
-		   It would be better to avoid queueing silent
-		   "forever" tone because this increases CPU usage. It
-		   would be better to simply not to queue any new
-		   tones after "falling slope" tone. Silence after the
-		   last falling slope would simply last on itself
-		   until there is new tone on queue to play. */
-		CW_TONE_INIT(&tone, 0, CW_AUDIO_FOREVER_USECS, CW_SLOPE_MODE_NO_SLOPES);
-		cw_tq_enqueue_internal(gen->tq, &tone);
+			   It would be better to avoid queueing silent
+			   "forever" tone because this increases CPU
+			   usage. It would be better to simply not to
+			   queue any new tones after "falling slope"
+			   tone. Silence after the last falling slope
+			   would simply last on itself until there is
+			   new tone on queue to play. */
+			CW_TONE_INIT(&tone, 0, CW_AUDIO_FOREVER_USECS, CW_SLOPE_MODE_NO_SLOPES);
+			rv = cw_tq_enqueue_internal(gen->tq, &tone);
+		}
+
+		return rv;
 	}
-
-	return;
 }
 
 
@@ -2342,8 +2352,11 @@ void cw_gen_key_begin_space_internal(cw_gen_t *gen)
 
    \param gen - generator
    \param symbol - symbol to enqueue (Space/Dot/Dash)
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
 */
-void cw_gen_key_pure_symbol_internal(cw_gen_t *gen, char symbol)
+int cw_gen_key_pure_symbol_internal(cw_gen_t *gen, char symbol)
 {
 	cw_tone_t tone;
 
@@ -2360,7 +2373,5 @@ void cw_gen_key_pure_symbol_internal(cw_gen_t *gen, char symbol)
 		cw_assert (0, "unknown key symbol '%d'", symbol);
 	}
 
-	cw_tq_enqueue_internal(gen->tq, &tone);
-
-	return;
+	return cw_tq_enqueue_internal(gen->tq, &tone);
 }
