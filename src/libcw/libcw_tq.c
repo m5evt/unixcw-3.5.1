@@ -1008,37 +1008,45 @@ unsigned int test_cw_tq_prev_index_internal(void)
 {
 	int p = fprintf(stdout, "libcw/tq: cw_tq_prev_index_internal():");
 
+	cw_tone_queue_t *tq = cw_tq_new_internal();
+	cw_assert (tq, "failed to create new tone queue");
+
 	struct {
 		int arg;
 		uint32_t expected;
+		bool guard;
 	} input[] = {
-		{ test_tone_queue->capacity - 4, test_tone_queue->capacity - 5 },
-		{ test_tone_queue->capacity - 3, test_tone_queue->capacity - 4 },
-		{ test_tone_queue->capacity - 2, test_tone_queue->capacity - 3 },
-		{ test_tone_queue->capacity - 1, test_tone_queue->capacity - 2 },
+		{ tq->capacity - 4, tq->capacity - 5, false },
+		{ tq->capacity - 3, tq->capacity - 4, false },
+		{ tq->capacity - 2, tq->capacity - 3, false },
+		{ tq->capacity - 1, tq->capacity - 2, false },
 
 		/* This one should never happen. We can't pass index
 		   equal "capacity" because it's out of range. */
 		/*
-		{ test_tone_queue->capacity - 0, test_tone_queue->capacity - 1 },
+		{ tq->capacity - 0, tq->capacity - 1, false },
 		*/
 
-		{                            0, test_tone_queue->capacity - 1 },
-		{                            1,                            0 },
-		{                            2,                            1 },
-		{                            3,                            2 },
-		{                            4,                            3 },
+		{                0, tq->capacity - 1, false },
+		{                1,                0, false },
+		{                2,                1, false },
+		{                3,                2, false },
+		{                4,                3, false },
 
-		{ -1000, -1000 } /* guard */
+		{                0,                0, true  } /* guard */
 	};
 
 	int i = 0;
-	while (input[i].arg != -1000) {
+	while (!input[i].guard) {
 		uint32_t prev = cw_tq_prev_index_internal(test_tone_queue, input[i].arg);
 		//fprintf(stderr, "arg = %d, result = %d, expected = %d\n", input[i].arg, (int) prev, input[i].expected);
-		assert (prev == input[i].expected);
+		cw_assert (prev == input[i].expected,
+			   "calculated \"prev\" != expected \"prev\": %"PRIu32" != %"PRIu32"",
+			   prev, input[i].expected);
 		i++;
 	}
+
+	cw_tq_delete_internal(&tq);
 
 	CW_TEST_PRINT_TEST_RESULT(false, p);
 
@@ -1056,30 +1064,38 @@ unsigned int test_cw_tq_next_index_internal(void)
 {
 	int p = fprintf(stdout, "libcw/tq: cw_tq_next_index_internal():");
 
+	cw_tone_queue_t *tq = cw_tq_new_internal();
+	cw_assert (tq, "failed to create new tone queue");
+
 	struct {
 		int arg;
 		uint32_t expected;
+		bool guard;
 	} input[] = {
-		{ test_tone_queue->capacity - 5, test_tone_queue->capacity - 4 },
-		{ test_tone_queue->capacity - 4, test_tone_queue->capacity - 3 },
-		{ test_tone_queue->capacity - 3, test_tone_queue->capacity - 2 },
-		{ test_tone_queue->capacity - 2, test_tone_queue->capacity - 1 },
-		{ test_tone_queue->capacity - 1,                            0 },
-		{                            0,                            1 },
-		{                            1,                            2 },
-		{                            2,                            3 },
-		{                            3,                            4 },
+		{ tq->capacity - 5, tq->capacity - 4, false },
+		{ tq->capacity - 4, tq->capacity - 3, false },
+		{ tq->capacity - 3, tq->capacity - 2, false },
+		{ tq->capacity - 2, tq->capacity - 1, false },
+		{ tq->capacity - 1,                0, false },
+		{                0,                1, false },
+		{                1,                2, false },
+		{                2,                3, false },
+		{                3,                4, false },
 
-		{ -1000, -1000 } /* guard */
+		{                0,                0, true  } /* guard */
 	};
 
 	int i = 0;
-	while (input[i].arg != -1000) {
-		uint32_t next = cw_tq_next_index_internal(test_tone_queue, input[i].arg);
+	while (!input[i].guard) {
+		uint32_t next = cw_tq_next_index_internal(tq, input[i].arg);
 		//fprintf(stderr, "arg = %d, result = %d, expected = %d\n", input[i].arg, (int) next, input[i].expected);
-		assert (next == input[i].expected);
+		cw_assert (next == input[i].expected,
+			   "calculated \"next\" != expected \"next\": %"PRIu32" != %"PRIu32"",
+			   next, input[i].expected);
 		i++;
 	}
+
+	cw_tq_delete_internal(&tq);
 
 	CW_TEST_PRINT_TEST_RESULT(false, p);
 
@@ -1108,45 +1124,43 @@ unsigned int test_cw_tq_length_internal(void)
 	   part to manually add elements to list, and then to check
 	   length of the list. */
 
+	cw_tone_queue_t *tq = cw_tq_new_internal();
+	cw_assert (tq, "failed to create new tone queue");
+
 	cw_tone_t tone;
 	CW_TONE_INIT(&tone, 1, 1, CW_SLOPE_MODE_NO_SLOPES);
 
-	for (uint32_t i = 0; i < test_tone_queue->capacity; i++) {
+	for (uint32_t i = 0; i < tq->capacity; i++) {
 
+		/* This block of code pretends to be enqueue function.
+		   The most important functionality of enqueue
+		   function is done here manually. We don't do any
+		   checks of boundaries of tq, we trust that this is
+		   enforced by for loop's conditions. */
 		{
-			/* This part of code pretends to be enqueue
-			   function.  The most important functionality
-			   of enqueue function is done here
-			   manually. We don't do any checks of
-			   boundaries of tq, we trust that this is
-			   enforced by for loop's conditions. */
-
-			if (test_tone_queue->len == test_tone_queue->capacity) {
-				/* This shouldn't happen because queue
-				   boundary is watched by loop
-				   condition. */
-				assert (0);
-			}
+			/* Notice that this is *before* enqueueing the tone. */
+			cw_assert (tq->len < tq->capacity,
+				   "length before enqueue reached capacity: %"PRIu32" / %"PRIu32"",
+				   tq->len, tq->capacity);
 
 			/* Enqueue the new tone and set the new tail index. */
-			CW_TONE_COPY(&(test_tone_queue->queue[test_tone_queue->tail]), &tone);
+			CW_TONE_COPY(&(tq->queue[tq->tail]), &tone);
+			tq->tail = cw_tq_next_index_internal(tq, tq->tail);
+			tq->len++;
 
-			test_tone_queue->tail = cw_tq_next_index_internal(test_tone_queue, test_tone_queue->tail);
-			test_tone_queue->len++;
+			cw_assert (tq->len <= tq->capacity,
+				   "length after enqueue exceeded capacity: %"PRIu32" / %"PRIu32"",
+				   tq->len, tq->capacity);
 		}
 
-		/* OK, added a tone, ready to measure length of the queue. */
-		uint32_t len = cw_tq_length_internal(test_tone_queue);
-		assert (len == i + 1);
 
-		cw_assert(len == test_tone_queue->len,
-			  "Lengths don't match: %"PRIu32" != %"PRIu32"",
-			  len, test_tone_queue->len);
+		/* OK, added a tone, ready to measure length of the queue. */
+		uint32_t len = cw_tq_length_internal(tq);
+		cw_assert (len == i + 1, "after adding tone #%"PRIu32" length is incorrect (%"PRIu32")", i, len);
+		cw_assert (len == tq->len, "lengths don't match: %"PRIu32" != %"PRIu32"", len, tq->len);
 	}
 
-	/* Empty and reset the queue. */
-	test_tone_queue->len = 0;
-	test_tone_queue->head = test_tone_queue->tail;
+	cw_tq_delete_internal(&tq);
 
 	CW_TEST_PRINT_TEST_RESULT(false, p);
 
@@ -1279,12 +1293,9 @@ unsigned int test_cw_tq_is_full_internal(void)
 {
 	int p = fprintf(stdout, "libcw/tq: cw_tq_is_full_internal():");
 
-	/* The tq should be empty after the last test, but just in case...
-	   Empty and reset the queue. */
-	test_tone_queue->len = 0;
-	test_tone_queue->head = test_tone_queue->tail;
-
-	test_tone_queue->state = CW_TQ_BUSY;
+	cw_tone_queue_t *tq = cw_tq_new_internal();
+	cw_assert (tq, "failed to create new tq");
+	tq->state = CW_TQ_BUSY;
 
 	cw_tone_t tone;
 	CW_TONE_INIT(&tone, 1, 1, CW_SLOPE_MODE_NO_SLOPES);
@@ -1292,23 +1303,25 @@ unsigned int test_cw_tq_is_full_internal(void)
 	/* Notice the "capacity - 1" in loop condition: we leave one
 	   place in tq free so that is_full() called in the loop
 	   always returns false. */
-	for (uint32_t i = 0; i < test_tone_queue->capacity - 1; i++) {
-		int rv = cw_tq_enqueue_internal(test_tone_queue, &tone);
+	for (uint32_t i = 0; i < tq->capacity - 1; i++) {
+		int rv = cw_tq_enqueue_internal(tq, &tone);
 		/* The 'enqueue' function has been already tested, but
 		   it won't hurt to check this simple assertion here
 		   as well. */
 		assert (rv == CW_SUCCESS);
 
 		/* Here is the proper test of tested function. */
-		assert (!cw_tq_is_full_internal(test_tone_queue));
+		assert (!cw_tq_is_full_internal(tq));
 	}
 
 	/* At this point there is still place in tq for one more
 	   tone. Enqueue it and verify that the tq is now full. */
-	int rv = cw_tq_enqueue_internal(test_tone_queue, &tone);
+	int rv = cw_tq_enqueue_internal(tq, &tone);
 	assert (rv == CW_SUCCESS);
 
-	assert (cw_tq_is_full_internal(test_tone_queue));
+	assert (cw_tq_is_full_internal(tq));
+
+	cw_tq_delete_internal(&tq);
 
 	CW_TEST_PRINT_TEST_RESULT(false, p);
 
