@@ -465,89 +465,7 @@ int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 		/* If there are some tones in queue, dequeue the next
 		   tone. If there are no more tones, go to the idle state. */
 		if (tq->len) {
-			/* Get the current queue length.  Later on, we'll
-			   compare with the length after we've scanned
-			   over every tone we can omit, and use it to see
-			   if we've crossed the low water mark, if any. */
-			uint32_t queue_len = tq->len;
-
-			/* Get parameters of tone to be played */
-			CW_TONE_COPY(tone, &(tq->queue[tq->head]));
-
-			if (tone->forever && queue_len == 1) {
-				/* The last tone currently in queue is
-				   "forever" tone. This means that tq
-				   manager should keep it in queue
-				   until client code adds next tone
-				   (possibly forever). Queue's head
-				   should not be iterated.
-
-				   TODO: shouldn't we 'return
-				   CW_TQ_DEQUEUED' at this point?
-				   Since we are in "forever" tone,
-				   what else should we do?  Maybe call
-				   cw_key_tk_set_value_internal(), but
-				   I think that this would be all. */
-			} else {
-				tq->head = cw_tq_next_index_internal(tq, tq->head);;
-				tq->len--;
-
-				if (!tq->len) {
-					/* If tq has been emptied,
-					   head and tail should be
-					   back to initial state. */
-					cw_assert (tq->head == tq->tail,
-						   "Head: %"PRIu32", tail: %"PRIu32"",
-						   tq->head, tq->tail);
-				}
-			}
-
-#if 0 /* Disabled because these debug messages produce lots of output
-	 to console. Enable only when necessary. */
-			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
-				      "libcw: tone queue: dequeue tone %d usec, %d Hz", tone->usecs, tone->frequency);
-			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
-				      "libcw: tone queue: head = %"PRIu32", tail = %"PRIu32", length = %"PRIu32" -> %"PRIu32"",
-				      tq->head, tq->tail, queue_len, tq->len);
-#endif
-
-			/* Notify the key control function about current tone. */
-			if (tq->gen && tq->gen->key) {
-				cw_key_tk_set_value_internal(tq->gen->key, tone->frequency ? CW_KEY_STATE_CLOSED : CW_KEY_STATE_OPEN);
-			}
-
-			/* If there is a low water mark callback registered,
-			   and if we passed under the water mark, call the
-			   callback here.  We want to be sure to call this
-			   late in the processing, especially after setting
-			   the state to idle, since the most likely action
-			   of this routine is to queue tones, and we don't
-			   want to play with the state here after that. */
-			bool call_callback = false;
-			if (tq->low_water_callback) {
-
-				/* If the length we originally calculated
-				   was above the low water mark, and the
-				   one we have now is below or equal to it,
-				   call the callback. */
-
-				/* It may seem that the double condition in
-				   'if ()' is redundant, but for some reason
-				   it is necessary. Be very, very careful
-				   when modifying this. */
-				if (queue_len > tq->low_water_mark
-				    && tq->len <= tq->low_water_mark
-
-				    /* Avoid endlessly calling the callback
-				       if the only queued tone is 'forever'
-				       tone. Once client code decides to end the
-				       'forever' tone, we will be ready to
-				       call the callback again. */
-				    && !(tone->forever && queue_len == 1)) {
-
-					call_callback = true;
-				}
-			}
+			bool call_callback = cw_tq_dequeue_sub_internal(tq, tone);
 
 			pthread_mutex_unlock(&(tq->mutex));
 
@@ -590,6 +508,86 @@ int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 	/* will never get here as "queue state" enum has only two values */
 	assert(0);
 	return CW_TQ_NDEQUEUED_IDLE;
+}
+
+
+
+
+
+int cw_tq_dequeue_sub_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
+{
+	/* Used to check if we passed tq's low level watermark. */
+	uint32_t tq_len_before = tq->len;
+
+	/* Get parameters of tone to be played */
+	CW_TONE_COPY(tone, &(tq->queue[tq->head]));
+
+	if (tone->forever && tq_len_before == 1) {
+		/* The last tone currently in queue is "forever"
+		   tone. Keep the tone in queue until client code adds
+		   next tone (possibly forever). Queue's head should
+		   not be iterated.
+
+		   TODO: shouldn't we 'return CW_TQ_DEQUEUED' at this
+		   point?  Since we are in "forever" tone, what else
+		   should we do?  Maybe call
+		   cw_key_tk_set_value_internal(), but I think that
+		   this would be all.
+
+		   Notice that branch setting call_callback below
+		   tests the condition of this 'if ()' again, so
+		   callback won't be called on last tone being
+		   "forever" tone. */
+	} else {
+		tq->head = cw_tq_next_index_internal(tq, tq->head);;
+		tq->len--;
+
+		if (tq->len == 0) {
+			/* Verify basic property of empty tq. */
+			cw_assert (tq->head == tq->tail, "Head: %"PRIu32", tail: %"PRIu32"", tq->head, tq->tail);
+		}
+	}
+
+#if 0 /* Disabled because these debug messages produce lots of output
+	 to console. Enable only when necessary. */
+	cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
+		      "libcw: tone queue: dequeue tone %d usec, %d Hz", tone->usecs, tone->frequency);
+	cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
+		      "libcw: tone queue: head = %"PRIu32", tail = %"PRIu32", length = %"PRIu32" -> %"PRIu32"",
+		      tq->head, tq->tail, tq_len_before, tq->len);
+#endif
+
+	/* Notify the key control function about current tone. */
+	if (tq->gen && tq->gen->key) {
+		cw_key_tk_set_value_internal(tq->gen->key, tone->frequency ? CW_KEY_STATE_CLOSED : CW_KEY_STATE_OPEN);
+	}
+
+	/* If there is a low water mark callback registered, and if we
+	   passed under the water mark, call the callback here.  We
+	   want to be sure to call this late in the processing,
+	   especially after setting the state to idle, since the most
+	   likely action of this routine is to queue tones, and we
+	   don't want to play with the state here after that. */
+	bool call_callback = false;
+	if (tq->low_water_callback) {
+
+		/* It may seem that the double condition in 'if ()' is
+		   redundant, but for some reason it is necessary. Be
+		   very, very careful when modifying this. */
+		if (tq_len_before > tq->low_water_mark
+		    && tq->len <= tq->low_water_mark
+
+		    /* Avoid endlessly calling the callback if the
+		       only queued tone is 'forever' tone. Once client
+		       code decides to end the 'forever' tone, we will
+		       be ready to call the callback again. */
+		    && !(tone->forever && tq_len_before == 1)) {
+
+			call_callback = true;
+		}
+	}
+
+	return call_callback;
 }
 
 
