@@ -53,6 +53,10 @@
    separate "non-forever" tones of duration CW_AUDIO_QUANTUM_USECS,
    and dequeuing a "forever" tone of duration CW_AUDIO_FOREVER_USECS N
    times in a row.
+
+   Because of some corner cases related to "forever" tones it is very
+   strongly advised to set "low water mark" level to no less than 2
+   tones.
 */
 
 
@@ -475,8 +479,8 @@ int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 			pthread_mutex_unlock(&(tq->mutex));
 
 			/* Since client's callback can use functions
-			   that call pthread_mutex_lock(), we should
-			   put the callback *after* we release
+			   that call libcw's pthread_mutex_lock(), we
+			   should put the callback *after* we release
 			   pthread_mutex_unlock() in this function. */
 
 			if (call_callback) {
@@ -519,39 +523,59 @@ int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 
 
 
-int cw_tq_dequeue_sub_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
+/**
+   \brief Handle dequeueing of tone from non-empty tone queue
+
+   Function gets a tone from head of the queue.
+
+   If this was a last tone in queue, and it was a "forever" tone, the
+   tone is not removed from the queue (the philosophy of "forever"
+   tone), and "low watermark" condition is not checked.
+
+   Otherwise remove the tone from tone queue, check "low watermark"
+   condition, and return value of the check (true/false).
+
+   In any case, dequeued tone is returned through \p tone. \p tone
+   must be a valid pointer provided by caller.
+
+   \param tq - tone queue
+   \param tone - dequeued tone (output from the function)
+
+   \return true if a condition for calling "low watermark" callback is true
+   \return false otherwise
+*/
+int cw_tq_dequeue_sub_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 {
+	CW_TONE_COPY(tone, &(tq->queue[tq->head]));
+
+	if (tone->forever && tq->len == 1) {
+		/* Don't permanently remove the last tone that is
+		   "forever" tone in queue. Keep it in tq until client
+		   code adds next tone (possibly forever). Queue's
+		   head should not be iterated. "forever" tone should
+		   be played by caller code, this is why we return the
+		   tone through function's argument. */
+
+		/* Don't call "low watermark" callback for "forever"
+		   tone. As the comment in this function below has
+		   stated: avoid endlessly calling the callback if the
+		   only queued tone is "forever" tone.*/
+		return false;
+	}
+
 	/* Used to check if we passed tq's low level watermark. */
 	uint32_t tq_len_before = tq->len;
 
-	/* Get parameters of tone to be played */
-	CW_TONE_COPY(tone, &(tq->queue[tq->head]));
+	/* Dequeue. We already have the tone, now update tq's state. */
+	tq->head = cw_tq_next_index_internal(tq, tq->head);
+	tq->len--;
 
-	if (tone->forever && tq_len_before == 1) {
-		/* The last tone currently in queue is "forever"
-		   tone. Keep the tone in queue until client code adds
-		   next tone (possibly forever). Queue's head should
-		   not be iterated.
 
-		   TODO: shouldn't we 'return CW_TQ_DEQUEUED' at this
-		   point?  Since we are in "forever" tone, what else
-		   should we do?  Maybe call
-		   cw_key_tk_set_value_internal(), but I think that
-		   this would be all.
-
-		   Notice that branch setting call_callback below
-		   tests the condition of this 'if ()' again, so
-		   callback won't be called on last tone being
-		   "forever" tone. */
-	} else {
-		tq->head = cw_tq_next_index_internal(tq, tq->head);;
-		tq->len--;
-
-		if (tq->len == 0) {
-			/* Verify basic property of empty tq. */
-			cw_assert (tq->head == tq->tail, "Head: %"PRIu32", tail: %"PRIu32"", tq->head, tq->tail);
-		}
+	if (tq->len == 0) {
+		/* Verify basic property of empty tq. */
+		cw_assert (tq->head == tq->tail, "Head: %"PRIu32", tail: %"PRIu32"", tq->head, tq->tail);
 	}
+
 
 #if 0 /* Disabled because these debug messages produce lots of output
 	 to console. Enable only when necessary. */
@@ -562,27 +586,19 @@ int cw_tq_dequeue_sub_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 		      tq->head, tq->tail, tq_len_before, tq->len);
 #endif
 
+	/* You can remove this assert in future. It is only temporary,
+	   to check that some changes introduced on 2015.03.01 didn't
+	   break one assumption. */
+	cw_assert (!(tone->forever && tq_len_before == 1), "\"forever\" tone appears!");
 
-	/* If there is a low water mark callback registered, and if we
-	   passed under the water mark, call the callback here.  We
-	   want to be sure to call this late in the processing,
-	   especially after setting the state to idle, since the most
-	   likely action of this routine is to queue tones, and we
-	   don't want to play with the state here after that. */
+
 	bool call_callback = false;
 	if (tq->low_water_callback) {
-
 		/* It may seem that the double condition in 'if ()' is
 		   redundant, but for some reason it is necessary. Be
 		   very, very careful when modifying this. */
 		if (tq_len_before > tq->low_water_mark
-		    && tq->len <= tq->low_water_mark
-
-		    /* Avoid endlessly calling the callback if the
-		       only queued tone is 'forever' tone. Once client
-		       code decides to end the 'forever' tone, we will
-		       be ready to call the callback again. */
-		    && !(tone->forever && tq_len_before == 1)) {
+		    && tq->len <= tq->low_water_mark) {
 
 			call_callback = true;
 		}
