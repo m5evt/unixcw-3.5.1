@@ -467,6 +467,11 @@ int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 		if (tq->len) {
 			bool call_callback = cw_tq_dequeue_sub_internal(tq, tone);
 
+			/* Notify the key control function about current tone. */
+			if (tq->gen && tq->gen->key) {
+				cw_key_tk_set_value_internal(tq->gen->key, tone->frequency ? CW_KEY_STATE_CLOSED : CW_KEY_STATE_OPEN);
+			}
+
 			pthread_mutex_unlock(&(tq->mutex));
 
 			/* Since client's callback can use functions
@@ -557,10 +562,6 @@ int cw_tq_dequeue_sub_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 		      tq->head, tq->tail, tq_len_before, tq->len);
 #endif
 
-	/* Notify the key control function about current tone. */
-	if (tq->gen && tq->gen->key) {
-		cw_key_tk_set_value_internal(tq->gen->key, tone->frequency ? CW_KEY_STATE_CLOSED : CW_KEY_STATE_OPEN);
-	}
 
 	/* If there is a low water mark callback registered, and if we
 	   passed under the water mark, call the callback here.  We
