@@ -162,7 +162,7 @@ cw_tone_queue_t *cw_tq_new_internal(void)
 	cw_tone_queue_t *tq = (cw_tone_queue_t *) malloc(sizeof (cw_tone_queue_t));
 	if (!tq) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_TONE_QUEUE, CW_DEBUG_ERROR,
-				      "libcw: tone queue: malloc() failed");
+				      "libcw/tq: failed to malloc() tone queue");
 		return (cw_tone_queue_t *) NULL;
 	}
 
@@ -580,9 +580,9 @@ int cw_tq_dequeue_sub_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 #if 0 /* Disabled because these debug messages produce lots of output
 	 to console. Enable only when necessary. */
 	cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
-		      "libcw: tone queue: dequeue tone %d usec, %d Hz", tone->usecs, tone->frequency);
+		      "libcw/tq: dequeue tone %d usec, %d Hz", tone->usecs, tone->frequency);
 	cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
-		      "libcw: tone queue: head = %"PRIu32", tail = %"PRIu32", length = %"PRIu32" -> %"PRIu32"",
+		      "libcw/tq: head = %"PRIu32", tail = %"PRIu32", length = %"PRIu32" -> %"PRIu32"",
 		      tq->head, tq->tail, tq_len_before, tq->len);
 #endif
 
@@ -663,7 +663,7 @@ int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 		   create such tone, but there is no need to spend
 		   time on it here. */
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_INFO,
-			      "libcw: tone queue: dropped tone with usecs == 0");
+			      "libcw/tq: dropped tone with usecs == 0");
 		return CW_SUCCESS;
 	}
 
@@ -685,7 +685,7 @@ int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 
 		errno = EAGAIN;
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_ERROR,
-			      "libcw: tone queue: can't enqueue tone, tq is full");
+			      "libcw/tq: can't enqueue tone, tq is full");
 		pthread_mutex_unlock(&(tq->mutex));
 
 		return CW_FAILURE;
@@ -693,7 +693,7 @@ int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 
 
 	cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
-		      "libcw: tone queue: enqueue tone %d usec, %d Hz", tone->usecs, tone->frequency);
+		      "libcw/tq: enqueue tone %d usec, %d Hz", tone->usecs, tone->frequency);
 
 	/* Enqueue the new tone.
 
