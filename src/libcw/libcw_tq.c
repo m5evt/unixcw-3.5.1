@@ -167,7 +167,7 @@ cw_tone_queue_t *cw_tq_new_internal(void)
 	}
 
 	int rv = pthread_mutex_init(&(tq->mutex), NULL);
-	assert (!rv);
+	cw_assert (!rv, "failed to initialize mutex");
 
 	pthread_mutex_lock(&(tq->mutex));
 
@@ -185,7 +185,7 @@ cw_tone_queue_t *cw_tq_new_internal(void)
 
 
 	rv = cw_tq_set_capacity_internal(tq, CW_TONE_QUEUE_CAPACITY_MAX, CW_TONE_QUEUE_HIGH_WATER_MARK_MAX);
-	assert (rv);
+	cw_assert (rv, "failed to set initial capacity of tq");
 
 	pthread_mutex_unlock(&(tq->mutex));
 
@@ -198,6 +198,8 @@ cw_tone_queue_t *cw_tq_new_internal(void)
 
 void cw_tq_delete_internal(cw_tone_queue_t **tq)
 {
+	cw_assert (tq, "pointer to tq is NULL");
+
 	if (!tq || !*tq) {
 		return;
 	}
@@ -244,7 +246,7 @@ void cw_tq_delete_internal(cw_tone_queue_t **tq)
 */
 int cw_tq_set_capacity_internal(cw_tone_queue_t *tq, uint32_t capacity, uint32_t high_water_mark)
 {
-	assert (tq);
+	cw_assert (tq, "tq is NULL");
 	if (!tq) {
 		return CW_FAILURE;
 	}
@@ -290,7 +292,7 @@ int cw_tq_set_capacity_internal(cw_tone_queue_t *tq, uint32_t capacity, uint32_t
 */
 uint32_t cw_tq_get_capacity_internal(cw_tone_queue_t *tq)
 {
-	assert (tq);
+	cw_assert (tq, "tone queue is NULL");
 	return tq->capacity;
 }
 
@@ -307,7 +309,7 @@ uint32_t cw_tq_get_capacity_internal(cw_tone_queue_t *tq)
 */
 uint32_t cw_tq_get_high_water_mark_internal(cw_tone_queue_t *tq)
 {
-	assert (tq);
+	cw_assert (tq, "tone queue is NULL");
 
 	return tq->high_water_mark;
 }
@@ -515,7 +517,7 @@ int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 
 	pthread_mutex_unlock(&(tq->mutex));
 	/* will never get here as "queue state" enum has only two values */
-	assert(0);
+	cw_assert(0, "reached unreachable place");
 	return CW_TQ_NDEQUEUED_IDLE;
 }
 
@@ -981,7 +983,7 @@ unsigned int test_cw_tq_new_internal(void)
 {
 	int p = fprintf(stdout, "libcw/tq: cw_tq_new_internal():");
 	test_tone_queue = cw_tq_new_internal();
-	assert (test_tone_queue);
+	cw_assert (test_tone_queue, "failed to initialize test_tone_queue");
 
 	/* This is preparation for other tests that will be performed
 	   on the global test tq. */
@@ -1005,7 +1007,7 @@ unsigned int test_cw_tq_get_capacity_internal(void)
 	int p = fprintf(stdout, "libcw/tq: cw_tq_get_capacity_internal():");
 
 	uint32_t n = cw_tq_get_capacity_internal(test_tone_queue);
-	assert (n == test_tone_queue->capacity);
+	cw_assert (n == test_tone_queue->capacity, "incorrect capacity: %"PRIu32" != %"PRIu32"", n, test_tone_queue->capacity);
 
 	CW_TEST_PRINT_TEST_RESULT(false, p);
 
@@ -1204,11 +1206,11 @@ unsigned int test_cw_tq_enqueue_internal_1(void)
 
 		/* This tests for potential problems with function call. */
 		int rv = cw_tq_enqueue_internal(test_tone_queue, &tone);
-		assert (rv);
+		cw_assert (rv, "failed to enqueue tone #%"PRIu32"/%"PRIu32"", i, test_tone_queue->capacity);
 
 		/* This tests for correctness of working of the 'enqueue' function. */
 		uint32_t len = cw_tq_length_internal(test_tone_queue);
-		assert (len == i + 1);
+		cw_assert (len == i + 1, "incorrect tone queue length: %"PRIu32" != %"PRIu32"", len, i + 1);
 	}
 
 
@@ -1216,11 +1218,11 @@ unsigned int test_cw_tq_enqueue_internal_1(void)
 	/* This tests for potential problems with function call.
 	   Enqueueing should fail when the queue is full. */
 	int rv = cw_tq_enqueue_internal(test_tone_queue, &tone);
-	assert (rv == CW_FAILURE);
+	cw_assert (rv == CW_FAILURE, "was able to add tone to full queue");
 
 	/* This tests for correctness of working of the 'enqueue'
 	   function.  Full tq should not grow beyond its capacity. */
-	assert (test_tone_queue->len == test_tone_queue->capacity);
+	cw_assert (test_tone_queue->len == test_tone_queue->capacity, "length of full tone queue is not equal to capacity: %"PRIu32" != %"PRIu32"", test_tone_queue->len, test_tone_queue->capacity);
 
 	CW_TEST_PRINT_TEST_RESULT(false, p);
 
@@ -1247,7 +1249,7 @@ unsigned int test_cw_tq_dequeue_internal(void)
 
 	/* Test some assertions about full tq, just to be sure. */
 	cw_assert (test_tone_queue->capacity == test_tone_queue->len,
-		   "Capacity != Len of full queue: %"PRIu32" != %"PRIu32"",
+		   "capacity != len of full queue: %"PRIu32" != %"PRIu32"",
 		   test_tone_queue->capacity, test_tone_queue->len);
 
 	cw_tone_t tone;
@@ -1257,36 +1259,36 @@ unsigned int test_cw_tq_dequeue_internal(void)
 
 		/* Length of tone queue before dequeue. */
 		cw_assert (i == test_tone_queue->len,
-			   "Iteration before dequeue doesn't match len: %"PRIu32" != %"PRIu32"",
+			   "iteration before dequeue doesn't match len: %"PRIu32" != %"PRIu32"",
 			   i, test_tone_queue->len);
 
 		/* This tests for potential problems with function call. */
 		int rv = cw_tq_dequeue_internal(test_tone_queue, &tone);
-		assert (rv == CW_TQ_DEQUEUED);
+		cw_assert (rv == CW_TQ_DEQUEUED, "unexpected return value from \"dequeued()\": %d", rv);
 
 		/* Length of tone queue after dequeue. */
 		cw_assert (i - 1 == test_tone_queue->len,
-			   "Iteration after dequeue doesn't match len: %"PRIu32" != %"PRIu32"",
+			   "iteration after dequeue doesn't match len: %"PRIu32" != %"PRIu32"",
 			   i - 1, test_tone_queue->len);
 	}
 
 	/* Try removing a tone from empty queue. */
 	/* This tests for potential problems with function call. */
 	int rv = cw_tq_dequeue_internal(test_tone_queue, &tone);
-	assert (rv == CW_TQ_NDEQUEUED_EMPTY);
+	cw_assert (rv == CW_TQ_NDEQUEUED_EMPTY, "unexpected return value when dequeueing empty tq: %d", rv);
 
 	/* This tests for correctness of working of the 'dequeue'
 	   function.  Empty tq should stay empty. */
 	uint32_t len = cw_tq_length_internal(test_tone_queue);
-	assert (len == 0);
+	cw_assert (len == 0, "non-zero returned length of empty tone queue: len = %"PRIu32"", len);
 	cw_assert (test_tone_queue->len == 0,
-		   "Length of empty queue is != 0 (%"PRIu32")",
+		   "length of empty queue is != 0 (%"PRIu32")",
 		   test_tone_queue->len);
 
 	/* Try removing a tone from empty queue. */
 	/* This time we should get CW_TQ_NDEQUEUED_IDLE return value. */
 	rv = cw_tq_dequeue_internal(test_tone_queue, &tone);
-	assert (rv == CW_TQ_NDEQUEUED_IDLE);
+	cw_assert (rv == CW_TQ_NDEQUEUED_IDLE, "unexpected return value from \"dequeue\" on empty tone queue: %d", rv);
 
 	CW_TEST_PRINT_TEST_RESULT(false, p);
 
@@ -1323,18 +1325,18 @@ unsigned int test_cw_tq_is_full_internal(void)
 		/* The 'enqueue' function has been already tested, but
 		   it won't hurt to check this simple assertion here
 		   as well. */
-		assert (rv == CW_SUCCESS);
+		cw_assert (rv == CW_SUCCESS, "failed to enqueue tone #%"PRIu32"", i);
 
 		/* Here is the proper test of tested function. */
-		assert (!cw_tq_is_full_internal(tq));
+		cw_assert (!cw_tq_is_full_internal(tq), "tone queue is full after enqueueing tone #%"PRIu32"", i);
 	}
 
 	/* At this point there is still place in tq for one more
 	   tone. Enqueue it and verify that the tq is now full. */
 	int rv = cw_tq_enqueue_internal(tq, &tone);
-	assert (rv == CW_SUCCESS);
+	cw_assert (rv == CW_SUCCESS, "failed to enqueue last tone");
 
-	assert (cw_tq_is_full_internal(tq));
+	cw_assert (cw_tq_is_full_internal(tq), "tone queue is not full after adding last tone");
 
 	cw_tq_delete_internal(&tq);
 
@@ -1396,7 +1398,7 @@ unsigned int test_cw_tq_test_capacity_1(void)
 			CW_TONE_INIT(&tone, (int) i, 1000, CW_SLOPE_MODE_NO_SLOPES);
 
 			rv = cw_tq_enqueue_internal(test_tone_queue, &tone);
-			assert (rv == CW_SUCCESS);
+			cw_assert (rv == CW_SUCCESS, "failed to enqueue tone #%"PRIu32"", i);
 		}
 
 		/* With the queue filled with valid and known data,
@@ -1411,7 +1413,7 @@ unsigned int test_cw_tq_test_capacity_1(void)
 				uint32_t shifted = (i + head_shifts[s]) % (test_tone_queue->capacity);
 				// fprintf(stderr, "Readback %d: position %"PRIu32": checking tone %"PRIu32", expected %"PRIu32", got %d\n",
 				// 	l, shifted, i, i, test_tone_queue->queue[shifted].frequency);
-				assert (test_tone_queue->queue[shifted].frequency == (int) i);
+				cw_assert (test_tone_queue->queue[shifted].frequency == (int) i, "frequency of dequeued tone is incorrect: %d != %d", test_tone_queue->queue[shifted].frequency, (int) i);
 			}
 		}
 
@@ -1482,7 +1484,7 @@ unsigned int test_cw_tq_test_capacity_2(void)
 			CW_TONE_INIT(&tone, (int) i, 1000, CW_SLOPE_MODE_NO_SLOPES);
 
 			rv = cw_tq_enqueue_internal(test_tone_queue, &tone);
-			assert (rv == CW_SUCCESS);
+			cw_assert (rv == CW_SUCCESS, "failed to enqueue tone #%"PRIu32"", i);
 		}
 
 
@@ -1509,14 +1511,14 @@ unsigned int test_cw_tq_test_capacity_2(void)
 			uint32_t shifted = (i + head_shifts[s]) % (test_tone_queue->capacity);
 
 			cw_assert (test_tone_queue->queue[shifted].frequency == (int) i,
-				   "Position %"PRIu32": checking tone %"PRIu32", expected %"PRIu32", got %d\n",
+				   "position %"PRIu32": checking tone %"PRIu32", expected %"PRIu32", got %d\n",
 				   shifted, i, i, test_tone_queue->queue[shifted].frequency);
 
 			i++;
 		}
 
 		cw_assert (i == test_tone_queue->capacity,
-			   "Number of dequeues (%"PRIu32") is different than capacity (%"PRIu32")\n",
+			   "number of dequeues (%"PRIu32") is different than capacity (%"PRIu32")\n",
 			   i, test_tone_queue->capacity);
 
 
@@ -1569,12 +1571,12 @@ int test_cw_tq_capacity_test_init(uint32_t capacity, uint32_t high_water_mark, i
 	   may be no longer valid for 'used' tq. */
 	cw_tq_delete_internal(&test_tone_queue);
 	test_tone_queue = cw_tq_new_internal();
-	assert (test_tone_queue);
+	cw_assert (test_tone_queue, "failed to create new tone queue");
 
 	int rv = cw_tq_set_capacity_internal(test_tone_queue, capacity, high_water_mark);
-	assert (rv == CW_SUCCESS);
-	assert (test_tone_queue->capacity == capacity);
-	assert (test_tone_queue->high_water_mark == high_water_mark);
+	cw_assert (rv == CW_SUCCESS, "failed to set capacity/high water mark");
+	cw_assert (test_tone_queue->capacity == capacity, "incorrect capacity: %"PRIu32" != %"PRIu32"", test_tone_queue->capacity, capacity);
+	cw_assert (test_tone_queue->high_water_mark == high_water_mark, "incorrect high water mark: %"PRIu32" != %"PRIu32"", test_tone_queue->high_water_mark, high_water_mark);
 
 	/* Initialize *all* tones with known value. Do this manually,
 	   to be 100% sure that all tones in queue table have been
@@ -1608,7 +1610,7 @@ int test_cw_tq_capacity_test_init(uint32_t capacity, uint32_t high_water_mark, i
 unsigned int test_cw_tq_enqueue_internal_2(void)
 {
 	cw_tone_queue_t *tq = cw_tq_new_internal();
-	cw_assert (tq, "Failed to create a tone queue\n");
+	cw_assert (tq, "failed to create a tone queue\n");
 	cw_tone_t tone;
 
 
@@ -1621,8 +1623,8 @@ unsigned int test_cw_tq_enqueue_internal_2(void)
 	tone.usecs = -1;          /* Invalid length. */
 	tone.frequency = f_min;   /* Valid frequency. */
 	int status = cw_tq_enqueue_internal(tq, &tone);
-	cw_assert (status == CW_FAILURE, "Enqueued tone with invalid length.\n");
-	cw_assert (errno == EINVAL, "Bad errno: %s\n", strerror(errno));
+	cw_assert (status == CW_FAILURE, "enqueued tone with invalid length.\n");
+	cw_assert (errno == EINVAL, "bad errno: %s\n", strerror(errno));
 
 
 	/* Test 2: tone's frequency too low. */
@@ -1630,8 +1632,8 @@ unsigned int test_cw_tq_enqueue_internal_2(void)
 	tone.usecs = 100;              /* Valid length. */
 	tone.frequency = f_min - 1;    /* Invalid frequency. */
 	status = cw_tq_enqueue_internal(tq, &tone);
-	cw_assert (status == CW_FAILURE, "Enqueued tone with too low frequency.\n");
-	cw_assert (errno == EINVAL, "Bad errno: %s\n", strerror(errno));
+	cw_assert (status == CW_FAILURE, "enqueued tone with too low frequency.\n");
+	cw_assert (errno == EINVAL, "bad errno: %s\n", strerror(errno));
 
 
 	/* Test 3: tone's frequency too high. */
@@ -1639,11 +1641,11 @@ unsigned int test_cw_tq_enqueue_internal_2(void)
 	tone.usecs = 100;              /* Valid length. */
 	tone.frequency = f_max + 1;    /* Invalid frequency. */
 	status = cw_tq_enqueue_internal(tq, &tone);
-	cw_assert (status == CW_FAILURE, "Enqueued tone with too high frequency.\n");
-	cw_assert (errno == EINVAL, "Bad errno: %s\n", strerror(errno));
+	cw_assert (status == CW_FAILURE, "enqueued tone with too high frequency.\n");
+	cw_assert (errno == EINVAL, "bad errno: %s\n", strerror(errno));
 
 	cw_tq_delete_internal(&tq);
-	cw_assert (!tq, "Tone queue not deleted properly\n");
+	cw_assert (!tq, "tone queue not deleted properly\n");
 
 	int n = printf("libcw/tq: cw_tq_enqueue_internal():");
 	CW_TEST_PRINT_TEST_RESULT (false, n);
