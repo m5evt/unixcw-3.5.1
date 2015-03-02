@@ -272,6 +272,19 @@ struct cw_gen_struct {
 		   and write the wave to audio sink */
 		pthread_t      id;
 		pthread_attr_t attr;
+
+		/* Call to pthread_create(&id, ...) executed and
+		   succeeded? If not, don't call pthread_kill(). I
+		   can't check value of thread.id, because pthread_t
+		   data type is opaque.
+
+		   This flag is a bit different than cw_gen_t->generate.
+		   Setting ->generate signals intent to run a loop
+		   deqeueing tones in cw_gen_dequeue_and_play_internal().
+		   Setting ->thread.running means that thread function
+		   cw_gen_dequeue_and_play_internal() was launched
+		   successfully. */
+		bool running;
 	} thread;
 
 	struct {
@@ -387,6 +400,16 @@ void cw_generator_delete_internal(void);
 
 void cw_gen_reset_send_parameters_internal(cw_gen_t *gen);
 void cw_gen_sync_parameters_internal(cw_gen_t *gen);
+
+
+
+
+
+#ifdef LIBCW_UNIT_TESTS
+
+unsigned int test_cw_gen_new_delete_internal(void);
+
+#endif /* #ifdef LIBCW_UNIT_TESTS */
 
 
 
