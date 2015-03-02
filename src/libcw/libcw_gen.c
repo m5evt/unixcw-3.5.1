@@ -200,6 +200,9 @@ int cw_gen_start_internal(cw_gen_t *gen)
 {
 	gen->phase_offset = 0.0;
 
+	/* This should be set to true before launching
+	   cw_gen_dequeue_and_play_internal(), because loop in the
+	   function run only when the flag is set. */
 	gen->generate = true;
 
 	gen->client.thread_id = pthread_self();
@@ -217,13 +220,17 @@ int cw_gen_start_internal(cw_gen_t *gen)
 					cw_gen_dequeue_and_play_internal,
 					(void *) gen);
 		if (rv != 0) {
+			gen->generate = false;
+
 			cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
 				      "libcw: failed to create %s generator thread", cw_get_audio_system_label(gen->audio_system));
 			return CW_FAILURE;
 		} else {
-			/* for some yet unknown reason you have to
-			   put usleep() here, otherwise a generator
-			   may work incorrectly */
+			gen->thread.running = true;
+
+			/* For some yet unknown reason you have to put
+			   usleep() here, otherwise a generator may
+			   work incorrectly */
 			usleep(100000);
 #ifdef LIBCW_WITH_DEV
 			cw_dev_debug_print_generator_setup(gen);
@@ -231,11 +238,12 @@ int cw_gen_start_internal(cw_gen_t *gen)
 			return CW_SUCCESS;
 		}
 	} else {
+		gen->generate = false;
+
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
 			      "libcw: unsupported audio system %d", gen->audio_system);
+		return CW_FAILURE;
 	}
-
-	return CW_FAILURE;
 }
 
 
@@ -357,6 +365,8 @@ int cw_gen_silence_internal(cw_gen_t *gen)
 
 /**
    \brief Create new generator
+
+   testedin::test_cw_gen_new_delete_internal()
 */
 cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 {
@@ -407,6 +417,7 @@ cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 	gen->oss_version.y = -1;
 	gen->oss_version.z = -1;
 
+
 	gen->client.name = (char *) NULL;
 
 	gen->tone_slope.length_usecs = CW_AUDIO_SLOPE_USECS;
@@ -430,6 +441,7 @@ cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 
 	pthread_attr_init(&gen->thread.attr);
 	pthread_attr_setdetachstate(&gen->thread.attr, PTHREAD_CREATE_DETACHED);
+	gen->thread.running = false;
 
 
 	gen->dot_len = 0;
@@ -494,6 +506,8 @@ cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 
 /**
    \brief Delete a generator
+
+   testedin::test_cw_gen_new_delete_internal()
 */
 void cw_gen_delete_internal(cw_gen_t **gen)
 {
@@ -568,6 +582,13 @@ void cw_gen_stop_internal(cw_gen_t *gen)
 
 	gen->generate = false;
 
+	if (!gen->thread.running) {
+		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_INFO, "libcw: EXIT: seems that thread function was not started at all");
+
+		/* Don't call pthread_kill() on non-initialized thread.id. */
+		return;
+	}
+
 	/* this is to wake up cw_signal_wait_internal() function
 	   that may be waiting for signal in while() loop in thread
 	   function; */
@@ -600,6 +621,8 @@ void cw_gen_stop_internal(cw_gen_t *gen)
 	} else {
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_INFO, "libcw: EXIT: seems that thread function exited voluntarily");
 	}
+
+	gen->thread.running = false;
 
 	return;
 }
@@ -2371,3 +2394,60 @@ int cw_gen_key_pure_symbol_internal(cw_gen_t *gen, char symbol)
 
 	return cw_tq_enqueue_internal(gen->tq, &tone);
 }
+
+
+
+
+
+/* *** Unit tests *** */
+
+
+
+
+
+#ifdef LIBCW_UNIT_TESTS
+
+
+#include "libcw_test.h"
+
+
+
+
+
+/**
+   tests::cw_gen_new_internal()
+   tests::cw_gen_delete_internal()
+*/
+unsigned int test_cw_gen_new_delete_internal(void)
+{
+	int p = fprintf(stdout, "libcw/gen: cw_gen_new/delete_internal():");
+
+	/* Arbitrary number of calls to new()/delete() pair. */
+	for (int i = 0; i < 100; i++) {
+		cw_gen_t *gen = cw_gen_new_internal(CW_AUDIO_NULL, NULL);
+		cw_assert (gen, "failed to initialize generator");
+
+		/* Try to access some fields in cw_gen_t just to be
+		   sure that the gen has been allocated properly. */
+		cw_assert (gen->buffer_sub_start == 0, "buffer_sub_start in new generator is not at zero");
+		gen->buffer_sub_stop = gen->buffer_sub_start + 10;
+		cw_assert (gen->buffer_sub_stop == 10, "buffer_sub_stop didn't store correct new value");
+
+		cw_assert (gen->client.name == (char *) NULL, "initial value of generator's client name is not NULL");
+
+		cw_assert (gen->tq, "tone queue is NULL");
+
+		cw_gen_delete_internal(&gen);
+		cw_assert (gen == NULL, "delete() didn't set the pointer to NULL");
+	}
+
+	CW_TEST_PRINT_TEST_RESULT(false, p);
+
+	return 0;
+}
+
+
+
+
+
+#endif /* #ifdef LIBCW_UNIT_TESTS */
