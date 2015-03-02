@@ -978,6 +978,7 @@ static unsigned int test_cw_tq_dequeue_internal(cw_tone_queue_t *tq);
 
 /**
    tests::cw_tq_new_internal()
+   tests::cw_tq_delete_internal()
 */
 unsigned int test_cw_tq_new_delete_internal(void)
 {
