@@ -104,6 +104,10 @@ static cw_test_function_t cw_unit_tests[] = {
 	test_cw_tq_test_capacity_2,
 
 
+	/* cw_gen module */
+	test_cw_gen_new_delete_internal,
+
+
 	/* cw_utils module */
 	test_cw_timestamp_compare_internal,
 	test_cw_timestamp_validate_internal,
