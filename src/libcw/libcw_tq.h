@@ -225,15 +225,14 @@ bool cw_tq_is_full_internal(cw_tone_queue_t *tq);
 
 #ifdef LIBCW_UNIT_TESTS
 
-unsigned int test_cw_tq_new_internal(void);
+unsigned int test_cw_tq_new_delete_internal(void);
 unsigned int test_cw_tq_init_internal(void);
 unsigned int test_cw_tq_get_capacity_internal(void);
 unsigned int test_cw_tq_prev_index_internal(void);
 unsigned int test_cw_tq_next_index_internal(void);
 unsigned int test_cw_tq_length_internal(void);
-unsigned int test_cw_tq_enqueue_internal_1(void);
+unsigned int test_cw_tq_enqueue_dequeue_internal(void);
 unsigned int test_cw_tq_enqueue_internal_2(void);
-unsigned int test_cw_tq_dequeue_internal(void);
 unsigned int test_cw_tq_is_full_internal(void);
 unsigned int test_cw_tq_test_capacity_1(void);
 unsigned int test_cw_tq_test_capacity_2(void);
