@@ -1,3 +1,12 @@
+2015-03-02 Kamil Ignacak
+	* generator: First unit test intended to be executed on building
+	"make check" target.  The unit test function uncovered one error:
+	when a generator is created, then is *not* started, and then is
+	deleted, libcw called pthread_kill(&id, ...) on uninitialized id
+	in cw_gen_delete(). This caused a program to crash.  This has been
+	fixed by adding a flag to cw_gen_t and additional code in
+	cw_gen.c.
+
 2015-02-25 Kamil Ignacak
 	* tq: improving handling of tones in general, and "forever" tones
 	in particular.
