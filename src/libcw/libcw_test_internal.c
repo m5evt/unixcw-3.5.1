@@ -92,14 +92,13 @@ static cw_test_function_t cw_unit_tests[] = {
 
 
 	/* cw_tq module */
-	test_cw_tq_new_internal,
+	test_cw_tq_new_delete_internal,
 	test_cw_tq_get_capacity_internal,
 	test_cw_tq_prev_index_internal,
 	test_cw_tq_next_index_internal,
 	test_cw_tq_length_internal,
-	test_cw_tq_enqueue_internal_1,
+	test_cw_tq_enqueue_dequeue_internal,
 	test_cw_tq_enqueue_internal_2,
-	test_cw_tq_dequeue_internal,
 	test_cw_tq_is_full_internal,
 	test_cw_tq_test_capacity_1,
 	test_cw_tq_test_capacity_2,
