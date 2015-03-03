@@ -709,11 +709,12 @@ int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 
 
 	if (tq->state == CW_TQ_IDLE) {
-		/* A loop in write() function may await for the queue
-		   to be filled with new tones to dequeue and play.
-		   It waits for a signal, for information that there
-		   are some new tones in tone queue. This is a right
-		   place and time to send such a signal. */
+		/* A loop in cw_gen_dequeue_and_play_internal()
+		   function may await for the queue to be filled with
+		   new tones to dequeue and play.  It waits for a
+		   signal, for information that there are some new
+		   tones in tone queue. This is a right place and time
+		   to send such a signal. */
 		tq->state = CW_TQ_BUSY;
 		pthread_kill(tq->gen->thread.id, SIGALRM);
 	}
