@@ -2478,9 +2478,8 @@ unsigned int test_cw_gen_new_delete_internal(void)
 
 
 	/* new() + stop() + delete() (skipping start() on purpose). */
+	fprintf(stderr, "libcw/gen: generator test 3/4\n");
 	for (int i = 0; i < n; i++) {
-		fprintf(stderr, "libcw/gen: generator test 3/4, loop #%d/%d\n", i, n);
-
 		cw_gen_t *gen = cw_gen_new_internal(CW_AUDIO_NULL, NULL);
 		cw_assert (gen, "failed to initialize generator (loop #%d)", i);
 
