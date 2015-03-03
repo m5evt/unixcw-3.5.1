@@ -340,7 +340,7 @@ struct cw_gen_struct {
 cw_gen_t *cw_gen_new_internal(int audio_system, const char *device);
 void      cw_gen_delete_internal(cw_gen_t **gen);
 int       cw_gen_start_internal(cw_gen_t *gen);
-void      cw_gen_stop_internal(cw_gen_t *gen);
+int       cw_gen_stop_internal(cw_gen_t *gen);
 
 
 
