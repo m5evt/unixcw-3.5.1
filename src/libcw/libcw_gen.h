@@ -256,11 +256,12 @@ struct cw_gen_struct {
 	int sample_rate; /* set to the same value of sample rate as
 			    you have used when configuring sound card */
 
-	/* start/stop flag;
-	   set to true before creating generator;
-	   set to false to stop generator; generator is then "destroyed";
-	   usually the flag is set by specific functions */
-	bool generate;
+	/* start/stop flag.
+	   Set to true before running dequeue_and_play thread
+	   function.
+	   Set to false to stop generator and return from
+	   dequeue_and_play thread function. */
+	bool do_dequeue_and_play;
 
 	/* used to calculate sine wave;
 	   phase offset needs to be stored between consecutive calls to
@@ -278,10 +279,12 @@ struct cw_gen_struct {
 		   can't check value of thread.id, because pthread_t
 		   data type is opaque.
 
-		   This flag is a bit different than cw_gen_t->generate.
-		   Setting ->generate signals intent to run a loop
-		   deqeueing tones in cw_gen_dequeue_and_play_internal().
-		   Setting ->thread.running means that thread function
+		   This flag is a bit different than
+		   cw_gen_t->do_dequeue_and_play.  Setting
+		   ->do_dequeue_and_play signals intent to run a loop
+		   deqeueing tones in
+		   cw_gen_dequeue_and_play_internal().  Setting
+		   ->thread.running means that thread function
 		   cw_gen_dequeue_and_play_internal() was launched
 		   successfully. */
 		bool running;
