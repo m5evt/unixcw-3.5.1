@@ -203,7 +203,7 @@ int cw_gen_start_internal(cw_gen_t *gen)
 	/* This should be set to true before launching
 	   cw_gen_dequeue_and_play_internal(), because loop in the
 	   function run only when the flag is set. */
-	gen->generate = true;
+	gen->do_dequeue_and_play = true;
 
 	gen->client.thread_id = pthread_self();
 
@@ -220,7 +220,7 @@ int cw_gen_start_internal(cw_gen_t *gen)
 					cw_gen_dequeue_and_play_internal,
 					(void *) gen);
 		if (rv != 0) {
-			gen->generate = false;
+			gen->do_dequeue_and_play = false;
 
 			cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
 				      "libcw: failed to create %s generator thread", cw_get_audio_system_label(gen->audio_system));
@@ -238,7 +238,7 @@ int cw_gen_start_internal(cw_gen_t *gen)
 			return CW_SUCCESS;
 		}
 	} else {
-		gen->generate = false;
+		gen->do_dequeue_and_play = false;
 
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
 			      "libcw: unsupported audio system %d", gen->audio_system);
@@ -354,7 +354,7 @@ int cw_gen_silence_internal(cw_gen_t *gen)
 		cw_alsa_drop(gen);
 	}
 
-	//gen->generate = false;
+	//gen->do_dequeue_and_play = false;
 
 	return status;
 }
@@ -517,7 +517,7 @@ void cw_gen_delete_internal(cw_gen_t **gen)
 		return;
 	}
 
-	if ((*gen)->generate) {
+	if ((*gen)->do_dequeue_and_play) {
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG,
 			      "libcw: you forgot to call cw_generator_stop()");
 		cw_gen_stop_internal(*gen);
@@ -580,7 +580,7 @@ void cw_gen_stop_internal(cw_gen_t *gen)
 
 	cw_gen_silence_internal(gen);
 
-	gen->generate = false;
+	gen->do_dequeue_and_play = false;
 
 	if (!gen->thread.running) {
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_INFO, "libcw: EXIT: seems that thread function was not started at all");
@@ -594,11 +594,11 @@ void cw_gen_stop_internal(cw_gen_t *gen)
 	   function. */
 	pthread_kill(gen->thread.id, SIGALRM);
 
-	/* Sleep a bit to postpone closing a device.
-	   This way we can avoid a situation when "generate" is set
-	   to zero and device is being closed while a new buffer is
-	   being prepared, and while write() tries to write this
-	   new buffer to already closed device.
+	/* Sleep a bit to postpone closing a device.  This way we can
+	   avoid a situation when "do_dequeue_and_play" is set to false
+	   and device is being closed while a new buffer is being
+	   prepared, and while write() tries to write this new buffer
+	   to already closed device.
 
 	   Without this sleep(), writei() from ALSA library may
 	   return "File descriptor in bad state" error - this
@@ -724,7 +724,8 @@ int cw_gen_new_open_internal(cw_gen_t *gen, int audio_system, const char *device
    or console).
 
    Function dequeues tones (or waits for new tones in queue) and
-   pushes them to audio output as long as generator->generate is true.
+   pushes them to audio output as long as
+   generator->do_dequeue_and_play is true.
 
    The generator must be fully configured before calling this
    function.
@@ -740,7 +741,7 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 	cw_tone_t tone;
 	CW_TONE_INIT(&tone, 0, 0, CW_SLOPE_MODE_STANDARD_SLOPES);
 
-	while (gen->generate) {
+	while (gen->do_dequeue_and_play) {
 		int tq_rv = cw_tq_dequeue_internal(gen->tq, &tone);
 		if (tq_rv == CW_TQ_NDEQUEUED_IDLE) {
 
@@ -820,10 +821,10 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 		cw_debug_ev ((&cw_debug_object_ev), 0, tone.frequency ? CW_DEBUG_EVENT_TONE_LOW : CW_DEBUG_EVENT_TONE_HIGH);
 #endif
 
-	} /* while(gen->generate) */
+	} /* while (gen->do_dequeue_and_play) */
 
 	cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_INFO,
-		      "libcw: EXIT: generator stopped (gen->generate = %d)", gen->generate);
+		      "libcw: EXIT: generator stopped (gen->do_dequeue_and_play = %d)", gen->do_dequeue_and_play);
 
 	/* Some functions in client thread may be waiting for the last
 	   SIGALRM from the generator thread to continue/finalize their
