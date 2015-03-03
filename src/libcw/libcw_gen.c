@@ -304,13 +304,21 @@ int cw_gen_set_audio_device_internal(cw_gen_t *gen, const char *device)
 /**
    \brief Silence the generator
 
-   Force the generator \p to go silent.
-   Function stops the generator as well, but does not flush its queue.
+   Force an audio sink currently used by generator \p gen to go
+   silent.
 
-   \param gen - generator to be silenced
+   The function does not clear/flush tone queue, nor does it stop the
+   generator. It just makes sure that audio sink (console / OSS / ALSA
+   / PulseAudio) does not produce a sound of any frequency and any
+   volume.
+
+   You probably want to call cw_tq_flush_internal(gen->tq) before
+   calling this function.
+
+   \param gen - generator using an audio sink that should be silenced
 
    \return CW_SUCCESS on success
-   \return CW_FAILURE on errors
+   \return CW_FAILURE on failure to silence an audio sink
 */
 int cw_gen_silence_internal(cw_gen_t *gen)
 {
@@ -332,7 +340,6 @@ int cw_gen_silence_internal(cw_gen_t *gen)
 		   by a code generating dots/dashes, but
 		   just in case... */
 		cw_console_silence(gen);
-		status = CW_FAILURE;
 
 	} else if (gen->audio_system == CW_AUDIO_OSS
 		   || gen->audio_system == CW_AUDIO_ALSA
@@ -380,13 +387,13 @@ cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 	if (!gen) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
 			      "libcw: malloc()");
-		return NULL;
+		return (cw_gen_t *) NULL;
 	}
 
 	gen->tq = cw_tq_new_internal();
 	if (!gen->tq) {
 		cw_gen_delete_internal(&gen);
-		return CW_FAILURE;
+		return (cw_gen_t *) NULL;
 	} else {
 		/* Because libcw_tq.c/cw_tq_enqueue_internal()/pthread_kill(tq->gen->thread.id, SIGALRM); */
 		gen->tq->gen = gen;
@@ -467,7 +474,7 @@ cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
 			      "libcw: failed to open audio device for audio system '%s' and device '%s'", cw_get_audio_system_label(audio_system), device);
 		cw_gen_delete_internal(&gen);
-		return CW_FAILURE;
+		return (cw_gen_t *) NULL;
 	}
 
 	if (audio_system == CW_AUDIO_NULL
@@ -480,7 +487,7 @@ cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 			cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
 				      "libcw: malloc()");
 			cw_gen_delete_internal(&gen);
-			return CW_FAILURE;
+			return (cw_gen_t *) NULL;
 		}
 	}
 
@@ -492,7 +499,7 @@ cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
 			      "libcw: failed to set slope");
 		cw_gen_delete_internal(&gen);
-		return CW_FAILURE;
+		return (cw_gen_t *) NULL;
 	}
 
 	cw_sigalrm_install_top_level_handler_internal();
@@ -567,26 +574,48 @@ void cw_gen_delete_internal(cw_gen_t **gen)
 
 /**
    \brief Stop a generator
+
+   Empty generator's tone queue.
+   Silence generator's audio sink.
+   Stop generator' "dequeue and play" thread function.
+   If the thread does not stop in one second, kill it.
+
+   You have to use cw_gen_start_internal() if you want to enqueue and
+   play tones with the same generator again.
+
+   It seems that only silencing of generator's audio sink may fail,
+   and this is when this function may return CW_FAILURE. Otherwise
+   function returns CW_SUCCESS.
+
+   \return CW_SUCCESS if all four actions completed (successfully)
+   \return CW_FAILURE if any of the four actions failed (see note above)
 */
-void cw_gen_stop_internal(cw_gen_t *gen)
+int cw_gen_stop_internal(cw_gen_t *gen)
 {
 	if (!gen) {
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_WARNING,
 			      "libcw: called the function for NULL generator");
-		return;
+		/* Not really a runtime error, so return
+		   CW_SUCCESS. */
+		return CW_SUCCESS;
 	}
 
 	cw_tq_flush_internal(gen->tq);
 
-	cw_gen_silence_internal(gen);
+	int rv = cw_gen_silence_internal(gen);
+	if (rv != CW_SUCCESS) {
+		return CW_FAILURE;
+	}
 
 	gen->do_dequeue_and_play = false;
 
 	if (!gen->thread.running) {
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_INFO, "libcw: EXIT: seems that thread function was not started at all");
 
-		/* Don't call pthread_kill() on non-initialized thread.id. */
-		return;
+		/* Don't call pthread_kill() on non-initialized
+		   thread.id. The generator wasn't even started, so
+		   let's return CW_SUCCESS. */
+		return CW_SUCCESS;
 	}
 
 	/* This is to wake up cw_signal_wait_internal() function that
@@ -613,7 +642,7 @@ void cw_gen_stop_internal(cw_gen_t *gen)
 	cw_nanosleep_internal(&req);
 
 	/* check if generator thread is still there */
-	int rv = pthread_kill(gen->thread.id, 0);
+	rv = pthread_kill(gen->thread.id, 0);
 	if (rv == 0) {
 		/* thread function didn't return yet; let's help it a bit */
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_WARNING, "libcw: EXIT: forcing exit of thread function");
@@ -625,7 +654,7 @@ void cw_gen_stop_internal(cw_gen_t *gen)
 
 	gen->thread.running = false;
 
-	return;
+	return CW_SUCCESS;
 }
 
 
@@ -2471,7 +2500,7 @@ unsigned int test_cw_gen_new_delete_internal(void)
 		cw_assert (gen, "failed to initialize generator (loop #%d)", i);
 
 		int rv = cw_gen_start_internal(gen);
-		cw_assert (rv, "failed to start generator");
+		cw_assert (rv, "failed to start generator (loop #%d)", i);
 
 		cw_gen_delete_internal(&gen);
 		cw_assert (gen == NULL, "delete() didn't set the pointer to NULL (loop #%d)", i);
@@ -2484,7 +2513,8 @@ unsigned int test_cw_gen_new_delete_internal(void)
 		cw_gen_t *gen = cw_gen_new_internal(CW_AUDIO_NULL, NULL);
 		cw_assert (gen, "failed to initialize generator (loop #%d)", i);
 
-		cw_gen_stop_internal(gen);
+		int rv = cw_gen_stop_internal(gen);
+		cw_assert (rv, "failed to stop generator (loop #%d)", i);
 
 		cw_gen_delete_internal(&gen);
 		cw_assert (gen == NULL, "delete() didn't set the pointer to NULL (loop #%d)", i);
@@ -2505,9 +2535,10 @@ unsigned int test_cw_gen_new_delete_internal(void)
 
 		for (int j = 0; j < m; j++) {
 			int rv = cw_gen_start_internal(gen);
-			cw_assert (rv, "failed to start generator");
+			cw_assert (rv, "failed to start generator (loop #%d-%d)", i, j);
 
-			cw_gen_stop_internal(gen);
+			rv = cw_gen_stop_internal(gen);
+			cw_assert (rv, "failed to stop generator (loop #%d-%d)", i, j);
 		}
 
 		cw_gen_delete_internal(&gen);
