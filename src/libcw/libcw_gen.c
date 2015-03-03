@@ -589,9 +589,9 @@ void cw_gen_stop_internal(cw_gen_t *gen)
 		return;
 	}
 
-	/* this is to wake up cw_signal_wait_internal() function
-	   that may be waiting for signal in while() loop in thread
-	   function; */
+	/* This is to wake up cw_signal_wait_internal() function that
+	   may be waiting idle for signal in "while ()" loop in thread
+	   function. */
 	pthread_kill(gen->thread.id, SIGALRM);
 
 	/* Sleep a bit to postpone closing a device.
@@ -600,13 +600,14 @@ void cw_gen_stop_internal(cw_gen_t *gen)
 	   being prepared, and while write() tries to write this
 	   new buffer to already closed device.
 
-	   Without this usleep(), writei() from ALSA library may
+	   Without this sleep(), writei() from ALSA library may
 	   return "File descriptor in bad state" error - this
 	   happened when writei() tried to write to closed ALSA
 	   handle.
 
 	   The delay also allows the generator function thread to stop
-	   generating tone and exit before we resort to killing generator
+	   generating tone (or for tone queue to get out of CW_TQ_IDLE
+	   state) and exit before we resort to killing generator
 	   function thread. */
 	struct timespec req = { .tv_sec = 1, .tv_nsec = 0 };
 	cw_nanosleep_internal(&req);
@@ -751,6 +752,11 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 			   informing that a new tone appeared in tone
 			   queue. */
 
+			/* A SIGALRM signal may also come from
+			   cw_gen_stop_internal() that gently asks
+			   this function to stop idling and nicely
+			   return. */
+
 			/* TODO: can we / should we specify on which
 			   signal exactly we are waiting for? */
 			cw_signal_wait_internal();
@@ -821,9 +827,13 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 
 	/* Some functions in client thread may be waiting for the last
 	   SIGALRM from the generator thread to continue/finalize their
-	   business. Let's send the SIGALRM right before exiting.
-	   This small delay before sending signal turns out to be helpful. */
-	struct timespec req = { .tv_sec = 0, .tv_nsec = 500000000 };
+	   business. Let's send the SIGALRM right before exiting. */
+
+	/* This small delay before sending signal turns out to be helpful.
+
+	   TODO: this is one of most mysterious comments in this code
+	   base. What was I thinking? */
+	struct timespec req = { .tv_sec = 0, .tv_nsec = CW_NSECS_PER_SEC / 2 };
 	cw_nanosleep_internal(&req);
 
 	pthread_kill(gen->client.thread_id, SIGALRM);
@@ -2420,12 +2430,19 @@ int cw_gen_key_pure_symbol_internal(cw_gen_t *gen, char symbol)
 */
 unsigned int test_cw_gen_new_delete_internal(void)
 {
-	int p = fprintf(stdout, "libcw/gen: cw_gen_new/delete_internal():");
+	int p = fprintf(stdout, "libcw/gen: cw_gen_new/start/stop/delete_internal():\n");
+	fflush(stdout);
 
-	/* Arbitrary number of calls to new()/delete() pair. */
-	for (int i = 0; i < 100; i++) {
+	/* Arbitrary number of calls to a set of tested functions. */
+	int n = 100;
+
+	/* new() + delete() */
+	fprintf(stderr, "libcw/gen: generator test 1/4\n");
+	for (int i = 0; i < n; i++) {
+
+
 		cw_gen_t *gen = cw_gen_new_internal(CW_AUDIO_NULL, NULL);
-		cw_assert (gen, "failed to initialize generator");
+		cw_assert (gen, "failed to initialize generator (loop #%d)", i);
 
 		/* Try to access some fields in cw_gen_t just to be
 		   sure that the gen has been allocated properly. */
@@ -2438,9 +2455,67 @@ unsigned int test_cw_gen_new_delete_internal(void)
 		cw_assert (gen->tq, "tone queue is NULL");
 
 		cw_gen_delete_internal(&gen);
-		cw_assert (gen == NULL, "delete() didn't set the pointer to NULL");
+		cw_assert (gen == NULL, "delete() didn't set the pointer to NULL (loop #%d)", i);
 	}
 
+
+	n = 5;
+
+
+	/* new() + start() + delete() (skipping stop() on purpose). */
+	for (int i = 0; i < n; i++) {
+		fprintf(stderr, "libcw/gen: generator test 2/4, loop #%d/%d\n", i, n);
+
+		cw_gen_t *gen = cw_gen_new_internal(CW_AUDIO_NULL, NULL);
+		cw_assert (gen, "failed to initialize generator (loop #%d)", i);
+
+		int rv = cw_gen_start_internal(gen);
+		cw_assert (rv, "failed to start generator");
+
+		cw_gen_delete_internal(&gen);
+		cw_assert (gen == NULL, "delete() didn't set the pointer to NULL (loop #%d)", i);
+	}
+
+
+	/* new() + stop() + delete() (skipping start() on purpose). */
+	for (int i = 0; i < n; i++) {
+		fprintf(stderr, "libcw/gen: generator test 3/4, loop #%d/%d\n", i, n);
+
+		cw_gen_t *gen = cw_gen_new_internal(CW_AUDIO_NULL, NULL);
+		cw_assert (gen, "failed to initialize generator (loop #%d)", i);
+
+		cw_gen_stop_internal(gen);
+
+		cw_gen_delete_internal(&gen);
+		cw_assert (gen == NULL, "delete() didn't set the pointer to NULL (loop #%d)", i);
+	}
+
+
+
+	/* Inner loop. */
+	int m = n;
+
+
+	/* new() + start() + stop() + delete() */
+	for (int i = 0; i < n; i++) {
+		fprintf(stderr, "libcw/gen: generator test 4/4, loop #%d/%d\n", i, n);
+
+		cw_gen_t *gen = cw_gen_new_internal(CW_AUDIO_NULL, NULL);
+		cw_assert (gen, "failed to initialize generator (loop #%d)", i);
+
+		for (int j = 0; j < m; j++) {
+			int rv = cw_gen_start_internal(gen);
+			cw_assert (rv, "failed to start generator");
+
+			cw_gen_stop_internal(gen);
+		}
+
+		cw_gen_delete_internal(&gen);
+		cw_assert (gen == NULL, "delete() didn't set the pointer to NULL (loop #%d)", i);
+	}
+
+
+	p = fprintf(stdout, "libcw/gen: cw_gen_new/start/stop/delete_internal():");
 	CW_TEST_PRINT_TEST_RESULT(false, p);
 
 	return 0;
