@@ -22,6 +22,8 @@
 /* Microseconds in a second, for struct timeval handling. */
 enum { CW_USECS_PER_SEC = 1000000 };
 
+/* Nanoseconds in a second, for struct timespec. */
+enum { CW_NSECS_PER_SEC = 1000000000 };
 
 
 
