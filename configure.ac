@@ -386,6 +386,9 @@ else
 fi
 
 
+
+
+
 # Development support tools.
 AM_CONDITIONAL(LIBCW_WITH_DEV, test "$enable_dev" = "yes")
 if test "$enable_dev" = "yes" ; then
@@ -394,6 +397,17 @@ if test "$enable_dev" = "yes" ; then
 else
    WITH_DEV='no'
 fi
+
+
+if test "$WITH_DEV" = 'yes' ; then
+    LIBCW_NDEBUG=""
+else
+    LIBCW_NDEBUG="-DNDEBUG"
+fi
+AC_SUBST(LIBCW_NDEBUG)
+
+
+
 
 
 # #####
