@@ -1,3 +1,9 @@
+2015-03-04 Kamil Ignacak
+	* asserts: base libcw is now compiled with -DNDEBUG flag by
+	default (asserts are "off"). The asserts are still "on" by default
+	in "unit tests" libcw. Asserts are switched "on" in base libcw
+	with "./configure --enable-dev".
+
 2015-03-02 Kamil Ignacak
 	* generator: First unit test intended to be executed on building
 	"make check" target.  The unit test function uncovered one error:
