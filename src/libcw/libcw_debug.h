@@ -21,9 +21,15 @@
 #ifndef H_LIBCW_DEBUG
 #define H_LIBCW_DEBUG
 
+
+
+
+
 #include <stdio.h>
 #include <assert.h>
 #include <stdbool.h>
+
+
 
 
 
@@ -153,7 +159,9 @@ enum {
 		assert (expr);                                  \
 	}
 #else
-#define cdw_assert(expr, ...)
+	/* "if ()" expression prevents compiler warnings about unused
+	   variables. */
+#define cw_assert(expr, ...) { if (expr) {} }
 #endif
 
 
