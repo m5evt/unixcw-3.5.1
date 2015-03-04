@@ -1308,6 +1308,31 @@ unsigned int test_cw_representation_to_hash_internal(void)
 	int p = fprintf(stdout, "libcw/data: cw_representation_to_hash_internal():");
 
 
+	/* Intended contents of input[] is something like that:
+	  input[0]  = "."
+	  input[1]  = "-"
+	  input[2]  = ".."
+	  input[3]  = "-."
+	  input[4]  = ".-"
+	  input[5]  = "--"
+	  input[6]  = "..."
+	  input[7]  = "-.."
+	  input[8]  = ".-."
+	  input[9]  = "--."
+	  input[10] = "..-"
+	  input[11] = "-.-"
+	  input[12] = ".--"
+	  input[13] = "---"
+	  .
+	  .
+	  .
+	  input[248] = ".-.----"
+	  input[249] = "--.----"
+	  input[250] = "..-----"
+	  input[251] = "-.-----"
+	  input[252] = ".------"
+	  input[253] = "-------"
+	*/
 	char input[REPRESENTATION_TABLE_SIZE][REPRESENTATION_LEN + 1];
 
 	/* build table of all valid representations ("valid" as in "build
@@ -1319,21 +1344,22 @@ unsigned int test_cw_representation_to_hash_internal(void)
 		   shortest (single dot or dash) and ending with the
 		   longest representations. */
 
-		for (unsigned int binary_representation = 0; binary_representation < (2 << (len - 1)); binary_representation++) {
+		unsigned int bit_vector_len = 2 << (len - 1);
 
-			/* A representation of length "len" can have
-			   2^len distinct forms/values. The "for" loop
-			   that we are in iterates over these 2^len
-			   forms. */
+		/* A representation of length "len" can have 2^len
+		   distinct values. The "for" loop that we are in
+		   iterates over these 2^len forms. */
+		for (unsigned int bit_vector = 0; bit_vector < bit_vector_len; bit_vector++) {
 
+			/* Turn every '0' into dot, and every '1' into dash. */
 			for (unsigned int bit_pos = 0; bit_pos < len; bit_pos++) {
-				unsigned int bit = binary_representation & (1 << bit_pos);
+				unsigned int bit = bit_vector & (1 << bit_pos);
 				input[rep][bit_pos] = bit ? '-' : '.';
-				// fprintf(stderr, "rep = %x, bit pos = %d, bit = %d\n", binary_representation, bit_pos, bit);
+				// fprintf(stderr, "rep = %x, bit pos = %d, bit = %d\n", bit_vector, bit_pos, bit);
 			}
 
 			input[rep][len] = '\0';
-			// fprintf(stderr, "\ninput[%ld] = \"%s\"", rep, input[rep]);
+			//fprintf(stderr, "\ninput[%ld] = \"%s\"", rep, input[rep]);
 			rep++;
 		}
 	}
