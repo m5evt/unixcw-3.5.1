@@ -17861,7 +17861,9 @@ else
   fi
 fi
 if test "`basename $CXX`" = "g++" ; then
-  CXXFLAGS="$CXXFLAGS -Wall -W -pedantic -Wno-long-long"
+  # -Wno-variadic-macros is to silence g++'s warnings about C99
+  # variadic macros from libcw_debug.h
+  CXXFLAGS="$CXXFLAGS -Wall -W -pedantic -Wno-long-long -Wno-variadic-macros"
 else
   if test "`basename $CXX`" = "icpc" ; then
     CXXFLAGS="$CXXFLAGS -Wall -wd181,188,279,383,593,810,981,1469"
