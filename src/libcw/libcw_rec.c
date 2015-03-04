@@ -1810,7 +1810,7 @@ static struct cw_rec_test_data *test_cw_rec_new_random_data_fixed(int speed, int
 static struct cw_rec_test_data *test_cw_rec_new_random_data_adaptive(int speed_min, int speed_max, int fuzz_percent);
 
 static void test_cw_rec_delete_data(struct cw_rec_test_data **data);
-static void test_cw_rec_print_data(struct cw_rec_test_data *data);
+__attribute__((unused)) static void test_cw_rec_print_data(struct cw_rec_test_data *data);
 static void test_cw_rec_test_begin_end(cw_rec_t *rec, struct cw_rec_test_data *data);
 
 /* Functions creating tables of test values: characters and speeds.
@@ -2571,7 +2571,7 @@ float *test_cw_rec_new_speeds_adaptive(int speed_min, int speed_max, size_t n)
 
    \return table of timing data sets
 */
-struct cw_rec_test_data *test_cw_rec_new_data(const char *characters, float speeds[], int fuzz_percent)
+struct cw_rec_test_data *test_cw_rec_new_data(const char *characters, float speeds[], __attribute__((unused)) int fuzz_percent)
 {
 	size_t n = strlen(characters);
 	/* +1 for guard. */
