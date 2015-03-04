@@ -151,7 +151,6 @@ static void *cw_gen_dequeue_and_play_internal(void *arg);
 static int   cw_gen_calculate_sine_wave_internal(cw_gen_t *gen, cw_tone_t *tone);
 static int   cw_gen_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone);
 static int   cw_gen_write_to_soundcard_internal(cw_gen_t *gen, cw_tone_t *tone, int queue_rv);
-static void  cw_gen_dequeue_and_play_sub_internal(cw_gen_t *gen, cw_tone_t *tone, int queue_rv);
 static int   cw_gen_play_valid_character_internal(cw_gen_t *gen, char character, int partial);
 static void  cw_gen_recalculate_slopes_internal(cw_gen_t *gen);
 
