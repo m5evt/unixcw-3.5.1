@@ -637,6 +637,7 @@ CC_LINKS_SO
 CFLAG_PIC
 SRC_SUBDIRS
 LIBOBJS
+LIBCW_NDEBUG
 LIBCW_WITH_DEV_FALSE
 LIBCW_WITH_DEV_TRUE
 MOC
@@ -17056,6 +17057,9 @@ fi
 fi
 
 
+
+
+
 # Development support tools.
  if test "$enable_dev" = "yes"; then
   LIBCW_WITH_DEV_TRUE=
@@ -17073,6 +17077,17 @@ $as_echo "#define LIBCW_WITH_DEV 1" >>confdefs.h
 else
    WITH_DEV='no'
 fi
+
+
+if test "$WITH_DEV" = 'yes' ; then
+    LIBCW_NDEBUG=""
+else
+    LIBCW_NDEBUG="-DNDEBUG"
+fi
+
+
+
+
 
 
 # #####
