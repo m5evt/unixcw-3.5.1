@@ -64,6 +64,10 @@ libcw_la_LDFLAGS = -version-number $(LIBCW_VERSION)
 # target-specific compiler flags
 libcw_la_CFLAGS = -rdynamic
 
+# target-specific preprocessor flags (#defs and include dirs)
+# -DNDEBUG = no asserts
+libcw_la_CPPFLAGS = $(AM_CPPFLAGS) -DNDEBUG
+
 libcw_includedir=$(includedir)
 libcw_include_HEADERS = libcw.h libcw_debug.h
 
