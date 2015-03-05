@@ -1093,29 +1093,35 @@ int cw_gen_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone)
 
    Most of variables related to slope of tones is in tone data type,
    but there are still some variables that are generator-specific, as
-   they are common for all tones.  This function sets these
+   they are common for all tones.  This function sets two of these
    variables.
 
-   One of the variables is a table of amplitudes for every point in
-   slope. Values in the table are generated only once, when parameters
-   of the slope change. This saves us from re-calculating amplitudes
-   of slope for every tone. With the table at hand we can simply look
-   up an amplitude of point of slope in the table of amplitudes.
 
-   You can pass -1 as value of \p slope_shape or \p slope_usecs, the
-   function will then either resolve correct values of its arguments,
-   or will leave related parameters of slope unchanged.
+   A: If you pass to function conflicting values of \p slope_shape and
+   \p slope_usecs, the function will return CW_FAILURE. These
+   conflicting values are rectangular slope shape and larger than zero
+   slope length. You just can't have rectangular slopes that have
+   non-zero length.
 
-   Passing rectangular \p slope_shape and non-zero \p slope_length
-   arguments will result in conflict, and in function returning
-   failure.
 
-   If there is no conflict of the two arguments, passing rectangular
-   \p slope_shape will force slope length to be zero, even if \p
-   slope_usecs = -1.
+   B: If you pass to function '-1' as value of both \p slope_shape and
+   \p slope_usecs, the function won't change any of the related two
+   generator's parameters.
 
-   Notice that the function allows non-rectangular slopes with zero
-   length of the slopes.
+
+   C1: If you pass to function '-1' as value of either \p slope_shape
+   or \p slope_usecs, the function will attempt to set only this
+   generator's parameter that is different than '-1'.
+
+   C2: However, if selected slope shape is rectangular, function will
+   set generator's slope length to zero, even if value of \p
+   slope_usecs is '-1'.
+
+
+   D: Notice that the function allows non-rectangular slope shape with
+   zero length of the slopes. The slopes will be non-rectangular, but
+   just unusually short.
+
 
    The function should be called every time one of following
    parameters change:
@@ -1145,75 +1151,70 @@ int cw_gen_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone)
 */
 int cw_generator_set_tone_slope(cw_gen_t *gen, int slope_shape, int slope_usecs)
 {
-	 assert (gen);
+	assert (gen);
 
-	 /* Handle conflicting values of arguments. */
-	 if (slope_shape == CW_TONE_SLOPE_SHAPE_RECTANGULAR
-	     && slope_usecs > 0) {
+	/* Handle conflicting values of arguments. */
+	if (slope_shape == CW_TONE_SLOPE_SHAPE_RECTANGULAR
+	    && slope_usecs > 0) {
 
-		 cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
-			       "libcw: requested a rectangular slope shape, but also requested slope len > 0");
+		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
+			      "libcw: requested a rectangular slope shape, but also requested slope len > 0");
 
-		 return CW_FAILURE;
-	 }
+		return CW_FAILURE;
+	}
 
-
-	 /* Assign new values from arguments. */
-	 if (slope_shape != -1) {
-		 gen->tone_slope.shape = slope_shape;
-	 }
-	 if (slope_usecs != -1) {
-		 gen->tone_slope.length_usecs = slope_usecs;
-	 }
-
-
-	 /* Override of slope length. */
-	 if (slope_shape == CW_TONE_SLOPE_SHAPE_RECTANGULAR) {
-		 gen->tone_slope.length_usecs = 0;
-	 }
+	/* Assign new values from arguments. */
+	if (slope_shape != -1) {
+		gen->tone_slope.shape = slope_shape;
+	}
+	if (slope_usecs != -1) {
+		gen->tone_slope.length_usecs = slope_usecs;
+	}
 
 
-	 /* Handle special case. */
-	 if (slope_shape == CW_TONE_SLOPE_SHAPE_RECTANGULAR) {
-		 /* In case of rectangular slopes the length of slopes
-		    is zero, so no point in going further and trying
-		    to recalculate non-existent slopes. */
-		 return CW_SUCCESS;
-	 }
+	/* Override of slope length. */
+	if (slope_shape == CW_TONE_SLOPE_SHAPE_RECTANGULAR) {
+		gen->tone_slope.length_usecs = 0;
+	}
 
 
-	 int slope_n_samples = ((gen->sample_rate / 100) * gen->tone_slope.length_usecs) / 10000;
-	 assert (slope_n_samples);
-	 if (slope_n_samples > 1000 * 1000) {
-		 /* Let's be realistic: if slope is longer than 1M
-		    samples, there is something wrong.
-		    At sample rate = 48kHz this would mean 20 seconds
-		    of slope. */
-		 return CW_FAILURE;
-	 }
+	int slope_n_samples = ((gen->sample_rate / 100) * gen->tone_slope.length_usecs) / 10000;
+	cw_assert (slope_n_samples >= 0, "negative slope_n_samples: %d", slope_n_samples);
 
 
-	 /* Reallocate the table of slope amplitudes only when necessary.
+	/* Reallocate the table of slope amplitudes only when necessary.
 
-	    In practice the function will be called foremost when user
-	    changes volume of tone (and then the function may be
-	    called several times in a row if volume is changed in
-	    steps). In such situation the size of amplitudes table
-	    doesn't change. */
+	   In practice the function will be called foremost when user
+	   changes volume of tone (and then the function may be
+	   called several times in a row if volume is changed in
+	   steps). In such situation the size of amplitudes table
+	   doesn't change. */
 
-	 if (gen->tone_slope.n_amplitudes != slope_n_samples) {
-		 gen->tone_slope.amplitudes = realloc(gen->tone_slope.amplitudes, sizeof(float) * slope_n_samples);
-		 if (!gen->tone_slope.amplitudes) {
-			 cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
-				       "libcw: failed to realloc() table of slope amplitudes");
-			 return CW_FAILURE;
-		 }
-		 gen->tone_slope.n_amplitudes = slope_n_samples;
-	 }
+	if (gen->tone_slope.n_amplitudes != slope_n_samples) {
 
-	 cw_gen_recalculate_slopes_internal(gen);
+		 /* Remember that slope_n_samples may be zero. In that
+		    case realloc() would equal to free(). We don't
+		    want to have NULL ->amplitudes, so don't modify
+		    ->amplitudes for zero-length slopes.  Since with
+		    zero-length slopes we won't be referring to
+		    ->amplitudes[], it is ok that the table will not
+		    be up-to-date. */
 
-	 return CW_SUCCESS;
+		if (slope_n_samples > 0) {
+			gen->tone_slope.amplitudes = realloc(gen->tone_slope.amplitudes, sizeof(float) * slope_n_samples);
+			if (!gen->tone_slope.amplitudes) {
+				cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
+					      "libcw: failed to realloc() table of slope amplitudes");
+				return CW_FAILURE;
+			}
+		}
+
+		gen->tone_slope.n_amplitudes = slope_n_samples;
+	}
+
+	cw_gen_recalculate_slopes_internal(gen);
+
+	return CW_SUCCESS;
 }
 
 
@@ -2552,6 +2553,143 @@ unsigned int test_cw_gen_new_delete_internal(void)
 }
 
 
+
+
+unsigned int test_cw_generator_set_tone_slope(void)
+{
+	int p = fprintf(stdout, "libcw/gen: cw_gen_new/start/stop/delete_internal():");
+
+
+	int audio_system = CW_AUDIO_NULL;
+
+
+
+	/* Test 0: test property of newly created generator. */
+	{
+		cw_gen_t *gen = cw_gen_new_internal(audio_system, NULL);
+		cw_assert (gen, "failed to initialize generator in test 0");
+
+
+		cw_assert (gen->tone_slope.shape == CW_TONE_SLOPE_SHAPE_RAISED_COSINE,
+			   "new generator has unexpected initial slope shape %d", gen->tone_slope.shape);
+		cw_assert (gen->tone_slope.length_usecs == CW_AUDIO_SLOPE_USECS,
+			   "new generator has unexpected initial slope length %d", gen->tone_slope.length_usecs);
+
+
+		cw_gen_delete_internal(&gen);
+	}
+
+
+	/* Test A: pass conflicting arguments.
+
+	   "A: If you pass to function conflicting values of \p
+	   slope_shape and \p slope_usecs, the function will return
+	   CW_FAILURE. These conflicting values are rectangular slope
+	   shape and larger than zero slope length. You just can't
+	   have rectangular slopes that have non-zero length." */
+	{
+		cw_gen_t *gen = cw_gen_new_internal(audio_system, NULL);
+		cw_assert (gen, "failed to initialize generator in test A");
+
+
+		int rv = cw_generator_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_RECTANGULAR, 10);
+		cw_assert (!rv, "function accepted conflicting arguments");
+
+
+		cw_gen_delete_internal(&gen);
+	}
+
+
+	/* Test B: pass '-1' as both arguments.
+
+	   "B: If you pass to function '-1' as value of both \p
+	   slope_shape and \p slope_usecs, the function won't change
+	   any of the related two generator's parameters." */
+	{
+		cw_gen_t *gen = cw_gen_new_internal(audio_system, NULL);
+		cw_assert (gen, "failed to initialize generator in test B");
+
+
+		int shape_before = gen->tone_slope.shape;
+		int len_before = gen->tone_slope.length_usecs;
+
+		int rv = cw_generator_set_tone_slope(gen, -1, -1);
+		cw_assert (rv, "failed to set tone slope");
+
+		cw_assert (gen->tone_slope.shape == shape_before,
+			   "tone slope shape changed from %d to %d", shape_before, gen->tone_slope.shape);
+
+		cw_assert (gen->tone_slope.length_usecs == len_before,
+			   "tone slope length changed from %d to %d", len_before, gen->tone_slope.length_usecs);
+
+
+		cw_gen_delete_internal(&gen);
+	}
+
+
+	/* Test C1
+
+	   "C1: If you pass to function '-1' as value of either \p
+	   slope_shape or \p slope_usecs, the function will attempt to
+	   set only this generator's parameter that is different than
+	   '-1'." */
+	{
+		cw_gen_t *gen = cw_gen_new_internal(audio_system, NULL);
+		cw_assert (gen, "failed to initialize generator in test C1");
+
+
+
+		cw_gen_delete_internal(&gen);
+	}
+
+
+	/* Test C2
+
+	   "C2: However, if selected slope shape is rectangular,
+	   function will set generator's slope length to zero, even if
+	   value of \p slope_usecs is '-1'." */
+	{
+		cw_gen_t *gen = cw_gen_new_internal(audio_system, NULL);
+		cw_assert (gen, "failed to initialize generator in test C2");
+
+
+
+		cw_gen_delete_internal(&gen);
+	}
+
+
+	/* Test D
+
+	   "D: Notice that the function allows non-rectangular slope
+	   shape with zero length of the slopes. The slopes will be
+	   non-rectangular, but just unusually short." */
+	{
+		cw_gen_t *gen = cw_gen_new_internal(audio_system, NULL);
+		cw_assert (gen, "failed to initialize generator in test D");
+
+
+		int rv = cw_generator_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_LINEAR, 0);
+		cw_assert (rv, "failed to set linear tone slope with zero length");
+
+		rv = cw_generator_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_RAISED_COSINE, 0);
+		cw_assert (rv, "failed to set raised cosine tone slope with zero length");
+
+		rv = cw_generator_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_SINE, 0);
+		cw_assert (rv, "failed to set sine tone slope with zero length");
+
+		rv = cw_generator_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_RECTANGULAR, 0);
+		cw_assert (rv, "failed to set rectangular tone slope with zero length");
+
+
+		cw_gen_delete_internal(&gen);
+	}
+
+
+	p = fprintf(stdout, "libcw/gen: cw_gen_new/start/stop/delete_internal():");
+	CW_TEST_PRINT_TEST_RESULT(false, p);
+
+	return 0;
+}
 
 
 
