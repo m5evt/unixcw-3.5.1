@@ -1,3 +1,13 @@
+2015-03-05 Kamil Ignacak
+	* cw_gen: today I've added second and third brand new unit test
+	function for cw_gen module in libcw_gen.c file. At the beginning
+	of this development cycle there were zero functions defined in
+	libcw_gen.c (there were, and still are, functions testing cw_gen
+	module in libcw_test_public.c). I think that's a progress :)
+
+	During creation of these functions I had an opportunity to improve
+	code and comments of generator's base functions.
+
 2015-03-04 Kamil Ignacak
 	* asserts: base libcw is now compiled with -DNDEBUG flag by
 	default (asserts are "off"). The asserts are still "on" by default
