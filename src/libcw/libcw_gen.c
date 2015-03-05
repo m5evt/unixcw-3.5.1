@@ -1098,24 +1098,24 @@ int cw_gen_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone)
 
 
    A: If you pass to function conflicting values of \p slope_shape and
-   \p slope_usecs, the function will return CW_FAILURE. These
+   \p slope_len, the function will return CW_FAILURE. These
    conflicting values are rectangular slope shape and larger than zero
    slope length. You just can't have rectangular slopes that have
    non-zero length.
 
 
    B: If you pass to function '-1' as value of both \p slope_shape and
-   \p slope_usecs, the function won't change any of the related two
+   \p slope_len, the function won't change any of the related two
    generator's parameters.
 
 
    C1: If you pass to function '-1' as value of either \p slope_shape
-   or \p slope_usecs, the function will attempt to set only this
+   or \p slope_len, the function will attempt to set only this
    generator's parameter that is different than '-1'.
 
    C2: However, if selected slope shape is rectangular, function will
    set generator's slope length to zero, even if value of \p
-   slope_usecs is '-1'.
+   slope_len is '-1'.
 
 
    D: Notice that the function allows non-rectangular slope shape with
@@ -1144,18 +1144,18 @@ int cw_gen_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone)
 
    \param gen - generator for which to set tone slope parameters
    \param slope_shape - shape of slope: linear, raised cosine, sine, rectangular
-   \param slope_usecs - length of slope, in microseconds
+   \param slope_len - length of slope [microseconds]
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_generator_set_tone_slope(cw_gen_t *gen, int slope_shape, int slope_usecs)
+int cw_generator_set_tone_slope(cw_gen_t *gen, int slope_shape, int slope_len)
 {
 	assert (gen);
 
 	/* Handle conflicting values of arguments. */
 	if (slope_shape == CW_TONE_SLOPE_SHAPE_RECTANGULAR
-	    && slope_usecs > 0) {
+	    && slope_len > 0) {
 
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
 			      "libcw: requested a rectangular slope shape, but also requested slope len > 0");
@@ -1167,8 +1167,8 @@ int cw_generator_set_tone_slope(cw_gen_t *gen, int slope_shape, int slope_usecs)
 	if (slope_shape != -1) {
 		gen->tone_slope.shape = slope_shape;
 	}
-	if (slope_usecs != -1) {
-		gen->tone_slope.len = slope_usecs;
+	if (slope_len != -1) {
+		gen->tone_slope.len = slope_len;
 	}
 
 
@@ -2581,7 +2581,7 @@ unsigned int test_cw_generator_set_tone_slope(void)
 	/* Test A: pass conflicting arguments.
 
 	   "A: If you pass to function conflicting values of \p
-	   slope_shape and \p slope_usecs, the function will return
+	   slope_shape and \p slope_len, the function will return
 	   CW_FAILURE. These conflicting values are rectangular slope
 	   shape and larger than zero slope length. You just can't
 	   have rectangular slopes that have non-zero length." */
@@ -2602,7 +2602,7 @@ unsigned int test_cw_generator_set_tone_slope(void)
 	/* Test B: pass '-1' as both arguments.
 
 	   "B: If you pass to function '-1' as value of both \p
-	   slope_shape and \p slope_usecs, the function won't change
+	   slope_shape and \p slope_len, the function won't change
 	   any of the related two generator's parameters." */
 	{
 		cw_gen_t *gen = cw_gen_new_internal(audio_system, NULL);
@@ -2630,7 +2630,7 @@ unsigned int test_cw_generator_set_tone_slope(void)
 	/* Test C1
 
 	   "C1: If you pass to function '-1' as value of either \p
-	   slope_shape or \p slope_usecs, the function will attempt to
+	   slope_shape or \p slope_len, the function will attempt to
 	   set only this generator's parameter that is different than
 	   '-1'." */
 	{
@@ -2701,7 +2701,7 @@ unsigned int test_cw_generator_set_tone_slope(void)
 
 	   "C2: However, if selected slope shape is rectangular,
 	   function will set generator's slope length to zero, even if
-	   value of \p slope_usecs is '-1'." */
+	   value of \p slope_len is '-1'." */
 	{
 		cw_gen_t *gen = cw_gen_new_internal(audio_system, NULL);
 		cw_assert (gen, "failed to initialize generator in test C2");
