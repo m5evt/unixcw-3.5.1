@@ -2569,8 +2569,8 @@ unsigned int test_cw_generator_set_tone_slope(void)
 
 		cw_assert (gen->tone_slope.shape == CW_TONE_SLOPE_SHAPE_RAISED_COSINE,
 			   "new generator has unexpected initial slope shape %d", gen->tone_slope.shape);
-		cw_assert (gen->tone_slope.length_usecs == CW_AUDIO_SLOPE_USECS,
-			   "new generator has unexpected initial slope length %d", gen->tone_slope.length_usecs);
+		cw_assert (gen->tone_slope.len == CW_AUDIO_SLOPE_USECS,
+			   "new generator has unexpected initial slope length %d", gen->tone_slope.len);
 
 
 		cw_gen_delete_internal(&gen);
@@ -2610,7 +2610,7 @@ unsigned int test_cw_generator_set_tone_slope(void)
 
 
 		int shape_before = gen->tone_slope.shape;
-		int len_before = gen->tone_slope.length_usecs;
+		int len_before = gen->tone_slope.len;
 
 		int rv = cw_generator_set_tone_slope(gen, -1, -1);
 		cw_assert (rv, "failed to set tone slope");
@@ -2618,8 +2618,8 @@ unsigned int test_cw_generator_set_tone_slope(void)
 		cw_assert (gen->tone_slope.shape == shape_before,
 			   "tone slope shape changed from %d to %d", shape_before, gen->tone_slope.shape);
 
-		cw_assert (gen->tone_slope.length_usecs == len_before,
-			   "tone slope length changed from %d to %d", len_before, gen->tone_slope.length_usecs);
+		cw_assert (gen->tone_slope.len == len_before,
+			   "tone slope length changed from %d to %d", len_before, gen->tone_slope.len);
 
 
 		cw_gen_delete_internal(&gen);
@@ -2650,8 +2650,8 @@ unsigned int test_cw_generator_set_tone_slope(void)
 		   of its parameters (yes, that's test zero again). */
 		cw_assert (gen->tone_slope.shape == expected_shape,
 			   "new generator has unexpected initial slope shape %d", gen->tone_slope.shape);
-		cw_assert (gen->tone_slope.length_usecs == expected_len,
-			   "new generator has unexpected initial slope length %d", gen->tone_slope.length_usecs);
+		cw_assert (gen->tone_slope.len == expected_len,
+			   "new generator has unexpected initial slope length %d", gen->tone_slope.len);
 
 
 		/* Set only new slope shape. */
@@ -2662,8 +2662,8 @@ unsigned int test_cw_generator_set_tone_slope(void)
 		/* At this point only slope shape should be updated. */
 		cw_assert (gen->tone_slope.shape == expected_shape,
 			   "failed to set new shape of slope; shape is %d", gen->tone_slope.shape);
-		cw_assert (gen->tone_slope.length_usecs == expected_len,
-			   "failed to preserve slope length; length is %d", gen->tone_slope.length_usecs);
+		cw_assert (gen->tone_slope.len == expected_len,
+			   "failed to preserve slope length; length is %d", gen->tone_slope.len);
 
 
 		/* Set only new slope length. */
@@ -2675,8 +2675,8 @@ unsigned int test_cw_generator_set_tone_slope(void)
 		   (compared to previous function call). */
 		cw_assert (gen->tone_slope.shape == expected_shape,
 			   "failed to preserve shape of slope; shape is %d", gen->tone_slope.shape);
-		cw_assert (gen->tone_slope.length_usecs == expected_len,
-			   "failed to set new slope length; length is %d", gen->tone_slope.length_usecs);
+		cw_assert (gen->tone_slope.len == expected_len,
+			   "failed to set new slope length; length is %d", gen->tone_slope.len);
 
 
 		/* Set only new slope shape. */
@@ -2688,8 +2688,8 @@ unsigned int test_cw_generator_set_tone_slope(void)
 		   (compared to previous function call). */
 		cw_assert (gen->tone_slope.shape == expected_shape,
 			   "failed to set new shape of slope; shape is %d", gen->tone_slope.shape);
-		cw_assert (gen->tone_slope.length_usecs == expected_len,
-			   "failed to preserve slope length; length is %d", gen->tone_slope.length_usecs);
+		cw_assert (gen->tone_slope.len == expected_len,
+			   "failed to preserve slope length; length is %d", gen->tone_slope.len);
 
 
 		cw_gen_delete_internal(&gen);
@@ -2719,8 +2719,8 @@ unsigned int test_cw_generator_set_tone_slope(void)
 		   of its parameters (yes, that's test zero again). */
 		cw_assert (gen->tone_slope.shape == expected_shape,
 			   "new generator has unexpected initial slope shape %d", gen->tone_slope.shape);
-		cw_assert (gen->tone_slope.length_usecs == expected_len,
-			   "new generator has unexpected initial slope length %d", gen->tone_slope.length_usecs);
+		cw_assert (gen->tone_slope.len == expected_len,
+			   "new generator has unexpected initial slope length %d", gen->tone_slope.len);
 
 
 		/* Set only new slope shape. */
@@ -2734,8 +2734,8 @@ unsigned int test_cw_generator_set_tone_slope(void)
 		   requested rectangular slope shape). */
 		cw_assert (gen->tone_slope.shape == expected_shape,
 			   "failed to set new shape of slope; shape is %d", gen->tone_slope.shape);
-		cw_assert (gen->tone_slope.length_usecs == expected_len,
-			   "failed to get expected slope length; length is %d", gen->tone_slope.length_usecs);
+		cw_assert (gen->tone_slope.len == expected_len,
+			   "failed to get expected slope length; length is %d", gen->tone_slope.len);
 
 
 		cw_gen_delete_internal(&gen);
@@ -2757,32 +2757,32 @@ unsigned int test_cw_generator_set_tone_slope(void)
 		cw_assert (rv, "failed to set linear slope with zero length");
 		cw_assert (gen->tone_slope.shape == CW_TONE_SLOPE_SHAPE_LINEAR,
 			   "failed to set linear slope shape; shape is %d", gen->tone_slope.shape);
-		cw_assert (gen->tone_slope.length_usecs == 0,
-			   "failed to set zero slope length; length is %d", gen->tone_slope.length_usecs);
+		cw_assert (gen->tone_slope.len == 0,
+			   "failed to set zero slope length; length is %d", gen->tone_slope.len);
 
 
 		rv = cw_generator_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_RAISED_COSINE, 0);
 		cw_assert (rv, "failed to set raised cosine slope with zero length");
 		cw_assert (gen->tone_slope.shape == CW_TONE_SLOPE_SHAPE_RAISED_COSINE,
 			   "failed to set raised cosine slope shape; shape is %d", gen->tone_slope.shape);
-		cw_assert (gen->tone_slope.length_usecs == 0,
-			   "failed to set zero slope length; length is %d", gen->tone_slope.length_usecs);
+		cw_assert (gen->tone_slope.len == 0,
+			   "failed to set zero slope length; length is %d", gen->tone_slope.len);
 
 
 		rv = cw_generator_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_SINE, 0);
 		cw_assert (rv, "failed to set sine slope with zero length");
 		cw_assert (gen->tone_slope.shape == CW_TONE_SLOPE_SHAPE_SINE,
 			   "failed to set sine slope shape; shape is %d", gen->tone_slope.shape);
-		cw_assert (gen->tone_slope.length_usecs == 0,
-			   "failed to set zero slope length; length is %d", gen->tone_slope.length_usecs);
+		cw_assert (gen->tone_slope.len == 0,
+			   "failed to set zero slope length; length is %d", gen->tone_slope.len);
 
 
 		rv = cw_generator_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_RECTANGULAR, 0);
 		cw_assert (rv, "failed to set rectangular slope with zero length");
 		cw_assert (gen->tone_slope.shape == CW_TONE_SLOPE_SHAPE_RECTANGULAR,
 			   "failed to set rectangular slope shape; shape is %d", gen->tone_slope.shape);
-		cw_assert (gen->tone_slope.length_usecs == 0,
-			   "failed to set zero slope length; length is %d", gen->tone_slope.length_usecs);
+		cw_assert (gen->tone_slope.len == 0,
+			   "failed to set zero slope length; length is %d", gen->tone_slope.len);
 
 
 		cw_gen_delete_internal(&gen);
