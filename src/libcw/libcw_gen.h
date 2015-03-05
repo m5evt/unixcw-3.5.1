@@ -411,6 +411,7 @@ void cw_gen_sync_parameters_internal(cw_gen_t *gen);
 #ifdef LIBCW_UNIT_TESTS
 
 unsigned int test_cw_gen_new_delete_internal(void);
+unsigned int test_cw_generator_set_tone_slope(void);
 
 #endif /* #ifdef LIBCW_UNIT_TESTS */
 
