@@ -2559,10 +2559,7 @@ unsigned int test_cw_generator_set_tone_slope(void)
 {
 	int p = fprintf(stdout, "libcw/gen: cw_generator_set_tone_slope():");
 
-
 	int audio_system = CW_AUDIO_NULL;
-
-
 
 	/* Test 0: test property of newly created generator. */
 	{
@@ -2796,6 +2793,35 @@ unsigned int test_cw_generator_set_tone_slope(void)
 
 	return 0;
 }
+
+
+
+
+
+/* Test some assertions about CW_TONE_SLOPE_SHAPE_*
+
+   Code in this file depends on the fact that these values are
+   different than -1. I think that ensuring that they are in general
+   small, non-negative values is a good idea.
+
+   I'm testing these values to be sure that when I get a silly idea to
+   modify them, the test will catch this modification.
+*/
+unsigned int test_cw_gen_tone_slope_shape_enums(void)
+{
+	int p = fprintf(stdout, "libcw/gen: CW_TONE_SLOPE_SHAPE_*:");
+
+	cw_assert (CW_TONE_SLOPE_SHAPE_LINEAR >= 0,        "CW_TONE_SLOPE_SHAPE_LINEAR is negative: %d",        CW_TONE_SLOPE_SHAPE_LINEAR);
+	cw_assert (CW_TONE_SLOPE_SHAPE_RAISED_COSINE >= 0, "CW_TONE_SLOPE_SHAPE_RAISED_COSINE is negative: %d", CW_TONE_SLOPE_SHAPE_RAISED_COSINE);
+	cw_assert (CW_TONE_SLOPE_SHAPE_SINE >= 0,          "CW_TONE_SLOPE_SHAPE_SINE is negative: %d",          CW_TONE_SLOPE_SHAPE_SINE);
+	cw_assert (CW_TONE_SLOPE_SHAPE_RECTANGULAR >= 0,   "CW_TONE_SLOPE_SHAPE_RECTANGULAR is negative: %d",   CW_TONE_SLOPE_SHAPE_RECTANGULAR);
+
+	CW_TEST_PRINT_TEST_RESULT(false, p);
+
+	return 0;
+}
+
+
 
 
 
