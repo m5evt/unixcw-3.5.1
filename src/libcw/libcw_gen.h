@@ -178,9 +178,8 @@ struct cw_gen_struct {
 		   This is why we have the slope length in generator.
 
 		   n_amplitudes declared a bit below in this struct is
-		   a secondary parameter, derived from
-		   length_usecs. */
-		int length_usecs;
+		   a secondary parameter, derived from ->len. */
+		int len; /* [us] */
 
 		/* Linear/raised cosine/sine/rectangle. */
 		int shape;
@@ -196,9 +195,8 @@ struct cw_gen_struct {
 		float *amplitudes;
 
 		/* This is a secondary parameter, derived from
-		   length_usecs. n_amplitudes is useful when iterating
-		   over amplitudes[] or reallocing the
-		   amplitudes[]. */
+		   ->len. n_amplitudes is useful when iterating over
+		   ->amplitudes[] or reallocing the ->amplitudes[]. */
 		int n_amplitudes;
 	} tone_slope;
 

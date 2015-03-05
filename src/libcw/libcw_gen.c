@@ -426,7 +426,7 @@ cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 
 	gen->client.name = (char *) NULL;
 
-	gen->tone_slope.length_usecs = CW_AUDIO_SLOPE_USECS;
+	gen->tone_slope.len = CW_AUDIO_SLOPE_USECS;
 	gen->tone_slope.shape = CW_TONE_SLOPE_SHAPE_RAISED_COSINE;
 	gen->tone_slope.amplitudes = NULL;
 	gen->tone_slope.n_amplitudes = 0;
@@ -1168,17 +1168,17 @@ int cw_generator_set_tone_slope(cw_gen_t *gen, int slope_shape, int slope_usecs)
 		gen->tone_slope.shape = slope_shape;
 	}
 	if (slope_usecs != -1) {
-		gen->tone_slope.length_usecs = slope_usecs;
+		gen->tone_slope.len = slope_usecs;
 	}
 
 
 	/* Override of slope length. */
 	if (slope_shape == CW_TONE_SLOPE_SHAPE_RECTANGULAR) {
-		gen->tone_slope.length_usecs = 0;
+		gen->tone_slope.len = 0;
 	}
 
 
-	int slope_n_samples = ((gen->sample_rate / 100) * gen->tone_slope.length_usecs) / 10000;
+	int slope_n_samples = ((gen->sample_rate / 100) * gen->tone_slope.len) / 10000;
 	cw_assert (slope_n_samples >= 0, "negative slope_n_samples: %d", slope_n_samples);
 
 
@@ -1345,7 +1345,7 @@ int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, cw_tone_t *tone, int queue
 
 		/* Length of a single slope (rising or falling). */
 		tone->slope_n_samples = gen->sample_rate / 100;
-		tone->slope_n_samples *= gen->tone_slope.length_usecs;
+		tone->slope_n_samples *= gen->tone_slope.len;
 		tone->slope_n_samples /= 10000;
 
 		/* About calculations above:
@@ -2319,7 +2319,7 @@ int cw_gen_key_begin_mark_internal(cw_gen_t *gen)
 	   until function receives CW_KEY_STATE_OPEN key state. */
 
 	cw_tone_t tone;
-	CW_TONE_INIT(&tone, gen->frequency, gen->tone_slope.length_usecs, CW_SLOPE_MODE_RISING_SLOPE);
+	CW_TONE_INIT(&tone, gen->frequency, gen->tone_slope.len, CW_SLOPE_MODE_RISING_SLOPE);
 	int rv = cw_tq_enqueue_internal(gen->tq, &tone);
 
 	if (rv == CW_SUCCESS) {
@@ -2366,7 +2366,7 @@ int cw_gen_key_begin_space_internal(cw_gen_t *gen)
 		/* For soundcards a falling slope with volume from max
 		   to zero should be enough, but... */
 		cw_tone_t tone;
-		CW_TONE_INIT(&tone, gen->frequency, gen->tone_slope.length_usecs, CW_SLOPE_MODE_FALLING_SLOPE);
+		CW_TONE_INIT(&tone, gen->frequency, gen->tone_slope.len, CW_SLOPE_MODE_FALLING_SLOPE);
 		int rv = cw_tq_enqueue_internal(gen->tq, &tone);
 
 		if (rv == CW_SUCCESS) {
