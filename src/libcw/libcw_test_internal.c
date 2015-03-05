@@ -105,6 +105,7 @@ static cw_test_function_t cw_unit_tests[] = {
 
 
 	/* cw_gen module */
+	test_cw_generator_set_tone_slope,
 	test_cw_gen_new_delete_internal,
 
 
