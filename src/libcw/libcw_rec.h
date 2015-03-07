@@ -10,6 +10,19 @@
 
 
 
+#include <stdbool.h>
+#include <sys/time.h> /* struct timeval */
+
+
+
+
+
+#include "libcw.h"
+
+
+
+
+
 /* Dot length magic number.
 
    From PARIS calibration, 1 dot length [us] = 1200000 / speed [wpm].
