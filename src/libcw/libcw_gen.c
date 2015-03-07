@@ -923,9 +923,8 @@ int cw_gen_calculate_sine_wave_internal(cw_gen_t *gen, cw_tone_t *tone)
 		int amplitude = cw_gen_calculate_amplitude_internal(gen, tone);
 
 		gen->buffer[i] = amplitude * sin(phase);
-		if (tone->slope_iterator >= 0) {
-			tone->slope_iterator++;
-		}
+
+		tone->sample_iterator++;
 
 		t++;
 	}
@@ -1015,68 +1014,47 @@ int cw_gen_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone)
 
 
 	int amplitude = 0;
-	if (tone->slope_mode == CW_SLOPE_MODE_RISING_SLOPE) {
-		if (tone->slope_iterator < tone->slope_n_samples) {
-			/* On a rising slope. */
-			int i = tone->slope_iterator;
-			amplitude = gen->tone_slope.amplitudes[i];
 
-		} else {
-			/* After slope, on plateau. */
-			amplitude = gen->volume_abs;
-			assert (amplitude >= 0);
-		}
+	/* Every tone, regardless of slope mode (CW_SLOPE_MODE_*), has
+	   three components. It has rising slope + plateau + falling
+	   slope.
 
-	} else if (tone->slope_mode == CW_SLOPE_MODE_FALLING_SLOPE) {
-		if (tone->slope_iterator > tone->n_samples - tone->slope_n_samples + 1) {
+	   There can be four variants of rising and falling slope
+	   length, just as there are four CW_SLOPE_MODE_* values.
 
-			/* On falling slope. */
-			int i = tone->n_samples - tone->slope_iterator - 1;
-			assert (i >= 0);
-			amplitude = gen->tone_slope.amplitudes[i];
-			assert (amplitude >= 0);
-		} else {
+	   There can be also tones with zero-length plateau, and there
+	   can be also tones with zero-length slopes. */
 
-			/* Before falling slope, on plateau. */
-			amplitude = gen->volume_abs;
-			assert (amplitude >= 0);
-		}
+	if (tone->sample_iterator < tone->rising_slope_n_samples) {
+		/* Beginning of tone, rising slope. */
+		int i = tone->sample_iterator;
+		amplitude = gen->tone_slope.amplitudes[i];
+		assert (amplitude >= 0);
 
-	} else if (tone->slope_mode == CW_SLOPE_MODE_NO_SLOPES) {
+	} else if (tone->sample_iterator >= tone->rising_slope_n_samples
+		   && tone->sample_iterator < tone->n_samples - tone->falling_slope_n_samples) {
 
-		/* Always on plateau. */
+		/* Middle of tone, plateau, constant amplitude. */
 		amplitude = gen->volume_abs;
 		assert (amplitude >= 0);
 
-	} else if (tone->slope_mode == CW_SLOPE_MODE_STANDARD_SLOPES) {
-
-		/* Rising slope + plateau + falling slope. */
-
-		if (tone->slope_iterator >= 0 && tone->slope_iterator < tone->slope_n_samples) {
-			/* Beginning of tone, rising slope. */
-			int i = tone->slope_iterator;
-			amplitude = gen->tone_slope.amplitudes[i];
-			assert (amplitude >= 0);
-
-		} else if (tone->slope_iterator >= tone->slope_n_samples && tone->slope_iterator < tone->n_samples - tone->slope_n_samples) {
-			/* Middle of tone, plateau, constant amplitude. */
-			amplitude = gen->volume_abs;
-			assert (amplitude >= 0);
-
-		} else if (tone->slope_iterator >= tone->n_samples - tone->slope_n_samples) {
-			/* Falling slope. */
-			int i = tone->n_samples - tone->slope_iterator - 1;
-			assert (i >= 0);
-			amplitude = gen->tone_slope.amplitudes[i];
-			assert (amplitude >= 0);
-
-		} else {
-			;
-			assert (amplitude >= 0);
-		}
+	} else if (tone->sample_iterator >= tone->n_samples - tone->falling_slope_n_samples) {
+		/* Falling slope. */
+		int i = tone->n_samples - tone->sample_iterator - 1;
+		assert (i >= 0);
+		amplitude = gen->tone_slope.amplitudes[i];
+		assert (amplitude >= 0);
 
 	} else {
-		cw_assert (0, "unsupported tone slope mode %d\n", tone->slope_mode);
+		cw_assert (0, "->sample_iterator out of bounds:\n"
+			   "tone->sample_iterator: %d\n"
+			   "tone->n_samples: %"PRId64"\n"
+			   "tone->rising_slope_n_samples: %d\n"
+			   "tone->falling_slope_n_samples: %d\n",
+			   tone->sample_iterator,
+			   tone->n_samples,
+			   tone->rising_slope_n_samples,
+			   tone->falling_slope_n_samples);
 	}
 
 	assert (amplitude >= 0);
@@ -1315,43 +1293,52 @@ int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, cw_tone_t *tone, int queue
 		   already provided by last non-fake and non-silent
 		   tone. */
 		tone->slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-		tone->slope_iterator = -1; /* This prevents slope iterator from being incremented. */
-		tone->slope_n_samples = 0;
+		tone->rising_slope_n_samples = 0;
+		tone->falling_slope_n_samples = 0;
+
+		tone->sample_iterator = 0;
 
 		//fprintf(stderr, "++++ length of padding silence = %d [samples]\n", tone->n_samples);
 
 	} else { /* tq_rv == CW_TQ_DEQUEUED */
 
-		if (tone->slope_mode == CW_SLOPE_MODE_RISING_SLOPE
-		    || tone->slope_mode == CW_SLOPE_MODE_FALLING_SLOPE
-		    || tone->slope_mode == CW_SLOPE_MODE_STANDARD_SLOPES) {
-
-			tone->slope_iterator = 0; /* This enables slope iterator for increments. */
-
-		} else if (tone->slope_mode == CW_SLOPE_MODE_NO_SLOPES) {
-
-			tone->slope_iterator = -1; /* This prevents slope iterator from being incremented. */
-		} else {
-			cw_assert (0, "unknown value of tone->slope_mode: %d", tone->slope_mode);
-		}
-
-
-		/* Recalculate slope parameters from usecs into
+		/* Recalculate tone parameters from microseconds into
 		   samples. After this point the samples will be all
 		   that matters. */
+
+		/* 100 * 10000 = 1.000.000 usecs per second. */
 		tone->n_samples = gen->sample_rate / 100;
 		tone->n_samples *= tone->usecs;
 		tone->n_samples /= 10000;
 
-		/* Length of a single slope (rising or falling). */
-		tone->slope_n_samples = gen->sample_rate / 100;
-		tone->slope_n_samples *= gen->tone_slope.len;
-		tone->slope_n_samples /= 10000;
-
-		/* About calculations above:
-		   100 * 10000 = 1.000.000 usecs per second. */
-
 		//fprintf(stderr, "++++ length of regular tone = %d [samples]\n", tone->n_samples);
+
+		/* Length of a single slope (rising or falling). */
+		int slope_n_samples= gen->sample_rate / 100;
+		slope_n_samples *= gen->tone_slope.len;
+		slope_n_samples /= 10000;
+
+		if (tone->slope_mode == CW_SLOPE_MODE_RISING_SLOPE) {
+			tone->rising_slope_n_samples = slope_n_samples;
+			tone->falling_slope_n_samples = 0;
+
+		} else if (tone->slope_mode == CW_SLOPE_MODE_FALLING_SLOPE) {
+			tone->rising_slope_n_samples = 0;
+			tone->falling_slope_n_samples = slope_n_samples;
+
+		} else if (tone->slope_mode == CW_SLOPE_MODE_STANDARD_SLOPES) {
+			tone->rising_slope_n_samples = slope_n_samples;
+			tone->falling_slope_n_samples = slope_n_samples;
+
+		} else if (tone->slope_mode == CW_SLOPE_MODE_NO_SLOPES) {
+			tone->rising_slope_n_samples = 0;
+			tone->falling_slope_n_samples = 0;
+
+		} else {
+			cw_assert (0, "unknown tone slope mode %d", tone->slope_mode);
+		}
+
+		tone->sample_iterator = 0;
 	}
 
 
