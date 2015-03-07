@@ -85,6 +85,9 @@ typedef struct {
 	   consideration very long duration of tones in QRSS. */
 	int64_t n_samples;
 
+	/* Counter of samples in whole tone. */
+	int sample_iterator;
+
 	/* a tone can start and/or end abruptly (which may result in
 	   audible clicks), or its beginning and/or end can have form
 	   of slopes (ramps), where amplitude increases/decreases less
@@ -101,7 +104,7 @@ typedef struct {
 
 	   a tone with rising and falling slope should have this length
 	   (in samples):
-	   slope_n_samples   +   (n_samples - 2 * slope_n_samples)   +   slope_n_samples
+	   rising_slope_n_samples   +   (n_samples - 2 * slope_n_samples)   +   falling_slope_n_samples
 
 	   libcw allows following slope area scenarios (modes):
 	   1. no slopes: tone shouldn't have any slope areas (i.e. tone
@@ -115,8 +118,9 @@ typedef struct {
 
 	   currently, if a tone has both slopes (rising and falling), both
 	   slope areas have to have the same length; */
-	int slope_iterator;     /* counter of samples in slope area */
-	int slope_n_samples;    /* length of slope area */
+
+	int rising_slope_n_samples;     /* Number of samples on rising slope. */
+	int falling_slope_n_samples;    /* Number of samples on falling slope. */
 } cw_tone_t;
 
 
@@ -130,13 +134,14 @@ typedef struct {
    CW_TONE_INIT(&tone, 200, 5000, CW_SLOPE_MODE_STANDARD_SLOPES);
  */
 #define CW_TONE_INIT(m_tone, m_frequency, m_len, m_slope_mode) {	\
-		(m_tone)->frequency       = m_frequency;		\
-		(m_tone)->usecs           = m_len;			\
-		(m_tone)->slope_mode      = m_slope_mode;		\
-		(m_tone)->forever         = false;			\
-		(m_tone)->n_samples       = 0;				\
-		(m_tone)->slope_iterator  = 0;				\
-		(m_tone)->slope_n_samples = 0;				\
+		(m_tone)->frequency               = m_frequency;	\
+		(m_tone)->usecs                   = m_len;		\
+		(m_tone)->slope_mode              = m_slope_mode;	\
+		(m_tone)->forever                 = false;		\
+		(m_tone)->n_samples               = 0;			\
+		(m_tone)->sample_iterator         = 0;			\
+		(m_tone)->rising_slope_n_samples  = 0;			\
+		(m_tone)->falling_slope_n_samples = 0;			\
 	}
 
 
@@ -144,13 +149,14 @@ typedef struct {
    the other. The macro accepts pointers to cw_tone_t variables as
    arguments. */
 #define CW_TONE_COPY(m_dest, m_source) {				\
-		(m_dest)->frequency       = (m_source)->frequency;	\
-		(m_dest)->usecs           = (m_source)->usecs;		\
-		(m_dest)->slope_mode      = (m_source)->slope_mode;	\
-		(m_dest)->forever         = (m_source)->forever;	\
-		(m_dest)->n_samples       = (m_source)->n_samples;	\
-		(m_dest)->slope_iterator  = (m_source)->slope_iterator;	\
-		(m_dest)->slope_n_samples = (m_source)->slope_n_samples; \
+		(m_dest)->frequency               = (m_source)->frequency; \
+		(m_dest)->usecs                   = (m_source)->usecs;	\
+		(m_dest)->slope_mode              = (m_source)->slope_mode; \
+		(m_dest)->forever                 = (m_source)->forever; \
+		(m_dest)->n_samples               = (m_source)->n_samples; \
+		(m_dest)->sample_iterator         = (m_source)->sample_iterator;	\
+		(m_dest)->rising_slope_n_samples  = (m_source)->rising_slope_n_samples; \
+		(m_dest)->falling_slope_n_samples = (m_source)->falling_slope_n_samples; \
 	};
 
 
