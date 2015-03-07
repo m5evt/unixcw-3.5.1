@@ -416,6 +416,9 @@ cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 	gen->parameters_in_sync = false;
 
 
+	gen->do_dequeue_and_play = false;
+
+
 	gen->buffer = NULL;
 	gen->buffer_n_samples = -1;
 
