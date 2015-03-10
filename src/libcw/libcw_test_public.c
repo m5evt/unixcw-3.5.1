@@ -21,6 +21,15 @@
 #include "config.h"
 
 
+
+
+
+
+
+
+
+
+
 #define _XOPEN_SOURCE 600 /* signaction() + SA_RESTART */
 
 
@@ -53,6 +62,8 @@
 
 
 
+#ifdef LIBCW_UNIT_TESTS
+
 
 
 typedef struct {
@@ -83,6 +94,15 @@ static void cw_test_helper_tq_callback(void *data);
 
 
 
+/* Will be used in "forever" test. This test function needs to open
+   generator itself, so it needs to know the current audio system to
+   be used. */
+static int test_audio_system = CW_AUDIO_NONE;
+
+
+
+
+
 /* Tone queue module. */
 static void test_tone_queue_1(cw_test_stats_t *stats);
 static void test_tone_queue_2(cw_test_stats_t *stats);
@@ -98,7 +118,7 @@ static void test_keyer(cw_test_stats_t *stats);
 static void test_straight_key(cw_test_stats_t *stats);
 /* Other functions. */
 static void test_parameter_ranges(cw_test_stats_t *stats);
-static void test_cw_forever(cw_test_stats_t *stats);
+static void test_cw_gen_forever_public(cw_test_stats_t *stats);
 
 // static void cw_test_delayed_release(cw_test_stats_t *stats);
 
@@ -1546,53 +1566,29 @@ void cw_test_signal_handling(cw_test_stats_t *stats)
 
 
 
-/* Because the function calls cw_generator_delete(), it should be
-   executed as last test in test suite (unless you want to call
-   cw_generator_new/start() again). */
-void test_cw_forever(cw_test_stats_t *stats)
+/*
+  Version of test_cw_gen_forever() to be used in libcw_test_internal
+  test executable.
+
+  Because the function calls cw_generator_delete(), it should be
+  executed as last test in test suite (unless you want to call
+  cw_generator_new/start() again). */
+void test_cw_gen_forever_public(cw_test_stats_t *stats)
 {
 	/* Make sure that an audio sink is closed. If we try to open
 	   an OSS sink that is already open, we may end up with
-	   "resource busy" error in libcw_oss.c module.
+	   "resource busy" error in libcw_oss.c module (that's what
+	   happened on Alpine Linux).
 
 	   Because of this call this test should be executed as last
 	   one. */
 	cw_generator_delete();
 
-	int sleep_period = 5;
-	printf("libcw: %s() (%d seconds):\n", __func__, sleep_period);
+	int seconds = 5;
+	printf("libcw: %s() (%d seconds):\n", __func__, seconds);
 
-	cw_gen_t *gen = cw_gen_new_internal(CW_AUDIO_SOUNDCARD, NULL);
-	cw_assert (gen, "ERROR: failed to create generator\n");
-
-	cw_gen_start_internal(gen);
-
-	sleep(1);
-	cw_tone_t tone;
-
-	tone.usecs = 100;
-	tone.frequency = 500;
-	tone.slope_mode = CW_SLOPE_MODE_RISING_SLOPE;
-	cw_tq_enqueue_internal(gen->tq, &tone);
-
-	tone.slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-	tone.usecs = CW_AUDIO_QUANTUM_USECS;
-	tone.forever = true;
-	tone.frequency = 500;
-	int rv = cw_tq_enqueue_internal(gen->tq, &tone);
-	rv ? stats->successes++ : stats->failures++;
-
-	struct timespec t;
-	cw_usecs_to_timespec_internal(&t, sleep_period * 1000000);
-	cw_nanosleep_internal(&t);
-
-	tone.usecs = 100;
-	tone.frequency = 500;
-	tone.slope_mode = CW_SLOPE_MODE_FALLING_SLOPE;
-	rv = cw_tq_enqueue_internal(gen->tq, &tone);
-	rv ? stats->successes++ : stats->failures++;
-
-	cw_gen_delete_internal(&gen);
+	unsigned int rv = test_cw_gen_forever_sub(seconds, test_audio_system, NULL);
+	rv == 0 ? stats->successes++ : stats->failures++;
 
 	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
 
@@ -1671,7 +1667,7 @@ static void (*const CW_TEST_FUNCTIONS_DEP_K[])(cw_test_stats_t *) = {
    Other modules' functions. */
 static void (*const CW_TEST_FUNCTIONS_DEP_O[])(cw_test_stats_t *) = {
 	test_parameter_ranges,
-	test_cw_forever,
+	test_cw_gen_forever_public,
 
 	//cw_test_delayed_release,
 	//cw_test_signal_handling, /* FIXME - not sure why this test fails :( */
@@ -1700,6 +1696,8 @@ static void (*const CW_TEST_FUNCTIONS_DEP_O[])(cw_test_stats_t *) = {
 */
 int cw_test_dependent_with(int audio_system, const char *modules, cw_test_stats_t *stats)
 {
+	test_audio_system = audio_system;
+
 	int rv = cw_generator_new(audio_system, NULL);
 	if (rv != 1) {
 		fprintf(stderr, "libcw: can't create generator, stopping the test\n");
@@ -1839,12 +1837,21 @@ int cw_test_dependent(const char *audio_systems, const char *modules)
 
 
 
+#endif
+
+
+
+
+
 /**
    \return EXIT_SUCCESS if all tests complete successfully,
    \return EXIT_FAILURE otherwise
 */
 int main(int argc, char *const argv[])
 {
+	int rv = 0;
+
+#ifdef LIBCW_UNIT_TESTS
 	static const int SIGNALS[] = { SIGHUP, SIGINT, SIGQUIT, SIGPIPE, SIGTERM, 0 };
 
 	unsigned int testset = 0;
@@ -1888,12 +1895,16 @@ int main(int argc, char *const argv[])
 		}
 	}
 
-	int rv = cw_test_dependent(sound_systems, modules);
+	rv = cw_test_dependent(sound_systems, modules);
+
+#endif
 
 	return rv == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
 
+
+#ifdef LIBCW_UNIT_TESTS
 
 
 
@@ -1951,3 +1962,7 @@ void cw_test_print_stats(void)
 
 	return;
 }
+
+
+
+#endif
