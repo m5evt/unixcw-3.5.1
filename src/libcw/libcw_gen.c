@@ -2825,4 +2825,64 @@ unsigned int test_cw_gen_tone_slope_shape_enums(void)
 
 
 
+/* Version of test_cw_gen_forever() to be used in libcw_test_internal
+   test executable.
+
+   It's not a test of a "forever" function, but of "forever"
+   functionality.
+*/
+unsigned int test_cw_gen_forever_internal(void)
+{
+	int seconds = 2;
+	int p = fprintf(stdout, "libcw/gen: forever tone (%d seconds):", seconds);
+	fflush(stdout);
+
+	unsigned int rv = test_cw_gen_forever_sub(2, CW_AUDIO_NULL, (const char *) NULL);
+	cw_assert (rv == 0, "\"forever\" test failed");
+
+	CW_TEST_PRINT_TEST_RESULT(false, p);
+
+	return 0;
+}
+
+
+
+
+
+unsigned int test_cw_gen_forever_sub(int seconds, int audio_system, const char *audio_device)
+{
+	cw_gen_t *gen = cw_gen_new_internal(audio_system, audio_device);
+	cw_assert (gen, "ERROR: failed to create generator\n");
+	cw_gen_start_internal(gen);
+	sleep(1);
+
+	cw_tone_t tone;
+	/* Just some acceptable values. */
+	int len = 100; /* [us] */
+	int freq = 500;
+
+	CW_TONE_INIT(&tone, freq, len, CW_SLOPE_MODE_RISING_SLOPE);
+	cw_tq_enqueue_internal(gen->tq, &tone);
+
+	CW_TONE_INIT(&tone, freq, CW_AUDIO_QUANTUM_USECS, CW_SLOPE_MODE_NO_SLOPES);
+	tone.forever = true;
+	int rv = cw_tq_enqueue_internal(gen->tq, &tone);
+
+	struct timespec t;
+	cw_usecs_to_timespec_internal(&t, seconds * CW_USECS_PER_SEC);
+	cw_nanosleep_internal(&t);
+
+	CW_TONE_INIT(&tone, freq, len, CW_SLOPE_MODE_FALLING_SLOPE);
+	rv = cw_tq_enqueue_internal(gen->tq, &tone);
+	cw_assert (rv, "failed to enqueue last tone");
+
+	cw_gen_delete_internal(&gen);
+
+	return 0;
+}
+
+
+
+
+
 #endif /* #ifdef LIBCW_UNIT_TESTS */
