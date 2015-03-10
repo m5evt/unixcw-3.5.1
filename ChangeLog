@@ -1,3 +1,15 @@
+2015-03-10 Kamil Ignacak
+	* tests: testing unixcw on Alpine Linux (with musl libc). Fixing
+	problems in cw_oss and cw_gen modules.
+
+	One important change in libcw made during tests on Alpine Linux:
+	generator's thread function is now a joinable thread (it was a
+	detached thread until now). I don't think that it will have any
+	impact on libcw's client code, but I thought that I should mention
+	this in ChangeLog.
+
+	Also adding one (unit ?) test function to libcw_test_internal.
+
 2015-03-05 Kamil Ignacak
 	* cw_gen: today I've added second and third brand new unit test
 	function for cw_gen module in libcw_gen.c file. At the beginning
