@@ -1546,8 +1546,19 @@ void cw_test_signal_handling(cw_test_stats_t *stats)
 
 
 
+/* Because the function calls cw_generator_delete(), it should be
+   executed as last test in test suite (unless you want to call
+   cw_generator_new/start() again). */
 void test_cw_forever(cw_test_stats_t *stats)
 {
+	/* Make sure that an audio sink is closed. If we try to open
+	   an OSS sink that is already open, we may end up with
+	   "resource busy" error in libcw_oss.c module.
+
+	   Because of this call this test should be executed as last
+	   one. */
+	cw_generator_delete();
+
 	int sleep_period = 5;
 	printf("libcw: %s() (%d seconds):\n", __func__, sleep_period);
 
