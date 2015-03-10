@@ -449,7 +449,11 @@ cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 	gen->write = NULL;
 
 	pthread_attr_init(&gen->thread.attr);
-	pthread_attr_setdetachstate(&gen->thread.attr, PTHREAD_CREATE_DETACHED);
+	/* Thread must be joinable in order to make a safe call to
+	   pthread_kill(thread_id, 0). pthreads are joinable by
+	   default, but I take this explicit call as a good
+	   opportunity to make this comment. */
+	pthread_attr_setdetachstate(&gen->thread.attr, PTHREAD_CREATE_JOINABLE);
 	gen->thread.running = false;
 
 
@@ -643,7 +647,13 @@ int cw_gen_stop_internal(cw_gen_t *gen)
 	struct timespec req = { .tv_sec = 1, .tv_nsec = 0 };
 	cw_nanosleep_internal(&req);
 
-	/* check if generator thread is still there */
+	/* Check if generator thread is still there.  Remember that
+	   pthread(id, 0) is unsafe for detached threads: if thread
+	   has finished, the ID may be reused, and may be invalid at
+	   this point.
+
+	   FIXME: since I modified the thread to be joinable, I should
+	   probably call pthread_join() instead of pthread_kill(). */
 	rv = pthread_kill(gen->thread.id, 0);
 	if (rv == 0) {
 		/* thread function didn't return yet; let's help it a bit */
