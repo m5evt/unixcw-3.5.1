@@ -1837,7 +1837,66 @@ int cw_test_dependent(const char *audio_systems, const char *modules)
 
 
 
-#endif
+void cw_test_print_stats(void)
+{
+	printf("\n\nlibcw: Statistics of tests:\n\n");
+
+	printf("libcw: Tests not requiring any audio system:            ");
+	if (cw_stats_indep.failures + cw_stats_indep.successes) {
+		printf("errors: %03d, total: %03d\n",
+		       cw_stats_indep.failures, cw_stats_indep.failures + cw_stats_indep.successes);
+	} else {
+		printf("no tests were performed\n");
+	}
+
+	printf("libcw: Tests performed with NULL audio system:          ");
+	if (cw_stats_null.failures + cw_stats_null.successes) {
+		printf("errors: %03d, total: %03d\n",
+		       cw_stats_null.failures, cw_stats_null.failures + cw_stats_null.successes);
+	} else {
+		printf("no tests were performed\n");
+	}
+
+	printf("libcw: Tests performed with console audio system:       ");
+	if (cw_stats_console.failures + cw_stats_console.successes) {
+		printf("errors: %03d, total: %03d\n",
+		       cw_stats_console.failures, cw_stats_console.failures + cw_stats_console.successes);
+	} else {
+		printf("no tests were performed\n");
+	}
+
+	printf("libcw: Tests performed with OSS audio system:           ");
+	if (cw_stats_oss.failures + cw_stats_oss.successes) {
+		printf("errors: %03d, total: %03d\n",
+		       cw_stats_oss.failures, cw_stats_oss.failures + cw_stats_oss.successes);
+	} else {
+		printf("no tests were performed\n");
+	}
+
+	printf("libcw: Tests performed with ALSA audio system:          ");
+	if (cw_stats_alsa.failures + cw_stats_alsa.successes) {
+		printf("errors: %03d, total: %03d\n",
+		       cw_stats_alsa.failures, cw_stats_alsa.failures + cw_stats_alsa.successes);
+	} else {
+		printf("no tests were performed\n");
+	}
+
+	printf("libcw: Tests performed with PulseAudio audio system:    ");
+	if (cw_stats_pa.failures + cw_stats_pa.successes) {
+		printf("errors: %03d, total: %03d\n",
+		       cw_stats_pa.failures, cw_stats_pa.failures + cw_stats_pa.successes);
+	} else {
+		printf("no tests were performed\n");
+	}
+
+	return;
+}
+
+
+
+
+
+#endif // #ifdef LIBCW_UNIT_TESTS
 
 
 
@@ -1897,72 +1956,7 @@ int main(int argc, char *const argv[])
 
 	rv = cw_test_dependent(sound_systems, modules);
 
-#endif
+#endif // #ifdef LIBCW_UNIT_TESTS
 
 	return rv == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }
-
-
-
-#ifdef LIBCW_UNIT_TESTS
-
-
-
-void cw_test_print_stats(void)
-{
-	printf("\n\nlibcw: Statistics of tests:\n\n");
-
-	printf("libcw: Tests not requiring any audio system:            ");
-	if (cw_stats_indep.failures + cw_stats_indep.successes) {
-		printf("errors: %03d, total: %03d\n",
-		       cw_stats_indep.failures, cw_stats_indep.failures + cw_stats_indep.successes);
-	} else {
-		printf("no tests were performed\n");
-	}
-
-	printf("libcw: Tests performed with NULL audio system:          ");
-	if (cw_stats_null.failures + cw_stats_null.successes) {
-		printf("errors: %03d, total: %03d\n",
-		       cw_stats_null.failures, cw_stats_null.failures + cw_stats_null.successes);
-	} else {
-		printf("no tests were performed\n");
-	}
-
-	printf("libcw: Tests performed with console audio system:       ");
-	if (cw_stats_console.failures + cw_stats_console.successes) {
-		printf("errors: %03d, total: %03d\n",
-		       cw_stats_console.failures, cw_stats_console.failures + cw_stats_console.successes);
-	} else {
-		printf("no tests were performed\n");
-	}
-
-	printf("libcw: Tests performed with OSS audio system:           ");
-	if (cw_stats_oss.failures + cw_stats_oss.successes) {
-		printf("errors: %03d, total: %03d\n",
-		       cw_stats_oss.failures, cw_stats_oss.failures + cw_stats_oss.successes);
-	} else {
-		printf("no tests were performed\n");
-	}
-
-	printf("libcw: Tests performed with ALSA audio system:          ");
-	if (cw_stats_alsa.failures + cw_stats_alsa.successes) {
-		printf("errors: %03d, total: %03d\n",
-		       cw_stats_alsa.failures, cw_stats_alsa.failures + cw_stats_alsa.successes);
-	} else {
-		printf("no tests were performed\n");
-	}
-
-	printf("libcw: Tests performed with PulseAudio audio system:    ");
-	if (cw_stats_pa.failures + cw_stats_pa.successes) {
-		printf("errors: %03d, total: %03d\n",
-		       cw_stats_pa.failures, cw_stats_pa.failures + cw_stats_pa.successes);
-	} else {
-		printf("no tests were performed\n");
-	}
-
-	return;
-}
-
-
-
-#endif
