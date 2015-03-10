@@ -648,7 +648,7 @@ int cw_gen_stop_internal(cw_gen_t *gen)
 	cw_nanosleep_internal(&req);
 
 	/* Check if generator thread is still there.  Remember that
-	   pthread(id, 0) is unsafe for detached threads: if thread
+	   pthread_kill(id, 0) is unsafe for detached threads: if thread
 	   has finished, the ID may be reused, and may be invalid at
 	   this point.
 
