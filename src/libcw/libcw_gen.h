@@ -266,9 +266,10 @@ struct cw_gen_struct {
 	   function calculating consecutive fragments of sine wave */
 	double phase_offset;
 
+	/* Properties of generator's thread function is that is used
+	   to generate sine wave and write the wave to audio sink
+	   (cw_gen_dequeue_and_play_internal()). */
 	struct {
-		/* generator thread function is used to generate sine wave
-		   and write the wave to audio sink */
 		pthread_t      id;
 		pthread_attr_t attr;
 
