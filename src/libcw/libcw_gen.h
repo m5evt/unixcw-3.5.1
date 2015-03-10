@@ -412,6 +412,12 @@ void cw_gen_sync_parameters_internal(cw_gen_t *gen);
 unsigned int test_cw_generator_set_tone_slope(void);
 unsigned int test_cw_gen_tone_slope_shape_enums(void);
 unsigned int test_cw_gen_new_delete_internal(void);
+unsigned int test_cw_gen_forever_internal(void);
+
+
+/* This is helper function (performing the real test), used in
+   test_public and in test_internal. */
+unsigned int test_cw_gen_forever_sub(int seconds, int audio_system, const char *audio_device);
 
 #endif /* #ifdef LIBCW_UNIT_TESTS */
 
