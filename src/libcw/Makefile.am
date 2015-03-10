@@ -86,10 +86,13 @@ libcw_include_HEADERS = libcw.h libcw_debug.h
 # a regular shared library file found in build directory. It shouldn't
 # compile all *.c files that are used to create library, it should
 # compile only test files and "link" them with this library file.
-libcw_test_public_SOURCES = libcw_test_public.c libcw_test.c
+libcw_test_public_SOURCES = $(LIBCW_BASE_C_FILES) libcw_test_public.c libcw_test.c
+
+# target-specific preprocessor flags (#defs and include dirs)
+libcw_test_public_CPPFLAGS = $(AM_CPPFLAGS) -DLIBCW_UNIT_TESTS
 
 # target-specific linker flags (objects to link)
-libcw_test_public_LDADD = -L./.libs -lcw
+libcw_test_public_LDADD = -lm -lpthread $(DL_LIB) -L./.libs -lcw
 
 
 
