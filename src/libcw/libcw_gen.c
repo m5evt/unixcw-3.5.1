@@ -629,7 +629,13 @@ int cw_gen_stop_internal(cw_gen_t *gen)
 	   function. */
 	pthread_kill(gen->thread.id, SIGALRM);
 
-	/* Sleep a bit to postpone closing a device.  This way we can
+	/* This piece of comment was put before code using
+	   pthread_kill(), and may apply only to that version. But it
+	   may turn out that it will be valid for code using
+	   pthread_join() as well, so I'm keeping it for now.
+
+	   "
+	   Sleep a bit to postpone closing a device.  This way we can
 	   avoid a situation when "do_dequeue_and_play" is set to false
 	   and device is being closed while a new buffer is being
 	   prepared, and while write() tries to write this new buffer
@@ -643,17 +649,20 @@ int cw_gen_stop_internal(cw_gen_t *gen)
 	   The delay also allows the generator function thread to stop
 	   generating tone (or for tone queue to get out of CW_TQ_IDLE
 	   state) and exit before we resort to killing generator
-	   function thread. */
+	   function thread.
+	   "
+	*/
+
+
+#if 0 /* Old code using pthread_kill() instead of pthread_join(). */
+
 	struct timespec req = { .tv_sec = 1, .tv_nsec = 0 };
 	cw_nanosleep_internal(&req);
 
 	/* Check if generator thread is still there.  Remember that
 	   pthread_kill(id, 0) is unsafe for detached threads: if thread
 	   has finished, the ID may be reused, and may be invalid at
-	   this point.
-
-	   FIXME: since I modified the thread to be joinable, I should
-	   probably call pthread_join() instead of pthread_kill(). */
+	   this point. */
 	rv = pthread_kill(gen->thread.id, 0);
 	if (rv == 0) {
 		/* thread function didn't return yet; let's help it a bit */
@@ -665,8 +674,39 @@ int cw_gen_stop_internal(cw_gen_t *gen)
 	}
 
 	gen->thread.running = false;
-
 	return CW_SUCCESS;
+#else
+
+
+
+#define CW_DEBUG_TIMING_JOIN 1
+
+#if CW_DEBUG_TIMING_JOIN   /* Debug code to measure how long it takes to join threads. */
+	struct timeval before, after;
+	gettimeofday(&before, NULL);
+#endif
+
+
+
+	rv = pthread_join(gen->thread.id, NULL);
+
+
+
+#if CW_DEBUG_TIMING_JOIN   /* Debug code to measure how long it takes to join threads. */
+	gettimeofday(&after, NULL);
+	cw_debug_msg ((&cw_debug_object), CW_DEBUG_GENERATOR, CW_DEBUG_INFO, "libcw/gen: joining thread took %d us", cw_timestamp_compare_internal(&before, &after));
+#endif
+
+
+
+	if (rv == 0) {
+		gen->thread.running = false;
+		return CW_SUCCESS;
+	} else {
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_GENERATOR, CW_DEBUG_ERROR, "libcw/gen: failed to join threads: \"%s\"", strerror(rv));
+		return CW_FAILURE;
+	}
+#endif
 }
 
 
