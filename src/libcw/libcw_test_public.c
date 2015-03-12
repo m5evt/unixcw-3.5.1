@@ -94,9 +94,10 @@ static void cw_test_helper_tq_callback(void *data);
 
 
 
-/* Will be used in "forever" test. This test function needs to open
-   generator itself, so it needs to know the current audio system to
-   be used. */
+/* This variable will be used in "forever" test. This test function
+   needs to open generator itself, so it needs to know the current
+   audio system to be used. _NONE is just an initial value, to be
+   changed in test setup. */
 static int test_audio_system = CW_AUDIO_NONE;
 
 
