@@ -330,6 +330,15 @@ int cw_gen_silence_internal(cw_gen_t *gen)
 		return CW_SUCCESS;
 	}
 
+	if (!(gen->thread.running)) {
+		/* Silencing a generator means enqueueing and playing
+		   a tone with zero frequency.  We shouldn't do this
+		   when a "dequeue-and-play-a-tone" function is not
+		   running (anymore). This is not an error situation,
+		   so return CW_SUCCESS. */
+		return CW_SUCCESS;
+	}
+
 	int status = CW_SUCCESS;
 
 	if (gen->audio_system == CW_AUDIO_NULL) {
@@ -919,6 +928,7 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 	cw_nanosleep_internal(&req);
 
 	pthread_kill(gen->client.thread_id, SIGALRM);
+	gen->thread.running = false;
 	return NULL;
 }
 
