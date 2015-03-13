@@ -643,8 +643,8 @@ int main (int argc, char *const argv[])
 void cw_atexit(void)
 {
 	if (generator) {
-		cw_complete_reset();
 		cw_generator_stop();
+		//cw_complete_reset();
 		cw_generator_delete();
 	}
 
