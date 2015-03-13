@@ -1,3 +1,18 @@
+2015-03-13 Kamil Ignacak
+	* generator: fixing one possible cause of segfaults: limiting
+	number of executions of cw_gen_silence_internal() function that
+	somewhere down in call stack also called pthread_kill(). On some
+	occasions (during library cleanup) the thread id passed to
+	pthread_kill becomes invalid, and any subsequent calls to
+	cw_gen_silence_internal() resulted in segfault.
+
+	I have discovered this problem when testing src/cw/cw on Alpine
+	Linux. Other parts of unixcw package may have been affected by
+	this problem as well. I don't know how old the problem was (since
+	when it was possible to create segfaults when exiting from cw on
+	Alpine Linux). The fix was tested on Alpine Linux and on Debian
+	GNU/Linux.
+
 2015-03-10 Kamil Ignacak
 	* tests: testing unixcw on Alpine Linux (with musl libc). Fixing
 	problems in cw_oss and cw_gen modules.
