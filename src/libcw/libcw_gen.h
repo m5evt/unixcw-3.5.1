@@ -68,12 +68,6 @@ static const long int   CW_AUDIO_VOLUME_RANGE = (1 << 15);    /* 2^15 = 32768 */
 static const int        CW_AUDIO_SLOPE_USECS = 5000;          /* length of a single slope in standard tone */
 
 
-/* smallest duration of time (in microseconds) that is used by libcw for
-   idle waiting and idle loops; if a libcw function needs to wait for
-   something, or make an idle loop, it should call usleep(N * CW_AUDIO_USECS_QUANTUM) */
-#define CW_AUDIO_QUANTUM_USECS 100
-
-
 
 
 
@@ -324,6 +318,18 @@ struct cw_gen_struct {
 	int eow_space_len;        /* Length of *additional* end-of-word space. [us] */
 	int additional_space_len; /* Length of additional space at the end of a character. [us] */
 	int adjustment_space_len; /* Length of adjustment space at the end of a word. [us] */
+
+
+	/* Shortest length of tone. Right now it's initialized in
+	   constructor and never changed afterwards, but in future it
+	   may change - the value may be dynamically modified for
+	   performance reasons. The longer the quantum length, the
+	   less often some functions need to be called.
+
+	   TODO: do we need a separate cw_gen_t->forever_len field?
+	   Are there cases where "length of forever tone" != "quantum
+	   length"? */
+	int quantum_len;
 
 
 	/* Key that has a generator associated with it. Can be NULL in
