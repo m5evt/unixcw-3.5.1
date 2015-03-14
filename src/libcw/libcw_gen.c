@@ -98,18 +98,6 @@
 
 
 
-/* Shortest length of time (in microseconds) that is used by libcw for
-   idle waiting and idle loops. If a libcw function needs to wait for
-   something, or make an idle loop, it should call
-   usleep(N * gen->quantum_len)
-
-   This is also length of a single "forever" tone. */
-#define CW_AUDIO_QUANTUM_LEN_INITIAL 100  /* [us] */
-
-
-
-
-
 /* From libcw_debug.c. */
 extern cw_debug_t cw_debug_object;
 extern cw_debug_t cw_debug_object_ev;
@@ -153,6 +141,23 @@ static const char *default_audio_devices[] = {
 	CW_DEFAULT_ALSA_DEVICE,
 	CW_DEFAULT_PA_DEVICE,
 	(char *) NULL }; /* just in case someone decided to index the table with CW_AUDIO_SOUNDCARD */
+
+
+
+
+
+/* Generic constants - common for all audio systems (or not used in some of systems). */
+
+static const long int CW_AUDIO_VOLUME_RANGE = (1 << 15);  /* 2^15 = 32768 */
+static const int      CW_AUDIO_SLOPE_LEN = 5000;          /* Length of a single slope (rising or falling) in standard tone. [us] */
+
+/* Shortest length of time (in microseconds) that is used by libcw for
+   idle waiting and idle loops. If a libcw function needs to wait for
+   something, or make an idle loop, it should call
+   usleep(N * gen->quantum_len)
+
+   This is also length of a single "forever" tone. */
+static const int CW_AUDIO_QUANTUM_LEN_INITIAL = 100;  /* [us] */
 
 
 
@@ -450,7 +455,7 @@ cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 
 	gen->client.name = (char *) NULL;
 
-	gen->tone_slope.len = CW_AUDIO_SLOPE_USECS;
+	gen->tone_slope.len = CW_AUDIO_SLOPE_LEN;
 	gen->tone_slope.shape = CW_TONE_SLOPE_SHAPE_RAISED_COSINE;
 	gen->tone_slope.amplitudes = NULL;
 	gen->tone_slope.n_amplitudes = 0;
@@ -523,7 +528,7 @@ cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 	/* Set slope that late, because it uses value of sample rate.
 	   The sample rate value is set in
 	   cw_gen_new_open_internal(). */
-	rv = cw_generator_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_RAISED_COSINE, CW_AUDIO_SLOPE_USECS);
+	rv = cw_generator_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_RAISED_COSINE, CW_AUDIO_SLOPE_LEN);
 	if (rv == CW_FAILURE) {
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
 			      "libcw: failed to set slope");
@@ -2633,7 +2638,7 @@ unsigned int test_cw_generator_set_tone_slope(void)
 
 		cw_assert (gen->tone_slope.shape == CW_TONE_SLOPE_SHAPE_RAISED_COSINE,
 			   "new generator has unexpected initial slope shape %d", gen->tone_slope.shape);
-		cw_assert (gen->tone_slope.len == CW_AUDIO_SLOPE_USECS,
+		cw_assert (gen->tone_slope.len == CW_AUDIO_SLOPE_LEN,
 			   "new generator has unexpected initial slope length %d", gen->tone_slope.len);
 
 
@@ -2707,7 +2712,7 @@ unsigned int test_cw_generator_set_tone_slope(void)
 		   some other values will be expected after successful
 		   calls to tested function. */
 		int expected_shape = CW_TONE_SLOPE_SHAPE_RAISED_COSINE;
-		int expected_len = CW_AUDIO_SLOPE_USECS;
+		int expected_len = CW_AUDIO_SLOPE_LEN;
 
 
 		/* At this point generator should have initial values
@@ -2776,7 +2781,7 @@ unsigned int test_cw_generator_set_tone_slope(void)
 		   some other values will be expected after successful
 		   calls to tested function. */
 		int expected_shape = CW_TONE_SLOPE_SHAPE_RAISED_COSINE;
-		int expected_len = CW_AUDIO_SLOPE_USECS;
+		int expected_len = CW_AUDIO_SLOPE_LEN;
 
 
 		/* At this point generator should have initial values
