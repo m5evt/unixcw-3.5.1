@@ -578,7 +578,7 @@ int cw_tq_dequeue_sub_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 #if 0 /* Disabled because these debug messages produce lots of output
 	 to console. Enable only when necessary. */
 	cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
-		      "libcw/tq: dequeue tone %d usec, %d Hz", tone->usecs, tone->frequency);
+		      "libcw/tq: dequeue tone %d us, %d Hz", tone->len, tone->frequency);
 	cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
 		      "libcw/tq: head = %"PRIu32", tail = %"PRIu32", length = %"PRIu32" -> %"PRIu32"",
 		      tq->head, tq->tail, tq_len_before, tq->len);
@@ -621,11 +621,13 @@ int cw_tq_dequeue_sub_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
    the iambic keyer or straight key are currently busy, the routine
    returns CW_FAILURE, with errno set to EBUSY.
 
-   If length of a tone (tone->usecs) is zero, the function does not
+   The function does not accept tones with frequency outside of
+   CW_FREQUENCY_MIN-CW_FREQUENCY_MAX range.
+
+   If length of a tone (tone->len) is zero, the function does not
    add it to tone queue and returns CW_SUCCESS.
 
-   The function does accept tones with negative values of usecs,
-   representing special tones.
+   The function does not accept tones with negative values of len.
 
    testedin::test_cw_tq_enqueue_internal_1()
    testedin::test_cw_tq_enqueue_internal_2()
@@ -648,20 +650,20 @@ int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 		return CW_FAILURE;
 	}
 
-	if (tone->usecs < 0) {
+	if (tone->len < 0) {
 
 		errno = EINVAL;
 		return CW_FAILURE;
 	}
 
-	if (tone->usecs == 0) {
+	if (tone->len == 0) {
 		/* Drop empty tone. It won't be played anyway, and for
 		   now there are no other good reasons to enqueue
 		   it. While it may happen in higher-level code to
 		   create such tone, but there is no need to spend
 		   time on it here. */
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_INFO,
-			      "libcw/tq: dropped tone with usecs == 0");
+			      "libcw/tq: dropped tone with len == 0");
 		return CW_SUCCESS;
 	}
 
@@ -691,7 +693,7 @@ int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 
 
 	cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
-		      "libcw/tq: enqueue tone %d usec, %d Hz", tone->usecs, tone->frequency);
+		      "libcw/tq: enqueue tone %d us, %d Hz", tone->len, tone->frequency);
 
 	/* Enqueue the new tone.
 
@@ -1669,7 +1671,7 @@ unsigned int test_cw_tq_enqueue_internal_2(void)
 
 	/* Test 1: invalid length of tone. */
 	errno = 0;
-	tone.usecs = -1;          /* Invalid length. */
+	tone.len = -1;            /* Invalid length. */
 	tone.frequency = f_min;   /* Valid frequency. */
 	int status = cw_tq_enqueue_internal(tq, &tone);
 	cw_assert (status == CW_FAILURE, "enqueued tone with invalid length.\n");
@@ -1678,7 +1680,7 @@ unsigned int test_cw_tq_enqueue_internal_2(void)
 
 	/* Test 2: tone's frequency too low. */
 	errno = 0;
-	tone.usecs = 100;              /* Valid length. */
+	tone.len = 100;                /* Valid length. */
 	tone.frequency = f_min - 1;    /* Invalid frequency. */
 	status = cw_tq_enqueue_internal(tq, &tone);
 	cw_assert (status == CW_FAILURE, "enqueued tone with too low frequency.\n");
@@ -1687,7 +1689,7 @@ unsigned int test_cw_tq_enqueue_internal_2(void)
 
 	/* Test 3: tone's frequency too high. */
 	errno = 0;
-	tone.usecs = 100;              /* Valid length. */
+	tone.len = 100;                /* Valid length. */
 	tone.frequency = f_max + 1;    /* Invalid frequency. */
 	status = cw_tq_enqueue_internal(tq, &tone);
 	cw_assert (status == CW_FAILURE, "enqueued tone with too high frequency.\n");

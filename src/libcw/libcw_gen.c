@@ -874,7 +874,7 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 		}
 
 
-		cw_key_ik_increment_timer_internal(gen->key, tone.usecs);
+		cw_key_ik_increment_timer_internal(gen->key, tone.len);
 
 #ifdef LIBCW_WITH_DEV
 		cw_debug_ev ((&cw_debug_object_ev), 0, tone.frequency ? CW_DEBUG_EVENT_TONE_HIGH : CW_DEBUG_EVENT_TONE_LOW);
@@ -1367,7 +1367,7 @@ int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, cw_tone_t *tone, int queue
 		   last buffer subarea to end of buffer. */
 		tone->n_samples = gen->buffer_n_samples - (gen->buffer_sub_stop + 1);;
 
-		tone->usecs = 0;       /* This value matters no more, because now we only deal with samples. */
+		tone->len = 0;         /* This value matters no more, because now we only deal with samples. */
 		tone->frequency = 0;   /* This fake tone is a piece of silence. */
 
 		/* The silence tone used for padding doesn't require
@@ -1390,7 +1390,7 @@ int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, cw_tone_t *tone, int queue
 
 		/* 100 * 10000 = 1.000.000 usecs per second. */
 		tone->n_samples = gen->sample_rate / 100;
-		tone->n_samples *= tone->usecs;
+		tone->n_samples *= tone->len;
 		tone->n_samples /= 10000;
 
 		//fprintf(stderr, "++++ length of regular tone = %d [samples]\n", tone->n_samples);
@@ -1435,7 +1435,7 @@ int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, cw_tone_t *tone, int queue
 #endif
 
 
-	// cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG, "libcw: %lld samples, %d usecs, %d Hz", tone->n_samples, tone->usecs, gen->frequency);
+	// cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG, "libcw: %lld samples, %d us, %d Hz", tone->n_samples, tone->len, gen->frequency);
 	while (samples_to_write > 0) {
 
 		int64_t free_space = gen->buffer_n_samples - gen->buffer_sub_start;
