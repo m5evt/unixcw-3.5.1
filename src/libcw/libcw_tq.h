@@ -67,8 +67,8 @@ typedef struct {
 	/* Frequency of a tone. */
 	int frequency;
 
-	/* Duration of a tone, in microseconds. */
-	int usecs;
+	/* Length of a tone, in microseconds. */
+	int len;
 
 	/* Is this "forever" tone? See libcw_tq.c for more info about
 	   "forever" tones. */
@@ -78,10 +78,10 @@ typedef struct {
 	int slope_mode;
 
 	/* Duration of a tone, in samples.
-	   This is a derived value, a function of usecs and sample rate. */
+	   This is a derived value, a function of lenght and sample rate. */
 
 	/* TODO: come up with thought-out, consistent type system for
-	   samples and usecs. The type system should take into
+	   samples and tone length. The type system should take into
 	   consideration very long duration of tones in QRSS. */
 	int64_t n_samples;
 
@@ -100,7 +100,7 @@ typedef struct {
 	   most simple one is just a linear slope;
 
 	   slope area should be integral part of a tone, i.e. it shouldn't
-	   make the tone longer than usecs/n_samples;
+	   make the tone longer than len/n_samples;
 
 	   a tone with rising and falling slope should have this length
 	   (in samples):
@@ -135,7 +135,7 @@ typedef struct {
  */
 #define CW_TONE_INIT(m_tone, m_frequency, m_len, m_slope_mode) {	\
 		(m_tone)->frequency               = m_frequency;	\
-		(m_tone)->usecs                   = m_len;		\
+		(m_tone)->len                     = m_len;		\
 		(m_tone)->slope_mode              = m_slope_mode;	\
 		(m_tone)->forever                 = false;		\
 		(m_tone)->n_samples               = 0;			\
@@ -150,7 +150,7 @@ typedef struct {
    arguments. */
 #define CW_TONE_COPY(m_dest, m_source) {				\
 		(m_dest)->frequency               = (m_source)->frequency; \
-		(m_dest)->usecs                   = (m_source)->usecs;	\
+		(m_dest)->len                     = (m_source)->len;	\
 		(m_dest)->slope_mode              = (m_source)->slope_mode; \
 		(m_dest)->forever                 = (m_source)->forever; \
 		(m_dest)->n_samples               = (m_source)->n_samples; \
