@@ -43,16 +43,12 @@
    Adding new, "non-forever" tone ends generation of "forever" tone.
 
    The "forever" tone is useful for generating tones of length unknown
-   in advance; length of the tone will be
-           N * CW_AUDIO_QUANTUM_USECS
-   where N is number of dequeue operations before a non-forever tone
-   is added to the queue.
+   in advance.
 
    dequeue() function recognizes the "forever" tone and acts as
    described above; there is no visible difference between dequeuing N
-   separate "non-forever" tones of duration CW_AUDIO_QUANTUM_USECS,
-   and dequeuing a "forever" tone of duration CW_AUDIO_FOREVER_USECS N
-   times in a row.
+   separate "non-forever" tones of length L [us], and dequeuing a
+   "forever" tone of length L [us] N times in a row.
 
    Because of some corner cases related to "forever" tones it is very
    strongly advised to set "low water mark" level to no less than 2
