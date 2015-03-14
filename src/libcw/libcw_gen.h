@@ -15,7 +15,6 @@
 #include "libcw_alsa.h"
 #include "libcw_tq.h"
 #include "libcw_key.h"
-#include "libcw_rec.h"
 
 
 
@@ -56,21 +55,6 @@ enum { CW_SYMBOL_SPACE = ' ' };
 
 
 
-/* Forward declarations of data types. */
-struct cw_key_struct;
-
-
-
-
-/* Generic constants - common for all audio systems (or not used in some of systems) */
-
-static const long int   CW_AUDIO_VOLUME_RANGE = (1 << 15);    /* 2^15 = 32768 */
-static const int        CW_AUDIO_SLOPE_USECS = 5000;          /* length of a single slope in standard tone */
-
-
-
-
-
 struct cw_gen_struct {
 
 	int  (* open_device)(cw_gen_t *gen);
@@ -90,33 +74,33 @@ struct cw_gen_struct {
 
 
 
-	/* buffer storing sine wave that is calculated in "calculate sine
-	   wave" cycles and sent to audio system (OSS, ALSA, PulseAudio);
+	/* Buffer storing sine wave that is calculated in "calculate sine
+	   wave" cycles and sent to audio system (OSS, ALSA, PulseAudio).
 
-	   the buffer should be always filled with valid data before sending
+	   The buffer should be always filled with valid data before sending
 	   it to audio system (to avoid hearing garbage).
 
-	   we should also send exactly buffer_n_samples samples to audio
+	   We should also send exactly buffer_n_samples samples to audio
 	   system, in order to avoid situation when audio system waits for
 	   filling its buffer too long - this would result in errors and
-	   probably audible clicks; */
+	   probably audible clicks. */
 	cw_sample_t *buffer;
 
-	/* size of data buffer, in samples;
+	/* Size of data buffer, in samples.
 
-	   the size may be restricted (min,max) by current audio system
+	   The size may be restricted (min,max) by current audio system
 	   (OSS, ALSA, PulseAudio); the audio system may also accept only
-	   specific values of the size;
+	   specific values of the size.
 
-	   audio libraries may provide functions that can be used to query
-	   for allowed audio buffer sizes;
+	   Audio libraries may provide functions that can be used to query
+	   for allowed audio buffer sizes.
 
-	   the smaller the buffer, the more often you have to call function
-	   writing data to audio system, which increases CPU usage;
+	   The smaller the buffer, the more often you have to call function
+	   writing data to audio system, which increases CPU usage.
 
-	   the larger the buffer, the less responsive an application may
+	   The larger the buffer, the less responsive an application may
 	   be to changes of audio data parameters (depending on application
-	   type); */
+	   type). */
 	int buffer_n_samples;
 
 
@@ -160,7 +144,7 @@ struct cw_gen_struct {
 	   for all tones generated in given time by a generator.
 	   Therefore the generator should contain this struct.
 
-	   Other parameters, such as tone's duration or frequency, are
+	   Other parameters, such as tone's length or frequency, are
 	   strictly related to tones - you won't find them here. */
 	struct {
 		/* Depending on sample rate, sending speed, and user
@@ -205,7 +189,7 @@ struct cw_gen_struct {
 	   (it may be unused for PulseAudio) */
 	char *audio_device;
 
-	/* output file descriptor for audio data (console, OSS) */
+	/* Output file descriptor for audio data (console, OSS). */
 	int audio_sink;
 
 #ifdef LIBCW_WITH_ALSA
@@ -224,7 +208,7 @@ struct cw_gen_struct {
 		int z;
 	} oss_version;
 
-	/* output file descriptor for debug data (console, OSS, ALSA, PulseAudio) */
+	/* Output file descriptor for debug data (console, OSS, ALSA, PulseAudio). */
 	int dev_raw_sink;
 
 
@@ -255,9 +239,9 @@ struct cw_gen_struct {
 	   dequeue_and_play thread function. */
 	bool do_dequeue_and_play;
 
-	/* used to calculate sine wave;
-	   phase offset needs to be stored between consecutive calls to
-	   function calculating consecutive fragments of sine wave */
+	/* Used to calculate sine wave.
+	   Phase offset needs to be stored between consecutive calls to
+	   function calculating consecutive fragments of sine wave. */
 	double phase_offset;
 
 	/* Properties of generator's thread function is that is used
@@ -284,8 +268,8 @@ struct cw_gen_struct {
 	} thread;
 
 	struct {
-		/* main thread, existing from beginning to end of main process run;
-		   the variable is used to send signals to main app thread; */
+		/* Main thread, existing from beginning to end of main process run.
+		   The variable is used to send signals to main app thread. */
 		pthread_t thread_id;
 		char *name;
 	} client;
@@ -332,9 +316,13 @@ struct cw_gen_struct {
 	int quantum_len;
 
 
-	/* Key that has a generator associated with it. Can be NULL in
-	   some applications (?).  Set using
-	   cw_key_register_generator_internal(). */
+	/* Key that has a generator associated with it.
+
+	   Standalone generator will have this set to NULL. But
+	   generator that is used by a key will have this set to
+	   non-NULL value with
+	   cw_key_register_generator_internal(). Remember that the key
+	   needs to have a generator, not the other way around. */
 	volatile struct cw_key_struct *key;
 };
 
@@ -384,7 +372,7 @@ int cw_gen_play_eoc_space_internal(cw_gen_t *gen);
 int cw_gen_play_eow_space_internal(cw_gen_t *gen);
 
 /* These are also 'play' primitives, but are intended to be used on
-   hardware key events. */
+   hardware key events. 'key' is a verb here. */
 int cw_gen_key_begin_mark_internal(cw_gen_t *gen);
 int cw_gen_key_begin_space_internal(cw_gen_t *gen);
 int cw_gen_key_pure_symbol_internal(cw_gen_t *gen, char symbol);
@@ -422,7 +410,16 @@ unsigned int test_cw_gen_forever_internal(void);
 
 
 /* This is helper function (performing the real test), used in
-   test_public and in test_internal. */
+   libcw_test_public and in libcw_test_internal.
+
+   "forever" feature is not a part of public api, so in theory it
+   shouldn't be tested in libcw_test_public, but the libcw_test_public
+   is able to perform tests with different audio sinks, whereas
+   libcw_test_internal only uses NULL audio sink.
+
+   So libcw_test_internal does basic tests ("does it work at all?"),
+   and libcw_test_public does full test.
+*/
 unsigned int test_cw_gen_forever_sub(int seconds, int audio_system, const char *audio_device);
 
 #endif /* #ifdef LIBCW_UNIT_TESTS */
