@@ -436,10 +436,10 @@ uint32_t cw_tq_next_index_internal(cw_tone_queue_t *tq, uint32_t ind)
    tones to dequeue (CW_TQ_NDEQUEUED_EMPTY, CW_TQ_NDEQUEUED_IDLE).
 
    As mentioned above, dequeue() understands how "forever" tone works.
-   If the last tone in queue has duration "CW_AUDIO_FOREVER_USECS",
-   the function won't permanently dequeue it. Instead, it will keep
-   returning (through \p tone) the tone on every call, until a new
-   tone is added to the queue after the "CW_AUDIO_FOREVER_USECS" tone.
+   If the last tone in queue has "forever" flag set, the function
+   won't permanently dequeue it. Instead, it will keep returning
+   (through \p tone) the tone on every call, until a new tone is added
+   to the queue after the "forever" tone.
 
    testedin::test_cw_tq_dequeue_internal()
    testedin::test_cw_tq_test_capacity_2()
