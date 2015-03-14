@@ -105,10 +105,10 @@ void cw_null_write(__attribute__((unused)) cw_gen_t *gen, cw_tone_t *tone)
 {
 	assert (gen);
 	assert (gen->audio_system == CW_AUDIO_NULL);
-	assert (tone->usecs >= 0);
+	assert (tone->len >= 0); /* TODO: shouldn't the condition be "tone->len > 0"? */
 
 	struct timespec n = { .tv_sec = 0, .tv_nsec = 0 };
-	cw_usecs_to_timespec_internal(&n, tone->usecs);
+	cw_usecs_to_timespec_internal(&n, tone->len);
 
 	cw_nanosleep_internal(&n);
 
