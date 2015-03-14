@@ -98,6 +98,18 @@
 
 
 
+/* Shortest length of time (in microseconds) that is used by libcw for
+   idle waiting and idle loops. If a libcw function needs to wait for
+   something, or make an idle loop, it should call
+   usleep(N * gen->quantum_len)
+
+   This is also length of a single "forever" tone. */
+#define CW_AUDIO_QUANTUM_LEN_INITIAL 100  /* [us] */
+
+
+
+
+
 /* From libcw_debug.c. */
 extern cw_debug_t cw_debug_object;
 extern cw_debug_t cw_debug_object_ev;
@@ -354,11 +366,11 @@ int cw_gen_silence_internal(cw_gen_t *gen)
 		   || gen->audio_system == CW_AUDIO_PA) {
 
 		cw_tone_t tone;
-		CW_TONE_INIT(&tone, 0, CW_AUDIO_QUANTUM_USECS, CW_SLOPE_MODE_NO_SLOPES);
+		CW_TONE_INIT(&tone, 0, gen->quantum_len, CW_SLOPE_MODE_NO_SLOPES);
 		status = cw_tq_enqueue_internal(gen->tq, &tone);
 
 		/* allow some time for playing the last tone */
-		usleep(2 * CW_AUDIO_QUANTUM_USECS);
+		usleep(2 * gen->quantum_len);
 	} else {
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
 			      "libcw: called silence() function for generator without audio system specified");
@@ -475,10 +487,12 @@ cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 	gen->additional_space_len = 0;
 	gen->adjustment_space_len = 0;
 
+
+	gen->quantum_len = CW_AUDIO_QUANTUM_LEN_INITIAL;
+
+
 	gen->buffer_sub_start = 0;
 	gen->buffer_sub_stop  = 0;
-
-
 
 
 	gen->key = (cw_key_t *) NULL;
@@ -2374,7 +2388,7 @@ int cw_gen_key_begin_mark_internal(cw_gen_t *gen)
 
 	if (rv == CW_SUCCESS) {
 
-		CW_TONE_INIT(&tone, gen->frequency, CW_AUDIO_QUANTUM_USECS, CW_SLOPE_MODE_NO_SLOPES);
+		CW_TONE_INIT(&tone, gen->frequency, gen->quantum_len, CW_SLOPE_MODE_NO_SLOPES);
 		tone.forever = true;
 		rv = cw_tq_enqueue_internal(gen->tq, &tone);
 
@@ -2410,7 +2424,7 @@ int cw_gen_key_begin_space_internal(cw_gen_t *gen)
 		/* Play just a bit of silence, just to switch
 		   buzzer from playing a sound to being silent. */
 		cw_tone_t tone;
-		CW_TONE_INIT(&tone, 0, CW_AUDIO_QUANTUM_USECS, CW_SLOPE_MODE_NO_SLOPES);
+		CW_TONE_INIT(&tone, 0, gen->quantum_len, CW_SLOPE_MODE_NO_SLOPES);
 		return cw_tq_enqueue_internal(gen->tq, &tone);
 	} else {
 		/* For soundcards a falling slope with volume from max
@@ -2432,7 +2446,7 @@ int cw_gen_key_begin_space_internal(cw_gen_t *gen)
 			   tone. Silence after the last falling slope
 			   would simply last on itself until there is
 			   new tone on queue to play. */
-			CW_TONE_INIT(&tone, 0, CW_AUDIO_QUANTUM_USECS, CW_SLOPE_MODE_NO_SLOPES);
+			CW_TONE_INIT(&tone, 0, gen->quantum_len, CW_SLOPE_MODE_NO_SLOPES);
 			tone.forever = true;
 			rv = cw_tq_enqueue_internal(gen->tq, &tone);
 		}
@@ -2914,7 +2928,7 @@ unsigned int test_cw_gen_forever_sub(int seconds, int audio_system, const char *
 	CW_TONE_INIT(&tone, freq, len, CW_SLOPE_MODE_RISING_SLOPE);
 	cw_tq_enqueue_internal(gen->tq, &tone);
 
-	CW_TONE_INIT(&tone, freq, CW_AUDIO_QUANTUM_USECS, CW_SLOPE_MODE_NO_SLOPES);
+	CW_TONE_INIT(&tone, freq, gen->quantum_len, CW_SLOPE_MODE_NO_SLOPES);
 	tone.forever = true;
 	int rv = cw_tq_enqueue_internal(gen->tq, &tone);
 
