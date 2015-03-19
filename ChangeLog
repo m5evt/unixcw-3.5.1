@@ -1,3 +1,7 @@
+2015-03-19 Kamil Ignacak
+	* fixes: Few minor changes in main code and test code that solve
+	problems found during tests on FreeBSD 10.
+
 2015-03-13 Kamil Ignacak
 	* generator: fixing one possible cause of segfaults: limiting
 	number of executions of cw_gen_silence_internal() function that
