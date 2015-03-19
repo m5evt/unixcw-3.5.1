@@ -25,7 +25,7 @@
 
 
 
-
+#include <errno.h> /* EINVAL on FreeBSD */
 
 #include "libcw.h"
 #include "libcw_gen.h"
