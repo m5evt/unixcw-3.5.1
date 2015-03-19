@@ -45,6 +45,14 @@
 #include <dlfcn.h> /* dlopen() and related symbols */
 #include <stdlib.h> /* strtol() */
 
+#if defined(HAVE_STRING_H)
+# include <string.h>
+#endif
+
+#if defined(HAVE_STRINGS_H)
+# include <strings.h>
+#endif
+
 
 #if (defined(__unix__) || defined(unix)) && !defined(USG)
 # include <sys/param.h>
