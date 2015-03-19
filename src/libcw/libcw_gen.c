@@ -2617,6 +2617,7 @@ unsigned int test_cw_gen_new_delete_internal(void)
 
 	p = fprintf(stdout, "libcw/gen: cw_gen_new/start/stop/delete_internal():");
 	CW_TEST_PRINT_TEST_RESULT(false, p);
+	fflush(stdout);
 
 	return 0;
 }
@@ -2937,9 +2938,20 @@ unsigned int test_cw_gen_forever_sub(int seconds, int audio_system, const char *
 	tone.forever = true;
 	int rv = cw_tq_enqueue_internal(gen->tq, &tone);
 
+#ifdef __FreeBSD__  /* Tested on FreeBSD 10. */
+	/* Separate path for FreeBSD because for some reason signals
+	   badly interfere with value returned through second arg to
+	   nanolseep().  Try to run the section in #else under FreeBSD
+	   to see what happens - value returned by nanosleep() through
+	   "rem" will be increasing. */
+	fprintf(stderr, "enter any character to end \"forever\" tone\n");
+	char c;
+	scanf("%c", &c);
+#else
 	struct timespec t;
 	cw_usecs_to_timespec_internal(&t, seconds * CW_USECS_PER_SEC);
 	cw_nanosleep_internal(&t);
+#endif
 
 	CW_TONE_INIT(&tone, freq, len, CW_SLOPE_MODE_FALLING_SLOPE);
 	rv = cw_tq_enqueue_internal(gen->tq, &tone);
