@@ -84,3 +84,11 @@ unixcw on:
 Version 3.4.1 focused on internal changes in libcw. All library code
 is now split between separate module files. Some test code from
 libcw_test_public.c has been moved to respective modules.
+
+Version 3.4.2 focused on internal changes in libcw. Improving
+separation of modules in the library. Taking steps to separate
+library's global variables (generator, receiver, key) and functions
+implicitly operating on these variables from functions taking a
+generator, receiver, or key as an argument.
+Improving unit tests code.
+Testing unixcw on Alpine Linux.
