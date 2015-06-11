@@ -1,3 +1,36 @@
+version 3.4.2 / 2015-06-XX
+
+  libcw:
+
+  - fixing one possible cause of segfaults in generator code
+    (segfaults occurred when pthread_kill() was called with invalid
+    thread ID in some specific circumstances).
+
+  - fixing another problem with libcw: when a generator is created,
+    then is *not* started, and then is deleted, libcw called
+    pthread_kill(&id, ...) on uninitialized id in
+    cw_gen_delete(). This caused a program to crash.
+
+  - fixing problems with OSS and generator modules that surfaced
+    during tests on Alpine Linux.
+
+  - expanding unit tests.
+
+  - libcw is now compiled with -DNDEBUG flag by default (asserts are
+    "off"). The asserts are still "on" by default in "unit tests"
+    libcw. Asserts are switched "on" in base libcw with "./configure
+    --enable-dev".
+
+  - cw_generator_set_tone_slope(): some corner cases of handling
+    function's arguments were cleared in function's top level
+    comments, and implementation has been updated accordingly.
+
+  - Library soname/version changed from 6.3.1 to 6.4.1.
+
+
+----------------------------------------------------------------------------
+
+
 version 3.4.1 / 2015-01-02
 
   libcw:
