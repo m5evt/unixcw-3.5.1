@@ -925,7 +925,7 @@ bool mode_is_sending_active(void)
  * character limit imposed by ISO C89 on string literal lengths.
  */
 static const char *const INTRODUCTION = N_(
-  "UNIX/Linux Morse Tutor v3.4.1\n"
+  "UNIX/Linux Morse Tutor v3.4.2\n"
   "Copyright (C) 1997-2006 Simon Baldwin\n"
   "Copyright (C) 2011-2015 Kamil Ignacak\n"
   "---------------------------------------------------------\n"
