@@ -1,3 +1,7 @@
+2015-06-14 Kamil Ignacak
+	* pre-release: updating information in selected files before
+	release (updating version numbers, adding notes new releases etc.)
+
 2015-03-19 Kamil Ignacak
 	* fixes: Few minor changes in main code and test code that solve
 	problems found during tests on FreeBSD 10.
