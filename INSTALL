@@ -74,7 +74,9 @@ Build-time requirements for unixcw:
 
 unixcw 3.4.2 (or at least parts of it) was successfully compiled on
 following platforms:
- - Debian GNU/Linux jessie/sid, x86_64, gcc 4.9.2;
+ - Debian GNU/Linux 8 jessie/sid, x86_64, gcc 4.9.2;
+ - Alpine Linux 3.1, x86_64, gcc 4.8.3, musl 1.1.5;
+ - FreeBSD 10.0, x86_64, clang 3.3;
 
 unixcw 3.4.1 (or at least parts of it) was successfully compiled on
 following platforms:

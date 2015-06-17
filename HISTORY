@@ -91,4 +91,5 @@ library's global variables (generator, receiver, key) and functions
 implicitly operating on these variables from functions taking a
 generator, receiver, or key as an argument.
 Improving unit tests code.
-Testing unixcw on Alpine Linux.
+Testing unixcw on Alpine Linux (because of musl libc) and FreeBSD 10.0
+(because this is *unix*cw).
