@@ -138,6 +138,7 @@ unixcw package on following platforms:
  - FreeBSD 9.3
  - FreeBSD 10.0
  - OpenBSD 5.5
+ - Alpine Linux 3.1
 See INSTALL file for more information about compilation on different
 OSes.
 
