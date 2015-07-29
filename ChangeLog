@@ -1,3 +1,8 @@
+2015-07-29 Kamil Ignacak
+	* gen/tq: one more attempt in cw_gen_play_eow_space_internal() to
+	ensure that eow spaces are enqueued so that client software can
+	have tq low level threshold set to 1.
+
 2015-06-14 Kamil Ignacak
 	* pre-release: updating information in selected files before
 	release (updating version numbers, adding notes new releases etc.)
