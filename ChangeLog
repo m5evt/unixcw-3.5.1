@@ -3,6 +3,11 @@
 	ensure that eow spaces are enqueued so that client software can
 	have tq low level threshold set to 1.
 
+	It should be stressed in release notes that client software cannot
+	assume that eow space will be one tone. There may have been such
+	implicit assumption in the past, but it was only implicit, and it
+	became invalid some time ago.
+
 2015-06-14 Kamil Ignacak
 	* pre-release: updating information in selected files before
 	release (updating version numbers, adding notes new releases etc.)
