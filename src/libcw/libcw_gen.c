@@ -1977,18 +1977,49 @@ int cw_gen_play_eow_space_internal(cw_gen_t *gen)
 	   this in this function), the tone queue manager can
 	   recognize level dropping from 2 to 1. Then the passing of
 	   critical level can be noticed, and "low level" callback can
-	   be called. */
+	   be called.
+
+	   BUT: Sometimes the first tone is dequeued before/during the
+	   second one is enqueued, and we can't recognize 2->1 event.
+
+	   So, to be super-sure that there is a recognizable event of
+	   passing tone queue level from 2 to 1, we split the eow
+	   space into N parts and enqueue them. This way we have N + 1
+	   tones per space, and client applications that rely on low
+	   level threshold == 1 can correctly work when enqueueing
+	   spaces.
+
+	   At 60 wpm length of gen->eow_space_len is 100000 [us], so
+	   it's large enough to safely divide it by small integer
+	   value. */
+
+	int enqueued = 0;
 
 	cw_tone_t tone;
-	CW_TONE_INIT(&tone, 0, gen->eow_space_len, CW_SLOPE_MODE_NO_SLOPES);
-	int rv = cw_tq_enqueue_internal(gen->tq, &tone);
-
-	if (rv == CW_SUCCESS) {
-		CW_TONE_INIT(&tone, 0, gen->adjustment_space_len, CW_SLOPE_MODE_NO_SLOPES);
-		rv = cw_tq_enqueue_internal(gen->tq, &tone);
+	int n = 2; /* "small integer value" - used to have more tones per eow space. */
+	CW_TONE_INIT(&tone, 0, gen->eow_space_len / n, CW_SLOPE_MODE_NO_SLOPES);
+	for (int i = 0; i < n; i++) {
+		int rv = cw_tq_enqueue_internal(gen->tq, &tone);
+		if (rv) {
+			enqueued++;
+		} else {
+			return CW_FAILURE;
+		}
 	}
 
-	return rv;
+	CW_TONE_INIT(&tone, 0, gen->adjustment_space_len, CW_SLOPE_MODE_NO_SLOPES);
+	int rv = cw_tq_enqueue_internal(gen->tq, &tone);
+	if (rv) {
+		enqueued++;
+	} else {
+		return CW_FAILURE;
+	}
+
+	cw_debug_msg ((&cw_debug_object), CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG,
+		      "libcw: enqueued %d tones per eow space, tq len = %d",
+		      enqueued, cw_tq_length_internal(gen->tq));
+
+	return CW_SUCCESS;
 }
 
 
