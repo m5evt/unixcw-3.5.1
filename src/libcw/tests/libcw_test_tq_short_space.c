@@ -16,6 +16,10 @@
 
    The solution in libcw is to enqueue eow space as more than two
    tones (three tones seem to be ok).
+
+   The bug sits at the border between tone queue and generator, but
+   since it's related to how tones are enqueued and dequeued, then I'm
+   treating the bug as related to tone queue.
 */
 
 void cwdaemon_tone_queue_low_callback(__attribute__((unused)) void *arg);
