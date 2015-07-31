@@ -1,3 +1,9 @@
+2015-07-31 Kamil Ignacak
+	* gen/tq: creating small client application that tests for
+	presence of the problem described on 2015-07-29 ("short space"
+	problem). The client application is located in src/libcw/tests/
+	and is executed as part of standard test suite ("make check").
+
 2015-07-29 Kamil Ignacak
 	* gen/tq: one more attempt in cw_gen_play_eow_space_internal() to
 	ensure that eow spaces are enqueued so that client software can
