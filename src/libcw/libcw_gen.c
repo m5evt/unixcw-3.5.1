@@ -1996,7 +1996,16 @@ int cw_gen_play_eow_space_internal(cw_gen_t *gen)
 	int enqueued = 0;
 
 	cw_tone_t tone;
+#if 0
+	/* This section is incorrect. Enable this section only for
+	   tests.  This section "implements" a bug that was present in
+	   libcw until version 6.4.1 and that is now tested by
+	   src/libcw/tests/libcw_test_tq_short_space.c */
+	int n = 1; /* No division. Old situation causing an error in
+		      client applications. */
+#else
 	int n = 2; /* "small integer value" - used to have more tones per eow space. */
+#endif
 	CW_TONE_INIT(&tone, 0, gen->eow_space_len / n, CW_SLOPE_MODE_NO_SLOPES);
 	for (int i = 0; i < n; i++) {
 		int rv = cw_tq_enqueue_internal(gen->tq, &tone);
