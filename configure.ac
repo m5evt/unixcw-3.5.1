@@ -584,6 +584,7 @@ AC_CONFIG_FILES([Makefile.inc
 	Makefile
 	src/Makefile
 	src/libcw/Makefile
+	src/libcw/tests/Makefile
 	src/cwutils/Makefile
 	src/cw/Makefile
 	src/cwgen/Makefile])
