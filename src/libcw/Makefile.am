@@ -16,6 +16,8 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
+SUBDIRS=tests
+
 -include $(top_builddir)/Makefile.inc
 
 # targets to be built in this directory
@@ -162,11 +164,15 @@ CLEANFILES = libcw_test_internal.sh libcw.3
 
 TESTS = $(check_SCRIPTS)
 
-# run test programs (only libcw_test_internal unit tests suite)
-check_SCRIPTS = libcw_test_internal.sh
+# run test programs
+check_SCRIPTS = libcw_test_internal.sh ./tests/libcw_test_tq_short_space.sh
 libcw_test_internal.sh:
 	echo './libcw_test_internal | grep "test result: success"' > libcw_test_internal.sh
 	chmod +x libcw_test_internal.sh
+./tests/libcw_test_tq_short_space.sh:
+	echo './tests/libcw_test_tq_short_space | grep "test result: success"' > ./tests/libcw_test_tq_short_space.sh
+	chmod +x ./tests/libcw_test_tq_short_space.sh
+
 
 
 # sources, references
