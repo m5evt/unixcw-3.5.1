@@ -18121,7 +18121,7 @@ fi
 
 
 
-ac_config_files="$ac_config_files Makefile.inc Makefile src/Makefile src/libcw/Makefile src/cwutils/Makefile src/cw/Makefile src/cwgen/Makefile"
+ac_config_files="$ac_config_files Makefile.inc Makefile src/Makefile src/libcw/Makefile src/libcw/tests/Makefile src/cwutils/Makefile src/cw/Makefile src/cwgen/Makefile"
 
 
 if test "$WITH_CWCP" = 'yes' ; then
@@ -19257,6 +19257,7 @@ do
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
     "src/Makefile") CONFIG_FILES="$CONFIG_FILES src/Makefile" ;;
     "src/libcw/Makefile") CONFIG_FILES="$CONFIG_FILES src/libcw/Makefile" ;;
+    "src/libcw/tests/Makefile") CONFIG_FILES="$CONFIG_FILES src/libcw/tests/Makefile" ;;
     "src/cwutils/Makefile") CONFIG_FILES="$CONFIG_FILES src/cwutils/Makefile" ;;
     "src/cw/Makefile") CONFIG_FILES="$CONFIG_FILES src/cw/Makefile" ;;
     "src/cwgen/Makefile") CONFIG_FILES="$CONFIG_FILES src/cwgen/Makefile" ;;
