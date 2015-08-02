@@ -22,7 +22,7 @@ SUBDIRS=tests
 
 # targets to be built in this directory
 lib_LTLIBRARIES=libcw.la
-check_PROGRAMS=libcw_test_public libcw_test_internal libcw_test_simple_gen
+check_PROGRAMS=libcw_test_internal
 man_MANS=libcw.3 cw.7
 pkgconfig_DATA=libcw.pc
 
@@ -33,8 +33,7 @@ EXTRA_DIST=include.awk libdoc.awk libfuncs.awk libpc.awk libsigs.awk \
 	cw.7 \
 	libcw_gen.h libcw_rec.h \
 	libcw_tq.h libcw_data.h libcw_key.h libcw_utils.h libcw_signal.h \
-	libcw_null.h libcw_console.h libcw_oss.h libcw_alsa.h libcw_pa.h \
-	libcw_test.h
+	libcw_null.h libcw_console.h libcw_oss.h libcw_alsa.h libcw_pa.h
 
 # These files are used to build two different targets - list them only
 # once. I can't compile these files into an utility library because
@@ -66,12 +65,14 @@ libcw_la_LDFLAGS = -version-number $(LIBCW_VERSION)
 # target-specific compiler flags
 libcw_la_CFLAGS = -rdynamic
 
-
 # target-specific preprocessor flags (#defs and include dirs)
 #
 # $(LIBCW_NDEBUG) activates asserts in base libcw for dev builds, and
 # deactivates asserts in base libcw for regular builds.
 libcw_la_CPPFLAGS = $(AM_CPPFLAGS) $(LIBCW_NDEBUG)
+
+
+
 
 
 libcw_includedir=$(includedir)
@@ -81,28 +82,15 @@ libcw_include_HEADERS = libcw.h libcw_debug.h
 
 
 
-# target: libcw_test_public: a test program testing only public API of libcw library;
-# main() is defined in libcw_test_public.c
-# Source code files used to build libcw_test_public program.
-# This test tests library's public API, so the target should depend on
-# a regular shared library file found in build directory. It shouldn't
-# compile all *.c files that are used to create library, it should
-# compile only test files and "link" them with this library file.
-libcw_test_public_SOURCES = $(LIBCW_BASE_C_FILES) libcw_test_public.c libcw_test.c
-
-# target-specific preprocessor flags (#defs and include dirs)
-libcw_test_public_CPPFLAGS = $(AM_CPPFLAGS) -DLIBCW_UNIT_TESTS
-
-# target-specific linker flags (objects to link)
-libcw_test_public_LDADD = -lm -lpthread $(DL_LIB) -L./.libs -lcw
-
-
-
-
-
 # target: libcw_test_internal, a test program invoking unit tests for
 # (internal) functions defined in libcw_xyz.c files;
 # main() is defined in libcw_test_internal.c.
+
+# For now I can't move this test to tests/ because the target refers
+# to $(LIBCW_BASE_C_FILES) files residing in this directory, and not
+# in tests/ directory. I could use
+# "AM_INIT_AUTOMAKE([subdir-objects])" in configure.ac, but I don't
+# know how portable it is.
 
 # source code files used to build libcw_test_internal program
 libcw_test_internal_SOURCES = $(LIBCW_BASE_C_FILES) libcw_test_internal.c
@@ -115,24 +103,6 @@ libcw_test_internal_LDADD=-lm -lpthread $(DL_LIB) $(OSS_LIB)
 
 # target-specific compiler flags
 libcw_test_internal_CFLAGS = -rdynamic
-
-
-
-
-
-# target: libcw_test_simple_gen, yet another test program;
-# main() is defined in libcw_test_simple_gen.c
-# The file defines a very simple set of tests that make only a basic
-# use of libcw's generator facilities.
-
-# source code files used to build libcw_test_simple_gen program
-libcw_test_simple_gen_SOURCES = libcw_test_simple_gen.c libcw_test.c
-
-# target-specific linker flags (objects to link)
-libcw_test_simple_gen_LDADD=-lm -lpthread $(DL_LIB) $(OSS_LIB) -L./.libs -lcw
-
-# target-specific compiler flags
-libcw_test_simple_gen_CFLAGS = -rdynamic
 
 
 
