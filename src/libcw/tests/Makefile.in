@@ -95,7 +95,9 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-check_PROGRAMS = libcw_test_tq_short_space$(EXEEXT)
+check_PROGRAMS = libcw_test_public$(EXEEXT) \
+	libcw_test_simple_gen$(EXEEXT) \
+	libcw_test_tq_short_space$(EXEEXT)
 subdir = src/libcw/tests
 DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(top_srcdir)/depcomp README
@@ -107,17 +109,39 @@ mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/src/config.h
 CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
-am_libcw_test_tq_short_space_OBJECTS =  \
-	libcw_test_tq_short_space-libcw_test_tq_short_space.$(OBJEXT)
-libcw_test_tq_short_space_OBJECTS =  \
-	$(am_libcw_test_tq_short_space_OBJECTS)
+ARFLAGS = cru
+AM_V_AR = $(am__v_AR_@AM_V@)
+am__v_AR_ = $(am__v_AR_@AM_DEFAULT_V@)
+am__v_AR_0 = @echo "  AR      " $@;
+am__v_AR_1 = 
+libcw_check_a_AR = $(AR) $(ARFLAGS)
+libcw_check_a_LIBADD =
+am_libcw_check_a_OBJECTS = libcw_check_a-libcw_test.$(OBJEXT)
+libcw_check_a_OBJECTS = $(am_libcw_check_a_OBJECTS)
+am_libcw_test_public_OBJECTS =  \
+	libcw_test_public-libcw_test_public.$(OBJEXT)
+libcw_test_public_OBJECTS = $(am_libcw_test_public_OBJECTS)
 am__DEPENDENCIES_1 =
-libcw_test_tq_short_space_DEPENDENCIES = $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1)
+libcw_test_public_DEPENDENCIES = $(am__DEPENDENCIES_1) libcw_check.a
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
 am__v_lt_1 = 
+am_libcw_test_simple_gen_OBJECTS =  \
+	libcw_test_simple_gen-libcw_test_simple_gen.$(OBJEXT)
+libcw_test_simple_gen_OBJECTS = $(am_libcw_test_simple_gen_OBJECTS)
+libcw_test_simple_gen_DEPENDENCIES = $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1) libcw_check.a
+libcw_test_simple_gen_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
+	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
+	$(libcw_test_simple_gen_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
+	$(LDFLAGS) -o $@
+am_libcw_test_tq_short_space_OBJECTS =  \
+	libcw_test_tq_short_space-libcw_test_tq_short_space.$(OBJEXT)
+libcw_test_tq_short_space_OBJECTS =  \
+	$(am_libcw_test_tq_short_space_OBJECTS)
+libcw_test_tq_short_space_DEPENDENCIES = $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1)
 libcw_test_tq_short_space_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
 	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
 	$(libcw_test_tq_short_space_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
@@ -156,8 +180,12 @@ AM_V_CCLD = $(am__v_CCLD_@AM_V@)
 am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
-SOURCES = $(libcw_test_tq_short_space_SOURCES)
-DIST_SOURCES = $(libcw_test_tq_short_space_SOURCES)
+SOURCES = $(libcw_check_a_SOURCES) $(libcw_test_public_SOURCES) \
+	$(libcw_test_simple_gen_SOURCES) \
+	$(libcw_test_tq_short_space_SOURCES)
+DIST_SOURCES = $(libcw_check_a_SOURCES) $(libcw_test_public_SOURCES) \
+	$(libcw_test_simple_gen_SOURCES) \
+	$(libcw_test_tq_short_space_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -318,7 +346,43 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-EXTRA_DIST = libcw_test_tq_short_space.c
+EXTRA_DIST = libcw_test_public.c libcw_test_simple_gen.c libcw_test_tq_short_space.c \
+	libcw_test.c libcw_test.h
+
+
+# library built only for purposes of testing (checking)
+check_LIBRARIES = libcw_check.a
+libcw_check_a_SOURCES = libcw_test.c
+libcw_check_a_CPPFLAGS = $(AM_CPPFLAGS)
+
+# target: libcw_test_public: a test program testing only public API of libcw library;
+# main() is defined in libcw_test_public.c
+# Source code files used to build libcw_test_public program.
+# This test tests library's public API, so the target should depend on
+# a regular shared library file found in build directory. It shouldn't
+# compile all *.c files that are used to create library, it should
+# compile only test files and "link" them with this library file.
+libcw_test_public_SOURCES = libcw_test_public.c
+
+# target-specific preprocessor flags (#defs and include dirs)
+libcw_test_public_CPPFLAGS = $(AM_CPPFLAGS)
+
+# target-specific linker flags (objects to link)
+libcw_test_public_LDADD = -lm -lpthread $(DL_LIB) libcw_check.a -L../.libs -lcw
+
+# target: libcw_test_simple_gen, yet another test program;
+# main() is defined in libcw_test_simple_gen.c
+# The file defines a very simple set of tests that make only a basic
+# use of libcw's generator facilities.
+
+# source code files used to build libcw_test_simple_gen program
+libcw_test_simple_gen_SOURCES = libcw_test_simple_gen.c
+
+# target-specific linker flags (objects to link)
+libcw_test_simple_gen_LDADD = -lm -lpthread $(DL_LIB) $(OSS_LIB) libcw_check.a -L../.libs -lcw
+
+# target-specific compiler flags
+libcw_test_simple_gen_CFLAGS = -rdynamic
 
 # target: libcw_test_tq_short_space, a test program for a specific bug;
 
@@ -372,6 +436,14 @@ $(ACLOCAL_M4):  $(am__aclocal_m4_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
 $(am__aclocal_m4_deps):
 
+clean-checkLIBRARIES:
+	-test -z "$(check_LIBRARIES)" || rm -f $(check_LIBRARIES)
+
+libcw_check.a: $(libcw_check_a_OBJECTS) $(libcw_check_a_DEPENDENCIES) $(EXTRA_libcw_check_a_DEPENDENCIES) 
+	$(AM_V_at)-rm -f libcw_check.a
+	$(AM_V_AR)$(libcw_check_a_AR) libcw_check.a $(libcw_check_a_OBJECTS) $(libcw_check_a_LIBADD)
+	$(AM_V_at)$(RANLIB) libcw_check.a
+
 clean-checkPROGRAMS:
 	@list='$(check_PROGRAMS)'; test -n "$$list" || exit 0; \
 	echo " rm -f" $$list; \
@@ -380,6 +452,14 @@ clean-checkPROGRAMS:
 	list=`for p in $$list; do echo "$$p"; done | sed 's/$(EXEEXT)$$//'`; \
 	echo " rm -f" $$list; \
 	rm -f $$list
+
+libcw_test_public$(EXEEXT): $(libcw_test_public_OBJECTS) $(libcw_test_public_DEPENDENCIES) $(EXTRA_libcw_test_public_DEPENDENCIES) 
+	@rm -f libcw_test_public$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(libcw_test_public_OBJECTS) $(libcw_test_public_LDADD) $(LIBS)
+
+libcw_test_simple_gen$(EXEEXT): $(libcw_test_simple_gen_OBJECTS) $(libcw_test_simple_gen_DEPENDENCIES) $(EXTRA_libcw_test_simple_gen_DEPENDENCIES) 
+	@rm -f libcw_test_simple_gen$(EXEEXT)
+	$(AM_V_CCLD)$(libcw_test_simple_gen_LINK) $(libcw_test_simple_gen_OBJECTS) $(libcw_test_simple_gen_LDADD) $(LIBS)
 
 libcw_test_tq_short_space$(EXEEXT): $(libcw_test_tq_short_space_OBJECTS) $(libcw_test_tq_short_space_DEPENDENCIES) $(EXTRA_libcw_test_tq_short_space_DEPENDENCIES) 
 	@rm -f libcw_test_tq_short_space$(EXEEXT)
@@ -391,6 +471,9 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcw_check_a-libcw_test.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcw_test_public-libcw_test_public.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcw_test_simple_gen-libcw_test_simple_gen.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libcw_test_tq_short_space-libcw_test_tq_short_space.Po@am__quote@
 
 .c.o:
@@ -413,6 +496,48 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LTCOMPILE) -c -o $@ $<
+
+libcw_check_a-libcw_test.o: libcw_test.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcw_check_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libcw_check_a-libcw_test.o -MD -MP -MF $(DEPDIR)/libcw_check_a-libcw_test.Tpo -c -o libcw_check_a-libcw_test.o `test -f 'libcw_test.c' || echo '$(srcdir)/'`libcw_test.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libcw_check_a-libcw_test.Tpo $(DEPDIR)/libcw_check_a-libcw_test.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='libcw_test.c' object='libcw_check_a-libcw_test.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcw_check_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libcw_check_a-libcw_test.o `test -f 'libcw_test.c' || echo '$(srcdir)/'`libcw_test.c
+
+libcw_check_a-libcw_test.obj: libcw_test.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcw_check_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libcw_check_a-libcw_test.obj -MD -MP -MF $(DEPDIR)/libcw_check_a-libcw_test.Tpo -c -o libcw_check_a-libcw_test.obj `if test -f 'libcw_test.c'; then $(CYGPATH_W) 'libcw_test.c'; else $(CYGPATH_W) '$(srcdir)/libcw_test.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libcw_check_a-libcw_test.Tpo $(DEPDIR)/libcw_check_a-libcw_test.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='libcw_test.c' object='libcw_check_a-libcw_test.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcw_check_a_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libcw_check_a-libcw_test.obj `if test -f 'libcw_test.c'; then $(CYGPATH_W) 'libcw_test.c'; else $(CYGPATH_W) '$(srcdir)/libcw_test.c'; fi`
+
+libcw_test_public-libcw_test_public.o: libcw_test_public.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcw_test_public_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libcw_test_public-libcw_test_public.o -MD -MP -MF $(DEPDIR)/libcw_test_public-libcw_test_public.Tpo -c -o libcw_test_public-libcw_test_public.o `test -f 'libcw_test_public.c' || echo '$(srcdir)/'`libcw_test_public.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libcw_test_public-libcw_test_public.Tpo $(DEPDIR)/libcw_test_public-libcw_test_public.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='libcw_test_public.c' object='libcw_test_public-libcw_test_public.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcw_test_public_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libcw_test_public-libcw_test_public.o `test -f 'libcw_test_public.c' || echo '$(srcdir)/'`libcw_test_public.c
+
+libcw_test_public-libcw_test_public.obj: libcw_test_public.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcw_test_public_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libcw_test_public-libcw_test_public.obj -MD -MP -MF $(DEPDIR)/libcw_test_public-libcw_test_public.Tpo -c -o libcw_test_public-libcw_test_public.obj `if test -f 'libcw_test_public.c'; then $(CYGPATH_W) 'libcw_test_public.c'; else $(CYGPATH_W) '$(srcdir)/libcw_test_public.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libcw_test_public-libcw_test_public.Tpo $(DEPDIR)/libcw_test_public-libcw_test_public.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='libcw_test_public.c' object='libcw_test_public-libcw_test_public.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcw_test_public_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libcw_test_public-libcw_test_public.obj `if test -f 'libcw_test_public.c'; then $(CYGPATH_W) 'libcw_test_public.c'; else $(CYGPATH_W) '$(srcdir)/libcw_test_public.c'; fi`
+
+libcw_test_simple_gen-libcw_test_simple_gen.o: libcw_test_simple_gen.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libcw_test_simple_gen_CFLAGS) $(CFLAGS) -MT libcw_test_simple_gen-libcw_test_simple_gen.o -MD -MP -MF $(DEPDIR)/libcw_test_simple_gen-libcw_test_simple_gen.Tpo -c -o libcw_test_simple_gen-libcw_test_simple_gen.o `test -f 'libcw_test_simple_gen.c' || echo '$(srcdir)/'`libcw_test_simple_gen.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libcw_test_simple_gen-libcw_test_simple_gen.Tpo $(DEPDIR)/libcw_test_simple_gen-libcw_test_simple_gen.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='libcw_test_simple_gen.c' object='libcw_test_simple_gen-libcw_test_simple_gen.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libcw_test_simple_gen_CFLAGS) $(CFLAGS) -c -o libcw_test_simple_gen-libcw_test_simple_gen.o `test -f 'libcw_test_simple_gen.c' || echo '$(srcdir)/'`libcw_test_simple_gen.c
+
+libcw_test_simple_gen-libcw_test_simple_gen.obj: libcw_test_simple_gen.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libcw_test_simple_gen_CFLAGS) $(CFLAGS) -MT libcw_test_simple_gen-libcw_test_simple_gen.obj -MD -MP -MF $(DEPDIR)/libcw_test_simple_gen-libcw_test_simple_gen.Tpo -c -o libcw_test_simple_gen-libcw_test_simple_gen.obj `if test -f 'libcw_test_simple_gen.c'; then $(CYGPATH_W) 'libcw_test_simple_gen.c'; else $(CYGPATH_W) '$(srcdir)/libcw_test_simple_gen.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libcw_test_simple_gen-libcw_test_simple_gen.Tpo $(DEPDIR)/libcw_test_simple_gen-libcw_test_simple_gen.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='libcw_test_simple_gen.c' object='libcw_test_simple_gen-libcw_test_simple_gen.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libcw_test_simple_gen_CFLAGS) $(CFLAGS) -c -o libcw_test_simple_gen-libcw_test_simple_gen.obj `if test -f 'libcw_test_simple_gen.c'; then $(CYGPATH_W) 'libcw_test_simple_gen.c'; else $(CYGPATH_W) '$(srcdir)/libcw_test_simple_gen.c'; fi`
 
 libcw_test_tq_short_space-libcw_test_tq_short_space.o: libcw_test_tq_short_space.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libcw_test_tq_short_space_CPPFLAGS) $(CPPFLAGS) $(libcw_test_tq_short_space_CFLAGS) $(CFLAGS) -MT libcw_test_tq_short_space-libcw_test_tq_short_space.o -MD -MP -MF $(DEPDIR)/libcw_test_tq_short_space-libcw_test_tq_short_space.Tpo -c -o libcw_test_tq_short_space-libcw_test_tq_short_space.o `test -f 'libcw_test_tq_short_space.c' || echo '$(srcdir)/'`libcw_test_tq_short_space.c
@@ -517,7 +642,7 @@ distdir: $(DISTFILES)
 	  fi; \
 	done
 check-am: all-am
-	$(MAKE) $(AM_MAKEFLAGS) $(check_PROGRAMS)
+	$(MAKE) $(AM_MAKEFLAGS) $(check_LIBRARIES) $(check_PROGRAMS)
 check: check-am
 all-am: Makefile
 installdirs:
@@ -554,8 +679,8 @@ maintainer-clean-generic:
 	@echo "it deletes files that may require special tools to rebuild."
 clean: clean-am
 
-clean-am: clean-checkPROGRAMS clean-generic clean-libtool \
-	mostlyclean-am
+clean-am: clean-checkLIBRARIES clean-checkPROGRAMS clean-generic \
+	clean-libtool mostlyclean-am
 
 distclean: distclean-am
 	-rm -rf ./$(DEPDIR)
@@ -626,18 +751,18 @@ uninstall-am:
 .MAKE: check-am install-am install-strip
 
 .PHONY: CTAGS GTAGS TAGS all all-am check check-am clean \
-	clean-checkPROGRAMS clean-generic clean-libtool cscopelist-am \
-	ctags ctags-am distclean distclean-compile distclean-generic \
-	distclean-libtool distclean-tags distdir dvi dvi-am html \
-	html-am info info-am install install-am install-data \
-	install-data-am install-dvi install-dvi-am install-exec \
-	install-exec-am install-html install-html-am install-info \
-	install-info-am install-man install-pdf install-pdf-am \
-	install-ps install-ps-am install-strip installcheck \
-	installcheck-am installdirs maintainer-clean \
-	maintainer-clean-generic mostlyclean mostlyclean-compile \
-	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
-	tags tags-am uninstall uninstall-am
+	clean-checkLIBRARIES clean-checkPROGRAMS clean-generic \
+	clean-libtool cscopelist-am ctags ctags-am distclean \
+	distclean-compile distclean-generic distclean-libtool \
+	distclean-tags distdir dvi dvi-am html html-am info info-am \
+	install install-am install-data install-data-am install-dvi \
+	install-dvi-am install-exec install-exec-am install-html \
+	install-html-am install-info install-info-am install-man \
+	install-pdf install-pdf-am install-ps install-ps-am \
+	install-strip installcheck installcheck-am installdirs \
+	maintainer-clean maintainer-clean-generic mostlyclean \
+	mostlyclean-compile mostlyclean-generic mostlyclean-libtool \
+	pdf pdf-am ps ps-am tags tags-am uninstall uninstall-am
 
 
 -include $(top_builddir)/Makefile.inc
