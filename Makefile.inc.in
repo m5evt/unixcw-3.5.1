@@ -55,4 +55,5 @@ datarootdir = @datarootdir@
 
 AM_CPPFLAGS = -I$(top_srcdir)/src/ \
 	    -I$(top_srcdir)/src/libcw/ \
+	    -I$(top_srcdir)/src/libcw/tests/ \
 	    -I$(top_srcdir)/src/cwutils/
