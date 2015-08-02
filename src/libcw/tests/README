@@ -1,2 +1,5 @@
-Test programs testing specific bugs. See top-level comments in source
-code files for details on the bugs.
+The directory contains some generic test programs.
+
+The directory also contains test programs testing specific bugs. See
+top-level comments in source code files for details on the bugs.
+
