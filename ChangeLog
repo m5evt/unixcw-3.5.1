@@ -1,3 +1,13 @@
+2015-08-02 Kamil Ignacak
+	* tests: moving selected "make" test build targets from
+	src/libcw/Makefile.am to src/libcw/tests/Makefile.am. Updating
+	flags for some of the targets, so they may be built a bit
+	differently
+	* tests: libcw_test_public.c no longer tests "forever"
+	feature. Since this is a test of public API, it shouldn't use
+	LIBCW_UNIT_TESTS flag for compilation, nor should it use any
+	internal or test functions.
+
 2015-07-31 Kamil Ignacak
 	* gen/tq: creating small client application that tests for
 	presence of the problem described on 2015-07-29 ("short space"
