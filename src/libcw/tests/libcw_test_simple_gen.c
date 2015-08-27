@@ -61,6 +61,8 @@ static void main_helper(int audio_system, const char *name, const char *device, 
 
 int main(int argc, char *const argv[])
 {
+	// cw_debug_set_flags(&cw_debug_object, CW_DEBUG_RECEIVE_STATES | CW_DEBUG_TONE_QUEUE | CW_DEBUG_GENERATOR | CW_DEBUG_KEYING);
+	// cw_debug_object.level = CW_DEBUG_DEBUG;
 
 #define CW_SYSTEMS_MAX 5
 	char sound_systems[CW_SYSTEMS_MAX + 1];
@@ -136,7 +138,9 @@ void main_helper(int audio_system, const char *name, const char *device, predica
 			cw_wait_for_tone_queue();
 
 			cw_wait_for_tone_queue();
+
 			cw_generator_stop();
+
 			cw_generator_delete();
 		} else {
 			cw_debug_msg ((&cw_debug_object), CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
