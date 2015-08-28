@@ -641,7 +641,17 @@ int cw_gen_stop_internal(cw_gen_t *gen)
 		return CW_FAILURE;
 	}
 
+	cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_INFO,
+		      "libcw/gen: gen->do_dequeue_and_play = false");
 	gen->do_dequeue_and_play = false;
+
+#ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
+#if 0
+	libcw_sem_printvalue(&gen->tq->semaphore, gen->tq->len, "libcw/tq/gen stop: before waiting");
+	sem_wait(&gen->tq->semaphore);
+	libcw_sem_printvalue(&gen->tq->semaphore, gen->tq->len, "libcw/tq/gen stop:  after waiting");
+#endif
+#endif
 
 	if (!gen->thread.running) {
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_INFO, "libcw: EXIT: seems that thread function was not started at all");
@@ -655,7 +665,14 @@ int cw_gen_stop_internal(cw_gen_t *gen)
 	/* This is to wake up cw_signal_wait_internal() function that
 	   may be waiting idle for signal in "while ()" loop in thread
 	   function. */
+#ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
+
+	libcw_sem_printvalue(&gen->tq->semaphore, gen->tq->len, "libcw/tq/stopper: before posting");
+	sem_post(&gen->tq->semaphore);
+	libcw_sem_printvalue(&gen->tq->semaphore, gen->tq->len, "libcw/tq/stopper:  after posting");
+#else
 	pthread_kill(gen->thread.id, SIGALRM);
+#endif
 
 	/* This piece of comment was put before code using
 	   pthread_kill(), and may apply only to that version. But it
@@ -858,19 +875,35 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 			   previous call to dequeue(). No point in
 			   making next iteration of while() and
 			   calling the function again. So don't call
-			   it, wait for signal from enqueue() function
+			   it, wait for kick from enqueue() function
 			   informing that a new tone appeared in tone
 			   queue. */
 
-			/* A SIGALRM signal may also come from
+			/* The kick may also come from
 			   cw_gen_stop_internal() that gently asks
 			   this function to stop idling and nicely
 			   return. */
 
+			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_INFO,
+				      "libcw/tq: got CW_TQ_NDEQUEUED_IDLE");
+#ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
+			/* Consumer. */
+			libcw_sem_printvalue(&gen->tq->semaphore, gen->tq->len, "libcw/tq/consumer: waiting for kick");
+			sem_wait(&gen->tq->semaphore);
+			libcw_sem_printvalue(&gen->tq->semaphore, gen->tq->len, "libcw/tq/consumer: got kicked");
+#else
 			/* TODO: can we / should we specify on which
 			   signal exactly we are waiting for? */
 			cw_signal_wait_internal();
+#endif
 			continue;
+		} else {
+#ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
+			/* Consumer. */
+			libcw_sem_printvalue(&gen->tq->semaphore, gen->tq->len, "libcw/tq/consumer: dequeued, before waiting");
+			sem_wait(&gen->tq->semaphore);
+			libcw_sem_printvalue(&gen->tq->semaphore, gen->tq->len, "libcw/tq/consumer: dequeued,  after waiting");
+#endif
 		}
 
 
@@ -2576,9 +2609,8 @@ unsigned int test_cw_gen_new_delete_internal(void)
 	int n = 100;
 
 	/* new() + delete() */
-	fprintf(stderr, "libcw/gen: generator test 1/4\n");
 	for (int i = 0; i < n; i++) {
-
+		fprintf(stderr, "libcw/gen: generator test 1/4, loop #%d/%d\n", i, n);
 
 		cw_gen_t *gen = cw_gen_new_internal(CW_AUDIO_NULL, NULL);
 		cw_assert (gen, "failed to initialize generator (loop #%d)", i);
@@ -2630,8 +2662,7 @@ unsigned int test_cw_gen_new_delete_internal(void)
 	}
 
 
-
-	/* Inner loop. */
+	/* Inner loop limit. */
 	int m = n;
 
 
