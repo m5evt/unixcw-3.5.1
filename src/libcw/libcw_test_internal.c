@@ -48,6 +48,7 @@
 
 
 extern cw_debug_t cw_debug_object;
+extern cw_debug_t cw_debug_object_dev;
 
 
 
@@ -146,6 +147,9 @@ int main(void)
 
 	//cw_debug_set_flags(&cw_debug_object, CW_DEBUG_RECEIVE_STATES);
 	//cw_debug_object.level = CW_DEBUG_INFO;
+
+	cw_debug_set_flags(&cw_debug_object_dev, CW_DEBUG_RECEIVE_STATES | CW_DEBUG_TONE_QUEUE | CW_DEBUG_GENERATOR | CW_DEBUG_KEYING);
+	cw_debug_object_dev.level = CW_DEBUG_DEBUG;
 
 	int i = 0;
 	while (cw_unit_tests[i]) {
