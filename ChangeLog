@@ -1,3 +1,15 @@
+2015-08-28 Kamil Ignacak
+	* libcw/signals: Initial commit of semaphores code. The code
+	enables communication between generator and tone queue using
+	semaphores instead of signals.
+
+	It may be desirable for libcw library to not to use signals, so
+	that client application can use them freely, without any
+	interference between application and libcw. This is the first step
+	to replace signals with other IPC mechanisms. This alternative
+	mechanism may be enabled with "--enable-signals-alternative"
+	passed to ./configure script.
+
 2015-08-02 Kamil Ignacak
 	* tests: moving selected "make" test build targets from
 	src/libcw/Makefile.am to src/libcw/tests/Makefile.am. Updating
