@@ -10,9 +10,19 @@
 
 
 
+#include "config.h"
+
+
+
+
+
 #include <stdint.h>     /* uint32_t */
 #include <pthread.h>    /* pthread_mutex_t */
 #include <stdbool.h>    /* bool */
+
+#ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
+#include <semaphore.h>
+#endif
 
 
 
@@ -198,6 +208,10 @@ typedef struct {
 	   itself may be called outside of the module, e.g. by cw_gen
 	   code. */
 	bool         call_callback;
+
+#ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
+	sem_t semaphore;
+#endif
 
 	pthread_mutex_t mutex;
 
