@@ -81,6 +81,7 @@
 #include "libcw_utils.h"
 #include "libcw_signal.h"
 #include "libcw_data.h"
+#include "libcw_ipc.h"
 
 #include "libcw_null.h"
 #include "libcw_console.h"
@@ -937,9 +938,14 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 		     queue is "low/critical"; client code then can add more
 		     characters to the queue; the observation is done using
 		     cw_wait_for_tone_queue_critical();
-		   - ...
 
+		   - allows client code to observe any dequeue event
+                     by waiting for signal in cw_wait_for_tone() /
+                     cw_tq_wait_for_tone_internal()
 		 */
+#ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
+		libcw_sem_post_binary(&gen->tq->deq_semaphore, 1, "libcw/tq:       posting deq_semaphore on dequeue");
+#endif
 		pthread_kill(gen->client.thread_id, SIGALRM);
 
 		/* Generator may be used by iambic keyer to measure
@@ -989,6 +995,9 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 	struct timespec req = { .tv_sec = 0, .tv_nsec = CW_NSECS_PER_SEC / 2 };
 	cw_nanosleep_internal(&req);
 
+#ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
+	libcw_sem_post_binary(&gen->tq->deq_semaphore, 1, "libcw/tq:       posting FINAL deq_semaphore on dequeue");
+#endif
 	pthread_kill(gen->client.thread_id, SIGALRM);
 	gen->thread.running = false;
 	return NULL;
