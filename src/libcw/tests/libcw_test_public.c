@@ -329,7 +329,7 @@ void test_tone_queue_1(cw_test_stats_t *stats)
 		failure = l != expected;
 
 		failure ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_get_tone_queue_length(): pre:");
+		n = printf("libcw: cw_get_tone_queue_length(): pre (#%02d):", i);
 		// n = printf("libcw: cw_get_tone_queue_length(): pre-queue: expected %d != result %d:", expected, l);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
@@ -353,7 +353,7 @@ void test_tone_queue_1(cw_test_stats_t *stats)
 		failure = l != expected;
 
 		failure ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_get_tone_queue_length(): post:");
+		n = printf("libcw: cw_get_tone_queue_length(): post (#%02d):", i);
 		// n = printf("libcw: cw_get_tone_queue_length(): post-queue: expected %d != result %d:", expected, l);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
@@ -379,7 +379,7 @@ void test_tone_queue_1(cw_test_stats_t *stats)
 		failure = l != expected;
 
 		failure ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_get_tone_queue_length(): pre:");
+		n = printf("libcw: cw_get_tone_queue_length(): pre (#%02d):", i);
 		// n = printf("libcw: cw_get_tone_queue_length(): pre-dequeue:  expected %d != result %d: failure\n", expected, l);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
@@ -401,7 +401,7 @@ void test_tone_queue_1(cw_test_stats_t *stats)
 		failure = l != expected;
 
 		failure ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_get_tone_queue_length(): post:");
+		n = printf("libcw: cw_get_tone_queue_length(): post (#%02d):", i);
 		// n = printf("libcw: cw_get_tone_queue_length(): post-dequeue: expected %d != result %d: failure\n", expected, l);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
@@ -507,9 +507,10 @@ void test_tone_queue_2(cw_test_stats_t *stats)
 	CW_TEST_PRINT_TEST_RESULT (wait_failure, n);
 
 
+	n = printf("libcw: cw_wait_for_tone_queue():");
+	fflush(stdout);
 	bool wait_tq_failure = !cw_wait_for_tone_queue();
 	wait_tq_failure ? stats->failures++ : stats->successes++;
-	n = printf("libcw: cw_wait_for_tone_queue():");
 	CW_TEST_PRINT_TEST_RESULT (wait_tq_failure, n);
 
 
@@ -689,7 +690,7 @@ void test_tone_queue_callback(cw_test_stats_t *stats)
 		sleep(1);
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_register_tone_queue_low_callback(): %d:", level);
+		int n = printf("libcw: cw_register_tone_queue_low_callback(): threshold = %d:", level);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
@@ -726,7 +727,7 @@ void test_tone_queue_callback(cw_test_stats_t *stats)
 		failure = diff > 1;
 
 		failure ? stats->failures++ : stats->successes++;
-		n = printf("libcw: tone queue callback: %d", level);
+		n = printf("libcw: tone queue callback:           level at callback = %d:", cw_test_tone_queue_callback_data);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 		cw_reset_tone_queue();
@@ -1916,8 +1917,8 @@ int main(int argc, char *const argv[])
 
 	static const int SIGNALS[] = { SIGHUP, SIGINT, SIGQUIT, SIGPIPE, SIGTERM, 0 };
 
-	cw_debug_set_flags(&cw_debug_object_dev, CW_DEBUG_RECEIVE_STATES | CW_DEBUG_TONE_QUEUE | CW_DEBUG_GENERATOR | CW_DEBUG_KEYING);
-	cw_debug_object_dev.level = CW_DEBUG_DEBUG;
+	//cw_debug_set_flags(&cw_debug_object_dev, CW_DEBUG_RECEIVE_STATES | CW_DEBUG_TONE_QUEUE | CW_DEBUG_GENERATOR | CW_DEBUG_KEYING);
+	//cw_debug_object_dev.level = CW_DEBUG_DEBUG;
 
 	unsigned int testset = 0;
 
