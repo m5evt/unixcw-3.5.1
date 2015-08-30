@@ -1037,7 +1037,15 @@ int cw_key_ik_wait_for_element_internal(volatile cw_key_t *key)
 	       && key->ik.graph_state != KS_AFTER_DASH_A
 	       && key->ik.graph_state != KS_AFTER_DASH_B) {
 
+#ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
+		//fprintf(stderr, "libcw/key_ik: waiting for deq_semaphore\n");
+		sem_wait(&key->gen->tq->ik_semaphore);
+		//fprintf(stderr, "libcw/key_ik: got deq_semaphore\n");
+#else
+		//fprintf(stderr, "ik: waiting for signal in thread %ld\n", pthread_self());
 		cw_signal_wait_internal();
+		//fprintf(stderr, "ik:         got signal in thread %ld\n", pthread_self());
+#endif
 	}
 
 	/* Now wait for the state to move to idle (unless it is, or was,
@@ -1050,7 +1058,15 @@ int cw_key_ik_wait_for_element_internal(volatile cw_key_t *key)
 	       && key->ik.graph_state != KS_IN_DASH_A
 	       && key->ik.graph_state != KS_IN_DASH_B) {
 
+#ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
+		//fprintf(stderr, "libcw/key_ik: waiting for ik_semaphore\n");
+		sem_wait(&key->gen->tq->ik_semaphore);
+		//fprintf(stderr, "libcw/key_ik: got ik_semaphore\n");
+#else
+		//fprintf(stderr, "ik: waiting for signal in thread %ld\n", pthread_self());
 		cw_signal_wait_internal();
+		//fprintf(stderr, "ik:         got signal in thread %ld\n", pthread_self());
+#endif
 	}
 
 	return CW_SUCCESS;
@@ -1092,7 +1108,13 @@ int cw_key_ik_wait_for_keyer_internal(volatile cw_key_t *key)
 
 	/* Wait for the keyer state to go idle. */
 	while (key->ik.graph_state != KS_IDLE) {
+#ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
+		//fprintf(stderr, "libcw/key_ik: waiting for ik_semaphore\n");
+		sem_wait(&key->gen->tq->ik_semaphore);
+		//fprintf(stderr, "libcw/key_ik: got ik_semaphore\n");
+#else
 		cw_signal_wait_internal();
+#endif
 	}
 
 	return CW_SUCCESS;
