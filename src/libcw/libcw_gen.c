@@ -660,6 +660,9 @@ int cw_gen_stop_internal(cw_gen_t *gen)
 		/* Don't call pthread_kill() on non-initialized
 		   thread.id. The generator wasn't even started, so
 		   let's return CW_SUCCESS. */
+
+		/* TODO: what about code that doesn't use signals?
+		   Should we return here? */
 		return CW_SUCCESS;
 	}
 
@@ -667,10 +670,9 @@ int cw_gen_stop_internal(cw_gen_t *gen)
 	   may be waiting idle for signal in "while ()" loop in thread
 	   function. */
 #ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
-
-	libcw_sem_printvalue(&gen->tq->semaphore, gen->tq->len, "libcw/tq/stopper: before posting");
+	libcw_sem_printvalue(&gen->tq->semaphore, gen->tq->len, "libcw/tq/producer: stopping generator: before posting");
 	sem_post(&gen->tq->semaphore);
-	libcw_sem_printvalue(&gen->tq->semaphore, gen->tq->len, "libcw/tq/stopper:  after posting");
+	libcw_sem_printvalue(&gen->tq->semaphore, gen->tq->len, "libcw/tq/producer: stopping generator:  after posting");
 #else
 	pthread_kill(gen->thread.id, SIGALRM);
 #endif
@@ -700,7 +702,8 @@ int cw_gen_stop_internal(cw_gen_t *gen)
 	*/
 
 
-#if 0 /* Old code using pthread_kill() instead of pthread_join(). */
+#if 0 /* Old code using pthread_kill() instead of pthread_join().
+	 This code is unused since before 2015-08-30. */
 
 	struct timespec req = { .tv_sec = 1, .tv_nsec = 0 };
 	cw_nanosleep_internal(&req);
@@ -896,9 +899,9 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 #ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
 #if 0
 			/* Consumer. */
-			libcw_sem_printvalue(&gen->tq->semaphore, gen->tq->len, "libcw/tq/consumer: waiting for kick");
+			libcw_sem_printvalue(&gen->tq->semaphore, gen->tq->len, "libcw/tq/consumer: dequeued IDLE state. waiting for kick");
 			sem_wait(&gen->tq->semaphore);
-			libcw_sem_printvalue(&gen->tq->semaphore, gen->tq->len, "libcw/tq/consumer: got kicked");
+			libcw_sem_printvalue(&gen->tq->semaphore, gen->tq->len, "libcw/tq/consumer: dequeued IDLE state, got kicked");
 #endif
 #else
 			/* TODO: can we / should we specify on which
@@ -910,9 +913,9 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 #ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
 #if 0
 			/* Consumer. */
-			libcw_sem_printvalue(&gen->tq->semaphore, gen->tq->len, "libcw/tq/consumer: dequeued, before waiting");
+			libcw_sem_printvalue(&gen->tq->semaphore, gen->tq->len, "libcw/tq/consumer: dequeued tone, waiting for semaphore");
 			sem_wait(&gen->tq->semaphore);
-			libcw_sem_printvalue(&gen->tq->semaphore, gen->tq->len, "libcw/tq/consumer: after waiting");
+			libcw_sem_printvalue(&gen->tq->semaphore, gen->tq->len, "libcw/tq/consumer: dequeued tone, got semaphore");
 #endif
 #endif
 		}
@@ -996,6 +999,9 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 	cw_nanosleep_internal(&req);
 
 #ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
+	/* FIXME: should we really post this here? There are no tones
+	   dequeued, so maybe we shouldn't. On the other hand, there
+	   may be some function waiting for the last post. */
 	libcw_sem_post_binary(&gen->tq->deq_semaphore, 1, "libcw/tq:       posting FINAL deq_semaphore on dequeue");
 #endif
 	pthread_kill(gen->client.thread_id, SIGALRM);
