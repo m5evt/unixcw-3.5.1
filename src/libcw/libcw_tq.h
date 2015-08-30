@@ -215,6 +215,9 @@ typedef struct {
 	/* Binary semaphore, used only to indicate that a tone has
 	   been dequeued by generator. */
 	sem_t deq_semaphore;
+
+	/* Binary semaphore used with iambic keyer. */
+	sem_t ik_semaphore;
 #endif
 
 	pthread_mutex_t mutex;
