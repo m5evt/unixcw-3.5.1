@@ -100,6 +100,7 @@ static cw_test_function_t cw_unit_tests[] = {
 	test_cw_tq_is_full_internal,
 	test_cw_tq_test_capacity_1,
 	test_cw_tq_test_capacity_2,
+	test_cw_tq_wait_for_level_internal,
 
 
 	/* cw_gen module */
