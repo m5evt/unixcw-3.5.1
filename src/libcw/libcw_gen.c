@@ -868,6 +868,12 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 	CW_TONE_INIT(&tone, 0, 0, CW_SLOPE_MODE_STANDARD_SLOPES);
 
 	while (gen->do_dequeue_and_play) {
+#ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
+		/* Consumer. */
+		//libcw_sem_printvalue(&gen->tq->semaphore, gen->tq->len, "libcw/tq/consumer: dequeue and play: waiting for semaphore");
+		sem_wait(&gen->tq->semaphore);
+		//libcw_sem_printvalue(&gen->tq->semaphore, gen->tq->len, "libcw/tq/consumer: dequeue and play, got semaphore");
+#endif
 		int tq_rv = cw_tq_dequeue_internal(gen->tq, &tone);
 		if (tq_rv == CW_TQ_NDEQUEUED_IDLE) {
 
@@ -887,10 +893,12 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_INFO,
 				      "libcw/tq: got CW_TQ_NDEQUEUED_IDLE");
 #ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
+#if 0
 			/* Consumer. */
 			libcw_sem_printvalue(&gen->tq->semaphore, gen->tq->len, "libcw/tq/consumer: waiting for kick");
 			sem_wait(&gen->tq->semaphore);
 			libcw_sem_printvalue(&gen->tq->semaphore, gen->tq->len, "libcw/tq/consumer: got kicked");
+#endif
 #else
 			/* TODO: can we / should we specify on which
 			   signal exactly we are waiting for? */
@@ -899,10 +907,12 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 			continue;
 		} else {
 #ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
+#if 0
 			/* Consumer. */
 			libcw_sem_printvalue(&gen->tq->semaphore, gen->tq->len, "libcw/tq/consumer: dequeued, before waiting");
 			sem_wait(&gen->tq->semaphore);
-			libcw_sem_printvalue(&gen->tq->semaphore, gen->tq->len, "libcw/tq/consumer: dequeued,  after waiting");
+			libcw_sem_printvalue(&gen->tq->semaphore, gen->tq->len, "libcw/tq/consumer: after waiting");
+#endif
 #endif
 		}
 
