@@ -63,7 +63,10 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <pthread.h>
+
+#ifndef LIBCW_WITH_SIGNALS_ALTERNATIVE
 #include <signal.h> /* SIGALRM */
+#endif
 
 #include "libcw.h"
 #include "libcw_tq.h"
@@ -730,18 +733,28 @@ int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 		   to send such a signal. */
 		tq->state = CW_TQ_BUSY;
 
-#ifndef LIBCW_WITH_SIGNALS_ALTERNATIVE
+#ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
+#if 1
+		/* Producer. */
+		libcw_sem_printvalue(&tq->semaphore, tq->len, "libcw/tq/producer: IDLE -> BUSY: before posting");
+		sem_post(&tq->semaphore);
+		libcw_sem_printvalue(&tq->semaphore, tq->len, "libcw/tq/producer: IDLE -> BUSY:  after posting");
+#endif
+
+#else
 		pthread_kill(tq->gen->thread.id, SIGALRM);
 #endif
-	}
+	} else {
 
 #ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
+#if 1
 	/* Producer. */
 	libcw_sem_printvalue(&tq->semaphore, tq->len, "libcw/tq/producer: before posting");
 	sem_post(&tq->semaphore);
 	libcw_sem_printvalue(&tq->semaphore, tq->len, "libcw/tq/producer:  after posting");
 #endif
-
+#endif
+	}
 	pthread_mutex_unlock(&(tq->mutex));
 	return CW_SUCCESS;
 }
