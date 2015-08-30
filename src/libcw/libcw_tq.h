@@ -211,6 +211,10 @@ typedef struct {
 
 #ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
 	sem_t semaphore;
+
+	/* Binary semaphore, used only to indicate that a tone has
+	   been dequeued by generator. */
+	sem_t deq_semaphore;
 #endif
 
 	pthread_mutex_t mutex;
