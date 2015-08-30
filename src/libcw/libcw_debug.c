@@ -34,8 +34,8 @@
 
 
 #define _BSD_SOURCE   /* usleep() */
-#define _POSIX_SOURCE /* sigaction() */
-#define _POSIX_C_SOURCE 200112L /* pthread_sigmask() */
+//#define _POSIX_SOURCE /* sigaction() */
+//#define _POSIX_C_SOURCE 200112L /* pthread_sigmask() */
 
 
 #include <stdio.h>
