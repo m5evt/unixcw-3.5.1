@@ -420,7 +420,7 @@ uint32_t cw_tq_next_index_internal(cw_tone_queue_t *tq, uint32_t ind)
    CW_TQ_DEQUEUED or CW_TQ_NDEQUEUED_EMPTY). So the _write() function
    must be executed by generator for both return values. But we also
    need a third return value that will tell the generator not to
-   execute _write() *at all*, but just wait for signal. This third
+   execute _write() *at all*, but just wait for kick. This third
    value is CW_TQ_NDEQUEUED_IDLE.
 
    These three return values are:
@@ -634,7 +634,7 @@ int cw_tq_dequeue_sub_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 
    Enqueue a tone for specified frequency and number of microseconds.
    This routine adds the new tone to the queue, and if necessary sends
-   signal to generator, so that the generator can dequeue the tone.
+   kick to generator, so that the generator can dequeue the tone.
 
    The routine returns CW_SUCCESS on success. If the tone queue is
    full, the routine returns CW_FAILURE, with errno set to EAGAIN.  If
