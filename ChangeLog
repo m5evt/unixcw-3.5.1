@@ -1,3 +1,15 @@
+2015-08-30 Kamil Ignacak
+	* libcw/signals: improving signals code already existing in cw_gen
+	and cw_tq modules. In particular change in cw_gen (in
+	dequeue_and_play_internal()) greatly improves correctness of usage
+	of semaphores so far.
+
+	Fixing a FIXME in cw_tq_wait_for_tone_internal(): using new
+	semaphore deq_semaphore for another aspect of communication
+	between tq and generator makes the function fully ready for use of
+	alternative IPC mechanism (the function doesn't need signals
+	anymore).
+
 2015-08-28 Kamil Ignacak
 	* libcw/signals: Initial commit of semaphores code. The code
 	enables communication between generator and tone queue using
