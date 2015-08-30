@@ -10,6 +10,10 @@
 	alternative IPC mechanism (the function doesn't need signals
 	anymore).
 
+	* libcw/ipc: Adding new header file for new libcw module:
+	libcw_ipc (Inter Process Communcation). For now the module
+	consists only of a header file with a single macro.
+
 2015-08-28 Kamil Ignacak
 	* libcw/signals: Initial commit of semaphores code. The code
 	enables communication between generator and tone queue using
