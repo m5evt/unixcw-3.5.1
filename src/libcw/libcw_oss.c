@@ -1,4 +1,4 @@
-/* 
+/*
 	Copyright (C) 2001-2006  Simon Baldwin (simon_baldwin@yahoo.com)
   Copyright (C) 2011-2015  Kamil Ignacak (acerion@wp.pl)
 
@@ -49,7 +49,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <signal.h>
+// #include <signal.h>
 #include <ctype.h>
 #include <limits.h>
 #include <stdio.h>
