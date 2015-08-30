@@ -210,13 +210,31 @@ typedef struct {
 	bool         call_callback;
 
 #ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
+
 	sem_t semaphore;
 
-	/* Binary semaphore, used only to indicate that a tone has
-	   been dequeued by generator. */
-	sem_t deq_semaphore;
+	/* Binary semaphore, posted when a tone has been dequeued by
+	   generator.
+	   It is used to control cw_tq_wait_for_tone_internal()
+	   function. */
+	sem_t tone_semaphore;
 
-	/* Binary semaphore used with iambic keyer. */
+	/* Binary semaphore, posted when a tone has been dequeued by
+	   generator.
+	   It is used to control cw_tq_wait_for_tone_queue_internal()
+	   function. */
+	sem_t tone_queue_semaphore;
+
+	/* Binary semaphore, posted when a tone has been dequeued by
+	   generator.
+	   It is used to control cw_tq_wait_for_level_internal()
+	   function. */
+	sem_t level_semaphore;
+
+	/* Binary semaphore, posted when a tone has been dequeued by
+	   generator.
+	   It is used for communication between generator module and
+	   iambic keyer code. */
 	sem_t ik_semaphore;
 #endif
 
@@ -263,7 +281,8 @@ unsigned int test_cw_tq_enqueue_internal_2(void);
 unsigned int test_cw_tq_is_full_internal(void);
 unsigned int test_cw_tq_test_capacity_1(void);
 unsigned int test_cw_tq_test_capacity_2(void);
-unsigned int test_cw_queue_tone(void);
+// unsigned int test_cw_queue_tone(void); /* No such function. */
+unsigned int test_cw_tq_wait_for_level_internal(void);
 
 #endif /* #ifdef LIBCW_UNIT_TESTS */
 
