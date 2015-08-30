@@ -65,14 +65,19 @@
 #include <pthread.h>
 
 #ifndef LIBCW_WITH_SIGNALS_ALTERNATIVE
-#include <signal.h> /* SIGALRM */
+# include <signal.h> /* SIGALRM */
 #endif
 
 #include "libcw.h"
 #include "libcw_tq.h"
 #include "libcw_gen.h"
 #include "libcw_debug.h"
-#include "libcw_signal.h"
+
+#ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
+# include "libcw_ipc.h"
+#else
+# include "libcw_signal.h"
+#endif
 
 
 
@@ -190,7 +195,8 @@ cw_tone_queue_t *cw_tq_new_internal(void)
 
 #ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
 	sem_init(&tq->semaphore, 0, 0);
-	sem_init(&tq->deq_semaphore, 0, 0);
+	sem_init(&tq->tone_semaphore, 0, 0);
+	sem_init(&tq->level_semaphore, 0, 0);
 	sem_init(&tq->ik_semaphore, 0, 0);
 #endif
 
@@ -218,7 +224,8 @@ void cw_tq_delete_internal(cw_tone_queue_t **tq)
 
 #ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
 	sem_destroy(&((*tq)->semaphore));
-	sem_destroy(&((*tq)->deq_semaphore));
+	sem_destroy(&((*tq)->tone_semaphore));
+	sem_destroy(&((*tq)->level_semaphore));
 	sem_destroy(&((*tq)->ik_semaphore));
 #endif
 
@@ -714,8 +721,7 @@ int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 	}
 
 
-	cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
-		      "libcw/tq: enqueue tone %d us, %d Hz", tone->len, tone->frequency);
+	// cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG, "libcw/tq: enqueue tone %d us, %d Hz", tone->len, tone->frequency);
 
 	/* Enqueue the new tone.
 
@@ -732,31 +738,27 @@ int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 		/* A loop in cw_gen_dequeue_and_play_internal()
 		   function may await for the queue to be filled with
 		   new tones to dequeue and play.  It waits for a
-		   signal, for information that there are some new
-		   tones in tone queue. This is a right place and time
-		   to send such a signal. */
+		   notification from tq that there are some new tones
+		   in tone queue. This is a right place and time to
+		   send such notification. */
 		tq->state = CW_TQ_BUSY;
 
 #ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
-#if 1
 		/* Producer. */
 		libcw_sem_printvalue(&tq->semaphore, tq->len, "libcw/tq/producer: IDLE -> BUSY: before posting");
 		sem_post(&tq->semaphore);
 		libcw_sem_printvalue(&tq->semaphore, tq->len, "libcw/tq/producer: IDLE -> BUSY:  after posting");
-#endif
 
 #else
 		pthread_kill(tq->gen->thread.id, SIGALRM);
 #endif
 	} else {
-
+		/* Regular notification on regular enqueue event. */
 #ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
-#if 1
 		/* Producer. */
 		libcw_sem_printvalue(&tq->semaphore, tq->len, "libcw/tq/producer: before posting");
 		sem_post(&tq->semaphore);
 		libcw_sem_printvalue(&tq->semaphore, tq->len, "libcw/tq/producer:  after posting");
-#endif
 #endif
 	}
 	pthread_mutex_unlock(&(tq->mutex));
@@ -845,25 +847,7 @@ int cw_tq_wait_for_tone_internal(cw_tone_queue_t *tq)
 {
 #ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
 
-#if 0
-	/* FIXME: improve this section of code. */
-	static const int CW_AUDIO_QUANTUM_LEN_INITIAL = 100;
-	/* Wait for the head index to change or the dequeue to go idle. */
-	/*
-	uint32_t check_tq_head = tq->head;
-	while (tq->head == check_tq_head && tq->state != CW_TQ_IDLE) {
-		fprintf(stderr, "---------- %d --- %d\n", check_tq_head, tq->head);
-		usleep(CW_AUDIO_QUANTUM_LEN_INITIAL);
-	}
-	*/
-	//fprintf(stderr, "---------- %d --- %d\n", check_tq_head, tq->head);
-	usleep(CW_AUDIO_QUANTUM_LEN_INITIAL);
-#else
-	//fprintf(stderr, "libcw/tq: waiting for deq_semaphore\n");
-	sem_wait(&tq->deq_semaphore);
-	//fprintf(stderr, "libcw/tq: got deq_semaphore\n");
-#endif
-
+	sem_wait(&tq->tone_semaphore);
 
 #else
 
@@ -902,21 +886,17 @@ int cw_tq_wait_for_tone_internal(cw_tone_queue_t *tq)
 int cw_tq_wait_for_tone_queue_internal(cw_tone_queue_t *tq)
 {
 #ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
-	/* FIXME: a better solution would be to have additional
-	   semaphore that is
-	    - set when dequeue() empties the tq,
-	    - reset when enqueue() adds a tone to tq.
 
-	   Then this function would wait on the semaphore becoming set
-	   by dequeue on emptying. We would avoid multiple calls to
-	   usleep(). */
+	/* Wait until the dequeue indicates it has hit the end of the queue. */
 	int val = 0;
 	do {
-		static const int CW_AUDIO_QUANTUM_LEN_INITIAL = 100;
-		usleep(CW_AUDIO_QUANTUM_LEN_INITIAL);
-		int ret = sem_getvalue(&tq->semaphore, &val);
-		//fprintf(stderr, "---------- waiting for tone queue to drain: %d (len = %d)\n", val, tq->len);
+		fprintf(stderr, "libcw/tq: tone queue semaphore: being waiting\n");
+		sem_wait(&tq->tone_queue_semaphore);
+		fprintf(stderr, "libcw/tq: tone queue semaphore:   end waiting\n");
+
+		int ret = sem_getvalue(&tq->semaphore, &val); /* ACHTUNG: it's tq->semaphore! */
 	} while (val);
+
 #else
 	if (cw_sigalrm_is_blocked_internal()) {
 		/* no point in waiting for event, when signal
@@ -957,6 +937,13 @@ int cw_tq_wait_for_tone_queue_internal(cw_tone_queue_t *tq)
 */
 int cw_tq_wait_for_level_internal(cw_tone_queue_t *tq, uint32_t level)
 {
+#ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
+
+	/* Wait until the queue length is at or below critical level. */
+	while (cw_tq_length_internal(tq) > level) {
+		sem_wait(&tq->level_semaphore);
+	}
+#else
 	if (cw_sigalrm_is_blocked_internal()) {
 		/* no point in waiting for event, when signal
 		   controlling the event is blocked */
@@ -964,11 +951,12 @@ int cw_tq_wait_for_level_internal(cw_tone_queue_t *tq, uint32_t level)
 		return CW_FAILURE;
 	}
 
-	/* Wait until the queue length is at or below criticality. */
+	/* Wait until the queue length is at or below critical level. */
 	while (cw_tq_length_internal(tq) > level) {
 		cw_signal_wait_internal();
 	}
 
+#endif
 	return CW_SUCCESS;
 }
 
@@ -1021,52 +1009,31 @@ void cw_tq_reset_internal(cw_tone_queue_t *tq)
 void cw_tq_flush_internal(cw_tone_queue_t *tq)
 {
 #ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
+
+#if 0
+	fprintf(stderr, "--------------------------------\n");
+	fprintf(stderr, "------------- tq flush ---------\n");
+	fprintf(stderr, "--------------------------------\n");
+#endif
 	pthread_mutex_lock(&(tq->mutex));
 
 	/* Empty and reset the queue. */
 	tq->len = 0;
 	tq->head = tq->tail;
 
-	int val = 0;
-	/*
-	int ret = sem_getvalue(&tq->semaphore, &val);
-	while (val) {
-		sem_wait(&tq->semaphore);
-		val--;
-	}
-	*/
-	do {
-		int ret = sem_getvalue(&tq->semaphore, &val);
-		if (val) {
-			sem_wait(&tq->semaphore);
-		} else {
-			break;
-		}
-	} while (val);
-
-	do {
-		int ret = sem_getvalue(&tq->deq_semaphore, &val);
-		if (val) {
-			sem_wait(&tq->deq_semaphore);
-		} else {
-			break;
-		}
-	} while (val);
-
-	do {
-		int ret = sem_getvalue(&tq->ik_semaphore, &val);
-		if (val) {
-			sem_wait(&tq->ik_semaphore);
-		} else {
-			break;
-		}
-	} while (val);
+	libcw_sem_flush (&tq->semaphore);
+	libcw_sem_flush (&tq->tone_semaphore);
+	libcw_sem_flush (&tq->tone_queue_semaphore);
+	libcw_sem_flush (&tq->level_semaphore);
+	libcw_sem_flush (&tq->ik_semaphore);
 
 	pthread_mutex_unlock(&(tq->mutex));
 
+#if 0
 	/* TODO: is this necessary? We have already reset tq->len and
 	   tq->head, and also flushed semaphore. */
 	cw_tq_wait_for_tone_queue_internal(tq);
+#endif
 
 #else
 	pthread_mutex_lock(&(tq->mutex));
@@ -1834,6 +1801,62 @@ unsigned int test_cw_tq_enqueue_internal_2(void)
 
 	int n = printf("libcw/tq: cw_tq_enqueue_internal():");
 	CW_TEST_PRINT_TEST_RESULT (false, n);
+
+	return 0;
+}
+
+
+
+
+
+/*
+
+  tests::cw_tq_wait_for_level_internal()
+*/
+unsigned int test_cw_tq_wait_for_level_internal(void)
+{
+	int p = fprintf(stdout, "libcw/tq: testing correctness of waiting for level:");
+
+	cw_tone_t tone;
+	CW_TONE_INIT(&tone, 20, 10000, CW_SLOPE_MODE_STANDARD_SLOPES);
+
+	for (int i = 0; i < 10; i++) {
+		cw_gen_t *gen = cw_gen_new_internal(CW_AUDIO_NULL, CW_DEFAULT_NULL_DEVICE);
+		cw_assert (gen, "failed to create a tone queue\n");
+		cw_gen_start_internal(gen);
+
+		/* Test the function for very small values,
+		   but for a bit larger as well. */
+		int level = i <= 5 ? i : 10 * i;
+
+		/* Add a lot of tones to tone queue. "a lot" means three times more than a value of trigger level. */
+		for (int j = 0; j < 3 * level; j++) {
+			int rv = cw_tq_enqueue_internal(gen->tq, &tone);
+			cw_assert (rv, "failed to enqueue tone #%d", j);
+		}
+
+		int rv = cw_tq_wait_for_level_internal(gen->tq, level);
+		cw_assert (rv == CW_SUCCESS, "cw_tq_wait_for_level_internal() failed for level = %d", level);
+
+		size_t len = cw_tq_length_internal(gen->tq);
+
+		/* cw_tq_length_internal() is called after return of
+		   tested function, so 'len' can be smaller by one,
+		   but never larger, than 'level'.
+
+		   During initial tests, for function implemented with
+		   signals and with alternative IPC, diff was always
+		   zero on my primary Linux box. */
+		int diff = level - len;
+		cw_assert (abs(diff) <= 1, "difference is too large: level = %d, len = %zd, diff = %d\n", level, len, diff);
+
+		fprintf(stderr, "          level = %d, len = %zd, diff = %d\n", level, len, diff);
+
+		cw_gen_stop_internal(gen);
+		cw_gen_delete_internal(&gen);
+	}
+
+	CW_TEST_PRINT_TEST_RESULT (false, p);
 
 	return 0;
 }
