@@ -191,6 +191,7 @@ cw_tone_queue_t *cw_tq_new_internal(void)
 #ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
 	sem_init(&tq->semaphore, 0, 0);
 	sem_init(&tq->deq_semaphore, 0, 0);
+	sem_init(&tq->ik_semaphore, 0, 0);
 #endif
 
 	tq->gen = (cw_gen_t *) NULL;
@@ -218,6 +219,7 @@ void cw_tq_delete_internal(cw_tone_queue_t **tq)
 #ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
 	sem_destroy(&((*tq)->semaphore));
 	sem_destroy(&((*tq)->deq_semaphore));
+	sem_destroy(&((*tq)->ik_semaphore));
 #endif
 
 	free(*tq);
@@ -1046,6 +1048,15 @@ void cw_tq_flush_internal(cw_tone_queue_t *tq)
 		int ret = sem_getvalue(&tq->deq_semaphore, &val);
 		if (val) {
 			sem_wait(&tq->deq_semaphore);
+		} else {
+			break;
+		}
+	} while (val);
+
+	do {
+		int ret = sem_getvalue(&tq->ik_semaphore, &val);
+		if (val) {
+			sem_wait(&tq->ik_semaphore);
 		} else {
 			break;
 		}
