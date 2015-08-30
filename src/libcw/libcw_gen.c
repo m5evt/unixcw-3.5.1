@@ -948,8 +948,11 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 		 */
 #ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
 		libcw_sem_post_binary(&gen->tq->deq_semaphore, 1, "libcw/tq:       posting deq_semaphore on dequeue");
-#endif
+		libcw_sem_post_binary(&gen->tq->ik_semaphore, 1, "libcw/tq:       posting iq_semaphore on dequeue");
+#else
+		//fprintf(stderr, "libcw/tq:       sending signal on dequeue, target thread id = %ld\n", gen->client.thread_id);
 		pthread_kill(gen->client.thread_id, SIGALRM);
+#endif
 
 		/* Generator may be used by iambic keyer to measure
 		   periods of time (lengths of Mark and Space) - this
@@ -1003,8 +1006,9 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 	   dequeued, so maybe we shouldn't. On the other hand, there
 	   may be some function waiting for the last post. */
 	libcw_sem_post_binary(&gen->tq->deq_semaphore, 1, "libcw/tq:       posting FINAL deq_semaphore on dequeue");
-#endif
+#else
 	pthread_kill(gen->client.thread_id, SIGALRM);
+#endif
 	gen->thread.running = false;
 	return NULL;
 }
