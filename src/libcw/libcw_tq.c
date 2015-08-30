@@ -190,6 +190,7 @@ cw_tone_queue_t *cw_tq_new_internal(void)
 
 #ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
 	sem_init(&tq->semaphore, 0, 0);
+	sem_init(&tq->deq_semaphore, 0, 0);
 #endif
 
 	tq->gen = (cw_gen_t *) NULL;
@@ -216,6 +217,7 @@ void cw_tq_delete_internal(cw_tone_queue_t **tq)
 
 #ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
 	sem_destroy(&((*tq)->semaphore));
+	sem_destroy(&((*tq)->deq_semaphore));
 #endif
 
 	free(*tq);
@@ -748,10 +750,10 @@ int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 
 #ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
 #if 1
-	/* Producer. */
-	libcw_sem_printvalue(&tq->semaphore, tq->len, "libcw/tq/producer: before posting");
-	sem_post(&tq->semaphore);
-	libcw_sem_printvalue(&tq->semaphore, tq->len, "libcw/tq/producer:  after posting");
+		/* Producer. */
+		libcw_sem_printvalue(&tq->semaphore, tq->len, "libcw/tq/producer: before posting");
+		sem_post(&tq->semaphore);
+		libcw_sem_printvalue(&tq->semaphore, tq->len, "libcw/tq/producer:  after posting");
 #endif
 #endif
 	}
@@ -840,12 +842,10 @@ bool cw_tq_is_busy_internal(cw_tone_queue_t *tq)
 int cw_tq_wait_for_tone_internal(cw_tone_queue_t *tq)
 {
 #ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
+
+#if 0
 	/* FIXME: improve this section of code. */
-
-
 	static const int CW_AUDIO_QUANTUM_LEN_INITIAL = 100;
-	int val = 1;
-
 	/* Wait for the head index to change or the dequeue to go idle. */
 	/*
 	uint32_t check_tq_head = tq->head;
@@ -856,6 +856,13 @@ int cw_tq_wait_for_tone_internal(cw_tone_queue_t *tq)
 	*/
 	//fprintf(stderr, "---------- %d --- %d\n", check_tq_head, tq->head);
 	usleep(CW_AUDIO_QUANTUM_LEN_INITIAL);
+#else
+	//fprintf(stderr, "libcw/tq: waiting for deq_semaphore\n");
+	sem_wait(&tq->deq_semaphore);
+	//fprintf(stderr, "libcw/tq: got deq_semaphore\n");
+#endif
+
+
 #else
 
 	if (cw_sigalrm_is_blocked_internal()) {
@@ -1030,6 +1037,15 @@ void cw_tq_flush_internal(cw_tone_queue_t *tq)
 		int ret = sem_getvalue(&tq->semaphore, &val);
 		if (val) {
 			sem_wait(&tq->semaphore);
+		} else {
+			break;
+		}
+	} while (val);
+
+	do {
+		int ret = sem_getvalue(&tq->deq_semaphore, &val);
+		if (val) {
+			sem_wait(&tq->deq_semaphore);
 		} else {
 			break;
 		}
