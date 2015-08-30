@@ -10,9 +10,18 @@
 	alternative IPC mechanism (the function doesn't need signals
 	anymore).
 
-	* libcw/ipc: Adding new header file for new libcw module:
+	* libcw/ipc: adding new header file for new libcw module:
 	libcw_ipc (Inter Process Communcation). For now the module
 	consists only of a header file with a single macro.
+
+	* libcw/ipc: implementing cw_tq_wait_for_level_internal() using
+	semaphores. Improving the part of
+	cw_tq_wait_for_tone_queue_internal that used semaphores. This
+	means that tq module can work without signals, with semaphores
+	only.
+
+	* libcw/tests: adding test_cw_tq_wait_for_level_internal() unit
+	test function
 
 2015-08-28 Kamil Ignacak
 	* libcw/signals: Initial commit of semaphores code. The code
