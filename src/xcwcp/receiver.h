@@ -51,12 +51,15 @@ class Receiver {
 	void poll(const Mode *current_mode);
 
 	// Keypress event handler.
-	void handle_key_event(QKeyEvent *event, const Mode *current_mode,
-			      bool is_reverse_paddles);
+	void handle_key_event(QKeyEvent *event, bool is_reverse_paddles);
 
 	// Mouse button press event handler.
-	void handle_mouse_event(QMouseEvent *event, const Mode *current_mode,
-				bool is_reverse_paddles);
+	void handle_mouse_event(QMouseEvent *event, bool is_reverse_paddles);
+
+	/* Straight key and iambic keyer event handler helpers. */
+	void sk_event(bool is_down);
+	void ik_left_event(bool is_down, bool is_reverse_paddles);
+	void ik_right_event(bool is_down, bool is_reverse_paddles);
 
 	// CW library keying event handler.
 	void handle_libcw_keying_event(struct timeval *t, int key_state);
