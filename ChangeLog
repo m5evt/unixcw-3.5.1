@@ -1,3 +1,7 @@
+2015-08-31 Kamil Ignacak
+	* xcwcp: beginning of review of the the code, refactoring,
+	updating comments.
+
 2015-08-30 Kamil Ignacak
 	* libcw/signals: improving signals code already existing in cw_gen
 	and cw_tq modules. In particular change in cw_gen (in
