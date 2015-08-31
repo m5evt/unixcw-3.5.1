@@ -74,37 +74,42 @@ void Sender::poll(const Mode *current_mode)
 
 
 
-// handle_key_event()
-//
-// Specific handler for keyboard mode_key events.  Handles presses only;
-// releases are ignored.
-void Sender::handle_key_event(QKeyEvent *event, const Mode *current_mode)
-{
-	if (!current_mode->is_keyboard()) {
-		return;
-	}
+/**
+   \brief Handle keys entered in main window in keyboard mode
 
+   If key is playable, the function enqueues the key for playing and
+   accepts the key event \p event.
+
+   If key event is not playable (e.g. Tab characters), the event is
+   not accepted.
+
+   Function handles only key presses. Key releases are ignored.
+
+   Call the function only when keyboard mode is active.
+
+   \param event - key event in main window to handle
+*/
+void Sender::handle_key_event(QKeyEvent *event)
+{
 	if (event->type() == QEvent::KeyPress) {
 
 		if (event->key() == Qt::Key_Backspace) {
 
-			// Remove the last queued character, or at
-			// least try, and we are done.
+			/* Remove the last queued character, or at
+			   least try, and we are done. */
+			/* FIXME: this doesn't work. */
 			delete_character();
 			event->accept();
 		} else {
-			// Extract the ASCII keycode from the key
-			// event, and queue the character for sending,
-			// converted to uppercase.
+			/* Enqueue and accept only valid characters. */
 			const char *c = event->text().toAscii().data();
-			enqueue_string(c);
+			fprintf(stderr, "---------- handle_key_event(): '%s'\n", c);
 
-			// Accept the event if the character was
-			// sendable.  If not, it won't have queued,
-			// and so by ignoring it we can let characters
-			// such as Tab pass up to the parent.
-			if (cw_character_is_valid(toupper(c[0]))) {
+			if (cw_character_is_valid(c[0])) {
+				enqueue_string(c);
 				event->accept();
+			} else {
+				fprintf(stderr, "---------- handle_key_event(): invalid character '%s'\n", c);
 			}
 		}
 	}
