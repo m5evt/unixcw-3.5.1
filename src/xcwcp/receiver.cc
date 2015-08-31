@@ -84,24 +84,25 @@ void Receiver::poll(const Mode *current_mode)
 
 
 
-// handle_key_event()
-//
-// Specific handler for receive mode key events.  Handles both press and
-// release events, but ignores autorepeat.
-void Receiver::handle_key_event(QKeyEvent *event, const Mode *current_mode,
-				bool is_reverse_paddles)
-{
-	if (!current_mode->is_receive()) {
-		return;
-	}
+/**
+   \brief Handle keys entered in main window in receiver mode
 
+   Function handles both press and release events, but ignores
+   autorepeat.
+
+   Call the function only when receiver mode is active.
+
+   \param event - key event in main window to handle
+   \param is_reverse_paddles
+*/
+void Receiver::handle_key_event(QKeyEvent *event, bool is_reverse_paddles)
+{
 	//fprintf(stderr, "\n\n");
 
-	// If this is a key press that is not the first one of an
-	// autorepeating key, ignore the event.  This prevents
-	// autorepeat from getting in the way of identifying the real
-	// keyboard events we are after.
 	if (event->isAutoRepeat()) {
+		/* Ignore repeated key events.  This prevents
+		   autorepeat from getting in the way of identifying
+		   the real keyboard events we are after. */
 		return;
 	}
 
@@ -116,95 +117,23 @@ void Receiver::handle_key_event(QKeyEvent *event, const Mode *current_mode,
 		    || event->key() == Qt::Key_Enter
 		    || event->key() == Qt::Key_Return) {
 
-			// These keys are obvious candidates for
-			// "straight key" key.
+			/* These keys are obvious candidates for
+			   "straight key" key. */
 
-			// Prepare timestamp for libcw on both "key
-			// up" and "key down" events. There is no code
-			// in libcw that would generate updated
-			// consecutive timestamps for us (as it does
-			// in case of iambic keyer).
-			gettimeofday(&timer, NULL);
-			//fprintf(stderr, "time on Skey down:  %10ld : %10ld\n", timer.tv_sec, timer.tv_usec);
-
-			cw_notify_straight_key_event(is_down);
-
+			fprintf(stderr, "---------- handle key event: sk: %d\n", is_down);
+			sk_event(is_down);
 			event->accept();
 
 		} else if (event->key() == Qt::Key_Left) {
-
-			// Notice that keyboard keys that are
-			// recognized as iambic keyer paddles, and
-			// left/right mouse buttons that are also
-			// treated as iambic keyer paddles, are
-			// handled by basically the same code. I was
-			// thinking about putting the common code in
-			// function, but I didn't do it because of
-			// performance (whether I'm right here or
-			// wrong that's another thing).
-
-			is_left_down = is_down;
-			if (is_left_down && !is_right_down) {
-				// Prepare timestamp for libcw, but
-				// only for initial "paddle down"
-				// event at the beginning of
-				// character. Don't create the
-				// timestamp for any successive
-				// "paddle down" events inside a
-				// character.
-				//
-				// In case of iambic keyer the
-				// timestamps for every next
-				// (non-initial) "paddle up" or
-				// "paddle down" event in a character
-				// will be created by libcw.
-				gettimeofday(&timer, NULL);
-				//fprintf(stderr, "time on Lkey down:  %10ld : %10ld\n", timer.tv_sec, timer.tv_usec);
-			}
-
-			// Inform libcw about state of left paddle
-			// regardless of state of the other paddle.
-			is_reverse_paddles
-				? cw_notify_keyer_dash_paddle_event(is_down)
-				: cw_notify_keyer_dot_paddle_event(is_down);
-
+			ik_left_event(is_down, is_reverse_paddles);
 			event->accept();
 
 		} else if (event->key() == Qt::Key_Right) {
-
-			is_right_down = is_down;
-			if (is_right_down && !is_left_down) {
-				// Prepare timestamp for libcw, but
-				// only for initial "paddle down"
-				// event at the beginning of
-				// character. Don't create the
-				// timestamp for any successive
-				// "paddle down" events inside a
-				// character.
-				//
-				// In case of iambic keyer the
-				// timestamps for every next
-				// (non-initial) "paddle up" or
-				// "paddle down" event in a character
-				// will be created by libcw.
-				gettimeofday(&timer, NULL);
-				//fprintf(stderr, "time on Rkey down:  %10ld : %10ld\n", timer.tv_sec, timer.tv_usec);
-			}
-
-			// If this is the RightArrow key, use as the
-			// other one of the paddles.
-
-			// Inform libcw about state of left paddle
-			// regardless of state of the other paddle.
-			is_reverse_paddles
-				? cw_notify_keyer_dot_paddle_event(is_down)
-				: cw_notify_keyer_dash_paddle_event(is_down);
-
+			ik_right_event(is_down, is_reverse_paddles);
 			event->accept();
 
 		} else {
-			// Some other, uninteresting key. Ignore it.
-			;
+			; /* Some other, uninteresting key. Ignore it. */
 		}
 	}
 
@@ -215,19 +144,21 @@ void Receiver::handle_key_event(QKeyEvent *event, const Mode *current_mode,
 
 
 
-// handle_mouse_event()
-//
-// Specific handler for receive mode key events.  Handles button press and
-// release events, folds doubleclick into press, and ignores mouse moves.
-void Receiver::handle_mouse_event(QMouseEvent *event, const Mode *current_mode,
-				  bool is_reverse_paddles)
+/**
+   \brief Handle mouse events
+
+   The function looks at mouse button events and interprets them as
+   one of: left iambic key event, right iambic key event, straight key
+   event.
+
+   Call the function only when receiver mode is active.
+
+   \param event - mouse event to handle
+   \param is_reverse_paddles
+*/
+void Receiver::handle_mouse_event(QMouseEvent *event, bool is_reverse_paddles)
 {
-	if (!current_mode->is_receive()) {
-		return;
-	}
-
 	//fprintf(stderr, "\n\n");
-
 
 	if (event->type() == QEvent::MouseButtonPress
 	    || event->type() == QEvent::MouseButtonDblClick
@@ -236,95 +167,125 @@ void Receiver::handle_mouse_event(QMouseEvent *event, const Mode *current_mode,
 		const int is_down = event->type() == QEvent::MouseButtonPress
 			|| event->type() == QEvent::MouseButtonDblClick;
 
-		// If this is the Middle button, use as a straight key.
 		if (event->button() == Qt::MidButton) {
-
-			// Prepare timestamp for libcw on both "key
-			// up" and "key down" events. There is no code
-			// in libcw that would generate updated
-			// consecutive timestamps for us (as it does
-			// in case of iambic keyer).
-			gettimeofday(&timer, NULL);
-			//fprintf(stderr, "time on Skey down:  %10ld : %10ld\n", timer.tv_sec, timer.tv_usec);
-
-			cw_notify_straight_key_event(is_down);
-
+			fprintf(stderr, "---------- handle mouse event: sk: %d\n", is_down);
+			sk_event(is_down);
 			event->accept();
 
 		} else if (event->button() == Qt::LeftButton) {
-
-			// Notice that keyboard keys that are
-			// recognized as iambic keyer paddles, and
-			// left/right mouse buttons that are also
-			// treated as iambic keyer paddles, are
-			// handled by basically the same code. I was
-			// thinking about putting the common code in
-			// function, but I didn't do it because of
-			// performance (whether I'm right here or
-			// wrong that's another thing).
-
-			is_left_down = is_down;
-			if (is_left_down && !is_right_down) {
-				// Prepare timestamp for libcw, but
-				// only for initial "paddle down"
-				// event at the beginning of
-				// character. Don't create the
-				// timestamp for any successive
-				// "paddle down" events inside a
-				// character.
-				//
-				// In case of iambic keyer the
-				// timestamps for every next
-				// (non-initial) "paddle up" or
-				// "paddle down" event in a character
-				// will be created by libcw.
-				gettimeofday(&timer, NULL);
-				//fprintf(stderr, "time on Lkey down:  %10ld : %10ld\n", timer.tv_sec, timer.tv_usec);
-			}
-
-			// Inform libcw about state of left paddle
-			// regardless of state of the other paddle.
-			is_reverse_paddles
-				? cw_notify_keyer_dash_paddle_event(is_down)
-				: cw_notify_keyer_dot_paddle_event(is_down);
-
+			ik_left_event(is_down, is_reverse_paddles);
 			event->accept();
 
 		} else if (event->button() == Qt::RightButton) {
-
-			is_right_down = is_down;
-			if (is_right_down && !is_left_down) {
-				// Prepare timestamp for libcw, but
-				// only for initial "paddle down"
-				// event at the beginning of
-				// character. Don't create the
-				// timestamp for any successive
-				// "paddle down" events inside a
-				// character.
-				//
-				// In case of iambic keyer the
-				// timestamps for every next
-				// (non-initial) "paddle up" or
-				// "paddle down" event in a character
-				// will be created by libcw.
-				gettimeofday(&timer, NULL);
-				//fprintf(stderr, "time on Rkey down:  %10ld : %10ld\n", timer.tv_sec, timer.tv_usec);
-			}
-
-			// Inform libcw about state of right paddle
-			// regardless of state of the other paddle.
-			is_reverse_paddles
-				? cw_notify_keyer_dot_paddle_event(is_down)
-				: cw_notify_keyer_dash_paddle_event(is_down);
-
+			ik_right_event(is_down, is_reverse_paddles);
 			event->accept();
 
 		} else {
-			// Some other mouse button, or mouse cursor
-			// movement. Ignore it.
-			;
+			; /* Some other mouse button, or mouse cursor
+			     movement. Ignore it. */
 		}
 	}
+
+	return;
+}
+
+
+
+
+
+/**
+   \brief Handle straight key event
+
+   \param is_down
+*/
+void Receiver::sk_event(bool is_down)
+{
+	/* Prepare timestamp for libcw on both "key up" and "key down"
+	   events. There is no code in libcw that would generate
+	   updated consecutive timestamps for us (as it does in case
+	   of iambic keyer).
+
+	   TODO: see in libcw how iambic keyer updates a timer, and
+	   how straight key does not. Apparently the timer is used to
+	   recognize and distinguish dots from dashes. Maybe straight
+	   key could have such timer as well? */
+	gettimeofday(&timer, NULL);
+	//fprintf(stderr, "time on Skey down:  %10ld : %10ld\n", timer.tv_sec, timer.tv_usec);
+
+	cw_notify_straight_key_event(is_down);
+
+	return;
+}
+
+
+
+
+
+/**
+   \brief Handle event on left paddle of iambic keyer
+
+   \param is_down
+   \param is_reverse_paddles
+*/
+void Receiver::ik_left_event(bool is_down, bool is_reverse_paddles)
+{
+	is_left_down = is_down;
+	if (is_left_down && !is_right_down) {
+		/* Prepare timestamp for libcw, but only for initial
+		   "paddle down" event at the beginning of
+		   character. Don't create the timestamp for any
+		   successive "paddle down" events inside a character.
+
+		   In case of iambic keyer the timestamps for every
+		   next (non-initial) "paddle up" or "paddle down"
+		   event in a character will be created by libcw.
+
+		   TODO: why libcw can't create such timestamp for
+		   first event for us? */
+		gettimeofday(&timer, NULL);
+		//fprintf(stderr, "time on Lkey down:  %10ld : %10ld\n", timer.tv_sec, timer.tv_usec);
+	}
+
+	/* Inform libcw about state of left paddle regardless of state
+	   of the other paddle. */
+	is_reverse_paddles
+		? cw_notify_keyer_dash_paddle_event(is_down)
+		: cw_notify_keyer_dot_paddle_event(is_down);
+
+	return;
+}
+
+
+
+
+
+/**
+   \brief Handle event on right paddle of iambic keyer
+
+   \param is_down
+   \param is_reverse_paddles
+*/
+void Receiver::ik_right_event(bool is_down, bool is_reverse_paddles)
+{
+	is_right_down = is_down;
+	if (is_right_down && !is_left_down) {
+		/* Prepare timestamp for libcw, but only for initial
+		   "paddle down" event at the beginning of
+		   character. Don't create the timestamp for any
+		   successive "paddle down" events inside a character.
+
+		   In case of iambic keyer the timestamps for every
+		   next (non-initial) "paddle up" or "paddle down"
+		   event in a character will be created by libcw. */
+		gettimeofday(&timer, NULL);
+		//fprintf(stderr, "time on Rkey down:  %10ld : %10ld\n", timer.tv_sec, timer.tv_usec);
+	}
+
+	/* Inform libcw about state of left paddle regardless of state
+	   of the other paddle. */
+	is_reverse_paddles
+		? cw_notify_keyer_dot_paddle_event(is_down)
+		: cw_notify_keyer_dash_paddle_event(is_down);
 
 	return;
 }
