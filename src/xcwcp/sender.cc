@@ -57,13 +57,13 @@ void Sender::poll(const Mode *current_mode)
 			// the queue is empty.  In keyboard mode, just
 			// dequeue anything currently on the character
 			// queue.
-			if (current_mode->is_dictionary() && send_queue_.empty()) {
+			if (current_mode->is_dictionary() && queue.empty()) {
 				const DictionaryMode *dict_mode = current_mode->is_dictionary();
 				enqueue_string(std::string(1, ' ')
 					       + dict_mode->get_random_word_group());
 			}
 
-			dequeue_character();
+			dequeue_and_play_character();
 		}
 	}
 
@@ -121,14 +121,16 @@ void Sender::handle_key_event(QKeyEvent *event)
 
 
 
-// clear()
-//
-// Flush the tone queue, empty the character queue, and set to idle.
+/**
+   \brief Clear sender state
+
+   Flush libcw tone queue, empty the character queue, and set state to idle.
+*/
 void Sender::clear()
 {
 	cw_flush_tone_queue();
-	send_queue_.clear();
-	is_queue_idle_ = true;
+	queue.clear();
+	is_queue_idle = true;
 
 	return;
 }
@@ -137,36 +139,40 @@ void Sender::clear()
 
 
 
-// dequeue_character()
-//
-// Called when the CW send buffer is empty.  If the queue is not idle, take
-// the next character from the queue and send it.  If there are no more queued
-// characters, set the queue to idle.
-void Sender::dequeue_character()
+/**
+   \brief Get next character from character queue and play it
+
+   Called when the CW send buffer is empty.  If the queue is not idle,
+   take the next character from the queue and play it.  If there are
+   no more queued characters, set the queue to idle.
+*/
+void Sender::dequeue_and_play_character()
 {
-	if (is_queue_idle_) {
+	if (is_queue_idle) {
 		return;
 	}
 
-	if (send_queue_.empty()) {
-		is_queue_idle_ = true;
+	if (queue.empty()) {
+		is_queue_idle = true;
 		display_->clear_status();
 		return;
 	}
 
-	// Take the next character off the queue and send it.  We don't
-	// expect sending to fail as only sendable characters are queued.
-	const char c = toupper(send_queue_.front());
-	send_queue_.pop_front();
+	/* Take the next character off the queue and play it.  We
+	   don't expect playing to fail as only valid characters are
+	   queued. */
+	const char c = queue.front();
+	queue.pop_front();
 	if (!cw_send_character(c)) {
 		perror("cw_send_character");
+		/* TODO: don't call abort(). */
 		abort();
 	}
 
-	// Update the status bar with the character being sent.
-	// Put the sent char at the end to avoid "jumping" of whole
-	// string when width of glyph of sent char changes at variable
-	// font width.
+	/* Update the status bar with the character being played.  Put
+	   the played char at the end to avoid "jumping" of whole
+	   string when width of glyph of played char changes at
+	   variable font width. */
 	QString status = _("Sending at %1 WPM: '%2'");
 	display_->show_status(status.arg(cw_get_send_speed()).arg(c));
 
@@ -177,31 +183,26 @@ void Sender::dequeue_character()
 
 
 
-// enqueue_string()
-//
-// Queues a string for sending by the CW sender.  Rejects any unsendable
-// characters found in the string.  Rejection is silent.
-void Sender::enqueue_string(const std::string &word)
-{
-	bool is_queue_notify = false;
+/**
+   \brief Enqueue a string in player's queue
 
-	// Add each character, and note if we need to change from idle.
-	for (unsigned int i = 0; i < word.size(); i++) {
-		const char c = toupper(word[i]);
+   Only valid characters from the \p s are enqueued. Invalid
+   characters are discarded and no error is reported. Function does
+   not perform validation of \p s before trying to enqueue it.
+
+   \param s - string to be enqueued
+*/
+void Sender::enqueue_string(const std::string &s)
+{
+	for (unsigned int i = 0; i < s.size(); i++) {
+		const char c = s[i];
 
 		if (cw_character_is_valid(c)) {
-			send_queue_.push_back(c);
+			queue.push_back(c);
 			display_->append(c);
 
-			if (is_queue_idle_) {
-				is_queue_notify = true;
-			}
+			is_queue_idle = false;
 		}
-	}
-
-	// If we queued any character, mark the queue as not idle.
-	if (is_queue_notify) {
-		is_queue_idle_ = false;
 	}
 
 	return;
@@ -211,15 +212,18 @@ void Sender::enqueue_string(const std::string &word)
 
 
 
-// delete_character()
-//
-// Remove the most recently added character from the queue, provided that
-// the dequeue hasn't yet reached it.  If there's nothing available to
-// delete, fail silently.
+/**
+   \brief Delete last character from queue
+
+   Remove the most recently added character from the queue, provided that
+   the dequeue hasn't yet reached it.  If there's nothing available to
+   delete, don't report errors.
+*/
 void Sender::delete_character()
 {
-	if (!send_queue_.empty()) {
-		send_queue_.pop_back();
+
+	if (!queue.empty()) {
+		queue.pop_back();
 		display_->backspace();
 	}
 
