@@ -42,7 +42,7 @@ class Mode;
 class Sender {
  public:
 	Sender (Display *display)
-		: display_ (display), is_queue_idle_ (true) { }
+		: display_ (display), is_queue_idle (true) { }
 
 	// Poll timeout handler, and keypress event handler.
 	void poll(const Mode *current_mode);
@@ -57,10 +57,10 @@ class Sender {
 
 	// Deque and queue manipulation functions, used to handle and
 	// maintain the buffer of characters awaiting libcw send.
-	bool is_queue_idle_;
-	std::deque<char> send_queue_;
+	bool is_queue_idle;
+	std::deque<char> queue;
 
-	void dequeue_character();
+	void dequeue_and_play_character();
 	void enqueue_string(const std::string &word);
 	void delete_character();
 
