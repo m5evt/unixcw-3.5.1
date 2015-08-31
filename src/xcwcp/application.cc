@@ -675,29 +675,44 @@ void Application::poll_timer_event()
 
 
 
-// key_event()
-//
-// Handle a key press event from the display widget.
+/**
+   \brief Handle key event from a keyboard
+
+   Handle keys pressed in main area of application.  Depending on
+   application mode (keyboard mode / receiver mode) the keys are
+   dispatched to appropriate handler.
+
+   \param event - keyboard event
+*/
 void Application::key_event(QKeyEvent *event)
 {
 	event->ignore();
+#if 0
+	/* Special case Alt-M as a way to acquire focus in the mode
+	   combo widget.  This was a workaround applied to earlier
+	   releases, no longer required now that events are propagated
+	   correctly to the parent.
 
-	// Special case Alt-M as a way to acquire focus in the mode
-	// combo widget.  This was a workaround applied to earlier
-	// releases, no longer required now that events are propagated
-	// correctly to the parent.
-	//if (event->state () & AltButton && event->key () == Qt::Key_M)
-	//  {
-	//    mode_combo_->setFocus ();
-	//    event->accept ();
-	//    return;
-	//  }
+	   This section has been disabled long before 2015-08-31. */
 
-	// Pass the key event to the sender and the receiver.
+	if (event->state() & AltButton && event->key() == Qt::Key_M) {
+		mode_combo_->setFocus();
+		event->accept();
+		return;
+	}
+#endif
+
 	if (is_using_libcw_) {
-		sender_->handle_key_event(event, modeset_.get_current());
-		receiver_->handle_key_event(event, modeset_.get_current(),
-					     reverse_paddles_->isChecked());
+		if (modeset_.get_current()->is_keyboard()) {
+			fprintf(stderr, "---------- key event: keyboard mode\n");
+			sender_->handle_key_event(event);
+		} else if (modeset_.get_current()->is_receive()) {
+			fprintf(stderr, "---------- key event: receiver mode mode\n");
+			receiver_->handle_key_event(event, reverse_paddles_->isChecked());
+		} else {
+			;
+		}
+		return;
 	}
 
 	return;
@@ -707,17 +722,26 @@ void Application::key_event(QKeyEvent *event)
 
 
 
-// mouse_event()
-//
-// Handle a mouse event from the display widget.
+/**
+   \brief Handle button event from a mouse
+
+   Handle button presses made in main area of application.  If
+   application mode is receiver mode, the events will be passed to
+   handle by receiver.
+
+   \param event - mouse button event
+*/
 void Application::mouse_event(QMouseEvent *event)
 {
 	event->ignore();
 
-	// Pass the mouse event to the receiver.  The sender isn't interested.
+	/* Pass the mouse event only to the receiver.  The sender
+	   isn't interested. */
 	if (is_using_libcw_) {
-		receiver_->handle_mouse_event(event, modeset_.get_current(),
-					      reverse_paddles_->isChecked());
+		if (modeset_.get_current()->is_receive()) {
+			fprintf(stderr, "---------- mouse event: receiver mode\n");
+			receiver_->handle_mouse_event(event, reverse_paddles_->isChecked());
+		}
 	}
 
 	return;
