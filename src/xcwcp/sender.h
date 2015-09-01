@@ -36,13 +36,13 @@
 
 namespace cw {
 
-class Display;
+class TextArea;
 class Mode;
 
 class Sender {
  public:
-	Sender (Display *display)
-		: display_ (display), is_queue_idle (true) { }
+	Sender(TextArea *t)
+		: textarea(t), is_queue_idle(true) { }
 
 	// Poll timeout handler, and keypress event handler.
 	void poll(const Mode *current_mode);
@@ -53,7 +53,7 @@ class Sender {
 
  private:
 	// Display used for output.
-	Display *display_;
+	TextArea *textarea;
 
 	// Deque and queue manipulation functions, used to handle and
 	// maintain the buffer of characters awaiting libcw send.

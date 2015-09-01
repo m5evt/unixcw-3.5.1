@@ -34,13 +34,13 @@
 
 namespace cw {
 
-class Display;
+class TextArea;
 class Mode;
 
 class Receiver {
  public:
-	Receiver (Display *display)
-		: display_ (display),
+	Receiver(TextArea *t) :
+		textarea (t),
 		is_pending_inter_word_space_ (false),
 		libcw_receive_errno_ (0),
 		tracked_key_state_ (false),
@@ -78,7 +78,7 @@ class Receiver {
 
  private:
 	// Display used for output.
-	Display *display_;
+	TextArea *textarea;
 
 	// Flag indicating if receive polling has received a character, and may need
 	// to augment it with a word space on a later poll.
