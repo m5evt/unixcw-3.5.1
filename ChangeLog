@@ -1,3 +1,12 @@
+2015-09-01 Kamil Ignacak
+	* xcwcp: simplifying class design in display.h. The file is now
+	called textarea.h, the class/widget derived from QTextEdit is now
+	called TextArea, and the change is reflected in few of xcwcp's
+	source files.
+
+	I hope to have less work in future thanks to this simplification.
+	A bit less code to maintain, a bit less logic to understand.
+
 2015-08-31 Kamil Ignacak
 	* xcwcp: beginning of review of the the code, refactoring,
 	updating comments.
@@ -15,7 +24,7 @@
 	anymore).
 
 	* libcw/ipc: adding new header file for new libcw module:
-	libcw_ipc (Inter Process Communcation). For now the module
+	libcw_ipc (Inter Process Communication). For now the module
 	consists only of a header file with a single macro.
 
 	* libcw/ipc: implementing cw_tq_wait_for_level_internal() using
