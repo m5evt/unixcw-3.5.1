@@ -26,7 +26,7 @@
 
 
 #include "sender.h"
-#include "display.h"
+#include "textarea.h"
 #include "modeset.h"
 
 #include "libcw.h"

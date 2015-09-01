@@ -27,7 +27,7 @@
 
 #include <string>
 
-#include "display.h"
+#include "textarea.h"
 #include "application.h"
 
 #include "i18n.h"

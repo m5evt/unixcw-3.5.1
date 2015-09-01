@@ -50,7 +50,7 @@
 #include "application.h"
 #include "sender.h"
 #include "receiver.h"
-#include "display.h"
+#include "textarea.h"
 #include "modeset.h"
 #include "cw_common.h"
 
