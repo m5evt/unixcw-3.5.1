@@ -40,9 +40,9 @@
 
 namespace cw {
 
-class Display;
 class Sender;
 class Receiver;
+class TextArea;
 
 class Application : public QMainWindow
 {
@@ -118,7 +118,7 @@ class Application : public QMainWindow
 	QMenu *help_;
 	QAction *about_;
 
-	Display *display_;
+	TextArea *textarea;
 
 	int file_synchronize_speed_id_;
 	int file_start_id_;
