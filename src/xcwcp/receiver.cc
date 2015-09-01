@@ -402,7 +402,7 @@ void Receiver::clear()
 void Receiver::poll_report_receive_error()
 {
 	// Handle any receive errors detected on tone end but delayed until here.
-	display_->show_status(libcw_receive_errno_ == ENOENT
+	textarea->show_status(libcw_receive_errno_ == ENOENT
 			      ? _("Badly formed CW element")
 			      : _("Receive buffer overrun"));
 
@@ -435,7 +435,7 @@ void Receiver::poll_receive_character()
 	if (cw_receive_character(&timer2, &c, NULL, NULL)) {
 		// Receiver stores full, well formed
 		// character. Display it.
-		display_->append(c);
+		textarea->append(c);
 
 		// A full character has been received. Directly after
 		// it comes a space. Eiter a short inter-character
@@ -454,7 +454,7 @@ void Receiver::poll_receive_character()
 		// width of glyph of received char changes at variable
 		// font width.
 		QString status = _("Received at %1 WPM: '%2'");
-		display_->show_status(status.arg(cw_get_receive_speed()).arg(c));
+		textarea->show_status(status.arg(cw_get_receive_speed()).arg(c));
 		//fprintf(stderr, "Received character '%c'\n", c);
 
 	} else {
@@ -475,10 +475,10 @@ void Receiver::poll_receive_character()
 			// Invalid character in receiver's buffer.
 			{	// New scope to avoid gcc 3.2.2 internal compiler error
 				cw_clear_receive_buffer();
-				display_->append('?');
+				textarea->append('?');
 
 				QString status = _("Unknown character received at %1 WPM");
-				display_->show_status(status.arg(cw_get_receive_speed()));
+				textarea->show_status(status.arg(cw_get_receive_speed()));
 			}
 			break;
 
@@ -520,7 +520,7 @@ void Receiver::poll_receive_space()
 	cw_receive_character(&timer2, NULL, &is_end_of_word, NULL);
 	if (is_end_of_word) {
 		//fprintf(stderr, "End of word\n\n");
-		display_->append(' ');
+		textarea->append(' ');
 		cw_clear_receive_buffer();
 		is_pending_inter_word_space_ = false;
 	} else {

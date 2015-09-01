@@ -154,7 +154,7 @@ void Sender::dequeue_and_play_character()
 
 	if (queue.empty()) {
 		is_queue_idle = true;
-		display_->clear_status();
+		textarea->clear_status();
 		return;
 	}
 
@@ -174,7 +174,7 @@ void Sender::dequeue_and_play_character()
 	   string when width of glyph of played char changes at
 	   variable font width. */
 	QString status = _("Sending at %1 WPM: '%2'");
-	display_->show_status(status.arg(cw_get_send_speed()).arg(c));
+	textarea->show_status(status.arg(cw_get_send_speed()).arg(c));
 
 	return;
 }
@@ -199,7 +199,7 @@ void Sender::enqueue_string(const std::string &s)
 
 		if (cw_character_is_valid(c)) {
 			queue.push_back(c);
-			display_->append(c);
+			textarea->append(c);
 
 			is_queue_idle = false;
 		}
@@ -224,7 +224,7 @@ void Sender::delete_character()
 
 	if (!queue.empty()) {
 		queue.pop_back();
-		display_->backspace();
+		textarea->backspace();
 	}
 
 	return;
