@@ -319,7 +319,7 @@ void Application::start()
 	//startstop_button_->setDown(true);
 	play_ = true;
 
-	display_->clear_status();
+	textarea->clear_status();
 
 	// Start the poll timer.  At 60WPM, a dot is 20ms, so polling for the
 	// maximum library speed needs a 10ms timeout.
@@ -369,7 +369,7 @@ void Application::stop()
 	//startstop_button_->setDown(false);
 	play_ = false;
 
-	display_->show_status(_("Ready"));
+	textarea->show_status(_("Ready"));
 
 	return;
 }
@@ -399,7 +399,7 @@ void Application::new_instance()
 // Clears the display window of this Xcwcp instance.
 void Application::clear()
 {
-	display_->clear();
+	textarea->clear();
 
 	return;
 }
@@ -528,7 +528,7 @@ void Application::mode_change()
 	// otherwise.  And for tidiness, clear the display.
 	if (!new_mode->is_same_type_as(modeset_.get_current())) {
 		sync_speed_->setEnabled(new_mode->is_receive());
-		display_->clear();
+		textarea->clear();
 	}
 
 	// If the mode changed while we're busy, clear the sender and receiver.
@@ -618,7 +618,7 @@ void Application::fonts()
 
 	QFont font = QFontDialog::getFont(&status, this);
 	if (status) {
-		QWidget *display_widget = display_->get_widget();
+		QWidget *display_widget = textarea->get_widget();
 		display_widget->setFont(font);
 	}
 
@@ -636,7 +636,7 @@ void Application::colors()
 {
 	QColor color = QColorDialog::getColor();
 	if (color.isValid()) {
-		QWidget *display_widget = display_->get_widget();
+		QWidget *display_widget = textarea->get_widget();
 
 		QPalette palette;
 		palette.setColor(QPalette::Text, color);
@@ -1038,7 +1038,7 @@ void Application::make_help_menu(void)
 void Application::make_central_widget(void)
 {
 	// this constructor calls setCentralWidget()
-	display_ = new Display(this, this->parentWidget());
+	textarea = new TextArea(this, this->parentWidget());
 
 	return;
 }
@@ -1071,8 +1071,8 @@ void Application::make_auxiliaries_begin(void)
 void Application::make_auxiliaries_end(void)
 {
 	// Create a sender and a receiver.
-	sender_ = new Sender(display_);
-	receiver_ = new Receiver(display_);
+	sender_ = new Sender(textarea);
+	receiver_ = new Receiver(textarea);
 
 	// Register class handler as the CW library keying event callback. It's
 	// important here that we register the static handler, since once we have
