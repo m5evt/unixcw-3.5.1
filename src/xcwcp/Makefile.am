@@ -28,7 +28,7 @@ bin_PROGRAMS = xcwcp
 xcwcp_SOURCES = \
 	application.cc application.h \
 	moc_application.cc \
-	display.cc display.h \
+	textarea.cc textarea.h \
 	main.cc \
 	modeset.cc modeset.h \
 	receiver.cc receiver.h\
