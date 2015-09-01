@@ -111,7 +111,7 @@ CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(man1dir)"
 PROGRAMS = $(bin_PROGRAMS)
 am_xcwcp_OBJECTS = xcwcp-application.$(OBJEXT) \
-	xcwcp-moc_application.$(OBJEXT) xcwcp-display.$(OBJEXT) \
+	xcwcp-moc_application.$(OBJEXT) xcwcp-textarea.$(OBJEXT) \
 	xcwcp-main.$(OBJEXT) xcwcp-modeset.$(OBJEXT) \
 	xcwcp-receiver.$(OBJEXT) xcwcp-sender.$(OBJEXT)
 xcwcp_OBJECTS = $(am_xcwcp_OBJECTS)
@@ -369,7 +369,7 @@ top_srcdir = @top_srcdir@
 xcwcp_SOURCES = \
 	application.cc application.h \
 	moc_application.cc \
-	display.cc display.h \
+	textarea.cc textarea.h \
 	main.cc \
 	modeset.cc modeset.h \
 	receiver.cc receiver.h\
@@ -488,12 +488,12 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/xcwcp-application.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/xcwcp-display.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/xcwcp-main.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/xcwcp-moc_application.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/xcwcp-modeset.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/xcwcp-receiver.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/xcwcp-sender.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/xcwcp-textarea.Po@am__quote@
 
 .cc.o:
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -544,19 +544,19 @@ xcwcp-moc_application.obj: moc_application.cc
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o xcwcp-moc_application.obj `if test -f 'moc_application.cc'; then $(CYGPATH_W) 'moc_application.cc'; else $(CYGPATH_W) '$(srcdir)/moc_application.cc'; fi`
 
-xcwcp-display.o: display.cc
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT xcwcp-display.o -MD -MP -MF $(DEPDIR)/xcwcp-display.Tpo -c -o xcwcp-display.o `test -f 'display.cc' || echo '$(srcdir)/'`display.cc
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/xcwcp-display.Tpo $(DEPDIR)/xcwcp-display.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='display.cc' object='xcwcp-display.o' libtool=no @AMDEPBACKSLASH@
+xcwcp-textarea.o: textarea.cc
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT xcwcp-textarea.o -MD -MP -MF $(DEPDIR)/xcwcp-textarea.Tpo -c -o xcwcp-textarea.o `test -f 'textarea.cc' || echo '$(srcdir)/'`textarea.cc
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/xcwcp-textarea.Tpo $(DEPDIR)/xcwcp-textarea.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='textarea.cc' object='xcwcp-textarea.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o xcwcp-display.o `test -f 'display.cc' || echo '$(srcdir)/'`display.cc
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o xcwcp-textarea.o `test -f 'textarea.cc' || echo '$(srcdir)/'`textarea.cc
 
-xcwcp-display.obj: display.cc
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT xcwcp-display.obj -MD -MP -MF $(DEPDIR)/xcwcp-display.Tpo -c -o xcwcp-display.obj `if test -f 'display.cc'; then $(CYGPATH_W) 'display.cc'; else $(CYGPATH_W) '$(srcdir)/display.cc'; fi`
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/xcwcp-display.Tpo $(DEPDIR)/xcwcp-display.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='display.cc' object='xcwcp-display.obj' libtool=no @AMDEPBACKSLASH@
+xcwcp-textarea.obj: textarea.cc
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT xcwcp-textarea.obj -MD -MP -MF $(DEPDIR)/xcwcp-textarea.Tpo -c -o xcwcp-textarea.obj `if test -f 'textarea.cc'; then $(CYGPATH_W) 'textarea.cc'; else $(CYGPATH_W) '$(srcdir)/textarea.cc'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/xcwcp-textarea.Tpo $(DEPDIR)/xcwcp-textarea.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='textarea.cc' object='xcwcp-textarea.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o xcwcp-display.obj `if test -f 'display.cc'; then $(CYGPATH_W) 'display.cc'; else $(CYGPATH_W) '$(srcdir)/display.cc'; fi`
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o xcwcp-textarea.obj `if test -f 'textarea.cc'; then $(CYGPATH_W) 'textarea.cc'; else $(CYGPATH_W) '$(srcdir)/textarea.cc'; fi`
 
 xcwcp-main.o: main.cc
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT xcwcp-main.o -MD -MP -MF $(DEPDIR)/xcwcp-main.Tpo -c -o xcwcp-main.o `test -f 'main.cc' || echo '$(srcdir)/'`main.cc
