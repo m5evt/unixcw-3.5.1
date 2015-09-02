@@ -25,6 +25,7 @@
 #include <sstream>
 
 
+#include "application.h"
 #include "sender.h"
 #include "textarea.h"
 #include "modeset.h"
@@ -154,7 +155,7 @@ void Sender::dequeue_and_play_character()
 
 	if (queue.empty()) {
 		is_queue_idle = true;
-		textarea->clear_status();
+		app->clear_status();
 		return;
 	}
 
@@ -174,7 +175,7 @@ void Sender::dequeue_and_play_character()
 	   string when width of glyph of played char changes at
 	   variable font width. */
 	QString status = _("Sending at %1 WPM: '%2'");
-	textarea->show_status(status.arg(cw_get_send_speed()).arg(c));
+	app->show_status(status.arg(cw_get_send_speed()).arg(c));
 
 	return;
 }
