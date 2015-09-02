@@ -34,12 +34,14 @@
 
 namespace cw {
 
+class Application;
 class TextArea;
 class Mode;
 
 class Receiver {
  public:
-	Receiver(TextArea *t) :
+        Receiver(Application *a, TextArea *t) :
+	        app (a),
 		textarea (t),
 		is_pending_inter_word_space_ (false),
 		libcw_receive_errno_ (0),
@@ -77,6 +79,8 @@ class Receiver {
 	struct timeval timer;
 
  private:
+	Application *app;
+
 	// Display used for output.
 	TextArea *textarea;
 
