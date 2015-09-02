@@ -18,13 +18,14 @@
 
 #include "config.h"
 
+#include <cstdio>
 #include <cstdlib>
-#include <cerrno>
 #include <string>
+#include <cerrno>
 #include <sstream>
 
-#include <cstdio>
 
+#include "application.h"
 #include "receiver.h"
 #include "textarea.h"
 #include "modeset.h"
@@ -402,9 +403,9 @@ void Receiver::clear()
 void Receiver::poll_report_receive_error()
 {
 	// Handle any receive errors detected on tone end but delayed until here.
-	textarea->show_status(libcw_receive_errno_ == ENOENT
-			      ? _("Badly formed CW element")
-			      : _("Receive buffer overrun"));
+	app->show_status(libcw_receive_errno_ == ENOENT
+			 ? _("Badly formed CW element")
+			 : _("Receive buffer overrun"));
 
 	libcw_receive_errno_ = 0;
 
@@ -454,7 +455,7 @@ void Receiver::poll_receive_character()
 		// width of glyph of received char changes at variable
 		// font width.
 		QString status = _("Received at %1 WPM: '%2'");
-		textarea->show_status(status.arg(cw_get_receive_speed()).arg(c));
+		app->show_status(status.arg(cw_get_receive_speed()).arg(c));
 		//fprintf(stderr, "Received character '%c'\n", c);
 
 	} else {
@@ -478,7 +479,7 @@ void Receiver::poll_receive_character()
 				textarea->append('?');
 
 				QString status = _("Unknown character received at %1 WPM");
-				textarea->show_status(status.arg(cw_get_receive_speed()));
+				app->show_status(status.arg(cw_get_receive_speed()));
 			}
 			break;
 
