@@ -46,9 +46,6 @@ const QString DISPLAY_WHATSTHIS =
 
 
 
-using namespace cw;
-
-
 
 // TextArea()
 //
@@ -79,11 +76,10 @@ TextArea::TextArea(Application *a, QWidget *parent) :
 	// This can be changed by user in menu Settings -> Text font
 	setFontWeight(QFont::Bold);
 
-	QWidget *display_widget = get_widget();
-	display_widget->setFocus();
-	display_widget->setWhatsThis("DISPLAY_WHATSTHIS");
+	setFocus();
+	setWhatsThis("DISPLAY_WHATSTHIS");
 
-	app->setCentralWidget(display_widget);
+	app->setCentralWidget(this);
 	app->show_status(_("Ready"));
 }
 
@@ -173,19 +169,6 @@ QMenu *TextArea::createPopupMenu(const QPoint &)
 QMenu *TextArea::createPopupMenu()
 {
 	return NULL;
-}
-
-
-
-
-// get_widget()
-//
-// Return the underlying QWidget used to implement the display.  Returning
-// the widget only states that this is a QWidget, it doesn't tie us to using
-// any particular type of widget.
-QWidget *TextArea::get_widget()
-{
-	return this;
 }
 
 

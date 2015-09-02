@@ -35,8 +35,6 @@ namespace cw {
 		TextArea(Application *application, QWidget *parent = 0);
 		~TextArea() {};
 
-		QWidget *get_widget();
-
 		void append(char c);
 		void backspace();
 
