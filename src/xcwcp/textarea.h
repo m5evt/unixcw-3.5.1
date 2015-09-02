@@ -40,10 +40,6 @@ namespace cw {
 		void append(char c);
 		void backspace();
 
-
-		void show_status(const QString &status);
-		void clear_status();
-
 	protected:
 		// Functions overridden to catch events from the parent class.
 		void keyPressEvent(QKeyEvent *event);
@@ -57,7 +53,7 @@ namespace cw {
 
 	private:
 		// Application to forward key and mouse events to.
-		Application *application_;
+		Application *app;
 
 		// Prevent unwanted operations.
 		TextArea(const TextArea &);
