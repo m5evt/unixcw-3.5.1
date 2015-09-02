@@ -54,8 +54,9 @@ using namespace cw;
 //
 // Call the superclass constructor, and save the application for sending on
 // key and mouse events.
-TextArea::TextArea(Application *application, QWidget *parent) :
-	QTextEdit(parent), application_(application)
+TextArea::TextArea(Application *a, QWidget *parent) :
+	QTextEdit (parent),
+	app (a)
 {
 	// Block context menu in text area, this is to make right mouse
 	// button work as correct sending key (paddle).
@@ -81,8 +82,9 @@ TextArea::TextArea(Application *application, QWidget *parent) :
 	QWidget *display_widget = get_widget();
 	display_widget->setFocus();
 	display_widget->setWhatsThis("DISPLAY_WHATSTHIS");
-	application_->setCentralWidget(display_widget);
-	show_status(_("Ready"));
+
+	app->setCentralWidget(display_widget);
+	app->show_status(_("Ready"));
 }
 
 
@@ -96,7 +98,7 @@ TextArea::TextArea(Application *application, QWidget *parent) :
 // and release events are merged into one *_event() call.
 void TextArea::keyPressEvent(QKeyEvent *event)
 {
-	application_->key_event(event);
+	app->key_event(event);
 
 	return;
 }
@@ -106,7 +108,7 @@ void TextArea::keyPressEvent(QKeyEvent *event)
 
 void TextArea::keyReleaseEvent(QKeyEvent *event)
 {
-	application_->key_event(event);
+	app->key_event(event);
 
 	return;
 }
@@ -124,7 +126,7 @@ void TextArea::keyReleaseEvent(QKeyEvent *event)
 // just any form of button press, any time.
 void TextArea::mousePressEvent(QMouseEvent *event)
 {
-	application_->mouse_event(event);
+	app->mouse_event(event);
 
 	return;
 }
@@ -135,7 +137,7 @@ void TextArea::mousePressEvent(QMouseEvent *event)
 
 void TextArea::mouseDoubleClickEvent(QMouseEvent *event)
 {
-	application_->mouse_event(event);
+	app->mouse_event(event);
 
 	return;
 }
@@ -146,7 +148,7 @@ void TextArea::mouseDoubleClickEvent(QMouseEvent *event)
 
 void TextArea::mouseReleaseEvent(QMouseEvent *event)
 {
-	application_->mouse_event(event);
+	app->mouse_event(event);
 
 	return;
 }
@@ -211,34 +213,6 @@ void TextArea::append(char c)
 void TextArea::backspace()
 {
 	// implementation_->doKeyboardAction (QTextEdit::ActionBackspace);
-
-	return;
-}
-
-
-
-
-
-// show_status()
-//
-// Display the given string on the status line.
-void TextArea::show_status(const QString &status)
-{
-	application_->statusBar()->showMessage(status);
-
-	return;
-}
-
-
-
-
-
-// clear_status()
-//
-// Clear the status line.
-void TextArea::clear_status()
-{
-	application_->statusBar()->clearMessage();
 
 	return;
 }
