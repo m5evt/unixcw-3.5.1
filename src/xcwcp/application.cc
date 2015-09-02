@@ -618,8 +618,7 @@ void Application::fonts()
 
 	QFont font = QFontDialog::getFont(&status, this);
 	if (status) {
-		QWidget *display_widget = textarea->get_widget();
-		display_widget->setFont(font);
+		textarea->setFont(font);
 	}
 
 	return;
@@ -636,13 +635,10 @@ void Application::colors()
 {
 	QColor color = QColorDialog::getColor();
 	if (color.isValid()) {
-		QWidget *display_widget = textarea->get_widget();
-
 		QPalette palette;
 		palette.setColor(QPalette::Text, color);
-		// display_widget->setAutoFillForeground(true);
 
-		display_widget->setPalette(palette);
+		textarea->setPalette(palette);
 	}
 
 	return;
