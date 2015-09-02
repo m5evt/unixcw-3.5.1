@@ -319,7 +319,7 @@ void Application::start()
 	//startstop_button_->setDown(true);
 	play_ = true;
 
-	textarea->clear_status();
+	clear_status();
 
 	// Start the poll timer.  At 60WPM, a dot is 20ms, so polling for the
 	// maximum library speed needs a 10ms timeout.
@@ -369,7 +369,7 @@ void Application::stop()
 	//startstop_button_->setDown(false);
 	play_ = false;
 
-	textarea->show_status(_("Ready"));
+	show_status(_("Ready"));
 
 	return;
 }
@@ -1071,8 +1071,8 @@ void Application::make_auxiliaries_begin(void)
 void Application::make_auxiliaries_end(void)
 {
 	// Create a sender and a receiver.
-	sender_ = new Sender(textarea);
-	receiver_ = new Receiver(textarea);
+	sender_ = new Sender(this, textarea);
+	receiver_ = new Receiver(this, textarea);
 
 	// Register class handler as the CW library keying event callback. It's
 	// important here that we register the static handler, since once we have
@@ -1128,6 +1128,37 @@ void Application::check_audio_system(cw_config_t *config)
 
 	return;
 }
+
+
+
+
+
+// show_status()
+//
+// Display the given string on the status line.
+void Application::show_status(const QString &status)
+{
+	this->statusBar()->showMessage(status);
+
+	return;
+}
+
+
+
+
+
+// clear_status()
+//
+// Clear the status line.
+void Application::clear_status()
+{
+	this->statusBar()->clearMessage();
+
+	return;
+}
+
+
+
 
 
 }  // cw namespace

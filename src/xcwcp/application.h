@@ -54,6 +54,10 @@ class Application : public QMainWindow
 	void key_event(QKeyEvent *event);
 	void mouse_event(QMouseEvent *event);
 	void check_audio_system(cw_config_t *config);
+
+	void show_status(const QString &status);
+	void clear_status();
+
  protected:
 	void closeEvent (QCloseEvent *event);
 
