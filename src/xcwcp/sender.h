@@ -36,13 +36,16 @@
 
 namespace cw {
 
+class Application;
 class TextArea;
 class Mode;
 
 class Sender {
  public:
-	Sender(TextArea *t)
-		: textarea(t), is_queue_idle(true) { }
+ Sender(Application *a, TextArea *t) :
+	app (a),
+	textarea (t),
+        is_queue_idle (true) { }
 
 	// Poll timeout handler, and keypress event handler.
 	void poll(const Mode *current_mode);
@@ -52,6 +55,7 @@ class Sender {
 	void clear();
 
  private:
+	Application *app;
 	// Display used for output.
 	TextArea *textarea;
 
