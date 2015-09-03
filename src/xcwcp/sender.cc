@@ -98,7 +98,6 @@ void Sender::handle_key_event(QKeyEvent *event)
 
 			/* Remove the last queued character, or at
 			   least try, and we are done. */
-			/* FIXME: this doesn't work. */
 			delete_character();
 			// event->accept();
 		} else {

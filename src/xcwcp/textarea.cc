@@ -18,10 +18,12 @@
 
 #include "config.h"
 
+#include <QApplication>
 #include <QWidget>
 #include <QStatusBar>
 #include <QTextEdit>
 #include <QEvent>
+#include <QKeyEvent>
 #include <QMenu>
 #include <QPoint>
 
@@ -222,7 +224,8 @@ void TextArea::append(char c)
 */
 void TextArea::backspace()
 {
-	// implementation_->doKeyboardAction (QTextEdit::ActionBackspace);
+	QKeyEvent *keyEvent = new QKeyEvent(QEvent::KeyPress, Qt::Key_Backspace, Qt::NoModifier);
+	QTextEdit::keyPressEvent(keyEvent);
 
 	return;
 }
