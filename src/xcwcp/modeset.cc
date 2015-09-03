@@ -167,41 +167,4 @@ ModeSet::ModeSet() :
 
 
 
-
-/**
-   \brief Convenience function for type identification of current mode
-*/
-const DictionaryMode *ModeSet::is_dictionary() const
-{
-	return current->is_dictionary();
-}
-
-
-
-
-
-/**
-   \brief Convenience function for type identification of current mode
-*/
-const KeyboardMode *ModeSet::is_keyboard() const
-{
-	return current->is_keyboard();
-}
-
-
-
-
-
-/**
-   \brief Convenience function for type identification of current mode
-*/
-const ReceiveMode *ModeSet::is_receive() const
-{
-	return current->is_receive();
-}
-
-
-
-
-
 }  /* namespace cw */

@@ -216,10 +216,6 @@ namespace cw {
 		int get_count() const;
 		const Mode *get(int index) const;
 
-		const DictionaryMode *is_dictionary() const;
-		const KeyboardMode *is_keyboard() const;
-		const ReceiveMode *is_receive() const;
-
 	private:
 		const std::vector<Mode*> *const modes;
 		const Mode *current;
