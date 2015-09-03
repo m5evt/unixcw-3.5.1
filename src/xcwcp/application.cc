@@ -182,7 +182,7 @@ void Application::libcw_keying_event_static(void *arg, int key_state)
 	// determine this for itself.
 	if (app
 	    && app->is_using_libcw_
-	    && app->modeset_.is_receive()) {
+	    && app->modeset_.get_current()->is_receive()) {
 
 		//fprintf(stderr, "calling callback, stage 1 (key = %d)\n", key_state);
 
@@ -934,7 +934,7 @@ void Application::make_program_menu(void)
 
 	sync_speed_ = new QAction(_("Synchronize S&peed"), this);
 	sync_speed_->setShortcut(Qt::CTRL + Qt::Key_P);
-	sync_speed_->setEnabled(modeset_.is_receive());
+	sync_speed_->setEnabled(modeset_.get_current()->is_receive());
 	connect(sync_speed_, SIGNAL (triggered()), SLOT (sync_speed()));
 	program_menu_->addAction(sync_speed_);
 
