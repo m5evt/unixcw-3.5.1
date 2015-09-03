@@ -60,9 +60,11 @@ namespace cw {
 
 		bool is_same_type_as(const Mode *other) const;
 
-		virtual const DictionaryMode *is_dictionary() const;
-		virtual const KeyboardMode *is_keyboard() const;
-		virtual const ReceiveMode *is_receive() const;
+		virtual std::string get_random_word_group() const;
+
+		virtual bool is_dictionary() const;
+		virtual bool is_keyboard() const;
+		virtual bool is_receive() const;
 
 	private:
 		const std::string description;  /* Mode description. */
@@ -84,7 +86,7 @@ namespace cw {
 
 		std::string get_random_word_group() const;
 
-		virtual const DictionaryMode *is_dictionary() const;
+		virtual bool is_dictionary() const;
 
 	private:
 		const cw_dictionary_t *dictionary;  /* Dictionary of the mode. */
@@ -103,7 +105,7 @@ namespace cw {
 		KeyboardMode(const std::string &descr) :
 			Mode (descr) { }
 
-		virtual const KeyboardMode *is_keyboard() const;
+		virtual bool is_keyboard() const;
 
 	private:
 		/* Prevent unwanted operations. */
@@ -120,7 +122,7 @@ namespace cw {
 		ReceiveMode(const std::string &descr) :
 			Mode (descr) { }
 
-		virtual const ReceiveMode *is_receive() const;
+		virtual bool is_receive() const;
 
 	private:
 		/* Prevent unwanted operations. */
@@ -147,54 +149,63 @@ namespace cw {
 
 
 
-	inline const DictionaryMode *Mode::is_dictionary() const
+	inline bool Mode::is_dictionary() const
 	{
-		return 0;
+		return false;
 	}
 
 
 
 
 
-	inline const KeyboardMode *Mode::is_keyboard() const
+	inline bool Mode::is_keyboard() const
 	{
-		return 0;
+		return false;
 	}
 
 
 
 
 
-	inline const ReceiveMode *Mode::is_receive() const
+	inline bool Mode::is_receive() const
 	{
-		return 0;
+		return false;
 	}
 
 
 
 
 
-	inline const DictionaryMode *DictionaryMode::is_dictionary() const
+	inline std::string Mode::get_random_word_group() const
 	{
-		return this;
+		return "";
 	}
 
 
 
 
 
-	inline const KeyboardMode *KeyboardMode::is_keyboard() const
+	inline bool DictionaryMode::is_dictionary() const
 	{
-		return this;
+		return true;
 	}
 
 
 
 
 
-	inline const ReceiveMode *ReceiveMode::is_receive() const
+	inline bool KeyboardMode::is_keyboard() const
 	{
-		return this;
+		return true;
+	}
+
+
+
+
+
+	inline bool ReceiveMode::is_receive() const
+	{
+		return true;
 	}
 
 
