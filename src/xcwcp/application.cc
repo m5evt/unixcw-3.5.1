@@ -682,7 +682,7 @@ void Application::poll_timer_event()
 */
 void Application::key_event(QKeyEvent *event)
 {
-	event->ignore();
+	// event->ignore();
 #if 0
 	/* Special case Alt-M as a way to acquire focus in the mode
 	   combo widget.  This was a workaround applied to earlier
