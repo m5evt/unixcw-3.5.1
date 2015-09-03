@@ -59,9 +59,8 @@ void Sender::poll(const Mode *current_mode)
 			// dequeue anything currently on the character
 			// queue.
 			if (current_mode->is_dictionary() && queue.empty()) {
-				const DictionaryMode *dict_mode = current_mode->is_dictionary();
 				enqueue_string(std::string(1, ' ')
-					       + dict_mode->get_random_word_group());
+					       + current_mode->get_random_word_group());
 			}
 
 			dequeue_and_play_character();
