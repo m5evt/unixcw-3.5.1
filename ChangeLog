@@ -1,3 +1,8 @@
+2015-09-03 Kamil Ignacak
+	* xcwcp: fixed handling of backspace key in keyboard mode. For
+	some time now the backspace key didn't remove yet-unplayed
+	characters from text area. Now the key works correctly.
+
 2015-09-01 Kamil Ignacak
 	* xcwcp: simplifying class design in display.h. The file is now
 	called textarea.h, the class/widget derived from QTextEdit is now
