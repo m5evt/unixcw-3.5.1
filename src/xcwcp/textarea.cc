@@ -27,53 +27,62 @@
 
 #include <string>
 
-#include "textarea.h"
 #include "application.h"
-
+#include "textarea.h"
 #include "i18n.h"
+
+
+
+
 
 namespace cw {
 
 
+
+
+
 const QString DISPLAY_WHATSTHIS =
-  _("This is the main display for Xcwcp.  The random CW characters that "
-  "Xcwcp generates, any keyboard input you type, and the CW that you "
-  "key into Xcwcp all appear here.<br><br>"
-  "You can clear the display contents from the File menu.<br><br>"
-  "The status bar shows the current character being sent, any character "
-  "received, and other general error and Xcwcp status information.");
+	_("This is the main display for Xcwcp.  The random CW characters that "
+	  "Xcwcp generates, any keyboard input you type, and the CW that you "
+	  "key into Xcwcp all appear here.<br><br>"
+	  "You can clear the display contents from the File menu.<br><br>"
+	  "The status bar shows the current character being sent, any character "
+	  "received, and other general error and Xcwcp status information.");
 
 
 
 
 
-// TextArea()
-//
-// Call the superclass constructor, and save the application for sending on
-// key and mouse events.
 TextArea::TextArea(Application *a, QWidget *parent) :
 	QTextEdit (parent),
 	app (a)
 {
-	// Block context menu in text area, this is to make right mouse
-	// button work as correct sending key (paddle).
-	// http://doc.qt.nokia.com/latest/qt.html#ContextMenuPolicy-enum
-	// Qt::PreventContextMenu:
-	// "the widget does not feature a context menu, [...] the handling
-	// is not deferred to the widget's parent. This means that all right
-	// mouse button events are guaranteed to be delivered to the widget
-	// itself through mousePressEvent(), and mouseReleaseEvent()."
+	/* Block context menu in text area, this is to make right mouse
+	   button work as correct sending key (paddle).
+	   http://doc.qt.nokia.com/latest/qt.html#ContextMenuPolicy-enum
+	   Qt::PreventContextMenu:
+	   "the widget does not feature a context menu, [...] the handling
+	   is not deferred to the widget's parent. This means that all right
+	   mouse button events are guaranteed to be delivered to the widget
+	   itself through mousePressEvent(), and mouseReleaseEvent()." */
 	setContextMenuPolicy(Qt::PreventContextMenu);
 
-	// Clear widget.
+	/* Clear widget. */
 	setPlainText("");
 
-	// These two lines just repeat the default settings.
-	// I'm putting them here just for fun.
-	setLineWrapMode(QTextEdit::WidgetWidth); // Words will be wrapped at the right edge of the text edit. Wrapping occurs at whitespace, keeping whole words intact.
-	setWordWrapMode(QTextOption::WordWrap); // Text is wrapped at word boundaries.
+#if 0
+	/* These two lines just repeat the default settings.
+	   TODO: maybe just remove them? */
 
-	// This can be changed by user in menu Settings -> Text font
+	/* Words will be wrapped at the right edge of the text
+	   edit. Wrapping occurs at whitespace, keeping whole words
+	   intact. */
+	setLineWrapMode(QTextEdit::WidgetWidth);
+
+	/* Text is wrapped at word boundaries. */
+	setWordWrapMode(QTextOption::WordWrap);
+#endif
+
 	setFontWeight(QFont::Bold);
 
 	setFocus();
@@ -87,11 +96,9 @@ TextArea::TextArea(Application *a, QWidget *parent) :
 
 
 
-// keyPressEvent()
-// keyReleaseEvent()
-//
-// Catch key events and pass them to our parent Application.  Both press
-// and release events are merged into one *_event() call.
+/**
+   \brief Catch key event and pass it to Application
+*/
 void TextArea::keyPressEvent(QKeyEvent *event)
 {
 	app->key_event(event);
@@ -102,6 +109,10 @@ void TextArea::keyPressEvent(QKeyEvent *event)
 
 
 
+
+/**
+   \brief Catch key event and pass it to Application
+*/
 void TextArea::keyReleaseEvent(QKeyEvent *event)
 {
 	app->key_event(event);
@@ -113,13 +124,9 @@ void TextArea::keyReleaseEvent(QKeyEvent *event)
 
 
 
-// mousePressEvent()
-// mouseDoubleClickEvent()
-// mouseReleaseEvent()
-//
-// Do the same for mouse button events.  We need to catch both press and
-// double-click, since for keying we don't use or care about double-clicks,
-// just any form of button press, any time.
+/**
+   \brief Catch mouse event and pass it to Application
+*/
 void TextArea::mousePressEvent(QMouseEvent *event)
 {
 	app->mouse_event(event);
@@ -131,6 +138,13 @@ void TextArea::mousePressEvent(QMouseEvent *event)
 
 
 
+/**
+   \brief Catch mouse event and pass it to Application
+
+   We need to catch both press and double-click, since for keying we
+   don't use or care about double-clicks, just any form of button
+   press, any time.
+*/
 void TextArea::mouseDoubleClickEvent(QMouseEvent *event)
 {
 	app->mouse_event(event);
@@ -142,6 +156,9 @@ void TextArea::mouseDoubleClickEvent(QMouseEvent *event)
 
 
 
+/**
+   \brief Catch mouse event and pass it to Application
+*/
 void TextArea::mouseReleaseEvent(QMouseEvent *event)
 {
 	app->mouse_event(event);
@@ -153,10 +170,12 @@ void TextArea::mouseReleaseEvent(QMouseEvent *event)
 
 
 
-// createPopupMenu()
-//
-// Override and suppress popup menus, so we can use the right mouse button
-// as a keyer paddle.
+/**
+   \brief Avoid creating popup menu
+
+   Override and suppress popup menus, so we can use the right mouse
+   button as a keyer paddle.
+*/
 QMenu *TextArea::createPopupMenu(const QPoint &)
 {
 	return NULL;
@@ -166,6 +185,12 @@ QMenu *TextArea::createPopupMenu(const QPoint &)
 
 
 
+/**
+   \brief Avoid creating popup menu
+
+   Override and suppress popup menus, so we can use the right mouse
+   button as a keyer paddle.
+*/
 QMenu *TextArea::createPopupMenu()
 {
 	return NULL;
@@ -175,9 +200,9 @@ QMenu *TextArea::createPopupMenu()
 
 
 
-// append()
-//
-// Append a character at the current notional cursor position.
+/**
+   \brief Append a character at the current notional cursor position.
+*/
 void TextArea::append(char c)
 {
 	this->insertPlainText(QString(QChar(c)));
@@ -189,10 +214,12 @@ void TextArea::append(char c)
 
 
 
-// backspace()
-//
-// Delete the character left of the notional cursor position (that is, the
-// last one appended).
+/**
+   \brief React to backspace key
+
+   Delete the character left of the notional cursor position (that is,
+   the last one appended). Use this function only in sender mode.
+*/
 void TextArea::backspace()
 {
 	// implementation_->doKeyboardAction (QTextEdit::ActionBackspace);
@@ -204,4 +231,4 @@ void TextArea::backspace()
 
 
 
-}  // cw namespace
+}  // namespace cw
