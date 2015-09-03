@@ -100,7 +100,7 @@ void Sender::handle_key_event(QKeyEvent *event)
 			   least try, and we are done. */
 			/* FIXME: this doesn't work. */
 			delete_character();
-			event->accept();
+			// event->accept();
 		} else {
 			/* Enqueue and accept only valid characters. */
 			const char *c = event->text().toAscii().data();
