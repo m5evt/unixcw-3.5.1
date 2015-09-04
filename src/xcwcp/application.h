@@ -16,8 +16,12 @@
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
 
-#ifndef _XCWCP_APPLICATION_H
-#define _XCWCP_APPLICATION_H
+#ifndef H_XCWCP_APPLICATION
+#define H_XCWCP_APPLICATION
+
+
+
+
 
 #include <QMainWindow>
 #include <QToolButton>
@@ -31,38 +35,47 @@
 #include "cw_common.h"
 
 
-//-----------------------------------------------------------------------
-//  Class Application
-//-----------------------------------------------------------------------
 
-// Encapsulates the outermost Xcwcp Qt application.  Defines slots and
-// signals, as well as the usual class information.
+
 
 namespace cw {
 
-class Sender;
-class Receiver;
-class TextArea;
 
-class Application : public QMainWindow
-{
-	Q_OBJECT
- public:
-	Application();
 
-	// Handle key press and mouse button press events
-	void key_event(QKeyEvent *event);
-	void mouse_event(QMouseEvent *event);
-	void check_audio_system(cw_config_t *config);
 
-	void show_status(const QString &status);
-	void clear_status();
 
- protected:
-	void closeEvent (QCloseEvent *event);
+	class Sender;
+	class Receiver;
+	class TextArea;
+
+
+
+
+
+	/* Class Application encapsulates the outermost Xcwcp Qt
+	   application.  Defines slots and signals, as well as the
+	   usual class information. */
+
+	class Application :
+		public QMainWindow
+	{
+		Q_OBJECT
+	public:
+		Application();
+
+		/* Handle key press and mouse button press events. */
+		void key_event(QKeyEvent *event);
+		void mouse_event(QMouseEvent *event);
+		void check_audio_system(cw_config_t *config);
+
+		void show_status(const QString &status);
+		void clear_status();
+
+	protected:
+		void closeEvent (QCloseEvent *event);
 
 	private slots:
-		// Qt widget library callback functions.
+		/* Qt widget library callback functions. */
 		void about();
 		void startstop();
 		void start();
@@ -82,98 +95,111 @@ class Application : public QMainWindow
 		void toggle_toolbar(void);
 		void poll_timer_event();
 
- private:
-	// Class variable to enable sharing of the libcw across instances.  Set to
-	// the 'this' of the CW user instance, or NULL if no current user.
-	static Application *libcw_user_application_instance;
+	private:
+		/* Class variable to enable sharing of the libcw
+		   across instances.  Set to the 'this' of the CW user
+		   instance, or NULL if no current user. */
+		static Application *libcw_user_application_instance;
 
-	QPixmap xcwcp_icon;
+		QPixmap xcwcp_icon;
 
-	bool play_;
-	QPixmap start_icon;
-	QPixmap stop_icon;
-	// GUI elements used throughout the class.
-	QToolBar *toolbar; // main toolbar
+		bool play_;
+		QPixmap start_icon;
+		QPixmap stop_icon;
 
-	QToolButton *startstop_button_;
-	QAction *startstop_; // Shared between toolbar and Progam menu
-	QComboBox *mode_combo_;
-	QSpinBox *speed_spin_;
-	QSpinBox *frequency_spin_;
-	QSpinBox *volume_spin_;
-	QSpinBox *gap_spin_;
-
-
-	QMenu *program_menu_;
-	QAction *new_window_;
-	QAction *clear_display_;
-	QAction *sync_speed_;
-	QAction *close_;
-	QAction *quit_;
-
-	QMenu *settings_;
-	QAction *reverse_paddles_;
-	QAction *curtis_mode_b_;
-	QAction *adaptive_receive_;
-	QAction *font_settings_;
-	QAction *color_settings_;
-	QAction *toolbar_visibility_;
-
-	QMenu *help_;
-	QAction *about_;
-
-	TextArea *textarea;
-
-	int file_synchronize_speed_id_;
-	int file_start_id_;
-	int file_stop_id_;
-
-	// Set of modes used by the application; initialized from dictionaries, with
-	// keyboard and receive modes added.
-	ModeSet modeset_;
-
-	// Sender and receiver.
-	Sender *sender_;
-	Receiver *receiver_;
-
-	// Poll timer, used to ensure that all of the application processing can
-	// be handled in the foreground, rather than in the signal handling context
-	// of a libcw tone queue low callback.
-	QTimer *poll_timer_;
-
-	// Flag indicating if this instance is currently using the libcw. Of
-	// course xcwcp is an application that links to libcw, but this flag
-	// is for *active* use of libcw, i.e when "play"/"start" button in
-	// xcwcp's UI has been pressed.
-	bool is_using_libcw_;
-
-	// Saved receive speed, used to reinstate adaptive tracked speed on start.
-	int saved_receive_speed_;
-
-	// Keying callback function for libcw.  There is a static version for
-	// the whole class, and an instance version for each object.  The class
-	// version calls the relevant instance version, based on which instance is
-	// the current registered libcw user.
-	static void libcw_keying_event_static (void *, int key_state);
-	void libcw_keying_event (int key_state);
-
-	// Wrappers for creating UI.
-	void make_central_widget(void);
-	void make_toolbar(void);
-	void make_mode_combo(void);
-	void make_program_menu(void);
-	void make_settings_menu(void);
-	void make_help_menu(void);
-
-	void make_auxiliaries_begin(void);
-	void make_auxiliaries_end(void);
+		/* GUI elements used throughout the class. */
+		QToolBar *toolbar; // main toolbar
+		QToolButton *startstop_button_;
+		QAction *startstop_; /* Shared between toolbar and Progam menu */
+		QComboBox *mode_combo_;
+		QSpinBox *speed_spin_;
+		QSpinBox *frequency_spin_;
+		QSpinBox *volume_spin_;
+		QSpinBox *gap_spin_;
 
 
-	// Prevent unwanted operations.
-	Application (const Application &);
-	Application &operator= (const Application &);
-};
+		QMenu *program_menu_;
+		QAction *new_window_;
+		QAction *clear_display_;
+		QAction *sync_speed_;
+		QAction *close_;
+		QAction *quit_;
 
-}  // cw namespace
+		QMenu *settings_;
+		QAction *reverse_paddles_;
+		QAction *curtis_mode_b_;
+		QAction *adaptive_receive_;
+		QAction *font_settings_;
+		QAction *color_settings_;
+		QAction *toolbar_visibility_;
 
-#endif  // _XCWCP_APPLICATION_H
+		QMenu *help_;
+		QAction *about_;
+
+		int file_synchronize_speed_id_;
+		int file_start_id_;
+		int file_stop_id_;
+
+		/* Set of modes used by the application; initialized
+		   from dictionaries, with keyboard and receive modes
+		   added. */
+		ModeSet modeset_;
+
+		Sender *sender_;
+		Receiver *receiver_;
+
+		TextArea *textarea;
+
+		/* Poll timer, used to ensure that all of the
+		   application processing can be handled in the
+		   foreground, rather than in the signal handling
+		   context of a libcw tone queue low callback. */
+		QTimer *poll_timer_;
+
+		/* Flag indicating if this instance is currently using
+		   the libcw. Of course xcwcp is an application that
+		   links to libcw, but this flag is for *active* use
+		   of libcw, i.e when "play"/"start" button in xcwcp's
+		   UI has been pressed. */
+		bool is_using_libcw_;
+
+		/* Saved receive speed, used to reinstate adaptive
+		   tracked speed on start. */
+		int saved_receive_speed_;
+
+		/* Keying callback function for libcw.  There is a
+		   static version for the whole class, and an instance
+		   version for each object.  The class version calls
+		   the relevant instance version, based on which
+		   instance is the current registered libcw user. */
+		static void libcw_keying_event_static (void *, int key_state);
+		void libcw_keying_event (int key_state);
+
+		/* Wrappers for creating UI. */
+		void make_central_widget(void);
+		void make_toolbar(void);
+		void make_mode_combo(void);
+		void make_program_menu(void);
+		void make_settings_menu(void);
+		void make_help_menu(void);
+
+		void make_auxiliaries_begin(void);
+		void make_auxiliaries_end(void);
+
+
+		/* Prevent unwanted operations. */
+		Application(const Application &);
+		Application &operator=(const Application &);
+	};
+
+
+
+
+
+}  /* namespace cw */
+
+
+
+
+
+#endif  /* #ifndef H_XCWCP_APPLICATION */
