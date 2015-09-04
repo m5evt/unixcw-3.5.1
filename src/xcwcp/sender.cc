@@ -34,30 +34,31 @@
 
 #include "i18n.h"
 
+
+
+
+
 namespace cw {
 
 
-//-----------------------------------------------------------------------
-//  Class Sender
-//-----------------------------------------------------------------------
 
 
 
+/**
+   \brief Get more characters to send
 
-
-// poll()
-//
-// Poll the CW library tone queue, and if it is getting low, arrange for
-// more data to be passed in to the sender.
+   Check the CW library tone queue, and if it is getting low, arrange
+   for more data to be passed in to the sender.
+*/
 void Sender::poll(const Mode *current_mode)
 {
 	if (current_mode->is_dictionary() || current_mode->is_keyboard()) {
 		if (cw_get_tone_queue_length() <= 1) {
-			// Arrange more data for the sender.  In
-			// dictionary modes, add more random data if
-			// the queue is empty.  In keyboard mode, just
-			// dequeue anything currently on the character
-			// queue.
+			/* Arrange more data for the sender.  In
+			   dictionary modes, add more random data if
+			   the queue is empty.  In keyboard mode, just
+			   dequeue anything currently on the character
+			   queue. */
 			if (current_mode->is_dictionary() && queue.empty()) {
 				enqueue_string(std::string(1, ' ')
 					       + current_mode->get_dmode()->get_random_word_group());
@@ -98,17 +99,14 @@ void Sender::handle_key_event(QKeyEvent *event)
 			/* Remove the last queued character, or at
 			   least try, and we are done. */
 			delete_character();
-			// event->accept();
+			event->accept();
 		} else {
 			/* Enqueue and accept only valid characters. */
 			const char *c = event->text().toAscii().data();
-			fprintf(stderr, "---------- handle_key_event(): '%s'\n", c);
 
 			if (cw_character_is_valid(c[0])) {
 				enqueue_string(c);
 				event->accept();
-			} else {
-				fprintf(stderr, "---------- handle_key_event(): invalid character '%s'\n", c);
 			}
 		}
 	}
@@ -220,7 +218,6 @@ void Sender::enqueue_string(const std::string &s)
 */
 void Sender::delete_character()
 {
-
 	if (!queue.empty()) {
 		queue.pop_back();
 		textarea->backspace();
@@ -229,4 +226,8 @@ void Sender::delete_character()
 	return;
 }
 
-}  // cw namespace
+
+
+
+
+}  /* namespace cw */
