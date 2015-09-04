@@ -72,33 +72,39 @@ namespace cw {
 		void clear_status();
 
 	protected:
-		void closeEvent (QCloseEvent *event);
+		void closeEvent(QCloseEvent *event);
 
 	private slots:
 		/* Qt widget library callback functions. */
+
 		void about();
 		void startstop();
 		void start();
 		void stop();
 		void new_instance();
 		void clear();
-		void sync_speed();
-		void speed_change();
-		void frequency_change();
-		void volume_change();
-		void gap_change();
-		void mode_change();
-		void curtis_mode_b_change();
-		void adaptive_receive_change();
 		void fonts();
 		void colors();
-		void toggle_toolbar(void);
+		void toggle_toolbar();
 		void poll_timer_event();
+
+		/* These Qt widget callback functions interact with
+		   libcw. */
+		void sync_speed();
+		void change_speed();
+		void change_frequency();
+		void change_volume();
+		void change_gap();
+		void change_mode();
+		void change_curtis_mode_b();
+		void change_adaptive_receive();
+
 
 	private:
 		/* Class variable to enable sharing of the libcw
-		   across instances.  Set to the 'this' of the CW user
-		   instance, or NULL if no current user. */
+		   across instances.  Set to the 'this' of the xcwcp
+		   instance that currently uses libcw, or NULL if no
+		   current user. */
 		static Application *libcw_user_application_instance;
 
 		QPixmap xcwcp_icon;
