@@ -103,50 +103,50 @@ namespace cw {
 
 		QPixmap xcwcp_icon;
 
-		bool play_;
+		bool play;
 		QPixmap start_icon;
 		QPixmap stop_icon;
 
 		/* GUI elements used throughout the class. */
 		QToolBar *toolbar; // main toolbar
-		QToolButton *startstop_button_;
-		QAction *startstop_; /* Shared between toolbar and Progam menu */
-		QComboBox *mode_combo_;
-		QSpinBox *speed_spin_;
-		QSpinBox *frequency_spin_;
-		QSpinBox *volume_spin_;
-		QSpinBox *gap_spin_;
+		QToolButton *startstop_button;
+		QAction *startstop_action; /* Shared between toolbar and Progam menu */
+		QComboBox *mode_combo;
+		QSpinBox *speed_spin;
+		QSpinBox *frequency_spin;
+		QSpinBox *volume_spin;
+		QSpinBox *gap_spin;
 
 
-		QMenu *program_menu_;
-		QAction *new_window_;
-		QAction *clear_display_;
-		QAction *sync_speed_;
-		QAction *close_;
-		QAction *quit_;
+		QMenu *program_menu;
+		QAction *new_window_action;
+		QAction *clear_display_action;
+		QAction *sync_speed_action;
+		QAction *close_action;
+		QAction *quit_action;
 
-		QMenu *settings_;
-		QAction *reverse_paddles_;
-		QAction *curtis_mode_b_;
-		QAction *adaptive_receive_;
-		QAction *font_settings_;
-		QAction *color_settings_;
-		QAction *toolbar_visibility_;
+		QMenu *settings;
+		QAction *reverse_paddles_action;
+		QAction *curtis_mode_b_action;
+		QAction *adaptive_receive_action;
+		QAction *font_settings_action;
+		QAction *color_settings_action;
+		QAction *toolbar_visibility_action;
 
-		QMenu *help_;
-		QAction *about_;
+		QMenu *help;
+		QAction *about_action;
 
-		int file_synchronize_speed_id_;
-		int file_start_id_;
-		int file_stop_id_;
+		//int file_synchronize_speed_id;
+		//int file_start_id;
+		//int file_stop_id;
 
 		/* Set of modes used by the application; initialized
 		   from dictionaries, with keyboard and receive modes
 		   added. */
-		ModeSet modeset_;
+		ModeSet modeset;
 
-		Sender *sender_;
-		Receiver *receiver_;
+		Sender *sender;
+		Receiver *receiver;
 
 		TextArea *textarea;
 
@@ -154,26 +154,26 @@ namespace cw {
 		   application processing can be handled in the
 		   foreground, rather than in the signal handling
 		   context of a libcw tone queue low callback. */
-		QTimer *poll_timer_;
+		QTimer *poll_timer;
 
 		/* Flag indicating if this instance is currently using
 		   the libcw. Of course xcwcp is an application that
 		   links to libcw, but this flag is for *active* use
 		   of libcw, i.e when "play"/"start" button in xcwcp's
 		   UI has been pressed. */
-		bool is_using_libcw_;
+		bool is_using_libcw;
 
 		/* Saved receive speed, used to reinstate adaptive
 		   tracked speed on start. */
-		int saved_receive_speed_;
+		int saved_receive_speed;
 
 		/* Keying callback function for libcw.  There is a
 		   static version for the whole class, and an instance
 		   version for each object.  The class version calls
 		   the relevant instance version, based on which
 		   instance is the current registered libcw user. */
-		static void libcw_keying_event_static (void *, int key_state);
-		void libcw_keying_event (int key_state);
+		static void libcw_keying_event_static(void *, int key_state);
+		void libcw_keying_event(int key_state);
 
 		/* Wrappers for creating UI. */
 		void make_central_widget(void);
