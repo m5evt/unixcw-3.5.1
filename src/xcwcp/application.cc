@@ -181,13 +181,13 @@ void Application::libcw_keying_event_static(void *arg, int key_state)
 	// in receive mode.  The receiver handler function cannot
 	// determine this for itself.
 	if (app
-	    && app->is_using_libcw_
-	    && app->modeset_.get_current()->is_receive()) {
+	    && app->is_using_libcw
+	    && app->modeset.get_current()->is_receive()) {
 
 		//fprintf(stderr, "calling callback, stage 1 (key = %d)\n", key_state);
 
 		struct timeval *t = (struct timeval *) arg;
-		app->receiver_->handle_libcw_keying_event(t, key_state);
+		app->receiver->handle_libcw_keying_event(t, key_state);
 	}
 
 	return;
@@ -223,7 +223,7 @@ void Application::closeEvent(QCloseEvent *event)
 {
 	bool is_closing = true;
 
-	if (is_using_libcw_) {
+	if (is_using_libcw) {
 		is_closing = QMessageBox::warning(this, _("Xcwcp"),
 						  _("Busy - are you sure?"),
 						  _("&Exit"), _("&Cancel"), 0, 0, 1) == 0;
@@ -247,7 +247,7 @@ void Application::closeEvent(QCloseEvent *event)
 // button that calls this slot.
 void Application::startstop()
 {
-	play_ ? stop() : start();
+	play ? stop() : start();
 
 	return;
 }
@@ -261,7 +261,7 @@ void Application::startstop()
 // Start sending or receiving CW.
 void Application::start()
 {
-	if (is_using_libcw_) {
+	if (is_using_libcw) {
 		// Already playing, nothing to do.
 		return;
 	}
@@ -278,12 +278,12 @@ void Application::start()
 			// Restore button's proper visual appearance
 			// after it has been pressed, but user hasn't
 			// confirmed starting playing in this instance.
-			//this->startstop_button_->setDown(false);
+			//this->startstop_button->setDown(false);
 			return;
 		}
 	}
 
-	is_using_libcw_ = true;
+	is_using_libcw = true;
 
 	// Acquire the CW library sender.
 	libcw_user_application_instance = this;
@@ -306,25 +306,25 @@ void Application::start()
 	adaptive_receive_change();
 
 	// Clear the sender and receiver.
-	sender_->clear();
-	receiver_->clear();
+	sender->clear();
+	receiver->clear();
 
-	// Accessing proper action through this->startstop_
+	// Accessing proper action through this->startstop
 	// should also work.
-	QAction *action = startstop_button_->defaultAction();
+	QAction *action = startstop_button->defaultAction();
 	action->setChecked(true);
 	action->setIcon(stop_icon);
 	action->setText(_("Stop"));
 	action->setToolTip(_("Stop"));
-	//startstop_button_->setDown(true);
-	play_ = true;
+	//startstop_button->setDown(true);
+	play = true;
 
 	clear_status();
 
 	// Start the poll timer.  At 60WPM, a dot is 20ms, so polling for the
 	// maximum library speed needs a 10ms timeout.
-	poll_timer_->setSingleShot(false);
-	poll_timer_->start(10);
+	poll_timer->setSingleShot(false);
+	poll_timer->start(10);
 
 	return;
 }
@@ -339,35 +339,35 @@ void Application::start()
 // refilling the buffer.
 void Application::stop()
 {
-	if (!is_using_libcw_) {
+	if (!is_using_libcw) {
 		// Not playing at the moment, nothing to do
 		return;
 	}
 
-	is_using_libcw_ = false;
+	is_using_libcw = false;
 
 	// Stop the poll timer, and clear the sender and receiver.
-	poll_timer_->stop();
-	sender_->clear();
-	receiver_->clear();
+	poll_timer->stop();
+	sender->clear();
+	receiver->clear();
 
 	// Save the receive speed, for restore on next start.
-	saved_receive_speed_ = cw_get_receive_speed();
+	saved_receive_speed = cw_get_receive_speed();
 
 	cw_end_beep();
 
 	// Done with the CW library sender for now.
 	libcw_user_application_instance = NULL;
 
-	// Accessing proper action through this->startstop_
+	// Accessing proper action through this->startstop
 	// should also work.
-	QAction *action = startstop_button_->defaultAction();
+	QAction *action = startstop_button->defaultAction();
 	action->setChecked(false);
 	action->setIcon(start_icon);
 	action->setText(_("Start"));
 	action->setToolTip(_("Start"));
-	//startstop_button_->setDown(false);
-	play_ = false;
+	//startstop_button->setDown(false);
+	play = false;
 
 	show_status(_("Ready"));
 
@@ -414,13 +414,13 @@ void Application::clear()
 // spin box if adaptive receive is activated.
 void Application::sync_speed()
 {
-	if (is_using_libcw_) {
-		if (adaptive_receive_->isChecked()) {
+	if (is_using_libcw) {
+		if (adaptive_receive_action->isChecked()) {
 			// Force by unsetting adaptive receive,
 			// setting the receive speed, then resetting
 			// adaptive receive again.
 			cw_disable_adaptive_receive();
-			if (!cw_set_receive_speed(speed_spin_->value())) {
+			if (!cw_set_receive_speed(speed_spin->value())) {
 				perror("cw_set_receive_speed");
 				abort();
 			}
@@ -446,13 +446,13 @@ void Application::sync_speed()
 // control of the CW library).
 void Application::speed_change()
 {
-	if (is_using_libcw_) {
-		if (!cw_set_send_speed(speed_spin_->value())) {
+	if (is_using_libcw) {
+		if (!cw_set_send_speed(speed_spin->value())) {
 			perror("cw_set_send_speed");
 			abort();
 		}
 		if (!cw_get_adaptive_receive_state()) {
-			if (!cw_set_receive_speed(speed_spin_->value())) {
+			if (!cw_set_receive_speed(speed_spin->value())) {
 				perror("cw_set_receive_speed");
 				abort();
 			}
@@ -468,8 +468,8 @@ void Application::speed_change()
 
 void Application::frequency_change()
 {
-	if (is_using_libcw_) {
-		if (!cw_set_frequency(frequency_spin_->value())) {
+	if (is_using_libcw) {
+		if (!cw_set_frequency(frequency_spin->value())) {
 			perror("cw_set_frequency");
 			abort();
 		}
@@ -484,8 +484,8 @@ void Application::frequency_change()
 
 void Application::volume_change()
 {
-	if (is_using_libcw_) {
-		if (!cw_set_volume(volume_spin_->value())) {
+	if (is_using_libcw) {
+		if (!cw_set_volume(volume_spin->value())) {
 			perror("cw_set_volume");
 			abort();
 		}
@@ -500,8 +500,8 @@ void Application::volume_change()
 
 void Application::gap_change()
 {
-	if (is_using_libcw_) {
-		if (!cw_set_gap(gap_spin_->value())) {
+	if (is_using_libcw) {
+		if (!cw_set_gap(gap_spin->value())) {
 			perror("cw_set_gap");
 			abort();
 		}
@@ -521,24 +521,24 @@ void Application::gap_change()
 void Application::mode_change()
 {
 	// Get the mode to which mode we're changing.
-	const Mode *new_mode = modeset_.get(mode_combo_->currentIndex());
+	const Mode *new_mode = modeset.get(mode_combo->currentIndex());
 
 	// If this changes mode type, set the speed synchronization
 	// menu item state to enabled for receive mode, disabled
 	// otherwise.  And for tidiness, clear the display.
-	if (!new_mode->is_same_type_as(modeset_.get_current())) {
-		sync_speed_->setEnabled(new_mode->is_receive());
+	if (!new_mode->is_same_type_as(modeset.get_current())) {
+		sync_speed_action->setEnabled(new_mode->is_receive());
 		textarea->clear();
 	}
 
 	// If the mode changed while we're busy, clear the sender and receiver.
-	if (is_using_libcw_) {
-		sender_->clear();
-		receiver_->clear();
+	if (is_using_libcw) {
+		sender->clear();
+		receiver->clear();
 	}
 
 	// Keep the ModeSet synchronized to mode_combo changes.
-	modeset_.set_current(mode_combo_->currentIndex());
+	modeset.set_current(mode_combo->currentIndex());
 
 	return;
 }
@@ -554,8 +554,8 @@ void Application::mode_change()
 // and ignores the call if not.
 void Application::curtis_mode_b_change()
 {
-	if (is_using_libcw_) {
-		curtis_mode_b_->isChecked()
+	if (is_using_libcw) {
+		curtis_mode_b_action->isChecked()
 			? cw_enable_iambic_curtis_mode_b()
 			: cw_disable_iambic_curtis_mode_b();
 	}
@@ -576,13 +576,13 @@ void Application::curtis_mode_b_change()
 // speed.
 void Application::adaptive_receive_change()
 {
-	if (is_using_libcw_) {
-		if (adaptive_receive_->isChecked()) {
+	if (is_using_libcw) {
+		if (adaptive_receive_action->isChecked()) {
 			// If going to adaptive receive, first set the
 			// speed to the saved receive speed, then turn
 			// on adaptive receiving.
 			cw_disable_adaptive_receive();
-			if (!cw_set_receive_speed(saved_receive_speed_)) {
+			if (!cw_set_receive_speed(saved_receive_speed)) {
 				perror("cw_set_receive_speed");
 				abort ();
 			}
@@ -593,9 +593,9 @@ void Application::adaptive_receive_change()
 			// later, then turn off adaptive receive, and
 			// set the speed to equal the send speed as
 			// shown on the speed spin box.
-			saved_receive_speed_ = cw_get_receive_speed();
+			saved_receive_speed = cw_get_receive_speed();
 			cw_disable_adaptive_receive();
-			if (!cw_set_receive_speed(speed_spin_->value())) {
+			if (!cw_set_receive_speed(speed_spin->value())) {
 				perror("cw_set_receive_speed");
 				abort();
 			}
@@ -659,9 +659,9 @@ void Application::colors()
 // receive characters.
 void Application::poll_timer_event()
 {
-	if (is_using_libcw_) {
-		sender_->poll(modeset_.get_current());
-		receiver_->poll(modeset_.get_current());
+	if (is_using_libcw) {
+		sender->poll(modeset.get_current());
+		receiver->poll(modeset.get_current());
 	}
 
 	return;
@@ -692,19 +692,19 @@ void Application::key_event(QKeyEvent *event)
 	   This section has been disabled long before 2015-08-31. */
 
 	if (event->state() & AltButton && event->key() == Qt::Key_M) {
-		mode_combo_->setFocus();
+		mode_combo->setFocus();
 		event->accept();
 		return;
 	}
 #endif
 
-	if (is_using_libcw_) {
-		if (modeset_.get_current()->is_keyboard()) {
+	if (is_using_libcw) {
+		if (modeset.get_current()->is_keyboard()) {
 			fprintf(stderr, "---------- key event: keyboard mode\n");
-			sender_->handle_key_event(event);
-		} else if (modeset_.get_current()->is_receive()) {
+			sender->handle_key_event(event);
+		} else if (modeset.get_current()->is_receive()) {
 			fprintf(stderr, "---------- key event: receiver mode mode\n");
-			receiver_->handle_key_event(event, reverse_paddles_->isChecked());
+			receiver->handle_key_event(event, reverse_paddles_action->isChecked());
 		} else {
 			;
 		}
@@ -733,10 +733,10 @@ void Application::mouse_event(QMouseEvent *event)
 
 	/* Pass the mouse event only to the receiver.  The sender
 	   isn't interested. */
-	if (is_using_libcw_) {
-		if (modeset_.get_current()->is_receive()) {
+	if (is_using_libcw) {
+		if (modeset.get_current()->is_receive()) {
 			fprintf(stderr, "---------- mouse event: receiver mode\n");
-			receiver_->handle_mouse_event(event, reverse_paddles_->isChecked());
+			receiver->handle_mouse_event(event, reverse_paddles_action->isChecked());
 		}
 	}
 
@@ -751,10 +751,10 @@ void Application::toggle_toolbar(void)
 {
 	if (toolbar->isVisible()) {
 		toolbar->hide();
-		toolbar_visibility_->setText("Show Toolbar");
+		toolbar_visibility_action->setText("Show Toolbar");
 	} else {
 		toolbar->show();
-		toolbar_visibility_->setText("Hide Toolbar");
+		toolbar_visibility_action->setText("Hide Toolbar");
 	}
 
 	return;
@@ -768,48 +768,48 @@ void Application::make_toolbar(void)
 {
 	toolbar = QMainWindow::addToolBar(_("Xcwcp Operations"));
 
-	startstop_ = new QAction(_("Start/Stop"), this);
-	startstop_->setIcon(start_icon);
-	startstop_->setText(_("Start"));
-	startstop_->setToolTip(_("Start"));
-	startstop_->setWhatsThis(STARTSTOP_WHATSTHIS);
-	startstop_->setCheckable(false);
-	connect(startstop_, SIGNAL (triggered(bool)), this, SLOT (startstop()));
+	startstop_action = new QAction(_("Start/Stop"), this);
+	startstop_action->setIcon(start_icon);
+	startstop_action->setText(_("Start"));
+	startstop_action->setToolTip(_("Start"));
+	startstop_action->setWhatsThis(STARTSTOP_WHATSTHIS);
+	startstop_action->setCheckable(false);
+	connect(startstop_action, SIGNAL (triggered(bool)), this, SLOT (startstop()));
 
 
 	// Put a button in the toolbar, not the action.
 	// Button can gain focus through Tab key, whereas
 	// action can't. The focus for button is, for some reason,
 	// invisible, but it's there.
-	startstop_button_ = new QToolButton(toolbar);
-	startstop_button_->setDefaultAction(startstop_);
-	startstop_button_->setCheckable(false);
-	toolbar->addWidget(startstop_button_);
+	startstop_button = new QToolButton(toolbar);
+	startstop_button->setDefaultAction(startstop_action);
+	startstop_button->setCheckable(false);
+	toolbar->addWidget(startstop_button);
 
 
 	toolbar->addSeparator();
 
 
 	make_mode_combo();
-	toolbar->addWidget(mode_combo_);
+	toolbar->addWidget(mode_combo);
 
 
-	toolbar->addSeparator ();
+	toolbar->addSeparator();
 
 
 	QLabel *speed_label_ = new QLabel(_("Speed:"), 0, 0);
 	toolbar->addWidget(speed_label_);
 
-	speed_spin_ = new QSpinBox(toolbar);
-	speed_spin_->setMinimum(CW_SPEED_MIN);
-	speed_spin_->setMaximum(CW_SPEED_MAX);
-	speed_spin_->setSingleStep(CW_SPEED_STEP);
-	speed_spin_->setToolTip(_("Speed"));
-	speed_spin_->setWhatsThis(SPEED_WHATSTHIS);
-	speed_spin_->setSuffix(_(" WPM"));
-	speed_spin_->setValue(cw_get_send_speed());
-	connect(speed_spin_, SIGNAL (valueChanged(int)), SLOT (speed_change()));
-	toolbar->addWidget(speed_spin_);
+	speed_spin = new QSpinBox(toolbar);
+	speed_spin->setMinimum(CW_SPEED_MIN);
+	speed_spin->setMaximum(CW_SPEED_MAX);
+	speed_spin->setSingleStep(CW_SPEED_STEP);
+	speed_spin->setToolTip(_("Speed"));
+	speed_spin->setWhatsThis(SPEED_WHATSTHIS);
+	speed_spin->setSuffix(_(" WPM"));
+	speed_spin->setValue(cw_get_send_speed());
+	connect(speed_spin, SIGNAL (valueChanged(int)), SLOT (speed_change()));
+	toolbar->addWidget(speed_spin);
 
 
 	toolbar->addSeparator();
@@ -818,16 +818,16 @@ void Application::make_toolbar(void)
 	QLabel *tone_label = new QLabel(_("Tone:"));
 	toolbar->addWidget(tone_label);
 
-	frequency_spin_ = new QSpinBox(toolbar);
-	frequency_spin_->setMinimum(CW_FREQUENCY_MIN);
-	frequency_spin_->setMaximum(CW_FREQUENCY_MAX);
-	frequency_spin_->setSingleStep(CW_FREQUENCY_STEP);
-	frequency_spin_->setToolTip(_("Frequency"));
-	frequency_spin_->setSuffix(_(" Hz"));
-	frequency_spin_->setWhatsThis(FREQUENCY_WHATSTHIS);
-	frequency_spin_->setValue(cw_get_frequency());
-	connect(frequency_spin_, SIGNAL (valueChanged(int)), SLOT (frequency_change()));
-	toolbar->addWidget(frequency_spin_);
+	frequency_spin = new QSpinBox(toolbar);
+	frequency_spin->setMinimum(CW_FREQUENCY_MIN);
+	frequency_spin->setMaximum(CW_FREQUENCY_MAX);
+	frequency_spin->setSingleStep(CW_FREQUENCY_STEP);
+	frequency_spin->setToolTip(_("Frequency"));
+	frequency_spin->setSuffix(_(" Hz"));
+	frequency_spin->setWhatsThis(FREQUENCY_WHATSTHIS);
+	frequency_spin->setValue(cw_get_frequency());
+	connect(frequency_spin, SIGNAL (valueChanged(int)), SLOT (frequency_change()));
+	toolbar->addWidget(frequency_spin);
 
 
 	toolbar->addSeparator ();
@@ -836,16 +836,16 @@ void Application::make_toolbar(void)
 	QLabel *volume_label = new QLabel(_("Volume:"), 0, 0);
 	toolbar->addWidget(volume_label);
 
-	volume_spin_ = new QSpinBox(toolbar);
-	volume_spin_->setMinimum(CW_VOLUME_MIN);
-	volume_spin_->setMaximum(CW_VOLUME_MAX);
-	volume_spin_->setSingleStep(CW_VOLUME_STEP);
-	volume_spin_->setToolTip(_("Volume"));
-	volume_spin_->setSuffix(_(" %"));
-	volume_spin_->setWhatsThis(VOLUME_WHATSTHIS);
-	volume_spin_->setValue(cw_get_volume());
-	connect(volume_spin_, SIGNAL (valueChanged(int)), SLOT (volume_change()));
-	toolbar->addWidget(volume_spin_);
+	volume_spin = new QSpinBox(toolbar);
+	volume_spin->setMinimum(CW_VOLUME_MIN);
+	volume_spin->setMaximum(CW_VOLUME_MAX);
+	volume_spin->setSingleStep(CW_VOLUME_STEP);
+	volume_spin->setToolTip(_("Volume"));
+	volume_spin->setSuffix(_(" %"));
+	volume_spin->setWhatsThis(VOLUME_WHATSTHIS);
+	volume_spin->setValue(cw_get_volume());
+	connect(volume_spin, SIGNAL (valueChanged(int)), SLOT (volume_change()));
+	toolbar->addWidget(volume_spin);
 
 
 	toolbar->addSeparator ();
@@ -854,16 +854,16 @@ void Application::make_toolbar(void)
 	QLabel *gap_label = new QLabel(_("Gap:"), 0, 0);
 	toolbar->addWidget(gap_label);
 
-	gap_spin_ = new QSpinBox(toolbar);
-	gap_spin_->setMinimum(CW_GAP_MIN);
-	gap_spin_->setMaximum(CW_GAP_MAX);
-	gap_spin_->setSingleStep(CW_GAP_STEP);
-	gap_spin_->setToolTip(_("Gap"));
-	gap_spin_->setSuffix(_(" dot(s)"));
-	gap_spin_->setWhatsThis(GAP_WHATSTHIS);
-	gap_spin_->setValue(cw_get_gap());
-	connect(gap_spin_, SIGNAL (valueChanged(int)), SLOT (gap_change()));
-	toolbar->addWidget(gap_spin_);
+	gap_spin = new QSpinBox(toolbar);
+	gap_spin->setMinimum(CW_GAP_MIN);
+	gap_spin->setMaximum(CW_GAP_MAX);
+	gap_spin->setSingleStep(CW_GAP_STEP);
+	gap_spin->setToolTip(_("Gap"));
+	gap_spin->setSuffix(_(" dot(s)"));
+	gap_spin->setWhatsThis(GAP_WHATSTHIS);
+	gap_spin->setValue(cw_get_gap());
+	connect(gap_spin, SIGNAL (valueChanged(int)), SLOT (gap_change()));
+	toolbar->addWidget(gap_spin);
 
 
 	// Finally for the toolbar, add whatsthis.
@@ -886,20 +886,20 @@ void Application::make_toolbar(void)
 
 void Application::make_mode_combo()
 {
-	mode_combo_ = new QComboBox(0); //, _("Mode"));
-	mode_combo_->setToolTip(_("Mode"));
-	mode_combo_->setWhatsThis(MODE_WHATSTHIS);
-	connect(mode_combo_, SIGNAL (activated(int)), SLOT (mode_change()));
+	mode_combo = new QComboBox(0); //, _("Mode"));
+	mode_combo->setToolTip(_("Mode"));
+	mode_combo->setWhatsThis(MODE_WHATSTHIS);
+	connect(mode_combo, SIGNAL (activated(int)), SLOT (mode_change()));
 
 	// Append each mode represented in the modes set to the combo box's
 	// contents, then synchronize the current mode.
-	for (int index = 0; index < modeset_.get_count(); index++) {
+	for (int index = 0; index < modeset.get_count(); index++) {
 		const QVariant data(index);
-		const Mode *mode = modeset_.get(index);
+		const Mode *mode = modeset.get(index);
 		const QString string = QString::fromUtf8(mode->get_description().c_str());
-		mode_combo_->addItem(string, data);
+		mode_combo->addItem(string, data);
 	}
-	modeset_.set_current(mode_combo_->currentIndex());
+	modeset.set_current(mode_combo->currentIndex());
 
 	return;
 }
@@ -910,48 +910,48 @@ void Application::make_mode_combo()
 
 void Application::make_program_menu(void)
 {
-	program_menu_ = new QMenu (_("&Program"), this);
-	QMainWindow::menuBar()->addMenu(program_menu_);
+	program_menu = new QMenu (_("&Program"), this);
+	QMainWindow::menuBar()->addMenu(program_menu);
 
-	new_window_ = new QAction(_("&New Window"), this);
-	new_window_->setShortcut(Qt::CTRL + Qt::Key_N);
-	connect(new_window_, SIGNAL (triggered()), SLOT (new_instance()));
-	program_menu_->addAction(new_window_);
-
-
-	program_menu_->addSeparator ();
+	new_window_action = new QAction(_("&New Window"), this);
+	new_window_action->setShortcut(Qt::CTRL + Qt::Key_N);
+	connect(new_window_action, SIGNAL (triggered()), SLOT (new_instance()));
+	program_menu->addAction(new_window_action);
 
 
-	program_menu_->addAction(startstop_);
+	program_menu->addSeparator();
+
+
+	program_menu->addAction(startstop_action);
 	// The action is connected in make_toolbar().
 
 
-	clear_display_ = new QAction(_("&Clear Text"), this);
-	clear_display_->setShortcut(Qt::CTRL + Qt::Key_C);
-	connect(clear_display_, SIGNAL (triggered()), SLOT (clear()));
-	program_menu_->addAction(clear_display_);
+	clear_display_action = new QAction(_("&Clear Text"), this);
+	clear_display_action->setShortcut(Qt::CTRL + Qt::Key_C);
+	connect(clear_display_action, SIGNAL (triggered()), SLOT (clear()));
+	program_menu->addAction(clear_display_action);
 
 
-	sync_speed_ = new QAction(_("Synchronize S&peed"), this);
-	sync_speed_->setShortcut(Qt::CTRL + Qt::Key_P);
-	sync_speed_->setEnabled(modeset_.get_current()->is_receive());
-	connect(sync_speed_, SIGNAL (triggered()), SLOT (sync_speed()));
-	program_menu_->addAction(sync_speed_);
+	sync_speed_action = new QAction(_("Synchronize S&peed"), this);
+	sync_speed_action->setShortcut(Qt::CTRL + Qt::Key_P);
+	sync_speed_action->setEnabled(modeset.get_current()->is_receive());
+	connect(sync_speed_action, SIGNAL (triggered()), SLOT (sync_speed()));
+	program_menu->addAction(sync_speed_action);
 
 
-	program_menu_->addSeparator();
+	program_menu->addSeparator();
 
 
-	close_ = new QAction(_("&Close"), this);
-	close_->setShortcut(Qt::CTRL + Qt::Key_W);
-	connect(close_, SIGNAL (triggered()), SLOT (close()));
-	program_menu_->addAction(close_);
+	close_action = new QAction(_("&Close"), this);
+	close_action->setShortcut(Qt::CTRL + Qt::Key_W);
+	connect(close_action, SIGNAL (triggered()), SLOT (close()));
+	program_menu->addAction(close_action);
 
 
-	quit_ = new QAction(_("&Quit"), qApp);
-	quit_->setShortcut(Qt::CTRL + Qt::Key_Q);
-	connect(quit_, SIGNAL (triggered()), qApp, SLOT (closeAllWindows()));
-	program_menu_->addAction(quit_);
+	quit_action = new QAction(_("&Quit"), qApp);
+	quit_action->setShortcut(Qt::CTRL + Qt::Key_Q);
+	connect(quit_action, SIGNAL (triggered()), qApp, SLOT (closeAllWindows()));
+	program_menu->addAction(quit_action);
 
 	return;
 }
@@ -962,49 +962,49 @@ void Application::make_program_menu(void)
 
 void Application::make_settings_menu(void)
 {
-	QMenu *settings_ = new QMenu(_("&Settings"), this);
-	QMainWindow::menuBar()->addMenu(settings_);
+	QMenu *settings = new QMenu(_("&Settings"), this);
+	QMainWindow::menuBar()->addMenu(settings);
 
 
-	reverse_paddles_ = new QAction(_("&Reverse Paddles"), this);
-	reverse_paddles_->setCheckable(true);
-	reverse_paddles_->setChecked(false);
-	settings_->addAction(reverse_paddles_);
+	reverse_paddles_action = new QAction(_("&Reverse Paddles"), this);
+	reverse_paddles_action->setCheckable(true);
+	reverse_paddles_action->setChecked(false);
+	settings->addAction(reverse_paddles_action);
 
 
-	curtis_mode_b_ = new QAction(_("&Curtis Mode B Timing"), this);
-	curtis_mode_b_->setCheckable(true);
-	curtis_mode_b_->setChecked(false);
-	connect(curtis_mode_b_, SIGNAL (toggled(bool)), SLOT (curtis_mode_b_change()));
-	settings_->addAction(curtis_mode_b_);
+	curtis_mode_b_action = new QAction(_("&Curtis Mode B Timing"), this);
+	curtis_mode_b_action->setCheckable(true);
+	curtis_mode_b_action->setChecked(false);
+	connect(curtis_mode_b_action, SIGNAL (toggled(bool)), SLOT (curtis_mode_b_change()));
+	settings->addAction(curtis_mode_b_action);
 
 
-	adaptive_receive_ = new QAction(_("&Adaptive CW Receive Speed"), this);
-	adaptive_receive_->setCheckable(true);
-	adaptive_receive_->setChecked(true);
-	connect(adaptive_receive_, SIGNAL (toggled(bool)), SLOT (adaptive_receive_change()));
-	settings_->addAction(adaptive_receive_);
+	adaptive_receive_action = new QAction(_("&Adaptive CW Receive Speed"), this);
+	adaptive_receive_action->setCheckable(true);
+	adaptive_receive_action->setChecked(true);
+	connect(adaptive_receive_action, SIGNAL (toggled(bool)), SLOT (adaptive_receive_change()));
+	settings->addAction(adaptive_receive_action);
 
 
-	settings_->addSeparator();
+	settings->addSeparator();
 
 
-	font_settings_ = new QAction(_("&Text font..."), this);
-	connect(font_settings_, SIGNAL (triggered(bool)), SLOT (fonts()));
-	settings_->addAction(font_settings_);
+	font_settings_action = new QAction(_("&Text font..."), this);
+	connect(font_settings_action, SIGNAL (triggered(bool)), SLOT (fonts()));
+	settings->addAction(font_settings_action);
 
 
-	color_settings_ = new QAction(_("&Text color..."), this);
-	connect(color_settings_, SIGNAL (triggered(bool)), SLOT (colors()));
-	settings_->addAction(color_settings_);
+	color_settings_action = new QAction(_("&Text color..."), this);
+	connect(color_settings_action, SIGNAL (triggered(bool)), SLOT (colors()));
+	settings->addAction(color_settings_action);
 
 
-	settings_->addSeparator();
+	settings->addSeparator();
 
 
-	toolbar_visibility_ = new QAction(_("Hide toolbar"), this);
-	connect(toolbar_visibility_, SIGNAL (triggered(bool)), SLOT (toggle_toolbar()));
-	settings_->addAction(toolbar_visibility_);
+	toolbar_visibility_action = new QAction(_("Hide toolbar"), this);
+	connect(toolbar_visibility_action, SIGNAL (triggered(bool)), SLOT (toggle_toolbar()));
+	settings->addAction(toolbar_visibility_action);
 
 	return;
 }
@@ -1015,14 +1015,14 @@ void Application::make_settings_menu(void)
 
 void Application::make_help_menu(void)
 {
-	help_ = new QMenu(_("&Help"), this);
+	help = new QMenu(_("&Help"), this);
 	QMainWindow::menuBar()->addSeparator();
-	QMainWindow::menuBar()->addMenu(help_);
+	QMainWindow::menuBar()->addMenu(help);
 
 
-	about_ = new QAction(_("&About"), this);
-	connect(about_, SIGNAL(triggered(bool)), SLOT(about()));
-	help_->addAction(about_);
+	about_action = new QAction(_("&About"), this);
+	connect(about_action, SIGNAL(triggered(bool)), SLOT(about()));
+	help->addAction(about_action);
 
 	return;
 }
@@ -1049,13 +1049,13 @@ void Application::make_auxiliaries_begin(void)
 	stop_icon = QPixmap(icon_stop_xpm);
 	xcwcp_icon = QPixmap(icon_mini_xcwcp_xpm);
 
-	is_using_libcw_ = false;
-	saved_receive_speed_ = cw_get_receive_speed();
-	play_ = false;
+	is_using_libcw = false;
+	saved_receive_speed = cw_get_receive_speed();
+	play = false;
 
 	// Create a timer for polling send and receive.
-	poll_timer_ = new QTimer (this);
-	connect(poll_timer_, SIGNAL (timeout()), SLOT (poll_timer_event()));
+	poll_timer = new QTimer (this);
+	connect(poll_timer, SIGNAL (timeout()), SLOT (poll_timer_event()));
 
 	return;
 }
@@ -1067,8 +1067,8 @@ void Application::make_auxiliaries_begin(void)
 void Application::make_auxiliaries_end(void)
 {
 	// Create a sender and a receiver.
-	sender_ = new Sender(this, textarea);
-	receiver_ = new Receiver(this, textarea);
+	sender = new Sender(this, textarea);
+	receiver = new Receiver(this, textarea);
 
 	// Register class handler as the CW library keying event callback. It's
 	// important here that we register the static handler, since once we have
@@ -1084,17 +1084,17 @@ void Application::make_auxiliaries_end(void)
 	// paddles are pressed, but (since it doesn't receive timing
 	// parameters) it won't be able to identify entered Morse
 	// code.
-	cw_register_keying_callback(libcw_keying_event_static, &(receiver_->timer));
+	cw_register_keying_callback(libcw_keying_event_static, &(receiver->timer));
 
-	// The call above registered receiver_->timer as a generic
+	// The call above registered receiver->timer as a generic
 	// argument to a callback. However, libcw needs to know when
 	// the argument happens to be of type 'struct timeval'. This
 	// is why we have this second call, explicitly passing
 	// receiver's timer to libcw.
-	cw_iambic_keyer_register_timer(&(receiver_->timer));
+	cw_iambic_keyer_register_timer(&(receiver->timer));
 
-	gettimeofday(&(receiver_->timer), NULL);
-	//fprintf(stderr, "time on aux config: %10ld : %10ld\n", receiver_->timer.tv_sec, receiver_->timer.tv_usec);
+	gettimeofday(&(receiver->timer), NULL);
+	//fprintf(stderr, "time on aux config: %10ld : %10ld\n", receiver->timer.tv_sec, receiver->timer.tv_usec);
 
 	QString label("Output: ");
 	label += cw_generator_get_audio_system_label();
