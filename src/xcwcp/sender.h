@@ -16,8 +16,12 @@
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
 
-#ifndef _XCWCP_SENDER_H
-#define _XCWCP_SENDER_H
+#ifndef H_XCWCP_SENDER
+#define H_XCWCP_SENDER
+
+
+
+
 
 #include <QKeyEvent>
 
@@ -27,52 +31,73 @@
 
 
 
-//-----------------------------------------------------------------------
-//  Class Sender
-//-----------------------------------------------------------------------
 
-// Encapsulates the main application sender data and functions.  Sender
-// abstracts the send character queue, polling, and event handling.
+/* Class Sender encapsulates the main application sender data and
+   functions.  Sender abstracts the send character queue, polling, and
+   event handling. */
+
+
+
+
 
 namespace cw {
 
-class Application;
-class TextArea;
-class Mode;
 
-class Sender {
- public:
- Sender(Application *a, TextArea *t) :
-	app (a),
-	textarea (t),
-        is_queue_idle (true) { }
 
-	// Poll timeout handler, and keypress event handler.
-	void poll(const Mode *current_mode);
-	void handle_key_event(QKeyEvent *event);
 
-	// Clear out queued data on stop, mode change, etc.
-	void clear();
 
- private:
-	Application *app;
-	// Display used for output.
-	TextArea *textarea;
+	class Application;
+	class TextArea;
+	class Mode;
 
-	// Deque and queue manipulation functions, used to handle and
-	// maintain the buffer of characters awaiting libcw send.
-	bool is_queue_idle;
-	std::deque<char> queue;
 
-	void dequeue_and_play_character();
-	void enqueue_string(const std::string &word);
-	void delete_character();
 
-	// Prevent unwanted operations.
-	Sender(const Sender &);
-	Sender &operator= (const Sender &);
-};
 
-}  // cw namespace
 
-#endif  // _XCWCP_SENDER_H
+	class Sender {
+	public:
+		Sender(Application *a, TextArea *t) :
+			app (a),
+			textarea (t),
+			is_queue_idle (true) { }
+
+		/* Poll timeout handler, and keypress event
+		   handler. */
+		void poll(const Mode *current_mode);
+		void handle_key_event(QKeyEvent *event);
+
+		/* Clear out queued data on stop, mode change, etc. */
+		void clear();
+
+	private:
+		/* Deque and queue manipulation functions, used to
+		   handle and maintain the buffer of characters
+		   awaiting sending through libcw. */
+		void dequeue_and_play_character();
+		void enqueue_string(const std::string &word);
+		void delete_character();
+
+
+		Application *app;
+		TextArea *textarea;
+
+		bool is_queue_idle;
+		std::deque<char> queue;
+
+
+		/* Prevent unwanted operations. */
+		Sender(const Sender &);
+		Sender &operator=(const Sender &);
+	};
+
+
+
+
+
+}  /* namespace cw */
+
+
+
+
+
+#endif  /* #ifndef H_XCWCP_SENDER */
