@@ -56,15 +56,17 @@ namespace cw {
 			description (descr) { }
 		virtual ~Mode() { }
 
-		std::string get_description() const;
+		inline std::string get_description() const { return description; };
 
 		bool is_same_type_as(const Mode *other) const;
 
-		virtual std::string get_random_word_group() const;
+		inline virtual bool is_dictionary() const { return false; };
+		inline virtual bool is_keyboard()   const { return false; };
+		inline virtual bool is_receive()    const { return false; };
 
-		virtual bool is_dictionary() const;
-		virtual bool is_keyboard() const;
-		virtual bool is_receive() const;
+		virtual const DictionaryMode *get_dmode() const { return NULL; };
+		virtual const KeyboardMode *get_kmode()   const { return NULL; };
+		virtual const ReceiveMode *get_rmode()    const { return NULL; };
 
 	private:
 		const std::string description;  /* Mode description. */
@@ -86,7 +88,8 @@ namespace cw {
 
 		std::string get_random_word_group() const;
 
-		virtual bool is_dictionary() const;
+		inline virtual bool is_dictionary() const { return true; };
+		inline virtual const DictionaryMode *get_dmode() const { return this; };
 
 	private:
 		const cw_dictionary_t *dictionary;  /* Dictionary of the mode. */
@@ -105,7 +108,8 @@ namespace cw {
 		KeyboardMode(const std::string &descr) :
 			Mode (descr) { }
 
-		virtual bool is_keyboard() const;
+		inline virtual bool is_keyboard() const { return true; };
+		inline virtual const KeyboardMode *get_kmode() const { return this; };
 
 	private:
 		/* Prevent unwanted operations. */
@@ -122,91 +126,14 @@ namespace cw {
 		ReceiveMode(const std::string &descr) :
 			Mode (descr) { }
 
-		virtual bool is_receive() const;
+		inline virtual bool is_receive() const { return true; };
+		inline virtual const ReceiveMode *get_rmode() const { return this; };
 
 	private:
 		/* Prevent unwanted operations. */
 		ReceiveMode(const ReceiveMode &);
 		ReceiveMode &operator=(const ReceiveMode &);
 	};
-
-
-
-
-
-	/*  Class inline functions. */
-
-
-
-
-
-	inline std::string Mode::get_description() const
-	{
-		return description;
-	}
-
-
-
-
-
-	inline bool Mode::is_dictionary() const
-	{
-		return false;
-	}
-
-
-
-
-
-	inline bool Mode::is_keyboard() const
-	{
-		return false;
-	}
-
-
-
-
-
-	inline bool Mode::is_receive() const
-	{
-		return false;
-	}
-
-
-
-
-
-	inline std::string Mode::get_random_word_group() const
-	{
-		return "";
-	}
-
-
-
-
-
-	inline bool DictionaryMode::is_dictionary() const
-	{
-		return true;
-	}
-
-
-
-
-
-	inline bool KeyboardMode::is_keyboard() const
-	{
-		return true;
-	}
-
-
-
-
-
-	inline bool ReceiveMode::is_receive() const
-	{
-		return true;
-	}
 
 
 
@@ -235,12 +162,6 @@ namespace cw {
 		ModeSet(const ModeSet &);
 		ModeSet &operator=(const ModeSet &);
 	};
-
-
-
-
-
-	// Class inline functions.
 
 
 
