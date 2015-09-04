@@ -50,9 +50,9 @@ namespace cw {
 		Receiver(Application *a, TextArea *t) :
 	        app (a),
 		textarea (t),
-		is_pending_inter_word_space_ (false),
-		libcw_receive_errno_ (0),
-		tracked_key_state_ (false),
+		is_pending_inter_word_space (false),
+		libcw_receive_errno (0),
+		tracked_key_state (false),
 		is_left_down (false),
 		is_right_down (false) { }
 
@@ -94,19 +94,19 @@ namespace cw {
 		/* Flag indicating if receive polling has received a
 		   character, and may need to augment it with a word
 		   space on a later poll. */
-		volatile bool is_pending_inter_word_space_;
+		volatile bool is_pending_inter_word_space;
 
 		/* Flag indicating possible receive errno detected in
 		   signal handler context and needing to be passed to
 		   the foreground. */
-		volatile int libcw_receive_errno_;
+		volatile int libcw_receive_errno;
 
 		/* Safety flag to ensure that we keep the library in
 		   sync with keyer events.  Without, there's a chance
 		   that of a on-off event, one half will go to one
 		   application instance, and the other to another
 		   instance. */
-		volatile int tracked_key_state_;
+		volatile int tracked_key_state;
 
 		/* State of left and right paddle of iambic keyer. The
 		   flags are common for keying with keyboard keys and

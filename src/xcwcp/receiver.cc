@@ -53,14 +53,14 @@ void Receiver::poll(const Mode *current_mode)
 
 	// Report and clear any receiver errors noted when handling
 	// the last libcw keyer event.
-	if (libcw_receive_errno_ != 0) {
+	if (libcw_receive_errno != 0) {
 		poll_report_receive_error();
 	}
 
 	// If we are awaiting a possible inter-word space,
 	// poll that first, then go on to poll receive
 	// characters; otherwise just poll receive characters.
-	if (is_pending_inter_word_space_) {
+	if (is_pending_inter_word_space) {
 
 		// This call directly asks receiver: "did you
 		// record space after a character that is long
@@ -69,7 +69,7 @@ void Receiver::poll(const Mode *current_mode)
 
 		// If we received a space, poll the next
 		// possible receive character
-		if (!is_pending_inter_word_space_) {
+		if (!is_pending_inter_word_space) {
 			poll_receive_character();
 		}
 	} else {
@@ -311,17 +311,17 @@ void Receiver::handle_libcw_keying_event(struct timeval *t, int key_state)
 	// avoids possible problems where this event handler is redirected between
 	// application instances; we might receive an end of tone without seeing
 	// the start of tone.
-	if (key_state == tracked_key_state_) {
-		//fprintf(stderr, "tracked key state == %d\n", tracked_key_state_);
+	if (key_state == tracked_key_state) {
+		//fprintf(stderr, "tracked key state == %d\n", tracked_key_state);
 		return;
 	} else {
 		//fprintf(stderr, "tracked key state := %d\n", key_state);
-		tracked_key_state_ = key_state;
+		tracked_key_state = key_state;
 	}
 
 	// If this is a tone start and we're awaiting an inter-word
 	// space, cancel that wait and clear the receive buffer.
-	if (key_state && is_pending_inter_word_space_) {
+	if (key_state && is_pending_inter_word_space) {
 		// Tell receiver to prepare (to make space) for
 		// receiving new character.
 		cw_clear_receive_buffer();
@@ -331,7 +331,7 @@ void Receiver::handle_libcw_keying_event(struct timeval *t, int key_state)
 		// inter-word space is possible at this point in
 		// time. The space that we were observing/waiting for,
 		// was just inter-character space.
-		is_pending_inter_word_space_ = false;
+		is_pending_inter_word_space = false;
 	}
 
 	//fprintf(stderr, "calling callback, stage 2\n");
@@ -362,7 +362,7 @@ void Receiver::handle_libcw_keying_event(struct timeval *t, int key_state)
 
 			case ENOMEM:
 			case ENOENT:
-				libcw_receive_errno_ = errno;
+				libcw_receive_errno = errno;
 				cw_clear_receive_buffer();
 				break;
 
@@ -386,9 +386,9 @@ void Receiver::handle_libcw_keying_event(struct timeval *t, int key_state)
 void Receiver::clear()
 {
 	cw_clear_receive_buffer();
-	is_pending_inter_word_space_ = false;
-	libcw_receive_errno_ = 0;
-	tracked_key_state_ = FALSE;
+	is_pending_inter_word_space = false;
+	libcw_receive_errno = 0;
+	tracked_key_state = FALSE;
 
 	return;
 }
@@ -403,11 +403,11 @@ void Receiver::clear()
 void Receiver::poll_report_receive_error()
 {
 	// Handle any receive errors detected on tone end but delayed until here.
-	app->show_status(libcw_receive_errno_ == ENOENT
+	app->show_status(libcw_receive_errno == ENOENT
 			 ? _("Badly formed CW element")
 			 : _("Receive buffer overrun"));
 
-	libcw_receive_errno_ = 0;
+	libcw_receive_errno = 0;
 
 	return;
 }
@@ -447,7 +447,7 @@ void Receiver::poll_receive_character()
 		//
 		// Set a flag indicating that next poll may result in
 		// inter-word space.
-		is_pending_inter_word_space_ = true;
+		is_pending_inter_word_space = true;
 
 		// Update the status bar to show the character
 		// received.  Put the received char at the end of
@@ -523,7 +523,7 @@ void Receiver::poll_receive_space()
 		//fprintf(stderr, "End of word\n\n");
 		textarea->append(' ');
 		cw_clear_receive_buffer();
-		is_pending_inter_word_space_ = false;
+		is_pending_inter_word_space = false;
 	} else {
 		// We don't reset is_pending_inter_word_space. The
 		// space that currently lasts, and isn't long enough
