@@ -34,47 +34,52 @@
 
 #include "i18n.h"
 
+
+
+
+
 namespace cw {
 
 
-//-----------------------------------------------------------------------
-//  Class Receiver
-//-----------------------------------------------------------------------
 
-// poll()
-//
-// Poll the CW library receive buffer for a complete character, and handle
-// anything found in it.
+
+
+/**
+   \brief Poll the CW library receive buffer and handle anything found
+   in the buffer
+
+   \param current_mode
+*/
 void Receiver::poll(const Mode *current_mode)
 {
 	if (!current_mode->is_receive()) {
 		return;
 	}
 
-	// Report and clear any receiver errors noted when handling
-	// the last libcw keyer event.
+	/* Report and clear any receiver errors noted when handling
+	   the last libcw keyer event. */
 	if (libcw_receive_errno != 0) {
 		poll_report_receive_error();
 	}
 
-	// If we are awaiting a possible inter-word space,
-	// poll that first, then go on to poll receive
-	// characters; otherwise just poll receive characters.
+	/* If we are awaiting a possible inter-word space, poll that
+	   first, then go on to poll character(s) received after that
+	   space.  Otherwise just poll received characters. */
 	if (is_pending_inter_word_space) {
 
-		// This call directly asks receiver: "did you
-		// record space after a character that is long
-		// enough to treat it as end of word?".
+		/* This call directly asks receiver: "did you record
+		   space after a character that is long enough to
+		   treat it as inter-word space?". */
 		poll_receive_space();
 
-		// If we received a space, poll the next
-		// possible receive character
+		/* If we received a space, poll the next possible
+		   received character */
 		if (!is_pending_inter_word_space) {
 			poll_receive_character();
 		}
 	} else {
-		// Not awaiting a possible space, so just poll
-		// the next possible receive character.
+		/* Not awaiting a possible space, so just poll the
+		   next possible received character. */
 		poll_receive_character();
 	}
 
@@ -86,7 +91,7 @@ void Receiver::poll(const Mode *current_mode)
 
 
 /**
-   \brief Handle keys entered in main window in receiver mode
+   \brief Handle keyboard keys pressed in main window in receiver mode
 
    Function handles both press and release events, but ignores
    autorepeat.
@@ -98,8 +103,6 @@ void Receiver::poll(const Mode *current_mode)
 */
 void Receiver::handle_key_event(QKeyEvent *event, bool is_reverse_paddles)
 {
-	//fprintf(stderr, "\n\n");
-
 	if (event->isAutoRepeat()) {
 		/* Ignore repeated key events.  This prevents
 		   autorepeat from getting in the way of identifying
@@ -159,8 +162,6 @@ void Receiver::handle_key_event(QKeyEvent *event, bool is_reverse_paddles)
 */
 void Receiver::handle_mouse_event(QMouseEvent *event, bool is_reverse_paddles)
 {
-	//fprintf(stderr, "\n\n");
-
 	if (event->type() == QEvent::MouseButtonPress
 	    || event->type() == QEvent::MouseButtonDblClick
 	    || event->type() == QEvent::MouseButtonRelease) {
@@ -295,22 +296,36 @@ void Receiver::ik_right_event(bool is_down, bool is_reverse_paddles)
 
 
 
-// handle_libcw_keying_event()
-//
-// Handler for the keying callback from the CW library indicating that the
-// keying state changed.  The function handles the receive of keyed CW,
-// ignoring calls on non-receive modes.
-//
-// This function is called in signal handler context, and it takes care to
-// call only functions that are safe within that context.  In particular,
-// it goes out of its way to deliver results by setting flags that are
-// later handled by receive polling.
+/**
+   \brief Handler for the keying callback from the CW library
+   indicating that the state of a key has changed.
+
+   The "key" is libcw's internal key structure. It's state is updated
+   by libcw when e.g. one iambic keyer paddle is constantly
+   pressed. It is also updated in other situations. In any case: the
+   function is called whenever state of this key changes.
+
+   Notice that the description above talks about a key, not about a
+   receiver. Key's states need to be interpreted by receiver, which is
+   a separate task. Key and receiver are separate concepts. This
+   function connects them.
+
+   This function, called on key state changes, calls receiver
+   functions to ensure that receiver does "receive" the key state
+   changes.
+
+   This function is called in signal handler context, and it takes
+   care to call only functions that are safe within that context.  In
+   particular, it goes out of its way to deliver results by setting
+   flags that are later handled by receive polling.
+*/
 void Receiver::handle_libcw_keying_event(struct timeval *t, int key_state)
 {
-	// Ignore calls where the key state matches our tracked key state.  This
-	// avoids possible problems where this event handler is redirected between
-	// application instances; we might receive an end of tone without seeing
-	// the start of tone.
+	/* Ignore calls where the key state matches our tracked key
+	   state.  This avoids possible problems where this event
+	   handler is redirected between application instances; we
+	   might receive an end of tone without seeing the start of
+	   tone. */
 	if (key_state == tracked_key_state) {
 		//fprintf(stderr, "tracked key state == %d\n", tracked_key_state);
 		return;
@@ -319,45 +334,45 @@ void Receiver::handle_libcw_keying_event(struct timeval *t, int key_state)
 		tracked_key_state = key_state;
 	}
 
-	// If this is a tone start and we're awaiting an inter-word
-	// space, cancel that wait and clear the receive buffer.
+	/* If this is a tone start and we're awaiting an inter-word
+	   space, cancel that wait and clear the receive buffer. */
 	if (key_state && is_pending_inter_word_space) {
-		// Tell receiver to prepare (to make space) for
-		// receiving new character.
+		/* Tell receiver to prepare (to make space) for
+		   receiving new character. */
 		cw_clear_receive_buffer();
 
-		// The tone start means that we're seeing the next
-		// incoming character within the same word, so no
-		// inter-word space is possible at this point in
-		// time. The space that we were observing/waiting for,
-		// was just inter-character space.
+		/* The tone start means that we're seeing the next
+		   incoming character within the same word, so no
+		   inter-word space is possible at this point in
+		   time. The space that we were observing/waiting for,
+		   was just inter-character space. */
 		is_pending_inter_word_space = false;
 	}
 
 	//fprintf(stderr, "calling callback, stage 2\n");
 
-	// Pass tone state on to the library.  For tone end, check to
-	// see if the library has registered any receive error.
+	/* Pass tone state on to the library.  For tone end, check to
+	   see if the library has registered any receive error. */
 	if (key_state) {
-		// Key down
+		/* Key down. */
 		//fprintf(stderr, "start receive tone: %10ld . %10ld\n", t->tv_sec, t->tv_usec);
 		if (!cw_start_receive_tone(t)) {
 			perror("cw_start_receive_tone");
 			abort();
 		}
 	} else {
-		// Key up
+		/* Key up. */
 		//fprintf(stderr, "end receive tone:   %10ld . %10ld\n", t->tv_sec, t->tv_usec);
 		if (!cw_end_receive_tone(t)) {
-			// Handle receive error detected on tone end.  For
-			// ENOMEM and ENOENT we set the error in a class
-			// flag, and display the appropriate message on the
-			// next receive poll.
+			/* Handle receive error detected on tone end.
+			   For ENOMEM and ENOENT we set the error in a
+			   class flag, and display the appropriate
+			   message on the next receive poll. */
 			switch (errno) {
 			case EAGAIN:
-				// libcw treated the tone as noise (it was
-				// shorter than noise threshold).
-				// No problem, not an error.
+				/* libcw treated the tone as noise (it
+				   was shorter than noise threshold).
+				   No problem, not an error. */
 				break;
 
 			case ENOMEM:
@@ -380,15 +395,15 @@ void Receiver::handle_libcw_keying_event(struct timeval *t, int key_state)
 
 
 
-// clear()
-//
-// Clear the library receive buffer and our own flags.
+/**
+   \brief Clear the library receive buffer and our own flags
+*/
 void Receiver::clear()
 {
 	cw_clear_receive_buffer();
 	is_pending_inter_word_space = false;
 	libcw_receive_errno = 0;
-	tracked_key_state = FALSE;
+	tracked_key_state = false;
 
 	return;
 }
@@ -397,12 +412,12 @@ void Receiver::clear()
 
 
 
-// poll_report_receive_error()
-//
-// Handle any error registered when handling a libcw keying event.
+/**
+   \brief Handle any error registered when handling a libcw keying event
+*/
 void Receiver::poll_report_receive_error()
 {
-	// Handle any receive errors detected on tone end but delayed until here.
+	/* Handle any receive errors detected on tone end but delayed until here. */
 	app->show_status(libcw_receive_errno == ENOENT
 			 ? _("Badly formed CW element")
 			 : _("Receive buffer overrun"));
@@ -416,65 +431,68 @@ void Receiver::poll_report_receive_error()
 
 
 
-// poll_receive_character()
-//
-// Receive any new character from the CW library.
+/**
+   \brief Receive any new character from the CW library.
+*/
 void Receiver::poll_receive_character()
 {
 	char c;
 
-	// Don't use receiver.timer - it is used eclusively for
-	// marking initial "key down" events. Use local throw-away
-	// timer2.
-	//
-	// Additionally using reveiver.timer here would mess up time
-	// intervals measured by receiver.timer, and that would
-	// interfere with recognizing dots and dashes.
+	/* Don't use receiver.timer - it is used exclusively for
+	   marking initial "key down" events. Use local throw-away
+	   timer2.
+
+	   Additionally using reveiver.timer here would mess up time
+	   intervals measured by receiver.timer, and that would
+	   interfere with recognizing dots and dashes. */
 	struct timeval timer2;
 	gettimeofday(&timer2, NULL);
 	//fprintf(stderr, "poll_receive_char:  %10ld : %10ld\n", timer2.tv_sec, timer2.tv_usec);
 	if (cw_receive_character(&timer2, &c, NULL, NULL)) {
-		// Receiver stores full, well formed
-		// character. Display it.
+		/* Receiver stores full, well formed
+		   character. Display it. */
 		textarea->append(c);
 
-		// A full character has been received. Directly after
-		// it comes a space. Eiter a short inter-character
-		// space followed by another character (in this case
-		// we won't display the inter-character space), or
-		// longer inter-word space - this space we would like
-		// to catch and display.
-		//
-		// Set a flag indicating that next poll may result in
-		// inter-word space.
+		/* A full character has been received. Directly after
+		   it comes a space. Either a short inter-character
+		   space followed by another character (in this case
+		   we won't display the inter-character space), or
+		   longer inter-word space - this space we would like
+		   to catch and display.
+
+		   Set a flag indicating that next poll may result in
+		   inter-word space. */
 		is_pending_inter_word_space = true;
 
-		// Update the status bar to show the character
-		// received.  Put the received char at the end of
-		// string to avoid "jumping" of whole string when
-		// width of glyph of received char changes at variable
-		// font width.
+		/* Update the status bar to show the character
+		   received.  Put the received char at the end of
+		   string to avoid "jumping" of whole string when
+		   width of glyph of received char changes at variable
+		   font width. */
 		QString status = _("Received at %1 WPM: '%2'");
 		app->show_status(status.arg(cw_get_receive_speed()).arg(c));
 		//fprintf(stderr, "Received character '%c'\n", c);
 
 	} else {
-		// Handle receive error detected on trying to read a character.
+		/* Handle receive error detected on trying to read a character. */
 		switch (errno) {
 		case EAGAIN:
-			// Call made too early, receiver hasn't
-			// received a full character yet. Try next time.
+			/* Call made too early, receiver hasn't
+			   received a full character yet. Try next
+			   time. */
 			break;
 
 		case ERANGE:
-			// Call made not in time, or not in proper
-			// sequence. Receiver hasn't received any
-			// character (yet). Try harder.
+			/* Call made not in time, or not in proper
+			   sequence. Receiver hasn't received any
+			   character (yet). Try harder. */
 			break;
 
 		case ENOENT:
-			// Invalid character in receiver's buffer.
-			{	// New scope to avoid gcc 3.2.2 internal compiler error
+			/* Invalid character in receiver's buffer. */
+			{	/* New scope to avoid gcc 3.2.2
+				   internal compiler error. */
+
 				cw_clear_receive_buffer();
 				textarea->append('?');
 
@@ -496,25 +514,26 @@ void Receiver::poll_receive_character()
 
 
 
-// poll_receive_space()
-//
-// If we received a character on an earlier poll, check again to see if we
-// need to revise the decision about whether it is the end of a word too.
+/**
+   If we received a character on an earlier poll, check again to see
+   if we need to revise the decision about whether it is the end of a
+   word too.
+*/
 void Receiver::poll_receive_space()
 {
-	// Recheck the receive buffer for end of word.
+	/* Recheck the receive buffer for end of word. */
 	bool is_end_of_word;
 
-	// We expect the receiver to contain a character, but we don't
-	// ask for it this time. The receiver should also store
-	// information about a post-character space. If it is longer
-	// than a regular inter-character space, then the receiver
-	// will treat it as inter-word space, and communicate it over
-	// is_end_of_word.
+	/* We expect the receiver to contain a character, but we don't
+	   ask for it this time. The receiver should also store
+	   information about an inter-character space. If it is longer
+	   than a regular inter-character space, then the receiver
+	   will treat it as inter-word space, and communicate it over
+	   is_end_of_word.
 
-	// Don't use receiver.timer - it is used eclusively for
-	// marking initial "key down" events. Use local throw-away
-	// timer2.
+	   Don't use receiver.timer - it is used eclusively for
+	   marking initial "key down" events. Use local throw-away
+	   timer2. */
 	struct timeval timer2;
 	gettimeofday(&timer2, NULL);
 	//fprintf(stderr, "poll_receive_space: %10ld : %10ld\n", timer2.tv_sec, timer2.tv_usec);
@@ -525,20 +544,20 @@ void Receiver::poll_receive_space()
 		cw_clear_receive_buffer();
 		is_pending_inter_word_space = false;
 	} else {
-		// We don't reset is_pending_inter_word_space. The
-		// space that currently lasts, and isn't long enough
-		// to be considered inter-word space, may grow to
-		// become the inter-word space. Or not.
-		//
-		// This growing of inter-character space into
-		// inter-word space may be terminated by incoming next
-		// tone (key down event) - the tone will mark
-		// beginning of new character within the same
-		// word. And since a new character begins, the flag
-		// will be reset (elsewhere).
+		/* We don't reset is_pending_inter_word_space. The
+		   space that currently lasts, and isn't long enough
+		   to be considered inter-word space, may grow to
+		   become the inter-word space. Or not.
+
+		   This growing of inter-character space into
+		   inter-word space may be terminated by incoming next
+		   tone (key down event) - the tone will mark
+		   beginning of new character within the same
+		   word. And since a new character begins, the flag
+		   will be reset (elsewhere). */
 	}
 
 	return;
 }
 
-}  // cw namespace
+}  /* namespace cw */
