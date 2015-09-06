@@ -554,7 +554,11 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 		/* This function is called from generator thread. It
 		   is perfectly valid situation that for some
 		   applications a generator exists, but a keyer does
-		   not exist.  Silently accept this situation. */
+		   not exist.  Silently accept this situation.
+
+		   TODO: move this check earlier in call stack, so
+		   that less functions are called before silently
+		   discovering that key doesn't exist.. */
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_INTERNAL, CW_DEBUG_DEBUG,
 			      "libcw/ik: NULL key, silently accepting");
 		return CW_SUCCESS;
