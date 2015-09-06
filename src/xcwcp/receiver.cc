@@ -56,31 +56,26 @@ void Receiver::poll(const Mode *current_mode)
 		return;
 	}
 
-	/* Report and clear any receiver errors noted when handling
-	   the last libcw keyer event. */
 	if (libcw_receive_errno != 0) {
-		poll_report_receive_error();
+		poll_report_error();
 	}
 
-	/* If we are awaiting a possible inter-word space, poll that
-	   first, then go on to poll character(s) received after that
-	   space.  Otherwise just poll received characters. */
 	if (is_pending_inter_word_space) {
 
-		/* This call directly asks receiver: "did you record
-		   space after a character that is long enough to
-		   treat it as inter-word space?". */
-		poll_receive_space();
+		/* Check if receiver received the pending inter-word
+		   space. */
+		poll_space();
 
-		/* If we received a space, poll the next possible
-		   received character */
 		if (!is_pending_inter_word_space) {
-			poll_receive_character();
+			/* We received the pending space. After it the
+			   receiver may have received another
+			   character.  Try to get it too. */
+			poll_character();
 		}
 	} else {
 		/* Not awaiting a possible space, so just poll the
 		   next possible received character. */
-		poll_receive_character();
+		poll_character();
 	}
 
 	return;
@@ -415,7 +410,7 @@ void Receiver::clear()
 /**
    \brief Handle any error registered when handling a libcw keying event
 */
-void Receiver::poll_report_receive_error()
+void Receiver::poll_report_error()
 {
 	/* Handle any receive errors detected on tone end but delayed until here. */
 	app->show_status(libcw_receive_errno == ENOENT
@@ -434,7 +429,7 @@ void Receiver::poll_report_receive_error()
 /**
    \brief Receive any new character from the CW library.
 */
-void Receiver::poll_receive_character()
+void Receiver::poll_character()
 {
 	char c;
 
@@ -519,7 +514,7 @@ void Receiver::poll_receive_character()
    if we need to revise the decision about whether it is the end of a
    word too.
 */
-void Receiver::poll_receive_space()
+void Receiver::poll_space()
 {
 	/* Recheck the receive buffer for end of word. */
 	bool is_end_of_word;
@@ -536,7 +531,7 @@ void Receiver::poll_receive_space()
 	   timer2. */
 	struct timeval timer2;
 	gettimeofday(&timer2, NULL);
-	//fprintf(stderr, "poll_receive_space: %10ld : %10ld\n", timer2.tv_sec, timer2.tv_usec);
+	//fprintf(stderr, "poll_space(): %10ld : %10ld\n", timer2.tv_sec, timer2.tv_usec);
 	cw_receive_character(&timer2, NULL, &is_end_of_word, NULL);
 	if (is_end_of_word) {
 		//fprintf(stderr, "End of word\n\n");
