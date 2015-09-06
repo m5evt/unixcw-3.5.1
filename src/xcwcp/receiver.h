@@ -106,7 +106,7 @@ namespace cw {
 		   that of a on-off event, one half will go to one
 		   application instance, and the other to another
 		   instance. */
-		volatile int tracked_key_state;
+		volatile bool tracked_key_state;
 
 		/* State of left and right paddle of iambic keyer. The
 		   flags are common for keying with keyboard keys and
