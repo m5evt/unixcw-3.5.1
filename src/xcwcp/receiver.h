@@ -120,10 +120,10 @@ namespace cw {
 		bool is_right_down;
 
 		/* Poll primitives to handle receive errors,
-		   characters, and spaces. */
-		void poll_report_receive_error();
-		void poll_receive_character();
-		void poll_receive_space();
+		   characters, and inter-word spaces. */
+		void poll_report_error();
+		void poll_character();
+		void poll_space();
 
 		/* Prevent unwanted operations. */
 		Receiver(const Receiver &);
