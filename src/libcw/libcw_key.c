@@ -1375,3 +1375,61 @@ void cw_key_sk_reset_internal(volatile cw_key_t *key)
 
 	return;
 }
+
+
+
+
+
+cw_key_t *cw_key_new_internal(void)
+{
+	cw_key_t *key = (cw_key_t *) malloc(sizeof (cw_key_t));
+	if (!key) {
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+			      "libcw: malloc()");
+		return (cw_key_t *) NULL;
+	}
+
+	key->gen = (cw_gen_t *) NULL;
+	key->rec = (cw_rec_t *) NULL;
+
+	key->sk.key_value = CW_KEY_STATE_OPEN;
+
+	key->ik.graph_state = KS_IDLE;
+	key->ik.key_value = 0;
+
+	key->ik.dot_paddle = false;
+	key->ik.dash_paddle = false;
+	key->ik.dot_latch = false;
+	key->ik.dash_latch = false;
+
+	key->ik.curtis_mode_b = false;
+	key->ik.curtis_b_latch = false;
+
+	key->ik.lock = false;
+
+	key->ik.key_timer.tv_sec = 0;
+	key->ik.key_timer.tv_usec = 0;
+
+	key->tk.key_value = CW_KEY_STATE_OPEN;
+
+	return key;
+}
+
+
+
+
+
+
+void cw_key_delete_internal(cw_key_t **key)
+{
+	cw_assert (key, "key is NULL");
+
+	if (!*key) {
+		return;
+	}
+
+	free(*key);
+	*key = (cw_key_t *) NULL;
+
+	return;
+}

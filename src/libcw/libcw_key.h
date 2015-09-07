@@ -140,6 +140,13 @@ typedef struct cw_key_struct cw_key_t;
 
 
 
+cw_key_t *cw_key_new_internal(void);
+void      cw_key_delete_internal(cw_key_t **key);
+
+
+
+
+
 void cw_key_tk_set_value_internal(volatile cw_key_t *key, int key_state);
 
 void cw_key_register_generator_internal(volatile cw_key_t *key, cw_gen_t *gen);
