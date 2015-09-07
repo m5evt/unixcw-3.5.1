@@ -211,7 +211,9 @@ void cw_key_register_keying_callback_internal(volatile cw_key_t *key,
 */
 void cw_key_ik_register_timer_internal(volatile cw_key_t *key, struct timeval *timer)
 {
+#ifndef WITH_EXPERIMENTAL_RECEIVER
 	key->ik.timer = timer;
+#endif
 
 	return;
 }
@@ -346,6 +348,10 @@ int cw_key_sk_enqueue_symbol_internal(volatile cw_key_t *key, int key_value)
 {
 	cw_assert (key, "key is NULL");
 	cw_assert (key->gen, "generator is NULL");
+
+#ifdef WITH_EXPERIMENTAL_RECEIVER
+	gettimeofday(&key->ik.key_timer, NULL);
+#endif
 
 	if (key->sk.key_value != key_value) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
@@ -807,6 +813,9 @@ int cw_key_ik_notify_paddle_event_internal(volatile cw_key_t *key, int dot_paddl
 
 
 	if (key->ik.graph_state == KS_IDLE) {
+#ifdef WITH_EXPERIMENTAL_RECEIVER
+		gettimeofday(&key->ik.key_timer, NULL);
+#endif
 		/* If the current state is idle, give the state
 		   process an initial impulse. */
 		return cw_key_ik_update_state_initial_internal(key);
@@ -1202,6 +1211,14 @@ void cw_key_ik_increment_timer_internal(volatile cw_key_t *key, int usecs)
 		   in use will cause problems, so don't clock
 		   a straight key with this. */
 
+#ifdef WITH_EXPERIMENTAL_RECEIVER
+		cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
+			      "libcw/ik: incrementing timer by %d [us]\n", usecs);
+
+		key->ik.key_timer.tv_usec += usecs % CW_USECS_PER_SEC;
+		key->ik.key_timer.tv_sec  += usecs / CW_USECS_PER_SEC + key->ik.key_timer.tv_usec / CW_USECS_PER_SEC;
+		key->ik.key_timer.tv_usec %= CW_USECS_PER_SEC;
+#else
 		if (key->ik.timer) {
 
 			cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
@@ -1211,6 +1228,7 @@ void cw_key_ik_increment_timer_internal(volatile cw_key_t *key, int usecs)
 			key->ik.timer->tv_sec  += usecs / CW_USECS_PER_SEC + key->ik.timer->tv_usec / CW_USECS_PER_SEC;
 			key->ik.timer->tv_usec %= CW_USECS_PER_SEC;
 		}
+#endif
 	}
 
 	return;
