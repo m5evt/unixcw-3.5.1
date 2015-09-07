@@ -56,10 +56,6 @@
 
 #include "libcw.h"
 
-#ifdef WITH_EXPERIMENTAL_RECEIVER
-#include "libcw_key.h"
-#endif
-
 #include "i18n.h"
 #include "cw_copyright.h"
 
