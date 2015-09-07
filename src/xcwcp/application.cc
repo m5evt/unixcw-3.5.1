@@ -56,6 +56,10 @@
 
 #include "libcw.h"
 
+#ifdef WITH_EXPERIMENTAL_RECEIVER
+#include "libcw_key.h"
+#endif
+
 #include "i18n.h"
 #include "cw_copyright.h"
 
@@ -1101,6 +1105,9 @@ void Application::make_auxiliaries_end(void)
 	   paddles are pressed, but (since it doesn't receive timing
 	   parameters) it won't be able to identify entered Morse
 	   code. */
+#ifdef WITH_EXPERIMENTAL_RECEIVER
+	cw_register_keying_callback(libcw_keying_event_static, cw_key_get_timer_internal());
+#else
 	cw_register_keying_callback(libcw_keying_event_static, &(receiver->timer));
 
 	/* The call above registered receiver->timer as a generic
@@ -1112,6 +1119,7 @@ void Application::make_auxiliaries_end(void)
 
 	gettimeofday(&(receiver->timer), NULL);
 	//fprintf(stderr, "time on aux config: %10ld : %10ld\n", receiver->timer.tv_sec, receiver->timer.tv_usec);
+#endif
 
 	QString label("Output: ");
 	label += cw_generator_get_audio_system_label();
