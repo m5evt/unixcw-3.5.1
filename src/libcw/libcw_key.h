@@ -65,7 +65,7 @@ struct cw_key_struct {
 	   around. */
 	cw_rec_t *rec;
 
-
+#ifndef WITH_EXPERIMENTAL_RECEIVER
 	/* External "on key state change" callback function and its
 	   argument.
 
@@ -76,7 +76,7 @@ struct cw_key_struct {
 	   argument for it. */
 	void (*key_callback)(void*, int);
 	void *key_callback_arg;
-
+#endif
 
 	/* Straight key. */
 	struct {
