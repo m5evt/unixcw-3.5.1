@@ -10,15 +10,6 @@
 
 
 
-#if defined(__cplusplus)
-extern "C"
-{
-#endif
-
-
-
-
-
 #include <stdbool.h>
 
 
@@ -175,19 +166,6 @@ int  cw_key_sk_notify_event_internal(volatile cw_key_t *key, int key_state);
 int  cw_key_sk_get_state_internal(volatile cw_key_t *key);
 bool cw_key_sk_is_busy_internal(volatile cw_key_t *key);
 void cw_key_sk_reset_internal(volatile cw_key_t *key);
-
-
-#ifdef WITH_EXPERIMENTAL_RECEIVER
-struct timeval *cw_key_get_timer_internal(void);
-#endif
-
-
-
-
-
-#if defined(__cplusplus)
-}
-#endif
 
 
 
