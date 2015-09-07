@@ -1,4 +1,4 @@
-# Copyright (C) 2001-2006  Simon Baldwin (simon_baldwin@yahoo.com)
+ad# Copyright (C) 2001-2006  Simon Baldwin (simon_baldwin@yahoo.com)
 # Copyright (C) 2011-2015  Kamil Ignacak (acerion@wp.pl)
 #
 # This program is free software; you can redistribute it and/or
@@ -247,6 +247,20 @@ else
 fi
 
 
+# This enables experimental solutions in src/libcw/libcw_rec.c, src/libcw_libcw_key.c, src/xcwcp/receiver.cc
+AC_ARG_ENABLE(experimental-receiver,
+    AS_HELP_STRING([--enable-experimental-receiver], [enable *experimental* code implementing receiver feature in libcw and xcwcp; for development use only.]),
+    [],
+    [enable_experimental_receiver=no])
+
+AC_MSG_CHECKING([whether to enable experimental code implementing receiver feature in libcw and xcwcp])
+if test "$enable_experimental_receiver" = "yes" ; then
+    AC_MSG_RESULT(yes)
+else
+    AC_MSG_RESULT(no)
+fi
+
+
 # Enable development debugging? No by default.
 AC_ARG_ENABLE(dev,
     AS_HELP_STRING([--enable-dev], [enable development support (messages/debug code/asserts)]),
@@ -410,6 +424,12 @@ if test "$enable_signals_alternative" = "yes" ; then
    AC_DEFINE([LIBCW_WITH_SIGNALS_ALTERNATIVE], [1], [Define as 1 if you want to replace *some* cases of usage of POSIX signals in libcw with alternative IPC mechanism.])
 fi
 
+
+# Alternative to POSIX signals in libcw.
+AM_CONDITIONAL(WITH_EXPERIMENTAL_RECEIVER, test "$enable_experimental_receiver" = "yes")
+if test "$enable_experimental_receiver" = "yes" ; then
+   AC_DEFINE([WITH_EXPERIMENTAL_RECEIVER], [1], [Define as 1 if you want to enable *experimental* code (for development only) implementing receiver feature in libcw and xcwcp.])
+fi
 
 
 # Development support tools.
@@ -640,11 +660,16 @@ AC_MSG_NOTICE([    include console buzzer support:  ....  $WITH_CONSOLE])
 AC_MSG_NOTICE([    include OSS support:  ...............  $WITH_OSS])
 AC_MSG_NOTICE([    include ALSA support:  ..............  $WITH_ALSA])
 AC_MSG_NOTICE([    include PulseAudio support:  ........  $WITH_PULSEAUDIO])
-AC_MSG_NOTICE([    enable alternative IPC mechanism: ...  $enable_signals_alternative])
+if test "$enable_signals_alternative" = 'yes' ; then
+   AC_MSG_NOTICE([    enable alternative IPC mechanism: ...  $enable_signals_alternative])
+fi
 AC_MSG_NOTICE([build cw:  ..............................  yes])
 AC_MSG_NOTICE([build cwgen:  ...........................  yes])
 AC_MSG_NOTICE([build cwcp:  ............................  $WITH_CWCP])
 AC_MSG_NOTICE([build xcwcp:  ...........................  $WITH_XCWCP])
+if test "$enable_experimental_receiver" = 'yes' ; then
+   AC_MSG_NOTICE([enable experimental receiver code: ......  $enable_experimental_receiver])
+fi
 if test "$WITH_XCWCP" = 'yes' ; then
     AC_MSG_NOTICE([    Qt4 CFLAGS:  $QT4_CFLAGS])
     AC_MSG_NOTICE([    Qt4 LIBS:    $QT4_LIBS])
