@@ -2492,7 +2492,7 @@ int cw_gen_key_begin_mark_internal(cw_gen_t *gen)
 	if (rv == CW_SUCCESS) {
 
 		CW_TONE_INIT(&tone, gen->frequency, gen->quantum_len, CW_SLOPE_MODE_NO_SLOPES);
-		tone.forever = true;
+		tone.is_forever = true;
 		rv = cw_tq_enqueue_internal(gen->tq, &tone);
 
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
@@ -2550,7 +2550,7 @@ int cw_gen_key_begin_space_internal(cw_gen_t *gen)
 			   would simply last on itself until there is
 			   new tone on queue to play. */
 			CW_TONE_INIT(&tone, 0, gen->quantum_len, CW_SLOPE_MODE_NO_SLOPES);
-			tone.forever = true;
+			tone.is_forever = true;
 			rv = cw_tq_enqueue_internal(gen->tq, &tone);
 		}
 
@@ -3031,7 +3031,7 @@ unsigned int test_cw_gen_forever_sub(int seconds, int audio_system, const char *
 	cw_tq_enqueue_internal(gen->tq, &tone);
 
 	CW_TONE_INIT(&tone, freq, gen->quantum_len, CW_SLOPE_MODE_NO_SLOPES);
-	tone.forever = true;
+	tone.is_forever = true;
 	int rv = cw_tq_enqueue_internal(gen->tq, &tone);
 
 #ifdef __FreeBSD__  /* Tested on FreeBSD 10. */
