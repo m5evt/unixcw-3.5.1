@@ -251,6 +251,17 @@ void cw_key_tk_set_value_internal(volatile cw_key_t *key, int key_value)
 		/* Remember the new key value. */
 		key->tk.key_value = key_value;
 
+#ifdef WITH_EXPERIMENTAL_RECEIVER
+		if (key->rec) {
+			if (key->tk.key_value) {
+				/* Key down. */
+				cw_rec_mark_begin_internal(key->rec, &key->ik.key_timer);
+			} else {
+				/* Key up. */
+				cw_rec_mark_end_internal(key->rec, &key->ik.key_timer);
+			}
+		}
+#else
 		/* Call a registered callback. */
 		if (key->key_callback) {
 			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYING, CW_DEBUG_INFO,
@@ -258,6 +269,8 @@ void cw_key_tk_set_value_internal(volatile cw_key_t *key, int key_value)
 
 			(*(key->key_callback))(key->key_callback_arg, key->tk.key_value);
 		}
+#endif
+
 		return;
 	} else {
 		/* This is not an error. This may happen when
