@@ -131,10 +131,10 @@ static volatile cw_key_t cw_key = {
 
 	.rec = &cw_receiver,
 
-
+#ifndef WITH_EXPERIMENTAL_RECEIVER
 	.key_callback = NULL,
 	.key_callback_arg = NULL,
-
+#endif
 
 	.sk = {
 		.key_value = CW_KEY_STATE_OPEN
