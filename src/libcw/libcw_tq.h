@@ -14,13 +14,6 @@
 
 
 
-#if defined(__cplusplus)
-extern "C"
-{
-#endif
-
-
-
 
 
 #include <stdint.h>     /* uint32_t */
@@ -293,12 +286,6 @@ unsigned int test_cw_tq_wait_for_level_internal(void);
 
 #endif /* #ifdef LIBCW_UNIT_TESTS */
 
-
-
-
-#if defined(__cplusplus)
-}
-#endif
 
 
 
