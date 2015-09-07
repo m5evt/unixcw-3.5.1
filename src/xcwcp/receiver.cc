@@ -297,11 +297,12 @@ void Receiver::ik_right_event(bool is_down, bool is_reverse_paddles)
 
 
 
+#ifndef WITH_EXPERIMENTAL_RECEIVER
 /**
    \brief Handler for the keying callback from the CW library
    indicating that the state of a key has changed.
 
-   The "key" is libcw's internal key structure. It's state is updated
+   The "key" is libcw's internal key structure. Its state is updated
    by libcw when e.g. one iambic keyer paddle is constantly
    pressed. It is also updated in other situations. In any case: the
    function is called whenever state of this key changes.
@@ -341,6 +342,9 @@ void Receiver::handle_libcw_keying_event(struct timeval *t, int key_state)
 	if (key_state && is_pending_inter_word_space) {
 		/* Tell receiver to prepare (to make space) for
 		   receiving new character. */
+		/* FIXME: when WITH_EXPERIMENTAL_RECEIVER is defined,
+		   xcwcp won't call cw_clear_receive_buffer(). Do this
+		   somewhere else. */
 		cw_clear_receive_buffer();
 
 		/* The tone start means that we're seeing the next
@@ -392,6 +396,7 @@ void Receiver::handle_libcw_keying_event(struct timeval *t, int key_state)
 
 	return;
 }
+#endif
 
 
 
@@ -405,7 +410,9 @@ void Receiver::clear()
 	cw_clear_receive_buffer();
 	is_pending_inter_word_space = false;
 	libcw_receive_errno = 0;
+#ifndef WITH_EXPERIMENTAL_RECEIVER
 	tracked_key_state = false;
+#endif
 
 	return;
 }
