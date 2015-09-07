@@ -82,7 +82,7 @@ typedef struct {
 
 	/* Is this "forever" tone? See libcw_tq.c for more info about
 	   "forever" tones. */
-	bool forever;
+	bool is_forever;
 
 	/* Type of slope. */
 	int slope_mode;
@@ -147,7 +147,7 @@ typedef struct {
 		(m_tone)->frequency               = m_frequency;	\
 		(m_tone)->len                     = m_len;		\
 		(m_tone)->slope_mode              = m_slope_mode;	\
-		(m_tone)->forever                 = false;		\
+		(m_tone)->is_forever              = false;		\
 		(m_tone)->n_samples               = 0;			\
 		(m_tone)->sample_iterator         = 0;			\
 		(m_tone)->rising_slope_n_samples  = 0;			\
@@ -162,7 +162,7 @@ typedef struct {
 		(m_dest)->frequency               = (m_source)->frequency; \
 		(m_dest)->len                     = (m_source)->len;	\
 		(m_dest)->slope_mode              = (m_source)->slope_mode; \
-		(m_dest)->forever                 = (m_source)->forever; \
+		(m_dest)->is_forever              = (m_source)->is_forever; \
 		(m_dest)->n_samples               = (m_source)->n_samples; \
 		(m_dest)->sample_iterator         = (m_source)->sample_iterator;	\
 		(m_dest)->rising_slope_n_samples  = (m_source)->rising_slope_n_samples; \
