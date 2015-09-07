@@ -173,6 +173,7 @@ namespace cw {
 		   tracked speed on start. */
 		int saved_receive_speed;
 
+#ifndef WITH_EXPERIMENTAL_RECEIVER
 		/* Keying callback function for libcw.  There is a
 		   static version for the whole class, and an instance
 		   version for each object.  The class version calls
@@ -180,6 +181,7 @@ namespace cw {
 		   instance is the current registered libcw user. */
 		static void libcw_keying_event_static(void *, int key_state);
 		void libcw_keying_event(int key_state);
+#endif
 
 		/* Wrappers for creating UI. */
 		void make_central_widget(void);
