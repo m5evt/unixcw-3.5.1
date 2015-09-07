@@ -22,6 +22,8 @@
 #include <QMouseEvent>
 #include <QKeyEvent>
 
+#include "config.h"
+
 
 
 
@@ -77,6 +79,7 @@ namespace cw {
 		/* Clear out queued data on stop, mode change, etc. */
 		void clear();
 
+#ifndef WITH_EXPERIMENTAL_RECEIVER
 		/* Timer for measuring length of dots and dashes.
 
 		   Initial value of the timestamp is created by
@@ -86,6 +89,7 @@ namespace cw {
 		   function of keyboard key presses or mouse button
 		   presses recorded by xcwcp. */
 		struct timeval timer;
+#endif
 
 	private:
 		Application *app;
