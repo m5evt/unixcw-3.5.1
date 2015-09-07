@@ -197,6 +197,7 @@ void Receiver::handle_mouse_event(QMouseEvent *event, bool is_reverse_paddles)
 */
 void Receiver::sk_event(bool is_down)
 {
+#ifndef WITH_EXPERIMENTAL_RECEIVER
 	/* Prepare timestamp for libcw on both "key up" and "key down"
 	   events. There is no code in libcw that would generate
 	   updated consecutive timestamps for us (as it does in case
@@ -208,6 +209,7 @@ void Receiver::sk_event(bool is_down)
 	   key could have such timer as well? */
 	gettimeofday(&timer, NULL);
 	//fprintf(stderr, "time on Skey down:  %10ld : %10ld\n", timer.tv_sec, timer.tv_usec);
+#endif
 
 	cw_notify_straight_key_event(is_down);
 
@@ -227,6 +229,7 @@ void Receiver::sk_event(bool is_down)
 void Receiver::ik_left_event(bool is_down, bool is_reverse_paddles)
 {
 	is_left_down = is_down;
+#ifndef WITH_EXPERIMENTAL_RECEIVER
 	if (is_left_down && !is_right_down) {
 		/* Prepare timestamp for libcw, but only for initial
 		   "paddle down" event at the beginning of
@@ -242,6 +245,7 @@ void Receiver::ik_left_event(bool is_down, bool is_reverse_paddles)
 		gettimeofday(&timer, NULL);
 		//fprintf(stderr, "time on Lkey down:  %10ld : %10ld\n", timer.tv_sec, timer.tv_usec);
 	}
+#endif
 
 	/* Inform libcw about state of left paddle regardless of state
 	   of the other paddle. */
@@ -265,6 +269,7 @@ void Receiver::ik_left_event(bool is_down, bool is_reverse_paddles)
 void Receiver::ik_right_event(bool is_down, bool is_reverse_paddles)
 {
 	is_right_down = is_down;
+#ifndef WITH_EXPERIMENTAL_RECEIVER
 	if (is_right_down && !is_left_down) {
 		/* Prepare timestamp for libcw, but only for initial
 		   "paddle down" event at the beginning of
@@ -277,6 +282,7 @@ void Receiver::ik_right_event(bool is_down, bool is_reverse_paddles)
 		gettimeofday(&timer, NULL);
 		//fprintf(stderr, "time on Rkey down:  %10ld : %10ld\n", timer.tv_sec, timer.tv_usec);
 	}
+#endif
 
 	/* Inform libcw about state of left paddle regardless of state
 	   of the other paddle. */
@@ -303,7 +309,8 @@ void Receiver::ik_right_event(bool is_down, bool is_reverse_paddles)
    Notice that the description above talks about a key, not about a
    receiver. Key's states need to be interpreted by receiver, which is
    a separate task. Key and receiver are separate concepts. This
-   function connects them.
+   function connects them. The connection is made through \p t and \p
+   key_state values which come from a key, and are passed to receiver.
 
    This function, called on key state changes, calls receiver
    functions to ensure that receiver does "receive" the key state
