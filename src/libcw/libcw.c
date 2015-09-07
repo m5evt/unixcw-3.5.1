@@ -154,9 +154,11 @@ static volatile cw_key_t cw_key = {
 		.curtis_mode_b = false,
 		.curtis_b_latch = false,
 
-		.lock = false,
-
+		.lock = false
+#ifndef WITH_EXPERIMENTAL_RECEIVER
+		,
 		.timer = NULL
+#endif
 	},
 
 
@@ -2153,3 +2155,14 @@ void cw_reset_straight_key(void)
 	cw_key_sk_reset_internal(&cw_key);
 	return;
 }
+
+
+
+
+
+#ifdef WITH_EXPERIMENTAL_RECEIVER
+struct timeval *cw_key_get_timer_internal(void)
+{
+	return &(cw_key.ik.key_timer);
+}
+#endif
