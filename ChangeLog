@@ -1,3 +1,22 @@
+2015-09-07 Kamil Ignacak
+	* receiver: setting up a receiver in client application is
+	definitely unclear. It is unclear which functions need to be
+	called, what kind of callback to configured, in which order, and
+	why. Therefore I've initiated changes that will lead to simple
+	receiver API. I have added "--enable-experimental-receiver" flag
+	to ./configure script that enables experimental features of
+	receiver code, that will in future become mainline.
+
+	The flag affects code in src/libcw/libcw_rec.c,
+	src/libcw/libcw_key.c, src/xcwcp/receiver.cc,
+	src/xcwcp/application.cc. Alternative code paths and code
+	fragments have been added to these files, to simplify creation and
+	handling of a receiver. Changes made so far are only a beginning.
+
+	Of course the legacy API in libcw will be maintained for longer
+	time, but at some rather near point in future xcwcp will use new
+	solutions only.
+
 2015-09-03 Kamil Ignacak
 	* xcwcp: fixed handling of backspace key in keyboard mode. For
 	some time now the backspace key didn't remove yet-unplayed
