@@ -183,8 +183,10 @@ void cw_key_register_keying_callback_internal(volatile cw_key_t *key,
 					      void (*callback_func)(void*, int),
 					      void *callback_arg)
 {
+#ifndef WITH_EXPERIMENTAL_RECEIVER
 	key->key_callback = callback_func;
 	key->key_callback_arg = callback_arg;
+#endif
 
 	return;
 }
@@ -373,6 +375,7 @@ int cw_key_sk_enqueue_symbol_internal(volatile cw_key_t *key, int key_value)
 		/* Remember the new key value. */
 		key->sk.key_value = key_value;
 
+#ifndef WITH_EXPERIMENTAL_RECEIVER
 		/* Call a registered callback. */
 		if (key->key_callback) {
 			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYING, CW_DEBUG_INFO,
@@ -380,6 +383,7 @@ int cw_key_sk_enqueue_symbol_internal(volatile cw_key_t *key, int key_value)
 
 			(*(key->key_callback))(key->key_callback_arg, key->sk.key_value);
 		}
+#endif
 
 		int rv;
 		if (key->sk.key_value == CW_KEY_STATE_CLOSED) {
@@ -462,6 +466,7 @@ int cw_key_ik_enqueue_symbol_internal(volatile cw_key_t *key, int key_value, cha
 		/* Remember the new key value. */
 		key->ik.key_value = key_value;
 
+#ifndef WITH_EXPERIMENTAL_RECEIVER
 		/* Call a registered callback. */
 		if (key->key_callback) {
 			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYING, CW_DEBUG_INFO,
@@ -469,6 +474,7 @@ int cw_key_ik_enqueue_symbol_internal(volatile cw_key_t *key, int key_value, cha
 
 			(*(key->key_callback))(key->key_callback_arg, key->ik.key_value);
 		}
+#endif
 
 		/* 'Pure' means without any end-of-mark spaces. */
 		int rv = cw_gen_key_pure_symbol_internal(key->gen, symbol);
