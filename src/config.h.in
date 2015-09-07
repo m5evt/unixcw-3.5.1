@@ -228,6 +228,10 @@
 /* Version number of package */
 #undef VERSION
 
+/* Define as 1 if you want to enable *experimental* code (for development
+   only) implementing receiver feature in libcw and xcwcp. */
+#undef WITH_EXPERIMENTAL_RECEIVER
+
 /* Define to empty if `const' does not conform to ANSI C. */
 #undef const
 
