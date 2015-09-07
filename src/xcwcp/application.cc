@@ -168,7 +168,7 @@ Application::Application() :
 
 
 
-
+#ifndef WITH_EXPERIMENTAL_RECEIVER
 /**
    This is the class-level handler for the keying callback from the CW
    library indicating that the keying state changed.  This function
@@ -197,7 +197,7 @@ void Application::libcw_keying_event_static(void *arg, int key_state)
 
 	return;
 }
-
+#endif
 
 
 
@@ -1089,6 +1089,7 @@ void Application::make_auxiliaries_end(void)
 	sender = new Sender(this, textarea);
 	receiver = new Receiver(this, textarea);
 
+#ifndef WITH_EXPERIMENTAL_RECEIVER
 	/* Register class handler as the CW library keying event
 	   callback. It's important here that we register the static
 	   handler, since once we have been into and out of 'C', all
@@ -1105,9 +1106,7 @@ void Application::make_auxiliaries_end(void)
 	   paddles are pressed, but (since it doesn't receive timing
 	   parameters) it won't be able to identify entered Morse
 	   code. */
-#ifdef WITH_EXPERIMENTAL_RECEIVER
-	cw_register_keying_callback(libcw_keying_event_static, cw_key_get_timer_internal());
-#else
+
 	cw_register_keying_callback(libcw_keying_event_static, &(receiver->timer));
 
 	/* The call above registered receiver->timer as a generic
