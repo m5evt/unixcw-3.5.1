@@ -575,7 +575,7 @@ int cw_tq_dequeue_sub_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 {
 	CW_TONE_COPY(tone, &(tq->queue[tq->head]));
 
-	if (tone->forever && tq->len == 1) {
+	if (tone->is_forever && tq->len == 1) {
 		/* Don't permanently remove the last tone that is
 		   "forever" tone in queue. Keep it in tq until client
 		   code adds next tone (possibly forever). Queue's
@@ -616,7 +616,7 @@ int cw_tq_dequeue_sub_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 	/* You can remove this assert in future. It is only temporary,
 	   to check that some changes introduced on 2015.03.01 didn't
 	   break one assumption. */
-	cw_assert (!(tone->forever && tq_len_before == 1), "\"forever\" tone appears!");
+	cw_assert (!(tone->is_forever && tq_len_before == 1), "\"forever\" tone appears!");
 
 
 	bool call_callback = false;
