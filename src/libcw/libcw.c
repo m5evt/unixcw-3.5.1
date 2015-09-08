@@ -118,7 +118,12 @@ static cw_rec_t cw_receiver = {
 
 
 	.dot_averaging  = { {0}, 0, 0, 0 },
-	.dash_averaging = { {0}, 0, 0, 0 },
+	.dash_averaging = { {0}, 0, 0, 0 }
+
+#ifdef WITH_EXPERIMENTAL_RECEIVER
+	,
+	.push_callback = NULL
+#endif
 };
 
 
