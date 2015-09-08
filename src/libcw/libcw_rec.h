@@ -23,6 +23,15 @@
 
 
 
+#ifdef WITH_EXPERIMENTAL_RECEIVER
+/* Forward declaration. */
+struct cw_key_struct;
+#endif
+
+
+
+
+
 /* Dot length magic number.
 
    From PARIS calibration, 1 dot length [us] = 1200000 / speed [wpm].
@@ -99,6 +108,13 @@ typedef struct {
 	int sum;                                    /* Running sum of lengths of marks. [us] */
 	int average;                                /* Averaged length of a mark. [us] */
 } cw_rec_averaging_t;
+
+
+
+
+struct cw_rec_struct;
+
+typedef bool(* cw_rec_push_callback_t)(int *, void *);
 
 
 struct cw_rec_struct {
@@ -206,6 +222,11 @@ struct cw_rec_struct {
 	   of receiver's speed (tracking of speed of incoming data). */
 	cw_rec_averaging_t dot_averaging;
 	cw_rec_averaging_t dash_averaging;
+
+#ifdef WITH_EXPERIMENTAL_RECEIVER
+	volatile struct cw_key_struct *key;
+	cw_rec_push_callback_t *push_callback;
+#endif
 };
 
 
@@ -218,6 +239,11 @@ typedef struct cw_rec_struct cw_rec_t;
 /* Creator and destructor. */
 cw_rec_t *cw_rec_new_internal(void);
 void      cw_rec_delete_internal(cw_rec_t **rec);
+
+#ifdef WITH_EXPERIMENTAL_RECEIVER
+void cw_rec_bind_key_internal(cw_rec_t *rec, volatile struct cw_key_struct *key);
+void cw_rec_register_push_callback_internal(cw_rec_t *rec, cw_rec_push_callback_t *callback);
+#endif
 
 /* Main receive functions. */
 int cw_rec_mark_begin_internal(cw_rec_t *rec, const struct timeval *timestamp);
