@@ -88,6 +88,10 @@
 #include "libcw_debug.h"
 #include "libcw_test.h"
 
+#ifdef WITH_EXPERIMENTAL_RECEIVER
+#include "libcw_key.h"
+#endif
+
 
 
 
@@ -229,6 +233,9 @@ cw_rec_t *cw_rec_new_internal(void)
 
 	cw_rec_sync_parameters_internal(rec);
 
+#ifdef WITH_EXPERIMENTAL_RECEIVER
+	rec->push_callback = NULL;
+#endif
 
 	return rec;
 }
@@ -1778,6 +1785,40 @@ void cw_rec_sync_parameters_internal(cw_rec_t *rec)
 
 	return;
 }
+
+
+
+
+
+#ifdef WITH_EXPERIMENTAL_RECEIVER
+
+
+
+
+
+void cw_rec_bind_key_internal(cw_rec_t *rec, volatile struct cw_key_struct *key)
+{
+	rec->key = key;
+	key->rec = rec;
+
+	return;
+}
+
+
+
+
+
+void cw_rec_register_push_callback_internal(cw_rec_t *rec, cw_rec_push_callback_t *callback)
+{
+	rec->push_callback = callback;
+
+	return;
+}
+
+
+
+
+#endif
 
 
 
