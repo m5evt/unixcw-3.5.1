@@ -185,18 +185,6 @@ unsigned int test_cw_debug_flags_internal(void);
 
 
 
-/* FIXME: make it appear only in debug builds. */
-#define libcw_sem_printvalue(m_semaphore, m_tq_len, m_log_prefix) \
-	{								\
-		int m_val = 0;						\
-		int m_ret = sem_getvalue((m_semaphore), &m_val);	\
-		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_TONE_QUEUE, CW_DEBUG_INFO, \
-			      "%s; semaphore = %d, len = %d, ret = %d",	\
-			      m_log_prefix, m_val, m_tq_len, m_ret);	\
-	}
-
-
-
 #if defined(__cplusplus)
 }
 #endif
