@@ -614,8 +614,7 @@ EXTRA_DIST = include.awk libdoc.awk libfuncs.awk libpc.awk libsigs.awk \
 	libcw.pc.in \
 	cw.7 \
 	libcw_gen.h libcw_rec.h \
-	libcw_tq.h libcw_data.h libcw_key.h libcw_utils.h \
-	libcw_signal.h libcw_ipc.h \
+	libcw_tq.h libcw_data.h libcw_key.h libcw_utils.h libcw_signal.h \
 	libcw_null.h libcw_console.h libcw_oss.h libcw_alsa.h libcw_pa.h
 
 
