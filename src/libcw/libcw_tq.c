@@ -63,21 +63,13 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <pthread.h>
-
-#ifndef LIBCW_WITH_SIGNALS_ALTERNATIVE
-# include <signal.h> /* SIGALRM */
-#endif
+#include <signal.h> /* SIGALRM */
 
 #include "libcw.h"
 #include "libcw_tq.h"
 #include "libcw_gen.h"
 #include "libcw_debug.h"
-
-#ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
-# include "libcw_ipc.h"
-#else
-# include "libcw_signal.h"
-#endif
+#include "libcw_signal.h"
 
 
 
@@ -193,14 +185,8 @@ cw_tone_queue_t *cw_tq_new_internal(void)
 	tq->low_water_callback_arg = NULL;
 	tq->call_callback = false;
 
-#ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
-	sem_init(&tq->semaphore, 0, 0);
-	sem_init(&tq->tone_semaphore, 0, 0);
-	sem_init(&tq->level_semaphore, 0, 0);
-	sem_init(&tq->ik_semaphore, 0, 0);
-#endif
-
 	tq->gen = (cw_gen_t *) NULL;
+
 
 	rv = cw_tq_set_capacity_internal(tq, CW_TONE_QUEUE_CAPACITY_MAX, CW_TONE_QUEUE_HIGH_WATER_MARK_MAX);
 	cw_assert (rv, "failed to set initial capacity of tq");
@@ -221,13 +207,6 @@ void cw_tq_delete_internal(cw_tone_queue_t **tq)
 	if (!tq || !*tq) {
 		return;
 	}
-
-#ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
-	sem_destroy(&((*tq)->semaphore));
-	sem_destroy(&((*tq)->tone_semaphore));
-	sem_destroy(&((*tq)->level_semaphore));
-	sem_destroy(&((*tq)->ik_semaphore));
-#endif
 
 	free(*tq);
 	*tq = (cw_tone_queue_t *) NULL;
@@ -429,7 +408,7 @@ uint32_t cw_tq_next_index_internal(cw_tone_queue_t *tq, uint32_t ind)
    CW_TQ_DEQUEUED or CW_TQ_NDEQUEUED_EMPTY). So the _write() function
    must be executed by generator for both return values. But we also
    need a third return value that will tell the generator not to
-   execute _write() *at all*, but just wait for kick. This third
+   execute _write() *at all*, but just wait for signal. This third
    value is CW_TQ_NDEQUEUED_IDLE.
 
    These three return values are:
@@ -643,7 +622,7 @@ int cw_tq_dequeue_sub_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 
    Enqueue a tone for specified frequency and number of microseconds.
    This routine adds the new tone to the queue, and if necessary sends
-   kick to generator, so that the generator can dequeue the tone.
+   signal to generator, so that the generator can dequeue the tone.
 
    The routine returns CW_SUCCESS on success. If the tone queue is
    full, the routine returns CW_FAILURE, with errno set to EAGAIN.  If
@@ -742,25 +721,9 @@ int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 		   in tone queue. This is a right place and time to
 		   send such notification. */
 		tq->state = CW_TQ_BUSY;
-
-#ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
-		/* Producer. */
-		libcw_sem_printvalue(&tq->semaphore, tq->len, "libcw/tq/producer: IDLE -> BUSY: before posting");
-		sem_post(&tq->semaphore);
-		libcw_sem_printvalue(&tq->semaphore, tq->len, "libcw/tq/producer: IDLE -> BUSY:  after posting");
-
-#else
 		pthread_kill(tq->gen->thread.id, SIGALRM);
-#endif
-	} else {
-		/* Regular notification on regular enqueue event. */
-#ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
-		/* Producer. */
-		libcw_sem_printvalue(&tq->semaphore, tq->len, "libcw/tq/producer: before posting");
-		sem_post(&tq->semaphore);
-		libcw_sem_printvalue(&tq->semaphore, tq->len, "libcw/tq/producer:  after posting");
-#endif
 	}
+
 	pthread_mutex_unlock(&(tq->mutex));
 	return CW_SUCCESS;
 }
@@ -845,12 +808,6 @@ bool cw_tq_is_busy_internal(cw_tone_queue_t *tq)
 */
 int cw_tq_wait_for_tone_internal(cw_tone_queue_t *tq)
 {
-#ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
-
-	sem_wait(&tq->tone_semaphore);
-
-#else
-
 	if (cw_sigalrm_is_blocked_internal()) {
 		/* no point in waiting for event, when signal
 		   controlling the event is blocked */
@@ -863,7 +820,7 @@ int cw_tq_wait_for_tone_internal(cw_tone_queue_t *tq)
 	while (tq->head == check_tq_head && tq->state != CW_TQ_IDLE) {
 		cw_signal_wait_internal();
 	}
-#endif
+
 	return CW_SUCCESS;
 }
 
@@ -885,19 +842,6 @@ int cw_tq_wait_for_tone_internal(cw_tone_queue_t *tq)
 */
 int cw_tq_wait_for_tone_queue_internal(cw_tone_queue_t *tq)
 {
-#ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
-
-	/* Wait until the dequeue indicates it has hit the end of the queue. */
-	int val = 0;
-	do {
-		fprintf(stderr, "libcw/tq: tone queue semaphore: being waiting\n");
-		sem_wait(&tq->tone_queue_semaphore);
-		fprintf(stderr, "libcw/tq: tone queue semaphore:   end waiting\n");
-
-		int ret = sem_getvalue(&tq->semaphore, &val); /* ACHTUNG: it's tq->semaphore! */
-	} while (val);
-
-#else
 	if (cw_sigalrm_is_blocked_internal()) {
 		/* no point in waiting for event, when signal
 		   controlling the event is blocked */
@@ -910,7 +854,6 @@ int cw_tq_wait_for_tone_queue_internal(cw_tone_queue_t *tq)
 		cw_signal_wait_internal();
 	}
 
-#endif
 	return CW_SUCCESS;
 }
 
@@ -937,13 +880,6 @@ int cw_tq_wait_for_tone_queue_internal(cw_tone_queue_t *tq)
 */
 int cw_tq_wait_for_level_internal(cw_tone_queue_t *tq, uint32_t level)
 {
-#ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
-
-	/* Wait until the queue length is at or below critical level. */
-	while (cw_tq_length_internal(tq) > level) {
-		sem_wait(&tq->level_semaphore);
-	}
-#else
 	if (cw_sigalrm_is_blocked_internal()) {
 		/* no point in waiting for event, when signal
 		   controlling the event is blocked */
@@ -956,7 +892,6 @@ int cw_tq_wait_for_level_internal(cw_tone_queue_t *tq, uint32_t level)
 		cw_signal_wait_internal();
 	}
 
-#endif
 	return CW_SUCCESS;
 }
 
@@ -1008,34 +943,6 @@ void cw_tq_reset_internal(cw_tone_queue_t *tq)
 
 void cw_tq_flush_internal(cw_tone_queue_t *tq)
 {
-#ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
-
-#if 0
-	fprintf(stderr, "--------------------------------\n");
-	fprintf(stderr, "------------- tq flush ---------\n");
-	fprintf(stderr, "--------------------------------\n");
-#endif
-	pthread_mutex_lock(&(tq->mutex));
-
-	/* Empty and reset the queue. */
-	tq->len = 0;
-	tq->head = tq->tail;
-
-	libcw_sem_flush (&tq->semaphore);
-	libcw_sem_flush (&tq->tone_semaphore);
-	libcw_sem_flush (&tq->tone_queue_semaphore);
-	libcw_sem_flush (&tq->level_semaphore);
-	libcw_sem_flush (&tq->ik_semaphore);
-
-	pthread_mutex_unlock(&(tq->mutex));
-
-#if 0
-	/* TODO: is this necessary? We have already reset tq->len and
-	   tq->head, and also flushed semaphore. */
-	cw_tq_wait_for_tone_queue_internal(tq);
-#endif
-
-#else
 	pthread_mutex_lock(&(tq->mutex));
 
 	/* Empty and reset the queue. */
@@ -1048,7 +955,6 @@ void cw_tq_flush_internal(cw_tone_queue_t *tq)
 	if (!cw_sigalrm_is_blocked_internal()) {
 		cw_tq_wait_for_tone_queue_internal(tq);
 	}
-#endif
 
 	return;
 }
