@@ -10,19 +10,9 @@
 
 
 
-#include "config.h"
-
-
-
-
-
 #include <stdint.h>     /* uint32_t */
 #include <pthread.h>    /* pthread_mutex_t */
 #include <stdbool.h>    /* bool */
-
-#ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
-#include <semaphore.h>
-#endif
 
 
 
@@ -208,35 +198,6 @@ typedef struct {
 	   itself may be called outside of the module, e.g. by cw_gen
 	   code. */
 	bool         call_callback;
-
-#ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
-
-	sem_t semaphore;
-
-	/* Binary semaphore, posted when a tone has been dequeued by
-	   generator.
-	   It is used to control cw_tq_wait_for_tone_internal()
-	   function. */
-	sem_t tone_semaphore;
-
-	/* Binary semaphore, posted when a tone has been dequeued by
-	   generator.
-	   It is used to control cw_tq_wait_for_tone_queue_internal()
-	   function. */
-	sem_t tone_queue_semaphore;
-
-	/* Binary semaphore, posted when a tone has been dequeued by
-	   generator.
-	   It is used to control cw_tq_wait_for_level_internal()
-	   function. */
-	sem_t level_semaphore;
-
-	/* Binary semaphore, posted when a tone has been dequeued by
-	   generator.
-	   It is used for communication between generator module and
-	   iambic keyer code. */
-	sem_t ik_semaphore;
-#endif
 
 	pthread_mutex_t mutex;
 
