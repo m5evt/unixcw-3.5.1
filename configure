@@ -640,8 +640,6 @@ LIBOBJS
 LIBCW_NDEBUG
 LIBCW_WITH_DEV_FALSE
 LIBCW_WITH_DEV_TRUE
-LIBCW_WITH_SIGNALS_ALTERNATIVE_FALSE
-LIBCW_WITH_SIGNALS_ALTERNATIVE_TRUE
 MOC
 QT4_LIBS
 QT4_CFLAGS
@@ -790,7 +788,6 @@ enable_alsa
 enable_pulseaudio
 enable_cwcp
 enable_xcwcp
-enable_signals_alternative
 enable_dev
 '
       ac_precious_vars='build_alias
@@ -1448,9 +1445,6 @@ Optional Features:
                           interface)
   --disable-xcwcp         do not build xcwcp (application with Qt4 user
                           interface)
-  --enable-signals-alternative
-                          replace *some* cases of usage of POSIX signals in
-                          libcw with alternative IPC mechanism
   --enable-dev            enable development support (messages/debug
                           code/asserts)
 
@@ -16579,29 +16573,6 @@ $as_echo "no" >&6; }
 fi
 
 
-# Disable libcw code that uses POSIX signals and enable libcw code
-# that uses alternative IPC instead? Notice that not all usage of
-# signals in libcw is covered by this feature. "No" by default (use
-# signals as it was done since always).
-# Check whether --enable-signals-alternative was given.
-if test "${enable_signals_alternative+set}" = set; then :
-  enableval=$enable_signals_alternative;
-else
-  enable_signals_alternative=no
-fi
-
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether to replace *some* cases of usage of POSIX signals in libcw with alternative IPC mechanism" >&5
-$as_echo_n "checking whether to replace *some* cases of usage of POSIX signals in libcw with alternative IPC mechanism... " >&6; }
-if test "$enable_signals_alternative" = "yes" ; then
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-else
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-fi
-
-
 # Enable development debugging? No by default.
 # Check whether --enable-dev was given.
 if test "${enable_dev+set}" = set; then :
@@ -17186,23 +17157,6 @@ $as_echo "QT4 LIBS is $QT4_LIBS" >&6; }
 
 
 fi
-fi
-
-
-
-# Alternative to POSIX signals in libcw.
- if test "$enable_signals_alternative" = "yes"; then
-  LIBCW_WITH_SIGNALS_ALTERNATIVE_TRUE=
-  LIBCW_WITH_SIGNALS_ALTERNATIVE_FALSE='#'
-else
-  LIBCW_WITH_SIGNALS_ALTERNATIVE_TRUE='#'
-  LIBCW_WITH_SIGNALS_ALTERNATIVE_FALSE=
-fi
-
-if test "$enable_signals_alternative" = "yes" ; then
-
-$as_echo "#define LIBCW_WITH_SIGNALS_ALTERNATIVE 1" >>confdefs.h
-
 fi
 
 
@@ -18320,10 +18274,6 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${am__fastdepCXX_TRUE}" && test -z "${am__fastdepCXX_FALSE}"; then
   as_fn_error $? "conditional \"am__fastdepCXX\" was never defined.
-Usually this means the macro was only invoked conditionally." "$LINENO" 5
-fi
-if test -z "${LIBCW_WITH_SIGNALS_ALTERNATIVE_TRUE}" && test -z "${LIBCW_WITH_SIGNALS_ALTERNATIVE_FALSE}"; then
-  as_fn_error $? "conditional \"LIBCW_WITH_SIGNALS_ALTERNATIVE\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${LIBCW_WITH_DEV_TRUE}" && test -z "${LIBCW_WITH_DEV_FALSE}"; then
@@ -20859,8 +20809,6 @@ $as_echo "$as_me:     include OSS support:  ...............  $WITH_OSS" >&6;}
 $as_echo "$as_me:     include ALSA support:  ..............  $WITH_ALSA" >&6;}
 { $as_echo "$as_me:${as_lineno-$LINENO}:     include PulseAudio support:  ........  $WITH_PULSEAUDIO" >&5
 $as_echo "$as_me:     include PulseAudio support:  ........  $WITH_PULSEAUDIO" >&6;}
-{ $as_echo "$as_me:${as_lineno-$LINENO}:     enable alternative IPC mechanism: ...  $enable_signals_alternative" >&5
-$as_echo "$as_me:     enable alternative IPC mechanism: ...  $enable_signals_alternative" >&6;}
 { $as_echo "$as_me:${as_lineno-$LINENO}: build cw:  ..............................  yes" >&5
 $as_echo "$as_me: build cw:  ..............................  yes" >&6;}
 { $as_echo "$as_me:${as_lineno-$LINENO}: build cwgen:  ...........................  yes" >&5
