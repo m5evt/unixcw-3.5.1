@@ -1,3 +1,11 @@
+2015-09-09 Kamil Ignacak
+	* alternative IPC: now that we have experimental branch, I decided
+	to remove "alternative IPC" code from master branch and leave that
+	just in "experimental" branch. master will be for small very
+	incremental, and only necessary changes. At this point libcw code
+	in master looks pretty much like it was in around commit
+	d02491ee32668d5f5ca3904193f306956e72468d, i.e. pre-semaphores.
+
 2015-09-08 Kamil Ignacak
 	* git: created experimental_receiver branch, where all changes
 	related to new ideas for receiver will be developed. master branch
