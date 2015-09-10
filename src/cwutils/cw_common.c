@@ -44,7 +44,11 @@
 #include "libcw.h"
 #include "cw_common.h"
 
-static int cw_generator_apply_config(cw_config_t *config);
+
+
+extern cw_gen_t *cw_generator;
+
+static int cw_gen_apply_config(cw_gen_t *gen, cw_config_t *config);
 
 
 
@@ -205,7 +209,7 @@ int cw_generator_new_from_config(cw_config_t *config)
 	if (config->audio_system == CW_AUDIO_NULL) {
 		if (cw_is_null_possible(config->audio_device)) {
 			if (cw_generator_new(CW_AUDIO_NULL, config->audio_device)) {
-				if (cw_generator_apply_config(config)) {
+				if (cw_gen_apply_config(cw_generator, config)) {
 					return CW_SUCCESS;
 				} else {
 					fprintf(stderr, "%s: failed to apply configuration\n", config->program_name);
@@ -227,7 +231,7 @@ int cw_generator_new_from_config(cw_config_t *config)
 
 		if (cw_is_pa_possible(config->audio_device)) {
 			if (cw_generator_new(CW_AUDIO_PA, config->audio_device)) {
-				if (cw_generator_apply_config(config)) {
+				if (cw_gen_apply_config(cw_generator, config)) {
 					return CW_SUCCESS;
 				} else {
 					fprintf(stderr, "%s: failed to apply configuration\n", config->program_name);
@@ -250,7 +254,7 @@ int cw_generator_new_from_config(cw_config_t *config)
 
 		if (cw_is_oss_possible(config->audio_device)) {
 			if (cw_generator_new(CW_AUDIO_OSS, config->audio_device)) {
-				if (cw_generator_apply_config(config)) {
+				if (cw_gen_apply_config(cw_generator, config)) {
 					return CW_SUCCESS;
 				} else {
 					fprintf(stderr, "%s: failed to apply configuration\n", config->program_name);
@@ -276,7 +280,7 @@ int cw_generator_new_from_config(cw_config_t *config)
 
 		if (cw_is_alsa_possible(config->audio_device)) {
 			if (cw_generator_new(CW_AUDIO_ALSA, config->audio_device)) {
-				if (cw_generator_apply_config(config)) {
+				if (cw_gen_apply_config(cw_generator, config)) {
 					return CW_SUCCESS;
 				} else {
 					fprintf(stderr, "%s: failed to apply configuration\n", config->program_name);
@@ -301,7 +305,7 @@ int cw_generator_new_from_config(cw_config_t *config)
 
 		if (cw_is_console_possible(config->audio_device)) {
 			if (cw_generator_new(CW_AUDIO_CONSOLE, config->audio_device)) {
-				if (cw_generator_apply_config(config)) {
+				if (cw_gen_apply_config(cw_generator, config)) {
 					return CW_SUCCESS;
 				} else {
 					fprintf(stderr, "%s: failed to apply configuration\n", config->program_name);
@@ -332,32 +336,33 @@ int cw_generator_new_from_config(cw_config_t *config)
    \brief Apply given configuration to a generator
 
    Function applies frequency, volume, sending speed, gap and weighting
-   to current generator. The generator should exist (it should be created
+   to given generator \p gen. The generator should exist (it should be created
    by cw_generator_new().
 
    The function is just a wrapper for few common function calls, to be used
    in cw_generator_new_from_config().
 
+   \param gen - generator
    \param config - current configuration
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_generator_apply_config(cw_config_t *config)
+int cw_gen_apply_config(cw_gen_t *gen, cw_config_t *config)
 {
-	if (!cw_set_frequency(config->frequency)) {
+	if (!cw_gen_set_frequency_internal(gen, config->frequency)) {
 		return CW_FAILURE;
 	}
-	if (!cw_set_volume(config->volume)) {
+	if (!cw_gen_set_volume_internal(gen, config->volume)) {
 		return CW_FAILURE;
 	}
-	if (!cw_set_send_speed(config->send_speed)) {
+	if (!cw_gen_set_speed_internal(gen, config->send_speed)) {
 		return CW_FAILURE;
 	}
-	if (!cw_set_gap(config->gap)) {
+	if (!cw_gen_set_gap_internal(gen, config->gap)) {
 		return CW_FAILURE;
 	}
-	if (!cw_set_weighting(config->weighting)) {
+	if (!cw_gen_set_weighting_internal(gen, config->weighting)) {
 		return CW_FAILURE;
 	}
 
