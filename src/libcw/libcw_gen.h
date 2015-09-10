@@ -11,6 +11,7 @@
 
 
 #include "libcw.h"
+#include "libcw2.h"
 #include "libcw_pa.h"
 #include "libcw_alsa.h"
 #include "libcw_tq.h"
@@ -335,16 +336,6 @@ void      cw_gen_delete_internal(cw_gen_t **gen);
 int       cw_gen_start_internal(cw_gen_t *gen);
 int       cw_gen_stop_internal(cw_gen_t *gen);
 
-
-
-
-
-/* Setters of generator's basic parameters. */
-int cw_gen_set_speed_internal(cw_gen_t *gen, int new_value);
-int cw_gen_set_frequency_internal(cw_gen_t *gen, int new_value);
-int cw_gen_set_volume_internal(cw_gen_t *gen, int new_value);
-int cw_gen_set_gap_internal(cw_gen_t *gen, int new_value);
-int cw_gen_set_weighting_internal(cw_gen_t *gen, int new_value);
 
 
 
