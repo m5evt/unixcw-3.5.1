@@ -37,7 +37,7 @@
 #endif
 
 #include "cw.h"
-#include "libcw.h"
+#include "libcw2.h"
 
 #include "i18n.h"
 #include "cmdline.h"
@@ -79,7 +79,7 @@ static void cw_atexit(void);
 
 
 static cw_config_t *config = NULL; /* program-specific configuration */
-static bool generator = false;     /* have we created a generator? */
+static cw_gen_t *generator = NULL;     /* have we created a generator? */
 static const char *all_options =
 	"s:|system,"
 	"d:|device,"
@@ -174,15 +174,15 @@ void write_to_cw_sender(const char *format, ...)
 	va_end(ap);
 
 	/* Sound the buffer, and wait for the send to complete. */
-	if (!cw_send_string(buffer)) {
+	if (!cw_gen_play_string_internal(generator, buffer)) {
 		perror("cw_send_string");
-		cw_flush_tone_queue();
+		cw_gen_flush_internal(generator);
 		abort();
 	}
 
-	if (!cw_wait_for_tone_queue_critical(1)) {
-		perror("cw_wait_for_tone_queue_critical");
-		cw_flush_tone_queue();
+	if (!cw_gen_wait_for_level_internal(generator, 1)) {
+		perror("cw_gen_wait_for_level_internal");
+		cw_gen_flush_internal(generator);
 		abort();
 	}
 
@@ -218,19 +218,19 @@ void parse_stream_query(FILE *stream)
 		write_to_message_stream("%c%c%c", CW_STATUS_ERR, CW_CMD_QUERY, c);
 		return;
 	case CW_CMDV_FREQUENCY:
-		value = cw_get_frequency();
+		value = cw_gen_get_frequency_internal(generator);
 		break;
 	case CW_CMDV_VOLUME:
-		value = cw_get_volume();
+		value = cw_gen_get_volume_internal(generator);
 		break;
 	case CW_CMDV_SPEED:
-		value = cw_get_send_speed();
+		value = cw_gen_get_speed_internal(generator);
 		break;
 	case CW_CMDV_GAP:
-		value = cw_get_gap();
+		value = cw_gen_get_gap_internal(generator);
 		break;
 	case CW_CMDV_WEIGHTING:
-		value = cw_get_weighting();
+		value = cw_gen_get_weighting_internal(generator);
 		break;
 	case CW_CMDV_ECHO:
 		value = config->do_echo;
@@ -277,23 +277,23 @@ void parse_stream_cwquery(FILE *stream)
 		write_to_message_stream("%c%c%c", CW_STATUS_ERR, CW_CMD_CWQUERY, c);
 		return;
 	case CW_CMDV_FREQUENCY:
-		value = cw_get_frequency();
+		value = cw_gen_get_frequency_internal(generator);
 		format = _("%d HZ ");
 		break;
 	case CW_CMDV_VOLUME:
-		value = cw_get_volume();
+		value = cw_gen_get_volume_internal(generator);
 		format = _("%d PERCENT ");
 		break;
 	case CW_CMDV_SPEED:
-		value = cw_get_send_speed();
+		value = cw_gen_get_speed_internal(generator);
 		format = _("%d WPM ");
 		break;
 	case CW_CMDV_GAP:
-		value = cw_get_gap();
+		value = cw_gen_get_gap_internal(generator);
 		format = _("%d DOTS ");
 		break;
 	case CW_CMDV_WEIGHTING:
-		value = cw_get_weighting();
+		value = cw_gen_get_weighting_internal(generator);
 		format = _("%d PERCENT ");
 		break;
 	case CW_CMDV_ECHO:
@@ -358,26 +358,26 @@ void parse_stream_parameter(int c, FILE *stream)
 
 	/* Either update config variable directly by assignment, or
 	   select handler that will do it by function call. */
-	int (*value_handler)(int) = NULL;
+	int (*value_handler)(cw_gen_t *, int) = NULL;
 
 	switch (c) {
 	case EOF:
 	default:
 		return;
 	case CW_CMDV_FREQUENCY:
-		value_handler = cw_set_frequency;
+		value_handler = cw_gen_set_frequency_internal;
 		break;
 	case CW_CMDV_VOLUME:
-		value_handler = cw_set_volume;
+		value_handler = cw_gen_set_volume_internal;
 		break;
 	case CW_CMDV_SPEED:
-		value_handler = cw_set_send_speed;
+		value_handler = cw_gen_set_speed_internal;
 		break;
 	case CW_CMDV_GAP:
-		value_handler = cw_set_gap;
+		value_handler = cw_gen_set_gap_internal;
 		break;
 	case CW_CMDV_WEIGHTING:
-		value_handler = cw_set_weighting;
+		value_handler = cw_gen_set_weighting_internal;
 		break;
 	case CW_CMDV_ECHO:
 		config->do_echo = value;
@@ -399,7 +399,7 @@ void parse_stream_parameter(int c, FILE *stream)
 	/* If a handler has been selected, use it to set libcw
 	   parameter. */
 	if (value_handler) {
-		if (!(*value_handler)(value)) {
+		if (!(*value_handler)(generator, value)) {
 			write_to_message_stream("%c%c", CW_STATUS_ERR, c);
 			return;
 		}
@@ -447,7 +447,7 @@ void parse_stream_command(FILE *stream)
 		parse_stream_cwquery(stream);
 		break;
 	case CW_CMDV_QUIT:
-		cw_flush_tone_queue();
+		cw_gen_flush_internal(generator);
 		write_to_echo_stream("%c", '\n');
 		exit(EXIT_SUCCESS);
 	}
@@ -479,13 +479,13 @@ void send_cw_character(int c, int is_partial)
 
 	/* Send the character to the CW sender. */
 	int status = is_partial
-		? cw_send_character_partial(character)
-		: cw_send_character(character);
+		? cw_gen_play_character_parital_internal(generator, character)
+		: cw_gen_play_character_internal(generator, character);
 
 	if (!status) {
 		if (errno != ENOENT) {
 			perror("cw_send_character[_partial]");
-			cw_flush_tone_queue();
+			cw_gen_flush_internal(generator);
 			abort();
 		} else {
 			write_to_message_stream("%c%c", CW_STATUS_ERR, character);
@@ -497,9 +497,9 @@ void send_cw_character(int c, int is_partial)
 	write_to_echo_stream("%c", c);
 
 	/* Wait for the character to complete. */
-	if (!cw_wait_for_tone_queue_critical(1)) {
-		perror("cw_wait_for_tone_queue_critical");
-		cw_flush_tone_queue();
+	if (!cw_gen_wait_for_level_internal(generator, 1)) {
+		perror("cw_gen_wait_for_level_internal");
+		cw_gen_flush_internal(generator);
 		abort();
 	}
 
@@ -635,7 +635,7 @@ int main(int argc, char *const argv[])
 		getchar();
 	}
 
-	generator = cw_generator_new_from_config(config);
+	generator = cw_gen_new_from_config(config);
 	if (!generator) {
 		//fprintf(stderr, "%s: failed to create generator with device '%s'\n", config->program_name, config->audio_device);
 		return EXIT_FAILURE;
@@ -652,13 +652,13 @@ int main(int argc, char *const argv[])
 
 	/* Start producing sine wave (amplitude of the wave will be
 	   zero as long as there are no characters to process). */
-	cw_generator_start();
+	cw_gen_start_internal(generator);
 
 	/* Send stdin stream to CW parsing. */
 	parse_stream(stdin);
 
 	/* Await final tone completion before exiting. */
-	cw_wait_for_tone_queue();
+	cw_gen_wait_for_tone_queue_internal(generator);
 
 	return EXIT_SUCCESS;
 }
@@ -670,9 +670,9 @@ int main(int argc, char *const argv[])
 void cw_atexit(void)
 {
 	if (generator) {
-		cw_generator_stop();
+		cw_gen_stop_internal(generator);
 		//cw_complete_reset();
-		cw_generator_delete();
+		cw_gen_delete_internal(&generator);
 	}
 
 	if (config) {
