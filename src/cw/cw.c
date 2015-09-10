@@ -66,19 +66,36 @@ static void write_to_cw_sender(const char *format, ...)
 #endif
 
 
+static void parse_stream_query(FILE *stream);
+static void parse_stream_cwquery(FILE *stream);
+static void parse_stream_parameter(int c, FILE *stream);
+static void parse_stream_command(FILE *stream);
+static void send_cw_character(int c, int is_partial);
+static void parse_stream(FILE *stream);
+static void cw_atexit(void);
+
+
 
 
 
 static cw_config_t *config = NULL; /* program-specific configuration */
 static bool generator = false;     /* have we created a generator? */
-static const char *all_options = "s:|system,d:|device,"
-	"w:|wpm,t:|tone,v:|volume,"
-	"g:|gap,k:|weighting,"
+static const char *all_options =
+	"s:|system,"
+	"d:|device,"
+	"w:|wpm,"
+	"t:|tone,"
+	"v:|volume,"
+	"g:|gap,"
+	"k:|weighting,"
 	"f:|infile,"
-	"e|noecho,m|nomessages,c|nocommands,o|nocombinations,p|nocomments,"
-	"h|help,V|version";
-
-static void cw_atexit(void);
+	"e|noecho,"
+	"m|nomessages,"
+	"c|nocommands,"
+	"o|nocombinations,"
+	"p|nocomments,"
+	"h|help,"
+	"V|version";
 
 
 
@@ -93,10 +110,12 @@ static void cw_atexit(void);
 
 
 /**
-   fprintf-like function that suppresses output to stdout if the
-   appropriate flag is not set; writes are synchronously flushed.
+   \brief fprintf-like function printing to echo stream (i.e. to stdout)
+
+   Printing is suppressed if appropriate config flag is not set.
+   Writes are synchronously flushed.
 */
-static void write_to_echo_stream(const char *format, ...)
+void write_to_echo_stream(const char *format, ...)
 {
 	if (config->do_echo) {
 		va_list ap;
@@ -115,10 +134,12 @@ static void write_to_echo_stream(const char *format, ...)
 
 
 /**
-   fprintf-like function that suppresses output to stderr if the
-   appropriate flag is not set; writes are synchronously flushed.
+   \brief fprintf-like function printing to message stream (i.e. to stderr)
+
+   Printing is suppressed if appropriate config flag is not set.
+   Writes are synchronously flushed.
 */
-static void write_to_message_stream(const char *format, ...)
+void write_to_message_stream(const char *format, ...)
 {
 	if (config->do_errors) {
 		va_list ap;
@@ -140,7 +161,7 @@ static void write_to_message_stream(const char *format, ...)
    fprintf-like function that allows us to conveniently print to the
    cw output 'stream'.
 */
-static void write_to_cw_sender(const char *format, ...)
+void write_to_cw_sender(const char *format, ...)
 {
 	va_list ap;
 	char buffer[128];
@@ -185,7 +206,7 @@ static void write_to_cw_sender(const char *format, ...)
    character and the query character have already been read and
    recognized.
 */
-static void parse_stream_query(FILE *stream)
+void parse_stream_query(FILE *stream)
 {
 	int value;
 
@@ -243,7 +264,7 @@ static void parse_stream_query(FILE *stream)
    character and the cwquery character have already been read and
    recognized.
 */
-static void parse_stream_cwquery(FILE *stream)
+void parse_stream_cwquery(FILE *stream)
 {
 	int value;
 	const char *format;
@@ -326,18 +347,17 @@ static void parse_stream_cwquery(FILE *stream)
    The command type character has already been read from the stream,
    and is passed in as the first argument.
 */
-static void parse_stream_parameter(int c, FILE *stream)
+void parse_stream_parameter(int c, FILE *stream)
 {
-	int value;
-
 	/* Parse and check the new parameter value. */
+	int value;
 	if (fscanf(stream, "%d;", &value) != 1) {
 		write_to_message_stream("%c%c", CW_STATUS_ERR, c);
 		return;
 	}
 
-	/* Either assign a handler, or update the local flag, as
-	   appropriate. */
+	/* Either update config variable directly by assignment, or
+	   select handler that will do it by function call. */
 	int (*value_handler)(int) = NULL;
 
 	switch (c) {
@@ -376,8 +396,8 @@ static void parse_stream_parameter(int c, FILE *stream)
 		break;
 	}
 
-	/* If not a local flag, apply the new value to a CW library
-	   control using the handler assigned above. */
+	/* If a handler has been selected, use it to set libcw
+	   parameter. */
 	if (value_handler) {
 		if (!(*value_handler)(value)) {
 			write_to_message_stream("%c%c", CW_STATUS_ERR, c);
@@ -399,7 +419,7 @@ static void parse_stream_parameter(int c, FILE *stream)
    Handle a command received in the input stream.  The command escape
    character has already been read and recognized.
 */
-static void parse_stream_command(FILE *stream)
+void parse_stream_command(FILE *stream)
 {
 	int c = toupper(fgetc(stream));
 	switch (c) {
@@ -452,7 +472,7 @@ static void parse_stream_command(FILE *stream)
    complete sounding the tones.  The character to send may be a
    partial or a complete character.
 */
-static void send_cw_character(int c, int is_partial)
+void send_cw_character(int c, int is_partial)
 {
 	/* Convert all whitespace into a single space. */
 	int character = isspace(c) ? ' ' : c;
@@ -494,7 +514,7 @@ static void send_cw_character(int c, int is_partial)
    Read characters from a file stream, and either sound them, or
    interpret controls in them.  Returns on end of file.
 */
-static void parse_stream(FILE *stream)
+void parse_stream(FILE *stream)
 {
 	enum { NONE, COMBINATION, COMMENT, NESTED_COMMENT } state = NONE;
 
@@ -505,16 +525,13 @@ static void parse_stream(FILE *stream)
 	for (int c = fgetc(stream); !feof(stream); c = fgetc(stream)) {
 		switch (state) {
 		case NONE:
-			/* Start a comment or combination, handle a
-			   command escape, or send the character if
-			   none of these checks apply. */
-			if (config->do_comments && c == CW_COMMENT_START) {
+			if (c == CW_COMMENT_START && config->do_comments) {
 				state = COMMENT;
 				write_to_echo_stream("%c", c);
-			} else if (config->do_combinations && c == CW_COMBINATION_START) {
+			} else if (c == CW_COMBINATION_START && config->do_combinations) {
 				state = COMBINATION;
 				write_to_echo_stream("%c", c);
-			} else if (config->do_commands && c == CW_CMD_ESCAPE) {
+			} else if (c == CW_CMD_ESCAPE && config->do_commands) {
 				parse_stream_command(stream);
 			} else {
 				send_cw_character(c, false);
@@ -522,17 +539,13 @@ static void parse_stream(FILE *stream)
 			break;
 
 		case COMBINATION:
-			/* Start a comment nested in a combination,
-			   end a combination, handle a command escape,
-			   or send the character if none of these
-			   checks apply. */
-			if (config->do_comments && c == CW_COMMENT_START) {
+			if (c == CW_COMMENT_START && config->do_comments) {
 				state = NESTED_COMMENT;
 				write_to_echo_stream("%c", c);
 			} else if (c == CW_COMBINATION_END) {
 				state = NONE;
 				write_to_echo_stream("%c", c);
-			} else if (config->do_commands && c == CW_CMD_ESCAPE) {
+			} else if (c == CW_CMD_ESCAPE && config->do_commands) {
 				parse_stream_command(stream);
 			} else {
 				/* If this is the final character in
