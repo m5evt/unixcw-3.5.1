@@ -1,3 +1,11 @@
+2015-09-10 Kamil Ignacak
+	* libcw2: adding src/libcw/libcw2.h file that will contain
+	declarations of publicly visible new-style functions.
+	* src/cw/cw: reformatting source code of the program. Doing some
+	very minor changes.
+	* cwutils: beginning to use new-style libcw2 functions outside of
+	libcw directory.
+
 2015-09-08 Kamil Ignacak
 	* git: created experimental_receiver branch, where all changes
 	related to new ideas for receiver will be developed. master branch
