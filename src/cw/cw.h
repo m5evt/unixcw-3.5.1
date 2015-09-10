@@ -98,4 +98,4 @@ enum
 
 
 
-#endif  /* #ifdef H_CW */
+#endif  /* #ifndef H_CW */
