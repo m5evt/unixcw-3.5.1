@@ -1407,8 +1407,10 @@ cw_key_t *cw_key_new_internal(void)
 
 	key->ik.lock = false;
 
+#ifdef WITH_EXPERIMENTAL_RECEIVER
 	key->ik.key_timer.tv_sec = 0;
 	key->ik.key_timer.tv_usec = 0;
+#endif
 
 	key->tk.key_value = CW_KEY_STATE_OPEN;
 
