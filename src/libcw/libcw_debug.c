@@ -46,7 +46,7 @@
 #include <errno.h>
 
 
-#include "libcw.h"
+#include "libcw2.h"
 #include "libcw_debug.h"
 #include "libcw_gen.h"
 #include "libcw_utils.h"

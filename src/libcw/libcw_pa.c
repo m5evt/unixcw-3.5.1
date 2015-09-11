@@ -47,7 +47,7 @@
 #include <fcntl.h>
 
 
-#include "libcw.h"
+#include "libcw2.h"
 #include "libcw_pa.h"
 #include "libcw_debug.h"
 #include "libcw_utils.h"

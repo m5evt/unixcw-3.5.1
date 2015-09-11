@@ -33,7 +33,7 @@
 # include <strings.h>
 #endif
 
-#include "libcw.h"
+#include "libcw2.h"
 
 #include "dictionary.h"
 #include "cw_words.h"

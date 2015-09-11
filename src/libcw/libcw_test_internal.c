@@ -30,7 +30,7 @@
 #include <stdlib.h>
 #include <sys/time.h> /* gettimeofday() */
 
-#include "libcw.h"
+#include "libcw2.h"
 
 #include "libcw_gen.h"
 #include "libcw_rec.h"

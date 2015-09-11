@@ -39,7 +39,7 @@
 #include <alsa/asoundlib.h>
 
 
-#include "libcw.h"
+#include "libcw2.h"
 #include "libcw_alsa.h"
 #include "libcw_debug.h"
 #include "libcw_utils.h"

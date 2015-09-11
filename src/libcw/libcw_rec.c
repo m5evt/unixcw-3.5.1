@@ -81,7 +81,7 @@
 #endif
 
 
-#include "libcw.h"
+#include "libcw2.h"
 #include "libcw_rec.h"
 #include "libcw_data.h"
 #include "libcw_utils.h"

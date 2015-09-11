@@ -68,7 +68,7 @@
 # include <signal.h> /* SIGALRM */
 #endif
 
-#include "libcw.h"
+#include "libcw2.h"
 #include "libcw_tq.h"
 #include "libcw_gen.h"
 #include "libcw_debug.h"

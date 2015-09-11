@@ -35,7 +35,7 @@
 # include <getopt.h>
 #endif
 
-#include "libcw.h"
+#include "libcw2.h"
 #include "cmdline.h"
 #include "i18n.h"
 #include "memory.h"
