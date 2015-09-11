@@ -59,7 +59,7 @@
 #endif
 
 
-#include "libcw.h"
+#include "libcw2.h"
 #include "libcw_gen.h"
 #include "libcw_test.h"
 #include "libcw_debug.h"
@@ -95,7 +95,7 @@ static const char *cw_audio_system_labels[] = {
 
 
 /* Finalization and cleanup. */
-static void cw_finalization_clock_internal(void);
+//static void cw_finalization_clock_internal(void);
 
 
 
@@ -607,7 +607,7 @@ static volatile bool cw_is_finalization_locked_out = false;
 
 
 
-
+#if 0
 /**
    \brief Tick a finalization clock
 
@@ -644,11 +644,11 @@ void cw_finalization_clock_internal(void)
 
 	return;
 }
+#endif
 
 
 
-
-
+#if 0
 /**
   Set the finalization pending flag, and request a timeout to call the
   finalization function after a delay of a few seconds.
@@ -671,7 +671,7 @@ void cw_finalization_schedule_internal(void)
 
 	return;
 }
-
+#endif
 
 
 
@@ -709,6 +709,7 @@ void cw_finalization_cancel_internal(void)
 */
 void cw_complete_reset(void)
 {
+#if 0
 	/* If the finalizer thinks it's pending, stop it, then temporarily
 	   lock out finalizations. */
 	cw_finalization_cancel_internal();
@@ -723,6 +724,7 @@ void cw_complete_reset(void)
 	cw_reset_straight_key();
 
 	cw_generator_delete_internal();
+#endif
 	cw_sigalrm_restore_internal();
 
 	/* Now we can re-enable delayed finalizations. */
@@ -730,7 +732,6 @@ void cw_complete_reset(void)
 
 	return;
 }
-
 
 
 
