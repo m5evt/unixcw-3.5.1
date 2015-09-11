@@ -160,6 +160,7 @@ int  cw_gen_wait_for_tone_queue_internal(cw_gen_t *gen);
 void cw_gen_flush_internal(cw_gen_t *gen);
 const char *cw_gen_get_console_device_internal(cw_gen_t *gen);
 const char *cw_gen_get_soundcard_device_internal(cw_gen_t *gen);
+uint32_t    cw_gen_queue_length_internal(cw_gen_t *gen);
 
 
 /* General functions: audio systems. */
