@@ -174,8 +174,8 @@ void write_to_cw_sender(const char *format, ...)
 	va_end(ap);
 
 	/* Sound the buffer, and wait for the send to complete. */
-	if (!cw_gen_play_string_internal(generator, buffer)) {
-		perror("cw_send_string");
+	if (!cw_gen_enqueue_string_internal(generator, buffer)) {
+		perror("cw_gen_enqueue");
 		cw_gen_flush_internal(generator);
 		abort();
 	}
@@ -479,12 +479,12 @@ void send_cw_character(int c, int is_partial)
 
 	/* Send the character to the CW sender. */
 	int status = is_partial
-		? cw_gen_play_character_parital_internal(generator, character)
-		: cw_gen_play_character_internal(generator, character);
+		? cw_gen_enqueue_character_parital_internal(generator, character)
+		: cw_gen_enqueue_character_internal(generator, character);
 
 	if (!status) {
 		if (errno != ENOENT) {
-			perror("cw_send_character[_partial]");
+			perror("cw_gen_enqueue_character[_partial]");
 			cw_gen_flush_internal(generator);
 			abort();
 		} else {

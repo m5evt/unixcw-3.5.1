@@ -363,8 +363,8 @@ void queue_dequeue_character(void)
 			c = queue_data[queue_head];
 			queue_display_highlight_character(true);
 
-			if (!cw_gen_play_character_internal(gen, c)) {
-				perror("cw_gen_play_character_internal");
+			if (!cw_gen_enqueue_character_internal(gen, c)) {
+				perror("cw_gen_enqueue_character_internal");
 				abort();
 			}
 		} else {
