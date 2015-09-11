@@ -172,7 +172,7 @@ extern const char *cw_get_audio_system_label(int audio_system);
 
 
 /* General functions: library data. */
-extern int  cw_version(void);
+extern void cw_version(int *current, int *revision, int *age);
 extern void cw_license(void);
 
 
