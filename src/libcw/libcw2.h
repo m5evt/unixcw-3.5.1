@@ -151,16 +151,18 @@ int cw_gen_enqueue_representation_internal(cw_gen_t *gen, const char *representa
 int cw_gen_enqueue_character_internal(cw_gen_t *gen, char c);
 int cw_gen_enqueue_character_parital_internal(cw_gen_t *gen, char c);
 int cw_gen_enqueue_string_internal(cw_gen_t *gen, const char *string);
-int cw_gen_wait_for_tone_queue_internal(cw_gen_t *gen);
-uint32_t    cw_gen_queue_length_internal(cw_gen_t *gen);
-int  cw_gen_wait_for_level_internal(cw_gen_t *gen, int level);
+/* TODO: replace usage of cw_gen_wait_for_queue_internal() with
+   cw_gen_wait_for_queue_level_internal(). */
+int cw_gen_wait_for_queue_internal(cw_gen_t *gen);
+int cw_gen_wait_for_queue_level_internal(cw_gen_t *gen, int level);
+uint32_t cw_gen_queue_length_internal(cw_gen_t *gen);
+
 
 /* generator module: misc functions. */
 int  cw_generator_set_tone_slope(cw_gen_t *gen, int slope_shape, int slope_usecs);
 void cw_gen_flush_internal(cw_gen_t *gen);
 const char *cw_gen_get_console_device_internal(cw_gen_t *gen);
 const char *cw_gen_get_soundcard_device_internal(cw_gen_t *gen);
-
 
 
 /* General functions: audio systems. */
