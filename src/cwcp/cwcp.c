@@ -39,7 +39,7 @@
 # include <strings.h>
 #endif
 
-#include "libcw.h"
+#include "libcw2.h"
 #include "i18n.h"
 #include "cmdline.h"
 #include "cw_copyright.h"
@@ -71,7 +71,7 @@ static bool is_sending_active = false;
 
 
 static cw_config_t *config = NULL; /* program-specific configuration */
-static bool generator = false;     /* have we created a generator? */
+static cw_gen_t *gen = NULL;
 static const char *all_options = "s:|system,d:|device,"
 	"w:|wpm,t:|tone,v:|volume,"
 	"g:|gap,k:|weighting,"
@@ -363,8 +363,8 @@ void queue_dequeue_character(void)
 			c = queue_data[queue_head];
 			queue_display_highlight_character(true);
 
-			if (!cw_send_character(c)) {
-				perror("cw_send_character");
+			if (!cw_gen_play_character_internal(gen, c)) {
+				perror("cw_gen_play_character_internal");
 				abort();
 			}
 		} else {
@@ -517,7 +517,7 @@ void queue_enqueue_random_dictionary_text(moderef_t mode, bool beginning)
 */
 void queue_transfer_character_to_libcw(void)
 {
-	if (cw_get_tone_queue_length() > 1) {
+	if (cw_gen_queue_length_internal(gen) > 1) {
 		return;
 	}
 
@@ -848,8 +848,6 @@ void state_change_to_active(void)
 		return;
 	}
 
-	cw_start_beep();
-
 	is_sending_active = true;
 
 	ui_display_state(_("Sending(F9 or Esc to exit)"));
@@ -891,8 +889,6 @@ void state_change_to_idle(void)
 
 	/* Remove everything in the outgoing character queue. */
 	queue_discard_contents();
-
-	cw_end_beep();
 
 	return;
 }
@@ -1306,7 +1302,7 @@ static int interface_interpret(int c)
 	case KEY_F (1):
 	case PSEUDO_KEYF1:
 	case KEY_LEFT:
-		if (cw_set_send_speed(cw_get_send_speed() - CW_SPEED_STEP)) {
+		if (cw_gen_set_speed_internal(gen, cw_gen_get_speed_internal(gen) - CW_SPEED_STEP)) {
 			speed_update();
 		}
 		break;
@@ -1314,7 +1310,7 @@ static int interface_interpret(int c)
 	case KEY_F (2):
 	case PSEUDO_KEYF2:
 	case KEY_RIGHT:
-		if (cw_set_send_speed(cw_get_send_speed() + CW_SPEED_STEP)) {
+		if (cw_gen_set_speed_internal(gen, cw_gen_get_speed_internal(gen) + CW_SPEED_STEP)) {
 			speed_update();
 		}
 		break;
@@ -1323,7 +1319,7 @@ static int interface_interpret(int c)
 	case KEY_F (3):
 	case PSEUDO_KEYF3:
 	case KEY_END:
-		if (cw_set_frequency(cw_get_frequency() - CW_FREQUENCY_STEP)) {
+		if (cw_gen_set_frequency_internal(gen, cw_gen_get_frequency_internal(gen) - CW_FREQUENCY_STEP)) {
 			frequency_update();
 		}
 		break;
@@ -1331,21 +1327,21 @@ static int interface_interpret(int c)
 	case KEY_F (4):
 	case PSEUDO_KEYF4:
 	case KEY_HOME:
-		if (cw_set_frequency(cw_get_frequency() + CW_FREQUENCY_STEP)) {
+		if (cw_gen_set_frequency_internal(gen, cw_gen_get_frequency_internal(gen) + CW_FREQUENCY_STEP)) {
 			frequency_update();
 		}
 		break;
 
 	case KEY_F (5):
 	case PSEUDO_KEYF5:
-		if (cw_set_volume(cw_get_volume() - CW_VOLUME_STEP)) {
+		if (cw_gen_set_volume_internal(gen, cw_gen_get_volume_internal(gen) - CW_VOLUME_STEP)) {
 			volume_update();
 		}
 		break;
 
 	case KEY_F (6):
 	case PSEUDO_KEYF6:
-		if (cw_set_volume(cw_get_volume() + CW_VOLUME_STEP)) {
+		if (cw_gen_set_volume_internal(gen, cw_gen_get_volume_internal(gen) + CW_VOLUME_STEP)) {
 			volume_update();
 		}
 		break;
@@ -1354,14 +1350,14 @@ static int interface_interpret(int c)
 
 	case KEY_F (7):
 	case PSEUDO_KEYF7:
-		if (cw_set_gap(cw_get_gap() - CW_GAP_STEP)) {
+		if (cw_gen_set_gap_internal(gen, cw_gen_get_gap_internal(gen) - CW_GAP_STEP)) {
 			gap_update();
 		}
 		break;
 
 	case KEY_F (8):
 	case PSEUDO_KEYF8:
-		if (cw_set_gap(cw_get_gap() + CW_GAP_STEP)) {
+		if (cw_gen_set_gap_internal(gen, cw_gen_get_gap_internal(gen) + CW_GAP_STEP)) {
 			gap_update();
 		}
 		break;
@@ -1436,7 +1432,7 @@ static int interface_interpret(int c)
 	case PSEUDO_KEYF12:
 	case 'C' - CTRL_OFFSET:
 		queue_discard_contents();
-		cw_flush_tone_queue();
+		cw_gen_flush_internal(gen);
 		is_running = false;
 		break;
 
@@ -1458,7 +1454,7 @@ static int interface_interpret(int c)
 void speed_update(void)
 {
 	char buffer[CWCP_PARAM_WIDTH];
-	snprintf(buffer, CWCP_PARAM_WIDTH, _("%2d WPM"), cw_get_send_speed());
+	snprintf(buffer, CWCP_PARAM_WIDTH, _("%2d WPM"), cw_gen_get_speed_internal(gen));
 	mvwaddstr(speed_subwindow, 0, 4, buffer);
 	wrefresh(speed_subwindow);
 	return;
@@ -1471,7 +1467,7 @@ void speed_update(void)
 void frequency_update(void)
 {
 	char buffer[CWCP_PARAM_WIDTH];
-	snprintf(buffer, CWCP_PARAM_WIDTH, _("%4d Hz"), cw_get_frequency());
+	snprintf(buffer, CWCP_PARAM_WIDTH, _("%4d Hz"), cw_gen_get_frequency_internal(gen));
 	mvwaddstr(tone_subwindow, 0, 3, buffer);
 	wrefresh(tone_subwindow);
 	return;
@@ -1484,7 +1480,7 @@ void frequency_update(void)
 void volume_update(void)
 {
 	char buffer[CWCP_PARAM_WIDTH];
-	snprintf(buffer, CWCP_PARAM_WIDTH, _("%3d %%"), cw_get_volume());
+	snprintf(buffer, CWCP_PARAM_WIDTH, _("%3d %%"), cw_gen_get_volume_internal(gen));
 	mvwaddstr(volume_subwindow, 0, 4, buffer);
 	wrefresh(volume_subwindow);
 	return;
@@ -1497,7 +1493,7 @@ void volume_update(void)
 void gap_update(void)
 {
 	char buffer[CWCP_PARAM_WIDTH];
-	int value = cw_get_gap();
+	int value = cw_gen_get_gap_internal(gen);
 	snprintf(buffer, CWCP_PARAM_WIDTH, value == 1 ? _("%2d dot ") : _("%2d dots"), value);
 	mvwaddstr(gap_subwindow, 0, 3, buffer);
 	wrefresh(gap_subwindow);
@@ -1742,8 +1738,8 @@ int main(int argc, char **argv)
 		getchar();
 	}
 
-	generator = cw_generator_new_from_config(config);
-	if (!generator) {
+	gen = cw_gen_new_from_config(config);
+	if (!gen) {
 		fprintf(stderr, "%s: failed to create generator\n", config->program_name);
 		return EXIT_FAILURE;
 	}
@@ -1769,13 +1765,13 @@ int main(int argc, char **argv)
 	   60WPM, a dot is 20ms, so polling for the maximum library
 	   speed needs a 10ms (10,000usec) timeout. */
 	ui_initialize();
-	cw_generator_start();
+	cw_gen_start_internal(gen);
 	while (is_running) {
 		ui_poll_user_input(fileno(stdin), 10000);
 		ui_handle_event(getch());
 	}
 
-	cw_wait_for_tone_queue();
+	cw_gen_wait_for_tone_queue_internal(gen);
 
 	return EXIT_SUCCESS;
 }
@@ -1788,10 +1784,9 @@ void cwcp_atexit(void)
 {
 	ui_destroy();
 
-	if (generator) {
-		cw_complete_reset();
-		cw_generator_stop();
-		cw_generator_delete();
+	if (gen) {
+		cw_gen_stop_internal(gen);
+		cw_gen_delete_internal(&gen);
 	}
 
 	mode_clean();
