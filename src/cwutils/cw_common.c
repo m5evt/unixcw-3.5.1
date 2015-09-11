@@ -41,12 +41,11 @@
 #endif
 
 
-#include "libcw.h"
 #include "cw_common.h"
 
 
 
-extern cw_gen_t *cw_generator;
+
 
 static int cw_gen_apply_config(cw_gen_t *gen, cw_config_t *config);
 
@@ -196,24 +195,33 @@ int cw_config_is_valid(cw_config_t *config)
 
    Create new cw generator (using audio system from given \p config), and
    then apply rest of parameters from \p config to that generator.
+   Return the generator.
 
    \p config should be first created with cw_config_new().
 
    \param config - configuration to be applied to generator
 
-   \return CW_SUCCESS on success
-   \return CW_FAILURE on failure
+   \return newly created generator success
+   \return NULL on failure
 */
-int cw_generator_new_from_config(cw_config_t *config)
+cw_gen_t *cw_gen_new_from_config(cw_config_t *config)
 {
+	/* TODO: it looks like CW_AUDIO_NONE is used as
+	   CW_AUDIO_ANY. Perhaps we should add CW_AUDIO_ANY to
+	   enum. */
+
+	cw_gen_t *gen = NULL;
+
 	if (config->audio_system == CW_AUDIO_NULL) {
 		if (cw_is_null_possible(config->audio_device)) {
-			if (cw_generator_new(CW_AUDIO_NULL, config->audio_device)) {
-				if (cw_gen_apply_config(cw_generator, config)) {
-					return CW_SUCCESS;
+			gen = cw_gen_new_internal(CW_AUDIO_NULL, config->audio_device);
+			if (gen) {
+				if (cw_gen_apply_config(gen, config)) {
+					return gen;
 				} else {
 					fprintf(stderr, "%s: failed to apply configuration\n", config->program_name);
-					return CW_FAILURE;
+					cw_gen_delete_internal(&gen);
+					return NULL;
 				}
 			} else {
 				fprintf(stderr, "%s: failed to open Null output\n", config->program_name);
@@ -230,12 +238,14 @@ int cw_generator_new_from_config(cw_config_t *config)
 	    || config->audio_system == CW_AUDIO_SOUNDCARD) {
 
 		if (cw_is_pa_possible(config->audio_device)) {
-			if (cw_generator_new(CW_AUDIO_PA, config->audio_device)) {
-				if (cw_gen_apply_config(cw_generator, config)) {
-					return CW_SUCCESS;
+			gen = cw_gen_new_internal(CW_AUDIO_PA, config->audio_device);
+			if (gen) {
+				if (cw_gen_apply_config(gen, config)) {
+					return gen;
 				} else {
 					fprintf(stderr, "%s: failed to apply configuration\n", config->program_name);
-					return CW_FAILURE;
+					cw_gen_delete_internal(&gen);
+					return NULL;
 				}
 			} else {
 				fprintf(stderr, "%s: failed to open PulseAudio output\n", config->program_name);
@@ -243,6 +253,9 @@ int cw_generator_new_from_config(cw_config_t *config)
 		} else {
 			fprintf(stderr, "%s: PulseAudio output not available (device: %s)\n",
 				config->program_name,
+				/* TODO: check and verify how to get
+				   correct device name in this line
+				   and in similar lines below. */
 				config->audio_device ? config->audio_device : CW_DEFAULT_PA_DEVICE);
 		}
 		/* fall through to try with next audio system type */
@@ -253,17 +266,19 @@ int cw_generator_new_from_config(cw_config_t *config)
 	    || config->audio_system == CW_AUDIO_SOUNDCARD) {
 
 		if (cw_is_oss_possible(config->audio_device)) {
-			if (cw_generator_new(CW_AUDIO_OSS, config->audio_device)) {
-				if (cw_gen_apply_config(cw_generator, config)) {
-					return CW_SUCCESS;
+			gen = cw_gen_new_internal(CW_AUDIO_OSS, config->audio_device);
+			if (gen) {
+				if (cw_gen_apply_config(gen, config)) {
+					return gen;
 				} else {
 					fprintf(stderr, "%s: failed to apply configuration\n", config->program_name);
-					return CW_FAILURE;
+					cw_gen_delete_internal(&gen);
+					return NULL;
 				}
 			} else {
 				fprintf(stderr,
 					"%s: failed to open OSS output with device \"%s\"\n",
-					config->program_name, cw_get_soundcard_device());
+					config->program_name, config->audio_device);
 			}
 		} else {
 			fprintf(stderr, "%s: OSS output not available (device: %s)\n",
@@ -279,17 +294,20 @@ int cw_generator_new_from_config(cw_config_t *config)
 	    || config->audio_system == CW_AUDIO_SOUNDCARD) {
 
 		if (cw_is_alsa_possible(config->audio_device)) {
-			if (cw_generator_new(CW_AUDIO_ALSA, config->audio_device)) {
-				if (cw_gen_apply_config(cw_generator, config)) {
-					return CW_SUCCESS;
+			gen = cw_gen_new_internal(CW_AUDIO_ALSA, config->audio_device);
+			if (gen) {
+				if (cw_gen_apply_config(gen, config)) {
+					return gen;
 				} else {
 					fprintf(stderr, "%s: failed to apply configuration\n", config->program_name);
-					return CW_FAILURE;
+					cw_gen_delete_internal(&gen);
+					return NULL;
 				}
 			} else {
 				fprintf(stderr,
 					"%s: failed to open ALSA output with device \"%s\"\n",
-					config->program_name, cw_get_soundcard_device());
+					config->program_name,
+					config->audio_device ? config->audio_device : CW_DEFAULT_ALSA_DEVICE);
 			}
 		} else {
 			fprintf(stderr, "%s: ALSA output not available (device: %s)\n",
@@ -304,17 +322,20 @@ int cw_generator_new_from_config(cw_config_t *config)
 	    || config->audio_system == CW_AUDIO_CONSOLE) {
 
 		if (cw_is_console_possible(config->audio_device)) {
-			if (cw_generator_new(CW_AUDIO_CONSOLE, config->audio_device)) {
-				if (cw_gen_apply_config(cw_generator, config)) {
-					return CW_SUCCESS;
+			gen = cw_gen_new_internal(CW_AUDIO_CONSOLE, config->audio_device);
+			if (gen) {
+				if (cw_gen_apply_config(gen, config)) {
+					return gen;
 				} else {
 					fprintf(stderr, "%s: failed to apply configuration\n", config->program_name);
-					return CW_FAILURE;
+					cw_gen_delete_internal(&gen);
+					return NULL;
 				}
 			} else {
 				fprintf(stderr,
 					"%s: failed to open console output with device %s\n",
-					config->program_name, cw_get_console_device() ? cw_get_console_device() : config->audio_device);
+					config->program_name,
+					config->audio_device ? config->audio_device : CW_DEFAULT_CONSOLE_DEVICE);
 			}
 		} else {
 			fprintf(stderr, "%s: console output not available (device: %s)\n",
@@ -325,7 +346,7 @@ int cw_generator_new_from_config(cw_config_t *config)
 	}
 
 	/* there is no next audio system type to try */
-	return CW_FAILURE;
+	return NULL;
 }
 
 
@@ -337,10 +358,10 @@ int cw_generator_new_from_config(cw_config_t *config)
 
    Function applies frequency, volume, sending speed, gap and weighting
    to given generator \p gen. The generator should exist (it should be created
-   by cw_generator_new().
+   by cw_gen_new_internal().
 
    The function is just a wrapper for few common function calls, to be used
-   in cw_generator_new_from_config().
+   in cw_gen_new_from_config().
 
    \param gen - generator
    \param config - current configuration
@@ -369,39 +390,6 @@ int cw_gen_apply_config(cw_gen_t *gen, cw_config_t *config)
 	return CW_SUCCESS;
 }
 
-
-
-
-
-/**
-   \brief Generate a tone that indicates a start
-*/
-void cw_start_beep(void)
-{
-	cw_flush_tone_queue();
-	cw_queue_tone(20000, 500);
-	cw_queue_tone(20000, 1000);
-	cw_wait_for_tone_queue();
-	return;
-}
-
-
-
-
-
-/**
-   \brief Generate a tone that indicates an end
-*/
-void cw_end_beep(void)
-{
-      cw_flush_tone_queue();
-      cw_queue_tone(20000, 500);
-      cw_queue_tone(20000, 1000);
-      cw_queue_tone(20000, 500);
-      cw_queue_tone(20000, 1000);
-      cw_wait_for_tone_queue();
-      return;
-}
 
 
 
