@@ -259,7 +259,7 @@ const char *cw_character_to_representation_internal(int c)
 	/* If this is the first call, set up the fast lookup table to give
 	   direct access to the CW table for a given character. */
 	if (!is_initialized) {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_LOOKUPS, CW_DEBUG_INFO,
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_LOOKUPS, CW_DEBUG_INFO,
 			      "libcw: initialize fast lookup table");
 
 		for (const cw_entry_t *cw_entry = CW_TABLE; cw_entry->character; cw_entry++) {
@@ -480,7 +480,7 @@ int cw_representation_to_character_internal(const char *representation)
 	/* If this is the first call, set up the fast lookup table to give direct
 	   access to the CW table for a hashed representation. */
 	if (!is_initialized) {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_LOOKUPS, CW_DEBUG_INFO,
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_LOOKUPS, CW_DEBUG_INFO,
 			      "libcw: initialize hash lookup table");
 		is_complete = cw_representation_lookup_init_internal(lookup);
 		is_initialized = true;
@@ -656,7 +656,7 @@ int cw_representation_lookup_init_internal(const cw_entry_t *lookup[])
         }
 
 	if (!is_complete) {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_LOOKUPS, CW_DEBUG_WARNING,
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_LOOKUPS, CW_DEBUG_WARNING,
 			      "libcw: hash lookup table incomplete");
 	}
 
@@ -979,7 +979,7 @@ const char *cw_lookup_procedural_character_internal(int c, bool *is_usually_expa
 	   give direct access to the procedural expansions table for
 	   a given character. */
 	if (!is_initialized) {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_LOOKUPS, CW_DEBUG_INFO,
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_LOOKUPS, CW_DEBUG_INFO,
 			      "libcw: initialize prosign fast lookup table");
 
 		for (const cw_prosign_entry_t *e = CW_PROSIGN_TABLE; e->character; e++) {

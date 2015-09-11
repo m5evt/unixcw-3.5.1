@@ -351,7 +351,7 @@ int cw_dev_debug_raw_sink_write_internal(cw_gen_t *gen)
 
 		int rv = write(gen->dev_raw_sink, gen->buffer, n_bytes);
 		if (rv == -1) {
-			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+			cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
 				      "libcw_debug: write error: %s (gen->dev_raw_sink = %ld, gen->buffer = %ld, n_bytes = %d)", strerror(errno), (long) gen->dev_raw_sink, (long) gen->buffer, n_bytes);
 			return CW_FAILURE;
 		}

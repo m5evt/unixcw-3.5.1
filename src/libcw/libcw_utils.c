@@ -132,7 +132,7 @@ void cw_version(int *current, int *revision, int *age)
 	}
 
 	cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_INTERNAL, CW_DEBUG_INFO,
-		      "libcw/utils: current:revision:age: %ld:%ld:%ld\n", current, revision, age);
+		      "libcw/utils: current:revision:age: %ld:%ld:%ld\n", c, r, a);
 
 	return;
 }
@@ -281,13 +281,13 @@ bool cw_dlopen_internal(const char *name, void **handle)
 	char *e = dlerror();
 
 	if (e) {
-		cw_debug_msg (((&cw_debug_object_dev)), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
 			      "libcw: dlopen() fails for %s with error: %s", name, e);
 		return false;
 	} else {
 		*handle = h;
 
-		cw_debug_msg (((&cw_debug_object_dev)), CW_DEBUG_STDLIB, CW_DEBUG_DEBUG,
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_STDLIB, CW_DEBUG_DEBUG,
 			      "libcw: dlopen() succeeds for %s", name);
 		return true;
 	}
@@ -629,7 +629,7 @@ void cw_finalization_clock_internal(void)
 		/* Decrement the timeout countdown, and finalize if we reach zero. */
 		cw_finalization_countdown--;
 		if (cw_finalization_countdown <= 0) {
-			cw_debug_msg ((&cw_debug_object), CW_DEBUG_FINALIZATION, CW_DEBUG_INFO,
+			cw_debug_msg (&cw_debug_object, CW_DEBUG_FINALIZATION, CW_DEBUG_INFO,
 				      "libcw: finalization timeout, closing down");
 
 			cw_sigalrm_restore_internal();
@@ -638,7 +638,7 @@ void cw_finalization_clock_internal(void)
 			cw_is_finalization_pending = false;
 			cw_finalization_countdown = 0;
 		} else {
-			cw_debug_msg ((&cw_debug_object), CW_DEBUG_FINALIZATION, CW_DEBUG_INFO,
+			cw_debug_msg (&cw_debug_object, CW_DEBUG_FINALIZATION, CW_DEBUG_INFO,
 				      "libcw: finalization countdown %d", cw_finalization_countdown);
 
 			/* Request another timeout.  This results in a call to our
@@ -674,7 +674,7 @@ void cw_finalization_schedule_internal(void)
 		cw_is_finalization_pending = true;
 		cw_finalization_countdown = CW_AUDIO_FINALIZATION_DELAY / CW_USECS_PER_SEC;
 
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_FINALIZATION, CW_DEBUG_INFO,
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_FINALIZATION, CW_DEBUG_INFO,
 			      "libcw: finalization scheduled");
 	}
 
@@ -697,7 +697,7 @@ void cw_finalization_cancel_internal(void)
 		cw_is_finalization_pending = false;
 		cw_finalization_countdown = 0;
 
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_FINALIZATION, CW_DEBUG_INFO,
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_FINALIZATION, CW_DEBUG_INFO,
 			      "libcw: finalization canceled");
 	}
 

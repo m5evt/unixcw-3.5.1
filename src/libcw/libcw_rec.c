@@ -160,7 +160,7 @@ cw_rec_t *cw_rec_new_internal(void)
 {
 	cw_rec_t *rec = (cw_rec_t *) malloc(sizeof (cw_rec_t));
 	if (!rec) {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
 			      "libcw: malloc()");
 		return (cw_rec_t *) NULL;
 	}
@@ -870,7 +870,7 @@ int cw_rec_mark_begin_internal(cw_rec_t *rec, const struct timeval *timestamp)
 	   state error.  A start of mark can only happen while we are
 	   idle, or in inter-mark-space of a current character. */
 	if (rec->state != RS_IDLE && rec->state != RS_SPACE) {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
 			      "libcw: receive state not idle and not inter-mark-space: %s", cw_receiver_states[rec->state]);
 
 		errno = ERANGE;
@@ -962,7 +962,7 @@ int cw_rec_mark_end_internal(cw_rec_t *rec, const struct timeval *timestamp)
 		   came in to the routine. */
 		rec->mark_end = saved_end_timestamp;
 
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_KEYING, CW_DEBUG_INFO,
 			      "libcw: '%d [us]' mark identified as spike noise (threshold = '%d [us]')",
 			      mark_len, rec->noise_spike_threshold);
 
@@ -1020,7 +1020,7 @@ int cw_rec_mark_end_internal(cw_rec_t *rec, const struct timeval *timestamp)
 
 		CW_REC_SET_STATE (rec, RS_EOC_GAP_ERR, (&cw_debug_object));
 
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
 			      "libcw: receiver's representation buffer is full");
 
 		errno = ENOMEM;
@@ -1080,7 +1080,7 @@ int cw_rec_identify_mark_internal(cw_rec_t *rec, int mark_len, /* out */ char *m
 	if (mark_len >= rec->dot_len_min
 	    && mark_len <= rec->dot_len_max) {
 
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
 			      "libcw: mark '%d [us]' recognized as DOT (limits: %d - %d [us])",
 			      mark_len, rec->dot_len_min, rec->dot_len_max);
 
@@ -1092,7 +1092,7 @@ int cw_rec_identify_mark_internal(cw_rec_t *rec, int mark_len, /* out */ char *m
 	if (mark_len >= rec->dash_len_min
 	    && mark_len <= rec->dash_len_max) {
 
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
 			      "libcw: mark '%d [us]' recognized as DASH (limits: %d - %d [us])",
 			      mark_len, rec->dash_len_min, rec->dash_len_max);
 
@@ -1102,11 +1102,11 @@ int cw_rec_identify_mark_internal(cw_rec_t *rec, int mark_len, /* out */ char *m
 
 	/* This mark is not a dot or a dash, so we have an error
 	   case. */
-	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
+	cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
 		      "libcw: unrecognized mark, len = %d [us]", mark_len);
-	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
+	cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
 		      "libcw: dot limits: %d - %d [us]", rec->dot_len_min, rec->dot_len_max);
-	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
+	cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
 		      "libcw: dash limits: %d - %d [us]", rec->dash_len_min, rec->dash_len_max);
 
 	/* We should never reach here when in adaptive timing receive
@@ -1114,7 +1114,7 @@ int cw_rec_identify_mark_internal(cw_rec_t *rec, int mark_len, /* out */ char *m
 	   and function should have returned before reaching this
 	   point. */
 	if (rec->is_adaptive_receive_mode) {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
 			      "libcw: unrecognized mark in adaptive receive");
 	}
 
@@ -1168,7 +1168,7 @@ void cw_rec_update_averages_internal(cw_rec_t *rec, int mark_len, char mark)
 {
 	/* We are not going to tolerate being called in fixed speed mode. */
 	if (!rec->is_adaptive_receive_mode) {
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_WARNING,
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_WARNING,
 			      "Called \"adaptive\" function when receiver is not in adaptive mode\n");
 		return;
 	}
@@ -1179,7 +1179,7 @@ void cw_rec_update_averages_internal(cw_rec_t *rec, int mark_len, char mark)
 	} else if (mark == CW_DASH_REPRESENTATION) {
 		cw_rec_update_average_internal(&rec->dash_averaging, mark_len);
 	} else {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
 			      "Unknown mark %d\n", mark);
 		return;
 	}
@@ -1286,7 +1286,7 @@ int cw_rec_add_mark_internal(cw_rec_t *rec, const struct timeval *timestamp, cha
 
 		CW_REC_SET_STATE (rec, RS_EOC_GAP_ERR, (&cw_debug_object));
 
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
 			      "libcw: receiver's representation buffer is full");
 
 		errno = ENOMEM;
@@ -1366,7 +1366,7 @@ int cw_rec_poll_representation_internal(cw_rec_t *rec,
 
 	int space_len = cw_timestamp_compare_internal(&rec->mark_end, &now_timestamp);
 	if (space_len == INT_MAX) {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
 			      "libcw: space len == INT_MAX");
 
 		errno = EAGAIN;
@@ -1459,7 +1459,7 @@ void cw_rec_poll_representation_eoc_internal(cw_rec_t *rec, int space_len,
 			   rec->state, cw_receiver_states[rec->state]);
 	}
 
-	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
+	cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
 		      "libcw: receive state -> %s", cw_receiver_states[rec->state]);
 
 	/* Return the representation from receiver's buffer. */
@@ -1771,7 +1771,7 @@ void cw_rec_sync_parameters_internal(cw_rec_t *rec)
 		   end-of-word gap. */
 	}
 
-	cw_debug_msg ((&cw_debug_object), CW_DEBUG_PARAMETERS, CW_DEBUG_INFO,
+	cw_debug_msg (&cw_debug_object, CW_DEBUG_PARAMETERS, CW_DEBUG_INFO,
 		      "libcw: receive usec timings <%.2f [wpm]>: dot: %d-%d [ms], dash: %d-%d [ms], %d-%d[%d], %d-%d[%d], thres: %d [us]",
 		      rec->speed,
 		      rec->dot_len_min, rec->dot_len_max,

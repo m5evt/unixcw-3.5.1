@@ -242,7 +242,7 @@ int cw_gen_start_internal(cw_gen_t *gen)
 		if (rv != 0) {
 			gen->do_dequeue_and_play = false;
 
-			cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+			cw_debug_msg (&cw_debug_object, CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
 				      "libcw: failed to create %s generator thread", cw_get_audio_system_label(gen->audio_system));
 			return CW_FAILURE;
 		} else {
@@ -260,7 +260,7 @@ int cw_gen_start_internal(cw_gen_t *gen)
 	} else {
 		gen->do_dequeue_and_play = false;
 
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
 			      "libcw: unsupported audio system %d", gen->audio_system);
 		return CW_FAILURE;
 	}
@@ -297,7 +297,7 @@ int cw_gen_set_audio_device_internal(cw_gen_t *gen, const char *device)
 
 	if (gen->audio_system == CW_AUDIO_NONE) {
 		gen->audio_device = (char *) NULL;
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
 			      "libcw: no audio system specified");
 		return CW_FAILURE;
 	}
@@ -309,7 +309,7 @@ int cw_gen_set_audio_device_internal(cw_gen_t *gen, const char *device)
 	}
 
 	if (!gen->audio_device) {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
 			      "libcw: malloc()");
 		return CW_FAILURE;
 	} else {
@@ -346,7 +346,7 @@ int cw_gen_silence_internal(cw_gen_t *gen)
 		/* this may happen because the process of finalizing
 		   usage of libcw is rather complicated; this should
 		   be somehow resolved */
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_WARNING,
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_WARNING,
 			      "libcw: called the function for NULL generator");
 		return CW_SUCCESS;
 	}
@@ -381,7 +381,7 @@ int cw_gen_silence_internal(cw_gen_t *gen)
 		/* allow some time for playing the last tone */
 		usleep(2 * gen->quantum_len);
 	} else {
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
 			      "libcw: called silence() function for generator without audio system specified");
 	}
 
@@ -414,7 +414,7 @@ cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 
 	cw_gen_t *gen = (cw_gen_t *) malloc(sizeof (cw_gen_t));
 	if (!gen) {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
 			      "libcw: malloc()");
 		return (cw_gen_t *) NULL;
 	}
@@ -509,7 +509,7 @@ cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 
 	int rv = cw_gen_new_open_internal(gen, audio_system, device);
 	if (rv == CW_FAILURE) {
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
 			      "libcw: failed to open audio device for audio system '%s' and device '%s'", cw_get_audio_system_label(audio_system), device);
 		cw_gen_delete_internal(&gen);
 		return (cw_gen_t *) NULL;
@@ -522,7 +522,7 @@ cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 	} else {
 		gen->buffer = (cw_sample_t *) malloc(gen->buffer_n_samples * sizeof (cw_sample_t));
 		if (!gen->buffer) {
-			cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+			cw_debug_msg (&cw_debug_object, CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
 				      "libcw: malloc()");
 			cw_gen_delete_internal(&gen);
 			return (cw_gen_t *) NULL;
@@ -534,7 +534,7 @@ cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 	   cw_gen_new_open_internal(). */
 	rv = cw_generator_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_RAISED_COSINE, CW_AUDIO_SLOPE_LEN);
 	if (rv == CW_FAILURE) {
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
 			      "libcw: failed to set slope");
 		cw_gen_delete_internal(&gen);
 		return (cw_gen_t *) NULL;
@@ -563,7 +563,7 @@ void cw_gen_delete_internal(cw_gen_t **gen)
 	}
 
 	if ((*gen)->do_dequeue_and_play) {
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG,
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG,
 			      "libcw: you forgot to call cw_generator_stop()");
 		cw_gen_stop_internal(*gen);
 	}
@@ -585,7 +585,7 @@ void cw_gen_delete_internal(cw_gen_t **gen)
 	if ((*gen)->close_device) {
 		(*gen)->close_device(*gen);
 	} else {
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG, "libcw: WARNING: NULL function pointer, something went wrong");
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG, "libcw: WARNING: NULL function pointer, something went wrong");
 	}
 
 	pthread_attr_destroy(&((*gen)->thread.attr));
@@ -631,7 +631,7 @@ void cw_gen_delete_internal(cw_gen_t **gen)
 int cw_gen_stop_internal(cw_gen_t *gen)
 {
 	if (!gen) {
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_WARNING,
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_WARNING,
 			      "libcw: called the function for NULL generator");
 		/* Not really a runtime error, so return
 		   CW_SUCCESS. */
@@ -645,12 +645,12 @@ int cw_gen_stop_internal(cw_gen_t *gen)
 		return CW_FAILURE;
 	}
 
-	cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_INFO,
+	cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_INFO,
 		      "libcw/gen: gen->do_dequeue_and_play = false");
 	gen->do_dequeue_and_play = false;
 
 	if (!gen->thread.running) {
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_INFO, "libcw: EXIT: seems that thread function was not started at all");
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_INFO, "libcw: EXIT: seems that thread function was not started at all");
 
 		/* Don't call pthread_kill() on non-initialized
 		   thread.id. The generator wasn't even started, so
@@ -715,11 +715,11 @@ int cw_gen_stop_internal(cw_gen_t *gen)
 	rv = pthread_kill(gen->thread.id, 0);
 	if (rv == 0) {
 		/* thread function didn't return yet; let's help it a bit */
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_WARNING, "libcw: EXIT: forcing exit of thread function");
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_WARNING, "libcw: EXIT: forcing exit of thread function");
 		rv = pthread_kill(gen->thread.id, SIGKILL);
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_WARNING, "libcw: EXIT: pthread_kill() returns %d/%s", rv, strerror(rv));
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_WARNING, "libcw: EXIT: pthread_kill() returns %d/%s", rv, strerror(rv));
 	} else {
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_INFO, "libcw: EXIT: seems that thread function exited voluntarily");
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_INFO, "libcw: EXIT: seems that thread function exited voluntarily");
 	}
 
 	gen->thread.running = false;
@@ -743,7 +743,7 @@ int cw_gen_stop_internal(cw_gen_t *gen)
 
 #if CW_DEBUG_TIMING_JOIN   /* Debug code to measure how long it takes to join threads. */
 	gettimeofday(&after, NULL);
-	cw_debug_msg ((&cw_debug_object), CW_DEBUG_GENERATOR, CW_DEBUG_INFO, "libcw/gen: joining thread took %d us", cw_timestamp_compare_internal(&before, &after));
+	cw_debug_msg (&cw_debug_object, CW_DEBUG_GENERATOR, CW_DEBUG_INFO, "libcw/gen: joining thread took %d us", cw_timestamp_compare_internal(&before, &after));
 #endif
 
 
@@ -752,7 +752,7 @@ int cw_gen_stop_internal(cw_gen_t *gen)
 		gen->thread.running = false;
 		return CW_SUCCESS;
 	} else {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_GENERATOR, CW_DEBUG_ERROR, "libcw/gen: failed to join threads: \"%s\"", strerror(rv));
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_GENERATOR, CW_DEBUG_ERROR, "libcw/gen: failed to join threads: \"%s\"", strerror(rv));
 		return CW_FAILURE;
 	}
 #endif
@@ -881,7 +881,7 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 		int tq_rv = cw_tq_dequeue_internal(gen->tq, &tone);
 		if (tq_rv == CW_TQ_NDEQUEUED_IDLE) {
 
-			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_INFO,
+			cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_TONE_QUEUE, CW_DEBUG_INFO,
 				      "libcw/tq: got CW_TQ_NDEQUEUED_IDLE");
 
 #ifndef LIBCW_WITH_SIGNALS_ALTERNATIVE
@@ -981,7 +981,7 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 
 	} /* while (gen->do_dequeue_and_play) */
 
-	cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_INFO,
+	cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_INFO,
 		      "libcw: EXIT: generator stopped (gen->do_dequeue_and_play = %d)", gen->do_dequeue_and_play);
 
 	/* Some functions in client thread may be waiting for the last
@@ -1275,7 +1275,7 @@ int cw_generator_set_tone_slope(cw_gen_t *gen, int slope_shape, int slope_len)
 	if (slope_shape == CW_TONE_SLOPE_SHAPE_RECTANGULAR
 	    && slope_len > 0) {
 
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
 			      "libcw: requested a rectangular slope shape, but also requested slope len > 0");
 
 		return CW_FAILURE;
@@ -1321,7 +1321,7 @@ int cw_generator_set_tone_slope(cw_gen_t *gen, int slope_shape, int slope_len)
 		if (slope_n_samples > 0) {
 			gen->tone_slope.amplitudes = realloc(gen->tone_slope.amplitudes, sizeof(float) * slope_n_samples);
 			if (!gen->tone_slope.amplitudes) {
-				cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
+				cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
 					      "libcw: failed to realloc() table of slope amplitudes");
 				return CW_FAILURE;
 			}
@@ -1493,7 +1493,7 @@ int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, cw_tone_t *tone, int queue
 #endif
 
 
-	// cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG, "libcw: %lld samples, %d us, %d Hz", tone->n_samples, tone->len, gen->frequency);
+	// cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG, "libcw: %lld samples, %d us, %d Hz", tone->n_samples, tone->len, gen->frequency);
 	while (samples_to_write > 0) {
 
 		int64_t free_space = gen->buffer_n_samples - gen->buffer_sub_start;
@@ -1527,7 +1527,7 @@ int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, cw_tone_t *tone, int queue
 
 #if 0
 		fprintf(stderr, "++++        loop #%d, buffer_sub_n_samples = %d\n", ++debug_loop, buffer_sub_n_samples);
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG,
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG,
 			      "libcw: sub start: %d, sub stop: %d, sub len: %d, to calculate: %d", gen->buffer_sub_start, gen->buffer_sub_stop, buffer_sub_n_samples, samples_to_write);
 #endif
 
@@ -1566,7 +1566,7 @@ int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, cw_tone_t *tone, int queue
 
 #if 0
 		if (samples_to_write < 0) {
-			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG, "samples left = %d", samples_to_write);
+			cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG, "samples left = %d", samples_to_write);
 		}
 #endif
 
@@ -2082,7 +2082,7 @@ int cw_gen_play_eow_space_internal(cw_gen_t *gen)
 		return CW_FAILURE;
 	}
 
-	cw_debug_msg ((&cw_debug_object), CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG,
+	cw_debug_msg (&cw_debug_object, CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG,
 		      "libcw: enqueued %d tones per eow space, tq len = %d",
 		      enqueued, cw_tq_length_internal(gen->tq));
 
@@ -2183,7 +2183,7 @@ int cw_gen_play_representation_internal(cw_gen_t *gen, const char *representatio
 int cw_gen_play_valid_character_internal(cw_gen_t *gen, char character, int partial)
 {
 	if (!gen) {
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
 			      "libcw: no generator available");
 		return CW_FAILURE;
 	}
@@ -2444,7 +2444,7 @@ void cw_gen_sync_parameters_internal(cw_gen_t *gen)
 	   identifying this in earlier versions of libcw. */
 	gen->adjustment_space_len = (7 * gen->additional_space_len) / 3;
 
-	cw_debug_msg ((&cw_debug_object), CW_DEBUG_PARAMETERS, CW_DEBUG_INFO,
+	cw_debug_msg (&cw_debug_object, CW_DEBUG_PARAMETERS, CW_DEBUG_INFO,
 		      "libcw: send usec timings <%d [wpm]>: dot: %d, dash: %d, %d, %d, %d, %d, %d",
 		      gen->send_speed, gen->dot_len, gen->dash_len,
 		      gen->eom_space_len, gen->eoc_space_len,
@@ -2495,7 +2495,7 @@ int cw_gen_key_begin_mark_internal(cw_gen_t *gen)
 		tone.is_forever = true;
 		rv = cw_tq_enqueue_internal(gen->tq, &tone);
 
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
 			      "libcw: tone queue: len = %"PRIu32"", cw_tq_length_internal(gen->tq));
 	}
 

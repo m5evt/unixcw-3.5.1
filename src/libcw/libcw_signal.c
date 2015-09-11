@@ -131,7 +131,7 @@ void cw_sigalrm_handlers_caller_internal(__attribute__((unused)) int signal_numb
 	for (int handler = 0;
 	     handler < CW_SIGALRM_HANDLERS_MAX && cw_sigalrm_handlers[handler]; handler++) {
 
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_INTERNAL, CW_DEBUG_DEBUG,
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_INTERNAL, CW_DEBUG_DEBUG,
 			      "libcw: SIGALRM handler #%d", handler);
 
 		(cw_sigalrm_handlers[handler])();
@@ -167,7 +167,7 @@ int cw_timer_run_internal(int usecs)
 	itimer.it_value.tv_usec = usecs % CW_USECS_PER_SEC;
 	int status = setitimer(ITIMER_REAL, &itimer, NULL);
 	if (status == -1) {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
 			      "libcw: setitimer(%d): %s", usecs, strerror(errno));
 		return CW_FAILURE;
 	}
@@ -224,7 +224,7 @@ int cw_timer_run_with_handler_internal(int usecs, void (*sigalrm_handler)(void))
 		if (cw_sigalrm_handlers[handler] != sigalrm_handler) {
 			if (cw_sigalrm_handlers[handler]) {
 				errno = ENOMEM;
-				cw_debug_msg ((&cw_debug_object), CW_DEBUG_INTERNAL, CW_DEBUG_ERROR,
+				cw_debug_msg (&cw_debug_object, CW_DEBUG_INTERNAL, CW_DEBUG_ERROR,
 					      "libcw: overflow cw_sigalrm_handlers");
 				return CW_FAILURE;
 			} else {
@@ -244,7 +244,7 @@ int cw_timer_run_with_handler_internal(int usecs, void (*sigalrm_handler)(void))
 		/* Send ourselves SIGALRM immediately. */
 		if (pthread_kill(cw_generator->thread.id, SIGALRM) != 0) {
 	        // if (raise(SIGALRM) != 0) {
-			cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+			cw_debug_msg (&cw_debug_object, CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
 				      "libcw: raise()");
 			return CW_FAILURE;
 		}
@@ -280,7 +280,7 @@ int cw_sigalrm_install_top_level_handler_internal(void)
 
 		int status = sigaction(SIGALRM, &action, &cw_sigalrm_original_disposition);
 		if (status == -1) {
-			cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+			cw_debug_msg (&cw_debug_object, CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
 				      "libcw: sigaction(): %s", strerror(errno));
 			return CW_FAILURE;
 		}
@@ -348,7 +348,7 @@ bool cw_sigalrm_is_blocked_internal(void)
 	/* Prepare empty set of signals */
 	int status = sigemptyset(&empty_set);
 	if (status == -1) {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
 			      "libcw: sigemptyset(): %s", strerror(errno));
 		return true;
 	}
@@ -356,7 +356,7 @@ bool cw_sigalrm_is_blocked_internal(void)
 	/* Block an empty set of signals to obtain the current mask. */
 	status = sigprocmask(SIG_BLOCK, &empty_set, &current_set);
 	if (status == -1) {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
 			      "libcw: sigprocmask(): %s", strerror(errno));
 		return true;
 	}
@@ -393,7 +393,7 @@ int cw_sigalrm_block_internal(bool block)
 	/* Prepare empty set of signals */
 	int status = sigemptyset(&set);
 	if (status == -1) {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
 			      "libcw: sigemptyset(): %s", strerror(errno));
 		return CW_FAILURE;
 	}
@@ -401,7 +401,7 @@ int cw_sigalrm_block_internal(bool block)
 	/* Add single signal to the set */
 	status = sigaddset(&set, SIGALRM);
 	if (status == -1) {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
 			      "libcw: sigaddset(): %s", strerror(errno));
 		return CW_FAILURE;
 	}
@@ -409,7 +409,7 @@ int cw_sigalrm_block_internal(bool block)
 	/* Block or unblock SIGALRM for the process using the set of signals */
 	status = pthread_sigmask(block ? SIG_BLOCK : SIG_UNBLOCK, &set, NULL);
 	if (status == -1) {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
 			      "libcw: pthread_sigmask(): %s", strerror(errno));
 		return CW_FAILURE;
 	}
@@ -460,7 +460,7 @@ int cw_signal_wait_internal(void)
 	/* Prepare empty set of signals */
 	int status = sigemptyset(&empty_set);
 	if (status == -1) {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
 			      "libcw: sigemptyset(): %s", strerror(errno));
 		return CW_FAILURE;
 	}
@@ -468,7 +468,7 @@ int cw_signal_wait_internal(void)
 	/* Block an empty set of signals to obtain the current mask. */
 	status = sigprocmask(SIG_BLOCK, &empty_set, &current_set);
 	if (status == -1) {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
 			      "libcw: sigprocmask(): %s", strerror(errno));
 		return CW_FAILURE;
 	}
@@ -476,7 +476,7 @@ int cw_signal_wait_internal(void)
 	/* Wait on the current mask */
 	status = sigsuspend(&current_set);
 	if (status == -1 && errno != EINTR) {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
 			      "libcw: suspend(): %s", strerror(errno));
 		return CW_FAILURE;
 	}
@@ -515,7 +515,7 @@ static void (*cw_signal_callbacks[CW_SIG_MAX])(int);
 */
 void cw_signal_main_handler_internal(int signal_number)
 {
-	cw_debug_msg ((&cw_debug_object), CW_DEBUG_FINALIZATION, CW_DEBUG_INFO,
+	cw_debug_msg (&cw_debug_object, CW_DEBUG_FINALIZATION, CW_DEBUG_INFO,
 		      "libcw: caught signal %d", signal_number);
 
 	/* Reset the library and retrieve the signal's handler. */
