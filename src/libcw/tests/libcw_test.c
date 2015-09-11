@@ -55,7 +55,7 @@
 #endif
 
 
-#include "libcw.h"
+#include "libcw2.h"
 #include "libcw_debug.h"
 #include "libcw_test.h"
 
