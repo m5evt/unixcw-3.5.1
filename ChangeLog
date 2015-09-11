@@ -1,4 +1,16 @@
 2015-09-10 Kamil Ignacak
+	* libcw: removing libcw.[ch] files. It means no more global
+	cw_generator, cw_receiver nor cw_key. It also means (almost) total
+	departure from old-style functions. From now on code in
+	experimental branch will start using generator / receiver / tone
+	queue/key functions that accept arguments of type cw_gen_t,
+	cw_rec_t, cw_tq_t, cw_key_t as first argument (the functions will
+	be declared in libcw2.h).
+	* src/cw/cw: using new-style libcw functions in code of the
+	application. This, together with conversion of cwutils, means that
+	src/cw/cw is the first unixcw application ported to libcw2.
+
+2015-09-10 Kamil Ignacak
 	* libcw2: adding src/libcw/libcw2.h file that will contain
 	declarations of publicly visible new-style functions.
 	* src/cw/cw: reformatting source code of the program. Doing some
