@@ -392,7 +392,7 @@ int cw_key_sk_enqueue_symbol_internal(volatile cw_key_t *key, int key_value)
 			   know for how long the key will be closed.
 
 			   Let's enqueue a beginning of mark. A
-			   constant tone will be played until function
+			   constant tone will be generated until function
 			   receives CW_KEY_STATE_OPEN key state. */
 			rv = cw_gen_key_begin_mark_internal(key->gen);
 		} else {
@@ -564,7 +564,7 @@ bool cw_key_ik_get_curtis_mode_b_state_internal(volatile cw_key_t *key)
    re-evaluate internal state of iambic keyer.
 
    The function is also called in generator's thread function
-   cw_generator_dequeue_and_play_internal() each time a tone is
+   cw_generator_dequeue_and_generate_internal() each time a tone is
    dequeued and pushed to audio system. I don't know why make the call
    in that place for iambic keyer, but not for straight key.
 
