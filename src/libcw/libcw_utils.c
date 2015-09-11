@@ -104,27 +104,37 @@ static const char *cw_audio_system_labels[] = {
 /**
    \brief Return version number of libcw library
 
-   Return the version number of the library.
-   Version numbers (major and minor) are returned as an int,
-   composed of major_version << 16 | minor_version.
+   Return version number of the library, split into \p current, \p
+   revision, \p age. These three properties are described here:
+   http://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html
 
    testedin::test_cw_version()
-
-   \return library's major and minor version number encoded as single int
 */
-int cw_version(void)
+void cw_version(int *current, int *revision, int *age)
 {
 	char *endptr = NULL;
 
 	/* LIBCW_VERSION: "current:revision:age", libtool notation. */
-	long int current = strtol(LIBCW_VERSION, &endptr, 10);
-	long int revision = strtol(endptr + 1, &endptr, 10);
-	__attribute__((unused)) long int age = strtol(endptr + 1, &endptr, 10);
 
-	// fprintf(stderr, "current:revision:age: %ld:%ld:%ld\n", current, revision, age);
+	long int c = strtol(LIBCW_VERSION, &endptr, 10);
+	if (current) {
+		*current = (int) c;
+	}
 
-	/* TODO: Return all three parts of library version. */
-	return ((int) current) << 16 | ((int) revision);
+	long int r = strtol(endptr + 1, &endptr, 10);
+	if (revision) {
+		*revision = (int) r;
+	}
+
+	long int a = strtol(endptr + 1, &endptr, 10);
+	if (age) {
+		*age = (int) a;
+	}
+
+	cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_INTERNAL, CW_DEBUG_INFO,
+		      "libcw/utils: current:revision:age: %ld:%ld:%ld\n", current, revision, age);
+
+	return;
 }
 
 
@@ -136,16 +146,15 @@ int cw_version(void)
 
    testedin::test_cw_license()
 
-   Function prints information about libcw version, followed
+   Function prints to stdout information about libcw version, followed
    by short text presenting libcw's copyright and license notice.
 */
 void cw_license(void)
 {
-	int version = cw_version();
-	int current = version >> 16;
-	int revision = version & 0xff;
+	int current, revision, age;
+	cw_version(&current, &revision, &age);
 
-	printf("libcw version %d.%d\n", current, revision);
+	printf("libcw version %d.%d.%d\n", current, revision, age);
 	printf("%s\n", CW_COPYRIGHT);
 
 	return;
@@ -940,9 +949,8 @@ unsigned int test_cw_usecs_to_timespec_internal(void)
 */
 unsigned int test_cw_version_internal(void)
 {
-	int rv = cw_version();
-	int major = rv >> 16;
-	int minor = rv & 0xff;
+	int current = 77, revision = 88, age = 99; /* Dummy values. */
+	cw_version(&current, &revision, &age);
 
 	/* Library's version is defined in LIBCW_VERSION. cw_version()
 	   uses three calls to strtol() to get three parts of the
@@ -950,11 +958,6 @@ unsigned int test_cw_version_internal(void)
 
 	   Let's use a different approach to convert LIBCW_VERSION
 	   into numbers. */
-
-
-	int current = 0, revision = 0;
-	__attribute__((unused)) int age = 0;
-
 
 #define VERSION_LEN_MAX 30
 	cw_assert (strlen(LIBCW_VERSION) <= VERSION_LEN_MAX, "LIBCW_VERSION longer than expected!\n");
@@ -965,6 +968,7 @@ unsigned int test_cw_version_internal(void)
 #undef VERSION_LEN_MAX
 
 	char *str = buffer;
+	int c = 0, r = 0, a = 0;
 
 	for (int i = 0; ; i++, str = NULL) {
 
@@ -974,20 +978,21 @@ unsigned int test_cw_version_internal(void)
 		}
 
 		if (i == 0) {
-			current = atoi(token);
+			c = atoi(token);
 		} else if (i == 1) {
-			revision = atoi(token);
+			r = atoi(token);
 		} else if (i == 2) {
-			age = atoi(token);
+			a = atoi(token);
 		} else {
 			cw_assert (0, "too many tokens in \"%s\"\n", LIBCW_VERSION);
 		}
 	}
 
-	cw_assert (major == current, "Incorrect \"current\": %d != %d\n", major, current);
-	cw_assert (minor == revision, "Incorrect \"revision\": %d != %d\n", minor, revision);
+	cw_assert (current == c,  "Incorrect \"current\": %d != %d\n", current, c);
+	cw_assert (revision == r, "Incorrect \"revision\": %d != %d\n", revision, r);
+	cw_assert (age == a,      "Incorrect \"age\": %d != %d\n", age, a);
 
-	int n = fprintf(stdout, "libcw/utils: get version: %d.%d:", major, minor);
+	int n = fprintf(stdout, "libcw/utils: get version: %d:%d:%d", current, revision, age);
 	CW_TEST_PRINT_TEST_RESULT (false, n);
 
 	return 0;
