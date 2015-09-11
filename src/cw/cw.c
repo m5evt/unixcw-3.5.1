@@ -180,8 +180,8 @@ void write_to_cw_sender(const char *format, ...)
 		abort();
 	}
 
-	if (!cw_gen_wait_for_level_internal(generator, 1)) {
-		perror("cw_gen_wait_for_level_internal");
+	if (!cw_gen_wait_for_queue_level_internal(generator, 1)) {
+		perror("cw_gen_wait_for_queue_level_internal");
 		cw_gen_flush_internal(generator);
 		abort();
 	}
@@ -497,8 +497,8 @@ void send_cw_character(int c, int is_partial)
 	write_to_echo_stream("%c", c);
 
 	/* Wait for the character to complete. */
-	if (!cw_gen_wait_for_level_internal(generator, 1)) {
-		perror("cw_gen_wait_for_level_internal");
+	if (!cw_gen_wait_for_queue_level_internal(generator, 1)) {
+		perror("cw_gen_wait_for_queue_level_internal");
 		cw_gen_flush_internal(generator);
 		abort();
 	}
@@ -658,7 +658,7 @@ int main(int argc, char *const argv[])
 	parse_stream(stdin);
 
 	/* Await final tone completion before exiting. */
-	cw_gen_wait_for_tone_queue_internal(generator);
+	cw_gen_wait_for_queue_internal(generator);
 
 	return EXIT_SUCCESS;
 }

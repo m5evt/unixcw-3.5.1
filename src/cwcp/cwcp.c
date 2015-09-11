@@ -1771,7 +1771,7 @@ int main(int argc, char **argv)
 		ui_handle_event(getch());
 	}
 
-	cw_gen_wait_for_tone_queue_internal(gen);
+	cw_gen_wait_for_queue_internal(gen);
 
 	return EXIT_SUCCESS;
 }
