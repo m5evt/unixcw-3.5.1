@@ -10,7 +10,6 @@
 
 
 
-#include "libcw.h"
 #include "libcw2.h"
 #include "libcw_pa.h"
 #include "libcw_alsa.h"
@@ -330,26 +329,6 @@ struct cw_gen_struct {
 
 
 
-/* Basic generator functions. */
-cw_gen_t *cw_gen_new_internal(int audio_system, const char *device);
-void      cw_gen_delete_internal(cw_gen_t **gen);
-int       cw_gen_start_internal(cw_gen_t *gen);
-int       cw_gen_stop_internal(cw_gen_t *gen);
-
-
-
-
-
-/* Getters of generator's basic parameters. */
-int cw_gen_get_speed_internal(cw_gen_t *gen);
-int cw_gen_get_frequency_internal(cw_gen_t *gen);
-int cw_gen_get_volume_internal(cw_gen_t *gen);
-int cw_gen_get_gap_internal(cw_gen_t *gen);
-int cw_gen_get_weighting_internal(cw_gen_t *gen);
-
-
-
-
 
 void cw_gen_get_send_parameters_internal(cw_gen_t *gen, int *dot_len, int *dash_len, int *eom_space_len, int *eoc_space_len, int *eow_space_len, int *additional_space_len, int *adjustment_space_len);
 
@@ -372,10 +351,6 @@ int cw_gen_key_pure_symbol_internal(cw_gen_t *gen, char symbol);
 
 
 
-int cw_gen_play_representation_internal(cw_gen_t *gen, const char *representation, bool partial);
-int cw_gen_play_character_internal(cw_gen_t *gen, char c);
-int cw_gen_play_character_parital_internal(cw_gen_t *gen, char c);
-int cw_gen_play_string_internal(cw_gen_t *gen, const char *string);
 
 
 
