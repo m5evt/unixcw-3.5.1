@@ -236,8 +236,8 @@ struct cw_gen_struct {
 	   Set to true before running dequeue_and_play thread
 	   function.
 	   Set to false to stop generator and return from
-	   dequeue_and_play thread function. */
-	bool do_dequeue_and_play;
+	   dequeue_and_generate thread function. */
+	bool do_dequeue_and_generate;
 
 	/* Used to calculate sine wave.
 	   Phase offset needs to be stored between consecutive calls to
@@ -246,7 +246,7 @@ struct cw_gen_struct {
 
 	/* Properties of generator's thread function is that is used
 	   to generate sine wave and write the wave to audio sink
-	   (cw_gen_dequeue_and_play_internal()). */
+	   (cw_gen_dequeue_and_generate_internal()). */
 	struct {
 		pthread_t      id;
 		pthread_attr_t attr;
@@ -257,12 +257,12 @@ struct cw_gen_struct {
 		   data type is opaque.
 
 		   This flag is a bit different than
-		   cw_gen_t->do_dequeue_and_play.  Setting
-		   ->do_dequeue_and_play signals intent to run a loop
+		   cw_gen_t->do_dequeue_and_generate.  Setting
+		   ->do_dequeue_and_generate signals intent to run a loop
 		   deqeueing tones in
-		   cw_gen_dequeue_and_play_internal().  Setting
+		   cw_gen_dequeue_and_generate_internal().  Setting
 		   ->thread.running means that thread function
-		   cw_gen_dequeue_and_play_internal() was launched
+		   cw_gen_dequeue_and_generate_internal() was launched
 		   successfully. */
 		bool running;
 	} thread;
@@ -336,12 +336,12 @@ void cw_gen_get_send_parameters_internal(cw_gen_t *gen, int *dot_len, int *dash_
 
 
 
-/* Generator's 'play' primitives. */
-int cw_gen_play_mark_internal(cw_gen_t *gen, char mark);
-int cw_gen_play_eoc_space_internal(cw_gen_t *gen);
-int cw_gen_play_eow_space_internal(cw_gen_t *gen);
+/* Generator's enqueue primitives. */
+int cw_gen_enqueue_mark_internal(cw_gen_t *gen, char mark);
+int cw_gen_enqueue_eoc_space_internal(cw_gen_t *gen);
+int cw_gen_enqueue_eow_space_internal(cw_gen_t *gen);
 
-/* These are also 'play' primitives, but are intended to be used on
+/* These are also enqueue primitives, but are intended to be used on
    hardware key events. 'key' is a verb here. */
 int cw_gen_key_begin_mark_internal(cw_gen_t *gen);
 int cw_gen_key_begin_space_internal(cw_gen_t *gen);
