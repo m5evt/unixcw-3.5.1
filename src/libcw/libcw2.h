@@ -146,21 +146,21 @@ int cw_gen_set_gap_internal(cw_gen_t *gen, int new_value);
 int cw_gen_set_weighting_internal(cw_gen_t *gen, int new_value);
 
 
-/* generator module: play functions. */
-int cw_gen_play_representation_internal(cw_gen_t *gen, const char *representation, bool partial);
-int cw_gen_play_character_internal(cw_gen_t *gen, char c);
-int cw_gen_play_character_parital_internal(cw_gen_t *gen, char c);
-int cw_gen_play_string_internal(cw_gen_t *gen, const char *string);
-
+/* generator module: queue functions. */
+int cw_gen_enqueue_representation_internal(cw_gen_t *gen, const char *representation, bool partial);
+int cw_gen_enqueue_character_internal(cw_gen_t *gen, char c);
+int cw_gen_enqueue_character_parital_internal(cw_gen_t *gen, char c);
+int cw_gen_enqueue_string_internal(cw_gen_t *gen, const char *string);
+int cw_gen_wait_for_tone_queue_internal(cw_gen_t *gen);
+uint32_t    cw_gen_queue_length_internal(cw_gen_t *gen);
+int  cw_gen_wait_for_level_internal(cw_gen_t *gen, int level);
 
 /* generator module: misc functions. */
 int  cw_generator_set_tone_slope(cw_gen_t *gen, int slope_shape, int slope_usecs);
-int  cw_gen_wait_for_level_internal(cw_gen_t *gen, int level);
-int  cw_gen_wait_for_tone_queue_internal(cw_gen_t *gen);
 void cw_gen_flush_internal(cw_gen_t *gen);
 const char *cw_gen_get_console_device_internal(cw_gen_t *gen);
 const char *cw_gen_get_soundcard_device_internal(cw_gen_t *gen);
-uint32_t    cw_gen_queue_length_internal(cw_gen_t *gen);
+
 
 
 /* General functions: audio systems. */
