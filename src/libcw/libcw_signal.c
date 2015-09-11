@@ -41,7 +41,7 @@
 #include <stdlib.h>
 
 
-#include "libcw.h"
+#include "libcw2.h"
 #include "libcw_signal.h"
 #include "libcw_debug.h"
 #include "libcw_gen.h"
@@ -80,9 +80,6 @@
 extern cw_debug_t cw_debug_object;
 extern cw_debug_t cw_debug_object_ev;
 extern cw_debug_t cw_debug_object_dev;
-
-
-extern cw_gen_t *cw_generator;
 
 
 
@@ -181,7 +178,7 @@ int cw_timer_run_internal(int usecs)
 
 
 
-
+#if 0
 /**
    \brief Register SIGALRM handler(s), and send SIGALRM signal
 
@@ -262,6 +259,7 @@ int cw_timer_run_with_handler_internal(int usecs, void (*sigalrm_handler)(void))
 
 	return CW_SUCCESS;
 }
+#endif
 
 
 
