@@ -2639,7 +2639,7 @@ int cw_gen_wait_for_queue_level_internal(cw_gen_t *gen, int level)
 
    \param gen - generator to flush
 */
-void cw_gen_flush_internal(cw_gen_t *gen)
+void cw_gen_flush_queue_internal(cw_gen_t *gen)
 {
 	/* This function locks and unlocks mutex. */
 	cw_tq_flush_internal(gen->tq);
