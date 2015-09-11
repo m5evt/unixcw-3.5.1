@@ -2622,7 +2622,7 @@ int cw_gen_key_pure_symbol_internal(cw_gen_t *gen, char symbol)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_gen_wait_for_level_internal(cw_gen_t *gen, int level)
+int cw_gen_wait_for_queue_level_internal(cw_gen_t *gen, int level)
 {
 	return cw_tq_wait_for_level_internal(gen->tq, (uint32_t) level);
 }
@@ -2706,7 +2706,7 @@ const char *cw_gen_get_soundcard_device_internal(cw_gen_t *gen)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_gen_wait_for_tone_queue_internal(cw_gen_t *gen)
+int cw_gen_wait_for_queue_internal(cw_gen_t *gen)
 {
 	return cw_tq_wait_for_tone_queue_internal(gen->tq);
 }
