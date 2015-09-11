@@ -47,7 +47,7 @@
 #include <ctype.h>
 
 
-#include "libcw.h"
+#include "libcw2.h"
 #include "libcw_debug.h"
 #include "libcw_data.h"
 #include "libcw_test.h"
@@ -300,7 +300,7 @@ const char *cw_character_to_representation_internal(int c)
 
 
 
-
+#if 0 /* Disabled on 2015.09.10 because it's no longer used in libcw2. Replaced by cw_character_to_representation(). */
 /**
    \brief Get representation of a given character
 
@@ -340,7 +340,7 @@ int cw_lookup_character(char c, char *representation)
 	errno = ENOENT;
 	return CW_FAILURE;
 }
-
+#endif
 
 
 
@@ -666,7 +666,7 @@ int cw_representation_lookup_init_internal(const cw_entry_t *lookup[])
 
 
 
-
+#if 0 /* Disabled on 2015.09.10 because it's no longer used in libcw2. Replaced by cw_representation_is_valid(). */
 /**
    \brief Check if representation of a character is valid
 
@@ -688,7 +688,7 @@ int cw_check_representation(const char *representation)
 	bool v = cw_representation_is_valid(representation);
 	return v ? CW_SUCCESS : CW_FAILURE;
 }
-
+#endif
 
 
 
@@ -731,7 +731,7 @@ bool cw_representation_is_valid(const char *representation)
 
 
 
-
+#if 0 /* Disabled on 2015.09.10 because it's no longer used in libcw2. Replaced by cw_representation_to_character(). */
 /**
    \brief Get the character represented by a given Morse representation
 
@@ -775,7 +775,7 @@ int cw_lookup_representation(const char *representation, char *c)
 	errno = ENOENT;
 	return CW_FAILURE;
 }
-
+#endif
 
 
 
@@ -1213,12 +1213,12 @@ bool cw_character_is_valid(char c)
 
 
 
-
+#if 0 /* Disabled on 2015.09.10 because it's no longer used in libcw2. Replaced by cw_character_is_valid(). */
 int cw_check_character(char c)
 {
 	return (int) cw_character_is_valid(c);
 }
-
+#endif
 
 
 
@@ -1257,12 +1257,12 @@ bool cw_string_is_valid(const char *string)
 
 
 
-
+#if 0 /* Disabled on 2015.09.10 because it's no longer used in libcw2. Replaced by cw_string_is_valid(). */
 int cw_check_string(const char *string)
 {
 	return cw_string_is_valid(string);
 }
-
+#endif
 
 
 
