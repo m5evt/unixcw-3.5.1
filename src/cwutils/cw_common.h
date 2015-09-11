@@ -30,6 +30,9 @@ extern "C" {
 #include <stdio.h>
 
 
+#include "libcw2.h"
+
+
 #define CW_PRACTICE_TIME_MIN        1
 #define CW_PRACTICE_TIME_MAX       99
 #define CW_PRACTICE_TIME_INITIAL   15
@@ -77,7 +80,7 @@ extern cw_config_t *cw_config_new(const char *program_name);
 extern void         cw_config_delete(cw_config_t **config);
 extern int          cw_config_is_valid(cw_config_t *config);
 
-extern int cw_generator_new_from_config(cw_config_t *config);
+extern cw_gen_t *cw_gen_new_from_config(cw_config_t *config);
 
 extern void cw_start_beep(void);
 extern void cw_end_beep(void);
