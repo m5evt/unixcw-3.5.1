@@ -155,12 +155,13 @@ int cw_gen_enqueue_string_internal(cw_gen_t *gen, const char *string);
    cw_gen_wait_for_queue_level_internal(). */
 int cw_gen_wait_for_queue_internal(cw_gen_t *gen);
 int cw_gen_wait_for_queue_level_internal(cw_gen_t *gen, int level);
+void cw_gen_flush_queue_internal(cw_gen_t *gen);
 uint32_t cw_gen_queue_length_internal(cw_gen_t *gen);
 
 
 /* generator module: misc functions. */
 int  cw_generator_set_tone_slope(cw_gen_t *gen, int slope_shape, int slope_usecs);
-void cw_gen_flush_internal(cw_gen_t *gen);
+
 const char *cw_gen_get_console_device_internal(cw_gen_t *gen);
 const char *cw_gen_get_soundcard_device_internal(cw_gen_t *gen);
 
