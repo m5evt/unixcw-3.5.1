@@ -2606,6 +2606,115 @@ int cw_gen_key_pure_symbol_internal(cw_gen_t *gen, char symbol)
 
 
 
+/**
+   \brief Wait for generator's tone queue to drain until only as many tones as given in level remain queued
+
+   This function is for use by programs that want to optimize
+   themselves to avoid the cleanup that happens when generator's tone
+   queue drains completely. Such programs have a short time in which
+   to add more tones to the queue.
+
+   The function returns CW_SUCCESS on success.
+
+   \param gen - generator on which to wait
+   \param level - low level in queue, at which to return
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
+int cw_gen_wait_for_level_internal(cw_gen_t *gen, int level)
+{
+	return cw_tq_wait_for_level_internal(gen->tq, (uint32_t) level);
+}
+
+
+
+
+
+/**
+   \brief Cancel all pending queued tones in a generator, and return to silence
+
+   If there is a tone in progress, the function will wait until this
+   last one has completed, then silence the tones.
+
+   \param gen - generator to flush
+*/
+void cw_gen_flush_internal(cw_gen_t *gen)
+{
+	/* This function locks and unlocks mutex. */
+	cw_tq_flush_internal(gen->tq);
+
+	/* Force silence on the speaker anyway, and stop any background
+	   soundcard tone generation. */
+	cw_gen_silence_internal(gen);
+
+	return;
+}
+
+
+
+
+
+
+/**
+   \brief Return char string with console device path
+
+   Returned pointer is owned by library.
+
+   \param gen
+
+   \return char string with current console device path
+*/
+const char *cw_gen_get_console_device_internal(cw_gen_t *gen)
+{
+	cw_assert (gen, "gen is NULL");
+	return gen->audio_device;
+}
+
+
+
+
+
+/**
+   \brief Return char string with soundcard device name/path
+
+   Returned pointer is owned by library.
+
+   \param gen
+
+   \return char string with current soundcard device name or device path
+*/
+const char *cw_gen_get_soundcard_device_internal(cw_gen_t *gen)
+{
+	cw_assert (gen, "gen is NULL");
+	return gen->audio_device;
+}
+
+
+
+
+
+/**
+   \brief Wait for generator's tone queue to drain
+
+   testedin::test_tone_queue_1()
+   testedin::test_tone_queue_2()
+   testedin::test_tone_queue_3()
+
+   \param gen
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
+int cw_gen_wait_for_tone_queue_internal(cw_gen_t *gen)
+{
+	return cw_tq_wait_for_tone_queue_internal(gen->tq);
+}
+
+
+
+
+
 /* *** Unit tests *** */
 
 
