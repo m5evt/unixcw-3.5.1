@@ -175,14 +175,14 @@ void write_to_cw_sender(const char *format, ...)
 
 	/* Sound the buffer, and wait for the send to complete. */
 	if (!cw_gen_enqueue_string_internal(generator, buffer)) {
-		perror("cw_gen_enqueue");
-		cw_gen_flush_internal(generator);
+		perror("cw_gen_enqueue_string_internal");
+		cw_gen_flush_queue_internal(generator);
 		abort();
 	}
 
 	if (!cw_gen_wait_for_queue_level_internal(generator, 1)) {
 		perror("cw_gen_wait_for_queue_level_internal");
-		cw_gen_flush_internal(generator);
+		cw_gen_flush_queue_internal(generator);
 		abort();
 	}
 
@@ -447,7 +447,7 @@ void parse_stream_command(FILE *stream)
 		parse_stream_cwquery(stream);
 		break;
 	case CW_CMDV_QUIT:
-		cw_gen_flush_internal(generator);
+		cw_gen_flush_queue_internal(generator);
 		write_to_echo_stream("%c", '\n');
 		exit(EXIT_SUCCESS);
 	}
@@ -485,7 +485,7 @@ void send_cw_character(int c, int is_partial)
 	if (!status) {
 		if (errno != ENOENT) {
 			perror("cw_gen_enqueue_character[_partial]");
-			cw_gen_flush_internal(generator);
+			cw_gen_flush_queue_internal(generator);
 			abort();
 		} else {
 			write_to_message_stream("%c%c", CW_STATUS_ERR, character);
@@ -499,7 +499,7 @@ void send_cw_character(int c, int is_partial)
 	/* Wait for the character to complete. */
 	if (!cw_gen_wait_for_queue_level_internal(generator, 1)) {
 		perror("cw_gen_wait_for_queue_level_internal");
-		cw_gen_flush_internal(generator);
+		cw_gen_flush_queue_internal(generator);
 		abort();
 	}
 

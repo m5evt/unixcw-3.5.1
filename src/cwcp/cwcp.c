@@ -1432,7 +1432,7 @@ static int interface_interpret(int c)
 	case PSEUDO_KEYF12:
 	case 'C' - CTRL_OFFSET:
 		queue_discard_contents();
-		cw_gen_flush_internal(gen);
+		cw_gen_flush_queue_internal(gen);
 		is_running = false;
 		break;
 
