@@ -177,7 +177,7 @@ uint32_t cw_get_debug_flags(void)              __attribute__ ((deprecated));
 
 #define cw_debug_ev(debug_object, flag, event)				\
 	{								\
-		cw_debug_event_internal(debug_object, flag, event, __func__, __LINE__); \
+		cw_debug_event_internal((debug_object), flag, event, __func__, __LINE__); \
 	}
 
 
