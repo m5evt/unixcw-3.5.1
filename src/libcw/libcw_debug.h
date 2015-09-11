@@ -41,6 +41,85 @@ extern "C"
 #include <stdint.h> /* uint32_t */
 
 
+
+
+
+/* Definitions of debug flags. */
+enum {
+	/* Suppress KIOCSOUND ioctls.
+	   The flag is unused at the moment in libcw.c. */
+	CW_DEBUG_SILENT               = 1 << 0,
+
+	/* Print out keying control data (key open / key closed). */
+	CW_DEBUG_KEYING               = 1 << 1,
+
+	/* Print out information related to main object generating
+	   audio (i.e. the generator). */
+	CW_DEBUG_GENERATOR            = 1 << 2,
+
+	/* Print out tone queue data. */
+	CW_DEBUG_TONE_QUEUE           = 1 << 3,
+
+	/* Print out send and receive timing parameters. */
+	CW_DEBUG_PARAMETERS           = 1 << 4,
+
+	/* Print out changes of 'receive state'. */
+	CW_DEBUG_RECEIVE_STATES       = 1 << 5,
+
+	/* Print out iambic keyer information. */
+	CW_DEBUG_KEYER_STATES         = 1 << 6,
+
+	/* Print out straight key information. */
+	CW_DEBUG_STRAIGHT_KEY_STATES  = 1 << 7,
+
+	/* Print out table lookup results. */
+	CW_DEBUG_LOOKUPS              = 1 << 8,
+
+	/* Print out finalization actions. */
+	CW_DEBUG_FINALIZATION         = 1 << 9,
+
+	/* Print out information related to calls to standard library
+	   functions.  This does not include calls that are directly
+	   related to configuring audio devices (e.g. calling open()
+	   to open OSS device).
+
+	   Printing debug information about problems with malloc()
+	   seems to be most common use case for this flag. */
+	CW_DEBUG_STDLIB               = 1 << 10,
+
+	/* Print out any events directly related to sound systems: to
+	   opening audio device, configuring it, writing to it, and
+	   closing it.  In case of e.g. OSS sound system, this may
+	   also include information about libc's open(), write() and
+	   ioctl() calls, as they are directly related to
+	   opening/configuring/writing to audio device. */
+	CW_DEBUG_SOUND_SYSTEM         = 1 << 11,
+
+	/* Print out information related to internal states / errors /
+	   inconsistencies of libcw library. */
+	CW_DEBUG_INTERNAL             = 1 << 12,
+
+	/* Bit mask of all defined debug bits. */
+	CW_DEBUG_MASK                 = (1 << 13) - 1
+};
+
+
+
+
+
+/* Debug levels of debug messages. */
+enum {
+	CW_DEBUG_DEBUG   = 0,
+	CW_DEBUG_INFO    = 1,
+	CW_DEBUG_WARNING = 2,
+	CW_DEBUG_ERROR   = 3,
+	CW_DEBUG_NONE    = 4  /* Don't print any debug info. */
+};
+
+
+
+
+
 #define CW_DEBUG_N_EVENTS_MAX (1024 * 128)
 
 typedef struct {
