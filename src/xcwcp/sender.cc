@@ -102,7 +102,7 @@ void Sender::handle_key_event(QKeyEvent *event)
 			event->accept();
 		} else {
 			/* Enqueue and accept only valid characters. */
-			const char *c = event->text().toAscii().data();
+			const char *c = event->text().toLatin1().data();
 
 			if (cw_character_is_valid(c[0])) {
 				enqueue_string(c);
