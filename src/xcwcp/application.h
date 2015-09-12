@@ -61,7 +61,7 @@ namespace cw {
 	{
 		Q_OBJECT
 	public:
-		Application();
+		Application(cw_config_t *config);
 
 		/* Handle key press and mouse button press events. */
 		void key_event(QKeyEvent *event);
@@ -153,6 +153,8 @@ namespace cw {
 
 		Sender *sender;
 		Receiver *receiver;
+
+		cw_config_t *config;
 
 		TextArea *textarea;
 
