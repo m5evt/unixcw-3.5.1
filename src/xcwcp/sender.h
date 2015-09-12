@@ -28,6 +28,9 @@
 #include <string>
 #include <deque>
 
+#include "libcw2.h"
+#include "cw_common.h"
+
 
 
 
@@ -56,10 +59,8 @@ namespace cw {
 
 	class Sender {
 	public:
-		Sender(Application *a, TextArea *t) :
-			app (a),
-			textarea (t),
-			is_queue_idle (true) { }
+		Sender(Application *a, TextArea *t, cw_config_t *config);
+		~Sender();
 
 		/* Poll timeout handler, and keypress event
 		   handler. */
@@ -68,6 +69,8 @@ namespace cw {
 
 		/* Clear out queued data on stop, mode change, etc. */
 		void clear();
+
+		cw_gen_t *gen;
 
 	private:
 		/* Deque and queue manipulation functions, used to
@@ -80,6 +83,7 @@ namespace cw {
 
 		Application *app;
 		TextArea *textarea;
+
 
 		bool is_queue_idle;
 		std::deque<char> queue;
