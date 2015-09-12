@@ -37,8 +37,8 @@
 
 #include "application.h"
 
-#include "libcw.h"
-//#include "libcw_debug.h"
+#include "libcw2.h"
+#include "libcw_debug.h"
 
 #include "i18n.h"
 #include "cmdline.h"
@@ -52,7 +52,6 @@ void xcwcp_atexit(void);
 
 namespace {
 cw_config_t *config = NULL; /* program-specific configuration */
-bool generator = false;     /* have we created a generator? */
 std::string all_options = "s:|sound,d:|device,"
 	"w:|wpm,t:|tone,v:|volume,"
 	"g:|gap,k:|weighting,"
@@ -145,14 +144,6 @@ int main(int argc, char **argv)
 			}
 		}
 
-		generator = cw_generator_new_from_config(config);
-		if (!generator) {
-			fprintf(stderr, "%s: failed to create generator\n", config->program_name);
-			return EXIT_FAILURE;
-		}
-
-		cw_generator_start();
-
 		/* Set up signal handlers to clean up and exit on a range of signals. */
 		struct sigaction action;
 		action.sa_handler = signal_handler;
@@ -167,7 +158,7 @@ int main(int argc, char **argv)
 		}
 
 		// Display the application's windows.
-		cw::Application *application = new cw::Application ();
+		cw::Application *application = new cw::Application(config);
 		application->setWindowTitle(_("Xcwcp"));
 		application->show();
 		q_application.connect(&q_application, SIGNAL (lastWindowClosed ()),
@@ -197,12 +188,6 @@ int main(int argc, char **argv)
 
 void xcwcp_atexit(void)
 {
-	if (generator) {
-		cw_complete_reset();
-		cw_generator_stop();
-		cw_generator_delete();
-	}
-
 	if (config) {
 		cw_config_delete(&config);
 	}
