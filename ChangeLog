@@ -1,3 +1,11 @@
+2015-09-12 Kamil Ignacak
+	* xcwcp: the application souce code files are now ported to
+	Qt5. Build system files have been modified to use Qt5 to build
+	xcwcp.
+	Discovery and adding -fPIC to compiler flags for xcwcp is right
+	now very naive, perhaps that will have to be improved in the
+	future.
+
 2015-09-09 Kamil Ignacak
 	* alternative IPC: now that we have experimental branch, I decided
 	to remove "alternative IPC" code from master branch and leave that
