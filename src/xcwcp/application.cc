@@ -21,7 +21,6 @@
 #include <cerrno>
 #include <iostream>
 
-#include <QIconSet>
 #include <QToolBar>
 #include <QLabel>
 #include <QStatusBar>
