@@ -1,3 +1,9 @@
+2015-09-12 Kamil Ignacak
+	* xcwcp: the application has been ported to Qt5. Build system
+	files have been modified to use Qt5 when building xcwcp.
+	Discovery and application of compiler's -fPIC option for xcwcp is
+	now very naive, perhaps that will have to be improved in future.
+
 2015-09-10 Kamil Ignacak
 	* libcw: removing libcw.[ch] files. It means no more global
 	cw_generator, cw_receiver nor cw_key. It also means (almost) total
