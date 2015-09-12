@@ -218,7 +218,7 @@ fi
 
 # Build xcwcp? Yes by default.
 AC_ARG_ENABLE(xcwcp,
-    AS_HELP_STRING([--disable-xcwcp], [do not build xcwcp (application with Qt4 user interface)]),
+    AS_HELP_STRING([--disable-xcwcp], [do not build xcwcp (application with Qt5 user interface)]),
     [],
     [enable_xcwcp=yes])
 
@@ -364,21 +364,21 @@ if test "$enable_xcwcp" = "no" ; then
     WITH_XCWCP='no'
 else
     # http://stackoverflow.com/questions/5178511/integrate-qt-project-with-autotool
-    PKG_CHECK_MODULES(QT4, [QtCore QtGui >= 4.4.0], [
-			   AC_PATH_PROGS(MOC, [moc-qt4 moc], moc,`eval $PKG_CONFIG --variable=exec_prefix QtCore`/bin)
+    PKG_CHECK_MODULES(QT5, [Qt5Widgets Qt5Gui Qt5Core >= 5.0.0], [
+			   AC_PATH_PROGS(MOC, [moc-qt5 moc], moc,`eval $PKG_CONFIG --variable=host_bins Qt5Core`)
 
-			   AC_MSG_RESULT([QT4 CLFAGS is $QT4_CFLAGS])
-			   AC_MSG_RESULT([QT4 LIBS is $QT4_LIBS])
+			   AC_MSG_RESULT([QT5 CLFAGS is $QT5_CFLAGS])
+			   AC_MSG_RESULT([QT5 LIBS is $QT5_LIBS])
 
-			   AC_SUBST(QT4_CFLAGS)
-			   AC_SUBST(QT4_LIBS)
+			   AC_SUBST(QT5_CFLAGS)
+			   AC_SUBST(QT5_LIBS)
 			   AC_SUBST(MOC)
 
 			   WITH_XCWCP='yes'
 
 			   ], [
 
-			   AC_MSG_WARN([Cannot find Qt4 files - unable to build xcwcp])
+			   AC_MSG_WARN([Cannot find Qt5 files - unable to build xcwcp])
 
 			   WITH_XCWCP='no'
 
@@ -620,9 +620,9 @@ AC_MSG_NOTICE([build cwgen:  ...........................  yes])
 AC_MSG_NOTICE([build cwcp:  ............................  $WITH_CWCP])
 AC_MSG_NOTICE([build xcwcp:  ...........................  $WITH_XCWCP])
 if test "$WITH_XCWCP" = 'yes' ; then
-    AC_MSG_NOTICE([    Qt4 CFLAGS:  $QT4_CFLAGS])
-    AC_MSG_NOTICE([    Qt4 LIBS:    $QT4_LIBS])
-    AC_MSG_NOTICE([    Qt4 MOC:     $MOC])
+    AC_MSG_NOTICE([    Qt5 CFLAGS:  $QT5_CFLAGS])
+    AC_MSG_NOTICE([    Qt5 LIBS:    $QT5_LIBS])
+    AC_MSG_NOTICE([    Qt5 MOC:     $MOC])
 fi
 if test "$WITH_DEV" = 'yes' ; then
    AC_MSG_NOTICE([enable dev support: .....................  yes])

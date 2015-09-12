@@ -18,7 +18,7 @@
 
 # use $(top_builddir) instead of $(top_srcdir) because Makefile.inc is
 # (re)created at build time; if you use $(top_srcdir), you may (will?)
-# get empty $(AC_QT4_CFLAGS), $(AC_QT4_LIBS) and $(AC_QT4_MOC);
+# get empty $(AC_QT5_CFLAGS), $(AC_QT5_LIBS) and $(AC_QT5_MOC);
 -include $(top_builddir)/Makefile.inc
 
 # program(s) to be built in current dir
@@ -35,9 +35,9 @@ xcwcp_SOURCES = \
 	sender.cc sender.h
 
 # target-specific preprocessor flags (#defs and include dirs)
-xcwcp_CPPFLAGS = $(AM_CPPFLAGS) $(AC_QT4_CFLAGS)
+xcwcp_CPPFLAGS = $(AM_CPPFLAGS) $(AC_QT5_CFLAGS) $(AC_CFLAG_PIC)
 # target-specific linker flags (objects to link)
-xcwcp_LDADD = -L$(top_builddir)/src/libcw/.libs -lcw $(AC_QT4_LIBS) $(top_builddir)/src/cwutils/lib_xcwcp.a
+xcwcp_LDADD = -L$(top_builddir)/src/libcw/.libs -lcw $(AC_QT5_LIBS) $(top_builddir)/src/cwutils/lib_xcwcp.a
 
 
 
@@ -59,12 +59,12 @@ CLEANFILES = moc_application.cc
 
 
 
-# Qt4 magic
-# Previously the invocation of moc was: "$(AC_QT4_MOC) $< -o $@", but
+# Qt5 magic
+# Previously the invocation of moc was: "$(AC_QT5_MOC) $< -o $@", but
 # because of failed build on FreeBSD I decided to replace the "$<" and
 # "$@" symbols with file names.
 moc_application.cc: application.h
-	$(AC_QT4_MOC) application.h -o moc_application.cc
+	$(AC_QT5_MOC) application.h -o moc_application.cc
 
 
 
