@@ -11,6 +11,7 @@
 
 
 
+#include <sys/time.h>  /* gettimeofday(), struct timeval */
 #include <stdint.h>    /* int16_t */
 #include <stdbool.h>
 
@@ -119,6 +120,12 @@ enum {
 struct cw_gen_struct;
 typedef struct cw_gen_struct cw_gen_t;
 
+struct cw_rec_struct;
+typedef struct cw_rec_struct cw_rec_t;
+
+struct cw_key_struct;
+typedef struct cw_key_struct cw_key_t;
+
 
 
 
@@ -161,9 +168,66 @@ uint32_t cw_gen_queue_length_internal(cw_gen_t *gen);
 
 /* generator module: misc functions. */
 int  cw_generator_set_tone_slope(cw_gen_t *gen, int slope_shape, int slope_usecs);
-
 const char *cw_gen_get_console_device_internal(cw_gen_t *gen);
 const char *cw_gen_get_soundcard_device_internal(cw_gen_t *gen);
+char *cw_gen_get_audio_system_label_internal(cw_gen_t *gen);
+
+
+/* receiver module: receiver's main functions. */
+cw_rec_t *cw_rec_new_internal(void);
+void      cw_rec_delete_internal(cw_rec_t **rec);
+int cw_rec_mark_begin_internal(cw_rec_t *rec, const struct timeval *timestamp);
+int cw_rec_mark_end_internal(cw_rec_t *rec, const struct timeval *timestamp);
+int cw_rec_add_mark_internal(cw_rec_t *rec, const struct timeval *timestamp, char mark);
+#ifdef WITH_EXPERIMENTAL_RECEIVER
+void cw_rec_bind_key_internal(cw_rec_t *rec, volatile struct cw_key_struct *key);
+void cw_rec_register_push_callback_internal(cw_rec_t *rec, cw_rec_push_callback_t *callback);
+#endif
+
+
+/* receiver module: receiver's helper functions. */
+int  cw_rec_poll_representation_internal(cw_rec_t *rec, const struct timeval *timestamp, char *representation, bool *is_end_of_word, bool *is_error);
+int  cw_rec_poll_character_internal(cw_rec_t *rec, const struct timeval *timestamp, char *c, bool *is_end_of_word, bool *is_error);
+void cw_rec_clear_buffer_internal(cw_rec_t *rec);
+
+
+/* receiver module: getters of receiver's essential parameters. */
+float cw_rec_get_speed_internal(cw_rec_t *rec);
+int   cw_rec_get_tolerance_internal(cw_rec_t *rec);
+/* int   cw_rec_get_gap_internal(cw_rec_t *rec); */
+int   cw_rec_get_noise_spike_threshold_internal(cw_rec_t *rec);
+bool  cw_rec_get_adaptive_mode_internal(cw_rec_t *rec);
+
+
+/* receiver module: setters of receiver's essential parameters. */
+int  cw_rec_set_speed_internal(cw_rec_t *rec, int new_value);
+int  cw_rec_set_tolerance_internal(cw_rec_t *rec, int new_value);
+int  cw_rec_set_gap_internal(cw_rec_t *rec, int new_value);
+int  cw_rec_set_noise_spike_threshold_internal(cw_rec_t *rec, int new_value);
+void cw_rec_set_adaptive_mode_internal(cw_rec_t *rec, bool adaptive);
+
+
+/* key module: main functions. */
+cw_key_t *cw_key_new_internal(void);
+void      cw_key_delete_internal(cw_key_t **key);
+
+
+/* key module. */
+/* TODO: turn enable/disable functions into one, accepting bool value
+   as second value. Just like in case of cw_rec_set_adaptive_mode(). */
+void cw_key_ik_enable_curtis_mode_b_internal(volatile cw_key_t *key);
+void cw_key_ik_disable_curtis_mode_b_internal(volatile cw_key_t *key);
+bool cw_key_ik_get_curtis_mode_b_state_internal(volatile cw_key_t *key);
+void cw_key_register_keying_callback_internal(volatile cw_key_t *key, void (*callback_func)(void*, int), void *callback_arg);
+void cw_key_ik_register_timer_internal(volatile cw_key_t *key, struct timeval *timer);
+int  cw_key_ik_notify_paddle_event_internal(volatile cw_key_t *key, int dot_paddle_state, int dash_paddle_state);
+int  cw_key_ik_notify_dash_paddle_event_internal(volatile cw_key_t *key, int dash_paddle_state);
+int  cw_key_ik_notify_dot_paddle_event_internal(volatile cw_key_t *key, int dot_paddle_state);
+int  cw_key_sk_notify_event_internal(volatile cw_key_t *key, int key_state);
+/* TODO: clean up register/bind functions. It seems that there are
+   some redundant functions in the code base. */
+void cw_key_register_generator_internal(volatile cw_key_t *key, cw_gen_t *gen);
+void cw_key_register_receiver_internal(volatile cw_key_t *key, cw_rec_t *rec);
 
 
 /* General functions: audio systems. */
@@ -189,7 +253,7 @@ extern void cw_get_tolerance_limits(int *min_tolerance, int *max_tolerance);
 extern void cw_get_weighting_limits(int *min_weighting, int *max_weighting);
 
 
-/* receiver module. */
+/* General functions: other. */
 extern void cw_reset_send_receive_parameters(void);
 
 
