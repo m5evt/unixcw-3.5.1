@@ -15,7 +15,7 @@
 
 
 
-
+#include "libcw2.h"
 #include "libcw_gen.h"
 #include "libcw_rec.h"
 
@@ -134,34 +134,10 @@ struct cw_key_struct {
 
 
 
-typedef struct cw_key_struct cw_key_t;
-
-
-
-
-
-cw_key_t *cw_key_new_internal(void);
-void      cw_key_delete_internal(cw_key_t **key);
-
-
-
-
-
 void cw_key_tk_set_value_internal(volatile cw_key_t *key, int key_state);
-
-void cw_key_register_generator_internal(volatile cw_key_t *key, cw_gen_t *gen);
-void cw_key_register_receiver_internal(volatile cw_key_t *key, cw_rec_t *rec);
 
 int  cw_key_ik_update_graph_state_internal(volatile cw_key_t *keyer);
 void cw_key_ik_increment_timer_internal(volatile cw_key_t *keyer, int usecs);
-void cw_key_register_keying_callback_internal(volatile cw_key_t *key, void (*callback_func)(void*, int), void *callback_arg);
-void cw_key_ik_register_timer_internal(volatile cw_key_t *key, struct timeval *timer);
-void cw_key_ik_enable_curtis_mode_b_internal(volatile cw_key_t *key);
-void cw_key_ik_disable_curtis_mode_b_internal(volatile cw_key_t *key);
-bool cw_key_ik_get_curtis_mode_b_state_internal(volatile cw_key_t *key);
-int  cw_key_ik_notify_paddle_event_internal(volatile cw_key_t *key, int dot_paddle_state, int dash_paddle_state);
-int  cw_key_ik_notify_dash_paddle_event_internal(volatile cw_key_t *key, int dash_paddle_state);
-int  cw_key_ik_notify_dot_paddle_event_internal(volatile cw_key_t *key, int dot_paddle_state);
 void cw_key_ik_get_paddles_internal(volatile cw_key_t *key, int *dot_paddle_state, int *dash_paddle_state);
 void cw_key_ik_get_paddle_latches_internal(volatile cw_key_t *key, int *dot_paddle_latch_state, int *dash_paddle_latch_state);
 bool cw_key_ik_is_busy_internal(volatile cw_key_t *key);
@@ -169,7 +145,6 @@ int  cw_key_ik_wait_for_element_internal(volatile cw_key_t *key);
 int  cw_key_ik_wait_for_keyer_internal(volatile cw_key_t *key);
 void cw_key_ik_reset_internal(volatile cw_key_t *key);
 
-int  cw_key_sk_notify_event_internal(volatile cw_key_t *key, int key_state);
 int  cw_key_sk_get_state_internal(volatile cw_key_t *key);
 bool cw_key_sk_is_busy_internal(volatile cw_key_t *key);
 void cw_key_sk_reset_internal(volatile cw_key_t *key);
@@ -178,4 +153,4 @@ void cw_key_sk_reset_internal(volatile cw_key_t *key);
 
 
 
-#endif // #ifndef H_LIBCW_KEY
+#endif /* #ifndef H_LIBCW_KEY */
