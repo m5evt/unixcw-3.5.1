@@ -419,12 +419,12 @@ void Application::sync_speed()
 			/* Force by unsetting adaptive receive,
 			   setting the receive speed, then resetting
 			   adaptive receive again. */
-			cw_rec_set_adaptive_mode(receiver->rec, false);
+			cw_rec_disable_adaptive_mode(receiver->rec);
 			if (!cw_rec_set_speed(receiver->rec, speed_spin->value())) {
 				perror("cw_rec_set_speed");
 				abort();
 			}
-			cw_rec_set_adaptive_mode(receiver->rec, true);
+			cw_rec_enable_adaptive_mode(receiver->rec);
 		}
 	}
 
@@ -600,18 +600,18 @@ void Application::change_adaptive_receive()
 	if (is_using_libcw) {
 		if (adaptive_receive_action->isChecked()) {
 			/* Going to adaptive receive. */
-			cw_rec_set_adaptive_mode(receiver->rec, false);
+			cw_rec_disable_adaptive_mode(receiver->rec);
 			if (!cw_rec_set_speed(receiver->rec, saved_receive_speed)) {
 				perror("cw_rec_set_speed");
 				abort();
 			}
-			cw_rec_set_adaptive_mode(receiver->rec, true);
+			cw_rec_enable_adaptive_mode(receiver->rec);
 		} else {
 			/* Going to fixed receive. Save the current
 			   adaptive receive speed so we can restore it
 			   later */
 			saved_receive_speed = cw_rec_get_speed(receiver->rec);
-			cw_rec_set_adaptive_mode(receiver->rec, false);
+			cw_rec_disable_adaptive_mode(receiver->rec);
 			if (!cw_rec_set_speed(receiver->rec, speed_spin->value())) {
 				perror("cw_rec_set_speed");
 				abort();
