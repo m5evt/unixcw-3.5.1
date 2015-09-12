@@ -172,7 +172,11 @@ static void *cw_gen_dequeue_and_generate_internal(void *arg);
 static int   cw_gen_calculate_sine_wave_internal(cw_gen_t *gen, cw_tone_t *tone);
 static int   cw_gen_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone);
 static int   cw_gen_write_to_soundcard_internal(cw_gen_t *gen, cw_tone_t *tone, int queue_rv);
-static int   cw_gen_enqueue_valid_character_internal(cw_gen_t *gen, char character, int partial);
+
+static int   cw_gen_enqueue_valid_character_internal(cw_gen_t *gen, char c);
+static int   cw_gen_enqueue_valid_character_no_eoc_space_internal(cw_gen_t *gen, char character);
+static int   cw_gen_enqueue_representation_no_eoc_space_internal(cw_gen_t *gen, const char *representation);
+
 static void  cw_gen_recalculate_slopes_internal(cw_gen_t *gen);
 
 
@@ -1954,14 +1958,13 @@ int cw_gen_enqueue_mark_internal(cw_gen_t *gen, char mark)
 
 
 /**
-   \brief Enqueue end-of-character space
+   \brief Enqueue inter-character space
 
    The function enqueues space of length 2 Units. The function is
    intended to be used after inter-mark space has already been enqueued.
 
-   In such situation standard inter-mark space (one Unit) and
-   end-of-character space (two Units) form a full standard
-   end-of-character space (three Units).
+   In such situation standard inter-mark space (one Unit) and enqueued
+   two Units form a full standard inter-character space (three Units).
 
    Inter-character adjustment space is added at the end.
 
@@ -1987,17 +1990,17 @@ int cw_gen_enqueue_eoc_space_internal(cw_gen_t *gen)
 
 
 /**
-   \brief Enqueue end-of-word space
+   \brief Enqueue space character
 
    The function should be used to enqueue a regular ' ' character.
 
    The function enqueues space of length 5 Units. The function is
-   intended to be used after inter-mark space and end-of-character
+   intended to be used after inter-mark space and inter-character
    space have already been enqueued.
 
    In such situation standard inter-mark space (one Unit) and
-   end-of-character space (two Units) and end-of-word space (five
-   units) form a full standard end-of-word space (seven Units).
+   inter-character space (two Units) and regular space (five units)
+   form a full standard end-of-word space (seven Units).
 
    Inter-word adjustment space is added at the end.
 
@@ -2096,41 +2099,30 @@ int cw_gen_enqueue_eow_space_internal(cw_gen_t *gen)
 /**
    \brief Enqueue the given representation
 
-   Function enqueues given \p representation using given \p
-   generator. Every mark from the \p representation is followed by a
-   standard inter-mark space.
+   Function enqueues given \p representation using given \p generator.
+   *Every* mark from the \p representation is followed by a standard
+   inter-mark space.
 
-   If \p partial is false, the representation is treated as a complete
-   (non-partial) data, and a standard end-of-character space is enqueued
-   at the end (in addition to last inter-mark space). Total length of
-   space at the end (inter-mark space + end-of-character space) is ~3
-   Units.
-
-   If \p partial is true, the standard end-of-character space is not
-   appended. However, the standard inter-mark space is enqueued at the
-   end.
+   Function does not enqueue inter-character space at the end of
+   representation (i.e. after the last inter-mark space). This means
+   that there is only one inter-mark space enqueued at the end of the
+   representation.
 
    Function sets errno to EAGAIN if there is not enough space in tone
    queue to enqueue \p representation.
 
-   Function validates \p representation using
-   cw_representation_is_valid().  Function sets errno to EINVAL if \p
-   representation is not valid.
+   Representation is not validated by this function. This means that
+   the function allows caller to do some neat tricks, but it also
+   means that the function can be abused.
 
    \param gen - generator used to enqueue the representation
    \param representation - representation to enqueue
-   \param partial
 
    \return CW_FAILURE on failure
    \return CW_SUCCESS on success
 */
-int cw_gen_enqueue_representation(cw_gen_t *gen, const char *representation, bool partial)
+int cw_gen_enqueue_representation_no_eoc_space_internal(cw_gen_t *gen, const char *representation)
 {
-	if (!cw_representation_is_valid(representation)) {
-		errno = EINVAL;
-		return CW_FAILURE;
-	}
-
 	/* Before we let this representation loose on tone generation,
 	   we'd really like to know that all of its tones will get queued
 	   up successfully.  The right way to do this is to calculate the
@@ -2142,7 +2134,7 @@ int cw_gen_enqueue_representation(cw_gen_t *gen, const char *representation, boo
 		return CW_FAILURE;
 	}
 
-	/* Enqueue the marks. Every mark is followed by end-of-mark
+	/* Enqueue the marks. Every mark is followed by inter-mark
 	   space. */
 	for (int i = 0; representation[i] != '\0'; i++) {
 		if (!cw_gen_enqueue_mark_internal(gen, representation[i])) {
@@ -2150,12 +2142,147 @@ int cw_gen_enqueue_representation(cw_gen_t *gen, const char *representation, boo
 		}
 	}
 
-	/* Check if we should append end-of-character space at the end
-	   (in addition to last end-of-mark space). */
-	if (!partial) {
-		if (!cw_gen_enqueue_eoc_space_internal(gen)) {
-			return CW_FAILURE;
-		}
+	/* No inter-character space added here. */
+
+	return CW_SUCCESS;
+}
+
+
+
+
+
+/**
+   \brief Look up and enqueue a given ASCII character as Morse code
+
+   After enqueueing last Mark (Dot or Dash) comprising a character, an
+   inter-mark space is enqueued.  Inter-character space is not
+   enqueued after that last inter-mark space.
+
+   _valid_character_ in function's name means that the function
+   expects the character \p c to be valid (\p c should be validated by
+   caller before passing it to the function).
+
+   Function sets errno to ENOENT if \p c is not a recognized character.
+
+   \param gen - generator to be used to enqueue character
+   \param c - character to enqueue
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
+int cw_gen_enqueue_valid_character_no_eoc_space_internal(cw_gen_t *gen, char c)
+{
+	if (!gen) {
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
+			      "libcw: no generator available");
+		return CW_FAILURE;
+	}
+
+	/* ' ' character (i.e. regular space) is a special case. */
+	if (c == ' ') {
+		return cw_gen_enqueue_eow_space_internal(gen);
+	}
+
+	const char *r = cw_character_to_representation_internal(c);
+
+	/* This shouldn't happen since we are in _valid_character_ function... */
+	cw_assert (r, "libcw/data: failed to find representation for character '%c'/%hhx", c, c);
+
+	/* ... but fail gracefully anyway. */
+	if (!r) {
+		errno = ENOENT;
+		return CW_FAILURE;
+	}
+
+	if (!cw_gen_enqueue_representation_no_eoc_space_internal(gen, r)) {
+		return CW_FAILURE;
+	}
+
+	/* No inter-character space here. */
+
+	return CW_SUCCESS;
+}
+
+
+
+
+
+/**
+   \brief Look up and enqueue a given ASCII character as Morse code
+
+   After enqueueing last Mark (Dot or Dash) comprising a character, an
+   inter-mark space is enqueued.  Inter-character space is enqueued
+   after that last inter-mark space.
+
+   _valid_character_ in function's name means that the function
+   expects the character \p c to be valid (\p c should be validated by
+   caller before passing it to the function).
+
+   Function sets errno to ENOENT if \p character is not a recognized character.
+
+   \param gen - generator to be used to enqueue character
+   \param c - character to enqueue
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
+int cw_gen_enqueue_valid_character_internal(cw_gen_t *gen, char c)
+{
+	if (!cw_gen_enqueue_valid_character_no_eoc_space_internal(gen, c)) {
+		return CW_FAILURE;
+	}
+
+	if (!cw_gen_enqueue_eoc_space_internal(gen)) {
+		return CW_FAILURE;
+	}
+
+	return CW_SUCCESS;
+}
+
+
+
+
+
+/**
+   \brief Look up and enqueue a given ASCII character as Morse
+
+   Inter-mark + inter-character delay is appended at the end of
+   enqueued Marks.
+
+   On success the function returns CW_SUCCESS.
+   On failure the function returns CW_FAILURE and sets errno.
+
+   errno is set to ENOENT if the given character \p c is not a valid
+   Morse character.
+   errno is set to EBUSY if current audio sink or keying system is
+   busy.
+   errno is set to EAGAIN if the generator's tone queue is full, or if
+   there is insufficient space to queue the tones for the character.
+
+   This routine returns as soon as the character and trailing spaces
+   have been successfully queued for sending (that is, almost
+   immediately).  The actual sending happens in background processing.
+   See cw_gen_wait_for_tone_internal() and cw_gen_wait_for_queue() for
+   ways to check the progress of sending.
+
+   TODO: add cw_gen_wait_for_tone_internal().
+
+   \param gen - generator to enqueue the character to
+   \param c - character to enqueue in generator
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
+int cw_gen_enqueue_character(cw_gen_t *gen, char c)
+{
+	if (!cw_character_is_valid(c)) {
+		errno = ENOENT;
+		return CW_FAILURE;
+	}
+
+	/* This function adds eoc space at the end of character. */
+	if (!cw_gen_enqueue_valid_character_internal(gen, c)) {
+		return CW_FAILURE;
 	}
 
 	return CW_SUCCESS;
@@ -2168,105 +2295,10 @@ int cw_gen_enqueue_representation(cw_gen_t *gen, const char *representation, boo
 /**
    \brief Look up and enqueue a given ASCII character as Morse code
 
-   If \p partial is set, the end-of-character space is not appended
-   after last mark of Morse code.
-
-   Function sets errno to ENOENT if \p character is not a recognized character.
-
-   \param gen - generator to be used to enqueue character
-   \param character - character to enqueue
-   \param partial
-
-   \return CW_SUCCESS on success
-   \return CW_FAILURE on failure
-*/
-int cw_gen_enqueue_valid_character_internal(cw_gen_t *gen, char character, int partial)
-{
-	if (!gen) {
-		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
-			      "libcw: no generator available");
-		return CW_FAILURE;
-	}
-
-	/* ' ' character (i.e. end-of-word space) is a special case. */
-	if (character == ' ') {
-		return cw_gen_enqueue_eow_space_internal(gen);
-	}
-
-	/* Lookup the character, and enqueue it. */
-	const char *representation = cw_character_to_representation_internal(character);
-	if (!representation) {
-		errno = ENOENT;
-		return CW_FAILURE;
-	}
-
-	if (!cw_gen_enqueue_representation(gen, representation, partial)) {
-		return CW_FAILURE;
-	} else {
-		return CW_SUCCESS;
-	}
-}
-
-
-
-
-
-/**
-   \brief Look up and enqueue a given ASCII character as Morse
-
-   The end of character delay is appended to the Morse sent.
-
-   On success the function returns CW_SUCCESS.
-   On failure the function returns CW_FAILURE and sets errno.
-
-   errno is set to ENOENT if the given character \p c is not a valid
-   Morse character.
-   errno is set to EBUSY if current audio sink or keying system is
-   busy.
-   errno is set to EAGAIN if the generator's tone queue is full, or if
-   there is insufficient space to queue the tones for the character.
-
-   This routine returns as soon as the character has been successfully
-   queued for sending; that is, almost immediately.  The actual sending
-   happens in background processing.  See cw_wait_for_tone() and
-   cw_wait_for_tone_queue() for ways to check the progress of sending.
-
-   \param gen - generator to enqueue the character to
-   \param c - character to enqueue in generator
-
-   \return CW_SUCCESS on success
-   \return CW_FAILURE on failure
-*/
-int cw_gen_enqueue_character(cw_gen_t *gen, char c)
-{
-	/* The call to _is_valid() is placed outside of
-	   cw_gen_enqueue_valid_character_internal() for performance
-	   reasons.
-
-	   Or to put it another way:
-	   cw_gen_enqueue_valid_character_internal() was created to be
-	   called in loop for all characters of validated string, so
-	   there was no point in validating all characters separately
-	   in that function. */
-
-	if (!cw_character_is_valid(c)) {
-		errno = ENOENT;
-		return CW_FAILURE;
-	} else {
-		return cw_gen_enqueue_valid_character_internal(gen, c, false);
-	}
-}
-
-
-
-
-
-/**
-   \brief Look up and enqueue a given ASCII character as Morse code
-
-   "partial" means that the "end of character" delay is not appended
-   to the Morse code sent by the function, to support the formation of
-   combination characters.
+   "partial" means that the inter-character space is not appended at
+   the end of Marks and Spaces enqueued in generator (but the last
+   inter-mark space is). This enables the formation of combination
+   characters by client code.
 
    On success the function returns CW_SUCCESS.
    On failure the function returns CW_FAILURE and sets errno.
@@ -2277,9 +2309,11 @@ int cw_gen_enqueue_character(cw_gen_t *gen, char c)
    errno is set to EAGAIN if the tone queue is full, or if there is
    insufficient space to queue the tones for the character.
 
-   This routine queues its arguments for background processing.  See
-   cw_wait_for_tone() and cw_wait_for_tone_queue() for ways to check
-   the progress of sending.
+   This routine returns as soon as the character and trailing spaces
+   have been successfully queued for sending (that is, almost
+   immediately).  The actual sending happens in background processing.
+   See cw_gen_wait_for_tone_internal() and cw_gen_wait_for_queue() for
+   ways to check the progress of sending.
 
    \param gen - generator to use
    \param c - character to enqueue
@@ -2289,22 +2323,18 @@ int cw_gen_enqueue_character(cw_gen_t *gen, char c)
 */
 int cw_gen_enqueue_character_parital(cw_gen_t *gen, char c)
 {
-	/* The call to _is_valid() is placed outside of
-	   cw_gen_enqueue_valid_character_internal() for performance
-	   reasons.
-
-	   Or to put it another way:
-	   cw_gen_enqueue_valid_character_internal() was created to be
-	   called in loop for all characters of validated string, so
-	   there was no point in validating all characters separately
-	   in that function. */
-
 	if (!cw_character_is_valid(c)) {
 		errno = ENOENT;
 		return CW_FAILURE;
-	} else {
-		return cw_gen_enqueue_valid_character_internal(gen, c, true);
 	}
+
+	if (!cw_gen_enqueue_valid_character_no_eoc_space_internal(gen, c)) {
+		return CW_FAILURE;
+	}
+
+	/* _partial(): don't enqueue eoc space. */
+
+	return CW_SUCCESS;
 }
 
 
@@ -2328,10 +2358,11 @@ int cw_gen_enqueue_character_parital(cw_gen_t *gen, char c)
    queueing a string, or use cw_gen_enqueue_character() if they
    need finer control.
 
-   This routine queues its arguments for background processing, the
-   actual sending happens in background processing. See
-   cw_wait_for_tone() and cw_wait_for_tone_queue() for ways to check
-   the progress of sending.
+   This routine returns as soon as the character and trailing spaces
+   have been successfully queued for sending (that is, almost
+   immediately).  The actual sending happens in background processing.
+   See cw_gen_wait_for_tone_internal() and cw_gen_wait_for_queue() for
+   ways to check the progress of sending.
 
    \param gen - generator to use
    \param string - string to enqueue
@@ -2341,7 +2372,7 @@ int cw_gen_enqueue_character_parital(cw_gen_t *gen, char c)
 */
 int cw_gen_enqueue_string(cw_gen_t *gen, const char *string)
 {
-	/* Check the string is composed of sendable characters. */
+	/* Check that the string is composed of valid characters. */
 	if (!cw_string_is_valid(string)) {
 		errno = ENOENT;
 		return CW_FAILURE;
@@ -2349,8 +2380,11 @@ int cw_gen_enqueue_string(cw_gen_t *gen, const char *string)
 
 	/* Send every character in the string. */
 	for (int i = 0; string[i] != '\0'; i++) {
-		if (!cw_gen_enqueue_valid_character_internal(gen, string[i], false))
+
+		/* This function adds eoc space at the end of character. */
+		if (!cw_gen_enqueue_valid_character_internal(gen, string[i])) {
 			return CW_FAILURE;
+		}
 	}
 
 	return CW_SUCCESS;
