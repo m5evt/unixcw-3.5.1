@@ -30,7 +30,7 @@
 #include "textarea.h"
 #include "modeset.h"
 
-#include "libcw.h"
+#include "libcw2.h"
 
 #include "i18n.h"
 
@@ -39,6 +39,46 @@
 
 
 namespace cw {
+
+
+
+
+
+Receiver::Receiver(Application *a, TextArea *t)
+{
+	app = a;
+	textarea = t;
+
+	is_pending_inter_word_space = false;
+	libcw_receive_errno = 0;
+
+#ifndef WITH_EXPERIMENTAL_RECEIVER
+	tracked_key_state = false;
+#endif
+
+	is_left_down = false;
+	is_right_down = false;
+
+	this->rec = cw_rec_new_internal();
+	this->key = cw_key_new_internal();
+
+	cw_key_register_receiver_internal(this->key, this->rec);
+
+#ifdef WITH_EXPERIMENTAL_RECEIVER
+	cw_rec_bind_key_internal(this->rec, this->key);
+#endif
+
+}
+
+
+
+
+
+Receiver::~Receiver()
+{
+	cw_rec_delete_internal(&this->rec);
+	cw_key_delete_internal(&this->key);
+}
 
 
 
@@ -211,7 +251,7 @@ void Receiver::sk_event(bool is_down)
 	//fprintf(stderr, "time on Skey down:  %10ld : %10ld\n", timer.tv_sec, timer.tv_usec);
 #endif
 
-	cw_notify_straight_key_event(is_down);
+	cw_key_sk_notify_event_internal(this->key, is_down);
 
 	return;
 }
@@ -250,8 +290,8 @@ void Receiver::ik_left_event(bool is_down, bool is_reverse_paddles)
 	/* Inform libcw about state of left paddle regardless of state
 	   of the other paddle. */
 	is_reverse_paddles
-		? cw_notify_keyer_dash_paddle_event(is_down)
-		: cw_notify_keyer_dot_paddle_event(is_down);
+		? cw_key_ik_notify_dash_paddle_event_internal(this->key, is_down)
+		: cw_key_ik_notify_dot_paddle_event_internal(this->key, is_down);
 
 	return;
 }
@@ -287,8 +327,8 @@ void Receiver::ik_right_event(bool is_down, bool is_reverse_paddles)
 	/* Inform libcw about state of left paddle regardless of state
 	   of the other paddle. */
 	is_reverse_paddles
-		? cw_notify_keyer_dot_paddle_event(is_down)
-		: cw_notify_keyer_dash_paddle_event(is_down);
+		? cw_key_ik_notify_dot_paddle_event_internal(this->key, is_down)
+		: cw_key_ik_notify_dash_paddle_event_internal(this->key, is_down);
 
 	return;
 }
@@ -343,9 +383,9 @@ void Receiver::handle_libcw_keying_event(struct timeval *t, int key_state)
 		/* Tell receiver to prepare (to make space) for
 		   receiving new character. */
 		/* FIXME: when WITH_EXPERIMENTAL_RECEIVER is defined,
-		   xcwcp won't call cw_clear_receive_buffer(). Do this
+		   xcwcp won't call cw_rec_clear_buffer(). Do this
 		   somewhere else. */
-		cw_clear_receive_buffer();
+		cw_rec_clear_buffer_internal(this->rec);
 
 		/* The tone start means that we're seeing the next
 		   incoming character within the same word, so no
@@ -362,14 +402,14 @@ void Receiver::handle_libcw_keying_event(struct timeval *t, int key_state)
 	if (key_state) {
 		/* Key down. */
 		//fprintf(stderr, "start receive tone: %10ld . %10ld\n", t->tv_sec, t->tv_usec);
-		if (!cw_start_receive_tone(t)) {
-			perror("cw_start_receive_tone");
+		if (!cw_rec_mark_begin_internal(this->rec, t)) {
+			perror("cw_rec_mark_begin");
 			abort();
 		}
 	} else {
 		/* Key up. */
 		//fprintf(stderr, "end receive tone:   %10ld . %10ld\n", t->tv_sec, t->tv_usec);
-		if (!cw_end_receive_tone(t)) {
+		if (!cw_rec_mark_end_internal(this->rec, t)) {
 			/* Handle receive error detected on tone end.
 			   For ENOMEM and ENOENT we set the error in a
 			   class flag, and display the appropriate
@@ -384,11 +424,11 @@ void Receiver::handle_libcw_keying_event(struct timeval *t, int key_state)
 			case ENOMEM:
 			case ENOENT:
 				libcw_receive_errno = errno;
-				cw_clear_receive_buffer();
+				cw_rec_clear_buffer_internal(this->rec);
 				break;
 
 			default:
-				perror("cw_end_receive_tone");
+				perror("cw_rec_mark_end");
 				abort();
 			}
 		}
@@ -407,7 +447,7 @@ void Receiver::handle_libcw_keying_event(struct timeval *t, int key_state)
 */
 void Receiver::clear()
 {
-	cw_clear_receive_buffer();
+	cw_rec_clear_buffer_internal(this->rec);
 	is_pending_inter_word_space = false;
 	libcw_receive_errno = 0;
 #ifndef WITH_EXPERIMENTAL_RECEIVER
@@ -457,7 +497,8 @@ void Receiver::poll_character()
 	struct timeval timer2;
 	gettimeofday(&timer2, NULL);
 	//fprintf(stderr, "poll_receive_char:  %10ld : %10ld\n", timer2.tv_sec, timer2.tv_usec);
-	if (cw_receive_character(&timer2, &c, NULL, NULL)) {
+
+	if (cw_rec_poll_character_internal(this->rec, &timer2, &c, NULL, NULL)) {
 		/* Receiver stores full, well formed
 		   character. Display it. */
 		textarea->append(c);
@@ -479,7 +520,7 @@ void Receiver::poll_character()
 		   width of glyph of received char changes at variable
 		   font width. */
 		QString status = _("Received at %1 WPM: '%2'");
-		app->show_status(status.arg(cw_get_receive_speed()).arg(c));
+		app->show_status(status.arg(cw_rec_get_speed_internal(this->rec)).arg(c));
 		//fprintf(stderr, "Received character '%c'\n", c);
 
 	} else {
@@ -502,16 +543,16 @@ void Receiver::poll_character()
 			{	/* New scope to avoid gcc 3.2.2
 				   internal compiler error. */
 
-				cw_clear_receive_buffer();
+				cw_rec_clear_buffer_internal(this->rec);
 				textarea->append('?');
 
 				QString status = _("Unknown character received at %1 WPM");
-				app->show_status(status.arg(cw_get_receive_speed()));
+				app->show_status(status.arg(cw_rec_get_speed_internal(this->rec)));
 			}
 			break;
 
 		default:
-			perror("cw_receive_character");
+			perror("cw_rec_poll_character");
 			abort();
 		}
 	}
@@ -546,11 +587,11 @@ void Receiver::poll_space()
 	struct timeval timer2;
 	gettimeofday(&timer2, NULL);
 	//fprintf(stderr, "poll_space(): %10ld : %10ld\n", timer2.tv_sec, timer2.tv_usec);
-	cw_receive_character(&timer2, NULL, &is_end_of_word, NULL);
+	cw_rec_poll_character_internal(this->rec, &timer2, NULL, &is_end_of_word, NULL);
 	if (is_end_of_word) {
 		//fprintf(stderr, "End of word\n\n");
 		textarea->append(' ');
-		cw_clear_receive_buffer();
+		cw_rec_clear_buffer_internal(this->rec);
 		is_pending_inter_word_space = false;
 	} else {
 		/* We don't reset is_pending_inter_word_space. The
