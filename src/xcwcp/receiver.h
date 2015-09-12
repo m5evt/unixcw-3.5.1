@@ -28,6 +28,12 @@
 
 
 
+#include "libcw2.h"
+
+
+
+
+
 namespace cw {
 
 
@@ -49,16 +55,9 @@ namespace cw {
 	   contexts. */
 	class Receiver {
 	public:
-		Receiver(Application *a, TextArea *t) :
-	        app (a),
-		textarea (t),
-		is_pending_inter_word_space (false),
-		libcw_receive_errno (0),
-#ifndef WITH_EXPERIMENTAL_RECEIVER
-		tracked_key_state (false),
-#endif
-		is_left_down (false),
-		is_right_down (false) { }
+
+		Receiver(Application *a, TextArea *t);
+		~Receiver();
 
 		/* Poll timeout handler. */
 		void poll(const Mode *current_mode);
@@ -92,6 +91,9 @@ namespace cw {
 		   presses recorded by xcwcp. */
 		struct timeval timer;
 #endif
+
+		cw_rec_t *rec;
+		cw_key_t *key;
 
 	private:
 		Application *app;
