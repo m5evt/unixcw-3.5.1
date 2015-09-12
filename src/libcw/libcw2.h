@@ -154,7 +154,6 @@ int cw_gen_set_weighting(cw_gen_t *gen, int new_value);
 
 
 /* generator module: queue functions. */
-int cw_gen_enqueue_representation(cw_gen_t *gen, const char *representation, bool partial);
 int cw_gen_enqueue_character(cw_gen_t *gen, char c);
 int cw_gen_enqueue_character_parital(cw_gen_t *gen, char c);
 int cw_gen_enqueue_string(cw_gen_t *gen, const char *string);
@@ -204,7 +203,8 @@ int  cw_rec_set_speed(cw_rec_t *rec, int new_value);
 int  cw_rec_set_tolerance(cw_rec_t *rec, int new_value);
 int  cw_rec_set_gap(cw_rec_t *rec, int new_value);
 int  cw_rec_set_noise_spike_threshold(cw_rec_t *rec, int new_value);
-void cw_rec_set_adaptive_mode(cw_rec_t *rec, bool adaptive);
+void cw_rec_enable_adaptive_mode(cw_rec_t *rec);
+void cw_rec_disable_adaptive_mode(cw_rec_t *rec);
 
 
 /* key module: main functions. */
@@ -213,17 +213,15 @@ void      cw_key_delete(cw_key_t **key);
 
 
 /* key module. */
-/* TODO: turn enable/disable functions into one, accepting bool value
-   as second value. Just like in case of cw_rec_set_adaptive_mode(). */
 void cw_key_ik_enable_curtis_mode_b(volatile cw_key_t *key);
 void cw_key_ik_disable_curtis_mode_b(volatile cw_key_t *key);
 bool cw_key_ik_get_curtis_mode_b(volatile cw_key_t *key);
-void cw_key_register_keying_callback(volatile cw_key_t *key, void (*callback_func)(void*, int), void *callback_arg);
 void cw_key_ik_register_timer(volatile cw_key_t *key, struct timeval *timer);
 int  cw_key_ik_notify_paddle_event(volatile cw_key_t *key, int dot_paddle_state, int dash_paddle_state);
-int  cw_key_ik_notify_dash_paddle_event(volatile cw_key_t *key, int dash_paddle_state);
 int  cw_key_ik_notify_dot_paddle_event(volatile cw_key_t *key, int dot_paddle_state);
+int  cw_key_ik_notify_dash_paddle_event(volatile cw_key_t *key, int dash_paddle_state);
 int  cw_key_sk_notify_event(volatile cw_key_t *key, int key_state);
+void cw_key_register_keying_callback(volatile cw_key_t *key, void (*callback_func)(void*, int), void *callback_arg);
 /* TODO: clean up register/bind functions. It seems that there are
    some redundant functions in the code base. */
 void cw_key_register_generator(volatile cw_key_t *key, cw_gen_t *gen);
