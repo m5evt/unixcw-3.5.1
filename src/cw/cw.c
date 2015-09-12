@@ -174,15 +174,15 @@ void write_to_cw_sender(const char *format, ...)
 	va_end(ap);
 
 	/* Sound the buffer, and wait for the send to complete. */
-	if (!cw_gen_enqueue_string_internal(generator, buffer)) {
-		perror("cw_gen_enqueue_string_internal");
-		cw_gen_flush_queue_internal(generator);
+	if (!cw_gen_enqueue_string(generator, buffer)) {
+		perror("cw_gen_enqueue_string");
+		cw_gen_flush_queue(generator);
 		abort();
 	}
 
-	if (!cw_gen_wait_for_queue_level_internal(generator, 1)) {
-		perror("cw_gen_wait_for_queue_level_internal");
-		cw_gen_flush_queue_internal(generator);
+	if (!cw_gen_wait_for_queue_level(generator, 1)) {
+		perror("cw_gen_wait_for_queue_level");
+		cw_gen_flush_queue(generator);
 		abort();
 	}
 
@@ -218,19 +218,19 @@ void parse_stream_query(FILE *stream)
 		write_to_message_stream("%c%c%c", CW_STATUS_ERR, CW_CMD_QUERY, c);
 		return;
 	case CW_CMDV_FREQUENCY:
-		value = cw_gen_get_frequency_internal(generator);
+		value = cw_gen_get_frequency(generator);
 		break;
 	case CW_CMDV_VOLUME:
-		value = cw_gen_get_volume_internal(generator);
+		value = cw_gen_get_volume(generator);
 		break;
 	case CW_CMDV_SPEED:
-		value = cw_gen_get_speed_internal(generator);
+		value = cw_gen_get_speed(generator);
 		break;
 	case CW_CMDV_GAP:
-		value = cw_gen_get_gap_internal(generator);
+		value = cw_gen_get_gap(generator);
 		break;
 	case CW_CMDV_WEIGHTING:
-		value = cw_gen_get_weighting_internal(generator);
+		value = cw_gen_get_weighting(generator);
 		break;
 	case CW_CMDV_ECHO:
 		value = config->do_echo;
@@ -277,23 +277,23 @@ void parse_stream_cwquery(FILE *stream)
 		write_to_message_stream("%c%c%c", CW_STATUS_ERR, CW_CMD_CWQUERY, c);
 		return;
 	case CW_CMDV_FREQUENCY:
-		value = cw_gen_get_frequency_internal(generator);
+		value = cw_gen_get_frequency(generator);
 		format = _("%d HZ ");
 		break;
 	case CW_CMDV_VOLUME:
-		value = cw_gen_get_volume_internal(generator);
+		value = cw_gen_get_volume(generator);
 		format = _("%d PERCENT ");
 		break;
 	case CW_CMDV_SPEED:
-		value = cw_gen_get_speed_internal(generator);
+		value = cw_gen_get_speed(generator);
 		format = _("%d WPM ");
 		break;
 	case CW_CMDV_GAP:
-		value = cw_gen_get_gap_internal(generator);
+		value = cw_gen_get_gap(generator);
 		format = _("%d DOTS ");
 		break;
 	case CW_CMDV_WEIGHTING:
-		value = cw_gen_get_weighting_internal(generator);
+		value = cw_gen_get_weighting(generator);
 		format = _("%d PERCENT ");
 		break;
 	case CW_CMDV_ECHO:
@@ -365,19 +365,19 @@ void parse_stream_parameter(int c, FILE *stream)
 	default:
 		return;
 	case CW_CMDV_FREQUENCY:
-		value_handler = cw_gen_set_frequency_internal;
+		value_handler = cw_gen_set_frequency;
 		break;
 	case CW_CMDV_VOLUME:
-		value_handler = cw_gen_set_volume_internal;
+		value_handler = cw_gen_set_volume;
 		break;
 	case CW_CMDV_SPEED:
-		value_handler = cw_gen_set_speed_internal;
+		value_handler = cw_gen_set_speed;
 		break;
 	case CW_CMDV_GAP:
-		value_handler = cw_gen_set_gap_internal;
+		value_handler = cw_gen_set_gap;
 		break;
 	case CW_CMDV_WEIGHTING:
-		value_handler = cw_gen_set_weighting_internal;
+		value_handler = cw_gen_set_weighting;
 		break;
 	case CW_CMDV_ECHO:
 		config->do_echo = value;
@@ -447,7 +447,7 @@ void parse_stream_command(FILE *stream)
 		parse_stream_cwquery(stream);
 		break;
 	case CW_CMDV_QUIT:
-		cw_gen_flush_queue_internal(generator);
+		cw_gen_flush_queue(generator);
 		write_to_echo_stream("%c", '\n');
 		exit(EXIT_SUCCESS);
 	}
@@ -479,13 +479,13 @@ void send_cw_character(int c, int is_partial)
 
 	/* Send the character to the CW sender. */
 	int status = is_partial
-		? cw_gen_enqueue_character_parital_internal(generator, character)
-		: cw_gen_enqueue_character_internal(generator, character);
+		? cw_gen_enqueue_character_parital(generator, character)
+		: cw_gen_enqueue_character(generator, character);
 
 	if (!status) {
 		if (errno != ENOENT) {
 			perror("cw_gen_enqueue_character[_partial]");
-			cw_gen_flush_queue_internal(generator);
+			cw_gen_flush_queue(generator);
 			abort();
 		} else {
 			write_to_message_stream("%c%c", CW_STATUS_ERR, character);
@@ -497,9 +497,9 @@ void send_cw_character(int c, int is_partial)
 	write_to_echo_stream("%c", c);
 
 	/* Wait for the character to complete. */
-	if (!cw_gen_wait_for_queue_level_internal(generator, 1)) {
-		perror("cw_gen_wait_for_queue_level_internal");
-		cw_gen_flush_queue_internal(generator);
+	if (!cw_gen_wait_for_queue_level(generator, 1)) {
+		perror("cw_gen_wait_for_queue_level");
+		cw_gen_flush_queue(generator);
 		abort();
 	}
 
@@ -652,13 +652,13 @@ int main(int argc, char *const argv[])
 
 	/* Start producing sine wave (amplitude of the wave will be
 	   zero as long as there are no characters to process). */
-	cw_gen_start_internal(generator);
+	cw_gen_start(generator);
 
 	/* Send stdin stream to CW parsing. */
 	parse_stream(stdin);
 
 	/* Await final tone completion before exiting. */
-	cw_gen_wait_for_queue_internal(generator);
+	cw_gen_wait_for_queue(generator);
 
 	return EXIT_SUCCESS;
 }
@@ -670,9 +670,9 @@ int main(int argc, char *const argv[])
 void cw_atexit(void)
 {
 	if (generator) {
-		cw_gen_stop_internal(generator);
+		cw_gen_stop(generator);
 		//cw_complete_reset();
-		cw_gen_delete_internal(&generator);
+		cw_gen_delete(&generator);
 	}
 
 	if (config) {

@@ -52,7 +52,7 @@ Sender::Sender(Application *a, TextArea *t, cw_config_t *config) :
 		fprintf(stderr, "%s: failed to create generator\n", config->program_name);
 	}
 
-	cw_gen_start_internal(gen);
+	cw_gen_start(gen);
 }
 
 
@@ -62,8 +62,8 @@ Sender::Sender(Application *a, TextArea *t, cw_config_t *config) :
 Sender::~Sender()
 {
 	if (gen) {
-		cw_gen_stop_internal(gen);
-		cw_gen_delete_internal(&gen);
+		cw_gen_stop(gen);
+		cw_gen_delete(&gen);
 	}
 }
 
@@ -80,7 +80,7 @@ Sender::~Sender()
 void Sender::poll(const Mode *current_mode)
 {
 	if (current_mode->is_dictionary() || current_mode->is_keyboard()) {
-		if (cw_gen_queue_length_internal(this->gen) <= 1) {
+		if (cw_gen_queue_length(this->gen) <= 1) {
 			/* Arrange more data for the sender.  In
 			   dictionary modes, add more random data if
 			   the queue is empty.  In keyboard mode, just
@@ -152,7 +152,7 @@ void Sender::handle_key_event(QKeyEvent *event)
 */
 void Sender::clear()
 {
-	cw_gen_flush_queue_internal(this->gen);
+	cw_gen_flush_queue(this->gen);
 	queue.clear();
 	is_queue_idle = true;
 
@@ -187,7 +187,7 @@ void Sender::dequeue_and_play_character()
 	   queued. */
 	const char c = queue.front();
 	queue.pop_front();
-	if (!cw_gen_enqueue_character_internal(this->gen, c)) {
+	if (!cw_gen_enqueue_character(this->gen, c)) {
 		perror("cw_gen_enqueue_character");
 		/* TODO: don't call abort(). */
 		abort();
@@ -198,7 +198,7 @@ void Sender::dequeue_and_play_character()
 	   string when width of glyph of played char changes at
 	   variable font width. */
 	QString status = _("Sending at %1 WPM: '%2'");
-	app->show_status(status.arg(cw_gen_get_speed_internal(this->gen)).arg(c));
+	app->show_status(status.arg(cw_gen_get_speed(this->gen)).arg(c));
 
 	return;
 }

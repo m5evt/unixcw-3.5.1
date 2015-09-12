@@ -214,13 +214,13 @@ cw_gen_t *cw_gen_new_from_config(cw_config_t *config)
 
 	if (config->audio_system == CW_AUDIO_NULL) {
 		if (cw_is_null_possible(config->audio_device)) {
-			gen = cw_gen_new_internal(CW_AUDIO_NULL, config->audio_device);
+			gen = cw_gen_new(CW_AUDIO_NULL, config->audio_device);
 			if (gen) {
 				if (cw_gen_apply_config(gen, config)) {
 					return gen;
 				} else {
 					fprintf(stderr, "%s: failed to apply configuration\n", config->program_name);
-					cw_gen_delete_internal(&gen);
+					cw_gen_delete(&gen);
 					return NULL;
 				}
 			} else {
@@ -238,13 +238,13 @@ cw_gen_t *cw_gen_new_from_config(cw_config_t *config)
 	    || config->audio_system == CW_AUDIO_SOUNDCARD) {
 
 		if (cw_is_pa_possible(config->audio_device)) {
-			gen = cw_gen_new_internal(CW_AUDIO_PA, config->audio_device);
+			gen = cw_gen_new(CW_AUDIO_PA, config->audio_device);
 			if (gen) {
 				if (cw_gen_apply_config(gen, config)) {
 					return gen;
 				} else {
 					fprintf(stderr, "%s: failed to apply configuration\n", config->program_name);
-					cw_gen_delete_internal(&gen);
+					cw_gen_delete(&gen);
 					return NULL;
 				}
 			} else {
@@ -266,13 +266,13 @@ cw_gen_t *cw_gen_new_from_config(cw_config_t *config)
 	    || config->audio_system == CW_AUDIO_SOUNDCARD) {
 
 		if (cw_is_oss_possible(config->audio_device)) {
-			gen = cw_gen_new_internal(CW_AUDIO_OSS, config->audio_device);
+			gen = cw_gen_new(CW_AUDIO_OSS, config->audio_device);
 			if (gen) {
 				if (cw_gen_apply_config(gen, config)) {
 					return gen;
 				} else {
 					fprintf(stderr, "%s: failed to apply configuration\n", config->program_name);
-					cw_gen_delete_internal(&gen);
+					cw_gen_delete(&gen);
 					return NULL;
 				}
 			} else {
@@ -294,13 +294,13 @@ cw_gen_t *cw_gen_new_from_config(cw_config_t *config)
 	    || config->audio_system == CW_AUDIO_SOUNDCARD) {
 
 		if (cw_is_alsa_possible(config->audio_device)) {
-			gen = cw_gen_new_internal(CW_AUDIO_ALSA, config->audio_device);
+			gen = cw_gen_new(CW_AUDIO_ALSA, config->audio_device);
 			if (gen) {
 				if (cw_gen_apply_config(gen, config)) {
 					return gen;
 				} else {
 					fprintf(stderr, "%s: failed to apply configuration\n", config->program_name);
-					cw_gen_delete_internal(&gen);
+					cw_gen_delete(&gen);
 					return NULL;
 				}
 			} else {
@@ -322,13 +322,13 @@ cw_gen_t *cw_gen_new_from_config(cw_config_t *config)
 	    || config->audio_system == CW_AUDIO_CONSOLE) {
 
 		if (cw_is_console_possible(config->audio_device)) {
-			gen = cw_gen_new_internal(CW_AUDIO_CONSOLE, config->audio_device);
+			gen = cw_gen_new(CW_AUDIO_CONSOLE, config->audio_device);
 			if (gen) {
 				if (cw_gen_apply_config(gen, config)) {
 					return gen;
 				} else {
 					fprintf(stderr, "%s: failed to apply configuration\n", config->program_name);
-					cw_gen_delete_internal(&gen);
+					cw_gen_delete(&gen);
 					return NULL;
 				}
 			} else {
@@ -358,7 +358,7 @@ cw_gen_t *cw_gen_new_from_config(cw_config_t *config)
 
    Function applies frequency, volume, sending speed, gap and weighting
    to given generator \p gen. The generator should exist (it should be created
-   by cw_gen_new_internal().
+   by cw_gen_new().
 
    The function is just a wrapper for few common function calls, to be used
    in cw_gen_new_from_config().
@@ -371,19 +371,19 @@ cw_gen_t *cw_gen_new_from_config(cw_config_t *config)
 */
 int cw_gen_apply_config(cw_gen_t *gen, cw_config_t *config)
 {
-	if (!cw_gen_set_frequency_internal(gen, config->frequency)) {
+	if (!cw_gen_set_frequency(gen, config->frequency)) {
 		return CW_FAILURE;
 	}
-	if (!cw_gen_set_volume_internal(gen, config->volume)) {
+	if (!cw_gen_set_volume(gen, config->volume)) {
 		return CW_FAILURE;
 	}
-	if (!cw_gen_set_speed_internal(gen, config->send_speed)) {
+	if (!cw_gen_set_speed(gen, config->send_speed)) {
 		return CW_FAILURE;
 	}
-	if (!cw_gen_set_gap_internal(gen, config->gap)) {
+	if (!cw_gen_set_gap(gen, config->gap)) {
 		return CW_FAILURE;
 	}
-	if (!cw_gen_set_weighting_internal(gen, config->weighting)) {
+	if (!cw_gen_set_weighting(gen, config->weighting)) {
 		return CW_FAILURE;
 	}
 

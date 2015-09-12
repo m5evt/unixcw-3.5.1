@@ -353,7 +353,7 @@ void Application::stop()
 	receiver->clear();
 
 	/* Saving speed for restore on next start. */
-	saved_receive_speed = cw_rec_get_speed_internal(receiver->rec);
+	saved_receive_speed = cw_rec_get_speed(receiver->rec);
 
 	/* Done with the CW library sender for now. No xcwcp instance
 	   is being a user of libcw. */
@@ -419,12 +419,12 @@ void Application::sync_speed()
 			/* Force by unsetting adaptive receive,
 			   setting the receive speed, then resetting
 			   adaptive receive again. */
-			cw_rec_set_adaptive_mode_internal(receiver->rec, false);
-			if (!cw_rec_set_speed_internal(receiver->rec, speed_spin->value())) {
+			cw_rec_set_adaptive_mode(receiver->rec, false);
+			if (!cw_rec_set_speed(receiver->rec, speed_spin->value())) {
 				perror("cw_rec_set_speed");
 				abort();
 			}
-			cw_rec_set_adaptive_mode_internal(receiver->rec, true);
+			cw_rec_set_adaptive_mode(receiver->rec, true);
 		}
 	}
 
@@ -445,12 +445,12 @@ void Application::sync_speed()
 void Application::change_speed()
 {
 	if (is_using_libcw) {
-		if (!cw_gen_set_speed_internal(sender->gen, speed_spin->value())) {
+		if (!cw_gen_set_speed(sender->gen, speed_spin->value())) {
 			perror("cw_gen_set_speed");
 			abort();
 		}
-		if (!cw_rec_get_adaptive_mode_internal(receiver->rec)) {
-			if (!cw_rec_set_speed_internal(receiver->rec, speed_spin->value())) {
+		if (!cw_rec_get_adaptive_mode(receiver->rec)) {
+			if (!cw_rec_set_speed(receiver->rec, speed_spin->value())) {
 				perror("cw_rec_set_speed");
 				abort();
 			}
@@ -474,7 +474,7 @@ void Application::change_speed()
 void Application::change_frequency()
 {
 	if (is_using_libcw) {
-		if (!cw_gen_set_frequency_internal(sender->gen, frequency_spin->value())) {
+		if (!cw_gen_set_frequency(sender->gen, frequency_spin->value())) {
 			perror("cw_gen_set_frequency");
 			abort();
 		}
@@ -497,7 +497,7 @@ void Application::change_frequency()
 void Application::change_volume()
 {
 	if (is_using_libcw) {
-		if (!cw_gen_set_volume_internal(sender->gen, volume_spin->value())) {
+		if (!cw_gen_set_volume(sender->gen, volume_spin->value())) {
 			perror("cw_gen_set_volume");
 			abort();
 		}
@@ -520,7 +520,7 @@ void Application::change_volume()
 void Application::change_gap()
 {
 	if (is_using_libcw) {
-		if (!cw_gen_set_gap_internal(sender->gen, gap_spin->value())) {
+		if (!cw_gen_set_gap(sender->gen, gap_spin->value())) {
 			perror("cw_gen_set_gap");
 			abort();
 		}
@@ -577,8 +577,8 @@ void Application::change_curtis_mode_b()
 {
 	if (is_using_libcw) {
 		curtis_mode_b_action->isChecked()
-			? cw_key_ik_enable_curtis_mode_b_internal(receiver->key)
-			: cw_key_ik_disable_curtis_mode_b_internal(receiver->key);
+			? cw_key_ik_enable_curtis_mode_b(receiver->key)
+			: cw_key_ik_disable_curtis_mode_b(receiver->key);
 	}
 
 	return;
@@ -600,19 +600,19 @@ void Application::change_adaptive_receive()
 	if (is_using_libcw) {
 		if (adaptive_receive_action->isChecked()) {
 			/* Going to adaptive receive. */
-			cw_rec_set_adaptive_mode_internal(receiver->rec, false);
-			if (!cw_rec_set_speed_internal(receiver->rec, saved_receive_speed)) {
+			cw_rec_set_adaptive_mode(receiver->rec, false);
+			if (!cw_rec_set_speed(receiver->rec, saved_receive_speed)) {
 				perror("cw_rec_set_speed");
 				abort();
 			}
-			cw_rec_set_adaptive_mode_internal(receiver->rec, true);
+			cw_rec_set_adaptive_mode(receiver->rec, true);
 		} else {
 			/* Going to fixed receive. Save the current
 			   adaptive receive speed so we can restore it
 			   later */
-			saved_receive_speed = cw_rec_get_speed_internal(receiver->rec);
-			cw_rec_set_adaptive_mode_internal(receiver->rec, false);
-			if (!cw_rec_set_speed_internal(receiver->rec, speed_spin->value())) {
+			saved_receive_speed = cw_rec_get_speed(receiver->rec);
+			cw_rec_set_adaptive_mode(receiver->rec, false);
+			if (!cw_rec_set_speed(receiver->rec, speed_spin->value())) {
 				perror("cw_rec_set_speed");
 				abort();
 			}
@@ -822,7 +822,7 @@ void Application::make_toolbar(void)
 	speed_spin->setToolTip(_("Speed"));
 	speed_spin->setWhatsThis(SPEED_WHATSTHIS);
 	speed_spin->setSuffix(_(" WPM"));
-	speed_spin->setValue(cw_gen_get_speed_internal(sender->gen));
+	speed_spin->setValue(cw_gen_get_speed(sender->gen));
 	connect(speed_spin, SIGNAL (valueChanged(int)), SLOT (change_speed()));
 	toolbar->addWidget(speed_spin);
 
@@ -840,7 +840,7 @@ void Application::make_toolbar(void)
 	frequency_spin->setToolTip(_("Frequency"));
 	frequency_spin->setSuffix(_(" Hz"));
 	frequency_spin->setWhatsThis(FREQUENCY_WHATSTHIS);
-	frequency_spin->setValue(cw_gen_get_frequency_internal(sender->gen));
+	frequency_spin->setValue(cw_gen_get_frequency(sender->gen));
 	connect(frequency_spin, SIGNAL (valueChanged(int)), SLOT (change_frequency()));
 	toolbar->addWidget(frequency_spin);
 
@@ -858,7 +858,7 @@ void Application::make_toolbar(void)
 	volume_spin->setToolTip(_("Volume"));
 	volume_spin->setSuffix(_(" %"));
 	volume_spin->setWhatsThis(VOLUME_WHATSTHIS);
-	volume_spin->setValue(cw_gen_get_volume_internal(sender->gen));
+	volume_spin->setValue(cw_gen_get_volume(sender->gen));
 	connect(volume_spin, SIGNAL (valueChanged(int)), SLOT (change_volume()));
 	toolbar->addWidget(volume_spin);
 
@@ -876,7 +876,7 @@ void Application::make_toolbar(void)
 	gap_spin->setToolTip(_("Gap"));
 	gap_spin->setSuffix(_(" dot(s)"));
 	gap_spin->setWhatsThis(GAP_WHATSTHIS);
-	gap_spin->setValue(cw_gen_get_gap_internal(sender->gen));
+	gap_spin->setValue(cw_gen_get_gap(sender->gen));
 	connect(gap_spin, SIGNAL (valueChanged(int)), SLOT (change_gap()));
 	toolbar->addWidget(gap_spin);
 
@@ -1070,8 +1070,8 @@ void Application::make_auxiliaries_begin(void)
 
 	sender = new Sender(this, textarea, config);
 	receiver = new Receiver(this, textarea);
-	cw_key_register_generator_internal(receiver->key, sender->gen);
-	saved_receive_speed = cw_rec_get_speed_internal(receiver->rec);
+	cw_key_register_generator(receiver->key, sender->gen);
+	saved_receive_speed = cw_rec_get_speed(receiver->rec);
 
 	/* Create a timer for polling send and receive. */
 	poll_timer = new QTimer(this);
@@ -1105,21 +1105,21 @@ void Application::make_auxiliaries_end(void)
 	   parameters) it won't be able to identify entered Morse
 	   code. */
 
-	cw_key_register_keying_callback_internal(receiver->key, libcw_keying_event_static, &(receiver->timer));
+	cw_key_register_keying_callback(receiver->key, libcw_keying_event_static, &(receiver->timer));
 
 	/* The call above registered receiver->timer as a generic
 	   argument to a callback. However, libcw needs to know when
 	   the argument happens to be of type 'struct timeval'. This
 	   is why we have this second call, explicitly passing
 	   receiver's timer to libcw. */
-	cw_key_ik_register_timer_internal(receiver->key, &(receiver->timer));
+	cw_key_ik_register_timer(receiver->key, &(receiver->timer));
 
 	gettimeofday(&(receiver->timer), NULL);
 	//fprintf(stderr, "time on aux config: %10ld : %10ld\n", receiver->timer.tv_sec, receiver->timer.tv_usec);
 #endif
 
 	QString label("Output: ");
-	label += cw_gen_get_audio_system_label_internal(sender->gen);
+	label += cw_gen_get_audio_system_label(sender->gen);
 	QLabel *sound_system = new QLabel(label);
 	statusBar()->addPermanentWidget(sound_system);
 

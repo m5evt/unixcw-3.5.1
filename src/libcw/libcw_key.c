@@ -179,9 +179,9 @@ static int cw_key_sk_enqueue_symbol_internal(volatile cw_key_t *key, int key_val
    \param callback_func - callback function to be called on key state changes
    \param callback_arg - first argument to callback_func
 */
-void cw_key_register_keying_callback_internal(volatile cw_key_t *key,
-					      void (*callback_func)(void*, int),
-					      void *callback_arg)
+void cw_key_register_keying_callback(volatile cw_key_t *key,
+				     void (*callback_func)(void*, int),
+				     void *callback_arg)
 {
 #ifndef WITH_EXPERIMENTAL_RECEIVER
 	key->key_callback = callback_func;
@@ -211,7 +211,7 @@ void cw_key_register_keying_callback_internal(volatile cw_key_t *key,
   \param key
   \param timer
 */
-void cw_key_ik_register_timer_internal(volatile cw_key_t *key, struct timeval *timer)
+void cw_key_ik_register_timer(volatile cw_key_t *key, struct timeval *timer)
 {
 #ifndef WITH_EXPERIMENTAL_RECEIVER
 	key->ik.timer = timer;
@@ -302,7 +302,7 @@ void cw_key_tk_set_value_internal(volatile cw_key_t *key, int key_value)
   \param key - key that needs to have a generator associated with it
   \param gen - generator to be used with given keyer
 */
-void cw_key_register_generator_internal(volatile cw_key_t *key, cw_gen_t *gen)
+void cw_key_register_generator(volatile cw_key_t *key, cw_gen_t *gen)
 {
 	/* General key. */
 	key->gen = gen;
@@ -328,7 +328,7 @@ void cw_key_register_generator_internal(volatile cw_key_t *key, cw_gen_t *gen)
   \param key - key that needs to have a receiver associated with it
   \param rec - receiver to be used with given key
 */
-void cw_key_register_receiver_internal(volatile cw_key_t *key, cw_rec_t *rec)
+void cw_key_register_receiver(volatile cw_key_t *key, cw_rec_t *rec)
 {
 	key->rec = rec;
 
@@ -513,7 +513,7 @@ int cw_key_ik_enqueue_symbol_internal(volatile cw_key_t *key, int key_value, cha
 
    \param key
 */
-void cw_key_ik_enable_curtis_mode_b_internal(volatile cw_key_t *key)
+void cw_key_ik_enable_curtis_mode_b(volatile cw_key_t *key)
 {
 	key->ik.curtis_mode_b = true;
 	return;
@@ -528,7 +528,7 @@ void cw_key_ik_enable_curtis_mode_b_internal(volatile cw_key_t *key)
 
    \param key
 */
-void cw_key_ik_disable_curtis_mode_b_internal(volatile cw_key_t *key)
+void cw_key_ik_disable_curtis_mode_b(volatile cw_key_t *key)
 {
 	key->ik.curtis_mode_b = false;
 	return;
@@ -546,7 +546,7 @@ void cw_key_ik_disable_curtis_mode_b_internal(volatile cw_key_t *key)
    \return true if Curtis mode is enabled for the key
    \return false otherwise
 */
-bool cw_key_ik_get_curtis_mode_b_state_internal(volatile cw_key_t *key)
+bool cw_key_ik_get_curtis_mode_b(volatile cw_key_t *key)
 {
 	return key->ik.curtis_mode_b;
 }
@@ -790,7 +790,7 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_key_ik_notify_paddle_event_internal(volatile cw_key_t *key, int dot_paddle_state, int dash_paddle_state)
+int cw_key_ik_notify_paddle_event(volatile cw_key_t *key, int dot_paddle_state, int dash_paddle_state)
 {
 #if 0 /* This is disabled, but I'm not sure why. */
 	/* If the tone queue or the straight key are busy, this is going to
@@ -936,7 +936,7 @@ int cw_key_ik_update_state_initial_internal(volatile cw_key_t *key)
    Alter the state of just one of the two iambic keyer paddles.
    The other paddle state of the paddle pair remains unchanged.
 
-   See cw_key_ik_notify_paddle_event_internal() for details of iambic
+   See cw_key_ik_notify_paddle_event() for details of iambic
    keyer background processing, and how to check its status.
 
    \param key
@@ -945,9 +945,9 @@ int cw_key_ik_update_state_initial_internal(volatile cw_key_t *key)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_key_ik_notify_dot_paddle_event_internal(volatile cw_key_t *key, int dot_paddle_state)
+int cw_key_ik_notify_dot_paddle_event(volatile cw_key_t *key, int dot_paddle_state)
 {
-	return cw_key_ik_notify_paddle_event_internal(key, dot_paddle_state, key->ik.dash_paddle);
+	return cw_key_ik_notify_paddle_event(key, dot_paddle_state, key->ik.dash_paddle);
 }
 
 
@@ -963,9 +963,9 @@ int cw_key_ik_notify_dot_paddle_event_internal(volatile cw_key_t *key, int dot_p
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_key_ik_notify_dash_paddle_event_internal(volatile cw_key_t *key, int dash_paddle_state)
+int cw_key_ik_notify_dash_paddle_event(volatile cw_key_t *key, int dash_paddle_state)
 {
-	return cw_key_ik_notify_paddle_event_internal(key, key->ik.dot_paddle, dash_paddle_state);
+	return cw_key_ik_notify_paddle_event(key, key->ik.dot_paddle, dash_paddle_state);
 }
 
 
@@ -1281,7 +1281,7 @@ void cw_key_ik_increment_timer_internal(volatile cw_key_t *key, int usecs)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_key_sk_notify_event_internal(volatile cw_key_t *key, int key_state)
+int cw_key_sk_notify_event(volatile cw_key_t *key, int key_state)
 {
 #if 0 /* This is disabled, but I'm not sure why. */
 	/* If the tone queue or the keyer are busy, we can't use the
@@ -1380,7 +1380,7 @@ void cw_key_sk_reset_internal(volatile cw_key_t *key)
 
 
 
-cw_key_t *cw_key_new_internal(void)
+cw_key_t *cw_key_new(void)
 {
 	cw_key_t *key = (cw_key_t *) malloc(sizeof (cw_key_t));
 	if (!key) {
@@ -1422,7 +1422,7 @@ cw_key_t *cw_key_new_internal(void)
 
 
 
-void cw_key_delete_internal(cw_key_t **key)
+void cw_key_delete(cw_key_t **key)
 {
 	cw_assert (key, "key is NULL");
 

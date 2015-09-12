@@ -104,7 +104,7 @@ enum {
    shape of tone is a property of generator rather than of tone.
 
    These names are to be used as values of argument 'slope_shape' of
-   cw_generator_set_tone_slope() function.  */
+   cw_gen_set_tone_slope() function.  */
 enum {
 	CW_TONE_SLOPE_SHAPE_LINEAR,          /* Ramp/linearly raising slope. */
 	CW_TONE_SLOPE_SHAPE_RAISED_COSINE,   /* Shape of cosine function in range <-pi - zero).  */
@@ -131,103 +131,103 @@ typedef struct cw_key_struct cw_key_t;
 
 
 /* generator module: basic functions. */
-cw_gen_t *cw_gen_new_internal(int audio_system, const char *device);
-void      cw_gen_delete_internal(cw_gen_t **gen);
-int       cw_gen_start_internal(cw_gen_t *gen);
-int       cw_gen_stop_internal(cw_gen_t *gen);
+cw_gen_t *cw_gen_new(int audio_system, const char *device);
+void      cw_gen_delete(cw_gen_t **gen);
+int       cw_gen_start(cw_gen_t *gen);
+int       cw_gen_stop(cw_gen_t *gen);
 
 
 /* generator module: getters of generator's basic parameters. */
-int cw_gen_get_speed_internal(cw_gen_t *gen);
-int cw_gen_get_frequency_internal(cw_gen_t *gen);
-int cw_gen_get_volume_internal(cw_gen_t *gen);
-int cw_gen_get_gap_internal(cw_gen_t *gen);
-int cw_gen_get_weighting_internal(cw_gen_t *gen);
+int cw_gen_get_speed(cw_gen_t *gen);
+int cw_gen_get_frequency(cw_gen_t *gen);
+int cw_gen_get_volume(cw_gen_t *gen);
+int cw_gen_get_gap(cw_gen_t *gen);
+int cw_gen_get_weighting(cw_gen_t *gen);
 
 
 /* generator module: setters of generator's basic parameters. */
-int cw_gen_set_frequency_internal(cw_gen_t *gen, int new_value);
-int cw_gen_set_volume_internal(cw_gen_t *gen, int new_value);
-int cw_gen_set_speed_internal(cw_gen_t *gen, int new_value);
-int cw_gen_set_gap_internal(cw_gen_t *gen, int new_value);
-int cw_gen_set_weighting_internal(cw_gen_t *gen, int new_value);
+int cw_gen_set_frequency(cw_gen_t *gen, int new_value);
+int cw_gen_set_volume(cw_gen_t *gen, int new_value);
+int cw_gen_set_speed(cw_gen_t *gen, int new_value);
+int cw_gen_set_gap(cw_gen_t *gen, int new_value);
+int cw_gen_set_weighting(cw_gen_t *gen, int new_value);
 
 
 /* generator module: queue functions. */
-int cw_gen_enqueue_representation_internal(cw_gen_t *gen, const char *representation, bool partial);
-int cw_gen_enqueue_character_internal(cw_gen_t *gen, char c);
-int cw_gen_enqueue_character_parital_internal(cw_gen_t *gen, char c);
-int cw_gen_enqueue_string_internal(cw_gen_t *gen, const char *string);
-/* TODO: replace usage of cw_gen_wait_for_queue_internal() with
-   cw_gen_wait_for_queue_level_internal(). */
-int cw_gen_wait_for_queue_internal(cw_gen_t *gen);
-int cw_gen_wait_for_queue_level_internal(cw_gen_t *gen, int level);
-void cw_gen_flush_queue_internal(cw_gen_t *gen);
-uint32_t cw_gen_queue_length_internal(cw_gen_t *gen);
+int cw_gen_enqueue_representation(cw_gen_t *gen, const char *representation, bool partial);
+int cw_gen_enqueue_character(cw_gen_t *gen, char c);
+int cw_gen_enqueue_character_parital(cw_gen_t *gen, char c);
+int cw_gen_enqueue_string(cw_gen_t *gen, const char *string);
+/* TODO: replace usage of cw_gen_wait_for_queue() with
+   cw_gen_wait_for_queue_level(). */
+int cw_gen_wait_for_queue(cw_gen_t *gen);
+int cw_gen_wait_for_queue_level(cw_gen_t *gen, int level);
+void cw_gen_flush_queue(cw_gen_t *gen);
+uint32_t cw_gen_queue_length(cw_gen_t *gen);
 
 
 /* generator module: misc functions. */
-int  cw_generator_set_tone_slope(cw_gen_t *gen, int slope_shape, int slope_usecs);
-const char *cw_gen_get_console_device_internal(cw_gen_t *gen);
-const char *cw_gen_get_soundcard_device_internal(cw_gen_t *gen);
-char *cw_gen_get_audio_system_label_internal(cw_gen_t *gen);
+int  cw_gen_set_tone_slope(cw_gen_t *gen, int slope_shape, int slope_usecs);
+const char *cw_gen_get_console_device(cw_gen_t *gen);
+const char *cw_gen_get_soundcard_device(cw_gen_t *gen);
+char *cw_gen_get_audio_system_label(cw_gen_t *gen);
 
 
 /* receiver module: receiver's main functions. */
-cw_rec_t *cw_rec_new_internal(void);
-void      cw_rec_delete_internal(cw_rec_t **rec);
-int cw_rec_mark_begin_internal(cw_rec_t *rec, const struct timeval *timestamp);
-int cw_rec_mark_end_internal(cw_rec_t *rec, const struct timeval *timestamp);
-int cw_rec_add_mark_internal(cw_rec_t *rec, const struct timeval *timestamp, char mark);
+cw_rec_t *cw_rec_new(void);
+void      cw_rec_delete(cw_rec_t **rec);
+int cw_rec_mark_begin(cw_rec_t *rec, const struct timeval *timestamp);
+int cw_rec_mark_end(cw_rec_t *rec, const struct timeval *timestamp);
+int cw_rec_add_mark(cw_rec_t *rec, const struct timeval *timestamp, char mark);
 #ifdef WITH_EXPERIMENTAL_RECEIVER
-void cw_rec_bind_key_internal(cw_rec_t *rec, volatile struct cw_key_struct *key);
-void cw_rec_register_push_callback_internal(cw_rec_t *rec, cw_rec_push_callback_t *callback);
+void cw_rec_bind_key(cw_rec_t *rec, volatile struct cw_key_struct *key);
+void cw_rec_register_push_callback(cw_rec_t *rec, cw_rec_push_callback_t *callback);
 #endif
 
 
 /* receiver module: receiver's helper functions. */
-int  cw_rec_poll_representation_internal(cw_rec_t *rec, const struct timeval *timestamp, char *representation, bool *is_end_of_word, bool *is_error);
-int  cw_rec_poll_character_internal(cw_rec_t *rec, const struct timeval *timestamp, char *c, bool *is_end_of_word, bool *is_error);
-void cw_rec_clear_buffer_internal(cw_rec_t *rec);
+int  cw_rec_poll_representation(cw_rec_t *rec, const struct timeval *timestamp, char *representation, bool *is_end_of_word, bool *is_error);
+int  cw_rec_poll_character(cw_rec_t *rec, const struct timeval *timestamp, char *c, bool *is_end_of_word, bool *is_error);
+void cw_rec_clear_buffer(cw_rec_t *rec);
 
 
 /* receiver module: getters of receiver's essential parameters. */
-float cw_rec_get_speed_internal(cw_rec_t *rec);
-int   cw_rec_get_tolerance_internal(cw_rec_t *rec);
-/* int   cw_rec_get_gap_internal(cw_rec_t *rec); */
-int   cw_rec_get_noise_spike_threshold_internal(cw_rec_t *rec);
-bool  cw_rec_get_adaptive_mode_internal(cw_rec_t *rec);
+float cw_rec_get_speed(cw_rec_t *rec);
+int   cw_rec_get_tolerance(cw_rec_t *rec);
+/* int   cw_rec_get_gap(cw_rec_t *rec); */
+int   cw_rec_get_noise_spike_threshold(cw_rec_t *rec);
+bool  cw_rec_get_adaptive_mode(cw_rec_t *rec);
 
 
 /* receiver module: setters of receiver's essential parameters. */
-int  cw_rec_set_speed_internal(cw_rec_t *rec, int new_value);
-int  cw_rec_set_tolerance_internal(cw_rec_t *rec, int new_value);
-int  cw_rec_set_gap_internal(cw_rec_t *rec, int new_value);
-int  cw_rec_set_noise_spike_threshold_internal(cw_rec_t *rec, int new_value);
-void cw_rec_set_adaptive_mode_internal(cw_rec_t *rec, bool adaptive);
+int  cw_rec_set_speed(cw_rec_t *rec, int new_value);
+int  cw_rec_set_tolerance(cw_rec_t *rec, int new_value);
+int  cw_rec_set_gap(cw_rec_t *rec, int new_value);
+int  cw_rec_set_noise_spike_threshold(cw_rec_t *rec, int new_value);
+void cw_rec_set_adaptive_mode(cw_rec_t *rec, bool adaptive);
 
 
 /* key module: main functions. */
-cw_key_t *cw_key_new_internal(void);
-void      cw_key_delete_internal(cw_key_t **key);
+cw_key_t *cw_key_new(void);
+void      cw_key_delete(cw_key_t **key);
 
 
 /* key module. */
 /* TODO: turn enable/disable functions into one, accepting bool value
    as second value. Just like in case of cw_rec_set_adaptive_mode(). */
-void cw_key_ik_enable_curtis_mode_b_internal(volatile cw_key_t *key);
-void cw_key_ik_disable_curtis_mode_b_internal(volatile cw_key_t *key);
-bool cw_key_ik_get_curtis_mode_b_state_internal(volatile cw_key_t *key);
-void cw_key_register_keying_callback_internal(volatile cw_key_t *key, void (*callback_func)(void*, int), void *callback_arg);
-void cw_key_ik_register_timer_internal(volatile cw_key_t *key, struct timeval *timer);
-int  cw_key_ik_notify_paddle_event_internal(volatile cw_key_t *key, int dot_paddle_state, int dash_paddle_state);
-int  cw_key_ik_notify_dash_paddle_event_internal(volatile cw_key_t *key, int dash_paddle_state);
-int  cw_key_ik_notify_dot_paddle_event_internal(volatile cw_key_t *key, int dot_paddle_state);
-int  cw_key_sk_notify_event_internal(volatile cw_key_t *key, int key_state);
+void cw_key_ik_enable_curtis_mode_b(volatile cw_key_t *key);
+void cw_key_ik_disable_curtis_mode_b(volatile cw_key_t *key);
+bool cw_key_ik_get_curtis_mode_b(volatile cw_key_t *key);
+void cw_key_register_keying_callback(volatile cw_key_t *key, void (*callback_func)(void*, int), void *callback_arg);
+void cw_key_ik_register_timer(volatile cw_key_t *key, struct timeval *timer);
+int  cw_key_ik_notify_paddle_event(volatile cw_key_t *key, int dot_paddle_state, int dash_paddle_state);
+int  cw_key_ik_notify_dash_paddle_event(volatile cw_key_t *key, int dash_paddle_state);
+int  cw_key_ik_notify_dot_paddle_event(volatile cw_key_t *key, int dot_paddle_state);
+int  cw_key_sk_notify_event(volatile cw_key_t *key, int key_state);
 /* TODO: clean up register/bind functions. It seems that there are
    some redundant functions in the code base. */
-void cw_key_register_generator_internal(volatile cw_key_t *key, cw_gen_t *gen);
-void cw_key_register_receiver_internal(volatile cw_key_t *key, cw_rec_t *rec);
+void cw_key_register_generator(volatile cw_key_t *key, cw_gen_t *gen);
+void cw_key_register_receiver(volatile cw_key_t *key, cw_rec_t *rec);
 
 
 /* General functions: audio systems. */

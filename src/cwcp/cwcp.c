@@ -363,8 +363,8 @@ void queue_dequeue_character(void)
 			c = queue_data[queue_head];
 			queue_display_highlight_character(true);
 
-			if (!cw_gen_enqueue_character_internal(gen, c)) {
-				perror("cw_gen_enqueue_character_internal");
+			if (!cw_gen_enqueue_character(gen, c)) {
+				perror("cw_gen_enqueue_character");
 				abort();
 			}
 		} else {
@@ -517,7 +517,7 @@ void queue_enqueue_random_dictionary_text(moderef_t mode, bool beginning)
 */
 void queue_transfer_character_to_libcw(void)
 {
-	if (cw_gen_queue_length_internal(gen) > 1) {
+	if (cw_gen_queue_length(gen) > 1) {
 		return;
 	}
 
@@ -1302,7 +1302,7 @@ static int interface_interpret(int c)
 	case KEY_F (1):
 	case PSEUDO_KEYF1:
 	case KEY_LEFT:
-		if (cw_gen_set_speed_internal(gen, cw_gen_get_speed_internal(gen) - CW_SPEED_STEP)) {
+		if (cw_gen_set_speed(gen, cw_gen_get_speed(gen) - CW_SPEED_STEP)) {
 			speed_update();
 		}
 		break;
@@ -1310,7 +1310,7 @@ static int interface_interpret(int c)
 	case KEY_F (2):
 	case PSEUDO_KEYF2:
 	case KEY_RIGHT:
-		if (cw_gen_set_speed_internal(gen, cw_gen_get_speed_internal(gen) + CW_SPEED_STEP)) {
+		if (cw_gen_set_speed(gen, cw_gen_get_speed(gen) + CW_SPEED_STEP)) {
 			speed_update();
 		}
 		break;
@@ -1319,7 +1319,7 @@ static int interface_interpret(int c)
 	case KEY_F (3):
 	case PSEUDO_KEYF3:
 	case KEY_END:
-		if (cw_gen_set_frequency_internal(gen, cw_gen_get_frequency_internal(gen) - CW_FREQUENCY_STEP)) {
+		if (cw_gen_set_frequency(gen, cw_gen_get_frequency(gen) - CW_FREQUENCY_STEP)) {
 			frequency_update();
 		}
 		break;
@@ -1327,21 +1327,21 @@ static int interface_interpret(int c)
 	case KEY_F (4):
 	case PSEUDO_KEYF4:
 	case KEY_HOME:
-		if (cw_gen_set_frequency_internal(gen, cw_gen_get_frequency_internal(gen) + CW_FREQUENCY_STEP)) {
+		if (cw_gen_set_frequency(gen, cw_gen_get_frequency(gen) + CW_FREQUENCY_STEP)) {
 			frequency_update();
 		}
 		break;
 
 	case KEY_F (5):
 	case PSEUDO_KEYF5:
-		if (cw_gen_set_volume_internal(gen, cw_gen_get_volume_internal(gen) - CW_VOLUME_STEP)) {
+		if (cw_gen_set_volume(gen, cw_gen_get_volume(gen) - CW_VOLUME_STEP)) {
 			volume_update();
 		}
 		break;
 
 	case KEY_F (6):
 	case PSEUDO_KEYF6:
-		if (cw_gen_set_volume_internal(gen, cw_gen_get_volume_internal(gen) + CW_VOLUME_STEP)) {
+		if (cw_gen_set_volume(gen, cw_gen_get_volume(gen) + CW_VOLUME_STEP)) {
 			volume_update();
 		}
 		break;
@@ -1350,14 +1350,14 @@ static int interface_interpret(int c)
 
 	case KEY_F (7):
 	case PSEUDO_KEYF7:
-		if (cw_gen_set_gap_internal(gen, cw_gen_get_gap_internal(gen) - CW_GAP_STEP)) {
+		if (cw_gen_set_gap(gen, cw_gen_get_gap(gen) - CW_GAP_STEP)) {
 			gap_update();
 		}
 		break;
 
 	case KEY_F (8):
 	case PSEUDO_KEYF8:
-		if (cw_gen_set_gap_internal(gen, cw_gen_get_gap_internal(gen) + CW_GAP_STEP)) {
+		if (cw_gen_set_gap(gen, cw_gen_get_gap(gen) + CW_GAP_STEP)) {
 			gap_update();
 		}
 		break;
@@ -1432,7 +1432,7 @@ static int interface_interpret(int c)
 	case PSEUDO_KEYF12:
 	case 'C' - CTRL_OFFSET:
 		queue_discard_contents();
-		cw_gen_flush_queue_internal(gen);
+		cw_gen_flush_queue(gen);
 		is_running = false;
 		break;
 
@@ -1454,7 +1454,7 @@ static int interface_interpret(int c)
 void speed_update(void)
 {
 	char buffer[CWCP_PARAM_WIDTH];
-	snprintf(buffer, CWCP_PARAM_WIDTH, _("%2d WPM"), cw_gen_get_speed_internal(gen));
+	snprintf(buffer, CWCP_PARAM_WIDTH, _("%2d WPM"), cw_gen_get_speed(gen));
 	mvwaddstr(speed_subwindow, 0, 4, buffer);
 	wrefresh(speed_subwindow);
 	return;
@@ -1467,7 +1467,7 @@ void speed_update(void)
 void frequency_update(void)
 {
 	char buffer[CWCP_PARAM_WIDTH];
-	snprintf(buffer, CWCP_PARAM_WIDTH, _("%4d Hz"), cw_gen_get_frequency_internal(gen));
+	snprintf(buffer, CWCP_PARAM_WIDTH, _("%4d Hz"), cw_gen_get_frequency(gen));
 	mvwaddstr(tone_subwindow, 0, 3, buffer);
 	wrefresh(tone_subwindow);
 	return;
@@ -1480,7 +1480,7 @@ void frequency_update(void)
 void volume_update(void)
 {
 	char buffer[CWCP_PARAM_WIDTH];
-	snprintf(buffer, CWCP_PARAM_WIDTH, _("%3d %%"), cw_gen_get_volume_internal(gen));
+	snprintf(buffer, CWCP_PARAM_WIDTH, _("%3d %%"), cw_gen_get_volume(gen));
 	mvwaddstr(volume_subwindow, 0, 4, buffer);
 	wrefresh(volume_subwindow);
 	return;
@@ -1493,7 +1493,7 @@ void volume_update(void)
 void gap_update(void)
 {
 	char buffer[CWCP_PARAM_WIDTH];
-	int value = cw_gen_get_gap_internal(gen);
+	int value = cw_gen_get_gap(gen);
 	snprintf(buffer, CWCP_PARAM_WIDTH, value == 1 ? _("%2d dot ") : _("%2d dots"), value);
 	mvwaddstr(gap_subwindow, 0, 3, buffer);
 	wrefresh(gap_subwindow);
@@ -1765,13 +1765,13 @@ int main(int argc, char **argv)
 	   60WPM, a dot is 20ms, so polling for the maximum library
 	   speed needs a 10ms (10,000usec) timeout. */
 	ui_initialize();
-	cw_gen_start_internal(gen);
+	cw_gen_start(gen);
 	while (is_running) {
 		ui_poll_user_input(fileno(stdin), 10000);
 		ui_handle_event(getch());
 	}
 
-	cw_gen_wait_for_queue_internal(gen);
+	cw_gen_wait_for_queue(gen);
 
 	return EXIT_SUCCESS;
 }
@@ -1785,8 +1785,8 @@ void cwcp_atexit(void)
 	ui_destroy();
 
 	if (gen) {
-		cw_gen_stop_internal(gen);
-		cw_gen_delete_internal(&gen);
+		cw_gen_stop(gen);
+		cw_gen_delete(&gen);
 	}
 
 	mode_clean();
