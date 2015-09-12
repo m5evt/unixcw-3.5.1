@@ -302,8 +302,8 @@ PATH_SEPARATOR = @PATH_SEPARATOR@
 PKG_CONFIG = @PKG_CONFIG@
 PKG_CONFIG_LIBDIR = @PKG_CONFIG_LIBDIR@
 PKG_CONFIG_PATH = @PKG_CONFIG_PATH@
-QT4_CFLAGS = @QT4_CFLAGS@
-QT4_LIBS = @QT4_LIBS@
+QT5_CFLAGS = @QT5_CFLAGS@
+QT5_LIBS = @QT5_LIBS@
 RANLIB = @RANLIB@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
@@ -377,9 +377,9 @@ xcwcp_SOURCES = \
 
 
 # target-specific preprocessor flags (#defs and include dirs)
-xcwcp_CPPFLAGS = $(AM_CPPFLAGS) $(AC_QT4_CFLAGS)
+xcwcp_CPPFLAGS = $(AM_CPPFLAGS) $(AC_QT5_CFLAGS) $(AC_CFLAG_PIC)
 # target-specific linker flags (objects to link)
-xcwcp_LDADD = -L$(top_builddir)/src/libcw/.libs -lcw $(AC_QT4_LIBS) $(top_builddir)/src/cwutils/lib_xcwcp.a
+xcwcp_LDADD = -L$(top_builddir)/src/libcw/.libs -lcw $(AC_QT5_LIBS) $(top_builddir)/src/cwutils/lib_xcwcp.a
 
 # copy man page to proper directory during installation
 man_MANS = xcwcp.1
@@ -875,15 +875,15 @@ uninstall-man: uninstall-man1
 
 # use $(top_builddir) instead of $(top_srcdir) because Makefile.inc is
 # (re)created at build time; if you use $(top_srcdir), you may (will?)
-# get empty $(AC_QT4_CFLAGS), $(AC_QT4_LIBS) and $(AC_QT4_MOC);
+# get empty $(AC_QT5_CFLAGS), $(AC_QT5_LIBS) and $(AC_QT5_MOC);
 -include $(top_builddir)/Makefile.inc
 
-# Qt4 magic
-# Previously the invocation of moc was: "$(AC_QT4_MOC) $< -o $@", but
+# Qt5 magic
+# Previously the invocation of moc was: "$(AC_QT5_MOC) $< -o $@", but
 # because of failed build on FreeBSD I decided to replace the "$<" and
 # "$@" symbols with file names.
 moc_application.cc: application.h
-	$(AC_QT4_MOC) application.h -o moc_application.cc
+	$(AC_QT5_MOC) application.h -o moc_application.cc
 
 # Test targets.
 # This test target will be invoked when creating deb package.
