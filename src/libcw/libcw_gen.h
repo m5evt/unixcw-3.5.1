@@ -351,15 +351,8 @@ int cw_gen_key_pure_symbol_internal(cw_gen_t *gen, char symbol);
 
 
 
-
-
-
-int   cw_gen_set_audio_device_internal(cw_gen_t *gen, const char *device);
-int   cw_gen_silence_internal(cw_gen_t *gen);
-
-
-void cw_generator_delete_internal(void);
-
+int  cw_gen_set_audio_device_internal(cw_gen_t *gen, const char *device);
+int  cw_gen_silence_internal(cw_gen_t *gen);
 void cw_gen_reset_send_parameters_internal(cw_gen_t *gen);
 void cw_gen_sync_parameters_internal(cw_gen_t *gen);
 
