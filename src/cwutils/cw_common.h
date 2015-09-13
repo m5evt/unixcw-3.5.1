@@ -70,6 +70,10 @@ typedef struct {
         int do_commands;       /* Execute embedded commands */
         int do_combinations;   /* Execute [...] combinations */
         int do_comments;       /* Allow {...} as comments */
+
+
+	/* Used only in xcwcp. */
+	int register_receiver;
 } cw_config_t;
 
 
