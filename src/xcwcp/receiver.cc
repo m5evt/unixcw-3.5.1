@@ -237,18 +237,11 @@ void Receiver::handle_mouse_event(QMouseEvent *event, bool is_reverse_paddles)
 */
 void Receiver::sk_event(bool is_down)
 {
-#ifndef WITH_EXPERIMENTAL_RECEIVER
+#if 0
 	/* Prepare timestamp for libcw on both "key up" and "key down"
-	   events. There is no code in libcw that would generate
-	   updated consecutive timestamps for us (as it does in case
-	   of iambic keyer).
-
-	   TODO: see in libcw how iambic keyer updates a timer, and
-	   how straight key does not. Apparently the timer is used to
-	   recognize and distinguish dots from dashes. Maybe straight
-	   key could have such timer as well? */
-	gettimeofday(&timer, NULL);
-	//fprintf(stderr, "time on Skey down:  %10ld : %10ld\n", timer.tv_sec, timer.tv_usec);
+	   events. */
+	gettimeofday(this->timer, NULL);
+	// fprintf(stderr, "time on Skey down:  %10ld : %10ld\n", this->timer->tv_sec, this->timer->tv_usec);
 #endif
 
 	cw_key_sk_notify_event(this->key, is_down);
@@ -269,7 +262,7 @@ void Receiver::sk_event(bool is_down)
 void Receiver::ik_left_event(bool is_down, bool is_reverse_paddles)
 {
 	is_left_down = is_down;
-#ifndef WITH_EXPERIMENTAL_RECEIVER
+#if 0
 	if (is_left_down && !is_right_down) {
 		/* Prepare timestamp for libcw, but only for initial
 		   "paddle down" event at the beginning of
@@ -278,12 +271,9 @@ void Receiver::ik_left_event(bool is_down, bool is_reverse_paddles)
 
 		   In case of iambic keyer the timestamps for every
 		   next (non-initial) "paddle up" or "paddle down"
-		   event in a character will be created by libcw.
-
-		   TODO: why libcw can't create such timestamp for
-		   first event for us? */
-		gettimeofday(&timer, NULL);
-		//fprintf(stderr, "time on Lkey down:  %10ld : %10ld\n", timer.tv_sec, timer.tv_usec);
+		   event in a character will be created by libcw. */
+		gettimeofday(this->timer, NULL);
+		//fprintf(stderr, "time on Lkey down:  %10ld : %10ld\n", this->timer->tv_sec, this->timer->tv_usec);
 	}
 #endif
 
@@ -309,7 +299,7 @@ void Receiver::ik_left_event(bool is_down, bool is_reverse_paddles)
 void Receiver::ik_right_event(bool is_down, bool is_reverse_paddles)
 {
 	is_right_down = is_down;
-#ifndef WITH_EXPERIMENTAL_RECEIVER
+#if 0
 	if (is_right_down && !is_left_down) {
 		/* Prepare timestamp for libcw, but only for initial
 		   "paddle down" event at the beginning of
@@ -319,8 +309,8 @@ void Receiver::ik_right_event(bool is_down, bool is_reverse_paddles)
 		   In case of iambic keyer the timestamps for every
 		   next (non-initial) "paddle up" or "paddle down"
 		   event in a character will be created by libcw. */
-		gettimeofday(&timer, NULL);
-		//fprintf(stderr, "time on Rkey down:  %10ld : %10ld\n", timer.tv_sec, timer.tv_usec);
+		gettimeofday(this->timer, NULL);
+		//fprintf(stderr, "time on Rkey down:  %10ld : %10ld\n", this->timer->tv_sec, this->timer->tv_usec);
 	}
 #endif
 
@@ -337,7 +327,6 @@ void Receiver::ik_right_event(bool is_down, bool is_reverse_paddles)
 
 
 
-#ifndef WITH_EXPERIMENTAL_RECEIVER
 /**
    \brief Handler for the keying callback from the CW library
    indicating that the state of a key has changed.
@@ -436,7 +425,6 @@ void Receiver::handle_libcw_keying_event(struct timeval *t, int key_state)
 
 	return;
 }
-#endif
 
 
 
@@ -487,12 +475,11 @@ void Receiver::poll_character()
 {
 	char c;
 
-	/* Don't use receiver.timer - it is used exclusively for
-	   marking initial "key down" events. Use local throw-away
-	   timer2.
+	/* Don't use receiver->timer - it is used exclusively for
+	   marking initial "key down" events. Use local timer2.
 
-	   Additionally using reveiver.timer here would mess up time
-	   intervals measured by receiver.timer, and that would
+	   Additionally using receiver->timer here would mess up time
+	   intervals measured by receiver->timer, and that would
 	   interfere with recognizing dots and dashes. */
 	struct timeval timer2;
 	gettimeofday(&timer2, NULL);
@@ -581,9 +568,8 @@ void Receiver::poll_space()
 	   will treat it as inter-word space, and communicate it over
 	   is_end_of_word.
 
-	   Don't use receiver.timer - it is used eclusively for
-	   marking initial "key down" events. Use local throw-away
-	   timer2. */
+	   Don't use receiver->timer - it is used eclusively for
+	   marking initial "key down" events. Use local timer2. */
 	struct timeval timer2;
 	gettimeofday(&timer2, NULL);
 	//fprintf(stderr, "poll_space(): %10ld : %10ld\n", timer2.tv_sec, timer2.tv_usec);
