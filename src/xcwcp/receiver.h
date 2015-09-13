@@ -80,18 +80,6 @@ namespace cw {
 		/* Clear out queued data on stop, mode change, etc. */
 		void clear();
 
-#ifndef WITH_EXPERIMENTAL_RECEIVER
-		/* Timer for measuring length of dots and dashes.
-
-		   Initial value of the timestamp is created by
-		   xcwcp's receiver on first "paddle down" event in a
-		   character. The timestamp is then updated by libcw
-		   on specific time intervals. The intervals are a
-		   function of keyboard key presses or mouse button
-		   presses recorded by xcwcp. */
-		struct timeval timer;
-#endif
-
 		cw_rec_t *rec;
 		cw_key_t *key;
 
@@ -109,14 +97,14 @@ namespace cw {
 		   the foreground. */
 		volatile int libcw_receive_errno;
 
-#ifndef WITH_EXPERIMENTAL_RECEIVER
+//#ifndef WITH_EXPERIMENTAL_RECEIVER
 		/* Safety flag to ensure that we keep the library in
 		   sync with keyer events.  Without, there's a chance
 		   that of a on-off event, one half will go to one
 		   application instance, and the other to another
 		   instance. */
 		volatile bool tracked_key_state;
-#endif
+//#endif
 
 		/* State of left and right paddle of iambic keyer. The
 		   flags are common for keying with keyboard keys and
@@ -128,6 +116,19 @@ namespace cw {
 		   both paddles separately. */
 		bool is_left_down;
 		bool is_right_down;
+
+#if 0
+		/* Timer for measuring length of dots and
+		   dashes. Owned by libcw.
+
+		   Initial value of the timestamp is created by
+		   xcwcp's receiver on first "paddle down" event in a
+		   character. The timestamp is then updated by libcw
+		   on specific time intervals. The intervals are a
+		   function of keyboard key presses or mouse button
+		   presses recorded by xcwcp. */
+		struct timeval *timer;
+#endif
 
 		/* Poll primitives to handle receive errors,
 		   characters, and inter-word spaces. */
