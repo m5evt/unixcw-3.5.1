@@ -52,17 +52,13 @@ Receiver::Receiver(Application *a, TextArea *t)
 	is_pending_inter_word_space = false;
 	libcw_receive_errno = 0;
 
-#ifndef WITH_EXPERIMENTAL_RECEIVER
 	tracked_key_state = false;
-#endif
 
 	is_left_down = false;
 	is_right_down = false;
 
 	this->rec = cw_rec_new();
 	this->key = cw_key_new();
-
-	cw_key_register_receiver(this->key, this->rec);
 }
 
 
@@ -366,9 +362,6 @@ void Receiver::handle_libcw_keying_event(struct timeval *t, int key_state)
 	if (key_state && is_pending_inter_word_space) {
 		/* Tell receiver to prepare (to make space) for
 		   receiving new character. */
-		/* FIXME: when WITH_EXPERIMENTAL_RECEIVER is defined,
-		   xcwcp won't call cw_rec_clear_buffer(). Do this
-		   somewhere else. */
 		cw_rec_clear_buffer(this->rec);
 
 		/* The tone start means that we're seeing the next
@@ -433,9 +426,7 @@ void Receiver::clear()
 	cw_rec_clear_buffer(this->rec);
 	is_pending_inter_word_space = false;
 	libcw_receive_errno = 0;
-#ifndef WITH_EXPERIMENTAL_RECEIVER
 	tracked_key_state = false;
-#endif
 
 	return;
 }

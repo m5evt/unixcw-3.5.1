@@ -97,14 +97,12 @@ namespace cw {
 		   the foreground. */
 		volatile int libcw_receive_errno;
 
-//#ifndef WITH_EXPERIMENTAL_RECEIVER
 		/* Safety flag to ensure that we keep the library in
 		   sync with keyer events.  Without, there's a chance
 		   that of a on-off event, one half will go to one
 		   application instance, and the other to another
 		   instance. */
 		volatile bool tracked_key_state;
-//#endif
 
 		/* State of left and right paddle of iambic keyer. The
 		   flags are common for keying with keyboard keys and
