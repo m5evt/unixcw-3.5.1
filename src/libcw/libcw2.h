@@ -130,6 +130,8 @@ typedef struct cw_key_struct cw_key_t;
 typedef bool (* cw_rec_push_callback_t)(int *, void *);
 #endif
 
+typedef void (* cw_key_callback_t)(struct timeval *timestamp, int key_state, void* arg);
+
 
 /* generator module: basic functions. */
 cw_gen_t *cw_gen_new(int audio_system, const char *device);
@@ -217,12 +219,11 @@ void      cw_key_delete(cw_key_t **key);
 void cw_key_ik_enable_curtis_mode_b(volatile cw_key_t *key);
 void cw_key_ik_disable_curtis_mode_b(volatile cw_key_t *key);
 bool cw_key_ik_get_curtis_mode_b(volatile cw_key_t *key);
-void cw_key_ik_register_timer(volatile cw_key_t *key, struct timeval *timer);
 int  cw_key_ik_notify_paddle_event(volatile cw_key_t *key, int dot_paddle_state, int dash_paddle_state);
 int  cw_key_ik_notify_dot_paddle_event(volatile cw_key_t *key, int dot_paddle_state);
 int  cw_key_ik_notify_dash_paddle_event(volatile cw_key_t *key, int dash_paddle_state);
 int  cw_key_sk_notify_event(volatile cw_key_t *key, int key_state);
-void cw_key_register_keying_callback(volatile cw_key_t *key, void (*callback_func)(void*, int), void *callback_arg);
+void cw_key_register_keying_callback(volatile cw_key_t *key, cw_key_callback_t callback_func, void *callback_arg);
 /* TODO: clean up register/bind functions. It seems that there are
    some redundant functions in the code base. */
 void cw_key_register_generator(volatile cw_key_t *key, cw_gen_t *gen);
