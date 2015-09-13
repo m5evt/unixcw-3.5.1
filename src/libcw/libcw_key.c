@@ -107,7 +107,7 @@ struct cw_key_struct {
 	   receiver: iambic keyer mechanism may be used to ensure a
 	   functioning iambic keyer, but there may be a
 	   different/external/3-rd party receiver that is
-	   controlled/fed by cw_key_t->key_callback function. */
+	   controlled/fed by cw_key_t->key_callback_func function. */
 	cw_rec_t *rec;
 
 #ifndef WITH_EXPERIMENTAL_RECEIVER
@@ -119,7 +119,7 @@ struct cw_key_struct {
 	   transmitter.  Here is where we keep the address of a
 	   function that is passed to us for this purpose, and a void*
 	   argument for it. */
-	void (*key_callback)(void*, int);
+	cw_key_callback_t key_callback_func;
 	void *key_callback_arg;
 #endif
 
@@ -153,13 +153,6 @@ struct cw_key_struct {
 
 		bool lock;             /* FIXME: describe why we need this flag. */
 
-#ifdef WITH_EXPERIMENTAL_RECEIVER
-		struct timeval key_timer;
-#else
-		struct timeval *timer; /* Timer for receiving of iambic keying, owned by client code. */
-#endif
-
-
 		/* Generator associated with the keyer. Should never
 		   be NULL as iambic keyer *needs* a generator to
 		   function properly (and to generate audible tones).
@@ -168,11 +161,13 @@ struct cw_key_struct {
 		/* No separate generator, use cw_key_t->gen. */
 	} ik;
 
-
 	/* Tone-queue key. */
 	struct {
 		int key_value;    /* Open/Closed, Space/Mark, NoSound/Sound. */
 	} tk;
+
+	/* Every key event needs to have a timestamp. */
+	struct timeval timer;
 };
 
 
@@ -302,45 +297,21 @@ static int cw_key_sk_enqueue_symbol_internal(volatile cw_key_t *key, int key_val
    \param callback_arg - first argument to callback_func
 */
 void cw_key_register_keying_callback(volatile cw_key_t *key,
-				     void (*callback_func)(void*, int),
+				     cw_key_callback_t callback_func,
 				     void *callback_arg)
 {
-#ifndef WITH_EXPERIMENTAL_RECEIVER
-	key->key_callback = callback_func;
+
+#ifdef WITH_EXPERIMENTAL_RECEIVER
+	fprintf(stderr, "---------- libcw: experimental receiver, not registering callback.\n");
+#else
+	fprintf(stderr, "---------- libcw: traditional receiver, registering callback.\n");
+	key->key_callback_func = callback_func;
 	key->key_callback_arg = callback_arg;
 #endif
 
 	return;
 }
 
-
-
-
-
-/**
-  Most of the time libcw just passes around key_callback_arg,
-  not caring of what type it is, and not attempting to do any
-  operations on it. On one occasion however, it needs to know whether
-  key_callback_arg is of type 'struct timeval', and if so, it
-  must do some operation on it. I could pass struct with ID as
-  key_callback_arg, but that may break some old client
-  code. Instead I've created this function that has only one, very
-  specific purpose: to pass to libcw a pointer to timer.
-
-  The timer is owned by client code, and is used to measure and clock
-  iambic keyer.
-
-  \param key
-  \param timer
-*/
-void cw_key_ik_register_timer(volatile cw_key_t *key, struct timeval *timer)
-{
-#ifndef WITH_EXPERIMENTAL_RECEIVER
-	key->ik.timer = timer;
-#endif
-
-	return;
-}
 
 
 
@@ -379,19 +350,19 @@ void cw_key_tk_set_value_internal(volatile cw_key_t *key, int key_value)
 		if (key->rec) {
 			if (key->tk.key_value) {
 				/* Key down. */
-				cw_rec_mark_begin_internal(key->rec, &key->ik.key_timer);
+				cw_rec_mark_begin(key->rec, &key->timer);
 			} else {
 				/* Key up. */
-				cw_rec_mark_end_internal(key->rec, &key->ik.key_timer);
+				cw_rec_mark_end(key->rec, &key->timer);
 			}
 		}
 #else
 		/* Call a registered callback. */
-		if (key->key_callback) {
+		if (key->key_callback_func) {
 			cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_KEYING, CW_DEBUG_INFO,
 				      "libcw/qk: ====== about to call callback, key value = %d\n", key->tk.key_value);
 
-			(*(key->key_callback))(key->key_callback_arg, key->tk.key_value);
+			(*(key->key_callback_func))(&key->timer, key->tk.key_value, key->key_callback_arg);
 		}
 #endif
 
@@ -486,9 +457,7 @@ int cw_key_sk_enqueue_symbol_internal(volatile cw_key_t *key, int key_value)
 	cw_assert (key, "key is NULL");
 	cw_assert (key->gen, "generator is NULL");
 
-#ifdef WITH_EXPERIMENTAL_RECEIVER
-	gettimeofday(&key->ik.key_timer, NULL);
-#endif
+	gettimeofday(&key->timer, NULL);
 
 	if (key->sk.key_value != key_value) {
 		cw_debug_msg (&cw_debug_object, CW_DEBUG_KEYING, CW_DEBUG_INFO,
@@ -499,11 +468,11 @@ int cw_key_sk_enqueue_symbol_internal(volatile cw_key_t *key, int key_value)
 
 #ifndef WITH_EXPERIMENTAL_RECEIVER
 		/* Call a registered callback. */
-		if (key->key_callback) {
+		if (key->key_callback_func) {
 			cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_KEYING, CW_DEBUG_INFO,
 				      "libcw/sk: ++++++ about to call callback, key value = %d\n", key_value);
 
-			(*(key->key_callback))(key->key_callback_arg, key->sk.key_value);
+			(*(key->key_callback_func))(&key->timer, key->sk.key_value, key->key_callback_arg);
 		}
 #endif
 
@@ -590,11 +559,11 @@ int cw_key_ik_enqueue_symbol_internal(volatile cw_key_t *key, int key_value, cha
 
 #ifndef WITH_EXPERIMENTAL_RECEIVER
 		/* Call a registered callback. */
-		if (key->key_callback) {
+		if (key->key_callback_func) {
 			cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_KEYING, CW_DEBUG_INFO,
 				      "libcw/ik: ------ about to call callback, key value = %d\n", key_value);
 
-			(*(key->key_callback))(key->key_callback_arg, key->ik.key_value);
+			(*(key->key_callback_func))(&key->timer, key->ik.key_value, key->key_callback_arg);
 		}
 #endif
 
@@ -954,9 +923,8 @@ int cw_key_ik_notify_paddle_event(volatile cw_key_t *key, int dot_paddle_state, 
 
 
 	if (key->ik.graph_state == KS_IDLE) {
-#ifdef WITH_EXPERIMENTAL_RECEIVER
-		gettimeofday(&key->ik.key_timer, NULL);
-#endif
+		gettimeofday(&key->timer, NULL);
+
 		/* If the current state is idle, give the state
 		   process an initial impulse. */
 		return cw_key_ik_update_state_initial_internal(key);
@@ -1352,24 +1320,12 @@ void cw_key_ik_increment_timer_internal(volatile cw_key_t *key, int usecs)
 		   in use will cause problems, so don't clock
 		   a straight key with this. */
 
-#ifdef WITH_EXPERIMENTAL_RECEIVER
 		cw_debug_msg (&cw_debug_object, CW_DEBUG_KEYING, CW_DEBUG_INFO,
 			      "libcw/ik: incrementing timer by %d [us]\n", usecs);
 
-		key->ik.key_timer.tv_usec += usecs % CW_USECS_PER_SEC;
-		key->ik.key_timer.tv_sec  += usecs / CW_USECS_PER_SEC + key->ik.key_timer.tv_usec / CW_USECS_PER_SEC;
-		key->ik.key_timer.tv_usec %= CW_USECS_PER_SEC;
-#else
-		if (key->ik.timer) {
-
-			cw_debug_msg (&cw_debug_object, CW_DEBUG_KEYING, CW_DEBUG_INFO,
-				      "libcw/ik: incrementing timer by %d [us]\n", usecs);
-
-			key->ik.timer->tv_usec += usecs % CW_USECS_PER_SEC;
-			key->ik.timer->tv_sec  += usecs / CW_USECS_PER_SEC + key->ik.timer->tv_usec / CW_USECS_PER_SEC;
-			key->ik.timer->tv_usec %= CW_USECS_PER_SEC;
-		}
-#endif
+		key->timer.tv_usec += usecs % CW_USECS_PER_SEC;
+		key->timer.tv_sec  += usecs / CW_USECS_PER_SEC + key->timer.tv_usec / CW_USECS_PER_SEC;
+		key->timer.tv_usec %= CW_USECS_PER_SEC;
 	}
 
 	return;
@@ -1529,10 +1485,8 @@ cw_key_t *cw_key_new(void)
 
 	key->ik.lock = false;
 
-#ifdef WITH_EXPERIMENTAL_RECEIVER
-	key->ik.key_timer.tv_sec = 0;
-	key->ik.key_timer.tv_usec = 0;
-#endif
+	key->timer.tv_sec = 0;
+	key->timer.tv_usec = 0;
 
 	key->tk.key_value = CW_KEY_STATE_OPEN;
 
