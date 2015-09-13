@@ -1068,7 +1068,34 @@ void Application::make_auxiliaries_begin(void)
 
 	sender = new Sender(this, textarea, config);
 	receiver = new Receiver(this, textarea);
+
 	cw_key_register_generator(receiver->key, sender->gen);
+
+	if (this->config->register_receiver) {
+		fprintf(stderr, "---------- cw_key: register receiver\n");
+		cw_key_register_receiver(receiver->key, receiver->rec);
+
+		/* Register class handler as the CW library keying event
+		   callback. It's important here that we register the static
+		   handler, since once we have been into and out of 'C', all
+		   concept of 'this' is lost.  It's the job of the static
+		   handler to work out which class instance is using the CW
+		   library, and call the instance's libcw_keying_event()
+		   function.
+
+		   The handler called back by libcw is important because it's
+		   used to send to libcw information about timings of events
+		   (key down and key up events).
+
+		   Without the callback the library can play sounds as key or
+		   paddles are pressed, but (since it doesn't receive timing
+		   parameters) it won't be able to identify entered Morse
+		   code. */
+	} else {
+		fprintf(stderr, "---------- cw_key: register callback\n");
+		cw_key_register_keying_callback(receiver->key, libcw_keying_event_static, NULL);
+	}
+
 	saved_receive_speed = cw_rec_get_speed(receiver->rec);
 
 	/* Create a timer for polling send and receive. */
@@ -1084,31 +1111,6 @@ void Application::make_auxiliaries_begin(void)
 
 void Application::make_auxiliaries_end(void)
 {
-
-#ifdef WITH_EXPERIMENTAL_RECEIVER
-	fprintf(stderr, "---------- xcwcp/application: experimental receiver, not registering callback\n");
-#else
-	fprintf(stderr, "---------- xcwcp/application: traditional receiver, registering callback\n");
-	/* Register class handler as the CW library keying event
-	   callback. It's important here that we register the static
-	   handler, since once we have been into and out of 'C', all
-	   concept of 'this' is lost.  It's the job of the static
-	   handler to work out which class instance is using the CW
-	   library, and call the instance's libcw_keying_event()
-	   function.
-
-	   The handler called back by libcw is important because it's
-	   used to send to libcw information about timings of events
-	   (key down and key up events).
-
-	   Without the callback the library can play sounds as key or
-	   paddles are pressed, but (since it doesn't receive timing
-	   parameters) it won't be able to identify entered Morse
-	   code. */
-
-	cw_key_register_keying_callback(receiver->key, libcw_keying_event_static, NULL);
-#endif
-
 	QString label("Output: ");
 	label += cw_gen_get_audio_system_label(sender->gen);
 	QLabel *sound_system = new QLabel(label);
