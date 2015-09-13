@@ -18,7 +18,7 @@
 
 #include "config.h"
 
-#include <sys/time.h> /* gettimeofday, struct timeval */
+#include <sys/time.h> /* struct timeval */
 
 #include <cerrno>
 #include <iostream>
@@ -167,7 +167,7 @@ Application::Application(cw_config_t *config) :
 
 
 
-#ifndef WITH_EXPERIMENTAL_RECEIVER
+
 /**
    This is the class-level handler for the keying callback from the CW
    library indicating that the keying state changed.  This function
@@ -176,7 +176,7 @@ Application::Application(cw_config_t *config) :
    (if any), then calls that instance's receiver handler function.
 
    This function is called in signal handler context. */
-void Application::libcw_keying_event_static(void *arg, int key_state)
+void Application::libcw_keying_event_static(struct timeval *timestamp, int key_state, void *arg)
 {
 	const Application *app = libcw_user_application_instance;
 
@@ -189,14 +189,12 @@ void Application::libcw_keying_event_static(void *arg, int key_state)
 	    && app->modeset.get_current()->is_receive()) {
 
 		//fprintf(stderr, "calling callback, stage 1 (key = %d)\n", key_state);
-
-		struct timeval *t = (struct timeval *) arg;
-		app->receiver->handle_libcw_keying_event(t, key_state);
+		app->receiver->handle_libcw_keying_event(timestamp, key_state);
 	}
 
 	return;
 }
-#endif
+
 
 
 
@@ -1087,7 +1085,10 @@ void Application::make_auxiliaries_begin(void)
 void Application::make_auxiliaries_end(void)
 {
 
-#ifndef WITH_EXPERIMENTAL_RECEIVER
+#ifdef WITH_EXPERIMENTAL_RECEIVER
+	fprintf(stderr, "---------- xcwcp/application: experimental receiver, not registering callback\n");
+#else
+	fprintf(stderr, "---------- xcwcp/application: traditional receiver, registering callback\n");
 	/* Register class handler as the CW library keying event
 	   callback. It's important here that we register the static
 	   handler, since once we have been into and out of 'C', all
@@ -1105,17 +1106,7 @@ void Application::make_auxiliaries_end(void)
 	   parameters) it won't be able to identify entered Morse
 	   code. */
 
-	cw_key_register_keying_callback(receiver->key, libcw_keying_event_static, &(receiver->timer));
-
-	/* The call above registered receiver->timer as a generic
-	   argument to a callback. However, libcw needs to know when
-	   the argument happens to be of type 'struct timeval'. This
-	   is why we have this second call, explicitly passing
-	   receiver's timer to libcw. */
-	cw_key_ik_register_timer(receiver->key, &(receiver->timer));
-
-	gettimeofday(&(receiver->timer), NULL);
-	//fprintf(stderr, "time on aux config: %10ld : %10ld\n", receiver->timer.tv_sec, receiver->timer.tv_usec);
+	cw_key_register_keying_callback(receiver->key, libcw_keying_event_static, NULL);
 #endif
 
 	QString label("Output: ");
