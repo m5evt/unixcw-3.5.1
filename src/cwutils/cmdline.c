@@ -570,6 +570,15 @@ int cw_process_option(int opt, const char *optarg, cw_config_t *config)
 		config->do_comments = false;
 		break;
 
+	case 'R':
+		if (optarg && strlen(optarg)) {
+			config->register_receiver = atoi(optarg);
+		} else {
+			fprintf(stderr, "%s: no value specified for -R ('register receiver') option\n", config->program_name);
+			return CW_FAILURE;
+		}
+		break;
+
 	case 'h':
 		cw_print_help(config);
 		exit(EXIT_SUCCESS);
