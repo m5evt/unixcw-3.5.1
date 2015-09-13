@@ -116,7 +116,7 @@ enum {
 
 
 
-/* Forward declarations of data types. */
+/* (Forward) declarations of data types. */
 struct cw_gen_struct;
 typedef struct cw_gen_struct cw_gen_t;
 
@@ -126,8 +126,9 @@ typedef struct cw_rec_struct cw_rec_t;
 struct cw_key_struct;
 typedef struct cw_key_struct cw_key_t;
 
-
-
+#ifdef WITH_EXPERIMENTAL_RECEIVER
+typedef bool (* cw_rec_push_callback_t)(int *, void *);
+#endif
 
 
 /* generator module: basic functions. */
@@ -237,7 +238,7 @@ extern bool cw_is_pa_possible(const char *device);
 extern const char *cw_get_audio_system_label(int audio_system);
 
 
-/* General functions: library data. */
+/* General functions: library metadata. */
 extern void cw_version(int *current, int *revision, int *age);
 extern void cw_license(void);
 
@@ -251,8 +252,10 @@ extern void cw_get_tolerance_limits(int *min_tolerance, int *max_tolerance);
 extern void cw_get_weighting_limits(int *min_weighting, int *max_weighting);
 
 
+#if 0 /* FIXME: what to do with this function? */
 /* General functions: other. */
 extern void cw_reset_send_receive_parameters(void);
+#endif
 
 
 /* data module: phonetic alphabet. */
@@ -260,25 +263,25 @@ extern int cw_get_maximum_phonetic_length(void);
 extern int cw_lookup_phonetic(char c, char *phonetic);
 
 
-/* data module: extended Morse code data and lookup (procedural signals). */
+/* data module: procedural characters (procedural signals). */
 extern int  cw_get_procedural_character_count(void);
 extern void cw_list_procedural_characters(char *list);
 extern int  cw_get_maximum_procedural_expansion_length(void);
 extern int  cw_lookup_procedural_character(char c, char *representation, int *is_usually_expanded);
 
 
-/* data module: core Morse code data and lookup. */
+/* data module: regular characters. */
 extern int   cw_get_character_count(void);
 extern void  cw_list_characters(char *list);
 extern int   cw_get_maximum_representation_length(void);
 extern char *cw_character_to_representation(int c);
-extern bool  cw_representation_is_valid(const char *representation);
 extern int   cw_representation_to_character(const char *representation);
 
 
-/* data module: misc. */
+/* data module: validators. */
 extern bool cw_character_is_valid(char c);
 extern bool cw_string_is_valid(const char *string);
+extern bool cw_representation_is_valid(const char *representation);
 
 
 /* signals and reset. */
