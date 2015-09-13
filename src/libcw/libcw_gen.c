@@ -80,6 +80,7 @@
 
 
 #include "libcw_gen.h"
+#include "libcw_rec.h"
 #include "libcw_debug.h"
 #include "libcw_utils.h"
 #include "libcw_signal.h"
@@ -196,7 +197,7 @@ static void  cw_gen_recalculate_slopes_internal(cw_gen_t *gen);
    The returned pointer is owned by caller.
 
    Notice that the function returns a new pointer to newly allocated
-   string. cw_generator_get_audio_system_label() returns a pointer to
+   string. cw_gen_get_audio_system_label() returns a pointer to
    static string owned by library.
 
    \param gen - generator for which to check audio system label
@@ -568,7 +569,7 @@ void cw_gen_delete(cw_gen_t **gen)
 
 	if ((*gen)->do_dequeue_and_generate) {
 		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG,
-			      "libcw: you forgot to call cw_generator_stop()");
+			      "libcw: you forgot to call cw_gen_stop()");
 		cw_gen_stop(*gen);
 	}
 
@@ -784,7 +785,7 @@ int cw_gen_stop(cw_gen_t *gen)
 int cw_gen_new_open_internal(cw_gen_t *gen, int audio_system, const char *device)
 {
 	/* FIXME: this functionality is partially duplicated in
-	   src/cwutils/cw_common.c/cw_generator_new_from_config() */
+	   src/cwutils/cw_common.c/cw_gen_new_from_config() */
 
 	/* This function deliberately checks all possible values of
 	   audio system name in separate 'if' clauses before it gives
