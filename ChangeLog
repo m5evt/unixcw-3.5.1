@@ -1,3 +1,27 @@
+2015-09-13 Kamil Ignacak
+	* xcwcp: In order for xcwcp to work as receiver, there must be
+	some kind of connection between a key and a receiver.  Until very
+	recently, the connection was possible through registering a keying
+	callback. The callback was registered in keying code, the callback
+	was called by key code (with specific args) every time state of
+	key has changed, and the callback passed the information (args)
+	about change to receiver.
+
+	Now there is also a second type of connection: to register a
+	receiver in key code. That way, instead of calling a callback that
+	called receiver code, the key code can call receiver code
+	directly. There are really only two receiver's functions called
+	from key code, so it's quite simple. One function for key down
+	event, and one function for key up event.
+
+	Thanks to new command-line arg to xcwcp, it is now possible to
+	select one or the other solution at run time. So we need to
+	compile in all stuff that previously was selected at compile time
+	with WITH_EXPERIMENTAL_RECEIVER.
+
+	The WITH_EXPERIMENTAL_RECEIVER is still present, but controls much
+	less code, and for a bit different feature.
+
 2015-09-12 Kamil Ignacak
 	* xcwcp: the application has been ported to Qt5. Build system
 	files have been modified to use Qt5 when building xcwcp.
