@@ -52,12 +52,19 @@ void xcwcp_atexit(void);
 
 namespace {
 cw_config_t *config = NULL; /* program-specific configuration */
-std::string all_options = "s:|sound,d:|device,"
-	"w:|wpm,t:|tone,v:|volume,"
-	"g:|gap,k:|weighting,"
+std::string all_options =
+	"s:|sound,"
+	"d:|device,"
+	"w:|wpm,"
+	"t:|tone,"
+	"v:|volume,"
+	"g:|gap,"
+	"k:|weighting,"
+	"R:|receiver,"  /* For development purposes, in experimental branch only. 0 - register callback in key code; 1 - register receiver in key code. */
 	// "i:|infile,F:|outfile,"
 	// "T:|time,"
-	"h|help,V|version";
+	"h|help,"
+	"V|version";
 
 
 
@@ -118,6 +125,7 @@ int main(int argc, char **argv)
 		}
 		config->has_practice_time = 0;
 		config->has_infile = false;
+		config->register_receiver = 0; /* Originally xcwcp has been using callbacks. */
 
 		if (!cw_process_argv(argc, argv, all_options.c_str(), config)) {
 			fprintf(stderr, _("%s: failed to parse command line args\n"), config->program_name);
