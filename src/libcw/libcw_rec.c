@@ -92,10 +92,6 @@
 #include "libcw_debug.h"
 #include "libcw_test.h"
 
-#ifdef WITH_EXPERIMENTAL_RECEIVER
-#include "libcw_key.h"
-#endif
-
 
 
 
@@ -309,7 +305,6 @@ struct cw_rec_struct {
 	cw_rec_averaging_t dash_averaging;
 
 #ifdef WITH_EXPERIMENTAL_RECEIVER
-	volatile struct cw_key_struct *key;
 	cw_rec_push_callback_t *push_callback;
 #endif
 };
@@ -2019,24 +2014,13 @@ void cw_rec_sync_parameters_internal(cw_rec_t *rec)
 
 
 
-void cw_rec_bind_key(cw_rec_t *rec, volatile struct cw_key_struct *key)
-{
-	rec->key = key;
-	key->rec = rec;
-
-	return;
-}
-
-
-
-
-
 void cw_rec_register_push_callback(cw_rec_t *rec, cw_rec_push_callback_t *callback)
 {
 	rec->push_callback = callback;
 
 	return;
 }
+
 
 
 

@@ -63,11 +63,6 @@ Receiver::Receiver(Application *a, TextArea *t)
 	this->key = cw_key_new();
 
 	cw_key_register_receiver(this->key, this->rec);
-
-#ifdef WITH_EXPERIMENTAL_RECEIVER
-	cw_rec_bind_key(this->rec, this->key);
-#endif
-
 }
 
 

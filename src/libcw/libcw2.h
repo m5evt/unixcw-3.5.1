@@ -182,7 +182,6 @@ int cw_rec_mark_begin(cw_rec_t *rec, const struct timeval *timestamp);
 int cw_rec_mark_end(cw_rec_t *rec, const struct timeval *timestamp);
 int cw_rec_add_mark(cw_rec_t *rec, const struct timeval *timestamp, char mark);
 #ifdef WITH_EXPERIMENTAL_RECEIVER
-void cw_rec_bind_key(cw_rec_t *rec, volatile struct cw_key_struct *key);
 void cw_rec_register_push_callback(cw_rec_t *rec, cw_rec_push_callback_t *callback);
 #endif
 
