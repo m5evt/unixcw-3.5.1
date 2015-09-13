@@ -110,7 +110,6 @@ struct cw_key_struct {
 	   controlled/fed by cw_key_t->key_callback_func function. */
 	cw_rec_t *rec;
 
-#ifndef WITH_EXPERIMENTAL_RECEIVER
 	/* External "on key state change" callback function and its
 	   argument.
 
@@ -121,7 +120,6 @@ struct cw_key_struct {
 	   argument for it. */
 	cw_key_callback_t key_callback_func;
 	void *key_callback_arg;
-#endif
 
 	/* Straight key. */
 	struct {
@@ -300,14 +298,8 @@ void cw_key_register_keying_callback(volatile cw_key_t *key,
 				     cw_key_callback_t callback_func,
 				     void *callback_arg)
 {
-
-#ifdef WITH_EXPERIMENTAL_RECEIVER
-	fprintf(stderr, "---------- libcw: experimental receiver, not registering callback.\n");
-#else
-	fprintf(stderr, "---------- libcw: traditional receiver, registering callback.\n");
 	key->key_callback_func = callback_func;
 	key->key_callback_arg = callback_arg;
-#endif
 
 	return;
 }
@@ -346,7 +338,14 @@ void cw_key_tk_set_value_internal(volatile cw_key_t *key, int key_value)
 		/* Remember the new key value. */
 		key->tk.key_value = key_value;
 
-#ifdef WITH_EXPERIMENTAL_RECEIVER
+		/* In theory client code should register either a
+		   receiver (so events from key are passed to receiver
+		   directly), or a callback (so events from key are
+		   passed to receiver through callback).
+
+		   So *in theory* only one of these "if" blocks will
+		   be executed. */
+
 		if (key->rec) {
 			if (key->tk.key_value) {
 				/* Key down. */
@@ -356,15 +355,13 @@ void cw_key_tk_set_value_internal(volatile cw_key_t *key, int key_value)
 				cw_rec_mark_end(key->rec, &key->timer);
 			}
 		}
-#else
-		/* Call a registered callback. */
+
 		if (key->key_callback_func) {
 			cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_KEYING, CW_DEBUG_INFO,
 				      "libcw/qk: ====== about to call callback, key value = %d\n", key->tk.key_value);
 
 			(*(key->key_callback_func))(&key->timer, key->tk.key_value, key->key_callback_arg);
 		}
-#endif
 
 		return;
 	} else {
@@ -466,7 +463,6 @@ int cw_key_sk_enqueue_symbol_internal(volatile cw_key_t *key, int key_value)
 		/* Remember the new key value. */
 		key->sk.key_value = key_value;
 
-#ifndef WITH_EXPERIMENTAL_RECEIVER
 		/* Call a registered callback. */
 		if (key->key_callback_func) {
 			cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_KEYING, CW_DEBUG_INFO,
@@ -474,7 +470,6 @@ int cw_key_sk_enqueue_symbol_internal(volatile cw_key_t *key, int key_value)
 
 			(*(key->key_callback_func))(&key->timer, key->sk.key_value, key->key_callback_arg);
 		}
-#endif
 
 		int rv;
 		if (key->sk.key_value == CW_KEY_STATE_CLOSED) {
@@ -557,7 +552,6 @@ int cw_key_ik_enqueue_symbol_internal(volatile cw_key_t *key, int key_value, cha
 		/* Remember the new key value. */
 		key->ik.key_value = key_value;
 
-#ifndef WITH_EXPERIMENTAL_RECEIVER
 		/* Call a registered callback. */
 		if (key->key_callback_func) {
 			cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_KEYING, CW_DEBUG_INFO,
@@ -565,7 +559,6 @@ int cw_key_ik_enqueue_symbol_internal(volatile cw_key_t *key, int key_value, cha
 
 			(*(key->key_callback_func))(&key->timer, key->ik.key_value, key->key_callback_arg);
 		}
-#endif
 
 		/* 'Pure' means without any end-of-mark spaces. */
 		int rv = cw_gen_key_pure_symbol_internal(key->gen, symbol);
@@ -694,8 +687,12 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 	key->ik.lock = true;
 
 	/* Synchronize low level timing parameters if required. */
-	cw_gen_sync_parameters_internal(key->gen);
-	cw_rec_sync_parameters_internal(key->rec);
+	if (key->gen) {
+		cw_gen_sync_parameters_internal(key->gen);
+	}
+	if (key->rec) {
+		cw_rec_sync_parameters_internal(key->rec);
+	}
 
 	int old_state = key->ik.graph_state;
 
@@ -1469,6 +1466,9 @@ cw_key_t *cw_key_new(void)
 
 	key->gen = (cw_gen_t *) NULL;
 	key->rec = (cw_rec_t *) NULL;
+
+	key->key_callback_func = NULL;
+	key->key_callback_arg = NULL;
 
 	key->sk.key_value = CW_KEY_STATE_OPEN;
 
