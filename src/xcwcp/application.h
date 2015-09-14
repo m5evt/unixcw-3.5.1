@@ -101,15 +101,9 @@ namespace cw {
 
 
 	private:
-		/* Class variable to enable sharing of the libcw
-		   across instances.  Set to the 'this' of the xcwcp
-		   instance that currently uses libcw, or NULL if no
-		   current user. */
-		static Application *libcw_user_application_instance;
-
 		QPixmap xcwcp_icon;
 
-		bool play;
+		bool is_running;
 		QPixmap start_icon;
 		QPixmap stop_icon;
 
@@ -142,10 +136,6 @@ namespace cw {
 		QMenu *help;
 		QAction *about_action;
 
-		//int file_synchronize_speed_id;
-		//int file_start_id;
-		//int file_stop_id;
-
 		/* Set of modes used by the application; initialized
 		   from dictionaries, with keyboard and receive modes
 		   added. */
@@ -164,26 +154,13 @@ namespace cw {
 		   context of a libcw tone queue low callback. */
 		QTimer *poll_timer;
 
-		/* Flag indicating if this instance is currently using
-		   the libcw. Of course xcwcp is an application that
-		   links to libcw, but this flag is for *active* use
-		   of libcw, i.e when "play"/"start" button in xcwcp's
-		   UI has been pressed. */
-		bool is_using_libcw;
-
 		/* Saved receive speed, used to reinstate adaptive
 		   tracked speed on start. */
 		int saved_receive_speed;
 
-// #ifndef WITH_EXPERIMENTAL_RECEIVER
-		/* Keying callback function for libcw.  There is a
-		   static version for the whole class, and an instance
-		   version for each object.  The class version calls
-		   the relevant instance version, based on which
-		   instance is the current registered libcw user. */
+		/* Keying callback function for libcw. */
 		static void libcw_keying_event_static(struct timeval *timestamp, int key_state, void *arg);
 		void libcw_keying_event(int key_state);
-// #endif
 
 		/* Wrappers for creating UI. */
 		void make_central_widget(void);
