@@ -1,3 +1,14 @@
+2015-09-14 Kamil Ignacak
+	* xcwcp: Code in Application class has been reviewed, simplified
+	and clarified a bit. Usage of class' static function as a callback
+	for libcw key code is described a bit better in the code. The
+	callback receives pointer to Application object as a third
+	argument to avoid a variable that is global in application.cc.
+
+	There is now no code in xcwcp that would prevent user from running
+	two instances of application in parallel (including the case where
+	one of them is being created by menu Program -> New window).
+
 2015-09-13 Kamil Ignacak
 	* xcwcp: In order for xcwcp to work as receiver, there must be
 	some kind of connection between a key and a receiver.  Until very
