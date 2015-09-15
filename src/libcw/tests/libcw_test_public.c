@@ -161,21 +161,6 @@ void test_parameter_ranges(cw_test_stats_t *stats)
 {
 	printf("libcw: %s():\n", __func__);
 
-	int txdot_usecs, txdash_usecs, end_of_element_usecs, end_of_character_usecs,
-		end_of_word_usecs, additional_usecs, adjustment_usecs;
-
-	/* Print default low level timing values. */
-	cw_reset_send_receive_parameters();
-	cw_get_send_parameters(&txdot_usecs, &txdash_usecs,
-			       &end_of_element_usecs, &end_of_character_usecs,
-			       &end_of_word_usecs, &additional_usecs,
-			       &adjustment_usecs);
-	printf("libcw: cw_get_send_parameters():\n"
-	       "libcw:     %d, %d, %d, %d, %d, %d, %d\n",
-	       txdot_usecs, txdash_usecs, end_of_element_usecs,
-	       end_of_character_usecs,end_of_word_usecs, additional_usecs,
-	       adjustment_usecs);
-
 
 	/* Test setting and getting of some basic parameters. */
 

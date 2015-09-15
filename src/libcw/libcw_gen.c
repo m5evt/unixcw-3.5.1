@@ -3215,4 +3215,64 @@ unsigned int test_cw_gen_forever_sub(int seconds, int audio_system, const char *
 
 
 
+/* cw_gen_get_send_parameters_internal() is independent of audio
+   system, so it should be ok to test it with CW_AUDIO_NULL only. */
+unsigned int test_cw_gen_get_send_parameters_internal(void)
+{
+	int p = fprintf(stdout, "libcw/gen: test_cw_gen_get_send_parameters_internal:");
+	fflush(stdout);
+
+	int initial = -5;
+
+	int dot_len = initial;
+	int dash_len = initial;
+	int eom_space_len = initial;
+	int eoc_space_len = initial;
+	int eow_space_len = initial;
+	int additional_space_len = initial;
+	int adjustment_space_len = initial;
+
+
+	cw_gen_t *gen = cw_gen_new(CW_AUDIO_NULL, NULL);
+	cw_assert (gen, "failed to create new generator");
+
+	cw_gen_reset_send_parameters_internal(gen);
+	/* Reset requires resynchronization. */
+	cw_gen_sync_parameters_internal(gen);
+
+
+	cw_gen_get_send_parameters_internal(gen,
+					    &dot_len,
+					    &dash_len,
+					    &eom_space_len,
+					    &eoc_space_len,
+					    &eow_space_len,
+					    &additional_space_len,
+					    &adjustment_space_len);
+
+	cw_assert (dot_len != initial, "failed to get dot_len, is now %d", dot_len);
+	cw_assert (dash_len != initial, "failed to get dash_len, is now %d", dash_len);
+	cw_assert (eom_space_len != initial, "failed to get eom_space_len, is now %d", eom_space_len);
+	cw_assert (eoc_space_len != initial, "failed to get eoc_space_len, is now %d", eoc_space_len);
+	cw_assert (eow_space_len != initial, "failed to get eow_space_len, is now %d", eow_space_len);
+	cw_assert (additional_space_len != initial, "failed to get additional_space_len, is now %d", additional_space_len);
+	cw_assert (adjustment_space_len != initial, "failed to get adjustment_space_len, is now %d", adjustment_space_len);
+
+
+	cw_gen_delete(&gen);
+
+
+	CW_TEST_PRINT_TEST_RESULT(false, p);
+
+	return 0;
+}
+
+
+
+
+
+
+
+
+
 #endif /* #ifdef LIBCW_UNIT_TESTS */
