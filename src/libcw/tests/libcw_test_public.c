@@ -142,20 +142,10 @@ static void test_parameter_ranges(cw_test_stats_t *stats);
 /**
    Notice that getters of parameter limits are tested in test_cw_get_x_limits()
 
-   tests::cw_set_send_speed()
-   tests::cw_get_send_speed()
    tests::cw_set_receive_speed()
    tests::cw_get_receive_speed()
-   tests::cw_set_frequency()
-   tests::cw_get_frequency()
-   tests::cw_set_volume()
-   tests::cw_get_volume()
-   tests::cw_set_gap()
-   tests::cw_get_gap()
    tests::cw_set_tolerance()
    tests::cw_get_tolerance()
-   tests::cw_set_weighting()
-   tests::cw_get_weighting()
 */
 void test_parameter_ranges(cw_test_stats_t *stats)
 {
@@ -179,13 +169,8 @@ void test_parameter_ranges(cw_test_stats_t *stats)
 
 		const char *name;
 	} test_data[] = {
-		{ cw_get_speed_limits,      cw_set_send_speed,     cw_get_send_speed,     10000,  -10000,  "send_speed"    },
 		{ cw_get_speed_limits,      cw_set_receive_speed,  cw_get_receive_speed,  10000,  -10000,  "receive_speed" },
-		{ cw_get_frequency_limits,  cw_set_frequency,      cw_get_frequency,      10000,  -10000,  "frequency"     },
-		{ cw_get_volume_limits,     cw_set_volume,         cw_get_volume,         10000,  -10000,  "volume"        },
-		{ cw_get_gap_limits,        cw_set_gap,            cw_get_gap,            10000,  -10000,  "gap"           },
 		{ cw_get_tolerance_limits,  cw_set_tolerance,      cw_get_tolerance,      10000,  -10000,  "tolerance"     },
-		{ cw_get_weighting_limits,  cw_set_weighting,      cw_get_weighting,      10000,  -10000,  "weighting"     },
 		{ NULL,                     NULL,                  NULL,                      0,       0,  NULL            }
 	};
 

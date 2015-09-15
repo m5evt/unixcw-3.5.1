@@ -367,6 +367,7 @@ unsigned int test_cw_gen_tone_slope_shape_enums(void);
 unsigned int test_cw_gen_new_delete(void);
 unsigned int test_cw_gen_forever_internal(void);
 unsigned int test_cw_gen_get_send_parameters_internal(void);
+unsigned int test_cw_gen_parameter_getters_setters(void);
 
 
 /* This is helper function (performing the real test), used in
