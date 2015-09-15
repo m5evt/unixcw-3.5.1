@@ -3330,7 +3330,9 @@ unsigned int test_cw_gen_parameter_getters_setters(void)
 		value = test_data[i].min - 1;
 		status = test_data[i].set_new_value(gen, value);
 
-		cw_assert (status == CW_FAILURE, "%s: setting value below minimum succeeded", test_data[i].name);
+		cw_assert (status == CW_FAILURE, "%s: setting value below minimum succeeded\n"
+			   "minimum is %d, attempted value is %d",
+			   test_data[i].name, test_data[i].min, value);
 		cw_assert (errno == EINVAL, "%s: setting value below minimum didn't result in EINVAL\n"
 			   "minimum is %d, attempted value is %d",
 			   test_data[i].name, test_data[i].min, value);
@@ -3342,7 +3344,9 @@ unsigned int test_cw_gen_parameter_getters_setters(void)
 		value = test_data[i].max + 1;
 		status = test_data[i].set_new_value(gen, value);
 
-		cw_assert (status == CW_FAILURE, "%s: setting value above minimum succeeded", test_data[i].name);
+		cw_assert (status == CW_FAILURE, "%s: setting value above minimum succeeded\n"
+			   "maximum is %d, attempted value is %d",
+			   test_data[i].name, test_data[i].min, value);
 		cw_assert (errno == EINVAL, "%s: setting value above maximum didn't result in EINVAL\n"
 			   "maximum is %d, attempted value is %d",
 			   test_data[i].name, test_data[i].min, value);
