@@ -2089,7 +2089,7 @@ unsigned int test_cw_rec_identify_mark_internal(void)
 
 	cw_rec_t *rec = cw_rec_new();
 	cw_assert (rec, "Failed to get new receiver\n");
-	cw_rec_set_adaptive_mode(rec, false);
+	cw_rec_disable_adaptive_mode(rec);
 
 	int speed_step = (CW_SPEED_MAX - CW_SPEED_MIN) / 10;
 
@@ -2170,7 +2170,7 @@ unsigned int test_cw_rec_with_base_data_fixed(void)
 		cw_rec_clear_buffer(rec);
 
 		cw_rec_set_speed(rec, speed);
-		cw_rec_set_adaptive_mode(rec, false);
+		cw_rec_disable_adaptive_mode(rec);
 
 		float diff = cw_rec_get_speed(rec) - speed;
 		cw_assert (diff < 0.1, "incorrect receive speed: %f != %d",
@@ -2474,7 +2474,7 @@ unsigned int test_cw_rec_with_random_data_fixed(void)
 		cw_rec_clear_buffer(rec);
 
 		cw_rec_set_speed(rec, speed);
-		cw_rec_set_adaptive_mode(rec, false);
+		cw_rec_disable_adaptive_mode(rec);
 
 		float diff = cw_rec_get_speed(rec) - speed;
 		cw_assert (diff < 0.1, "incorrect receive speed: %f != %d",
@@ -2515,7 +2515,7 @@ unsigned int test_cw_rec_with_random_data_adaptive(void)
 	cw_rec_clear_buffer(rec);
 
 	cw_rec_set_speed(rec, CW_SPEED_MAX);
-	cw_rec_set_adaptive_mode(rec, true);
+	cw_rec_enable_adaptive_mode(rec);
 
 	float diff = cw_rec_get_speed(rec) - CW_SPEED_MAX;
 	cw_assert (diff < 0.1, "incorrect receive speed: %f != %d",
