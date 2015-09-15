@@ -1087,7 +1087,7 @@ unsigned int test_cw_tq_new_delete_internal(void)
 	/* Arbitrary number of calls to new()/delete() pair. */
 	for (int i = 0; i < 40; i++) {
 		cw_tone_queue_t *tq = cw_tq_new_internal();
-		cw_assert (tq, "failed to initialize tone queue");
+		cw_assert (tq, "failed to create new tone queue");
 
 		/* Try to access some fields in cw_tone_queue_t just
 		   to be sure that the tq has been allocated
@@ -1097,7 +1097,7 @@ unsigned int test_cw_tq_new_delete_internal(void)
 		cw_assert (tq->tail == 10, "tail didn't store correct new value");
 
 		cw_tq_delete_internal(&tq);
-		cw_assert (tq == NULL, "delete() didn't set the pointer to NULL");
+		cw_assert (tq == NULL, "cw_tq_delete_internal() didn't set the pointer to NULL");
 	}
 
 	CW_TEST_PRINT_TEST_RESULT(false, p);
@@ -1117,7 +1117,7 @@ unsigned int test_cw_tq_get_capacity_internal(void)
 	int p = fprintf(stdout, "libcw/tq: cw_tq_get_capacity_internal():");
 
 	cw_tone_queue_t *tq = cw_tq_new_internal();
-	cw_assert (tq, "failed to initialize tone queue");
+	cw_assert (tq, "failed to create new tone queue");
 	for (uint32_t i = 10; i < 40; i++) {
 		/* This is a silly test, but let's have any test of
 		   the getter. */
@@ -1367,6 +1367,8 @@ unsigned int test_cw_tq_enqueue_internal_1(cw_tone_queue_t *tq)
 	/* Try adding a tone to full tq. */
 	/* This tests for potential problems with function call.
 	   Enqueueing should fail when the queue is full. */
+	cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_TONE_QUEUE, CW_DEBUG_INFO,
+		      "libcw/tq: test: adding a tone to full queue, expect \"tq is full\" message");
 	int rv = cw_tq_enqueue_internal(tq, &tone);
 	cw_assert (rv == CW_FAILURE, "was able to add tone to full queue");
 
@@ -1821,9 +1823,9 @@ unsigned int test_cw_tq_wait_for_level_internal(void)
 	CW_TONE_INIT(&tone, 20, 10000, CW_SLOPE_MODE_STANDARD_SLOPES);
 
 	for (int i = 0; i < 10; i++) {
-		cw_gen_t *gen = cw_gen_new_internal(CW_AUDIO_NULL, CW_DEFAULT_NULL_DEVICE);
+		cw_gen_t *gen = cw_gen_new(CW_AUDIO_NULL, CW_DEFAULT_NULL_DEVICE);
 		cw_assert (gen, "failed to create a tone queue\n");
-		cw_gen_start_internal(gen);
+		cw_gen_start(gen);
 
 		/* Test the function for very small values,
 		   but for a bit larger as well. */
@@ -1852,8 +1854,8 @@ unsigned int test_cw_tq_wait_for_level_internal(void)
 
 		fprintf(stderr, "          level = %d, len = %zd, diff = %d\n", level, len, diff);
 
-		cw_gen_stop_internal(gen);
-		cw_gen_delete_internal(&gen);
+		cw_gen_stop(gen);
+		cw_gen_delete(&gen);
 	}
 
 	CW_TEST_PRINT_TEST_RESULT (false, p);
