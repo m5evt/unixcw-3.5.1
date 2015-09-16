@@ -517,7 +517,7 @@ void queue_enqueue_random_dictionary_text(moderef_t mode, bool beginning)
 */
 void queue_transfer_character_to_libcw(void)
 {
-	if (cw_gen_queue_length(gen) > 1) {
+	if (cw_gen_get_queue_length(gen) > 1) {
 		return;
 	}
 

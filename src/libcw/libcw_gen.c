@@ -2750,7 +2750,7 @@ int cw_gen_wait_for_queue(cw_gen_t *gen)
 
 
 
-uint32_t cw_gen_queue_length(cw_gen_t *gen)
+uint32_t cw_gen_get_queue_length(cw_gen_t *gen)
 {
 	return cw_tq_length_internal(gen->tq);
 }

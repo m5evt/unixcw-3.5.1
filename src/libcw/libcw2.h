@@ -149,9 +149,9 @@ int cw_gen_get_weighting(cw_gen_t *gen);
 
 
 /* generator module: setters of generator's basic parameters. */
+int cw_gen_set_speed(cw_gen_t *gen, int new_value);
 int cw_gen_set_frequency(cw_gen_t *gen, int new_value);
 int cw_gen_set_volume(cw_gen_t *gen, int new_value);
-int cw_gen_set_speed(cw_gen_t *gen, int new_value);
 int cw_gen_set_gap(cw_gen_t *gen, int new_value);
 int cw_gen_set_weighting(cw_gen_t *gen, int new_value);
 
@@ -165,7 +165,7 @@ int cw_gen_enqueue_string(cw_gen_t *gen, const char *string);
 int cw_gen_wait_for_queue(cw_gen_t *gen);
 int cw_gen_wait_for_queue_level(cw_gen_t *gen, int level);
 void cw_gen_flush_queue(cw_gen_t *gen);
-uint32_t cw_gen_queue_length(cw_gen_t *gen);
+uint32_t cw_gen_get_queue_length(cw_gen_t *gen);
 
 
 /* generator module: misc functions. */

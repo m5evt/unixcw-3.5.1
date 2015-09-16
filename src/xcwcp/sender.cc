@@ -80,7 +80,7 @@ Sender::~Sender()
 void Sender::poll(const Mode *current_mode)
 {
 	if (current_mode->is_dictionary() || current_mode->is_keyboard()) {
-		if (cw_gen_queue_length(this->gen) <= 1) {
+		if (cw_gen_get_queue_length(this->gen) <= 1) {
 			/* Arrange more data for the sender.  In
 			   dictionary modes, add more random data if
 			   the queue is empty.  In keyboard mode, just
