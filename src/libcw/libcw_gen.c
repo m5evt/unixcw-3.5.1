@@ -2759,6 +2759,15 @@ size_t cw_gen_get_queue_length(cw_gen_t *gen)
 
 
 
+int cw_gen_register_low_level_callback(cw_gen_t *gen, cw_queue_low_callback_t callback_func, void *callback_arg, size_t level)
+{
+	return cw_tq_register_low_level_callback_internal(gen->tq, callback_func, callback_arg, level);
+}
+
+
+
+
+
 /* *** Unit tests *** */
 
 
