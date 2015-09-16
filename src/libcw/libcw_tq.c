@@ -811,7 +811,7 @@ int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
    \return CW_SUCCESS on successful registration
    \return CW_FAILURE on failure
 */
-int cw_tq_register_low_level_callback_internal(cw_tone_queue_t *tq, void (*callback_func)(void*), void *callback_arg, size_t level)
+int cw_tq_register_low_level_callback_internal(cw_tone_queue_t *tq, cw_queue_low_callback_t callback_func, void *callback_arg, size_t level)
 {
 	if (level >= tq->capacity) {
 		errno = EINVAL;
