@@ -64,10 +64,6 @@
 #include <errno.h>
 #include <pthread.h>
 
-#ifndef LIBCW_WITH_SIGNALS_ALTERNATIVE
-# include <signal.h> /* SIGALRM */
-#endif
-
 #include "libcw2.h"
 #include "libcw_tq.h"
 #include "libcw_gen.h"
@@ -76,6 +72,7 @@
 #ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
 # include "libcw_ipc.h"
 #else
+# include <signal.h> /* SIGALRM */
 # include "libcw_signal.h"
 #endif
 
@@ -164,7 +161,7 @@ static int      cw_tq_dequeue_sub_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 
    Allocate and initialize new tone queue structure.
 
-   testedin::test_cw_tone_queue_init_internal()
+   testedin::test_cw_tq_new_delete_internal()
 
    \return pointer to new tone queue on success
    \return NULL pointer on failure
@@ -214,6 +211,16 @@ cw_tone_queue_t *cw_tq_new_internal(void)
 
 
 
+/**
+   \brief Delete tone queue
+
+   Function deallocates all resources held by \p, deallocates the \p
+   itself, and sets the pointer to NULL.
+
+   testedin::test_cw_tq_new_delete_internal()
+
+   \param tq - tone queue to delete
+*/
 void cw_tq_delete_internal(cw_tone_queue_t **tq)
 {
 	cw_assert (tq, "pointer to tq is NULL");
@@ -267,7 +274,8 @@ void cw_tq_delete_internal(cw_tone_queue_t **tq)
    \param capacity - new capacity of queue
    \param high_water_mark - high water mark for the queue
 
-   \return CW_SUCCESS on success, CW_FAILURE otherwise
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
 */
 int cw_tq_set_capacity_internal(cw_tone_queue_t *tq, uint32_t capacity, uint32_t high_water_mark)
 {
@@ -498,7 +506,11 @@ int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 		if (tq->len) {
 			bool call_callback = cw_tq_dequeue_sub_internal(tq, tone);
 
-			/* Notify the key control function about current tone. */
+			/* Notify the key control function about
+			   current tone.
+
+			   TODO: move the call to cw_key function
+			   outside of cw_tq module. */
 			if (tq->gen && tq->gen->key) {
 				cw_key_tk_set_value_internal(tq->gen->key, tone->frequency ? CW_KEY_STATE_CLOSED : CW_KEY_STATE_OPEN);
 			}
@@ -530,7 +542,11 @@ int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 			   through function argument" state through
 			   return value. */
 
-			/* Notify the key control function about current tone. */
+			/* Notify the key control function about
+			   current tone.
+
+			   TODO: move the call to cw_key function
+			   outside of cw_tq module. */
 			if (tq->gen && tq->gen->key) {
 				cw_key_tk_set_value_internal(tq->gen->key, CW_KEY_STATE_OPEN);
 			}
@@ -564,6 +580,8 @@ int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 
    In any case, dequeued tone is returned through \p tone. \p tone
    must be a valid pointer provided by caller.
+
+   TODO: add unit tests
 
    \param tq - tone queue
    \param tone - dequeued tone (output from the function)
@@ -658,8 +676,8 @@ int cw_tq_dequeue_sub_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 
    The function does not accept tones with negative values of len.
 
-   testedin::test_cw_tq_enqueue_internal_1()
-   testedin::test_cw_tq_enqueue_internal_2()
+   testedin::test_cw_tq_enqueue_internal()
+   testedin::test_cw_tq_enqueue_args_internal()
    testedin::test_cw_tq_test_capacity_1()
    testedin::test_cw_tq_test_capacity_2()
 
@@ -838,6 +856,8 @@ bool cw_tq_is_busy_internal(cw_tone_queue_t *tq)
    blocked, the routine returns CW_FAILURE, with errno set to EDEADLK,
    to avoid indefinite waits.
 
+   TODO: add unit test for this function.
+
    \param tq - tone queue
 
    \return CW_SUCCESS on success
@@ -878,6 +898,8 @@ int cw_tq_wait_for_tone_internal(cw_tone_queue_t *tq)
    blocked, the routine returns false, with errno set to EDEADLK,
    to avoid indefinite waits.
 
+   TODO: add unit test for this function.
+
    \param tq - tone queue
 
    \return CW_SUCCESS on success
@@ -886,6 +908,12 @@ int cw_tq_wait_for_tone_internal(cw_tone_queue_t *tq)
 int cw_tq_wait_for_tone_queue_internal(cw_tone_queue_t *tq)
 {
 #ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
+
+#if 1
+	while (cw_tq_length_internal(tq)) {
+		sem_wait(&tq->level_semaphore);
+	}
+#else
 
 	/* Wait until the dequeue indicates it has hit the end of the queue. */
 	int val = 0;
@@ -896,6 +924,8 @@ int cw_tq_wait_for_tone_queue_internal(cw_tone_queue_t *tq)
 
 		int ret = sem_getvalue(&tq->semaphore, &val); /* ACHTUNG: it's tq->semaphore! */
 	} while (val);
+
+#endif
 
 #else
 	if (cw_sigalrm_is_blocked_internal()) {
@@ -928,6 +958,8 @@ int cw_tq_wait_for_tone_queue_internal(cw_tone_queue_t *tq)
    The routine returns CW_SUCCESS on success.  If called with SIGALRM
    blocked, the routine returns false, with errno set to EDEADLK, to
    avoid indefinite waits.
+
+   testedin::test_cw_tq_wait_for_level_internal()
 
    \param tq - tone queue
    \param level - low level in queue, at which to return
@@ -1069,7 +1101,7 @@ void cw_tq_flush_internal(cw_tone_queue_t *tq)
 #include "libcw_test.h"
 
 static cw_tone_queue_t *test_cw_tq_capacity_test_init(uint32_t capacity, uint32_t high_water_mark, int head_shift);
-static unsigned int test_cw_tq_enqueue_internal_1(cw_tone_queue_t *tq);
+static unsigned int test_cw_tq_enqueue_internal(cw_tone_queue_t *tq);
 static unsigned int test_cw_tq_dequeue_internal(cw_tone_queue_t *tq);
 
 
@@ -1244,11 +1276,7 @@ unsigned int test_cw_tq_next_index_internal(void)
 
 
 /**
-   The second function is just a wrapper for the first one, so this
-   test case tests both functions at once.
-
    tests::cw_tq_length_internal()
-   tests::cw_get_tone_queue_length()
 */
 unsigned int test_cw_tq_length_internal(void)
 {
@@ -1318,11 +1346,13 @@ unsigned int test_cw_tq_enqueue_dequeue_internal(void)
 {
 	cw_tone_queue_t *tq = cw_tq_new_internal();
 	cw_assert (tq, "failed to create new tone queue");
-	tq->state = CW_TQ_BUSY;
+	tq->state = CW_TQ_BUSY; /* TODO: why this assignment? */
 
 	/* Fill the tone queue with tones. */
-	unsigned int rv = test_cw_tq_enqueue_internal_1(tq);
+	unsigned int rv = test_cw_tq_enqueue_internal(tq);
 	cw_assert (rv == 0, "test of enqueue() failed");
+
+
 
 	/* Use the same (now filled) tone queue to test dequeue()
 	   function. */
@@ -1341,7 +1371,7 @@ unsigned int test_cw_tq_enqueue_dequeue_internal(void)
 /**
    tests::cw_tq_enqueue_internal()
 */
-unsigned int test_cw_tq_enqueue_internal_1(cw_tone_queue_t *tq)
+unsigned int test_cw_tq_enqueue_internal(cw_tone_queue_t *tq)
 {
 	int p = fprintf(stdout, "libcw/tq: cw_tq_enqueue_internal():");
 
@@ -1452,11 +1482,7 @@ unsigned int test_cw_tq_dequeue_internal(cw_tone_queue_t *tq)
 
 
 /**
-   The second function is just a wrapper for the first one, so this
-   test case tests both functions at once.
-
    tests::cw_tq_is_full_internal()
-   tests::cw_is_tone_queue_full()
 */
 unsigned int test_cw_tq_is_full_internal(void)
 {
@@ -1490,6 +1516,23 @@ unsigned int test_cw_tq_is_full_internal(void)
 
 	cw_assert (cw_tq_is_full_internal(tq), "tone queue is not full after adding last tone");
 
+
+
+	/* Now test the function as we dequeue tones. */
+
+	for (uint32_t i = tq->capacity; i > 0; i--) {
+		int rv = cw_tq_dequeue_internal(tq, &tone);
+		/* The 'dequeue' function has been already tested, but
+		   it won't hurt to check this simple assertion here
+		   as well. */
+		cw_assert (rv == CW_TQ_DEQUEUED, "unexpected return value from \"dequeued()\": %d", rv);
+
+		/* Here is the proper test of tested function. */
+		cw_assert (!cw_tq_is_full_internal(tq), "tone queue is full after dequeueing tone #%"PRIu32"", i);
+	}
+
+
+
 	cw_tq_delete_internal(&tq);
 
 	CW_TEST_PRINT_TEST_RESULT(false, p);
@@ -1507,10 +1550,14 @@ unsigned int test_cw_tq_is_full_internal(void)
    Function tests "capacity" property of tone queue, and also tests
    related properties: head and tail.
 
-   In this function it is done by first enqueueing N known tones to a
-   tone queue using cw_tq_enqueue_internal(), and then
-   "manually" checking content of tone queue to be sure that all the
-   tones are in place.
+   Just like in test_cw_tq_test_capacity_2(), enqueueing is done with
+   cw_tq_enqueue_internal().
+
+   Unlike test_cw_tq_test_capacity_2(), this function dequeues tones
+   using "manual" method.
+
+   After every dequeue we check that dequeued tone is the one that we
+   were expecting to get.
 
    tests::cw_tq_enqueue_internal()
 */
@@ -1529,7 +1576,9 @@ unsigned int test_cw_tq_test_capacity_1(void)
 	   different initial position at which we insert first element
 	   (tone), i.e. different position of queue's head.
 
-	   Put the guard after "capacity - 1". */
+	   Put the guard after "capacity - 1".
+
+	   TODO: allow negative head shifts in the test. */
 	int head_shifts[] = { 0, 5, 10, 29, -1, 30, -1 };
 	int s = 0;
 
@@ -1562,10 +1611,22 @@ unsigned int test_cw_tq_test_capacity_1(void)
 		for (int l = 0; l < 3; l++) {
 			for (uint32_t i = 0; i < tq->capacity; i++) {
 
-				uint32_t shifted = (i + head_shifts[s]) % (tq->capacity);
+				/* When shift of head == 0, tone with
+				   frequency 'i' is at index 'i'. But with
+				   non-zero shift of head, tone with frequency
+				   'i' is at index 'shifted_i'. */
+
+
+				uint32_t shifted_i = (i + head_shifts[s]) % (tq->capacity);
 				// fprintf(stderr, "Readback %d: position %"PRIu32": checking tone %"PRIu32", expected %"PRIu32", got %d\n",
-				// 	l, shifted, i, i, tq->queue[shifted].frequency);
-				cw_assert (tq->queue[shifted].frequency == (int) i, "frequency of dequeued tone is incorrect: %d != %d", tq->queue[shifted].frequency, (int) i);
+				// 	l, shifted_i, i, i, tq->queue[shifted_i].frequency);
+
+				/* This is the "manual" dequeue. We
+				   don't really remove the tone from
+				   tq, just checking that tone at
+				   shifted_i has correct, expected
+				   properties. */
+				cw_assert (tq->queue[shifted_i].frequency == (int) i, "frequency of dequeued tone is incorrect: %d != %d", tq->queue[shifted_i].frequency, (int) i);
 			}
 		}
 
@@ -1592,10 +1653,14 @@ unsigned int test_cw_tq_test_capacity_1(void)
    Function tests "capacity" property of tone queue, and also tests
    related properties: head and tail.
 
-   In this function it is done by first enqueueing N known tones to a
-   tone queue using cw_tq_enqueue_internal(), then dequeueing
-   the tones with cw_tq_dequeue_internal() and then checking
-   that enqueued tones are the ones that we were expecting to get.
+   Just like in test_cw_tq_test_capacity_1(), enqueueing is done with
+   cw_tq_enqueue_internal().
+
+   Unlike test_cw_tq_test_capacity_1(), this function dequeues tones
+   using cw_tq_dequeue_internal().
+
+   After every dequeue we check that dequeued tone is the one that we
+   were expecting to get.
 
    tests::cw_tq_enqueue_internal()
    tests::cw_tq_dequeue_internal()
@@ -1615,7 +1680,9 @@ unsigned int test_cw_tq_test_capacity_2(void)
 	   different initial position at which we insert first element
 	   (tone), i.e. different position of queue's head.
 
-	   Put the guard after "capacity - 1". */
+	   Put the guard after "capacity - 1".
+
+	   TODO: allow negative head shifts in the test. */
 	int head_shifts[] = { 0, 5, 10, 29, -1, 30, -1 };
 	int s = 0;
 
@@ -1639,10 +1706,9 @@ unsigned int test_cw_tq_test_capacity_2(void)
 			cw_assert (rv == CW_SUCCESS, "failed to enqueue tone #%"PRIu32"", i);
 		}
 
-
-		/* With the queue filled with valid and known data
-		   (tones), it's time to read back the data and verify
-		   that the tones were placed in correct positions, as
+		/* With the queue filled with valid and known data,
+		   it's time to read back the data and verify that the
+		   tones were placed in correct positions, as
 		   expected.
 
 		   In test_cw_tq_test_capacity_1() we did the
@@ -1661,11 +1727,16 @@ unsigned int test_cw_tq_test_capacity_2(void)
 		while ((rv = cw_tq_dequeue_internal(tq, &tone))
 		       && rv == CW_TQ_DEQUEUED) {
 
-			uint32_t shifted = (i + head_shifts[s]) % (tq->capacity);
+			/* When shift of head == 0, tone with
+			   frequency 'i' is at index 'i'. But with
+			   non-zero shift of head, tone with frequency
+			   'i' is at index 'shifted_i'. */
 
-			cw_assert (tq->queue[shifted].frequency == (int) i,
+			uint32_t shifted_i = (i + head_shifts[s]) % (tq->capacity);
+
+			cw_assert (tq->queue[shifted_i].frequency == (int) i,
 				   "position %"PRIu32": checking tone %"PRIu32", expected %"PRIu32", got %d\n",
-				   shifted, i, i, tq->queue[shifted].frequency);
+				   shifted_i, i, i, tq->queue[shifted_i].frequency);
 
 			i++;
 		}
@@ -1710,6 +1781,10 @@ unsigned int test_cw_tq_test_capacity_2(void)
    By initializing the queue with different initial positions of head
    pointer, we can test this assertion about irrelevance of initial
    head position.
+
+   The "initialize" word may be misleading. The function does not
+   enqueue any tones, it just initializes (resets) every slot in queue
+   to non-random value.
 
    Returned pointer is owned by caller.
 
@@ -1761,8 +1836,10 @@ cw_tone_queue_t *test_cw_tq_capacity_test_init(uint32_t capacity, uint32_t high_
 
    tests::cw_tq_enqueue_internal()
 */
-unsigned int test_cw_tq_enqueue_internal_2(void)
+unsigned int test_cw_tq_enqueue_args_internal(void)
 {
+	int n = printf("libcw/tq: cw_tq_enqueue_internal() arguments:");
+
 	cw_tone_queue_t *tq = cw_tq_new_internal();
 	cw_assert (tq, "failed to create a tone queue\n");
 	cw_tone_t tone;
@@ -1801,7 +1878,6 @@ unsigned int test_cw_tq_enqueue_internal_2(void)
 	cw_tq_delete_internal(&tq);
 	cw_assert (!tq, "tone queue not deleted properly\n");
 
-	int n = printf("libcw/tq: cw_tq_enqueue_internal():");
 	CW_TEST_PRINT_TEST_RESULT (false, n);
 
 	return 0;
@@ -1811,9 +1887,13 @@ unsigned int test_cw_tq_enqueue_internal_2(void)
 
 
 
-/*
+/**
+   This function creates a generator that internally uses a tone
+   queue. The generator is needed to perform automatic dequeueing
+   operations, so that cw_tq_wait_for_level_internal() can detect
+   expected level.
 
-  tests::cw_tq_wait_for_level_internal()
+   tests::cw_tq_wait_for_level_internal()
 */
 unsigned int test_cw_tq_wait_for_level_internal(void)
 {
