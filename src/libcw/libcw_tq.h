@@ -183,24 +183,24 @@ typedef struct {
 	   one.
 
 	   The index is incremented *after* adding a tone to queue. */
-	volatile uint32_t tail;
+	volatile size_t tail;
 
 	/* Head index of tone queue. Index of first (oldest) tone
 	   inserted to the queue. Index of the tone to be dequeued
 	   from the queue as a first one. */
-	volatile uint32_t head;
+	volatile size_t head;
 
 	volatile enum cw_queue_state state;
 
-	uint32_t capacity;
-	uint32_t high_water_mark;
-	uint32_t len;
+	size_t capacity;
+	size_t high_water_mark;
+	size_t len;
 
 	/* It's useful to have the tone queue dequeue function call
 	   a client-supplied callback routine when the amount of data
 	   in the queue drops below a defined low water mark.
 	   This routine can then refill the buffer, as required. */
-	volatile uint32_t low_water_mark;
+	volatile size_t low_water_mark;
 	void       (*low_water_callback)(void*);
 	void        *low_water_callback_arg;
 	/* Set to true when conditions for calling low water callback
@@ -250,13 +250,13 @@ cw_tone_queue_t *cw_tq_new_internal(void);
 void             cw_tq_delete_internal(cw_tone_queue_t **tq);
 void             cw_tq_flush_internal(cw_tone_queue_t *tq);
 
-uint32_t cw_tq_get_capacity_internal(cw_tone_queue_t *tq);
-uint32_t cw_tq_length_internal(cw_tone_queue_t *tq);
-int      cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone);
-int      cw_tq_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone);
+size_t cw_tq_get_capacity_internal(cw_tone_queue_t *tq);
+size_t cw_tq_length_internal(cw_tone_queue_t *tq);
+int    cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone);
+int    cw_tq_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone);
 
-int  cw_tq_wait_for_level_internal(cw_tone_queue_t *tq, uint32_t level);
-int  cw_tq_register_low_level_callback_internal(cw_tone_queue_t *tq, void (*callback_func)(void*), void *callback_arg, int level);
+int  cw_tq_wait_for_level_internal(cw_tone_queue_t *tq, size_t level);
+int  cw_tq_register_low_level_callback_internal(cw_tone_queue_t *tq, void (*callback_func)(void*), void *callback_arg, size_t level);
 bool cw_tq_is_busy_internal(cw_tone_queue_t *tq);
 int  cw_tq_wait_for_tone_internal(cw_tone_queue_t *tq);
 int  cw_tq_wait_for_tone_queue_internal(cw_tone_queue_t *tq);

@@ -2087,7 +2087,7 @@ int cw_gen_enqueue_eow_space_internal(cw_gen_t *gen)
 	}
 
 	cw_debug_msg (&cw_debug_object, CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG,
-		      "libcw: enqueued %d tones per eow space, tq len = %d",
+		      "libcw: enqueued %d tones per eow space, tq len = %zu",
 		      enqueued, cw_tq_length_internal(gen->tq));
 
 	return CW_SUCCESS;
@@ -2531,7 +2531,7 @@ int cw_gen_key_begin_mark_internal(cw_gen_t *gen)
 		rv = cw_tq_enqueue_internal(gen->tq, &tone);
 
 		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
-			      "libcw: tone queue: len = %"PRIu32"", cw_tq_length_internal(gen->tq));
+			      "libcw: tone queue: len = %zu", cw_tq_length_internal(gen->tq));
 	}
 
 	return rv;
@@ -2657,9 +2657,9 @@ int cw_gen_key_pure_symbol_internal(cw_gen_t *gen, char symbol)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_gen_wait_for_queue_level(cw_gen_t *gen, int level)
+int cw_gen_wait_for_queue_level(cw_gen_t *gen, size_t level)
 {
-	return cw_tq_wait_for_level_internal(gen->tq, (uint32_t) level);
+	return cw_tq_wait_for_level_internal(gen->tq, level);
 }
 
 
@@ -2750,7 +2750,7 @@ int cw_gen_wait_for_queue(cw_gen_t *gen)
 
 
 
-uint32_t cw_gen_get_queue_length(cw_gen_t *gen)
+size_t cw_gen_get_queue_length(cw_gen_t *gen)
 {
 	return cw_tq_length_internal(gen->tq);
 }

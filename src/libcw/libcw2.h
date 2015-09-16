@@ -163,9 +163,9 @@ int cw_gen_enqueue_string(cw_gen_t *gen, const char *string);
 /* TODO: replace usage of cw_gen_wait_for_queue() with
    cw_gen_wait_for_queue_level(). */
 int cw_gen_wait_for_queue(cw_gen_t *gen);
-int cw_gen_wait_for_queue_level(cw_gen_t *gen, int level);
+int cw_gen_wait_for_queue_level(cw_gen_t *gen, size_t level);
 void cw_gen_flush_queue(cw_gen_t *gen);
-uint32_t cw_gen_get_queue_length(cw_gen_t *gen);
+size_t cw_gen_get_queue_length(cw_gen_t *gen);
 
 
 /* generator module: misc functions. */
