@@ -96,7 +96,7 @@ static cw_test_function_t cw_unit_tests[] = {
 	test_cw_tq_next_index_internal,
 	test_cw_tq_length_internal,
 	test_cw_tq_enqueue_dequeue_internal,
-	test_cw_tq_enqueue_internal_2,
+	test_cw_tq_enqueue_args_internal,
 	test_cw_tq_is_full_internal,
 	test_cw_tq_test_capacity_1,
 	test_cw_tq_test_capacity_2,
