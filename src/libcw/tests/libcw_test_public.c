@@ -105,15 +105,15 @@ static int test_audio_system = CW_AUDIO_NONE;
 static void test_tone_queue_1(cw_test_stats_t *stats);
 static void test_tone_queue_2(cw_test_stats_t *stats);
 static void test_tone_queue_3(cw_test_stats_t *stats);
-static void test_tone_queue_callback(cw_test_stats_t *stats);
+static void test_tone_queue_callback(cw_gen_t *gen, cw_test_stats_t *stats);
 /* Generator module. */
 static void test_volume_functions(cw_test_stats_t *stats);
 static void test_send_primitives(cw_test_stats_t *stats);
 static void test_send_character_and_string(cw_gen_t *gen, cw_test_stats_t *stats);
 static void test_representations(cw_test_stats_t *stats);
 /* Morse key module. */
-static void test_keyer(cw_test_stats_t *stats);
-static void test_straight_key(cw_test_stats_t *stats);
+static void test_keyer(cw_key_t *key, cw_test_stats_t *stats);
+static void test_straight_key(cw_key_t *key, cw_test_stats_t *stats);
 
 
 
@@ -524,7 +524,7 @@ void test_tone_queue_3(cw_test_stats_t *stats)
 
 	return;
 }
-
+#endif
 
 
 
@@ -532,20 +532,29 @@ void test_tone_queue_3(cw_test_stats_t *stats)
 static int cw_test_tone_queue_callback_data = 999999;
 static int cw_test_helper_tq_callback_capture = false;
 
+struct cw_test_struct{
+	cw_gen_t *gen;
+	size_t *data;
+};
+
 
 /**
    tests::cw_register_tone_queue_low_callback()
 */
-void test_tone_queue_callback(cw_test_stats_t *stats)
+void test_tone_queue_callback(cw_gen_t *gen, cw_test_stats_t *stats)
 {
 	printf("libcw: %s():\n", __func__);
+
+	struct cw_test_struct s;
+	s.gen = gen;
+	s.data = &cw_test_tone_queue_callback_data;
 
 	for (int i = 1; i < 10; i++) {
 		/* Test the callback mechanism for very small values,
 		   but for a bit larger as well. */
-		int level = i <= 5 ? i : 10 * i;
+		int level = i <= 5 ? i : 3 * i;
 
-		int rv = cw_register_tone_queue_low_callback(cw_test_helper_tq_callback, (void *) &cw_test_tone_queue_callback_data, level);
+		int rv = cw_gen_register_low_level_callback(gen, cw_test_helper_tq_callback, (void *) &s, level);
 		bool failure = rv == CW_FAILURE;
 		sleep(1);
 
@@ -554,14 +563,13 @@ void test_tone_queue_callback(cw_test_stats_t *stats)
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
-
-		/* Add a lot of tones to tone queue. "a lot" means three times more than a value of trigger level. */
-		for (int j = 0; j < 3 * level; j++) {
-			int duration = 10000;
-			int f = 440;
-			rv = cw_queue_tone(duration, f);
+		/* Add a lot of tones to tone queue. "a lot" means two
+		   times more than a value of trigger level. */
+		for (int j = 0; j < 2 * level; j++) {
+			rv = cw_gen_enqueue_character(gen, 'e');
 			assert (rv);
 		}
+
 
 		/* Allow the callback to work only after initial
 		   filling of queue. */
@@ -577,20 +585,20 @@ void test_tone_queue_callback(cw_test_stats_t *stats)
 		   Since the value of trigger level is different in
 		   consecutive iterations of loop, we can test the
 		   callback for different values of trigger level. */
-		cw_wait_for_tone_queue();
+		cw_gen_wait_for_queue(gen);
 
 		/* Because of order of calling callback and decreasing
 		   length of queue, I think that it's safe to assume
 		   that there may be a difference of 1 between these
 		   two values. */
 		int diff = level - cw_test_tone_queue_callback_data;
-		failure = diff > 1;
+		failure = abs(diff) > 1;
 
 		failure ? stats->failures++ : stats->successes++;
 		n = printf("libcw: tone queue callback:           level at callback = %d:", cw_test_tone_queue_callback_data);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
-		cw_reset_tone_queue();
+		cw_gen_flush_queue(gen);
 	}
 
 
@@ -606,10 +614,12 @@ void test_tone_queue_callback(cw_test_stats_t *stats)
 static void cw_test_helper_tq_callback(void *data)
 {
 	if (cw_test_helper_tq_callback_capture) {
-	int *d = (int *) data;
-	*d = cw_get_tone_queue_length();
+		struct cw_test_struct *s = (struct cw_test_struct *) data;
+
+		*(s->data) = cw_gen_get_queue_length(s->gen);
 
 		cw_test_helper_tq_callback_capture = false;
+		fprintf(stderr, "libcw/tq: cw_test_helper_tq_callback:    captured level = %d\n", *(s->data));
 	}
 
 	return;
@@ -618,7 +628,7 @@ static void cw_test_helper_tq_callback(void *data)
 
 
 
-
+#if 0
 /**
    \brief Test control of volume
 
@@ -976,13 +986,13 @@ void test_send_character_and_string(cw_gen_t *gen, cw_test_stats_t *stats)
 
 
 
-#if 0
+
 /**
-   tests::cw_notify_keyer_paddle_event()
-   tests::cw_wait_for_keyer_element()
-   tests::cw_get_keyer_paddles()
+   tests::cw_key_ik_notify_paddle_event()
+   tests::cw_key_ik_wait_for_element()
+   tests::cw_key_ik_get_paddles()
 */
-void test_keyer(cw_test_stats_t *stats)
+void test_keyer(cw_key_t *key, cw_test_stats_t *stats)
 {
 	printf("libcw: %s():\n", __func__);
 
@@ -997,10 +1007,10 @@ void test_keyer(cw_test_stats_t *stats)
 		/* Seems like this function calls means "keyer pressed
 		   until further notice". First argument is true, so
 		   this is a dot. */
-		bool failure = !cw_notify_keyer_paddle_event(true, false);
+		bool failure = !cw_key_ik_notify_paddle_event(key, true, false);
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_notify_keyer_paddle_event(true, false):");
+		int n = printf("libcw: cw_key_ik_notify_paddle_event(key, true, false):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
@@ -1011,14 +1021,14 @@ void test_keyer(cw_test_stats_t *stats)
 		printf("libcw: testing iambic keyer dots   ");
 		fflush(stdout);
 		for (int i = 0; i < 30; i++) {
-			success = success && cw_wait_for_keyer_element();
+			success = success && cw_key_ik_wait_for_element(key);
 			putchar('.');
 			fflush(stdout);
 		}
 		putchar('\n');
 
 		!success ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_wait_for_keyer_element():");
+		n = printf("libcw: cw_key_ik_wait_for_element():");
 		CW_TEST_PRINT_TEST_RESULT (!success, n);
 	}
 
@@ -1026,7 +1036,7 @@ void test_keyer(cw_test_stats_t *stats)
 
 	/* Test: preserving of paddle states. */
 	{
-		cw_get_keyer_paddles(&dot_paddle, &dash_paddle);
+		cw_key_ik_get_paddles(key, &dot_paddle, &dash_paddle);
 		bool failure = !dot_paddle || dash_paddle;
 
 		failure ? stats->failures++ : stats->successes++;
@@ -1042,10 +1052,10 @@ void test_keyer(cw_test_stats_t *stats)
 		   "keyer pressed until further notice". Second
 		   argument is true, so this is a dash. */
 
-		bool failure = !cw_notify_keyer_paddle_event(false, true);
+		bool failure = !cw_key_ik_notify_paddle_event(key, false, true);
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_notify_keyer_paddle_event(false, true):");
+		int n = printf("libcw: cw_key_ik_notify_paddle_event(key, false, true):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
@@ -1056,14 +1066,14 @@ void test_keyer(cw_test_stats_t *stats)
 		printf("libcw: testing iambic keyer dashes ");
 		fflush(stdout);
 		for (int i = 0; i < 30; i++) {
-			success = success && cw_wait_for_keyer_element();
+			success = success && cw_key_ik_wait_for_element(key);
 			putchar('-');
 			fflush(stdout);
 		}
 		putchar('\n');
 
 		!success ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_wait_for_keyer_element():");
+		n = printf("libcw: cw_key_ik_wait_for_element():");
 		CW_TEST_PRINT_TEST_RESULT (!success, n);
 	}
 
@@ -1071,11 +1081,11 @@ void test_keyer(cw_test_stats_t *stats)
 
 	/* Test: preserving of paddle states. */
 	{
-		cw_get_keyer_paddles(&dot_paddle, &dash_paddle);
+		cw_key_ik_get_paddles(key, &dot_paddle, &dash_paddle);
 		bool failure = dot_paddle || !dash_paddle;
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_get_keyer_paddles():");
+		int n = printf("libcw: cw_key_ik_get_paddles():");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -1087,10 +1097,10 @@ void test_keyer(cw_test_stats_t *stats)
 		   "keyer pressed until further notice". Both
 		   arguments are true, so both paddles are pressed at
 		   the same time.*/
-		bool failure = !cw_notify_keyer_paddle_event(true, true);
+		bool failure = !cw_key_ik_notify_paddle_event(key, true, true);
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_notify_keyer_paddle_event(true, true):");
+		int n = printf("libcw: cw_key_ik_notify_paddle_event(true, true):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
@@ -1098,14 +1108,14 @@ void test_keyer(cw_test_stats_t *stats)
 		printf("libcw: testing iambic alternating  ");
 		fflush(stdout);
 		for (int i = 0; i < 30; i++) {
-			success = success && cw_wait_for_keyer_element();
+			success = success && cw_key_ik_wait_for_element(key);
 			putchar('#');
 			fflush(stdout);
 		}
 		putchar('\n');
 
 		!success ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_wait_for_keyer_element:");
+		n = printf("libcw: cw_key_ik_wait_for_element:");
 		CW_TEST_PRINT_TEST_RESULT (!success, n);
 	}
 
@@ -1113,11 +1123,11 @@ void test_keyer(cw_test_stats_t *stats)
 
 	/* Test: preserving of paddle states. */
 	{
-		cw_get_keyer_paddles(&dot_paddle, &dash_paddle);
+		cw_key_ik_get_paddles(key, &dot_paddle, &dash_paddle);
 		bool failure = !dot_paddle || !dash_paddle;
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_get_keyer_paddles():");
+		int n = printf("libcw: cw_key_ik_get_paddles():");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -1125,14 +1135,14 @@ void test_keyer(cw_test_stats_t *stats)
 
 	/* Test: set new state of paddles: no paddle pressed. */
 	{
-		bool failure = !cw_notify_keyer_paddle_event(false, false);
+		bool failure = !cw_key_ik_notify_paddle_event(key, false, false);
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_notify_keyer_paddle_event(false, false):");
+		int n = printf("libcw: cw_key_ik_notify_paddle_event(false, false):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
-	cw_wait_for_keyer();
+	cw_key_ik_wait_for_keyer(key);
 
 
 	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
@@ -1145,11 +1155,11 @@ void test_keyer(cw_test_stats_t *stats)
 
 
 /**
-   tests::cw_notify_straight_key_event()
-   tests::cw_get_straight_key_state()
-   tests::cw_is_straight_key_busy()
+   tests::cw_key_sk_notify_event()
+   tests::cw_key_sk_get_state()
+   tests::cw_key_sk_is_busy()
 */
-void test_straight_key(cw_test_stats_t *stats)
+void test_straight_key(cw_key_t *key, cw_test_stats_t *stats)
 {
 	printf("libcw: %s():\n", __func__);
 
@@ -1162,28 +1172,28 @@ void test_straight_key(cw_test_stats_t *stats)
 		   library that the key is not pressed.  TODO: why we
 		   have N identical calls in a row? */
 		for (int i = 0; i < 10; i++) {
-			if (!cw_notify_straight_key_event(CW_KEY_STATE_OPEN)) {
+			if (!cw_key_sk_notify_event(key, CW_KEY_STATE_OPEN)) {
 				event_failure = true;
 				break;
 			}
 
-			if (cw_get_straight_key_state()) {
+			if (cw_key_sk_get_state(key)) {
 				state_failure = true;
 				break;
 			}
 
-			if (cw_is_straight_key_busy()) {
+			if (cw_key_sk_is_busy(key)) {
 				busy_failure = true;
 				break;
 			}
 		}
 
 		event_failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_notify_straight_key_event(<key open>):");
+		int n = printf("libcw: cw_key_sk_notify_event(<key open>):");
 		CW_TEST_PRINT_TEST_RESULT (event_failure, n);
 
 		state_failure ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_get_straight_key_state():");
+		n = printf("libcw: cw_key_sk_get_state():");
 		CW_TEST_PRINT_TEST_RESULT (state_failure, n);
 
 		busy_failure ? stats->failures++ : stats->successes++;
@@ -1201,17 +1211,17 @@ void test_straight_key(cw_test_stats_t *stats)
 		/* Again not sure why we have N identical calls in a
 		   row. TODO: why? */
 		for (int i = 0; i < 10; i++) {
-			if (!cw_notify_straight_key_event(CW_KEY_STATE_CLOSED)) {
+			if (!cw_key_sk_notify_event(key, CW_KEY_STATE_CLOSED)) {
 				event_failure = true;
 				break;
 			}
 
-			if (!cw_get_straight_key_state()) {
+			if (!cw_key_sk_get_state(key)) {
 				state_failure = true;
 				break;
 			}
 
-			if (!cw_is_straight_key_busy()) {
+			if (!cw_key_sk_is_busy(key)) {
 				busy_failure = true;
 				break;
 			}
@@ -1219,11 +1229,11 @@ void test_straight_key(cw_test_stats_t *stats)
 
 
 		event_failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_notify_straight_key_event(<key closed>):");
+		int n = printf("libcw: cw_key_sk_notify_event(<key closed>):");
 		CW_TEST_PRINT_TEST_RESULT (event_failure, n);
 
 		state_failure ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_get_straight_key_state():");
+		n = printf("libcw: cw_key_sk_get_state():");
 		CW_TEST_PRINT_TEST_RESULT (state_failure, n);
 
 		busy_failure ? stats->failures++ : stats->successes++;
@@ -1241,23 +1251,23 @@ void test_straight_key(cw_test_stats_t *stats)
 
 		/* Even more identical calls. TODO: why? */
 		for (int i = 0; i < 10; i++) {
-			if (!cw_notify_straight_key_event(CW_KEY_STATE_OPEN)) {
+			if (!cw_key_sk_notify_event(key, CW_KEY_STATE_OPEN)) {
 				event_failure = true;
 				break;
 			}
 		}
 
 		event_failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_notify_straight_key_event(<key open>):");
+		int n = printf("libcw: cw_key_sk_notify_event(<key open>):");
 		CW_TEST_PRINT_TEST_RESULT (event_failure, n);
 
 
 		/* The key should be open, the function should return false. */
-		int state = cw_get_straight_key_state();
+		int state = cw_key_sk_get_state(key);
 		state_failure = state != CW_KEY_STATE_OPEN;
 
 		state_failure ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_get_straight_key_state():");
+		n = printf("libcw: cw_key_sk_get_state():");
 		CW_TEST_PRINT_TEST_RESULT (state_failure, n);
 	}
 
@@ -1266,7 +1276,7 @@ void test_straight_key(cw_test_stats_t *stats)
 
 	return;
 }
-#endif
+
 
 
 
@@ -1395,18 +1405,20 @@ void cw_test_setup(cw_gen_t *gen)
 
 
 
-#if 0
+
 /* Tests that are dependent on a sound system being configured.
    Tone queue module functions */
-static void (*const CW_TEST_FUNCTIONS_DEP_T[])(cw_test_stats_t *) = {
+static void (*const CW_TEST_FUNCTIONS_DEP_T[])(cw_gen_t *gen, cw_test_stats_t *) = {
+#if 0
 	test_tone_queue_1,
 	test_tone_queue_2,
 	test_tone_queue_3,
+#endif
 	test_tone_queue_callback,
 
 	NULL
 };
-#endif
+
 
 /* Tests that are dependent on a sound system being configured.
    Generator module functions. */
@@ -1423,16 +1435,16 @@ static void (*const CW_TEST_FUNCTIONS_DEP_G[])(cw_gen_t *, cw_test_stats_t *) = 
 	NULL
 };
 
-#if 0
+
 /* Tests that are dependent on a sound system being configured.
    Morse key module functions */
-static void (*const CW_TEST_FUNCTIONS_DEP_K[])(cw_test_stats_t *) = {
+static void (*const CW_TEST_FUNCTIONS_DEP_K[])(cw_key_t *key, cw_test_stats_t *) = {
 	test_keyer,
 	test_straight_key,
 
 	NULL
 };
-#endif
+
 
 /* Tests that are dependent on a sound system being configured.
    Other modules' functions. */
@@ -1471,6 +1483,14 @@ int cw_test_dependent_with(int audio_system, const char *modules, cw_test_stats_
 		fprintf(stderr, "libcw: can't create generator, stopping the test\n");
 		return -1;
 	}
+
+	cw_key_t *key = cw_key_new();
+	if (!key) {
+		fprintf(stderr, "libcw: can't create key, stopping the test\n");
+		return -1;
+	}
+	cw_key_register_generator(key, gen);
+
 	int rv = cw_gen_start(gen);
 	if (rv != 1) {
 		fprintf(stderr, "libcw: can't start generator, stopping the test\n");
@@ -1478,14 +1498,14 @@ int cw_test_dependent_with(int audio_system, const char *modules, cw_test_stats_
 		return -1;
 	}
 
-#if 0
+
 	if (strstr(modules, "t")) {
 		for (int test = 0; CW_TEST_FUNCTIONS_DEP_T[test]; test++) {
 			cw_test_setup(gen);
-			(*CW_TEST_FUNCTIONS_DEP_T[test])(stats);
+	                (*CW_TEST_FUNCTIONS_DEP_T[test])(gen, stats);
 		}
 	}
-#endif
+
 
 	if (strstr(modules, "g")) {
 		for (int test = 0; CW_TEST_FUNCTIONS_DEP_G[test]; test++) {
@@ -1494,14 +1514,14 @@ int cw_test_dependent_with(int audio_system, const char *modules, cw_test_stats_
 		}
 	}
 
-#if 0
+
 	if (strstr(modules, "k")) {
 		for (int test = 0; CW_TEST_FUNCTIONS_DEP_K[test]; test++) {
 			cw_test_setup(gen);
-			(*CW_TEST_FUNCTIONS_DEP_K[test])(stats);
+	                (*CW_TEST_FUNCTIONS_DEP_K[test])(key, stats);
 		}
 	}
-#endif
+
 
 	if (strstr(modules, "o")) {
 		for (int test = 0; CW_TEST_FUNCTIONS_DEP_O[test]; test++) {
@@ -1510,6 +1530,10 @@ int cw_test_dependent_with(int audio_system, const char *modules, cw_test_stats_
 		}
 	}
 
+
+
+	sleep(1);
+	cw_key_delete(&key);
 
 	sleep(1);
 	cw_gen_stop(gen);
