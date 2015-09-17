@@ -122,7 +122,6 @@ static void test_representations(cw_test_stats_t *stats);
 static void test_keyer(cw_test_stats_t *stats);
 static void test_straight_key(cw_test_stats_t *stats);
 /* Other functions. */
-static void test_parameter_ranges(cw_test_stats_t *stats);
 //static void test_cw_gen_forever_public(cw_test_stats_t *stats);
 
 // static void cw_test_delayed_release(cw_test_stats_t *stats);
@@ -134,104 +133,6 @@ static void test_parameter_ranges(cw_test_stats_t *stats);
 /*---------------------------------------------------------------------*/
 /*  Unit tests                                                         */
 /*---------------------------------------------------------------------*/
-
-
-
-
-
-/**
-   Notice that getters of parameter limits are tested in test_cw_get_x_limits()
-
-   tests::cw_set_receive_speed()
-   tests::cw_get_receive_speed()
-   tests::cw_set_tolerance()
-   tests::cw_get_tolerance()
-*/
-void test_parameter_ranges(cw_test_stats_t *stats)
-{
-	printf("libcw: %s():\n", __func__);
-
-
-	/* Test setting and getting of some basic parameters. */
-
-	struct {
-		/* There are tree functions that take part in the
-		   test: first gets range of acceptable values,
-		   seconds sets a new value of parameter, and third
-		   reads back the value. */
-
-		void (* get_limits)(int *min, int *max);
-		int (* set_new_value)(int new_value);
-		int (* get_value)(void);
-
-		int min; /* Minimal acceptable value of parameter. */
-		int max; /* Maximal acceptable value of parameter. */
-
-		const char *name;
-	} test_data[] = {
-		{ cw_get_speed_limits,      cw_set_receive_speed,  cw_get_receive_speed,  10000,  -10000,  "receive_speed" },
-		{ cw_get_tolerance_limits,  cw_set_tolerance,      cw_get_tolerance,      10000,  -10000,  "tolerance"     },
-		{ NULL,                     NULL,                  NULL,                      0,       0,  NULL            }
-	};
-
-
-	for (int i = 0; test_data[i].get_limits; i++) {
-
-		int status;
-		bool failure;
-
-		/* Get limits of values to be tested. */
-		/* Notice that getters of parameter limits are tested
-		   in test_cw_get_x_limits(). */
-		test_data[i].get_limits(&test_data[i].min, &test_data[i].max);
-
-
-
-		/* Test out-of-range value lower than minimum. */
-		errno = 0;
-		status = test_data[i].set_new_value(test_data[i].min - 1);
-		failure = status || errno != EINVAL;
-
-		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_set_%s(min - 1):", test_data[i].name);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-
-
-
-		/* Test out-of-range value higher than maximum. */
-		errno = 0;
-		status = test_data[i].set_new_value(test_data[i].max + 1);
-		failure = status || errno != EINVAL;
-
-		failure ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_set_%s(max + 1):", test_data[i].name);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-
-
-
-		/* Test in-range values. */
-		failure = false;
-		for (int j = test_data[i].min; j <= test_data[i].max; j++) {
-			test_data[i].set_new_value(j);
-			if (test_data[i].get_value() != j) {
-				failure = true;
-				break;
-			}
-		}
-
-		failure ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_get/set_%s():", test_data[i].name);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-
-
-		failure = false;
-	}
-
-
-	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
-
-	return;
-}
 
 
 
@@ -1647,7 +1548,6 @@ static void (*const CW_TEST_FUNCTIONS_DEP_K[])(cw_test_stats_t *) = {
 /* Tests that are dependent on a sound system being configured.
    Other modules' functions. */
 static void (*const CW_TEST_FUNCTIONS_DEP_O[])(cw_test_stats_t *) = {
-	test_parameter_ranges,
 	//test_cw_gen_forever_public,
 
 	//cw_test_delayed_release,
