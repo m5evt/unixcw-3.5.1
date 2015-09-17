@@ -2768,6 +2768,24 @@ int cw_gen_register_low_level_callback(cw_gen_t *gen, cw_queue_low_callback_t ca
 
 
 
+int cw_gen_wait_for_tone(cw_gen_t *gen)
+{
+	return cw_tq_wait_for_tone_internal(gen->tq);
+}
+
+
+
+
+
+bool cw_gen_is_queue_full(cw_gen_t *gen)
+{
+	return cw_tq_is_full_internal(gen->tq);
+}
+
+
+
+
+
 /* *** Unit tests *** */
 
 

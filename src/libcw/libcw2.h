@@ -167,6 +167,7 @@ int cw_gen_enqueue_string(cw_gen_t *gen, const char *string);
    cw_gen_wait_for_queue_level(). */
 int cw_gen_wait_for_queue(cw_gen_t *gen);
 int cw_gen_wait_for_queue_level(cw_gen_t *gen, size_t level);
+int cw_gen_wait_for_tone(cw_gen_t *gen);
 void cw_gen_flush_queue(cw_gen_t *gen);
 size_t cw_gen_get_queue_length(cw_gen_t *gen);
 int cw_gen_register_low_level_callback(cw_gen_t *gen, cw_queue_low_callback_t callback_func, void *callback_arg, size_t level);
@@ -177,6 +178,7 @@ int  cw_gen_set_tone_slope(cw_gen_t *gen, int slope_shape, int slope_usecs);
 const char *cw_gen_get_console_device(cw_gen_t *gen);
 const char *cw_gen_get_soundcard_device(cw_gen_t *gen);
 char *cw_gen_get_audio_system_label(cw_gen_t *gen);
+bool cw_gen_is_queue_full(cw_gen_t *gen);
 
 
 /* receiver module: receiver's main functions. */
