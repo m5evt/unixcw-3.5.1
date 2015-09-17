@@ -1067,7 +1067,7 @@ int cw_key_ik_notify_dash_paddle_event(volatile cw_key_t *key, int dash_paddle_s
    \param dot_paddle_state
    \param dash_paddle_state
 */
-void cw_key_ik_get_paddles_internal(volatile cw_key_t *key, int *dot_paddle_state, int *dash_paddle_state)
+void cw_key_ik_get_paddles(volatile cw_key_t *key, int *dot_paddle_state, int *dash_paddle_state)
 {
 	if (dot_paddle_state) {
 		*dot_paddle_state = key->ik.dot_paddle;
@@ -1142,7 +1142,7 @@ bool cw_key_ik_is_busy_internal(volatile cw_key_t *key)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_key_ik_wait_for_element_internal(volatile cw_key_t *key)
+int cw_key_ik_wait_for_element(volatile cw_key_t *key)
 {
 #ifndef LIBCW_WITH_SIGNALS_ALTERNATIVE
 	if (cw_sigalrm_is_blocked_internal()) {
@@ -1200,7 +1200,6 @@ int cw_key_ik_wait_for_element_internal(volatile cw_key_t *key)
 
 
 
-
 /**
    \brief Wait for the current keyer cycle to complete
 
@@ -1213,7 +1212,7 @@ int cw_key_ik_wait_for_element_internal(volatile cw_key_t *key)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_key_ik_wait_for_keyer_internal(volatile cw_key_t *key)
+int cw_key_ik_wait_for_keyer(volatile cw_key_t *key)
 {
 #ifndef LIBCW_WITH_SIGNALS_ALTERNATIVE
 	if (cw_sigalrm_is_blocked_internal()) {
@@ -1399,7 +1398,7 @@ int cw_key_sk_notify_event(volatile cw_key_t *key, int key_state)
    \return CW_KEY_STATE_CLOSED (true) if the key is down
    \return CW_KEY_STATE_OPEN (false) if the key up
 */
-int cw_key_sk_get_state_internal(volatile cw_key_t *key)
+int cw_key_sk_get_state(volatile cw_key_t *key)
 {
 	return key->sk.key_value;
 }
@@ -1412,7 +1411,7 @@ int cw_key_sk_get_state_internal(volatile cw_key_t *key)
    \brief Check if the straight key is busy
 
    This routine is just a pseudonym for
-   cw_key_sk_get_state_internal(), and exists to fill a hole in the
+   cw_key_sk_get_state(), and exists to fill a hole in the
    API naming conventions. TODO: verify if this function is needed in
    new API.
 
@@ -1421,7 +1420,7 @@ int cw_key_sk_get_state_internal(volatile cw_key_t *key)
    \return true if the straight key is busy
    \return false if the straight key is not busy
 */
-bool cw_key_sk_is_busy_internal(volatile cw_key_t *key)
+bool cw_key_sk_is_busy(volatile cw_key_t *key)
 {
 	return key->sk.key_value;
 }
