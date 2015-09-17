@@ -31,7 +31,7 @@
 #include <stdlib.h>
 #include <unistd.h> /* sleep() */
 
-#include "libcw.h"
+#include "libcw2.h"
 
 #include "libcw_test.h"
 
@@ -121,27 +121,30 @@ void main_helper(int audio_system, const char *name, const char *device, predica
 
 	rv = predicate(device);
 	if (rv == CW_SUCCESS) {
-		rv = cw_generator_new(audio_system, device);
+		cw_gen_t *gen = cw_gen_new(audio_system, device);
 		if (rv == CW_SUCCESS) {
-			cw_reset_send_receive_parameters();
-			cw_set_send_speed(12);
-			cw_generator_start();
+
+			/* TODO: perhaps these should go into cw_gen_new(). */
+			cw_gen_reset_send_parameters_internal(gen);
+			/* Reset requires resynchronization. */
+			cw_gen_sync_parameters_internal(gen);
+
+			cw_gen_set_speed(gen, 12);
+			cw_gen_start(gen);
 
 			//cw_send_string("abcdefghijklmnopqrstuvwyz0123456789");
-			cw_send_string("eish ");
-			cw_wait_for_tone_queue();
+			cw_gen_enqueue_string(gen, "eish ");
+			cw_gen_wait_for_queue(gen);
 
-			cw_send_string("two");
-			cw_wait_for_tone_queue();
+			cw_gen_enqueue_string(gen, "two");
+			cw_gen_wait_for_queue(gen);
 
-			cw_send_string("three");
-			cw_wait_for_tone_queue();
+			cw_gen_enqueue_string(gen, "three");
+			cw_gen_wait_for_queue(gen);
 
-			cw_wait_for_tone_queue();
+			cw_gen_stop(gen);
 
-			cw_generator_stop();
-
-			cw_generator_delete();
+			cw_gen_delete(&gen);
 		} else {
 			cw_debug_msg ((&cw_debug_object), CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
 				      "libcw: can't create %s generator", name);

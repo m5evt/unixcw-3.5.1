@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <unistd.h> /* sleep() */
-#include <libcw.h>
+#include "libcw2.h"
 
 
 /* This test checks presence of a specific bug in tone queue. The bug
@@ -22,7 +22,7 @@
    treating the bug as related to tone queue.
 */
 
-void cwdaemon_tone_queue_low_callback(__attribute__((unused)) void *arg);
+void tone_queue_low_callback(__attribute__((unused)) void *arg);
 
 
 /* Callback to be called when tone queue level passes this mark. */
@@ -45,10 +45,10 @@ int main(void)
 	fflush(stdout);
 
         /* Library initialization. */
-        cw_generator_new(CW_AUDIO_SOUNDCARD, NULL);
-        cw_generator_start();
+        cw_gen_t *gen = cw_gen_new(CW_AUDIO_SOUNDCARD, NULL);
+        cw_gen_start(gen);
 
-	cw_register_tone_queue_low_callback(cwdaemon_tone_queue_low_callback, NULL, tq_low_watermark);
+	cw_gen_register_low_level_callback(gen, tone_queue_low_callback, NULL, tq_low_watermark);
 
 	/* Expected number of calls to the callback with correct
 	   implementation of tone queue in libcw. */
@@ -58,7 +58,7 @@ int main(void)
 	/* Let's test this for a full range of supported speeds (from
 	   min to max). MIN and MAX are even numbers, so +=2 is ok. */
 	for (speed = CW_SPEED_MIN; speed <= CW_SPEED_MAX; speed += 2) {
-		cw_set_send_speed(speed);
+		cw_gen_set_speed(gen, speed);
 
 		fprintf(stdout, "speed = %d\n", speed);
 		fflush(stdout);
@@ -70,15 +70,15 @@ int main(void)
 		   In incorrect implementation of libcw's tone queue
 		   the event of passing tq_low_watermark threshold
 		   will be missed and callback won't be called. */
-		cw_send_character(' ');
+		cw_gen_enqueue_character(gen, ' ');
 
-		cw_wait_for_tone_queue();
+		cw_gen_wait_for_queue(gen);
 	}
 
 
         /* Library cleanup. */
-        cw_generator_stop();
-        cw_generator_delete();
+        cw_gen_stop(gen);
+        cw_gen_delete(&gen);
 
 
 	fprintf(stdout, "expected %d calls, actual calls: %d\n", n_expected, n_calls);
@@ -100,7 +100,7 @@ int main(void)
 
 
 
-void cwdaemon_tone_queue_low_callback(__attribute__((unused)) void *arg)
+void tone_queue_low_callback(__attribute__((unused)) void *arg)
 {
 	fprintf(stdout, "speed = %d, callback called\n", speed);
 	fflush(stdout);
