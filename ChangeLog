@@ -1,3 +1,20 @@
+2015-09-17 Kamil Ignacak
+	* tests: I'm updating libcw's unit test code, and I've caught
+	myself adding more and more library function declarations to new
+	header file libcw2.h, just to be able to update old unit tests.
+
+	At this point it's certain that libcw won't keep API compatibility
+	with old libcw. The big question now is how much similarity to old
+	libcw the new library should have.
+
+	Should I provide really minimal API and update it only when users
+	ask for it and provide good expected behaviour of new functions?
+
+	I'm really tempted to make some user-visible changes to behaviour
+	of already exposed API. I would like to do this to remove old
+	stuff, to ensure clear behaviour, to provide clean, small and
+	consistent API.
+
 2015-09-14 Kamil Ignacak
 	* xcwcp: Code in Application class has been reviewed, simplified
 	and clarified a bit. Usage of class' static function as a callback
