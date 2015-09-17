@@ -127,6 +127,7 @@ static cw_test_function_t cw_unit_tests[] = {
 	test_cw_rec_with_random_data_fixed,
 	test_cw_rec_with_random_data_adaptive,
 	test_cw_get_receive_parameters,
+	test_cw_rec_parameter_getters_setters,
 
 
 	/* cw_debug module */
