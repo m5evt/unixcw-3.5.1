@@ -24,12 +24,6 @@
 
 
 
-
-
-
-
-
-
 #define _XOPEN_SOURCE 600 /* signaction() + SA_RESTART */
 
 
@@ -53,7 +47,7 @@
 # include <strings.h>
 #endif
 
-#include "libcw.h"
+#include "libcw2.h"
 #include "libcw_test.h"
 #include "libcw_debug.h"
 #include "libcw_tq.h"
@@ -76,7 +70,6 @@ extern cw_debug_t cw_debug_object_dev;
 
 
 
-static cw_test_stats_t cw_stats_indep   = { .successes = 0, .failures = 0 };
 static cw_test_stats_t cw_stats_null    = { .successes = 0, .failures = 0 };
 static cw_test_stats_t cw_stats_console = { .successes = 0, .failures = 0 };
 static cw_test_stats_t cw_stats_oss     = { .successes = 0, .failures = 0 };
@@ -84,7 +77,7 @@ static cw_test_stats_t cw_stats_alsa    = { .successes = 0, .failures = 0 };
 static cw_test_stats_t cw_stats_pa      = { .successes = 0, .failures = 0 };
 
 
-static void cw_test_setup(void);
+static void cw_test_setup(cw_gen_t *gen);
 static int  cw_test_dependent(const char *audio_systems, const char *modules);
 static int  cw_test_dependent_with(int audio_system, const char *modules, cw_test_stats_t *stats);
 static void cw_test_print_stats(void);
@@ -116,15 +109,11 @@ static void test_tone_queue_callback(cw_test_stats_t *stats);
 /* Generator module. */
 static void test_volume_functions(cw_test_stats_t *stats);
 static void test_send_primitives(cw_test_stats_t *stats);
-static void test_send_character_and_string(cw_test_stats_t *stats);
+static void test_send_character_and_string(cw_gen_t *gen, cw_test_stats_t *stats);
 static void test_representations(cw_test_stats_t *stats);
 /* Morse key module. */
 static void test_keyer(cw_test_stats_t *stats);
 static void test_straight_key(cw_test_stats_t *stats);
-/* Other functions. */
-//static void test_cw_gen_forever_public(cw_test_stats_t *stats);
-
-// static void cw_test_delayed_release(cw_test_stats_t *stats);
 
 
 
@@ -137,7 +126,7 @@ static void test_straight_key(cw_test_stats_t *stats);
 
 
 
-
+#if 0
 /**
    \brief Simple tests of queueing and dequeueing of tones
 
@@ -895,7 +884,7 @@ void test_representations(cw_test_stats_t *stats)
 
 	return;
 }
-
+#endif
 
 
 
@@ -906,7 +895,7 @@ void test_representations(cw_test_stats_t *stats)
    tests::cw_send_character()
    tests::cw_send_string()
 */
-void test_send_character_and_string(cw_test_stats_t *stats)
+void test_send_character_and_string(cw_gen_t *gen, cw_test_stats_t *stats)
 {
 	printf("libcw: %s():\n", __func__);
 
@@ -922,17 +911,17 @@ void test_send_character_and_string(cw_test_stats_t *stats)
 		for (int i = 0; charlist[i] != '\0'; i++) {
 			putchar(charlist[i]);
 			fflush(stdout);
-			if (!cw_send_character(charlist[i])) {
+			if (!cw_gen_enqueue_character(gen, charlist[i])) {
 				failure = true;
 				break;
 			}
-			cw_wait_for_tone_queue();
+			cw_gen_wait_for_queue(gen);
 		}
 
 		putchar('\n');
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_send_character(<valid>):");
+		int n = printf("libcw: cw_gen_enqueue_character(<valid>):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -940,8 +929,8 @@ void test_send_character_and_string(cw_test_stats_t *stats)
 
 	/* Test: sending invalid character. */
 	{
-		bool failure = cw_send_character(0);
-		int n = printf("libcw: cw_send_character(<invalid>):");
+		bool failure = cw_gen_enqueue_character(gen, 0);
+		int n = printf("libcw: cw_gen_enqueue_character(<invalid>):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -953,28 +942,28 @@ void test_send_character_and_string(cw_test_stats_t *stats)
 		cw_list_characters(charlist);
 
 		/* Send the complete charlist as a single string. */
-		printf("libcw: cw_send_string(<valid>):\n"
+		printf("libcw: cw_gen_enqueue_string(<valid>):\n"
 		       "libcw:     %s\n", charlist);
-		bool failure = !cw_send_string(charlist);
+		bool failure = !cw_gen_enqueue_string(gen, charlist);
 
-		while (cw_get_tone_queue_length() > 0) {
-			printf("libcw: tone queue length %-6d\r", cw_get_tone_queue_length());
+		while (cw_gen_get_queue_length(gen) > 0) {
+			printf("libcw: tone queue length %-6zu\r", cw_gen_get_queue_length(gen));
 			fflush(stdout);
-			cw_wait_for_tone();
+			cw_gen_wait_for_tone(gen);
 		}
-		printf("libcw: tone queue length %-6d\n", cw_get_tone_queue_length());
-		cw_wait_for_tone_queue();
+		printf("libcw: tone queue length %-6zu\n", cw_gen_get_queue_length(gen));
+		cw_gen_wait_for_queue(gen);
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_send_string(<valid>):");
+		int n = printf("libcw: cw_gen_enqueue_string(<valid>):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
 
 	/* Test: sending invalid string. */
 	{
-		bool failure = cw_send_string("%INVALID%");
-		int n = printf("libcw: cw_send_string(<invalid>):");
+		bool failure = cw_gen_enqueue_string(gen, "%INVALID%");
+		int n = printf("libcw: cw_gen_enqueue_string(<invalid>):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -987,7 +976,7 @@ void test_send_character_and_string(cw_test_stats_t *stats)
 
 
 
-
+#if 0
 /**
    tests::cw_notify_keyer_paddle_event()
    tests::cw_wait_for_keyer_element()
@@ -1277,83 +1266,11 @@ void test_straight_key(cw_test_stats_t *stats)
 
 	return;
 }
+#endif
 
 
 
-
-
-# if 0
-/*
- * cw_test_delayed_release()
- */
-void cw_test_delayed_release(cw_test_stats_t *stats)
-{
-	printf("libcw: %s():\n", __func__);
-	int failures = 0;
-	struct timeval start, finish;
-	int is_released, delay;
-
-	/* This is slightly tricky to detect, but circumstantial
-	   evidence is provided by SIGALRM disposition returning to SIG_DFL. */
-	if (!cw_send_character_space()) {
-		printf("libcw: ERROR: cw_send_character_space()\n");
-		failures++;
-	}
-
-	if (gettimeofday(&start, NULL) != 0) {
-		printf("libcw: WARNING: gettimeofday failed, test incomplete\n");
-		return;
-	}
-	printf("libcw: waiting for cw_finalization delayed release");
-	fflush(stdout);
-	do {
-		struct sigaction disposition;
-
-		sleep(1);
-		if (sigaction(SIGALRM, NULL, &disposition) != 0) {
-			printf("libcw: WARNING: sigaction failed, test incomplete\n");
-			return;
-		}
-		is_released = disposition.sa_handler == SIG_DFL;
-
-		if (gettimeofday(&finish, NULL) != 0) {
-			printf("libcw: WARNING: gettimeofday failed, test incomplete\n");
-			return;
-		}
-
-		delay = (finish.tv_sec - start.tv_sec) * 1000000 + finish.tv_usec
-			- start.tv_usec;
-		putchar('.');
-		fflush(stdout);
-	}
-	while (!is_released && delay < 20000000);
-	putchar('\n');
-
-	/* The release should be around 10 seconds after the end of
-	   the sent space.  A timeout or two might leak in, reducing
-	   it by a bit; we'll be ecstatic with more than five
-	   seconds. */
-	if (is_released) {
-		printf("libcw: cw_finalization delayed release after %d usecs\n", delay);
-		if (delay < 5000000) {
-			printf("libcw: ERROR: cw_finalization release too quick\n");
-			failures++;
-		}
-	} else {
-		printf("libcw: ERROR: cw_finalization release wait timed out\n");
-		failures++;
-	}
-
-
-	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
-
-	return;
-}
-
-
-
-
-
+#if 0
 /*
  * cw_test_signal_handling_callback()
  * cw_test_signal_handling()
@@ -1443,43 +1360,6 @@ void cw_test_signal_handling(cw_test_stats_t *stats)
 
 
 
-#if 0
-/* "Forever" functionality is not exactly part of public
-   interface. The functionality will be tested only as part of
-   internal test. */
-
-/*
-  Version of test_cw_gen_forever() to be used in libcw_test_internal
-  test executable.
-
-  Because the function calls cw_generator_delete(), it should be
-  executed as last test in test suite (unless you want to call
-  cw_generator_new/start() again). */
-void test_cw_gen_forever_public(cw_test_stats_t *stats)
-{
-	/* Make sure that an audio sink is closed. If we try to open
-	   an OSS sink that is already open, we may end up with
-	   "resource busy" error in libcw_oss.c module (that's what
-	   happened on Alpine Linux).
-
-	   Because of this call this test should be executed as last
-	   one. */
-	cw_generator_delete();
-
-	int seconds = 5;
-	printf("libcw: %s() (%d seconds):\n", __func__, seconds);
-
-	unsigned int rv = test_cw_gen_forever_sub(seconds, test_audio_system, NULL);
-	rv == 0 ? stats->successes++ : stats->failures++;
-
-	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
-
-	return;
-}
-#endif
-
-
-
 
 /*---------------------------------------------------------------------*/
 /*  Unit tests drivers                                                 */
@@ -1494,13 +1374,18 @@ void test_cw_gen_forever_public(cw_test_stats_t *stats)
 
    Run before each individual test, to handle setup of common test conditions.
 */
-void cw_test_setup(void)
+void cw_test_setup(cw_gen_t *gen)
 {
-	cw_reset_send_receive_parameters();
-	cw_set_send_speed(30);
-	cw_set_receive_speed(30);
-	cw_disable_adaptive_receive();
-	cw_reset_receive_statistics();
+	cw_gen_reset_send_parameters_internal(gen);
+	//cw_rec_reset_receive_parameters_internal(&cw_receiver);
+	/* Reset requires resynchronization. */
+	cw_gen_sync_parameters_internal(gen);
+	//cw_rec_sync_parameters_internal(&cw_receiver);
+
+	cw_gen_set_speed(gen, 30);
+	// cw_rec_set_speed(rec, 30);
+	// cw_rec_disable_adaptive_mode(rec);
+	// cw_rec_reset_statistics(rec);
 	cw_unregister_signal_handler(SIGUSR1);
 	errno = 0;
 
@@ -1510,7 +1395,7 @@ void cw_test_setup(void)
 
 
 
-
+#if 0
 /* Tests that are dependent on a sound system being configured.
    Tone queue module functions */
 static void (*const CW_TEST_FUNCTIONS_DEP_T[])(cw_test_stats_t *) = {
@@ -1521,20 +1406,24 @@ static void (*const CW_TEST_FUNCTIONS_DEP_T[])(cw_test_stats_t *) = {
 
 	NULL
 };
-
+#endif
 
 /* Tests that are dependent on a sound system being configured.
    Generator module functions. */
-static void (*const CW_TEST_FUNCTIONS_DEP_G[])(cw_test_stats_t *) = {
+static void (*const CW_TEST_FUNCTIONS_DEP_G[])(cw_gen_t *, cw_test_stats_t *) = {
+#if 0
 	test_volume_functions,
 	test_send_primitives,
+#endif
 	test_send_character_and_string,
+#if 0
 	test_representations,
+#endif
 
 	NULL
 };
 
-
+#if 0
 /* Tests that are dependent on a sound system being configured.
    Morse key module functions */
 static void (*const CW_TEST_FUNCTIONS_DEP_K[])(cw_test_stats_t *) = {
@@ -1543,14 +1432,12 @@ static void (*const CW_TEST_FUNCTIONS_DEP_K[])(cw_test_stats_t *) = {
 
 	NULL
 };
-
+#endif
 
 /* Tests that are dependent on a sound system being configured.
    Other modules' functions. */
 static void (*const CW_TEST_FUNCTIONS_DEP_O[])(cw_test_stats_t *) = {
-	//test_cw_gen_forever_public,
 
-	//cw_test_delayed_release,
 	//cw_test_signal_handling, /* FIXME - not sure why this test fails :( */
 
 	NULL
@@ -1579,55 +1466,55 @@ int cw_test_dependent_with(int audio_system, const char *modules, cw_test_stats_
 {
 	test_audio_system = audio_system;
 
-	int rv = cw_generator_new(audio_system, NULL);
-	if (rv != 1) {
+	cw_gen_t *gen = cw_gen_new(audio_system, NULL);
+	if (!gen) {
 		fprintf(stderr, "libcw: can't create generator, stopping the test\n");
 		return -1;
 	}
-	rv = cw_generator_start();
+	int rv = cw_gen_start(gen);
 	if (rv != 1) {
 		fprintf(stderr, "libcw: can't start generator, stopping the test\n");
-		cw_generator_delete();
+		cw_gen_delete(&gen);
 		return -1;
 	}
 
-
+#if 0
 	if (strstr(modules, "t")) {
 		for (int test = 0; CW_TEST_FUNCTIONS_DEP_T[test]; test++) {
-			cw_test_setup();
+			cw_test_setup(gen);
 			(*CW_TEST_FUNCTIONS_DEP_T[test])(stats);
 		}
 	}
-
+#endif
 
 	if (strstr(modules, "g")) {
 		for (int test = 0; CW_TEST_FUNCTIONS_DEP_G[test]; test++) {
-			cw_test_setup();
-			(*CW_TEST_FUNCTIONS_DEP_G[test])(stats);
+			cw_test_setup(gen);
+			(*CW_TEST_FUNCTIONS_DEP_G[test])(gen, stats);
 		}
 	}
 
-
+#if 0
 	if (strstr(modules, "k")) {
 		for (int test = 0; CW_TEST_FUNCTIONS_DEP_K[test]; test++) {
-			cw_test_setup();
+			cw_test_setup(gen);
 			(*CW_TEST_FUNCTIONS_DEP_K[test])(stats);
 		}
 	}
-
+#endif
 
 	if (strstr(modules, "o")) {
 		for (int test = 0; CW_TEST_FUNCTIONS_DEP_O[test]; test++) {
-			cw_test_setup();
+			cw_test_setup(gen);
 			(*CW_TEST_FUNCTIONS_DEP_O[test])(stats);
 		}
 	}
 
 
 	sleep(1);
-	cw_generator_stop();
+	cw_gen_stop(gen);
 	sleep(1);
-	cw_generator_delete();
+	cw_gen_delete(&gen);
 
 	/* All tests done; return success if no failures,
 	   otherwise return an error status code. */
@@ -1722,13 +1609,6 @@ void cw_test_print_stats(void)
 {
 	printf("\n\nlibcw: Statistics of tests:\n\n");
 
-	printf("libcw: Tests not requiring any audio system:            ");
-	if (cw_stats_indep.failures + cw_stats_indep.successes) {
-		printf("errors: %03d, total: %03d\n",
-		       cw_stats_indep.failures, cw_stats_indep.failures + cw_stats_indep.successes);
-	} else {
-		printf("no tests were performed\n");
-	}
 
 	printf("libcw: Tests performed with NULL audio system:          ");
 	if (cw_stats_null.failures + cw_stats_null.successes) {
