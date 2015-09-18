@@ -172,7 +172,7 @@ static int   cw_gen_new_open_internal(cw_gen_t *gen, int audio_system, const cha
 static void *cw_gen_dequeue_and_generate_internal(void *arg);
 static int   cw_gen_calculate_sine_wave_internal(cw_gen_t *gen, cw_tone_t *tone);
 static int   cw_gen_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone);
-static int   cw_gen_write_to_soundcard_internal(cw_gen_t *gen, cw_tone_t *tone, int queue_rv);
+static int   cw_gen_write_to_soundcard_internal(cw_gen_t *gen, cw_tone_t *tone, bool empty_tone);
 
 static int   cw_gen_enqueue_valid_character_internal(cw_gen_t *gen, char c);
 static int   cw_gen_enqueue_valid_character_no_eoc_space_internal(cw_gen_t *gen, char character);
@@ -960,7 +960,8 @@ void *cw_gen_dequeue_and_generate_internal(void *arg)
 		} else if (gen->audio_system == CW_AUDIO_CONSOLE) {
 			cw_console_write(gen, &tone);
 		} else {
-			cw_gen_write_to_soundcard_internal(gen, &tone, tq_rv);
+			cw_gen_write_to_soundcard_internal(gen, &tone,
+							   tq_rv == CW_TQ_NDEQUEUED_EMPTY);
 		}
 
 		/*
@@ -1422,11 +1423,9 @@ void cw_gen_recalculate_slopes_internal(cw_gen_t *gen)
 /**
    \brief Write tone to soundcard
 */
-int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, cw_tone_t *tone, int queue_rv)
+int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, cw_tone_t *tone, bool empty_tone)
 {
-	assert (queue_rv != CW_TQ_NDEQUEUED_IDLE);
-
-	if (queue_rv == CW_TQ_NDEQUEUED_EMPTY) {
+	if (empty_tone) {
 		/* All tones have been already dequeued from tone
 		   queue.
 
