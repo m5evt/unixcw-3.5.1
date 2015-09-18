@@ -260,7 +260,7 @@ int  cw_tq_register_low_level_callback_internal(cw_tone_queue_t *tq, cw_queue_lo
 bool cw_tq_is_busy_internal(cw_tone_queue_t *tq);
 int  cw_tq_wait_for_tone_internal(cw_tone_queue_t *tq);
 int  cw_tq_wait_for_tone_queue_internal(cw_tone_queue_t *tq);
-void cw_tq_reset_internal(cw_tone_queue_t *tq);
+// void cw_tq_reset_internal(cw_tone_queue_t *tq);
 bool cw_tq_is_full_internal(cw_tone_queue_t *tq);
 
 

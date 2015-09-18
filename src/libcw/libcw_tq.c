@@ -137,6 +137,9 @@ static size_t cw_tq_get_high_water_mark_internal(cw_tone_queue_t *tq) __attribut
 static size_t cw_tq_prev_index_internal(cw_tone_queue_t *tq, size_t current) __attribute__((unused));
 static size_t cw_tq_next_index_internal(cw_tone_queue_t *tq, size_t current);
 static int    cw_tq_dequeue_sub_internal(cw_tone_queue_t *tq, cw_tone_t *tone);
+static void   cw_tq_reset_state_internal(cw_tone_queue_t *tq);
+static void   cw_tq_reset_flags_internal(cw_tone_queue_t *tq);
+
 
 
 
@@ -180,15 +183,8 @@ cw_tone_queue_t *cw_tq_new_internal(void)
 
 	pthread_mutex_lock(&(tq->mutex));
 
-	tq->tail = 0;
-	tq->head = 0;
-	tq->len = 0;
-	tq->state = CW_TQ_IDLE;
-
-	tq->low_water_mark = 0;
-	tq->low_water_callback = NULL;
-	tq->low_water_callback_arg = NULL;
-	tq->call_callback = false;
+	cw_tq_reset_state_internal(tq);
+	cw_tq_reset_flags_internal(tq);
 
 #ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
 	sem_init(&tq->semaphore, 0, 0);
@@ -238,6 +234,37 @@ void cw_tq_delete_internal(cw_tone_queue_t **tq)
 
 	free(*tq);
 	*tq = (cw_tone_queue_t *) NULL;
+
+	return;
+}
+
+
+
+
+
+void cw_tq_reset_state_internal(cw_tone_queue_t *tq)
+{
+	int rv = pthread_mutex_trylock(&(tq->mutex));
+	cw_assert (rv == EBUSY, "resetting tq state outside of mutex!");
+
+	tq->head = 0;
+	tq->tail = 0;
+	tq->len = 0;
+	tq->state = CW_TQ_IDLE;
+
+	return;
+}
+
+
+
+
+
+void cw_tq_reset_flags_internal(cw_tone_queue_t *tq)
+{
+	tq->low_water_mark = 0;
+	tq->low_water_callback = NULL;
+	tq->low_water_callback_arg = NULL;
+	tq->call_callback = false;
 
 	return;
 }
@@ -1019,25 +1046,6 @@ bool cw_tq_is_full_internal(cw_tone_queue_t *tq)
 
 
 
-void cw_tq_reset_internal(cw_tone_queue_t *tq)
-{
-	/* Empty and reset the queue, and force state to idle. */
-	tq->len = 0;
-	tq->head = tq->tail;
-	tq->state = CW_TQ_IDLE;
-
-	/* Reset low water mark details to their initial values. */
-	tq->low_water_mark = 0;
-	tq->low_water_callback = NULL;
-	tq->low_water_callback_arg = NULL;
-
-	return;
-}
-
-
-
-
-
 void cw_tq_flush_internal(cw_tone_queue_t *tq)
 {
 #ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
@@ -1049,9 +1057,8 @@ void cw_tq_flush_internal(cw_tone_queue_t *tq)
 #endif
 	pthread_mutex_lock(&(tq->mutex));
 
-	/* Empty and reset the queue. */
-	tq->len = 0;
-	tq->head = tq->tail;
+	/* Force zero length state. */
+	cw_tq_reset_state_internal(tq);
 
 	libcw_sem_flush (&tq->semaphore);
 	libcw_sem_flush (&tq->tone_semaphore);
@@ -1070,9 +1077,8 @@ void cw_tq_flush_internal(cw_tone_queue_t *tq)
 #else
 	pthread_mutex_lock(&(tq->mutex));
 
-	/* Empty and reset the queue. */
-	tq->len = 0;
-	tq->head = tq->tail;
+	/* Force zero length state. */
+	cw_tq_reset_state_internal(tq);
 
 	pthread_mutex_unlock(&(tq->mutex));
 
