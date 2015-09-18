@@ -891,6 +891,37 @@ void *cw_gen_dequeue_and_generate_internal(void *arg)
 
 #ifndef LIBCW_WITH_SIGNALS_ALTERNATIVE
 
+			/* When using signals, here (i.e. after
+			   cw_tq_dequeue_internal()) is the right
+			   place to wait for signal from
+			   cw_tq_enqueue_internal().  Consider this
+			   sequence:
+
+			   - client code enqueues some data;
+                             cw_tq_enqueue_internal() function signals
+                             new data in queue;
+
+			   - client code calls cw_gen_start() after
+                             enqueueing data;
+
+			   - cw_gen_dequeue_internal() function is
+                             called and we get into this loop;
+
+			   It would be ok to place sem_wait(semaphore)
+			   before cw_tq_dequeue_internal() because
+			   this semaphore has memory about enqueued
+			   data (it retains a state until wait()ed).
+
+			   With signals, waiting for signal before
+			   cw_tq_dequeue_internal() is pointless: data
+			   has been already enqueued and the signal
+			   from enqueue() has already been sent -
+			   there is nothing to wait for. Therefore we
+			   should first try to
+			   cw_tq_dequeue_internal(), and if no data is
+			   ready to dequeue, then wait for signal
+			   after cw_tq_dequeue_internal(). */
+
 			/* Tone queue has been totally drained with
 			   previous call to dequeue(). No point in
 			   making next iteration of while() and
