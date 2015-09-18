@@ -674,13 +674,12 @@ int cw_gen_stop(cw_gen_t *gen)
 	   This is to force the loop to start new cycle, notice that
 	   gen->do_dequeue_and_generate is false, and to get the thread
 	   function to return (and thus to end the thread). */
-#ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
+#if 0
 	libcw_sem_printvalue(&gen->tq->semaphore, gen->tq->len, "libcw/tq/producer: stopping generator: before posting");
 	sem_post(&gen->tq->semaphore);
 	libcw_sem_printvalue(&gen->tq->semaphore, gen->tq->len, "libcw/tq/producer: stopping generator:  after posting");
-#else
-	pthread_kill(gen->thread.id, SIGALRM);
 #endif
+	pthread_kill(gen->thread.id, SIGALRM);
 
 	/* This piece of comment was put before code using
 	   pthread_kill(), and may apply only to that version. But it
@@ -877,7 +876,7 @@ void *cw_gen_dequeue_and_generate_internal(void *arg)
 	CW_TONE_INIT(&tone, 0, 0, CW_SLOPE_MODE_STANDARD_SLOPES);
 
 	while (gen->do_dequeue_and_generate) {
-#ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
+#if 0
 		/* Consumer. */
 		//libcw_sem_printvalue(&gen->tq->semaphore, gen->tq->len, "libcw/tq/consumer: dequeue and generate: waiting for semaphore");
 		sem_wait(&gen->tq->semaphore);
@@ -889,7 +888,6 @@ void *cw_gen_dequeue_and_generate_internal(void *arg)
 			cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_TONE_QUEUE, CW_DEBUG_INFO,
 				      "libcw/tq: got CW_TQ_NDEQUEUED_IDLE");
 
-#ifndef LIBCW_WITH_SIGNALS_ALTERNATIVE
 
 			/* When using signals, here (i.e. after
 			   cw_tq_dequeue_internal()) is the right
@@ -942,7 +940,7 @@ void *cw_gen_dequeue_and_generate_internal(void *arg)
 			/* TODO: can we / should we specify on which
 			   signal exactly we are waiting for? */
 			cw_signal_wait_internal();
-#endif
+
 			/* Regardless if we use signals or alternative
 			   IPC, if the tq is idle, then there is
 			   nothing to do in this loop cycle. */
@@ -975,15 +973,10 @@ void *cw_gen_dequeue_and_generate_internal(void *arg)
                      by waiting for signal in cw_wait_for_tone() /
                      cw_tq_wait_for_tone_internal()
 		 */
-#ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
-		libcw_sem_post_binary (&gen->tq->tone_semaphore, 1, "libcw/tq:       posting tone_semaphore on dequeue");
-		libcw_sem_post_binary (&gen->tq->tone_queue_semaphore, 1, "libcw/tq:       posting tone_queue_semaphore on dequeue");
-		libcw_sem_post_binary (&gen->tq->level_semaphore, 1, "libcw/tq:       posting level_semaphore on dequeue");
-		libcw_sem_post_binary (&gen->tq->ik_semaphore, 1, "libcw/tq:       posting iq_semaphore on dequeue");
-#else
+#if 0
+#endif
 		//fprintf(stderr, "libcw/tq:       sending signal on dequeue, target thread id = %ld\n", gen->client.thread_id);
 		pthread_kill(gen->client.thread_id, SIGALRM);
-#endif
 
 		/* Generator may be used by iambic keyer to measure
 		   periods of time (lengths of Mark and Space) - this
@@ -1034,14 +1027,11 @@ void *cw_gen_dequeue_and_generate_internal(void *arg)
 	struct timespec req = { .tv_sec = 0, .tv_nsec = CW_NSECS_PER_SEC / 2 };
 	cw_nanosleep_internal(&req);
 
-#ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
-	/* FIXME: should we really post this here? There are no tones
-	   dequeued, so maybe we shouldn't. On the other hand, there
-	   may be some function waiting for the last post. */
-	libcw_sem_post_binary(&gen->tq->tone_semaphore, 1, "libcw/tq:       posting FINAL tone_semaphore on dequeue");
-#else
-	pthread_kill(gen->client.thread_id, SIGALRM);
+#if 0
+
 #endif
+	pthread_kill(gen->client.thread_id, SIGALRM);
+
 	gen->thread.running = false;
 	return NULL;
 }
