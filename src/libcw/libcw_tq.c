@@ -69,7 +69,7 @@
 #include "libcw_gen.h"
 #include "libcw_debug.h"
 
-#ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
+#if 1
 # include "libcw_ipc.h"
 #else
 # include <signal.h> /* SIGALRM */
@@ -791,17 +791,18 @@ int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 		   send such notification. */
 		tq->state = CW_TQ_BUSY;
 
-#if 0
+#if 1
 		/* Producer. */
 		libcw_sem_printvalue(&tq->semaphore, tq->len, "libcw/tq/producer: IDLE -> BUSY: before posting");
 		sem_post(&tq->semaphore);
 		libcw_sem_printvalue(&tq->semaphore, tq->len, "libcw/tq/producer: IDLE -> BUSY:  after posting");
-#endif
+#else
 		pthread_kill(tq->gen->thread.id, SIGALRM);
+#endif
 
 	} else {
 		/* Regular notification on regular enqueue event. */
-#if 0
+#if 1
 		/* Producer. */
 		libcw_sem_printvalue(&tq->semaphore, tq->len, "libcw/tq/producer: before posting");
 		sem_post(&tq->semaphore);
@@ -894,16 +895,17 @@ bool cw_tq_is_busy_internal(cw_tone_queue_t *tq)
 */
 int cw_tq_wait_for_tone_internal(cw_tone_queue_t *tq)
 {
-#if 0
-	sem_wait(&tq->tone_semaphore);
-#endif
-
+#if 1
+	pthread_mutex_lock(&(tq->cond_mutex));
+	pthread_cond_wait(&tq->cond_var, &tq->cond_mutex);
+	pthread_mutex_unlock(&(tq->cond_mutex));
+#else
 	/* Wait for the head index to change or the dequeue to go idle. */
 	size_t check_tq_head = tq->head;
 	while (tq->head == check_tq_head && tq->state != CW_TQ_IDLE) {
 		cw_signal_wait_internal();
 	}
-
+#endif
 	return CW_SUCCESS;
 }
 
@@ -927,17 +929,19 @@ int cw_tq_wait_for_tone_internal(cw_tone_queue_t *tq)
 */
 int cw_tq_wait_for_tone_queue_internal(cw_tone_queue_t *tq)
 {
-
-#if 0
-	while (cw_tq_length_internal(tq)) {
-		sem_wait(&tq->level_semaphore);
+#if 1
+	pthread_mutex_lock(&(tq->cond_mutex));
+	while (tq->len) {
+		pthread_cond_wait(&tq->cond_var, &tq->cond_mutex);
 	}
-#endif
+	pthread_mutex_unlock(&(tq->cond_mutex));
+#else
 
 	/* Wait until the dequeue indicates it has hit the end of the queue. */
 	while (tq->state != CW_TQ_IDLE) {
 		cw_signal_wait_internal();
 	}
+#endif
 
 	return CW_SUCCESS;
 }
@@ -967,18 +971,20 @@ int cw_tq_wait_for_tone_queue_internal(cw_tone_queue_t *tq)
 */
 int cw_tq_wait_for_level_internal(cw_tone_queue_t *tq, size_t level)
 {
-#if 0
+#if 1
 	/* Wait until the queue length is at or below critical level. */
-	while (cw_tq_length_internal(tq) > level) {
-		sem_wait(&tq->level_semaphore);
+	pthread_mutex_lock(&(tq->cond_mutex));
+	while (tq->len > level) {
+		pthread_cond_wait(&tq->cond_var, &tq->cond_mutex);
 	}
-#endif
+	pthread_mutex_unlock(&(tq->cond_mutex));
+#else
 
 	/* Wait until the queue length is at or below critical level. */
 	while (cw_tq_length_internal(tq) > level) {
 		cw_signal_wait_internal();
 	}
-
+#endif
 	return CW_SUCCESS;
 }
 
@@ -1017,7 +1023,7 @@ void cw_tq_flush_internal(cw_tone_queue_t *tq)
 	fprintf(stderr, "--------------------------------\n");
 #endif
 
-#if 0
+#if 1
 	pthread_mutex_lock(&(tq->mutex));
 
 	/* Force zero length state. */
@@ -1032,7 +1038,7 @@ void cw_tq_flush_internal(cw_tone_queue_t *tq)
 	   tq->head, and also flushed semaphore. */
 	cw_tq_wait_for_tone_queue_internal(tq);
 #endif
-#endif
+#else
 
 	pthread_mutex_lock(&(tq->mutex));
 
@@ -1045,6 +1051,7 @@ void cw_tq_flush_internal(cw_tone_queue_t *tq)
 	if (!cw_sigalrm_is_blocked_internal()) {
 		cw_tq_wait_for_tone_queue_internal(tq);
 	}
+#endif
 
 	return;
 }
