@@ -20,9 +20,7 @@
 #include <pthread.h>    /* pthread_mutex_t */
 #include <stdbool.h>    /* bool */
 
-#ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
 #include <semaphore.h>
-#endif
 
 
 
@@ -209,9 +207,15 @@ typedef struct {
 	   code. */
 	bool         call_callback;
 
-#if 0
+
+
+	/* IPC */
 	sem_t semaphore;
-#endif
+
+	pthread_cond_t cond_var;
+	pthread_mutex_t cond_mutex;
+
+
 
 	pthread_mutex_t mutex;
 

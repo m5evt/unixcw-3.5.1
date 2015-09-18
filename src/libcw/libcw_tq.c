@@ -186,9 +186,12 @@ cw_tone_queue_t *cw_tq_new_internal(void)
 	cw_tq_reset_state_internal(tq);
 	cw_tq_reset_flags_internal(tq);
 
-#if 0
+
 	sem_init(&tq->semaphore, 0, 0);
-#endif
+
+	pthread_cond_init(&(tq->cond_var), NULL);
+	pthread_mutex_init(&(tq->cond_mutex), NULL);
+
 
 	tq->gen = (cw_gen_t *) NULL;
 
@@ -222,9 +225,15 @@ void cw_tq_delete_internal(cw_tone_queue_t **tq)
 		return;
 	}
 
-#if 0
+
 	sem_destroy(&((*tq)->semaphore));
-#endif
+
+	pthread_cond_destroy(&(*tq)->cond_var);
+	pthread_mutex_destroy(&(*tq)->cond_mutex);
+
+
+	pthread_mutex_destroy(&(*tq)->mutex);
+
 
 	free(*tq);
 	*tq = (cw_tone_queue_t *) NULL;
