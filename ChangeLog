@@ -1,3 +1,16 @@
+2015-09-19 Kamil Ignacak
+	* threads synchronization (previously called IPC): removing
+	signals code from library (applications (cw, cwcp, xcwcp) still
+	need signal handlers, but that's outside of libcw2).
+
+	Removing signals from code, comments and unit tests. Documentation
+	still needs to be updated. The system that was previously called
+	"alternative IPC mechanism" is now *the* mechanism. I have decided
+	to use condition variables.
+
+	There are still some remnants of signals code, but they are
+	commented out, and serve only as a reference information.
+
 2015-09-17 Kamil Ignacak
 	* tests: I'm updating libcw's unit test code, and I've caught
 	myself adding more and more library function declarations to new
