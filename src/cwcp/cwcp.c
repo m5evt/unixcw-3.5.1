@@ -92,6 +92,7 @@ static WINDOW *screen  = NULL,
 	*timer_window  = NULL, *timer_subwindow  = NULL;
 
 static void cwcp_atexit(void);
+static void register_signal_handler(void);
 
 static int  timer_get_total_practice_time(void);
 static bool timer_set_total_practice_time(int practice_time);
@@ -1683,6 +1684,8 @@ int main(int argc, char **argv)
 {
 	atexit(cwcp_atexit);
 
+	register_signal_handler();
+
 	/* Set locale and message catalogs. */
 	i18n_initialize();
 
@@ -1745,16 +1748,6 @@ int main(int argc, char **argv)
 	}
 	timer_set_total_practice_time(config->practice_time);
 
-
-	static const int SIGNALS[] = { SIGHUP, SIGINT, SIGQUIT, SIGPIPE, SIGTERM, 0 };
-	/* Set up signal handlers to clear up and exit on a range of signals. */
-	for (int i = 0; SIGNALS[i]; i++) {
-		if (!cw_register_signal_handler(SIGNALS[i], signal_handler)) {
-			fprintf(stderr, _("%s: can't register signal: %s\n"), config->program_name, strerror(errno));
-			return EXIT_FAILURE;
-		}
-	}
-
 	/* Build our table of modes from dictionaries, augmented with
 	   keyboard and any other local modes. */
 	mode_initialize();
@@ -1795,6 +1788,30 @@ void cwcp_atexit(void)
 
 	if (config) {
 		cw_config_delete(&config);
+	}
+
+	return;
+}
+
+
+
+
+
+void register_signal_handler(void)
+{
+	/* Set up signal handler to exit on a range of signals. */
+	const int SIGNALS[] = { SIGHUP, SIGINT, SIGQUIT, SIGPIPE, SIGTERM, 0 };
+	for (int i = 0; SIGNALS[i]; i++) {
+
+		struct sigaction action;
+		memset(&action, 0, sizeof(action));
+		action.sa_handler = signal_handler;
+		action.sa_flags = 0;
+		int rv = sigaction(SIGNALS[i], &action, (struct sigaction *) NULL);
+		if (rv == -1) {
+			fprintf(stderr, _("can't register signal: %s\n"), strerror(errno));
+			exit(EXIT_FAILURE);
+		}
 	}
 
 	return;

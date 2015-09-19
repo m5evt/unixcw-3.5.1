@@ -48,7 +48,9 @@
 
 //extern cw_debug_t cw_debug_object;
 
-void xcwcp_atexit(void);
+static void xcwcp_atexit(void);
+static void register_signal_handler(void);
+
 
 namespace {
 cw_config_t *config = NULL; /* program-specific configuration */
@@ -104,6 +106,8 @@ int main(int argc, char **argv)
 
 		atexit(xcwcp_atexit);
 
+		register_signal_handler();
+
 		/* Set locale and message catalogs. */
 		i18n_initialize();
 
@@ -152,19 +156,6 @@ int main(int argc, char **argv)
 			}
 		}
 
-		/* Set up signal handlers to clean up and exit on a range of signals. */
-		struct sigaction action;
-		action.sa_handler = signal_handler;
-		action.sa_flags = 0;
-		sigemptyset(&action.sa_mask);
-		static const int SIGNALS[] = { SIGHUP, SIGINT, SIGQUIT, SIGPIPE, SIGTERM, 0 };
-		for (int i = 0; SIGNALS[i]; i++) {
-			if (!cw_register_signal_handler(SIGNALS[i], signal_handler)) {
-				perror("cw_register_signal_handler()");
-				return EXIT_FAILURE;
-			}
-		}
-
 		// Display the application's windows.
 		cw::Application *application = new cw::Application(config);
 		application->setWindowTitle(_("Xcwcp"));
@@ -198,6 +189,30 @@ void xcwcp_atexit(void)
 {
 	if (config) {
 		cw_config_delete(&config);
+	}
+
+	return;
+}
+
+
+
+
+
+void register_signal_handler(void)
+{
+	/* Set up signal handler to exit on a range of signals. */
+	const int SIGNALS[] = { SIGHUP, SIGINT, SIGQUIT, SIGPIPE, SIGTERM, 0 };
+	for (int i = 0; SIGNALS[i]; i++) {
+
+		struct sigaction action;
+		memset(&action, 0, sizeof(action));
+		action.sa_handler = signal_handler;
+		action.sa_flags = 0;
+		int rv = sigaction(SIGNALS[i], &action, (struct sigaction *) NULL);
+		if (rv == -1) {
+			fprintf(stderr, _("can't register signal: %s\n"), strerror(errno));
+			exit(EXIT_FAILURE);
+		}
 	}
 
 	return;

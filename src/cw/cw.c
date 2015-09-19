@@ -73,7 +73,8 @@ static void parse_stream_command(FILE *stream);
 static void send_cw_character(int c, int is_partial);
 static void parse_stream(FILE *stream);
 static void cw_atexit(void);
-
+static void signal_handler(int signal_number);
+static void register_signal_handler(void);
 
 
 
@@ -594,6 +595,8 @@ int main(int argc, char *const argv[])
 {
 	atexit(cw_atexit);
 
+	register_signal_handler();
+
 	/* Set locale and message catalogs. */
 	i18n_initialize();
 
@@ -641,15 +644,6 @@ int main(int argc, char *const argv[])
 		return EXIT_FAILURE;
 	}
 
-	/* Set up signal handlers to exit on a range of signals. */
-	static const int SIGNALS[] = { SIGHUP, SIGINT, SIGQUIT, SIGPIPE, SIGTERM, 0 };
-	for (int i = 0; SIGNALS[i]; i++) {
-		if (!cw_register_signal_handler(SIGNALS[i], SIG_DFL)) {
-			fprintf(stderr, _("%s: can't register signal: %s\n"), config->program_name, strerror(errno));
-			return EXIT_FAILURE;
-		}
-	}
-
 	/* Start producing sine wave (amplitude of the wave will be
 	   zero as long as there are no characters to process). */
 	cw_gen_start(generator);
@@ -671,12 +665,46 @@ void cw_atexit(void)
 {
 	if (generator) {
 		cw_gen_stop(generator);
-		//cw_complete_reset();
 		cw_gen_delete(&generator);
 	}
 
 	if (config) {
 		cw_config_delete(&config);
+	}
+
+	return;
+}
+
+
+
+
+
+/* Show the signal caught, and exit. */
+void signal_handler(int signal_number)
+{
+	fprintf(stderr, _("\nCaught signal %d, exiting...\n"), signal_number);
+	exit(EXIT_SUCCESS);
+}
+
+
+
+
+
+void register_signal_handler(void)
+{
+	/* Set up signal handler to exit on a range of signals. */
+	const int SIGNALS[] = { SIGHUP, SIGINT, SIGQUIT, SIGPIPE, SIGTERM, 0 };
+	for (int i = 0; SIGNALS[i]; i++) {
+
+		struct sigaction action;
+		memset(&action, 0, sizeof(action));
+		action.sa_handler = signal_handler;
+		action.sa_flags = 0;
+		int rv = sigaction(SIGNALS[i], &action, (struct sigaction *) NULL);
+		if (rv == -1) {
+			fprintf(stderr, _("can't register signal: %s\n"), strerror(errno));
+			exit(EXIT_FAILURE);
+		}
 	}
 
 	return;
