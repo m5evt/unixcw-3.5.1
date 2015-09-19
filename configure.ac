@@ -230,23 +230,6 @@ else
 fi
 
 
-# Disable libcw code that uses POSIX signals and enable libcw code
-# that uses alternative IPC instead? Notice that not all usage of
-# signals in libcw is covered by this feature. "No" by default (use
-# signals as it was done since always).
-AC_ARG_ENABLE(signals-alternative,
-    AS_HELP_STRING([--enable-signals-alternative], [replace *some* cases of usage of POSIX signals in libcw with alternative IPC mechanism]),
-    [],
-    [enable_signals_alternative=no])
-
-AC_MSG_CHECKING([whether to replace *some* cases of usage of POSIX signals in libcw with alternative IPC mechanism])
-if test "$enable_signals_alternative" = "yes" ; then
-    AC_MSG_RESULT(yes)
-else
-    AC_MSG_RESULT(no)
-fi
-
-
 # This enables experimental solutions in src/libcw/libcw_rec.c, src/libcw_libcw_key.c, src/xcwcp/receiver.cc
 AC_ARG_ENABLE(experimental-receiver,
     AS_HELP_STRING([--enable-experimental-receiver], [enable *experimental* code implementing receiver feature in libcw and xcwcp; for development use only.]),
@@ -417,15 +400,7 @@ else
 fi
 
 
-
-# Alternative to POSIX signals in libcw.
-AM_CONDITIONAL(LIBCW_WITH_SIGNALS_ALTERNATIVE, test "$enable_signals_alternative" = "yes")
-if test "$enable_signals_alternative" = "yes" ; then
-   AC_DEFINE([LIBCW_WITH_SIGNALS_ALTERNATIVE], [1], [Define as 1 if you want to replace *some* cases of usage of POSIX signals in libcw with alternative IPC mechanism.])
-fi
-
-
-# Alternative to POSIX signals in libcw.
+# Experimental solutions for libcw receiver.
 AM_CONDITIONAL(WITH_EXPERIMENTAL_RECEIVER, test "$enable_experimental_receiver" = "yes")
 if test "$enable_experimental_receiver" = "yes" ; then
    AC_DEFINE([WITH_EXPERIMENTAL_RECEIVER], [1], [Define as 1 if you want to enable *experimental* code (for development only) implementing receiver feature in libcw and xcwcp.])
@@ -660,9 +635,6 @@ AC_MSG_NOTICE([    include console buzzer support:  ....  $WITH_CONSOLE])
 AC_MSG_NOTICE([    include OSS support:  ...............  $WITH_OSS])
 AC_MSG_NOTICE([    include ALSA support:  ..............  $WITH_ALSA])
 AC_MSG_NOTICE([    include PulseAudio support:  ........  $WITH_PULSEAUDIO])
-if test "$enable_signals_alternative" = 'yes' ; then
-   AC_MSG_NOTICE([    enable alternative IPC mechanism: ...  $enable_signals_alternative])
-fi
 AC_MSG_NOTICE([build cw:  ..............................  yes])
 AC_MSG_NOTICE([build cwgen:  ...........................  yes])
 AC_MSG_NOTICE([build cwcp:  ............................  $WITH_CWCP])
