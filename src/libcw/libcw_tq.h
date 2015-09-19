@@ -20,8 +20,6 @@
 #include <pthread.h>    /* pthread_mutex_t */
 #include <stdbool.h>    /* bool */
 
-#include <semaphore.h>
-
 
 
 
@@ -208,13 +206,15 @@ typedef struct {
 	bool         call_callback;
 
 
-
 	/* IPC */
-	sem_t semaphore;
+	/* Used to broadcast queue events to waiting functions. */
+	pthread_cond_t wait_var;
+	pthread_mutex_t wait_mutex;
 
-	pthread_cond_t cond_var;
-	pthread_mutex_t cond_mutex;
-
+	/* Used to communicate between enqueueing and dequeueing
+	   mechanism. */
+	pthread_cond_t dequeue_var;
+	pthread_mutex_t dequeue_mutex;
 
 
 	pthread_mutex_t mutex;

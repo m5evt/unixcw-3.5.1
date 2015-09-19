@@ -69,9 +69,7 @@
 #include "libcw_gen.h"
 #include "libcw_debug.h"
 
-#if 1
-# include "libcw_ipc.h"
-#else
+#if 0
 # include <signal.h> /* SIGALRM */
 # include "libcw_signal.h"
 #endif
@@ -187,10 +185,11 @@ cw_tone_queue_t *cw_tq_new_internal(void)
 	cw_tq_reset_flags_internal(tq);
 
 
-	sem_init(&tq->semaphore, 0, 0);
+	pthread_cond_init(&(tq->wait_var), NULL);
+	pthread_mutex_init(&(tq->wait_mutex), NULL);
 
-	pthread_cond_init(&(tq->cond_var), NULL);
-	pthread_mutex_init(&(tq->cond_mutex), NULL);
+	pthread_cond_init(&(tq->dequeue_var), NULL);
+	pthread_mutex_init(&(tq->dequeue_mutex), NULL);
 
 
 	tq->gen = (cw_gen_t *) NULL;
@@ -226,10 +225,11 @@ void cw_tq_delete_internal(cw_tone_queue_t **tq)
 	}
 
 
-	sem_destroy(&((*tq)->semaphore));
+	pthread_cond_destroy(&(*tq)->wait_var);
+	pthread_mutex_destroy(&(*tq)->wait_mutex);
 
-	pthread_cond_destroy(&(*tq)->cond_var);
-	pthread_mutex_destroy(&(*tq)->cond_mutex);
+	pthread_cond_destroy(&(*tq)->dequeue_var);
+	pthread_mutex_destroy(&(*tq)->dequeue_mutex);
 
 
 	pthread_mutex_destroy(&(*tq)->mutex);
@@ -652,8 +652,8 @@ int cw_tq_dequeue_sub_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 	}
 
 
-#if 0 /* Disabled because these debug messages produce lots of output
-	 to console. Enable only when necessary. */
+#if 0   /* Disabled because these debug messages produce lots of output
+	   to console. Enable only when necessary. */
 	cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
 		      "libcw/tq: dequeue tone %d us, %d Hz", tone->len, tone->frequency);
 	cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
@@ -744,7 +744,7 @@ int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 		return CW_SUCCESS;
 	}
 
-#if 0 /* This part is no longer in use. It seems that it's not necessary. 2015.02.22. */
+#if 0   /* This part is no longer in use. It seems that it's not necessary. 2015.02.22. */
 	/* If the keyer or straight key are busy, return an error.
 	   This is because they use the sound card/console tones and key
 	   control, and will interfere with us if we try to use them at
@@ -783,32 +783,19 @@ int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 
 
 	if (tq->state == CW_TQ_IDLE) {
+		tq->state = CW_TQ_BUSY;
+
 		/* A loop in cw_gen_dequeue_and_play_internal()
 		   function may await for the queue to be filled with
 		   new tones to dequeue and play.  It waits for a
 		   notification from tq that there are some new tones
 		   in tone queue. This is a right place and time to
 		   send such notification. */
-		tq->state = CW_TQ_BUSY;
-
-#if 1
-		/* Producer. */
-		libcw_sem_printvalue(&tq->semaphore, tq->len, "libcw/tq/producer: IDLE -> BUSY: before posting");
-		sem_post(&tq->semaphore);
-		libcw_sem_printvalue(&tq->semaphore, tq->len, "libcw/tq/producer: IDLE -> BUSY:  after posting");
-#else
-		pthread_kill(tq->gen->thread.id, SIGALRM);
-#endif
-
-	} else {
-		/* Regular notification on regular enqueue event. */
-#if 1
-		/* Producer. */
-		libcw_sem_printvalue(&tq->semaphore, tq->len, "libcw/tq/producer: before posting");
-		sem_post(&tq->semaphore);
-		libcw_sem_printvalue(&tq->semaphore, tq->len, "libcw/tq/producer:  after posting");
-#endif
+		pthread_mutex_lock(&tq->dequeue_mutex);
+		pthread_cond_signal(&tq->dequeue_var); /* Use pthread_cond_signal() because there is only one listener. */
+		pthread_mutex_unlock(&tq->dequeue_mutex);
 	}
+
 	pthread_mutex_unlock(&(tq->mutex));
 	return CW_SUCCESS;
 }
@@ -895,11 +882,12 @@ bool cw_tq_is_busy_internal(cw_tone_queue_t *tq)
 */
 int cw_tq_wait_for_tone_internal(cw_tone_queue_t *tq)
 {
-#if 1
-	pthread_mutex_lock(&(tq->cond_mutex));
-	pthread_cond_wait(&tq->cond_var, &tq->cond_mutex);
-	pthread_mutex_unlock(&(tq->cond_mutex));
-#else
+	pthread_mutex_lock(&(tq->wait_mutex));
+	pthread_cond_wait(&tq->wait_var, &tq->wait_mutex);
+	pthread_mutex_unlock(&(tq->wait_mutex));
+
+
+#if 0   /* Original implementation using signals. */
 	/* Wait for the head index to change or the dequeue to go idle. */
 	size_t check_tq_head = tq->head;
 	while (tq->head == check_tq_head && tq->state != CW_TQ_IDLE) {
@@ -929,20 +917,19 @@ int cw_tq_wait_for_tone_internal(cw_tone_queue_t *tq)
 */
 int cw_tq_wait_for_tone_queue_internal(cw_tone_queue_t *tq)
 {
-#if 1
-	pthread_mutex_lock(&(tq->cond_mutex));
+	pthread_mutex_lock(&(tq->wait_mutex));
 	while (tq->len) {
-		pthread_cond_wait(&tq->cond_var, &tq->cond_mutex);
+		pthread_cond_wait(&tq->wait_var, &tq->wait_mutex);
 	}
-	pthread_mutex_unlock(&(tq->cond_mutex));
-#else
+	pthread_mutex_unlock(&(tq->wait_mutex));
 
+
+#if 0   /* Original implementation using signals. */
 	/* Wait until the dequeue indicates it has hit the end of the queue. */
 	while (tq->state != CW_TQ_IDLE) {
 		cw_signal_wait_internal();
 	}
 #endif
-
 	return CW_SUCCESS;
 }
 
@@ -971,15 +958,15 @@ int cw_tq_wait_for_tone_queue_internal(cw_tone_queue_t *tq)
 */
 int cw_tq_wait_for_level_internal(cw_tone_queue_t *tq, size_t level)
 {
-#if 1
 	/* Wait until the queue length is at or below critical level. */
-	pthread_mutex_lock(&(tq->cond_mutex));
+	pthread_mutex_lock(&(tq->wait_mutex));
 	while (tq->len > level) {
-		pthread_cond_wait(&tq->cond_var, &tq->cond_mutex);
+		pthread_cond_wait(&tq->wait_var, &tq->wait_mutex);
 	}
-	pthread_mutex_unlock(&(tq->cond_mutex));
-#else
+	pthread_mutex_unlock(&(tq->wait_mutex));
 
+
+#if 0   /* Original implementation using signals. */
 	/* Wait until the queue length is at or below critical level. */
 	while (cw_tq_length_internal(tq) > level) {
 		cw_signal_wait_internal();
@@ -1023,23 +1010,19 @@ void cw_tq_flush_internal(cw_tone_queue_t *tq)
 	fprintf(stderr, "--------------------------------\n");
 #endif
 
-#if 1
 	pthread_mutex_lock(&(tq->mutex));
 
 	/* Force zero length state. */
 	cw_tq_reset_state_internal(tq);
 
-	libcw_sem_flush (&tq->semaphore);
-
 	pthread_mutex_unlock(&(tq->mutex));
 
-#if 0
-	/* TODO: is this necessary? We have already reset tq->len and
-	   tq->head, and also flushed semaphore. */
+	/* TODO: is this necessary? We have already reset queue
+	   state. */
 	cw_tq_wait_for_tone_queue_internal(tq);
-#endif
-#else
 
+
+#if 0   /* Original implementation using signals. */
 	pthread_mutex_lock(&(tq->mutex));
 
 	/* Force zero length state. */

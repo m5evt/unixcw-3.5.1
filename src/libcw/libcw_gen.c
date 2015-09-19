@@ -85,7 +85,6 @@
 #include "libcw_utils.h"
 #include "libcw_signal.h"
 #include "libcw_data.h"
-#include "libcw_ipc.h"
 
 #include "libcw_null.h"
 #include "libcw_console.h"
@@ -545,8 +544,6 @@ cw_gen_t *cw_gen_new(int audio_system, const char *device)
 		return (cw_gen_t *) NULL;
 	}
 
-	cw_sigalrm_install_top_level_handler_internal();
-
 	return gen;
 }
 
@@ -674,11 +671,17 @@ int cw_gen_stop(cw_gen_t *gen)
 	   This is to force the loop to start new cycle, notice that
 	   gen->do_dequeue_and_generate is false, and to get the thread
 	   function to return (and thus to end the thread). */
-#if 1
-	libcw_sem_printvalue(&gen->tq->semaphore, gen->tq->len, "libcw/tq/producer: stopping generator: before posting");
-	sem_post(&gen->tq->semaphore);
-	libcw_sem_printvalue(&gen->tq->semaphore, gen->tq->len, "libcw/tq/producer: stopping generator:  after posting");
-#else
+#if 0
+	pthread_mutex_lock(&gen->tq->wait_mutex);
+	pthread_cond_broadcast(&gen->tq->wait_var);
+	pthread_mutex_unlock(&gen->tq->wait_mutex);
+#endif
+
+	pthread_mutex_lock(&gen->tq->dequeue_mutex);
+	pthread_cond_signal(&gen->tq->dequeue_var); /* Use pthread_cond_signal() because there is only one listener. */
+	pthread_mutex_unlock(&gen->tq->dequeue_mutex);
+
+#if 0   /* Original implementation using signals. */
 	pthread_kill(gen->thread.id, SIGALRM);
 #endif
 
@@ -707,8 +710,8 @@ int cw_gen_stop(cw_gen_t *gen)
 	*/
 
 
-#if 0 /* Old code using pthread_kill() instead of pthread_join().
-	 This code is unused since before 2015-08-30. */
+#if 0   /* Old code using pthread_kill() instead of pthread_join().
+	   This code is unused since before 2015-08-30. */
 
 	struct timespec req = { .tv_sec = 1, .tv_nsec = 0 };
 	cw_nanosleep_internal(&req);
@@ -877,74 +880,41 @@ void *cw_gen_dequeue_and_generate_internal(void *arg)
 	CW_TONE_INIT(&tone, 0, 0, CW_SLOPE_MODE_STANDARD_SLOPES);
 
 	while (gen->do_dequeue_and_generate) {
-#if 1
-		/* Consumer. */
-		//libcw_sem_printvalue(&gen->tq->semaphore, gen->tq->len, "libcw/tq/consumer: dequeue and generate: waiting for semaphore");
-		sem_wait(&gen->tq->semaphore);
-		//libcw_sem_printvalue(&gen->tq->semaphore, gen->tq->len, "libcw/tq/consumer: dequeue and generate, got semaphore");
-#endif
 		int tq_rv = cw_tq_dequeue_internal(gen->tq, &tone);
 		if (tq_rv == CW_TQ_NDEQUEUED_IDLE) {
 
 			cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_TONE_QUEUE, CW_DEBUG_INFO,
 				      "libcw/tq: got CW_TQ_NDEQUEUED_IDLE");
 
-#if 0
-			/* When using signals, here (i.e. after
-			   cw_tq_dequeue_internal()) is the right
-			   place to wait for signal from
-			   cw_tq_enqueue_internal().  Consider this
-			   sequence:
+			/* We won't get here while there are some
+			   accumulated tones in queue, because
+			   cw_tq_dequeue_internal() will be handling
+			   them just fine without any need for
+			   synchronization or wait().  Only after the
+			   queue has been completely drained, we will
+			   be forced to wait() here.
 
-			   - client code enqueues some data;
-                             cw_tq_enqueue_internal() function signals
-                             new data in queue;
+			   It's much better to wait only sometimes
+			   after cw_tq_dequeue_internal() than wait
+			   always before cw_tq_dequeue_internal().
 
-			   - client code calls cw_gen_start() after
-                             enqueueing data;
+			   We are waiting for kick from enqueue()
+			   function informing that a new tone appeared
+			   in tone queue.
 
-			   - cw_gen_dequeue_internal() function is
-                             called and we get into this loop;
+			   The kick may also come from cw_gen_stop()
+			   that gently asks this function to stop
+			   idling and nicely return. */
 
-			   It would be ok to place sem_wait(semaphore)
-			   before cw_tq_dequeue_internal() because
-			   this semaphore has memory about enqueued
-			   data (it retains a state until wait()ed).
+			pthread_mutex_lock(&(gen->tq->dequeue_mutex));
+			pthread_cond_wait(&gen->tq->dequeue_var, &gen->tq->dequeue_mutex);
+			pthread_mutex_unlock(&(gen->tq->dequeue_mutex));
 
-			   With signals, waiting for signal before
-			   cw_tq_dequeue_internal() is pointless: data
-			   has been already enqueued and the signal
-			   from enqueue() has already been sent -
-			   there is nothing to wait for. Therefore we
-			   should first try to
-			   cw_tq_dequeue_internal(), and if no data is
-			   ready to dequeue, then wait for signal
-			   after cw_tq_dequeue_internal(). */
-
-			/* Tone queue has been totally drained with
-			   previous call to dequeue(). No point in
-			   making next iteration of while() and
-			   calling the function again. So don't call
-			   it, wait for kick from enqueue() function
-			   informing that a new tone appeared in tone
-			   queue.
-
-			   Notice that code using non-signals IPC is
-			   not present here. That code is executed
-			   before dequeue(). */
-
-			/* The kick may also come from
-			   cw_gen_stop() that gently asks
-			   this function to stop idling and nicely
-			   return. */
-
+#if 0                   /* Original implementation using signals. */
 			/* TODO: can we / should we specify on which
 			   signal exactly we are waiting for? */
 			cw_signal_wait_internal();
 #endif
-			/* Regardless if we use signals or alternative
-			   IPC, if the tq is idle, then there is
-			   nothing to do in this loop cycle. */
 			continue;
 		}
 
@@ -974,12 +944,15 @@ void *cw_gen_dequeue_and_generate_internal(void *arg)
                      by waiting for signal in cw_wait_for_tone() /
                      cw_tq_wait_for_tone_internal()
 		 */
-#if 1
-		pthread_mutex_lock(&gen->tq->cond_mutex);
-		pthread_cond_broadcast(&gen->tq->cond_var);
-		pthread_mutex_unlock(&gen->tq->cond_mutex);
-#else
+
 		//fprintf(stderr, "libcw/tq:       sending signal on dequeue, target thread id = %ld\n", gen->client.thread_id);
+
+		pthread_mutex_lock(&gen->tq->wait_mutex);
+		pthread_cond_broadcast(&gen->tq->wait_var);
+		pthread_mutex_unlock(&gen->tq->wait_mutex);
+
+
+#if 0           /* Original implementation using signals. */
 		pthread_kill(gen->client.thread_id, SIGALRM);
 #endif
 
@@ -1032,11 +1005,11 @@ void *cw_gen_dequeue_and_generate_internal(void *arg)
 	struct timespec req = { .tv_sec = 0, .tv_nsec = CW_NSECS_PER_SEC / 2 };
 	cw_nanosleep_internal(&req);
 
-#if 1
-	pthread_mutex_lock(&gen->tq->cond_mutex);
-	pthread_cond_broadcast(&gen->tq->cond_var);
-	pthread_mutex_unlock(&gen->tq->cond_mutex);
-#else
+	pthread_mutex_lock(&gen->tq->wait_mutex);
+	pthread_cond_broadcast(&gen->tq->wait_var);
+	pthread_mutex_unlock(&gen->tq->wait_mutex);
+
+#if 0   /* Original implementation using signals. */
 	pthread_kill(gen->client.thread_id, SIGALRM);
 #endif
 
