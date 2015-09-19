@@ -811,7 +811,7 @@ int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
    the routine returns CW_SUCCESS.
 
    If \p level is invalid, the routine returns CW_FAILURE with errno set to
-   EINVAL.  Any callback supplied will be called in signal handler context.
+   EINVAL.
 
    \param tq - tone queue
    \param callback_func - callback function to be registered
@@ -862,16 +862,13 @@ bool cw_tq_is_busy_internal(cw_tone_queue_t *tq)
 /**
    \brief Wait for the current tone to complete
 
-   The routine returns CW_SUCCESS on success.  If called with SIGALRM
-   blocked, the routine returns CW_FAILURE, with errno set to EDEADLK,
-   to avoid indefinite waits.
+   The routine always returns CW_SUCCESS.
 
    TODO: add unit test for this function.
 
    \param tq - tone queue
 
-   \return CW_SUCCESS on success
-   \return CW_FAILURE on failure
+   \return CW_SUCCESS
 */
 int cw_tq_wait_for_tone_internal(cw_tone_queue_t *tq)
 {
@@ -897,16 +894,13 @@ int cw_tq_wait_for_tone_internal(cw_tone_queue_t *tq)
 /**
    \brief Wait for the tone queue to drain
 
-   The routine returns CW_SUCCESS on success. If called with SIGALRM
-   blocked, the routine returns false, with errno set to EDEADLK,
-   to avoid indefinite waits.
+   The routine always returns CW_SUCCESS.
 
    TODO: add unit test for this function.
 
    \param tq - tone queue
 
    \return CW_SUCCESS on success
-   \return CW_FAILURE on failure
 */
 int cw_tq_wait_for_tone_queue_internal(cw_tone_queue_t *tq)
 {
@@ -937,9 +931,7 @@ int cw_tq_wait_for_tone_queue_internal(cw_tone_queue_t *tq)
    to avoid the cleanup that happens when the tone queue drains completely;
    such programs have a short time in which to add more tones to the queue.
 
-   The routine returns CW_SUCCESS on success.  If called with SIGALRM
-   blocked, the routine returns false, with errno set to EDEADLK, to
-   avoid indefinite waits.
+   The routine always returns CW_SUCCESS.
 
    testedin::test_cw_tq_wait_for_level_internal()
 
@@ -947,7 +939,6 @@ int cw_tq_wait_for_tone_queue_internal(cw_tone_queue_t *tq)
    \param level - low level in queue, at which to return
 
    \return CW_SUCCESS on success
-   \return CW_FAILURE on failure
 */
 int cw_tq_wait_for_level_internal(cw_tone_queue_t *tq, size_t level)
 {
