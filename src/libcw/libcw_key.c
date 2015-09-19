@@ -283,8 +283,7 @@ static int cw_key_sk_enqueue_symbol_internal(cw_key_t *key, int key_value);
    "key open".
 
    Calling this routine with a NULL function address disables keying
-   callbacks.  Any callback supplied will be called in signal handler
-   context (??).
+   callbacks.
 
    \param key
    \param callback_func - callback function to be called on key state changes
@@ -711,9 +710,7 @@ int cw_key_ik_update_graph_state_internal(cw_key_t *key)
 
 		/* We are ending a dot, so turn off tone and begin the
 		   after-dot delay.
-		   No routine status checks are made since we are in a
-		   signal handler, and can't readily return error
-		   codes to the client. */
+		   No routine status checks are made! (TODO) */
 		cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_OPEN, CW_SYMBOL_SPACE);
 		key->ik.graph_state = key->ik.graph_state == KS_IN_DOT_A
 			? KS_AFTER_DOT_A : KS_AFTER_DOT_B;
@@ -730,9 +727,7 @@ int cw_key_ik_update_graph_state_internal(cw_key_t *key)
 
 		/* We are ending a dash, so turn off tone and begin
 		   the after-dash delay.
-		   No routine status checks are made since we are in a
-		   signal handler, and can't readily return error
-		   codes to the client. */
+		   No routine status checks are made! (TODO) */
 		cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_OPEN, CW_SYMBOL_SPACE);
 		key->ik.graph_state = key->ik.graph_state == KS_IN_DASH_A
 			? KS_AFTER_DASH_A : KS_AFTER_DASH_B;
@@ -892,7 +887,7 @@ int cw_key_ik_notify_paddle_event(cw_key_t *key, int dot_paddle_state, int dash_
 	   The latches are checked in the signal handler, so if the paddles
 	   go back to false during this element, the item still gets
 	   actioned.  The signal handler is also responsible for clearing
-	   down the latches. */
+	   down the latches. TODO: verify the comment. */
 	if (key->ik.dot_paddle) {
 		key->ik.dot_latch = true;
 	}
@@ -902,7 +897,7 @@ int cw_key_ik_notify_paddle_event(cw_key_t *key, int dot_paddle_state, int dash_
 
 	/* If in Curtis mode B, make a special check for both paddles true
 	   at the same time.  This flag is checked by the signal handler,
-	   to determine whether to add mode B trailing timing elements. */
+	   to determine whether to add mode B trailing timing elements. TODO: verify this comment. */
 	if (key->ik.curtis_mode_b && key->ik.dot_paddle && key->ik.dash_paddle) {
 		key->ik.curtis_b_latch = true;
 	}
@@ -1126,15 +1121,13 @@ bool cw_key_ik_is_busy_internal(cw_key_t *key)
 
    Waits until the end of the current element, dot or dash, from the keyer.
 
-   On error the function returns CW_FAILURE, with errno set to
-   EDEADLK if SIGALRM is blocked.
+   The function always returns CW_SUCCESS/
 
    testedin::test_keyer()
 
    \param key
 
-   \return CW_SUCCESS on success
-   \return CW_FAILURE on failure
+   \return CW_SUCCESS
 */
 int cw_key_ik_wait_for_element(cw_key_t *key)
 {
@@ -1179,9 +1172,10 @@ int cw_key_ik_wait_for_element(cw_key_t *key)
 /**
    \brief Wait for the current keyer cycle to complete
 
-   The routine returns CW_SUCCESS on success.  On error, it returns
-   CW_FAILURE, with errno set to EDEADLK if SIGALRM is blocked or if
-   either paddle state is true.
+   The routine returns CW_SUCCESS on success.
+
+   It returns CW_FAILURE (with errno set to EDEADLK) if either paddle
+   state is true.
 
    \param key
 
@@ -1190,10 +1184,9 @@ int cw_key_ik_wait_for_element(cw_key_t *key)
 */
 int cw_key_ik_wait_for_keyer(cw_key_t *key)
 {
-
 	/* Check that neither paddle is true; if either is, then the signal
 	   cycle is going to continue forever, and we'll never return from
-	   this routine. */
+	   this routine. TODO: verify this comment. */
 	if (key->ik.dot_paddle || key->ik.dash_paddle) {
 		errno = EDEADLK;
 		return CW_FAILURE;
