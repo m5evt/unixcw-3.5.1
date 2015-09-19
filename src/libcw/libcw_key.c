@@ -781,7 +781,6 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 			key->ik.graph_state = KS_IN_DOT_A;
 		} else {
 			key->ik.graph_state = KS_IDLE;
-			//cw_finalization_schedule_internal();
 		}
 
 		break;
@@ -828,7 +827,6 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 			key->ik.graph_state = KS_IN_DASH_A;
 		} else {
 			key->ik.graph_state = KS_IDLE;
-			//cw_finalization_schedule_internal();
 		}
 
 		break;
@@ -1240,7 +1238,6 @@ void cw_key_ik_reset_internal(volatile cw_key_t *key)
 
 	/* Silence sound and stop any background soundcard tone generation. */
 	cw_gen_silence_internal(key->gen);
-	//cw_finalization_schedule_internal();
 
 	cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
 		      "libcw/ik: keyer state -> %s (reset)", cw_iambic_keyer_states[key->ik.graph_state]);
@@ -1337,17 +1334,6 @@ int cw_key_sk_notify_event(volatile cw_key_t *key, int key_state)
 	   activities to match the new key state. */
 	int rv = cw_key_sk_enqueue_symbol_internal(key, key_state);
 
-#if 0 /* Disabled since we don't do finalization anymore. */
-	if (key->sk.key_value == CW_KEY_STATE_OPEN) {
-		/* Indicate that we have finished with timeouts, and
-		   also with the soundcard too.  There's no way of
-		   knowing when straight keying is completed, so the
-		   only thing we can do here is to schedule release on
-		   each key up event.  */
-		cw_finalization_schedule_internal();
-	}
-#endif
-
 	return rv;
 }
 
@@ -1409,7 +1395,6 @@ void cw_key_sk_reset_internal(volatile cw_key_t *key)
 
 	/* Silence sound and stop any background soundcard tone generation. */
 	cw_gen_silence_internal(key->gen);
-	//cw_finalization_schedule_internal();
 
 	cw_debug_msg (&cw_debug_object, CW_DEBUG_STRAIGHT_KEY_STATES, CW_DEBUG_INFO,
 		      "libcw/sk: key state ->UP (reset)");

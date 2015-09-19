@@ -75,9 +75,6 @@ enum {
 	/* Print out table lookup results. */
 	CW_DEBUG_LOOKUPS              = 1 << 8,
 
-	/* Print out finalization actions. */
-	CW_DEBUG_FINALIZATION         = 1 << 9,
-
 	/* Print out information related to calls to standard library
 	   functions.  This does not include calls that are directly
 	   related to configuring audio devices (e.g. calling open()
