@@ -323,7 +323,7 @@ struct cw_gen_struct {
 	   non-NULL value with
 	   cw_key_register_generator_internal(). Remember that the key
 	   needs to have a generator, not the other way around. */
-	volatile struct cw_key_struct *key;
+	struct cw_key_struct *key;
 };
 
 

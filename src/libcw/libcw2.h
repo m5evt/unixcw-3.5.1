@@ -221,24 +221,24 @@ void      cw_key_delete(cw_key_t **key);
 
 
 /* key module. */
-void cw_key_ik_enable_curtis_mode_b(volatile cw_key_t *key);
-void cw_key_ik_disable_curtis_mode_b(volatile cw_key_t *key);
-bool cw_key_ik_get_curtis_mode_b(volatile cw_key_t *key);
-int  cw_key_ik_notify_paddle_event(volatile cw_key_t *key, int dot_paddle_state, int dash_paddle_state);
-int  cw_key_ik_notify_dot_paddle_event(volatile cw_key_t *key, int dot_paddle_state);
-int  cw_key_ik_notify_dash_paddle_event(volatile cw_key_t *key, int dash_paddle_state);
-int  cw_key_sk_notify_event(volatile cw_key_t *key, int key_state);
-int  cw_key_sk_get_state(volatile cw_key_t *key);
-bool cw_key_sk_is_busy(volatile cw_key_t *key);
-void cw_key_register_keying_callback(volatile cw_key_t *key, cw_key_callback_t callback_func, void *callback_arg);
+void cw_key_ik_enable_curtis_mode_b(cw_key_t *key);
+void cw_key_ik_disable_curtis_mode_b(cw_key_t *key);
+bool cw_key_ik_get_curtis_mode_b(cw_key_t *key);
+int  cw_key_ik_notify_paddle_event(cw_key_t *key, int dot_paddle_state, int dash_paddle_state);
+int  cw_key_ik_notify_dot_paddle_event(cw_key_t *key, int dot_paddle_state);
+int  cw_key_ik_notify_dash_paddle_event(cw_key_t *key, int dash_paddle_state);
+int  cw_key_sk_notify_event(cw_key_t *key, int key_state);
+int  cw_key_sk_get_state(cw_key_t *key);
+bool cw_key_sk_is_busy(cw_key_t *key);
+void cw_key_register_keying_callback(cw_key_t *key, cw_key_callback_t callback_func, void *callback_arg);
 /* TODO: clean up register/bind functions. It seems that there are
    some redundant functions in the code base. */
-void cw_key_register_generator(volatile cw_key_t *key, cw_gen_t *gen);
-void cw_key_register_receiver(volatile cw_key_t *key, cw_rec_t *rec);
+void cw_key_register_generator(cw_key_t *key, cw_gen_t *gen);
+void cw_key_register_receiver(cw_key_t *key, cw_rec_t *rec);
 
-int  cw_key_ik_wait_for_element(volatile cw_key_t *key);
-int  cw_key_ik_wait_for_keyer(volatile cw_key_t *key);
-void cw_key_ik_get_paddles(volatile cw_key_t *key, int *dot_paddle_state, int *dash_paddle_state);
+int  cw_key_ik_wait_for_element(cw_key_t *key);
+int  cw_key_ik_wait_for_keyer(cw_key_t *key);
+void cw_key_ik_get_paddles(cw_key_t *key, int *dot_paddle_state, int *dash_paddle_state);
 
 
 /* General functions: audio systems. */
