@@ -1152,7 +1152,7 @@ int cw_key_ik_wait_for_element(volatile cw_key_t *key)
 		pthread_cond_wait(&key->gen->tq->wait_var, &key->gen->tq->wait_mutex);
 		/* cw_signal_wait_internal(); */ /* Old implementation was using signals. */
 	}
-	pthread_mutex_lock(&key->gen->tq->wait_mutex);
+	pthread_mutex_unlock(&key->gen->tq->wait_mutex);
 
 
 	/* Now wait for the state to move to idle (unless it is, or was,
