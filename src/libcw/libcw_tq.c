@@ -69,13 +69,6 @@
 #include "libcw_gen.h"
 #include "libcw_debug.h"
 
-#if 0
-# include <signal.h> /* SIGALRM */
-# include "libcw_signal.h"
-#endif
-
-
-
 #if defined(HAVE_STRING_H)
 # include <string.h>
 #endif

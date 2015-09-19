@@ -63,10 +63,6 @@
 #include <errno.h>
 #include <inttypes.h> /* uint32_t */
 
-#ifndef LIBCW_WITH_SIGNALS_ALTERNATIVE
-# include <signal.h>
-#endif
-
 #if defined(HAVE_STRING_H)
 # include <string.h>
 #endif
@@ -83,7 +79,6 @@
 #include "libcw_rec.h"
 #include "libcw_debug.h"
 #include "libcw_utils.h"
-#include "libcw_signal.h"
 #include "libcw_data.h"
 
 #include "libcw_null.h"
