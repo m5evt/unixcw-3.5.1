@@ -82,7 +82,8 @@ static int  cw_test_dependent(const char *audio_systems, const char *modules);
 static int  cw_test_dependent_with(int audio_system, const char *modules, cw_test_stats_t *stats);
 static void cw_test_print_stats(void);
 
-
+static void register_signal_handler(void);
+static void signal_handler(int signal_number);
 
 
 static void cw_test_helper_tq_callback(void *data);
@@ -1280,97 +1281,6 @@ void test_straight_key(cw_key_t *key, cw_test_stats_t *stats)
 
 
 
-#if 0
-/*
- * cw_test_signal_handling_callback()
- * cw_test_signal_handling()
- */
-static int cw_test_signal_handling_callback_called = false;
-void cw_test_signal_handling_callback(int signal_number)
-{
-	signal_number = 0;
-	cw_test_signal_handling_callback_called = true;
-}
-
-
-
-
-
-void cw_test_signal_handling(cw_test_stats_t *stats)
-{
-	int failures = 0;
-	struct sigaction action, disposition;
-
-	/* Test registering, unregistering, and raising SIGUSR1.
-	   SIG_IGN and handlers are tested, but not SIG_DFL, because
-	   that stops the process. */
-	if (cw_unregister_signal_handler(SIGUSR1)) {
-		printf("libcw: ERROR: cw_unregister_signal_handler invalid\n");
-		failures++;
-	}
-
-	if (!cw_register_signal_handler(SIGUSR1,
-                                   cw_test_signal_handling_callback)) {
-		printf("libcw: ERROR: cw_register_signal_handler failed\n");
-		failures++;
-	}
-
-	cw_test_signal_handling_callback_called = false;
-	raise(SIGUSR1);
-	sleep(1);
-	if (!cw_test_signal_handling_callback_called) {
-		printf("libcw: ERROR: cw_test_signal_handling_callback missed\n");
-		failures++;
-	}
-
-	if (!cw_register_signal_handler(SIGUSR1, SIG_IGN)) {
-		printf("libcw: ERROR: cw_register_signal_handler (overwrite) failed\n");
-		failures++;
-	}
-
-	cw_test_signal_handling_callback_called = false;
-	raise(SIGUSR1);
-	sleep(1);
-	if (cw_test_signal_handling_callback_called) {
-		printf("libcw: ERROR: cw_test_signal_handling_callback called\n");
-		failures++;
-	}
-
-	if (!cw_unregister_signal_handler(SIGUSR1)) {
-		printf("libcw: ERROR: cw_unregister_signal_handler failed\n");
-		failures++;
-	}
-
-	if (cw_unregister_signal_handler(SIGUSR1)) {
-		printf("libcw: ERROR: cw_unregister_signal_handler invalid\n");
-		failures++;
-	}
-
-	action.sa_handler = cw_test_signal_handling_callback;
-	action.sa_flags = SA_RESTART;
-	sigemptyset(&action.sa_mask);
-	if (sigaction(SIGUSR1, &action, &disposition) != 0) {
-		printf("libcw: WARNING: sigaction failed, test incomplete\n");
-		return failures;
-	}
-	if (cw_register_signal_handler(SIGUSR1, SIG_IGN)) {
-		printf("libcw: ERROR: cw_register_signal_handler clobbered\n");
-		failures++;
-	}
-	if (sigaction(SIGUSR1, &disposition, NULL) != 0) {
-		printf("libcw: WARNING: sigaction failed, test incomplete\n");
-		return failures;
-	}
-
-	printf("libcw: cw_[un]register_signal_handler tests complete\n");
-	return;
-}
-#endif
-
-
-
-
-
 /*---------------------------------------------------------------------*/
 /*  Unit tests drivers                                                 */
 /*---------------------------------------------------------------------*/
@@ -1396,7 +1306,6 @@ void cw_test_setup(cw_gen_t *gen)
 	// cw_rec_set_speed(rec, 30);
 	// cw_rec_disable_adaptive_mode(rec);
 	// cw_rec_reset_statistics(rec);
-	cw_unregister_signal_handler(SIGUSR1);
 	errno = 0;
 
 	return;
@@ -1441,16 +1350,6 @@ static void (*const CW_TEST_FUNCTIONS_DEP_G[])(cw_gen_t *, cw_test_stats_t *) = 
 static void (*const CW_TEST_FUNCTIONS_DEP_K[])(cw_key_t *key, cw_test_stats_t *) = {
 	test_keyer,
 	test_straight_key,
-
-	NULL
-};
-
-
-/* Tests that are dependent on a sound system being configured.
-   Other modules' functions. */
-static void (*const CW_TEST_FUNCTIONS_DEP_O[])(cw_test_stats_t *) = {
-
-	//cw_test_signal_handling, /* FIXME - not sure why this test fails :( */
 
 	NULL
 };
@@ -1521,15 +1420,6 @@ int cw_test_dependent_with(int audio_system, const char *modules, cw_test_stats_
 	                (*CW_TEST_FUNCTIONS_DEP_K[test])(key, stats);
 		}
 	}
-
-
-	if (strstr(modules, "o")) {
-		for (int test = 0; CW_TEST_FUNCTIONS_DEP_O[test]; test++) {
-			cw_test_setup(gen);
-			(*CW_TEST_FUNCTIONS_DEP_O[test])(stats);
-		}
-	}
-
 
 
 	sleep(1);
@@ -1716,7 +1606,7 @@ int main(int argc, char *const argv[])
 
 #define CW_SYSTEMS_MAX 5
 	char sound_systems[CW_SYSTEMS_MAX + 1];
-#define CW_MODULES_MAX 4  /* g, t, k, o */
+#define CW_MODULES_MAX 3  /* g, t, k */
 	char modules[CW_MODULES_MAX + 1];
 	modules[0] = '\0';
 
@@ -1727,15 +1617,44 @@ int main(int argc, char *const argv[])
 
 	atexit(cw_test_print_stats);
 
-	/* Arrange for the test to exit on a range of signals. */
-	for (int i = 0; SIGNALS[i] != 0; i++) {
-		if (!cw_register_signal_handler(SIGNALS[i], SIG_DFL)) {
-			fprintf(stderr, "libcw: ERROR: cw_register_signal_handler\n");
-			exit(EXIT_FAILURE);
-		}
-	}
+	register_signal_handler();
 
 	rv = cw_test_dependent(sound_systems, modules);
 
 	return rv == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
+}
+
+
+
+
+
+/* Show the signal caught, and exit. */
+void signal_handler(int signal_number)
+{
+	fprintf(stderr, "\nCaught signal %d, exiting...\n", signal_number);
+	exit(EXIT_SUCCESS);
+}
+
+
+
+
+
+void register_signal_handler(void)
+{
+	/* Set up signal handler to exit on a range of signals. */
+	const int SIGNALS[] = { SIGHUP, SIGINT, SIGQUIT, SIGPIPE, SIGTERM, 0 };
+	for (int i = 0; SIGNALS[i]; i++) {
+
+		struct sigaction action;
+		memset(&action, 0, sizeof(action));
+		action.sa_handler = signal_handler;
+		action.sa_flags = 0;
+		int rv = sigaction(SIGNALS[i], &action, (struct sigaction *) NULL);
+		if (rv == -1) {
+			fprintf(stderr, "can't register signal: %s\n", strerror(errno));
+			exit(EXIT_FAILURE);
+		}
+	}
+
+	return;
 }
