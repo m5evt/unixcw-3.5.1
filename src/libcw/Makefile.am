@@ -33,7 +33,6 @@ EXTRA_DIST=include.awk libdoc.awk libfuncs.awk libpc.awk libsigs.awk \
 	cw.7 \
 	libcw_gen.h libcw_rec.h \
 	libcw_tq.h libcw_data.h libcw_key.h libcw_utils.h \
-	libcw_signal.h libcw_ipc.h \
 	libcw_null.h libcw_console.h libcw_oss.h libcw_alsa.h libcw_pa.h
 
 # These files are used to build two different targets - list them only
@@ -41,7 +40,7 @@ EXTRA_DIST=include.awk libdoc.awk libfuncs.awk libpc.awk libsigs.awk \
 # the two targets are compiled with different CPPFLAGS.
 LIBCW_BASE_C_FILES = \
 	libcw_gen.c libcw_rec.c \
-	libcw_tq.c libcw_data.c libcw_key.c libcw_utils.c libcw_signal.c \
+	libcw_tq.c libcw_data.c libcw_key.c libcw_utils.c \
 	libcw_null.c libcw_console.c libcw_oss.c libcw_alsa.c libcw_pa.c \
 	libcw_debug.c
 
