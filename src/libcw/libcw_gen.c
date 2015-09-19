@@ -423,7 +423,7 @@ cw_gen_t *cw_gen_new(int audio_system, const char *device)
 		cw_gen_delete(&gen);
 		return (cw_gen_t *) NULL;
 	} else {
-		/* Because libcw_tq.c/cw_tq_enqueue_internal()/pthread_kill(tq->gen->thread.id, SIGALRM); */
+		/* Sometimes tq needs to access a key associated with generator. */
 		gen->tq->gen = gen;
 	}
 
@@ -559,6 +559,9 @@ void cw_gen_delete(cw_gen_t **gen)
 		return;
 	}
 
+	fprintf(stderr, "attempting to delete tq when gen->thread.running = %d\n", (*gen)->thread.running);
+	cw_tq_delete_internal(&((*gen)->tq));
+
 	if ((*gen)->do_dequeue_and_generate) {
 		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG,
 			      "libcw: you forgot to call cw_gen_stop()");
@@ -592,8 +595,6 @@ void cw_gen_delete(cw_gen_t **gen)
 
 	free((*gen)->tone_slope.amplitudes);
 	(*gen)->tone_slope.amplitudes = NULL;
-
-	cw_tq_delete_internal(&((*gen)->tq));
 
 	(*gen)->audio_system = CW_AUDIO_NONE;
 
@@ -644,7 +645,9 @@ int cw_gen_stop(cw_gen_t *gen)
 
 	cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_INFO,
 		      "libcw/gen: gen->do_dequeue_and_generate = false");
+
 	gen->do_dequeue_and_generate = false;
+	fprintf(stderr, "setting do_dequeue_and_generate to %d\n", gen->do_dequeue_and_generate);
 
 	if (!gen->thread.running) {
 		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_INFO, "libcw: EXIT: seems that thread function was not started at all");
@@ -933,11 +936,11 @@ void *cw_gen_dequeue_and_generate_internal(void *arg)
 		   - allows client code to observe moment when state of tone
 		     queue is "low/critical"; client code then can add more
 		     characters to the queue; the observation is done using
-		     cw_wait_for_tone_queue_critical();
+		     cw_tq_wait_for_level_internal();
 
 		   - allows client code to observe any dequeue event
-                     by waiting for signal in cw_wait_for_tone() /
-                     cw_tq_wait_for_tone_internal()
+                     by waiting for signal in
+                     cw_tq_wait_for_tone_internal();
 		 */
 
 		//fprintf(stderr, "libcw/tq:       sending signal on dequeue, target thread id = %ld\n", gen->client.thread_id);
