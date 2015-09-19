@@ -418,125 +418,163 @@ cw_gen_t *cw_gen_new(int audio_system, const char *device)
 		return (cw_gen_t *) NULL;
 	}
 
-	gen->tq = cw_tq_new_internal();
-	if (!gen->tq) {
-		cw_gen_delete(&gen);
-		return (cw_gen_t *) NULL;
-	} else {
-		/* Sometimes tq needs to access a key associated with generator. */
-		gen->tq->gen = gen;
-	}
-
-	gen->audio_device = NULL;
-	//gen->audio_system = audio_system;
-	gen->audio_device_is_open = false;
-	gen->dev_raw_sink = -1;
 
 
-	/* Essential sending parameters. */
-	gen->send_speed = CW_SPEED_INITIAL,
-	gen->frequency = CW_FREQUENCY_INITIAL;
-	gen->volume_percent = CW_VOLUME_INITIAL;
-	gen->volume_abs = (gen->volume_percent * CW_AUDIO_VOLUME_RANGE) / 100;
-	gen->gap = CW_GAP_INITIAL;
-	gen->weighting = CW_WEIGHTING_INITIAL;
-
-
-	gen->parameters_in_sync = false;
-
-
-	gen->do_dequeue_and_generate = false;
-
-
-	gen->buffer = NULL;
-	gen->buffer_n_samples = -1;
-
-	gen->oss_version.x = -1;
-	gen->oss_version.y = -1;
-	gen->oss_version.z = -1;
-
-
-	gen->client.name = (char *) NULL;
-
-	gen->tone_slope.len = CW_AUDIO_SLOPE_LEN;
-	gen->tone_slope.shape = CW_TONE_SLOPE_SHAPE_RAISED_COSINE;
-	gen->tone_slope.amplitudes = NULL;
-	gen->tone_slope.n_amplitudes = 0;
-
-#ifdef LIBCW_WITH_PULSEAUDIO
-	gen->pa_data.s = NULL;
-
-	gen->pa_data.ba.prebuf    = (uint32_t) -1;
-	gen->pa_data.ba.tlength   = (uint32_t) -1;
-	gen->pa_data.ba.minreq    = (uint32_t) -1;
-	gen->pa_data.ba.maxlength = (uint32_t) -1;
-	gen->pa_data.ba.fragsize  = (uint32_t) -1;
-#endif
-
-	gen->open_device = NULL;
-	gen->close_device = NULL;
-	gen->write = NULL;
-
-	pthread_attr_init(&gen->thread.attr);
-	/* Thread must be joinable in order to make a safe call to
-	   pthread_kill(thread_id, 0). pthreads are joinable by
-	   default, but I take this explicit call as a good
-	   opportunity to make this comment. */
-	pthread_attr_setdetachstate(&gen->thread.attr, PTHREAD_CREATE_JOINABLE);
-	gen->thread.running = false;
-
-
-	gen->dot_len = 0;
-	gen->dash_len = 0;
-	gen->eom_space_len = 0;
-	gen->eoc_space_len = 0;
-	gen->eow_space_len = 0;
-
-	gen->additional_space_len = 0;
-	gen->adjustment_space_len = 0;
-
-
-	gen->quantum_len = CW_AUDIO_QUANTUM_LEN_INITIAL;
-
-
-	gen->buffer_sub_start = 0;
-	gen->buffer_sub_stop  = 0;
-
-
-	gen->key = (cw_key_t *) NULL;
-
-
-	int rv = cw_gen_new_open_internal(gen, audio_system, device);
-	if (rv == CW_FAILURE) {
-		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
-			      "libcw: failed to open audio device for audio system '%s' and device '%s'", cw_get_audio_system_label(audio_system), device);
-		cw_gen_delete(&gen);
-		return (cw_gen_t *) NULL;
-	}
-
-	if (audio_system == CW_AUDIO_NULL
-	    || audio_system == CW_AUDIO_CONSOLE) {
-
-		; /* the two types of audio output don't require audio buffer */
-	} else {
-		gen->buffer = (cw_sample_t *) malloc(gen->buffer_n_samples * sizeof (cw_sample_t));
-		if (!gen->buffer) {
-			cw_debug_msg (&cw_debug_object, CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
-				      "libcw: malloc()");
+	/* Tone queue. */
+	{
+		gen->tq = cw_tq_new_internal();
+		if (!gen->tq) {
 			cw_gen_delete(&gen);
 			return (cw_gen_t *) NULL;
+		} else {
+			/* Sometimes tq needs to access a key associated with generator. */
+			gen->tq->gen = gen;
 		}
 	}
 
-	/* Set slope that late, because it uses value of sample rate.
-	   The sample rate value is set in
-	   cw_gen_new_open_internal(). */
-	rv = cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_RAISED_COSINE, CW_AUDIO_SLOPE_LEN);
-	if (rv == CW_FAILURE) {
-		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
-			      "libcw: failed to set slope");
-		cw_gen_delete(&gen);
+
+
+	/* Parameters. */
+	{
+		/* Generator's basic parameters. */
+		gen->send_speed = CW_SPEED_INITIAL;
+		gen->frequency = CW_FREQUENCY_INITIAL;
+		gen->volume_percent = CW_VOLUME_INITIAL;
+		gen->volume_abs = (gen->volume_percent * CW_AUDIO_VOLUME_RANGE) / 100;
+		gen->gap = CW_GAP_INITIAL;
+		gen->weighting = CW_WEIGHTING_INITIAL;
+
+
+		/* Generator's timing parameters. */
+		gen->dot_len = 0;
+		gen->dash_len = 0;
+		gen->eom_space_len = 0;
+		gen->eoc_space_len = 0;
+		gen->eow_space_len = 0;
+
+		gen->additional_space_len = 0;
+		gen->adjustment_space_len = 0;
+
+
+		/* Generator's misc parameters. */
+		gen->quantum_len = CW_AUDIO_QUANTUM_LEN_INITIAL;
+
+
+		gen->parameters_in_sync = false;
+	}
+
+
+
+	/* Misc fields. */
+	{
+		/* Audio buffer and related items. */
+		gen->buffer = NULL;
+		gen->buffer_n_samples = -1;
+		gen->buffer_sub_start = 0;
+		gen->buffer_sub_stop  = 0;
+
+		gen->sample_rate = -1;
+		gen->phase_offset = -1;
+
+
+		/* Tone parameters. */
+		gen->tone_slope.len = CW_AUDIO_SLOPE_LEN;
+		gen->tone_slope.shape = CW_TONE_SLOPE_SHAPE_RAISED_COSINE;
+		gen->tone_slope.amplitudes = NULL;
+		gen->tone_slope.n_amplitudes = 0;
+
+
+		/* Library's client. */
+		gen->client.thread_id = -1;
+		gen->client.name = (char *) NULL;
+
+
+		/* cw key associated with this generator. */
+		gen->key = (cw_key_t *) NULL;
+	}
+
+
+	/* pthread */
+	{
+		gen->thread.id = -1;
+		pthread_attr_init(&gen->thread.attr);
+		/* Thread must be joinable in order to make a safe call to
+		   pthread_kill(thread_id, 0). pthreads are joinable by
+		   default, but I take this explicit call as a good
+		   opportunity to make this comment. */
+		pthread_attr_setdetachstate(&gen->thread.attr, PTHREAD_CREATE_JOINABLE);
+		gen->thread.running = false;
+
+		gen->do_dequeue_and_generate = false;
+	}
+
+
+	/* Audio system. */
+	{
+		gen->audio_device = NULL;
+		gen->audio_sink = -1;
+		//gen->audio_system = audio_system;
+		gen->audio_device_is_open = false;
+		gen->dev_raw_sink = -1;
+
+		gen->open_device = NULL;
+		gen->close_device = NULL;
+		gen->write = NULL;
+
+
+		/* Audio system - OSS. */
+		gen->oss_version.x = -1;
+		gen->oss_version.y = -1;
+		gen->oss_version.z = -1;
+
+		/* Audio system - ALSA. */
+#ifdef LIBCW_WITH_ALSA
+		gen->alsa_data.handle = NULL;
+#endif
+
+		/* Audio system - PulseAudio. */
+#ifdef LIBCW_WITH_PULSEAUDIO
+		gen->pa_data.s = NULL;
+
+		gen->pa_data.ba.prebuf    = (uint32_t) -1;
+		gen->pa_data.ba.tlength   = (uint32_t) -1;
+		gen->pa_data.ba.minreq    = (uint32_t) -1;
+		gen->pa_data.ba.maxlength = (uint32_t) -1;
+		gen->pa_data.ba.fragsize  = (uint32_t) -1;
+#endif
+
+		int rv = cw_gen_new_open_internal(gen, audio_system, device);
+		if (rv == CW_FAILURE) {
+			cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
+				      "libcw: failed to open audio device for audio system '%s' and device '%s'", cw_get_audio_system_label(audio_system), device);
+			cw_gen_delete(&gen);
+			return (cw_gen_t *) NULL;
+		}
+
+		if (audio_system == CW_AUDIO_NULL
+		    || audio_system == CW_AUDIO_CONSOLE) {
+
+			; /* the two types of audio output don't require audio buffer */
+		} else {
+			gen->buffer = (cw_sample_t *) malloc(gen->buffer_n_samples * sizeof (cw_sample_t));
+			if (!gen->buffer) {
+				cw_debug_msg (&cw_debug_object, CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+					      "libcw: malloc()");
+				cw_gen_delete(&gen);
+				return (cw_gen_t *) NULL;
+			}
+		}
+
+		/* Set slope that late, because it uses value of sample rate.
+		   The sample rate value is set in
+		   cw_gen_new_open_internal(). */
+		rv = cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_RAISED_COSINE, CW_AUDIO_SLOPE_LEN);
+		if (rv == CW_FAILURE) {
+			cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
+				      "libcw: failed to set slope");
+			cw_gen_delete(&gen);
 		return (cw_gen_t *) NULL;
+		}
 	}
 
 	return gen;
