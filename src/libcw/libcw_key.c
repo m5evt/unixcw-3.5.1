@@ -41,10 +41,6 @@
 #include "libcw_rec.h"
 #include "libcw_utils.h"
 
-#ifndef LIBCW_WITH_SIGNALS_ALTERNATIVE
-#include "libcw_signal.h"
-#endif
-
 
 
 
@@ -1144,54 +1140,36 @@ bool cw_key_ik_is_busy_internal(volatile cw_key_t *key)
 */
 int cw_key_ik_wait_for_element(volatile cw_key_t *key)
 {
-#ifndef LIBCW_WITH_SIGNALS_ALTERNATIVE
-	if (cw_sigalrm_is_blocked_internal()) {
-		/* no point in waiting for event, when signal
-		   controlling the event is blocked */
-		errno = EDEADLK;
-		return CW_FAILURE;
-	}
-#endif
-
 	/* First wait for the state to move to idle (or just do nothing
 	   if it's not), or to one of the after- states. */
+	pthread_mutex_lock(&key->gen->tq->wait_mutex);
 	while (key->ik.graph_state != KS_IDLE
 	       && key->ik.graph_state != KS_AFTER_DOT_A
 	       && key->ik.graph_state != KS_AFTER_DOT_B
 	       && key->ik.graph_state != KS_AFTER_DASH_A
 	       && key->ik.graph_state != KS_AFTER_DASH_B) {
 
-#ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
-		//fprintf(stderr, "libcw/key_ik: waiting for ik_semaphore\n");
-		sem_wait(&key->gen->tq->ik_semaphore);
-		//fprintf(stderr, "libcw/key_ik: got ik_semaphore\n");
-#else
-		//fprintf(stderr, "ik: waiting for signal in thread %ld\n", pthread_self());
-		cw_signal_wait_internal();
-		//fprintf(stderr, "ik:         got signal in thread %ld\n", pthread_self());
-#endif
+		pthread_cond_wait(&key->gen->tq->wait_var, &key->gen->tq->wait_mutex);
+		/* cw_signal_wait_internal(); */ /* Old implementation was using signals. */
 	}
+	pthread_mutex_lock(&key->gen->tq->wait_mutex);
+
 
 	/* Now wait for the state to move to idle (unless it is, or was,
 	   already), or one of the in- states, at which point we know
 	   we're actually at the end of the element we were in when we
 	   entered this routine. */
+	pthread_mutex_lock(&key->gen->tq->wait_mutex);
 	while (key->ik.graph_state != KS_IDLE
 	       && key->ik.graph_state != KS_IN_DOT_A
 	       && key->ik.graph_state != KS_IN_DOT_B
 	       && key->ik.graph_state != KS_IN_DASH_A
 	       && key->ik.graph_state != KS_IN_DASH_B) {
 
-#ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
-		//fprintf(stderr, "libcw/key_ik: waiting for ik_semaphore\n");
-		sem_wait(&key->gen->tq->ik_semaphore);
-		//fprintf(stderr, "libcw/key_ik: got ik_semaphore\n");
-#else
-		//fprintf(stderr, "ik: waiting for signal in thread %ld\n", pthread_self());
-		cw_signal_wait_internal();
-		//fprintf(stderr, "ik:         got signal in thread %ld\n", pthread_self());
-#endif
+		pthread_cond_wait(&key->gen->tq->wait_var, &key->gen->tq->wait_mutex);
+		/* cw_signal_wait_internal(); */ /* Old implementation was using signals. */
 	}
+	pthread_mutex_unlock(&key->gen->tq->wait_mutex);
 
 	return CW_SUCCESS;
 }
@@ -1214,14 +1192,6 @@ int cw_key_ik_wait_for_element(volatile cw_key_t *key)
 */
 int cw_key_ik_wait_for_keyer(volatile cw_key_t *key)
 {
-#ifndef LIBCW_WITH_SIGNALS_ALTERNATIVE
-	if (cw_sigalrm_is_blocked_internal()) {
-		/* no point in waiting for event, when signal
-		   controlling the event is blocked */
-		errno = EDEADLK;
-		return CW_FAILURE;
-	}
-#endif
 
 	/* Check that neither paddle is true; if either is, then the signal
 	   cycle is going to continue forever, and we'll never return from
@@ -1232,15 +1202,12 @@ int cw_key_ik_wait_for_keyer(volatile cw_key_t *key)
 	}
 
 	/* Wait for the keyer state to go idle. */
+	pthread_mutex_lock(&key->gen->tq->wait_mutex);
 	while (key->ik.graph_state != KS_IDLE) {
-#ifdef LIBCW_WITH_SIGNALS_ALTERNATIVE
-		//fprintf(stderr, "libcw/key_ik: waiting for ik_semaphore\n");
-		sem_wait(&key->gen->tq->ik_semaphore);
-		//fprintf(stderr, "libcw/key_ik: got ik_semaphore\n");
-#else
-		cw_signal_wait_internal();
-#endif
+		pthread_cond_wait(&key->gen->tq->wait_var, &key->gen->tq->wait_mutex);
+		/* cw_signal_wait_internal(); */ /* Old implementation was using signals. */
 	}
+	pthread_mutex_unlock(&key->gen->tq->wait_mutex);
 
 	return CW_SUCCESS;
 }
