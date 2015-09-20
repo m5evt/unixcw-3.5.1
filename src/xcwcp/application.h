@@ -169,9 +169,10 @@ namespace cw {
 		void make_program_menu(void);
 		void make_settings_menu(void);
 		void make_help_menu(void);
+		void make_status_bar(void);
 
-		void make_auxiliaries_begin(void);
-		void make_auxiliaries_end(void);
+		void make_sender_receiver(void);
+
 
 
 		/* Prevent unwanted operations. */

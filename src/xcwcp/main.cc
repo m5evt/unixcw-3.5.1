@@ -157,17 +157,15 @@ int main(int argc, char **argv)
 		}
 
 		// Display the application's windows.
-		cw::Application *application = new cw::Application(config);
-		application->setWindowTitle(_("Xcwcp"));
-		application->show();
+		cw::Application application(config);
+		application.setWindowTitle(_("Xcwcp"));
+		application.check_audio_system(config);
+		application.show();
 		q_application.connect(&q_application, SIGNAL (lastWindowClosed ()),
 				      &q_application, SLOT (quit ()));
 
-		application->check_audio_system(config);
 		// Enter the application event loop.
-		int rv = q_application.exec();
-
-		return rv;
+		return q_application.exec();
 	}
 
 	// Handle any exceptions thrown by the above.

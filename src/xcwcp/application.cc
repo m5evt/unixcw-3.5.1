@@ -137,7 +137,16 @@ Application::Application(cw_config_t *config) :
 	this->config = config;
 	this->is_running = false;
 
-	make_auxiliaries_begin();
+	textarea = new TextArea(this, this->parentWidget());
+	setCentralWidget(this->textarea);
+
+
+	make_sender_receiver();
+
+
+	start_icon = QPixmap(icon_start_xpm);
+	stop_icon = QPixmap(icon_stop_xpm);
+	xcwcp_icon = QPixmap(icon_mini_xcwcp_xpm);
 
 	QMainWindow::setAttribute(Qt::WA_DeleteOnClose, true);
 	QMainWindow::setWindowTitle(_("Xcwcp"));
@@ -145,14 +154,12 @@ Application::Application(cw_config_t *config) :
 	QMainWindow::resize(800, 400);
 
 	make_toolbar();
-
 	make_program_menu();
 	make_settings_menu();
 	make_help_menu();
+	make_status_bar();
 
-	make_central_widget();
-
-	make_auxiliaries_end();
+	this->show_status(_("Ready"));
 
 	return;
 }
@@ -994,25 +1001,8 @@ void Application::make_help_menu(void)
 
 
 
-void Application::make_central_widget(void)
+void Application::make_sender_receiver(void)
 {
-	/* This constructor calls setCentralWidget(). */
-	textarea = new TextArea(this, this->parentWidget());
-
-	return;
-}
-
-
-
-
-
-void Application::make_auxiliaries_begin(void)
-{
-	start_icon = QPixmap(icon_start_xpm);
-	stop_icon = QPixmap(icon_stop_xpm);
-	xcwcp_icon = QPixmap(icon_mini_xcwcp_xpm);
-
-
 	sender = new Sender(this, textarea, config);
 	receiver = new Receiver(this, textarea);
 
@@ -1046,7 +1036,7 @@ void Application::make_auxiliaries_begin(void)
 
 	saved_receive_speed = cw_rec_get_speed(receiver->rec);
 
-	/* Create a timer for polling send and receive. */
+	/* Create a timer for polling sender and receiver. */
 	poll_timer = new QTimer(this);
 	connect(poll_timer, SIGNAL (timeout()), SLOT (poll_timer_event()));
 
@@ -1057,7 +1047,7 @@ void Application::make_auxiliaries_begin(void)
 
 
 
-void Application::make_auxiliaries_end(void)
+void Application::make_status_bar(void)
 {
 	QString label("Output: ");
 	label += cw_gen_get_audio_system_label(sender->gen);
