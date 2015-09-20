@@ -2828,27 +2828,6 @@ const char *cw_gen_get_soundcard_device(cw_gen_t *gen)
 
 
 
-/**
-   \brief Wait for generator's tone queue to drain
-
-   testedin::test_tone_queue_1()
-   testedin::test_tone_queue_2()
-   testedin::test_tone_queue_3()
-
-   \param gen
-
-   \return CW_SUCCESS on success
-   \return CW_FAILURE on failure
-*/
-int cw_gen_wait_for_queue(cw_gen_t *gen)
-{
-	return cw_tq_wait_for_level_internal(gen->tq, 0);
-}
-
-
-
-
-
 size_t cw_gen_get_queue_length(cw_gen_t *gen)
 {
 	return cw_tq_length_internal(gen->tq);
