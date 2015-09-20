@@ -10,6 +10,12 @@
 
 
 
+#include "config.h"
+
+
+
+
+
 #include "libcw2.h"
 #include "libcw_pa.h"
 #include "libcw_alsa.h"
