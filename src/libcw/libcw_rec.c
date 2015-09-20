@@ -330,9 +330,8 @@ static void cw_rec_update_averages_internal(cw_rec_t *rec, int mark_len, char ma
 static void cw_rec_reset_average_internal(cw_rec_averaging_t *avg, int initial);
 
 
+static int  cw_rec_set_gap(cw_rec_t *rec, int new_value);
 static void cw_rec_set_adaptive_mode_internal(cw_rec_t *rec, bool adaptive);
-
-
 static void cw_rec_poll_representation_eoc_internal(cw_rec_t *rec, int space_len, char *representation, bool *is_end_of_word, bool *is_error);
 static void cw_rec_poll_representation_eow_internal(cw_rec_t *rec, char *representation, bool *is_end_of_word, bool *is_error);
 
