@@ -66,7 +66,6 @@
 
 #include "libcw2.h"
 #include "libcw_tq.h"
-#include "libcw_gen.h"
 #include "libcw_debug.h"
 
 #if defined(HAVE_STRING_H)
@@ -555,15 +554,6 @@ int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 		if (tq->len) {
 			bool call_callback = cw_tq_dequeue_sub_internal(tq, tone);
 
-			/* Notify the key control function about
-			   current tone.
-
-			   TODO: move the call to cw_key function
-			   outside of cw_tq module. */
-			if (tq->gen && tq->gen->key) {
-				cw_key_tk_set_value_internal(tq->gen->key, tone->frequency ? CW_KEY_STATE_CLOSED : CW_KEY_STATE_OPEN);
-			}
-
 			pthread_mutex_unlock(&(tq->wait_mutex));
 			pthread_mutex_unlock(&(tq->mutex));
 
@@ -591,15 +581,6 @@ int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 			   will learn about "no valid tone returned
 			   through function argument" state through
 			   return value. */
-
-			/* Notify the key control function about
-			   current tone.
-
-			   TODO: move the call to cw_key function
-			   outside of cw_tq module. */
-			if (tq->gen && tq->gen->key) {
-				cw_key_tk_set_value_internal(tq->gen->key, CW_KEY_STATE_OPEN);
-			}
 
 			pthread_mutex_unlock(&(tq->wait_mutex));
 			pthread_mutex_unlock(&(tq->mutex));
@@ -718,9 +699,7 @@ int cw_tq_dequeue_sub_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
    kick to generator, so that the generator can dequeue the tone.
 
    The routine returns CW_SUCCESS on success. If the tone queue is
-   full, the routine returns CW_FAILURE, with errno set to EAGAIN.  If
-   the iambic keyer or straight key are currently busy, the routine
-   returns CW_FAILURE, with errno set to EBUSY.
+   full, the routine returns CW_FAILURE, with errno set to EAGAIN.
 
    The function does not accept tones with frequency outside of
    CW_FREQUENCY_MIN-CW_FREQUENCY_MAX range.
@@ -768,16 +747,6 @@ int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 		return CW_SUCCESS;
 	}
 
-#if 0   /* This part is no longer in use. It seems that it's not necessary. 2015.02.22. */
-	/* If the keyer or straight key are busy, return an error.
-	   This is because they use the sound card/console tones and key
-	   control, and will interfere with us if we try to use them at
-	   the same time. */
-	if (cw_key_ik_is_busy_internal(tq->gen->key) || cw_key_sk_is_busy_internal(tq->gen->key)) {
-		errno = EBUSY;
-		return CW_FAILURE;
-	}
-#endif
 
 	pthread_mutex_lock(&(tq->mutex));
 	pthread_mutex_lock(&tq->wait_mutex);
@@ -1072,7 +1041,15 @@ void cw_tq_flush_internal(cw_tone_queue_t *tq)
 #ifdef LIBCW_UNIT_TESTS
 
 
+
+
+
+#include "libcw_gen.h"
 #include "libcw_test.h"
+
+
+
+
 
 static cw_tone_queue_t *test_cw_tq_capacity_test_init(size_t capacity, size_t high_water_mark, size_t head_shift);
 static unsigned int test_cw_tq_enqueue_internal(cw_tone_queue_t *tq);

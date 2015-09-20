@@ -962,7 +962,22 @@ void *cw_gen_dequeue_and_generate_internal(void *arg)
 			continue;
 		}
 
-		cw_key_ik_increment_timer_internal(gen->key, tone.len);
+		if (gen->key) {
+			int state = CW_KEY_STATE_OPEN;
+
+			if (tq_rv == CW_TQ_DEQUEUED) {
+				state = tone.frequency ? CW_KEY_STATE_CLOSED : CW_KEY_STATE_OPEN;
+			} else if (tq_rv == CW_TQ_NDEQUEUED_EMPTY) {
+				state =  CW_KEY_STATE_OPEN;
+			} else {
+				cw_assert (0, "unexpected return value from dequeue(): %d", tq_rv);
+			}
+			cw_key_tk_set_value_internal(gen->key, state);
+
+
+			cw_key_ik_increment_timer_internal(gen->key, tone.len);
+		}
+
 
 #ifdef LIBCW_WITH_DEV
 		cw_debug_ev ((&cw_debug_object_ev), 0, tone.frequency ? CW_DEBUG_EVENT_TONE_HIGH : CW_DEBUG_EVENT_TONE_LOW);
