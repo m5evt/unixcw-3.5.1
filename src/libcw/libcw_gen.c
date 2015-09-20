@@ -606,7 +606,6 @@ void cw_gen_delete(cw_gen_t **gen)
 	}
 
 
-	fprintf(stderr, "attempting to delete tq when gen->thread.running = %d\n", (*gen)->thread.running);
 	cw_tq_delete_internal(&((*gen)->tq));
 
 
@@ -923,12 +922,15 @@ void *cw_gen_dequeue_and_generate_internal(void *arg)
 	cw_tone_t tone;
 	CW_TONE_INIT(&tone, 0, 0, CW_SLOPE_MODE_STANDARD_SLOPES);
 
+	int dequeued_prev = false;
+	int dequeued_now = false;
+
 	while (gen->do_dequeue_and_generate) {
-		int tq_rv = cw_tq_dequeue_internal(gen->tq, &tone);
-		if (tq_rv == CW_TQ_NDEQUEUED_IDLE) {
+		dequeued_now = cw_tq_dequeue_internal(gen->tq, &tone);
+		if (!dequeued_now && !dequeued_prev) {
 
 			cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_TONE_QUEUE, CW_DEBUG_INFO,
-				      "libcw/tq: got CW_TQ_NDEQUEUED_IDLE");
+				      "libcw/gen: queue is idle");
 
 			/* We won't get here while there are some
 			   accumulated tones in queue, because
@@ -962,21 +964,29 @@ void *cw_gen_dequeue_and_generate_internal(void *arg)
 			continue;
 		}
 
+		bool empty_tone = !dequeued_now && dequeued_prev;
+
 		if (gen->key) {
 			int state = CW_KEY_STATE_OPEN;
 
-			if (tq_rv == CW_TQ_DEQUEUED) {
+			if (dequeued_now && (dequeued_prev || !dequeued_prev)) {
 				state = tone.frequency ? CW_KEY_STATE_CLOSED : CW_KEY_STATE_OPEN;
-			} else if (tq_rv == CW_TQ_NDEQUEUED_EMPTY) {
+			} else if (!dequeued_now && dequeued_prev) {
 				state =  CW_KEY_STATE_OPEN;
 			} else {
-				cw_assert (0, "unexpected return value from dequeue(): %d", tq_rv);
+				/* !dequeued_now && !dequeued_prev,
+				   which was was caught right after
+				   cw_tq_dequeue_internal(). No other
+				   combinations are possible. */
+				cw_assert (0, "uncaught combination of flags: dequeued_now = %d, dequeued_prev = %d",
+					   dequeued_now, dequeued_prev);
 			}
 			cw_key_tk_set_value_internal(gen->key, state);
 
 
 			cw_key_ik_increment_timer_internal(gen->key, tone.len);
 		}
+		dequeued_prev = dequeued_now;
 
 
 #ifdef LIBCW_WITH_DEV
@@ -988,8 +998,7 @@ void *cw_gen_dequeue_and_generate_internal(void *arg)
 		} else if (gen->audio_system == CW_AUDIO_CONSOLE) {
 			cw_console_write(gen, &tone);
 		} else {
-			cw_gen_write_to_soundcard_internal(gen, &tone,
-							   tq_rv == CW_TQ_NDEQUEUED_EMPTY);
+			cw_gen_write_to_soundcard_internal(gen, &tone, empty_tone);
 		}
 
 		/*

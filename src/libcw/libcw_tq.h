@@ -51,24 +51,6 @@ enum {
 
 
 
-/* Tone queue states. */
-enum cw_queue_state {
-	CW_TQ_IDLE = 0,
-	CW_TQ_BUSY = 1
-};
-
-
-/* Return values from dequeue function. */
-enum {
-	CW_TQ_DEQUEUED        = 10,
-	CW_TQ_NDEQUEUED_EMPTY = 11,
-	CW_TQ_NDEQUEUED_IDLE  = 12
-};
-
-
-
-
-
 typedef struct {
 	/* Frequency of a tone. */
 	int frequency;
@@ -186,7 +168,7 @@ typedef struct {
 	   from the queue as a first one. */
 	volatile size_t head;
 
-	volatile enum cw_queue_state state;
+	int state; /* CW_TQ_IDLE / CW_TQ_BUSY */
 
 	size_t capacity;
 	size_t high_water_mark;
@@ -232,7 +214,7 @@ void             cw_tq_flush_internal(cw_tone_queue_t *tq);
 size_t cw_tq_get_capacity_internal(cw_tone_queue_t *tq);
 size_t cw_tq_length_internal(cw_tone_queue_t *tq);
 int    cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone);
-int    cw_tq_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone);
+bool   cw_tq_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone);
 
 int  cw_tq_wait_for_level_internal(cw_tone_queue_t *tq, size_t level);
 int  cw_tq_register_low_level_callback_internal(cw_tone_queue_t *tq, cw_queue_low_callback_t callback_func, void *callback_arg, size_t level);
