@@ -216,10 +216,30 @@ void cw_tq_delete_internal(cw_tone_queue_t **tq)
 	}
 
 
-	pthread_cond_destroy(&(*tq)->wait_var);
+	/* Don't call pthread_cond_destroy().
+
+	   When pthread_cond_wait() is waiting for signal, and a
+	   SIGINT signal arrives, the _wait() function will be
+	   interrupted, application's signal handler will call
+	   cw_gen_delete(), which will call cw_tq_delete_internal(),
+	   which will call pthread_cond_destroy().
+
+	   pthread_cond_destroy() called from (effectively) signal
+	   handler will signal all waiters to release condition
+	   variable before destroying conditional variable, but since
+	   our _wait() is interrupted by signal, it won't release the
+	   condition variable.
+
+	   So we have a deadlock: _destroy() telling _wait() to stop
+	   waiting, but _wait() being interrupted by signal, handled
+	   by function called _destroy().
+
+	   So don't call _destroy(). */
+
+	//pthread_cond_destroy(&(*tq)->wait_var);
 	pthread_mutex_destroy(&(*tq)->wait_mutex);
 
-	pthread_cond_destroy(&(*tq)->dequeue_var);
+	//pthread_cond_destroy(&(*tq)->dequeue_var);
 	pthread_mutex_destroy(&(*tq)->dequeue_mutex);
 
 
