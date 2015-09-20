@@ -174,7 +174,9 @@ static int   cw_gen_enqueue_representation_no_eoc_space_internal(cw_gen_t *gen, 
 
 static void  cw_gen_recalculate_slopes_internal(cw_gen_t *gen);
 
-
+static int   cw_gen_join_thread_internal(cw_gen_t *gen);
+static void  cw_gen_write_calculate_empty_tone_internal(cw_gen_t *gen, cw_tone_t *tone);
+static void  cw_gen_write_calculate_tone_internal(cw_gen_t *gen, cw_tone_t *tone);
 
 
 
@@ -683,7 +685,10 @@ int cw_gen_stop(cw_gen_t *gen)
 	   #8. Signalling it won't help because even if a condition
 	   variable is signalled, the function won't be able to
 	   continue. Stopping of generator, especially in emergency
-	   situations, needs to be re-thought. */
+	   situations, needs to be re-thought.
+
+	   This is probably fixed by not calling
+	   pthread_cond_destroy() in cw_tq_delete_internal(). */
 
 	/*
 #0  __pthread_cond_destroy (cond=0x1b130f0) at pthread_cond_destroy.c:77
@@ -750,12 +755,16 @@ int cw_gen_stop(cw_gen_t *gen)
 	pthread_kill(gen->thread.id, SIGALRM);
 #endif
 
-	/* This piece of comment was put before code using
-	   pthread_kill(), and may apply only to that version. But it
-	   may turn out that it will be valid for code using
-	   pthread_join() as well, so I'm keeping it for now.
+	return cw_gen_join_thread_internal(gen);
+}
 
-	   "
+
+
+
+
+int cw_gen_join_thread_internal(cw_gen_t *gen)
+{
+	/* TODO: this comment may no longer be true and necessary.
 	   Sleep a bit to postpone closing a device.  This way we can
 	   avoid a situation when "do_dequeue_and_generate" is set to false
 	   and device is being closed while a new buffer is being
@@ -770,35 +779,9 @@ int cw_gen_stop(cw_gen_t *gen)
 	   The delay also allows the generator function thread to stop
 	   generating tone (or for tone queue to get out of CW_TQ_IDLE
 	   state) and exit before we resort to killing generator
-	   function thread.
-	   "
-	*/
-
-
-#if 0   /* Old code using pthread_kill() instead of pthread_join().
-	   This code is unused since before 2015-08-30. */
-
+	   function thread. */
 	struct timespec req = { .tv_sec = 1, .tv_nsec = 0 };
 	cw_nanosleep_internal(&req);
-
-	/* Check if generator thread is still there.  Remember that
-	   pthread_kill(id, 0) is unsafe for detached threads: if thread
-	   has finished, the ID may be reused, and may be invalid at
-	   this point. */
-	rv = pthread_kill(gen->thread.id, 0);
-	if (rv == 0) {
-		/* thread function didn't return yet; let's help it a bit */
-		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_WARNING, "libcw: EXIT: forcing exit of thread function");
-		rv = pthread_kill(gen->thread.id, SIGKILL);
-		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_WARNING, "libcw: EXIT: pthread_kill() returns %d/%s", rv, strerror(rv));
-	} else {
-		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_INFO, "libcw: EXIT: seems that thread function exited voluntarily");
-	}
-
-	gen->thread.running = false;
-	return CW_SUCCESS;
-#else
-
 
 
 #define CW_DEBUG_TIMING_JOIN 1
@@ -809,16 +792,13 @@ int cw_gen_stop(cw_gen_t *gen)
 #endif
 
 
-
-	rv = pthread_join(gen->thread.id, NULL);
-
+	int rv = pthread_join(gen->thread.id, NULL);
 
 
 #if CW_DEBUG_TIMING_JOIN   /* Debug code to measure how long it takes to join threads. */
 	gettimeofday(&after, NULL);
 	cw_debug_msg (&cw_debug_object, CW_DEBUG_GENERATOR, CW_DEBUG_INFO, "libcw/gen: joining thread took %d us", cw_timestamp_compare_internal(&before, &after));
 #endif
-
 
 
 	if (rv == 0) {
@@ -828,7 +808,6 @@ int cw_gen_stop(cw_gen_t *gen)
 		cw_debug_msg (&cw_debug_object, CW_DEBUG_GENERATOR, CW_DEBUG_ERROR, "libcw/gen: failed to join threads: \"%s\"", strerror(rv));
 		return CW_FAILURE;
 	}
-#endif
 }
 
 
@@ -1462,94 +1441,14 @@ void cw_gen_recalculate_slopes_internal(cw_gen_t *gen)
 int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, cw_tone_t *tone, bool empty_tone)
 {
 	if (empty_tone) {
-		/* All tones have been already dequeued from tone
-		   queue.
-
-		   \p tone does not represent a valid tone to generate. At
-		   first sight there is no need to write anything to
-		   soundcard. But...
-
-		   It may happen that during previous call to the
-		   function there were too few samples in a tone to
-		   completely fill a buffer (see #needmoresamples tag
-		   below).
-
-		   We need to fill the buffer until it is full and
-		   ready to be sent to audio sink.
-
-		   Since there are no new tones for which we could
-		   generate samples, we need to generate silence
-		   samples.
-
-		   Padding the buffer with silence seems to be a good
-		   idea (it will work regardless of value (Mark/Space)
-		   of last valid tone). We just need to know how many
-		   samples of the silence to produce.
-
-		   Number of these samples will be stored in
-		   samples_to_write. */
-
-		/* We don't have a valid tone, so let's construct a
-		   fake one for purposes of padding. */
-
-		/* Required length of padding space is from end of
-		   last buffer subarea to end of buffer. */
-		tone->n_samples = gen->buffer_n_samples - (gen->buffer_sub_stop + 1);;
-
-		tone->len = 0;         /* This value matters no more, because now we only deal with samples. */
-		tone->frequency = 0;   /* This fake tone is a piece of silence. */
-
-		/* The silence tone used for padding doesn't require
-		   any slopes. A slope falling to silence has been
-		   already provided by last non-fake and non-silent
-		   tone. */
-		tone->slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-		tone->rising_slope_n_samples = 0;
-		tone->falling_slope_n_samples = 0;
-
-		tone->sample_iterator = 0;
-
-		//fprintf(stderr, "++++ length of padding silence = %d [samples]\n", tone->n_samples);
-
-	} else { /* tq_rv == CW_TQ_DEQUEUED */
-
-		/* Recalculate tone parameters from microseconds into
-		   samples. After this point the samples will be all
-		   that matters. */
-
-		/* 100 * 10000 = 1.000.000 usecs per second. */
-		tone->n_samples = gen->sample_rate / 100;
-		tone->n_samples *= tone->len;
-		tone->n_samples /= 10000;
-
-		//fprintf(stderr, "++++ length of regular tone = %d [samples]\n", tone->n_samples);
-
-		/* Length of a single slope (rising or falling). */
-		int slope_n_samples= gen->sample_rate / 100;
-		slope_n_samples *= gen->tone_slope.len;
-		slope_n_samples /= 10000;
-
-		if (tone->slope_mode == CW_SLOPE_MODE_RISING_SLOPE) {
-			tone->rising_slope_n_samples = slope_n_samples;
-			tone->falling_slope_n_samples = 0;
-
-		} else if (tone->slope_mode == CW_SLOPE_MODE_FALLING_SLOPE) {
-			tone->rising_slope_n_samples = 0;
-			tone->falling_slope_n_samples = slope_n_samples;
-
-		} else if (tone->slope_mode == CW_SLOPE_MODE_STANDARD_SLOPES) {
-			tone->rising_slope_n_samples = slope_n_samples;
-			tone->falling_slope_n_samples = slope_n_samples;
-
-		} else if (tone->slope_mode == CW_SLOPE_MODE_NO_SLOPES) {
-			tone->rising_slope_n_samples = 0;
-			tone->falling_slope_n_samples = 0;
-
-		} else {
-			cw_assert (0, "unknown tone slope mode %d", tone->slope_mode);
-		}
-
-		tone->sample_iterator = 0;
+		/* No valid tone dequeued from tone queue. We need
+		   samples to complete filling buffer, but they have
+		   to be empty samples. */
+		cw_gen_write_calculate_empty_tone_internal(gen, tone);
+	} else {
+		/* Valid tone dequeued from tone queue. Use it to
+		   calculate samples in buffer. */
+		cw_gen_write_calculate_tone_internal(gen, tone);
 	}
 
 
@@ -1570,9 +1469,9 @@ int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, cw_tone_t *tone, bool empt
 		int64_t free_space = gen->buffer_n_samples - gen->buffer_sub_start;
 		if (samples_to_write > free_space) {
 			/* There will be some tone samples left for
-			   next iteration of this loop.  But this
-			   buffer will be ready to be pushed to audio
-			   sink. */
+			   next iteration of this loop.  But buffer in
+			   this iteration will be ready to be pushed
+			   to audio sink. */
 			gen->buffer_sub_stop = gen->buffer_n_samples - 1;
 		} else if (samples_to_write == free_space) {
 			/* How nice, end of tone samples aligns with
@@ -1585,8 +1484,8 @@ int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, cw_tone_t *tone, bool empt
 		} else {
 			/* There will be too few samples to fill a
 			   buffer. We can't send an unready buffer to
-			   audio sink. We will have to somehow pad the
-			   buffer. */
+			   audio sink. We will have to get more
+			   samples to fill the buffer completely. */
 			gen->buffer_sub_stop = gen->buffer_sub_start + samples_to_write - 1;
 		}
 
@@ -1646,6 +1545,107 @@ int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, cw_tone_t *tone, bool empt
 	//fprintf(stderr, "++++ left loop, %d loops, samples left = %d\n", debug_loop, (int) samples_to_write);
 
 	return 0;
+}
+
+
+
+
+
+void cw_gen_write_calculate_empty_tone_internal(cw_gen_t *gen, cw_tone_t *tone)
+{
+	/* All tones have been already dequeued from tone queue.
+
+	   \p tone does not represent a valid tone to generate. At
+	   first sight there is no need to write anything to
+	   soundcard. But...
+
+	   It may happen that during previous call to the function
+	   there were too few samples in a tone to completely fill a
+	   buffer (see #needmoresamples tag below).
+
+	   We need to fill the buffer until it is full and ready to be
+	   sent to audio sink.
+
+	   Since there are no new tones for which we could generate
+	   samples, we need to generate silence samples.
+
+	   Padding the buffer with silence seems to be a good idea (it
+	   will work regardless of value (Mark/Space) of last valid
+	   tone). We just need to know how many samples of the silence
+	   to produce.
+
+	   Number of these samples will be stored in
+	   samples_to_write. */
+
+	/* We don't have a valid tone, so let's construct a fake one
+	   for purposes of padding. */
+
+	/* Required length of padding space is from end of last buffer
+	   subarea to end of buffer. */
+	tone->n_samples = gen->buffer_n_samples - (gen->buffer_sub_stop + 1);;
+
+	tone->len = 0;         /* This value matters no more, because now we only deal with samples. */
+	tone->frequency = 0;   /* This fake tone is a piece of silence. */
+
+	/* The silence tone used for padding doesn't require any
+	   slopes. A slope falling to silence has been already
+	   provided by last non-fake and non-silent tone. */
+	tone->slope_mode = CW_SLOPE_MODE_NO_SLOPES;
+	tone->rising_slope_n_samples = 0;
+	tone->falling_slope_n_samples = 0;
+
+	tone->sample_iterator = 0;
+
+	//fprintf(stderr, "++++ length of padding silence = %d [samples]\n", tone->n_samples);
+
+	return;
+}
+
+
+
+
+
+void cw_gen_write_calculate_tone_internal(cw_gen_t *gen, cw_tone_t *tone)
+{
+	/* Recalculate tone parameters from microseconds into
+	   samples. After this point the samples will be all that
+	   matters. */
+
+	/* 100 * 10000 = 1.000.000 usecs per second. */
+	tone->n_samples = gen->sample_rate / 100;
+	tone->n_samples *= tone->len;
+	tone->n_samples /= 10000;
+
+	//fprintf(stderr, "++++ length of regular tone = %d [samples]\n", tone->n_samples);
+
+	/* Length of a single slope (rising or falling). */
+	int slope_n_samples= gen->sample_rate / 100;
+	slope_n_samples *= gen->tone_slope.len;
+	slope_n_samples /= 10000;
+
+	if (tone->slope_mode == CW_SLOPE_MODE_RISING_SLOPE) {
+		tone->rising_slope_n_samples = slope_n_samples;
+		tone->falling_slope_n_samples = 0;
+
+	} else if (tone->slope_mode == CW_SLOPE_MODE_FALLING_SLOPE) {
+		tone->rising_slope_n_samples = 0;
+		tone->falling_slope_n_samples = slope_n_samples;
+
+	} else if (tone->slope_mode == CW_SLOPE_MODE_STANDARD_SLOPES) {
+		tone->rising_slope_n_samples = slope_n_samples;
+		tone->falling_slope_n_samples = slope_n_samples;
+
+	} else if (tone->slope_mode == CW_SLOPE_MODE_NO_SLOPES) {
+		tone->rising_slope_n_samples = 0;
+		tone->falling_slope_n_samples = 0;
+
+	} else {
+		cw_assert (0, "unknown tone slope mode %d", tone->slope_mode);
+	}
+
+	tone->sample_iterator = 0;
+
+	return;
 }
 
 
