@@ -125,7 +125,7 @@ void main_helper(int audio_system, const char *name, const char *device, predica
 		if (rv == CW_SUCCESS) {
 
 			/* TODO: perhaps these should go into cw_gen_new(). */
-			cw_gen_reset_send_parameters_internal(gen);
+			cw_gen_reset_parameters_internal(gen);
 			/* Reset requires resynchronization. */
 			cw_gen_sync_parameters_internal(gen);
 

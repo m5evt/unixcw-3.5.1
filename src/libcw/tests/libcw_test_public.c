@@ -1296,7 +1296,7 @@ void test_straight_key(cw_key_t *key, cw_test_stats_t *stats)
 */
 void cw_test_setup(cw_gen_t *gen)
 {
-	cw_gen_reset_send_parameters_internal(gen);
+	cw_gen_reset_parameters_internal(gen);
 	//cw_rec_reset_receive_parameters_internal(&cw_receiver);
 	/* Reset requires resynchronization. */
 	cw_gen_sync_parameters_internal(gen);
