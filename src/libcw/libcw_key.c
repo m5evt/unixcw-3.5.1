@@ -1450,6 +1450,11 @@ void cw_key_delete(cw_key_t **key)
 		return;
 	}
 
+	if ((*key)->gen) {
+		/* Unregister. */
+		(*key)->gen->key = NULL;
+	}
+
 	free(*key);
 	*key = (cw_key_t *) NULL;
 
