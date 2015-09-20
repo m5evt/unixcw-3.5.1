@@ -174,16 +174,14 @@ cw_tone_queue_t *cw_tq_new_internal(void)
 
 	pthread_mutex_lock(&(tq->mutex));
 
-	cw_tq_reset_state_internal(tq);
-	cw_tq_reset_flags_internal(tq);
-
-
 	pthread_cond_init(&(tq->wait_var), NULL);
 	pthread_mutex_init(&(tq->wait_mutex), NULL);
 
 	pthread_cond_init(&(tq->dequeue_var), NULL);
 	pthread_mutex_init(&(tq->dequeue_mutex), NULL);
 
+	cw_tq_reset_state_internal(tq);
+	cw_tq_reset_flags_internal(tq);
 
 	tq->gen = (cw_gen_t *) NULL;
 
@@ -243,10 +241,16 @@ void cw_tq_reset_state_internal(cw_tone_queue_t *tq)
 	int rv = pthread_mutex_trylock(&(tq->mutex));
 	cw_assert (rv == EBUSY, "resetting tq state outside of mutex!");
 
+	pthread_mutex_lock(&tq->wait_mutex);
+
 	tq->head = 0;
 	tq->tail = 0;
 	tq->len = 0;
 	tq->state = CW_TQ_IDLE;
+
+	//fprintf(stderr, "broadcast on tq->len = 0\n");
+	pthread_cond_broadcast(&tq->wait_var);
+	pthread_mutex_unlock(&tq->wait_mutex);
 
 	return;
 }
@@ -514,11 +518,13 @@ size_t cw_tq_next_index_internal(cw_tone_queue_t *tq, size_t ind)
 int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 {
 	pthread_mutex_lock(&(tq->mutex));
+	pthread_mutex_lock(&(tq->wait_mutex));
 
 	/* Decide what to do based on the current state. */
 	switch (tq->state) {
 
 	case CW_TQ_IDLE:
+		pthread_mutex_unlock(&(tq->wait_mutex));
 		pthread_mutex_unlock(&(tq->mutex));
 		/* Ignore calls if our state is idle. */
 		return CW_TQ_NDEQUEUED_IDLE;
@@ -538,6 +544,7 @@ int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 				cw_key_tk_set_value_internal(tq->gen->key, tone->frequency ? CW_KEY_STATE_CLOSED : CW_KEY_STATE_OPEN);
 			}
 
+			pthread_mutex_unlock(&(tq->wait_mutex));
 			pthread_mutex_unlock(&(tq->mutex));
 
 			/* Since client's callback can use functions
@@ -574,11 +581,13 @@ int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 				cw_key_tk_set_value_internal(tq->gen->key, CW_KEY_STATE_OPEN);
 			}
 
+			pthread_mutex_unlock(&(tq->wait_mutex));
 			pthread_mutex_unlock(&(tq->mutex));
 			return CW_TQ_NDEQUEUED_EMPTY;
 		}
 	}
 
+	pthread_mutex_unlock(&(tq->wait_mutex));
 	pthread_mutex_unlock(&(tq->mutex));
 	/* will never get here as "queue state" enum has only two values */
 	cw_assert(0, "reached unreachable place");
@@ -637,6 +646,8 @@ int cw_tq_dequeue_sub_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 	/* Dequeue. We already have the tone, now update tq's state. */
 	tq->head = cw_tq_next_index_internal(tq, tq->head);
 	tq->len--;
+	//fprintf(stderr, "broadcast on tq->len--\n");
+	pthread_cond_broadcast(&tq->wait_var);
 
 
 	if (tq->len == 0) {
@@ -749,6 +760,7 @@ int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 #endif
 
 	pthread_mutex_lock(&(tq->mutex));
+	pthread_mutex_lock(&tq->wait_mutex);
 
 	if (tq->len == tq->capacity) {
 		/* Tone queue is full. */
@@ -756,6 +768,7 @@ int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 		errno = EAGAIN;
 		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_TONE_QUEUE, CW_DEBUG_ERROR,
 			      "libcw/tq: can't enqueue tone, tq is full");
+		pthread_mutex_unlock(&tq->wait_mutex);
 		pthread_mutex_unlock(&(tq->mutex));
 
 		return CW_FAILURE;
@@ -773,6 +786,8 @@ int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 
 	tq->tail = cw_tq_next_index_internal(tq, tq->tail);
 	tq->len++;
+	//fprintf(stderr, "broadcast on tq->len++\n");
+	pthread_cond_broadcast(&tq->wait_var);
 
 
 	if (tq->state == CW_TQ_IDLE) {
@@ -789,7 +804,8 @@ int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 		pthread_mutex_unlock(&tq->dequeue_mutex);
 	}
 
-	pthread_mutex_unlock(&(tq->mutex));
+	pthread_mutex_unlock(&tq->wait_mutex);
+	pthread_mutex_unlock(&tq->mutex);
 	return CW_SUCCESS;
 }
 
