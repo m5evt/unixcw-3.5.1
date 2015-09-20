@@ -790,25 +790,6 @@ int cw_tq_register_low_level_callback_internal(cw_tone_queue_t *tq, cw_queue_low
 
 
 /**
-   \brief Check if tone sender is busy
-
-   Indicate if the tone sender is busy.
-
-   \param tq - tone queue
-
-   \return true if there are still entries in the tone queue
-   \return false if the queue is empty
-*/
-bool cw_tq_is_busy_internal(cw_tone_queue_t *tq)
-{
-	return tq->state != CW_TQ_IDLE;
-}
-
-
-
-
-
-/**
    \brief Wait for the current tone to complete
 
    The routine always returns CW_SUCCESS.
@@ -830,39 +811,6 @@ int cw_tq_wait_for_tone_internal(cw_tone_queue_t *tq)
 	/* Wait for the head index to change or the dequeue to go idle. */
 	size_t check_tq_head = tq->head;
 	while (tq->head == check_tq_head && tq->state != CW_TQ_IDLE) {
-		cw_signal_wait_internal();
-	}
-#endif
-	return CW_SUCCESS;
-}
-
-
-
-
-
-/**
-   \brief Wait for the tone queue to drain
-
-   The routine always returns CW_SUCCESS.
-
-   TODO: add unit test for this function.
-
-   \param tq - tone queue
-
-   \return CW_SUCCESS on success
-*/
-int cw_tq_wait_for_tone_queue_internal(cw_tone_queue_t *tq)
-{
-	pthread_mutex_lock(&(tq->wait_mutex));
-	while (tq->len) {
-		pthread_cond_wait(&tq->wait_var, &tq->wait_mutex);
-	}
-	pthread_mutex_unlock(&(tq->wait_mutex));
-
-
-#if 0   /* Original implementation using signals. */
-	/* Wait until the dequeue indicates it has hit the end of the queue. */
-	while (tq->state != CW_TQ_IDLE) {
 		cw_signal_wait_internal();
 	}
 #endif
@@ -944,28 +892,20 @@ void cw_tq_flush_internal(cw_tone_queue_t *tq)
 #endif
 
 	pthread_mutex_lock(&(tq->mutex));
-
 	/* Force zero length state. */
 	cw_tq_reset_state_internal(tq);
-
 	pthread_mutex_unlock(&(tq->mutex));
+
 
 	/* TODO: is this necessary? We have already reset queue
 	   state. */
-	cw_tq_wait_for_tone_queue_internal(tq);
+	cw_tq_wait_for_level_internal(tq, 0);
 
 
 #if 0   /* Original implementation using signals. */
-	pthread_mutex_lock(&(tq->mutex));
-
-	/* Force zero length state. */
-	cw_tq_reset_state_internal(tq);
-
-	pthread_mutex_unlock(&(tq->mutex));
-
 	/* If we can, wait until the dequeue goes idle. */
 	if (!cw_sigalrm_is_blocked_internal()) {
-		cw_tq_wait_for_tone_queue_internal(tq);
+		cw_tq_wait_for_level_internal(tq, 0);
 	}
 #endif
 

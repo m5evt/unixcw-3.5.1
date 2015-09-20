@@ -2842,7 +2842,7 @@ const char *cw_gen_get_soundcard_device(cw_gen_t *gen)
 */
 int cw_gen_wait_for_queue(cw_gen_t *gen)
 {
-	return cw_tq_wait_for_tone_queue_internal(gen->tq);
+	return cw_tq_wait_for_level_internal(gen->tq, 0);
 }
 
 
