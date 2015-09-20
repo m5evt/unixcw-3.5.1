@@ -597,14 +597,16 @@ void cw_gen_delete(cw_gen_t **gen)
 		return;
 	}
 
-	fprintf(stderr, "attempting to delete tq when gen->thread.running = %d\n", (*gen)->thread.running);
-	cw_tq_delete_internal(&((*gen)->tq));
-
 	if ((*gen)->do_dequeue_and_generate) {
 		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG,
 			      "libcw: you forgot to call cw_gen_stop()");
 		cw_gen_stop(*gen);
 	}
+
+
+	fprintf(stderr, "attempting to delete tq when gen->thread.running = %d\n", (*gen)->thread.running);
+	cw_tq_delete_internal(&((*gen)->tq));
+
 
 	/* Wait for "write" thread to end accessing output
 	   file descriptor. I have come up with value 500
@@ -673,6 +675,33 @@ int cw_gen_stop(cw_gen_t *gen)
 		   CW_SUCCESS. */
 		return CW_SUCCESS;
 	}
+
+
+	/* FIXME: Something goes wrong when cw_gen_stop() is called
+	   from signal handler. pthread_cond_destroy() hangs because
+	   there is an interrupted pthread_cond_wait() in frame
+	   #8. Signalling it won't help because even if a condition
+	   variable is signalled, the function won't be able to
+	   continue. Stopping of generator, especially in emergency
+	   situations, needs to be re-thought. */
+
+	/*
+#0  __pthread_cond_destroy (cond=0x1b130f0) at pthread_cond_destroy.c:77
+#1  0x00007f15b393179d in cw_tq_delete_internal (tq=0x1b13118) at libcw_tq.c:219
+#2  0x00007f15b392e2ca in cw_gen_delete (gen=0x1b13118, gen@entry=0x6069e0 <generator>) at libcw_gen.c:608
+#3  0x000000000040207f in cw_atexit () at cw.c:668
+#4  0x00007f15b35b6bc9 in __run_exit_handlers (status=status@entry=0, listp=0x7f15b39225a8 <__exit_funcs>,
+    run_list_atexit=run_list_atexit@entry=true) at exit.c:82
+#5  0x00007f15b35b6c15 in __GI_exit (status=status@entry=0) at exit.c:104
+#6  0x00000000004020d7 in signal_handler (signal_number=2) at cw.c:686
+#7  <signal handler called>
+#8  pthread_cond_wait@@GLIBC_2.3.2 () at ../nptl/sysdeps/unix/sysv/linux/x86_64/pthread_cond_wait.S:185
+#9  0x00007f15b3931f3b in cw_tq_wait_for_level_internal (tq=0x1af5be0, level=level@entry=1) at libcw_tq.c:964
+#10 0x00007f15b392f938 in cw_gen_wait_for_queue_level (gen=<optimized out>, level=level@entry=1) at libcw_gen.c:2701
+#11 0x000000000040241e in send_cw_character (c=c@entry=102, is_partial=is_partial@entry=0) at cw.c:501
+#12 0x0000000000401d3d in parse_stream (stream=0x7f15b39234e0 <_IO_2_1_stdin_>) at cw.c:538
+#13 main (argc=<optimized out>, argv=<optimized out>) at cw.c:652
+	 */
 
 	cw_tq_flush_internal(gen->tq);
 
@@ -983,9 +1012,9 @@ void *cw_gen_dequeue_and_generate_internal(void *arg)
 
 		//fprintf(stderr, "libcw/tq:       sending signal on dequeue, target thread id = %ld\n", gen->client.thread_id);
 
-		pthread_mutex_lock(&gen->tq->wait_mutex);
-		pthread_cond_broadcast(&gen->tq->wait_var);
-		pthread_mutex_unlock(&gen->tq->wait_mutex);
+		//pthread_mutex_lock(&gen->tq->wait_mutex);
+		//pthread_cond_broadcast(&gen->tq->wait_var);
+		//pthread_mutex_unlock(&gen->tq->wait_mutex);
 
 
 #if 0           /* Original implementation using signals. */
@@ -1041,9 +1070,9 @@ void *cw_gen_dequeue_and_generate_internal(void *arg)
 	struct timespec req = { .tv_sec = 0, .tv_nsec = CW_NSECS_PER_SEC / 2 };
 	cw_nanosleep_internal(&req);
 
-	pthread_mutex_lock(&gen->tq->wait_mutex);
-	pthread_cond_broadcast(&gen->tq->wait_var);
-	pthread_mutex_unlock(&gen->tq->wait_mutex);
+	//pthread_mutex_lock(&gen->tq->wait_mutex);
+	//pthread_cond_broadcast(&gen->tq->wait_var);
+	//pthread_mutex_unlock(&gen->tq->wait_mutex);
 
 #if 0   /* Original implementation using signals. */
 	pthread_kill(gen->client.thread_id, SIGALRM);
