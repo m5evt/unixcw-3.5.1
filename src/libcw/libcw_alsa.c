@@ -34,7 +34,7 @@
 #ifdef LIBCW_WITH_ALSA
 
 
-
+#include <errno.h>
 #include <dlfcn.h> /* dlopen() and related symbols */
 #include <alsa/asoundlib.h>
 
@@ -289,7 +289,10 @@ int cw_alsa_open_device_internal(cw_gen_t *gen)
 	}
 
 #if CW_DEV_RAW_SINK
-	gen->dev_raw_sink = open("/tmp/cw_file.alsa.raw", O_WRONLY | O_TRUNC | O_NONBLOCK);
+	gen->dev_raw_sink = open("/tmp/cw_file.alsa.raw", O_WRONLY | O_CREAT | O_TRUNC | O_NONBLOCK);
+	if (gen->dev_raw_sink == -1) {
+		fprintf(stderr, "failed to open dev raw sink file: %s\n", strerror(errno));
+	}
 #endif
 
 	return CW_SUCCESS;
