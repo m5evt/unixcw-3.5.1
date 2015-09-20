@@ -160,35 +160,32 @@ int cw_gen_set_weighting(cw_gen_t *gen, int new_value);
 
 
 /* generator module: queue functions. */
-int cw_gen_enqueue_character(cw_gen_t *gen, char c);
-int cw_gen_enqueue_character_parital(cw_gen_t *gen, char c);
-int cw_gen_enqueue_string(cw_gen_t *gen, const char *string);
-/* TODO: replace usage of cw_gen_wait_for_queue() with
-   cw_gen_wait_for_queue_level(). */
-int cw_gen_wait_for_queue(cw_gen_t *gen);
-int cw_gen_wait_for_queue_level(cw_gen_t *gen, size_t level);
-int cw_gen_wait_for_tone(cw_gen_t *gen);
-void cw_gen_flush_queue(cw_gen_t *gen);
+int    cw_gen_enqueue_character(cw_gen_t *gen, char c);
+int    cw_gen_enqueue_character_parital(cw_gen_t *gen, char c);
+int    cw_gen_enqueue_string(cw_gen_t *gen, const char *string);
+int    cw_gen_wait_for_queue_level(cw_gen_t *gen, size_t level);
+int    cw_gen_wait_for_tone(cw_gen_t *gen);
+void   cw_gen_flush_queue(cw_gen_t *gen);
 size_t cw_gen_get_queue_length(cw_gen_t *gen);
-int cw_gen_register_low_level_callback(cw_gen_t *gen, cw_queue_low_callback_t callback_func, void *callback_arg, size_t level);
+int    cw_gen_register_low_level_callback(cw_gen_t *gen, cw_queue_low_callback_t callback_func, void *callback_arg, size_t level);
 
 
 /* generator module: misc functions. */
-int  cw_gen_set_tone_slope(cw_gen_t *gen, int slope_shape, int slope_usecs);
+int         cw_gen_set_tone_slope(cw_gen_t *gen, int slope_shape, int slope_usecs);
 const char *cw_gen_get_console_device(cw_gen_t *gen);
 const char *cw_gen_get_soundcard_device(cw_gen_t *gen);
-char *cw_gen_get_audio_system_label(cw_gen_t *gen);
-bool cw_gen_is_queue_full(cw_gen_t *gen);
+char       *cw_gen_get_audio_system_label(cw_gen_t *gen);
+bool        cw_gen_is_queue_full(cw_gen_t *gen);
 
 
 /* receiver module: receiver's main functions. */
 cw_rec_t *cw_rec_new(void);
 void      cw_rec_delete(cw_rec_t **rec);
-int cw_rec_mark_begin(cw_rec_t *rec, const struct timeval *timestamp);
-int cw_rec_mark_end(cw_rec_t *rec, const struct timeval *timestamp);
-int cw_rec_add_mark(cw_rec_t *rec, const struct timeval *timestamp, char mark);
+int       cw_rec_mark_begin(cw_rec_t *rec, const struct timeval *timestamp);
+int       cw_rec_mark_end(cw_rec_t *rec, const struct timeval *timestamp);
+int       cw_rec_add_mark(cw_rec_t *rec, const struct timeval *timestamp, char mark);
 #ifdef WITH_EXPERIMENTAL_RECEIVER
-void cw_rec_register_push_callback(cw_rec_t *rec, cw_rec_push_callback_t *callback);
+void      cw_rec_register_push_callback(cw_rec_t *rec, cw_rec_push_callback_t *callback);
 #endif
 
 
@@ -201,7 +198,6 @@ void cw_rec_clear_buffer(cw_rec_t *rec);
 /* receiver module: getters of receiver's essential parameters. */
 float cw_rec_get_speed(cw_rec_t *rec);
 int   cw_rec_get_tolerance(cw_rec_t *rec);
-/* int   cw_rec_get_gap(cw_rec_t *rec); */
 int   cw_rec_get_noise_spike_threshold(cw_rec_t *rec);
 bool  cw_rec_get_adaptive_mode(cw_rec_t *rec);
 
@@ -209,7 +205,6 @@ bool  cw_rec_get_adaptive_mode(cw_rec_t *rec);
 /* receiver module: setters of receiver's essential parameters. */
 int  cw_rec_set_speed(cw_rec_t *rec, int new_value);
 int  cw_rec_set_tolerance(cw_rec_t *rec, int new_value);
-int  cw_rec_set_gap(cw_rec_t *rec, int new_value);
 int  cw_rec_set_noise_spike_threshold(cw_rec_t *rec, int new_value);
 void cw_rec_enable_adaptive_mode(cw_rec_t *rec);
 void cw_rec_disable_adaptive_mode(cw_rec_t *rec);
@@ -227,18 +222,18 @@ bool cw_key_ik_get_curtis_mode_b(cw_key_t *key);
 int  cw_key_ik_notify_paddle_event(cw_key_t *key, int dot_paddle_state, int dash_paddle_state);
 int  cw_key_ik_notify_dot_paddle_event(cw_key_t *key, int dot_paddle_state);
 int  cw_key_ik_notify_dash_paddle_event(cw_key_t *key, int dash_paddle_state);
-int  cw_key_sk_notify_event(cw_key_t *key, int key_state);
-int  cw_key_sk_get_state(cw_key_t *key);
-bool cw_key_sk_is_busy(cw_key_t *key);
-void cw_key_register_keying_callback(cw_key_t *key, cw_key_callback_t callback_func, void *callback_arg);
-/* TODO: clean up register/bind functions. It seems that there are
-   some redundant functions in the code base. */
-void cw_key_register_generator(cw_key_t *key, cw_gen_t *gen);
-void cw_key_register_receiver(cw_key_t *key, cw_rec_t *rec);
 
 int  cw_key_ik_wait_for_element(cw_key_t *key);
 int  cw_key_ik_wait_for_keyer(cw_key_t *key);
 void cw_key_ik_get_paddles(cw_key_t *key, int *dot_paddle_state, int *dash_paddle_state);
+
+int  cw_key_sk_notify_event(cw_key_t *key, int key_state);
+int  cw_key_sk_get_state(cw_key_t *key);
+bool cw_key_sk_is_busy(cw_key_t *key);
+
+void cw_key_register_keying_callback(cw_key_t *key, cw_key_callback_t callback_func, void *callback_arg);
+void cw_key_register_generator(cw_key_t *key, cw_gen_t *gen);
+void cw_key_register_receiver(cw_key_t *key, cw_rec_t *rec);
 
 
 /* General functions: audio systems. */
@@ -294,13 +289,6 @@ extern int   cw_representation_to_character(const char *representation);
 extern bool cw_character_is_valid(char c);
 extern bool cw_string_is_valid(const char *string);
 extern bool cw_representation_is_valid(const char *representation);
-
-
-/* signals and reset. */
-extern int  cw_register_signal_handler(int signal_number, void (*callback_func)(int));
-extern int  cw_unregister_signal_handler(int signal_number);
-extern void cw_complete_reset(void);
-extern void cw_block_callback(int block);
 
 
 
