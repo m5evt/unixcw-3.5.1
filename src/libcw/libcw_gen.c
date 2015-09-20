@@ -1006,9 +1006,9 @@ void *cw_gen_dequeue_and_generate_internal(void *arg)
 
 		//fprintf(stderr, "libcw/tq:       sending signal on dequeue, target thread id = %ld\n", gen->client.thread_id);
 
-		//pthread_mutex_lock(&gen->tq->wait_mutex);
-		//pthread_cond_broadcast(&gen->tq->wait_var);
-		//pthread_mutex_unlock(&gen->tq->wait_mutex);
+		pthread_mutex_lock(&gen->tq->wait_mutex);
+		pthread_cond_broadcast(&gen->tq->wait_var);
+		pthread_mutex_unlock(&gen->tq->wait_mutex);
 
 
 #if 0           /* Original implementation using signals. */
@@ -1064,9 +1064,9 @@ void *cw_gen_dequeue_and_generate_internal(void *arg)
 	struct timespec req = { .tv_sec = 0, .tv_nsec = CW_NSECS_PER_SEC / 2 };
 	cw_nanosleep_internal(&req);
 
-	//pthread_mutex_lock(&gen->tq->wait_mutex);
-	//pthread_cond_broadcast(&gen->tq->wait_var);
-	//pthread_mutex_unlock(&gen->tq->wait_mutex);
+	pthread_mutex_lock(&gen->tq->wait_mutex);
+	pthread_cond_broadcast(&gen->tq->wait_var);
+	pthread_mutex_unlock(&gen->tq->wait_mutex);
 
 #if 0   /* Original implementation using signals. */
 	pthread_kill(gen->client.thread_id, SIGALRM);
