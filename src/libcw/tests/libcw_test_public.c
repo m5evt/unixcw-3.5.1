@@ -586,7 +586,7 @@ void test_tone_queue_callback(cw_gen_t *gen, cw_test_stats_t *stats)
 		   Since the value of trigger level is different in
 		   consecutive iterations of loop, we can test the
 		   callback for different values of trigger level. */
-		cw_gen_wait_for_queue(gen);
+		cw_gen_wait_for_queue_level(gen, 0);
 
 		/* Because of order of calling callback and decreasing
 		   length of queue, I think that it's safe to assume
@@ -926,7 +926,7 @@ void test_send_character_and_string(cw_gen_t *gen, cw_test_stats_t *stats)
 				failure = true;
 				break;
 			}
-			cw_gen_wait_for_queue(gen);
+			cw_gen_wait_for_queue_level(gen, 0);
 		}
 
 		putchar('\n');
@@ -963,7 +963,7 @@ void test_send_character_and_string(cw_gen_t *gen, cw_test_stats_t *stats)
 			cw_gen_wait_for_tone(gen);
 		}
 		printf("libcw: tone queue length %-6zu\n", cw_gen_get_queue_length(gen));
-		cw_gen_wait_for_queue(gen);
+		cw_gen_wait_for_queue_level(gen, 0);
 
 		failure ? stats->failures++ : stats->successes++;
 		int n = printf("libcw: cw_gen_enqueue_string(<valid>):");

@@ -134,13 +134,13 @@ void main_helper(int audio_system, const char *name, const char *device, predica
 
 			//cw_send_string("abcdefghijklmnopqrstuvwyz0123456789");
 			cw_gen_enqueue_string(gen, "eish ");
-			cw_gen_wait_for_queue(gen);
+			cw_gen_wait_for_queue_level(gen, 0);
 
 			cw_gen_enqueue_string(gen, "two");
-			cw_gen_wait_for_queue(gen);
+			cw_gen_wait_for_queue_level(gen, 0);
 
 			cw_gen_enqueue_string(gen, "three");
-			cw_gen_wait_for_queue(gen);
+			cw_gen_wait_for_queue_level(gen, 0);
 
 			cw_gen_stop(gen);
 

@@ -72,7 +72,7 @@ int main(void)
 		   will be missed and callback won't be called. */
 		cw_gen_enqueue_character(gen, ' ');
 
-		cw_gen_wait_for_queue(gen);
+		cw_gen_wait_for_queue_level(gen, 0);
 	}
 
 
