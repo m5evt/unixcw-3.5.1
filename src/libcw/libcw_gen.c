@@ -1954,13 +1954,13 @@ int cw_gen_get_weighting(cw_gen_t *gen)
    \param additional_space_len
    \param adjustment_space_len
 */
-void cw_gen_get_send_parameters_internal(cw_gen_t *gen,
-					 int *dot_len,
-					 int *dash_len,
-					 int *eom_space_len,
-					 int *eoc_space_len,
-					 int *eow_space_len,
-					 int *additional_space_len, int *adjustment_space_len)
+void cw_gen_get_timing_parameters_internal(cw_gen_t *gen,
+					   int *dot_len,
+					   int *dash_len,
+					   int *eom_space_len,
+					   int *eoc_space_len,
+					   int *eow_space_len,
+					   int *additional_space_len, int *adjustment_space_len)
 {
 	cw_gen_sync_parameters_internal(gen);
 
@@ -2477,11 +2477,11 @@ int cw_gen_enqueue_string(cw_gen_t *gen, const char *string)
 
 
 /**
-  \brief Reset essential sending parameters to their initial values
+  \brief Reset generator's essential parameters to their initial values
 
   \param gen
 */
-void cw_gen_reset_send_parameters_internal(cw_gen_t *gen)
+void cw_gen_reset_parameters_internal(cw_gen_t *gen)
 {
 	cw_assert (gen, "generator is NULL");
 
@@ -2580,8 +2580,8 @@ void cw_gen_sync_parameters_internal(cw_gen_t *gen)
    Helper function intended to hide details of tone queue and of
    enqueueing a tone from cw_key module.
 
-   'key' is a verb here. The function should be called only on "key
-   down" (begin mark) event from hardware straight key.
+   The function should be called only on "key down" (begin mark) event
+   from hardware straight key.
 
    The function is called in very specific context, see cw_key module
    for details.
@@ -2591,7 +2591,7 @@ void cw_gen_sync_parameters_internal(cw_gen_t *gen)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_gen_key_begin_mark_internal(cw_gen_t *gen)
+int cw_gen_enqueue_begin_mark_internal(cw_gen_t *gen)
 {
 	/* In case of straight key we don't know at all how long the
 	   tone should be (we don't know for how long the key will be
@@ -2626,8 +2626,8 @@ int cw_gen_key_begin_mark_internal(cw_gen_t *gen)
    Helper function intended to hide details of tone queue and of
    enqueueing a tone from cw_key module.
 
-   'key' is a verb here. The function should be called only on "key
-   up" (begin space) event from hardware straight key.
+   The function should be called only on "key up" (begin space) event
+   from hardware straight key.
 
    The function is called in very specific context, see cw_key module
    for details.
@@ -2637,9 +2637,18 @@ int cw_gen_key_begin_mark_internal(cw_gen_t *gen)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_gen_key_begin_space_internal(cw_gen_t *gen)
+int cw_gen_enqueue_begin_space_internal(cw_gen_t *gen)
 {
 	if (gen->audio_system == CW_AUDIO_CONSOLE) {
+		/* FIXME: I think that enqueueing tone is not just a
+		   matter of generating it using generator, but also a
+		   matter of timing events using generator. Enqueueing
+		   tone here and dequeueing it later will be used to
+		   control state of a key. So if we switch state of
+		   key just for quantum_len usecs, then there may be a
+		   problem. */
+
+
 		/* Generate just a bit of silence, just to switch
 		   buzzer from generating a sound to being silent. */
 		cw_tone_t tone;
@@ -2682,10 +2691,10 @@ int cw_gen_key_begin_space_internal(cw_gen_t *gen)
    Helper function intended to hide details of tone queue and of
    enqueueing a tone from cw_key module.
 
-   'key' is a verb here. It indicates, that the function should be
-   called on hardware key events only. Since we enqueue symbols, we
-   know that they have limited, specified length. This means that the
-   function should be called for events from iambic keyer.
+   The function should be called on hardware key events only. Since we
+   enqueue symbols, we know that they have limited, specified
+   length. This means that the function should be called for events
+   from iambic keyer.
 
    'Pure' means without any end-of-mark spaces.
 
@@ -2698,7 +2707,7 @@ int cw_gen_key_begin_space_internal(cw_gen_t *gen)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_gen_key_pure_symbol_internal(cw_gen_t *gen, char symbol)
+int cw_gen_enqueue_pure_symbol_internal(cw_gen_t *gen, char symbol)
 {
 	cw_tone_t tone;
 
@@ -3323,11 +3332,11 @@ unsigned int test_cw_gen_forever_sub(int seconds, int audio_system, const char *
 
 
 
-/* cw_gen_get_send_parameters_internal() is independent of audio
+/* cw_gen_get_timing_parameters_internal() is independent of audio
    system, so it should be ok to test it with CW_AUDIO_NULL only. */
-unsigned int test_cw_gen_get_send_parameters_internal(void)
+unsigned int test_cw_gen_get_timing_parameters_internal(void)
 {
-	int p = fprintf(stdout, "libcw/gen: test_cw_gen_get_send_parameters_internal:");
+	int p = fprintf(stdout, "libcw/gen: test_cw_gen_get_timing_parameters_internal:");
 	fflush(stdout);
 
 	int initial = -5;
@@ -3344,19 +3353,19 @@ unsigned int test_cw_gen_get_send_parameters_internal(void)
 	cw_gen_t *gen = cw_gen_new(CW_AUDIO_NULL, NULL);
 	cw_assert (gen, "failed to create new generator");
 
-	cw_gen_reset_send_parameters_internal(gen);
+	cw_gen_reset_parameters_internal(gen);
 	/* Reset requires resynchronization. */
 	cw_gen_sync_parameters_internal(gen);
 
 
-	cw_gen_get_send_parameters_internal(gen,
-					    &dot_len,
-					    &dash_len,
-					    &eom_space_len,
-					    &eoc_space_len,
-					    &eow_space_len,
-					    &additional_space_len,
-					    &adjustment_space_len);
+	cw_gen_get_timing_parameters_internal(gen,
+					      &dot_len,
+					      &dash_len,
+					      &eom_space_len,
+					      &eoc_space_len,
+					      &eow_space_len,
+					      &additional_space_len,
+					      &adjustment_space_len);
 
 	cw_assert (dot_len != initial, "failed to get dot_len, is now %d", dot_len);
 	cw_assert (dash_len != initial, "failed to get dash_len, is now %d", dash_len);

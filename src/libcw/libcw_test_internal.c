@@ -108,7 +108,7 @@ static cw_test_function_t cw_unit_tests[] = {
 	test_cw_gen_tone_slope_shape_enums,
 	test_cw_gen_new_delete,
 	test_cw_gen_forever_internal,
-	test_cw_gen_get_send_parameters_internal,
+	test_cw_gen_get_timing_parameters_internal,
 	test_cw_gen_parameter_getters_setters,
 
 

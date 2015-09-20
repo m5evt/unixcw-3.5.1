@@ -475,11 +475,11 @@ int cw_key_sk_enqueue_symbol_internal(cw_key_t *key, int key_value)
 			   Let's enqueue a beginning of mark. A
 			   constant tone will be generated until function
 			   receives CW_KEY_STATE_OPEN key state. */
-			rv = cw_gen_key_begin_mark_internal(key->gen);
+			rv = cw_gen_enqueue_begin_mark_internal(key->gen);
 		} else {
 			/* CW_KEY_STATE_OPEN, time to go from Mark
 			   (audible tone) to Space (silence). */
-			rv = cw_gen_key_begin_space_internal(key->gen);
+			rv = cw_gen_enqueue_begin_space_internal(key->gen);
 		}
 		cw_assert (rv, "failed to key key value %d", key->sk.key_value);
 		return rv;
@@ -556,7 +556,7 @@ int cw_key_ik_enqueue_symbol_internal(cw_key_t *key, int key_value, char symbol)
 		}
 
 		/* 'Pure' means without any end-of-mark spaces. */
-		int rv = cw_gen_key_pure_symbol_internal(key->gen, symbol);
+		int rv = cw_gen_enqueue_pure_symbol_internal(key->gen, symbol);
 		cw_assert (rv, "failed to key symbol '%c'", symbol);
 		return rv;
 	} else {

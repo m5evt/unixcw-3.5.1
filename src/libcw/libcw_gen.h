@@ -354,7 +354,7 @@ struct cw_gen_struct {
 
 
 
-void cw_gen_get_send_parameters_internal(cw_gen_t *gen, int *dot_len, int *dash_len, int *eom_space_len, int *eoc_space_len, int *eow_space_len, int *additional_space_len, int *adjustment_space_len);
+
 
 
 
@@ -366,10 +366,10 @@ int cw_gen_enqueue_eoc_space_internal(cw_gen_t *gen);
 int cw_gen_enqueue_eow_space_internal(cw_gen_t *gen);
 
 /* These are also enqueue primitives, but are intended to be used on
-   hardware key events. 'key' is a verb here. */
-int cw_gen_key_begin_mark_internal(cw_gen_t *gen);
-int cw_gen_key_begin_space_internal(cw_gen_t *gen);
-int cw_gen_key_pure_symbol_internal(cw_gen_t *gen, char symbol);
+   hardware key events. */
+int cw_gen_enqueue_begin_mark_internal(cw_gen_t *gen);
+int cw_gen_enqueue_begin_space_internal(cw_gen_t *gen);
+int cw_gen_enqueue_pure_symbol_internal(cw_gen_t *gen, char symbol);
 
 
 
@@ -377,9 +377,9 @@ int cw_gen_key_pure_symbol_internal(cw_gen_t *gen, char symbol);
 
 int  cw_gen_set_audio_device_internal(cw_gen_t *gen, const char *device);
 int  cw_gen_silence_internal(cw_gen_t *gen);
-void cw_gen_reset_send_parameters_internal(cw_gen_t *gen);
+void cw_gen_reset_parameters_internal(cw_gen_t *gen);
 void cw_gen_sync_parameters_internal(cw_gen_t *gen);
-
+void cw_gen_get_timing_parameters_internal(cw_gen_t *gen, int *dot_len, int *dash_len, int *eom_space_len, int *eoc_space_len, int *eow_space_len, int *additional_space_len, int *adjustment_space_len);
 
 
 
@@ -390,7 +390,7 @@ unsigned int test_cw_gen_set_tone_slope(void);
 unsigned int test_cw_gen_tone_slope_shape_enums(void);
 unsigned int test_cw_gen_new_delete(void);
 unsigned int test_cw_gen_forever_internal(void);
-unsigned int test_cw_gen_get_send_parameters_internal(void);
+unsigned int test_cw_gen_get_timing_parameters_internal(void);
 unsigned int test_cw_gen_parameter_getters_setters(void);
 
 
