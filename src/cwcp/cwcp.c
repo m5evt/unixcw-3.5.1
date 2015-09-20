@@ -1764,7 +1764,7 @@ int main(int argc, char **argv)
 		ui_handle_event(getch());
 	}
 
-	cw_gen_wait_for_queue(gen);
+	cw_gen_wait_for_queue_level(gen, 0);
 
 	return EXIT_SUCCESS;
 }

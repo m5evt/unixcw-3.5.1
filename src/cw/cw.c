@@ -652,7 +652,7 @@ int main(int argc, char *const argv[])
 	parse_stream(stdin);
 
 	/* Await final tone completion before exiting. */
-	cw_gen_wait_for_queue(generator);
+	cw_gen_wait_for_queue_level(generator, 0);
 
 	return EXIT_SUCCESS;
 }
