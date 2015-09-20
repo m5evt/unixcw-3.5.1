@@ -1261,6 +1261,11 @@ void ui_destroy(void)
 */
 static int interface_interpret(int c)
 {
+	int speed_step = 1;
+	int frequency_step = 20;
+	int volume_step = 1;
+	int gap_step = 1;
+
 	/* Interpret the command passed in */
 	switch (c) {
 	default:
@@ -1303,7 +1308,7 @@ static int interface_interpret(int c)
 	case KEY_F (1):
 	case PSEUDO_KEYF1:
 	case KEY_LEFT:
-		if (cw_gen_set_speed(gen, cw_gen_get_speed(gen) - CW_SPEED_STEP)) {
+		if (cw_gen_set_speed(gen, cw_gen_get_speed(gen) - speed_step)) {
 			speed_update();
 		}
 		break;
@@ -1311,7 +1316,7 @@ static int interface_interpret(int c)
 	case KEY_F (2):
 	case PSEUDO_KEYF2:
 	case KEY_RIGHT:
-		if (cw_gen_set_speed(gen, cw_gen_get_speed(gen) + CW_SPEED_STEP)) {
+		if (cw_gen_set_speed(gen, cw_gen_get_speed(gen) + speed_step)) {
 			speed_update();
 		}
 		break;
@@ -1320,7 +1325,7 @@ static int interface_interpret(int c)
 	case KEY_F (3):
 	case PSEUDO_KEYF3:
 	case KEY_END:
-		if (cw_gen_set_frequency(gen, cw_gen_get_frequency(gen) - CW_FREQUENCY_STEP)) {
+		if (cw_gen_set_frequency(gen, cw_gen_get_frequency(gen) - frequency_step)) {
 			frequency_update();
 		}
 		break;
@@ -1328,21 +1333,21 @@ static int interface_interpret(int c)
 	case KEY_F (4):
 	case PSEUDO_KEYF4:
 	case KEY_HOME:
-		if (cw_gen_set_frequency(gen, cw_gen_get_frequency(gen) + CW_FREQUENCY_STEP)) {
+		if (cw_gen_set_frequency(gen, cw_gen_get_frequency(gen) + frequency_step)) {
 			frequency_update();
 		}
 		break;
 
 	case KEY_F (5):
 	case PSEUDO_KEYF5:
-		if (cw_gen_set_volume(gen, cw_gen_get_volume(gen) - CW_VOLUME_STEP)) {
+		if (cw_gen_set_volume(gen, cw_gen_get_volume(gen) - volume_step)) {
 			volume_update();
 		}
 		break;
 
 	case KEY_F (6):
 	case PSEUDO_KEYF6:
-		if (cw_gen_set_volume(gen, cw_gen_get_volume(gen) + CW_VOLUME_STEP)) {
+		if (cw_gen_set_volume(gen, cw_gen_get_volume(gen) + volume_step)) {
 			volume_update();
 		}
 		break;
@@ -1351,14 +1356,14 @@ static int interface_interpret(int c)
 
 	case KEY_F (7):
 	case PSEUDO_KEYF7:
-		if (cw_gen_set_gap(gen, cw_gen_get_gap(gen) - CW_GAP_STEP)) {
+		if (cw_gen_set_gap(gen, cw_gen_get_gap(gen) - gap_step)) {
 			gap_update();
 		}
 		break;
 
 	case KEY_F (8):
 	case PSEUDO_KEYF8:
-		if (cw_gen_set_gap(gen, cw_gen_get_gap(gen) + CW_GAP_STEP)) {
+		if (cw_gen_set_gap(gen, cw_gen_get_gap(gen) + gap_step)) {
 			gap_update();
 		}
 		break;

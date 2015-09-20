@@ -1678,8 +1678,7 @@ unsigned int test_cw_tq_enqueue_args_internal(void)
 	cw_tone_t tone;
 
 
-	int f_min, f_max;
-	cw_get_frequency_limits(&f_min, &f_max);
+	int f_min = CW_FREQUENCY_MIN, f_max = CW_FREQUENCY_MAX;
 
 
 	/* Test 1: invalid length of tone. */

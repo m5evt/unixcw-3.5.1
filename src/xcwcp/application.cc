@@ -772,7 +772,7 @@ void Application::make_toolbar(void)
 	speed_spin = new QSpinBox(toolbar);
 	speed_spin->setMinimum(CW_SPEED_MIN);
 	speed_spin->setMaximum(CW_SPEED_MAX);
-	speed_spin->setSingleStep(CW_SPEED_STEP);
+	speed_spin->setSingleStep(1);
 	speed_spin->setToolTip(_("Speed"));
 	speed_spin->setWhatsThis(SPEED_WHATSTHIS);
 	speed_spin->setSuffix(_(" WPM"));
@@ -790,7 +790,7 @@ void Application::make_toolbar(void)
 	frequency_spin = new QSpinBox(toolbar);
 	frequency_spin->setMinimum(CW_FREQUENCY_MIN);
 	frequency_spin->setMaximum(CW_FREQUENCY_MAX);
-	frequency_spin->setSingleStep(CW_FREQUENCY_STEP);
+	frequency_spin->setSingleStep(20);
 	frequency_spin->setToolTip(_("Frequency"));
 	frequency_spin->setSuffix(_(" Hz"));
 	frequency_spin->setWhatsThis(FREQUENCY_WHATSTHIS);
@@ -808,7 +808,7 @@ void Application::make_toolbar(void)
 	volume_spin = new QSpinBox(toolbar);
 	volume_spin->setMinimum(CW_VOLUME_MIN);
 	volume_spin->setMaximum(CW_VOLUME_MAX);
-	volume_spin->setSingleStep(CW_VOLUME_STEP);
+	volume_spin->setSingleStep(1);
 	volume_spin->setToolTip(_("Volume"));
 	volume_spin->setSuffix(_(" %"));
 	volume_spin->setWhatsThis(VOLUME_WHATSTHIS);
@@ -826,7 +826,7 @@ void Application::make_toolbar(void)
 	gap_spin = new QSpinBox(toolbar);
 	gap_spin->setMinimum(CW_GAP_MIN);
 	gap_spin->setMaximum(CW_GAP_MAX);
-	gap_spin->setSingleStep(CW_GAP_STEP);
+	gap_spin->setSingleStep(1);
 	gap_spin->setToolTip(_("Gap"));
 	gap_spin->setSuffix(_(" dot(s)"));
 	gap_spin->setWhatsThis(GAP_WHATSTHIS);

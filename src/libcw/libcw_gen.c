@@ -3389,15 +3389,12 @@ unsigned int test_cw_gen_parameter_getters_setters(void)
 
 	/* Test setting and getting of some basic parameters. */
 
-	int off_limits = 10000;
-
 	struct {
 		/* There are tree functions that take part in the
 		   test: first gets range of acceptable values,
 		   seconds sets a new value of parameter, and third
 		   reads back the value. */
 
-		void (* get_limits)(int *min, int *max);
 		int (* set_new_value)(cw_gen_t *gen, int new_value);
 		int (* get_value)(cw_gen_t *gen);
 
@@ -3406,29 +3403,19 @@ unsigned int test_cw_gen_parameter_getters_setters(void)
 
 		const char *name;
 	} test_data[] = {
-		{ cw_get_speed_limits,      cw_gen_set_speed,      cw_gen_get_speed,      off_limits,  -off_limits,  "speed"      },
-		{ cw_get_frequency_limits,  cw_gen_set_frequency,  cw_gen_get_frequency,  off_limits,  -off_limits,  "frequency"  },
-		{ cw_get_volume_limits,     cw_gen_set_volume,     cw_gen_get_volume,     off_limits,  -off_limits,  "volume"     },
-		{ cw_get_gap_limits,        cw_gen_set_gap,        cw_gen_get_gap,        off_limits,  -off_limits,  "gap"        },
-		{ cw_get_weighting_limits,  cw_gen_set_weighting,  cw_gen_get_weighting,  off_limits,  -off_limits,  "weighting"  },
-		{ NULL,                     NULL,                  NULL,                      0,                 0,  NULL         }
+		{ cw_gen_set_speed,      cw_gen_get_speed,      CW_SPEED_MIN,      CW_SPEED_MAX,      "speed"      },
+		{ cw_gen_set_frequency,  cw_gen_get_frequency,  CW_FREQUENCY_MIN,  CW_FREQUENCY_MAX,  "frequency"  },
+		{ cw_gen_set_volume,     cw_gen_get_volume,     CW_VOLUME_MIN,     CW_VOLUME_MAX,     "volume"     },
+		{ cw_gen_set_gap,        cw_gen_get_gap,        CW_GAP_MIN,        CW_GAP_MAX,        "gap"        },
+		{ cw_gen_set_weighting,  cw_gen_get_weighting,  CW_WEIGHTING_MIN,  CW_WEIGHTING_MAX,  "weighting"  },
+		{ NULL,                  NULL,                  0,                 0,                 NULL         }
 	};
 
 
-	for (int i = 0; test_data[i].get_limits; i++) {
+	for (int i = 0; test_data[i].set_new_value; i++) {
 
 		int status;
 		int value = 0;
-
-		/* Get limits of values to be tested. */
-		/* Notice that getters of parameter limits are tested
-		   in test_cw_get_x_limits(). */
-		test_data[i].get_limits(&test_data[i].min, &test_data[i].max);
-
-		cw_assert (test_data[i].min > -off_limits, "%s: failed to get low limit, returned value = %d", test_data[i].name, test_data[i].min);
-		cw_assert (test_data[i].max <  off_limits, "%s: failed to get high limit, returned value = %d", test_data[i].name, test_data[i].max);
-
-
 
 		/* Test out-of-range value lower than minimum. */
 		errno = 0;
