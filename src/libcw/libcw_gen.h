@@ -15,6 +15,11 @@
 
 
 
+#include <stdint.h>    /* int16_t */
+
+
+
+
 
 #include "libcw2.h"
 #include "libcw_pa.h"
@@ -41,13 +46,6 @@
 
 
 
-/* Symbolic name for inter-mark space. */
-enum { CW_SYMBOL_SPACE = ' ' };
-
-
-
-
-
 /* This is used in libcw_gen and libcw_debug. */
 #ifdef LIBCW_WITH_DEV
 #define CW_DEV_RAW_SINK           1  /* Create and use /tmp/cw_file.<audio system>.raw file with audio samples written as raw data. */
@@ -56,6 +54,19 @@ enum { CW_SYMBOL_SPACE = ' ' };
 #define CW_DEV_RAW_SINK           0
 #define CW_DEV_RAW_SINK_MARKERS   0
 #endif
+
+
+
+
+
+typedef int16_t cw_sample_t;
+
+
+
+
+
+/* Symbolic name for inter-mark space. */
+enum { CW_SYMBOL_SPACE = ' ' };
 
 
 

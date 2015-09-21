@@ -11,8 +11,7 @@
 
 
 
-#include <sys/time.h>  /* gettimeofday(), struct timeval */
-#include <stdint.h>    /* int16_t */
+#include <sys/time.h>  /* struct timeval */
 #include <stdbool.h>
 
 
@@ -42,7 +41,7 @@ enum {
 };
 
 
-typedef int16_t cw_sample_t;
+
 
 
 #define CW_AUDIO_CHANNELS  1  /* Sound in mono. */
