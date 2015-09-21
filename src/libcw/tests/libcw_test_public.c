@@ -1291,17 +1291,20 @@ void test_keyer(cw_test_stats_t *stats)
 */
 void test_straight_key(cw_test_stats_t *stats)
 {
-	printf("libcw: %s():\n", __func__);
+	printf("libcw: %s():  ", __func__);
 
 	{
 		bool event_failure = false;
 		bool state_failure = false;
 		bool busy_failure = false;
 
-		/* Not sure why, but we have N calls informing the
-		   library that the key is not pressed.  TODO: why we
-		   have N identical calls in a row? */
-		for (int i = 0; i < 10; i++) {
+		struct timespec t;
+		int usecs = CW_USECS_PER_SEC;
+		cw_usecs_to_timespec_internal(&t, usecs);
+
+
+		/* Alternate between open and closed. */
+		for (int i = 0; i < 5; i++) {
 			if (!cw_notify_straight_key_event(CW_KEY_STATE_OPEN)) {
 				event_failure = true;
 				break;
@@ -1316,31 +1319,11 @@ void test_straight_key(cw_test_stats_t *stats)
 				busy_failure = true;
 				break;
 			}
-		}
 
-		event_failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_notify_straight_key_event(<key open>):");
-		CW_TEST_PRINT_TEST_RESULT (event_failure, n);
+			printf("0");
+			fflush(stdout);
+			cw_nanosleep_internal(&t);
 
-		state_failure ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_get_straight_key_state():");
-		CW_TEST_PRINT_TEST_RESULT (state_failure, n);
-
-		busy_failure ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_straight_key_busy():");
-		CW_TEST_PRINT_TEST_RESULT (busy_failure, n);
-	}
-
-
-
-	{
-		bool event_failure = false;
-		bool state_failure = false;
-		bool busy_failure = false;
-
-		/* Again not sure why we have N identical calls in a
-		   row. TODO: why? */
-		for (int i = 0; i < 10; i++) {
 			if (!cw_notify_straight_key_event(CW_KEY_STATE_CLOSED)) {
 				event_failure = true;
 				break;
@@ -1355,11 +1338,17 @@ void test_straight_key(cw_test_stats_t *stats)
 				busy_failure = true;
 				break;
 			}
+
+			printf("1");
+			fflush(stdout);
+			cw_nanosleep_internal(&t);
 		}
 
+		printf("\n");
+		fflush(stdout);
 
 		event_failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_notify_straight_key_event(<key closed>):");
+		int n = printf("libcw: cw_notify_straight_key_event(<key open/closed>):");
 		CW_TEST_PRINT_TEST_RESULT (event_failure, n);
 
 		state_failure ? stats->failures++ : stats->successes++;
@@ -1373,33 +1362,6 @@ void test_straight_key(cw_test_stats_t *stats)
 
 
 	sleep(1);
-
-
-	{
-		bool event_failure = false;
-		bool state_failure = false;
-
-		/* Even more identical calls. TODO: why? */
-		for (int i = 0; i < 10; i++) {
-			if (!cw_notify_straight_key_event(CW_KEY_STATE_OPEN)) {
-				event_failure = true;
-				break;
-			}
-		}
-
-		event_failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_notify_straight_key_event(<key open>):");
-		CW_TEST_PRINT_TEST_RESULT (event_failure, n);
-
-
-		/* The key should be open, the function should return false. */
-		int state = cw_get_straight_key_state();
-		state_failure = state != CW_KEY_STATE_OPEN;
-
-		state_failure ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_get_straight_key_state():");
-		CW_TEST_PRINT_TEST_RESULT (state_failure, n);
-	}
 
 
 	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
