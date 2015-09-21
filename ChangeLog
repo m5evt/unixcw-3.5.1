@@ -1,3 +1,16 @@
+2015-09-21 Kamil Ignacak
+	* libcw2: this round of work on libcw2 is finished.
+
+	First attempt at draft of concept of pre-alpha of libcw2.h file is
+	ready.
+
+	Applications from unixcw package in experimental branch have been
+	converted to use libcw2.
+
+	There is still lots of unfinished topics and loose ends, but I
+	think that it's about time for me to take a step back from
+	experimental branch and start testing master branch.
+
 2015-09-19 Kamil Ignacak
 	* threads synchronization (previously called IPC): removing
 	signals code from library (applications (cw, cwcp, xcwcp) still
