@@ -16439,7 +16439,7 @@ fi
 # I'm defining it here so that it's available in config.h and can be
 # used in libcw's cw_version() function that should return the
 # numbers.
-LIBCW_VERSION=\"6:4:2\"
+LIBCW_VERSION=\"6:5:1\"
 
 cat >>confdefs.h <<_ACEOF
 #define LIBCW_VERSION $LIBCW_VERSION

@@ -136,7 +136,7 @@ fi
 # I'm defining it here so that it's available in config.h and can be
 # used in libcw's cw_version() function that should return the
 # numbers.
-LIBCW_VERSION=\"6:4:2\"
+LIBCW_VERSION=\"6:5:1\"
 AC_DEFINE_UNQUOTED([LIBCW_VERSION], $LIBCW_VERSION, [Library version, libtool notation])
 AC_SUBST(LIBCW_VERSION)
 
