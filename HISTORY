@@ -1,3 +1,9 @@
+*** This file is no longer updated. ***
+*** See NEWS file for description of changes. ***
+
+
+
+
 This is HISTORY file for unixcw. It describes major changes in unixcw
 releases. For detailed description of changes see NEWS file.
 
@@ -93,3 +99,10 @@ generator, receiver, or key as an argument.
 Improving unit tests code.
 Testing unixcw on Alpine Linux (because of musl libc) and FreeBSD 10.0
 (because this is *unix*cw).
+
+
+
+
+
+*** This file is no longer updated. ***
+*** See NEWS file for description of changes. ***
