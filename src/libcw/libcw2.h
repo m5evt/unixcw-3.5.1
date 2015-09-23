@@ -55,32 +55,29 @@ enum {
 #define CW_DEFAULT_PA_DEVICE        "( default )"
 
 
-/* Limits on values of generator's and receiver's basic parameters.
-   Initial values of parameters for newly created generators and
-   receivers. */
-#define CW_SPEED_MIN             4   /* Lowest generator's and receiver's speed [wpm]. */
-#define CW_SPEED_MAX            60   /* Highest speed allowed. */
-#define CW_SPEED_INITIAL        12   /* Initial speed. */
-
-#define CW_FREQUENCY_MIN         0   /* Lowest generator's frequency allowed (0=silent) [Hz]. */
-#define CW_FREQUENCY_MAX      4000   /* Highest frequency allowed. */
-#define CW_FREQUENCY_INITIAL   800   /* Initial frequency. */
-
-#define CW_VOLUME_MIN            0   /* Quietest generator's volume allowed (0=silent) [%]. */
-#define CW_VOLUME_MAX          100   /* Loudest volume allowed. */
-#define CW_VOLUME_INITIAL       70   /* Initial volume. */
-
-#define CW_GAP_MIN               0   /* Lowest extra gap allowed. */
-#define CW_GAP_MAX              60   /* Highest extra gap allowed. */
-#define CW_GAP_INITIAL           0   /* Initial gap setting. */
-
-#define CW_WEIGHTING_MIN        20   /* Lowest generator's weighting allowed. */
-#define CW_WEIGHTING_MAX        80   /* Highest weighting allowed. */
-#define CW_WEIGHTING_INITIAL    50   /* Initial weighting setting. */
-
-#define CW_TOLERANCE_MIN         0   /* Lowest receive tolerance allowed. */
-#define CW_TOLERANCE_MAX        90   /* Highest receive tolerance allowed. */
-#define CW_TOLERANCE_INITIAL    50   /* Initial tolerance setting. */
+/* Limits on values of CW send and timing parameters */
+#define CW_SPEED_MIN             4   /* Lowest WPM allowed */
+#define CW_SPEED_MAX            60   /* Highest WPM allowed */
+#define CW_SPEED_STEP            1
+#define CW_SPEED_INITIAL        12   /* Initial send speed in WPM */
+#define CW_FREQUENCY_MIN         0   /* Lowest tone allowed (0=silent) */
+#define CW_FREQUENCY_MAX      4000   /* Highest tone allowed */
+#define CW_FREQUENCY_INITIAL   800   /* Initial tone in Hz */
+#define CW_FREQUENCY_STEP       20
+#define CW_VOLUME_MIN            0   /* Quietest volume allowed (0=silent) */
+#define CW_VOLUME_MAX          100   /* Loudest volume allowed */
+#define CW_VOLUME_INITIAL       70   /* Initial volume percent */
+#define CW_VOLUME_STEP           1
+#define CW_GAP_MIN               0   /* Lowest extra gap allowed */
+#define CW_GAP_MAX              60   /* Highest extra gap allowed */
+#define CW_GAP_INITIAL           0   /* Initial gap setting */
+#define CW_GAP_STEP              1
+#define CW_WEIGHTING_MIN        20   /* Lowest weighting allowed */
+#define CW_WEIGHTING_MAX        80   /* Highest weighting allowed */
+#define CW_WEIGHTING_INITIAL    50   /* Initial weighting setting */
+#define CW_TOLERANCE_MIN         0   /* Lowest receive tolerance allowed */
+#define CW_TOLERANCE_MAX        90   /* Highest receive tolerance allowed */
+#define CW_TOLERANCE_INITIAL    50   /* Initial tolerance setting */
 
 
 
@@ -250,6 +247,15 @@ extern const char *cw_get_audio_system_label(int audio_system);
 /* General functions: library metadata. */
 extern void cw_version(int *current, int *revision, int *age);
 extern void cw_license(void);
+
+
+/* General functions: limits. */
+extern void cw_get_speed_limits(int *min_speed, int *max_speed);
+extern void cw_get_frequency_limits(int *min_frequency, int *max_frequency);
+extern void cw_get_volume_limits(int *min_volume, int *max_volume);
+extern void cw_get_gap_limits(int *min_gap, int *max_gap);
+extern void cw_get_tolerance_limits(int *min_tolerance, int *max_tolerance);
+extern void cw_get_weighting_limits(int *min_weighting, int *max_weighting);
 
 
 #if 0 /* FIXME: what to do with this function? */

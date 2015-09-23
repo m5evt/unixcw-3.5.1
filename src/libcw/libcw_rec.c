@@ -3129,12 +3129,15 @@ unsigned int test_cw_rec_parameter_getters_setters(void)
 
 	/* Test setting and getting of some basic parameters. */
 
+	int off_limits = 10000;
+
 	struct {
 		/* There are tree functions that take part in the
 		   test: first gets range of acceptable values,
 		   seconds sets a new value of parameter, and third
 		   reads back the value. */
 
+		void (* get_limits)(int *min, int *max);
 		int (* set_new_value)(cw_rec_t *rec, int new_value);
 		int (* get_value)(cw_rec_t *rec);
 
@@ -3143,16 +3146,24 @@ unsigned int test_cw_rec_parameter_getters_setters(void)
 
 		const char *name;
 	} test_data[] = {
-		{ cw_rec_set_speed,      cw_rec_get_speed,      CW_SPEED_MIN,      CW_SPEED_MAX,      "receive_speed" },
-		{ cw_rec_set_tolerance,  cw_rec_get_tolerance,  CW_TOLERANCE_MIN,  CW_TOLERANCE_MAX,  "tolerance"     },
-		{ NULL,                  NULL,                  0,                 0,                 NULL            }
+		{ cw_get_speed_limits,      cw_rec_set_speed,      cw_rec_get_speed,      off_limits,  -off_limits,  "receive_speed" },
+		{ cw_get_tolerance_limits,  cw_rec_set_tolerance,  cw_rec_get_tolerance,  off_limits,  -off_limits,  "tolerance"     },
+		{ NULL,                     NULL,                  NULL,                           0,            0,  NULL            }
 	};
 
 
-	for (int i = 0; test_data[i].set_new_value; i++) {
+	for (int i = 0; test_data[i].get_limits; i++) {
 
 		int status;
 		int value = 0;
+
+		/* Get limits of values to be tested. */
+		test_data[i].get_limits(&test_data[i].min, &test_data[i].max);
+
+		cw_assert (test_data[i].min > -off_limits, "%s: failed to get low limit, returned value = %d", test_data[i].name, test_data[i].min);
+		cw_assert (test_data[i].max <  off_limits, "%s: failed to get high limit, returned value = %d", test_data[i].name, test_data[i].max);
+
+
 
 		/* Test out-of-range value lower than minimum. */
 		errno = 0;

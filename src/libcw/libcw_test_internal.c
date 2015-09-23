@@ -118,6 +118,7 @@ static cw_test_function_t cw_unit_tests[] = {
 	test_cw_usecs_to_timespec_internal,
 	test_cw_version_internal,
 	test_cw_license_internal,
+	test_cw_get_x_limits_internal,
 
 
 	/* cw_rec module */
