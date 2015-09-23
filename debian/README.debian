@@ -2,8 +2,8 @@ unixcw for Debian
 -----------------
 
 As of version 3.0, this package is split up into
-- shared library (libcw3)
-- development files (libcw3-dev)
+- shared library (libcw<version number>)
+- development files (libcw<version number>-dev)
 - command line frontend (cw)
 - ncurses frontend (cwcp)
 - Qt frontend (xcwcp)
