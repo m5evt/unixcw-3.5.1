@@ -55,29 +55,25 @@ enum {
 #define CW_DEFAULT_PA_DEVICE        "( default )"
 
 
-/* Limits on values of CW send and timing parameters */
-#define CW_SPEED_MIN             4   /* Lowest WPM allowed */
-#define CW_SPEED_MAX            60   /* Highest WPM allowed */
-#define CW_SPEED_STEP            1
-#define CW_SPEED_INITIAL        12   /* Initial send speed in WPM */
-#define CW_FREQUENCY_MIN         0   /* Lowest tone allowed (0=silent) */
-#define CW_FREQUENCY_MAX      4000   /* Highest tone allowed */
-#define CW_FREQUENCY_INITIAL   800   /* Initial tone in Hz */
-#define CW_FREQUENCY_STEP       20
-#define CW_VOLUME_MIN            0   /* Quietest volume allowed (0=silent) */
-#define CW_VOLUME_MAX          100   /* Loudest volume allowed */
-#define CW_VOLUME_INITIAL       70   /* Initial volume percent */
-#define CW_VOLUME_STEP           1
-#define CW_GAP_MIN               0   /* Lowest extra gap allowed */
-#define CW_GAP_MAX              60   /* Highest extra gap allowed */
-#define CW_GAP_INITIAL           0   /* Initial gap setting */
-#define CW_GAP_STEP              1
-#define CW_WEIGHTING_MIN        20   /* Lowest weighting allowed */
-#define CW_WEIGHTING_MAX        80   /* Highest weighting allowed */
-#define CW_WEIGHTING_INITIAL    50   /* Initial weighting setting */
-#define CW_TOLERANCE_MIN         0   /* Lowest receive tolerance allowed */
-#define CW_TOLERANCE_MAX        90   /* Highest receive tolerance allowed */
-#define CW_TOLERANCE_INITIAL    50   /* Initial tolerance setting */
+/* Limits on values of generator's and receiver's main parameters. */
+#define CW_SPEED_MIN             4   /* Lowest speed supported by libcw, [wpm]. */
+#define CW_SPEED_MAX            60   /* Highest speed supported by libcw, [wpm]. */
+#define CW_SPEED_INITIAL        12   /* Initial generator's speed, [wpm]. */
+#define CW_FREQUENCY_MIN         0   /* Lowest frequency supported, [Hz]. */
+#define CW_FREQUENCY_MAX      4000   /* Highest frequency supported, [Hz]. */
+#define CW_FREQUENCY_INITIAL   800   /* Initial frequency, [Hz]. */
+#define CW_VOLUME_MIN            0   /* Lowest volume supported, [%] (0 == silent). */
+#define CW_VOLUME_MAX          100   /* Highest volume supported, [%]. */
+#define CW_VOLUME_INITIAL       70   /* Initial volume, [%]. */
+#define CW_GAP_MIN               0   /* Lowest extra gap supported. */
+#define CW_GAP_MAX              60   /* Highest extra gap supported. */
+#define CW_GAP_INITIAL           0   /* Initial gap. */
+#define CW_WEIGHTING_MIN        20   /* Lowest weighting supported. */
+#define CW_WEIGHTING_MAX        80   /* Highest weighting supported. */
+#define CW_WEIGHTING_INITIAL    50   /* Initial weighting. */
+#define CW_TOLERANCE_MIN         0   /* Lowest receive tolerance supported. */
+#define CW_TOLERANCE_MAX        90   /* Highest receive tolerance supported. */
+#define CW_TOLERANCE_INITIAL    50   /* Initial tolerance. */
 
 
 
