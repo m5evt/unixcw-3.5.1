@@ -1,3 +1,28 @@
+version 3.5.0 / 2015-10-XX
+
+  libcw:
+
+  - adding few more small tests.
+
+  - trying to fix a problem of short space.  The problem occurs when
+    client application has registered low-tone-queue callback, the
+    threshold for the callback is set to 1, and a single end-of-word
+    space has been enqueued by client application.  When the eow space
+    is enqueued as a single tone-queue tone (or even as two tones)
+    ("short space"), older versions of libcw may miss the event of
+    passing of tone queue level from 2 to 1 and will not call the
+    callback.
+
+  - Library soname/version changed from 6.4.1 to 6.5.1.
+
+  xcwcp
+
+  - porting the application from Qt4 to Qt5.
+
+
+----------------------------------------------------------------------------
+
+
 version 3.4.2 / 2015-06-17
 
   libcw:
