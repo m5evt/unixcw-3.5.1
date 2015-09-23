@@ -3,7 +3,7 @@
 
 # setup
 PACKAGE="unixcw"
-VERSION="3.4.2"
+VERSION="3.5.0"
 
 debuild_command='debuild -us -uc'
 
@@ -57,7 +57,7 @@ rm -rf $BUILD/*
 
 # prepare $PACKAGE_X.Y.Z.debian.tar.gz
 cd $REPO
-rm *.tar.gz
+rm -rf *.tar.gz
 make dist
 
 dist=`ls *tar.gz`
