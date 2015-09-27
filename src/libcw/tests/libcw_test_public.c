@@ -1322,7 +1322,13 @@ void test_straight_key(cw_test_stats_t *stats)
 
 			printf("0");
 			fflush(stdout);
+#ifdef __FreeBSD__
+			/* There is a problem with nanosleep() and
+			   signals on FreeBSD. */
+			sleep(1);
+#else
 			cw_nanosleep_internal(&t);
+#endif
 
 			if (!cw_notify_straight_key_event(CW_KEY_STATE_CLOSED)) {
 				event_failure = true;
@@ -1341,7 +1347,13 @@ void test_straight_key(cw_test_stats_t *stats)
 
 			printf("1");
 			fflush(stdout);
+#ifdef __FreeBSD__
+			/* There is a problem with nanosleep() and
+			   signals on FreeBSD. */
+			sleep(1);
+#else
 			cw_nanosleep_internal(&t);
+#endif
 		}
 
 		printf("\n");
