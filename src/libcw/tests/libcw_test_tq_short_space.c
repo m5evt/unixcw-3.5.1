@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h> /* atoi() */
 #include <unistd.h> /* sleep() */
 #include "libcw2.h"
 
@@ -36,13 +37,61 @@ static int n_calls = 0;
 static int speed = 0;
 
 
+static bool test(int i, int n);
 
 
 
-int main(void)
+
+
+int main(int argc, char *const argv[])
 {
+	int n = 1;
+	if (argc > 1) {
+		n = atoi(argv[1]);
+		if (n < 1) {
+			return -1;
+		}
+	}
+	fprintf(stderr, "%s: %d cycle(s)\n", argv[0], n);
+
+
 	fprintf(stdout, "libcw/tq: testing tq for \"short space\" problem\n");
 	fflush(stdout);
+
+	/* Expected number of calls to the callback with correct
+	   implementation of tone queue in libcw. */
+
+	bool success = true;
+
+	for (int i = 0; i < n; i++) {
+		fprintf(stdout, "libcw/tq: iteration #%d / %d\n", i + 1, n);
+		fflush(stdout);
+
+		n_calls = 0;
+
+		if (!test(i, n)) {
+			success = false;
+			break;
+		}
+	}
+
+	if (success) {
+		/* "make check" facility requires this message to be
+		   printed on stdout; don't localize it */
+		fprintf(stdout, "\nlibcw: test result: success\n\n");
+		return 0;
+	} else {
+		fprintf(stdout, "\nlibcw: test result: failure\n\n");
+		return -1;
+	}
+}
+
+
+
+
+bool test(int i, int n)
+{
+	bool success = true;
 
         /* Library initialization. */
         cw_gen_t *gen = cw_gen_new(CW_AUDIO_SOUNDCARD, NULL);
@@ -50,9 +99,6 @@ int main(void)
 
 	cw_gen_register_low_level_callback(gen, tone_queue_low_callback, NULL, tq_low_watermark);
 
-	/* Expected number of calls to the callback with correct
-	   implementation of tone queue in libcw. */
-	int n_expected = ((CW_SPEED_MAX - CW_SPEED_MIN) / 2) + 1;
 
 
 	/* Let's test this for a full range of supported speeds (from
@@ -81,19 +127,18 @@ int main(void)
         cw_gen_delete(&gen);
 
 
-	fprintf(stdout, "expected %d calls, actual calls: %d\n", n_expected, n_calls);
+	int n_expected = ((CW_SPEED_MAX - CW_SPEED_MIN) / 2) + 1;
+	if (n_expected != n_calls) {
+		success = false;
+	}
+
+
+	fprintf(stdout, "libcw/tq: iteration #%d / %d: expected %d calls, actual calls: %d\n\n",
+		i + 1, n,
+		n_expected, n_calls);
 	fflush(stdout);
 
-
-	if (n_expected == n_calls) {
-		/* "make check" facility requires this message to be
-		   printed on stdout; don't localize it */
-		fprintf(stdout, "\nlibcw: test result: success\n\n");
-		return 0;
-	} else {
-		fprintf(stdout, "\nlibcw: test result: failure\n\n");
-		return -1;
-	}
+	return success;
 }
 
 
