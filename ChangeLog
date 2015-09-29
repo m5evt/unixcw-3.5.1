@@ -1,3 +1,12 @@
+2015-09-29 Kamil Ignacak
+	* bugfix: fixing code that resets tone queue on flushing.  A bug
+	was found on FreeBSD: after pressing Ctrl+C, application that
+	wanted to stop and delete generator as part of SIGINT handling
+	procedure, got stuck in cw_tq_flush_internal() function, waiting
+	for tone queue to go idle. This never happened. Resetting all tone
+	queue state variables in flush function ensures that the function
+	completes and returns, and that client application can exit.
+
 2015-09-12 Kamil Ignacak
 	* xcwcp: the application souce code files are now ported to
 	Qt5. Build system files have been modified to use Qt5 to build
