@@ -948,6 +948,7 @@ void cw_tq_flush_internal(cw_tone_queue_t *tq)
 	/* Empty and reset the queue. */
 	tq->len = 0;
 	tq->head = tq->tail;
+	tq->state = CW_TQ_IDLE;
 
 	pthread_mutex_unlock(&(tq->mutex));
 
