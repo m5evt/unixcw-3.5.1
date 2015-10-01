@@ -1,4 +1,4 @@
-This is INSTALL file for unixcw 3.4.2.
+This is INSTALL file for unixcw 3.5.0.
 
 
 
@@ -22,7 +22,7 @@ Moreover, depending on platform and software/files installed on build
 machine, the build system will configure and compile following
 features:
  - cwcp, if ncurses development files are available;
- - xcwcp, if QT4 development files are available (xcwcp is an
+ - xcwcp, if QT5 development files are available (xcwcp is an
    application written in C++);
 
 libcw library, and cw and cwgen applications are built
@@ -54,8 +54,8 @@ Build-time requirements for unixcw:
    then install gmake package, and try running "gmake & gmake install"
    instead of "make & make install".
 
- - pkg-config to get configuration flags for QT4 application (xcwcp);
-   you can override pkg-config settings for QT4 using environment
+ - pkg-config to get configuration flags for QT5 application (xcwcp);
+   you can override pkg-config settings for QT5 using environment
    variables, see output of "./configure --help" for details.
 
  - audio library development files for including support for OSS, ALSA
@@ -66,7 +66,7 @@ Build-time requirements for unixcw:
 
  - ncurses development files for building cwcp;
 
- - QT4 development files for building xcwcp;
+ - QT5 development files for building xcwcp;
 
 
 
