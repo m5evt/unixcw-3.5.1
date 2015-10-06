@@ -111,10 +111,11 @@ CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(man1dir)"
 PROGRAMS = $(bin_PROGRAMS)
 am_xcwcp_OBJECTS = xcwcp-application.$(OBJEXT) \
-	xcwcp-moc_application.$(OBJEXT) xcwcp-textarea.$(OBJEXT) \
-	xcwcp-main.$(OBJEXT) xcwcp-modeset.$(OBJEXT) \
-	xcwcp-receiver.$(OBJEXT) xcwcp-sender.$(OBJEXT)
-xcwcp_OBJECTS = $(am_xcwcp_OBJECTS)
+	xcwcp-textarea.$(OBJEXT) xcwcp-main.$(OBJEXT) \
+	xcwcp-modeset.$(OBJEXT) xcwcp-receiver.$(OBJEXT) \
+	xcwcp-sender.$(OBJEXT)
+nodist_xcwcp_OBJECTS = xcwcp-moc_application.$(OBJEXT)
+xcwcp_OBJECTS = $(am_xcwcp_OBJECTS) $(nodist_xcwcp_OBJECTS)
 xcwcp_DEPENDENCIES = $(top_builddir)/src/cwutils/lib_xcwcp.a
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -172,7 +173,7 @@ AM_V_CCLD = $(am__v_CCLD_@AM_V@)
 am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
-SOURCES = $(xcwcp_SOURCES)
+SOURCES = $(xcwcp_SOURCES) $(nodist_xcwcp_SOURCES)
 DIST_SOURCES = $(xcwcp_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
@@ -368,13 +369,13 @@ top_srcdir = @top_srcdir@
 # source code files used to build xcwcp program
 xcwcp_SOURCES = \
 	application.cc application.h \
-	moc_application.cc \
 	textarea.cc textarea.h \
 	main.cc \
 	modeset.cc modeset.h \
 	receiver.cc receiver.h\
 	sender.cc sender.h
 
+nodist_xcwcp_SOURCES = moc_application.cc
 
 # target-specific preprocessor flags (#defs and include dirs)
 xcwcp_CPPFLAGS = $(AM_CPPFLAGS) $(AC_QT5_CFLAGS) $(AC_CFLAG_PIC)
@@ -530,20 +531,6 @@ xcwcp-application.obj: application.cc
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o xcwcp-application.obj `if test -f 'application.cc'; then $(CYGPATH_W) 'application.cc'; else $(CYGPATH_W) '$(srcdir)/application.cc'; fi`
 
-xcwcp-moc_application.o: moc_application.cc
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT xcwcp-moc_application.o -MD -MP -MF $(DEPDIR)/xcwcp-moc_application.Tpo -c -o xcwcp-moc_application.o `test -f 'moc_application.cc' || echo '$(srcdir)/'`moc_application.cc
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/xcwcp-moc_application.Tpo $(DEPDIR)/xcwcp-moc_application.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='moc_application.cc' object='xcwcp-moc_application.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o xcwcp-moc_application.o `test -f 'moc_application.cc' || echo '$(srcdir)/'`moc_application.cc
-
-xcwcp-moc_application.obj: moc_application.cc
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT xcwcp-moc_application.obj -MD -MP -MF $(DEPDIR)/xcwcp-moc_application.Tpo -c -o xcwcp-moc_application.obj `if test -f 'moc_application.cc'; then $(CYGPATH_W) 'moc_application.cc'; else $(CYGPATH_W) '$(srcdir)/moc_application.cc'; fi`
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/xcwcp-moc_application.Tpo $(DEPDIR)/xcwcp-moc_application.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='moc_application.cc' object='xcwcp-moc_application.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o xcwcp-moc_application.obj `if test -f 'moc_application.cc'; then $(CYGPATH_W) 'moc_application.cc'; else $(CYGPATH_W) '$(srcdir)/moc_application.cc'; fi`
-
 xcwcp-textarea.o: textarea.cc
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT xcwcp-textarea.o -MD -MP -MF $(DEPDIR)/xcwcp-textarea.Tpo -c -o xcwcp-textarea.o `test -f 'textarea.cc' || echo '$(srcdir)/'`textarea.cc
 @am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/xcwcp-textarea.Tpo $(DEPDIR)/xcwcp-textarea.Po
@@ -613,6 +600,20 @@ xcwcp-sender.obj: sender.cc
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='sender.cc' object='xcwcp-sender.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o xcwcp-sender.obj `if test -f 'sender.cc'; then $(CYGPATH_W) 'sender.cc'; else $(CYGPATH_W) '$(srcdir)/sender.cc'; fi`
+
+xcwcp-moc_application.o: moc_application.cc
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT xcwcp-moc_application.o -MD -MP -MF $(DEPDIR)/xcwcp-moc_application.Tpo -c -o xcwcp-moc_application.o `test -f 'moc_application.cc' || echo '$(srcdir)/'`moc_application.cc
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/xcwcp-moc_application.Tpo $(DEPDIR)/xcwcp-moc_application.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='moc_application.cc' object='xcwcp-moc_application.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o xcwcp-moc_application.o `test -f 'moc_application.cc' || echo '$(srcdir)/'`moc_application.cc
+
+xcwcp-moc_application.obj: moc_application.cc
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT xcwcp-moc_application.obj -MD -MP -MF $(DEPDIR)/xcwcp-moc_application.Tpo -c -o xcwcp-moc_application.obj `if test -f 'moc_application.cc'; then $(CYGPATH_W) 'moc_application.cc'; else $(CYGPATH_W) '$(srcdir)/moc_application.cc'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/xcwcp-moc_application.Tpo $(DEPDIR)/xcwcp-moc_application.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='moc_application.cc' object='xcwcp-moc_application.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o xcwcp-moc_application.obj `if test -f 'moc_application.cc'; then $(CYGPATH_W) 'moc_application.cc'; else $(CYGPATH_W) '$(srcdir)/moc_application.cc'; fi`
 
 mostlyclean-libtool:
 	-rm -f *.lo
