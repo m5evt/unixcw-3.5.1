@@ -27,12 +27,13 @@ bin_PROGRAMS = xcwcp
 # source code files used to build xcwcp program
 xcwcp_SOURCES = \
 	application.cc application.h \
-	moc_application.cc \
 	textarea.cc textarea.h \
 	main.cc \
 	modeset.cc modeset.h \
 	receiver.cc receiver.h\
 	sender.cc sender.h
+
+nodist_xcwcp_SOURCES = moc_application.cc
 
 # target-specific preprocessor flags (#defs and include dirs)
 xcwcp_CPPFLAGS = $(AM_CPPFLAGS) $(AC_QT5_CFLAGS) $(AC_CFLAG_PIC)
