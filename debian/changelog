@@ -2,7 +2,7 @@ unixcw (3.5.0-1) unstable; urgency=low
 
   * New upstream release (small fix in library; xcwcp ported to Qt5).
 
- -- Kamil Ignacak <acerion@wp.pl>  Wed, 23 Sep 2015 19:57:10 +0100
+ -- Kamil Ignacak <acerion@wp.pl>  Tue, 06 Oct 2015 19:57:10 +0100
 
 unixcw (3.4.2-1) unstable; urgency=low
 
