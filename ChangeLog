@@ -1,3 +1,7 @@
+2016-01-18 Kamil Ignacak
+	* cw: bug discovered in cw and fix provided by Rob Wortman: cw
+	didn't read options from CW_OPTIONS environment variable.
+
 2015-09-21 Kamil Ignacak
 	* libcw2: this round of work on libcw2 is finished.
 
