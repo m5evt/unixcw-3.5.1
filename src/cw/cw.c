@@ -611,7 +611,7 @@ int main(int argc, char *const argv[])
 	}
 	config->is_cw = 1;
 
-	if (!cw_process_argv(argc, argv, all_options, config)) {
+	if (!cw_process_argv(combined_argc, combined_argv, all_options, config)) {
 		fprintf(stderr, _("%s: failed to parse command line args\n"), config->program_name);
 		return EXIT_FAILURE;
 	}
