@@ -1,3 +1,7 @@
+2016-01-18 Kamil Ignacak
+	* cw: bug discovered in cw and fix provided by Rob Wortman: cw
+	didn't read options from CW_OPTIONS environment variable.
+
 2015-09-29 Kamil Ignacak
 	* bugfix: fixing code that resets tone queue on flushing.  A bug
 	was found on FreeBSD: after pressing Ctrl+C, application that
