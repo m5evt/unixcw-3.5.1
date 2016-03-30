@@ -1,0 +1,71 @@
+# Debconf translations for unixcw.
+# Copyright (C) 2016 THE unixcw'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the unixcw package.
+# Adriano Rafael Gomes <adrianorg@arg.eti.br>, 2016.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: unixcw\n"
+"Report-Msgid-Bugs-To: unixcw@packages.debian.org\n"
+"POT-Creation-Date: 2012-01-11 06:51+0100\n"
+"PO-Revision-Date: 2016-01-05 10:50-0200\n"
+"Last-Translator: Adriano Rafael Gomes <adrianorg@arg.eti.br>\n"
+"Language-Team: Brazilian Portuguese <debian-l10n-portuguese@lists.debian."
+"org>\n"
+"Language: pt_BR\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#. Type: boolean
+#. Description
+#: ../cwcp.templates:2001
+msgid "Run cwcp with root privileges?"
+msgstr "Executar o cwcp com privilégios de root?"
+
+#. Type: boolean
+#. Description
+#: ../cwcp.templates:2001
+msgid ""
+"If it is run with elevated privileges (which is not recommended), cwcp can "
+"produce sounds using the console buzzer."
+msgstr ""
+"Se ele for executado com privilégios elevados (o que não é recomendado), o "
+"cwcp pode produzir sons usando a campainha (\"buzzer\") do console."
+
+#. Type: boolean
+#. Description
+#: ../cwcp.templates:2001 ../cw.templates:2001
+msgid ""
+"Please choose whether this should be achieved by giving the executable the "
+"\"setuid\" attribute."
+msgstr ""
+"Por favor, escolha se isso deve ser feito dando o atributo \"setuid\" ao "
+"executável."
+
+#. Type: boolean
+#. Description
+#: ../cwcp.templates:2001 ../cw.templates:2001
+msgid ""
+"Alternatives include running the program with sudo or eliminating this issue "
+"completely by using output via a sound card instead of the buzzer."
+msgstr ""
+"Alternativas incluem executar o programa com sudo ou eliminar essa questão "
+"completamente usando a saída através de uma placa de som ao invés da "
+"campainha."
+
+#. Type: boolean
+#. Description
+#: ../cw.templates:2001
+msgid "Run cw with root privileges?"
+msgstr "Executar o cw com privilégios de root?"
+
+#. Type: boolean
+#. Description
+#: ../cw.templates:2001
+msgid ""
+"If it is run with elevated privileges (which is not recommended), cw can "
+"produce sounds using the console buzzer."
+msgstr ""
+"Se ele for executado com privilégios elevados (o que não é recomendado), o "
+"cw pode produzir sons usando a campainha (\"buzzer\") do console."
