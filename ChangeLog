@@ -1,3 +1,7 @@
+2016-03-30 Kamil Ignacak
+	* debian: adding pt_BR.po file, this should close Debian bug
+	#816939.
+
 2016-01-18 Kamil Ignacak
 	* cw: bug discovered in cw and fix provided by Rob Wortman: cw
 	didn't read options from CW_OPTIONS environment variable.
