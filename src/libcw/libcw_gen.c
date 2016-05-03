@@ -39,10 +39,11 @@
    3. for every sample in tone, calculate sine wave sample and
       put it in generator's constant size buffer
    4. if buffer is full of sine wave samples, push it to audio sink
-   5. since buffer is shorter than (almost) any tone, you will push
-      the buffer multiple times per tone
+   5. since buffer is shorter than (almost) any tone, you will
+      recalculate contents of the buffer and push it to audio sink
+      multiple times per tone
    6. if you iterated over all samples in tone, but you still didn't
-      fill up that last buffer, dequeue next tone from queue, go to #2
+      fill up that last buffer, go to step #1
    7. if there are no more tones in queue, pad the buffer with silence,
       and push the buffer to audio sink.
 
@@ -356,26 +357,30 @@ int cw_gen_silence_internal(cw_gen_t *gen)
 		return CW_SUCCESS;
 	}
 
-	int status = CW_SUCCESS;
+	/* Somewhere there may be a key in "down" state and we need to
+	   make it go "up", regardless of audio sink (even for
+	   CDW_AUDIO_NULL!). Otherwise the key may stay in "down"
+	   state forever. */
+	cw_tone_t tone;
+	CW_TONE_INIT(&tone, 0, gen->quantum_len, CW_SLOPE_MODE_NO_SLOPES);
+	int status = cw_tq_enqueue_internal(gen->tq, &tone);
 
-	if (gen->audio_system == CW_AUDIO_NULL) {
-		; /* pass */
+	if (gen->audio_system == CW_AUDIO_NULL
+	    || gen->audio_system == CW_AUDIO_OSS
+	    || gen->audio_system == CW_AUDIO_ALSA
+	    || gen->audio_system == CW_AUDIO_PA) {
+
+		/* Allow some time for playing the last tone. */
+		usleep(2 * gen->quantum_len);
+
 	} else if (gen->audio_system == CW_AUDIO_CONSOLE) {
 		/* sine wave generation should have been stopped
 		   by a code generating dots/dashes, but
-		   just in case... */
+		   just in case...
+
+		   TODO: is it still necessary after adding the
+		   quantum of silence above? */
 		cw_console_silence(gen);
-
-	} else if (gen->audio_system == CW_AUDIO_OSS
-		   || gen->audio_system == CW_AUDIO_ALSA
-		   || gen->audio_system == CW_AUDIO_PA) {
-
-		cw_tone_t tone;
-		CW_TONE_INIT(&tone, 0, gen->quantum_len, CW_SLOPE_MODE_NO_SLOPES);
-		status = cw_tq_enqueue_internal(gen->tq, &tone);
-
-		/* allow some time for playing the last tone */
-		usleep(2 * gen->quantum_len);
 	} else {
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
 			      "libcw: called silence() function for generator without audio system specified");
