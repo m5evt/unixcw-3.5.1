@@ -96,30 +96,42 @@ namespace cw {
 
 
 	private:
-		bool is_running;
-
-		/* GUI elements used throughout the class. */
-		QToolBar *toolbar; // main toolbar
+		/* GUI */
+		QToolBar *toolbar;
 		QToolButton *startstop_button;
-		QAction *startstop_action; /* Shared between toolbar and Progam menu */
+
 		QComboBox *mode_combo;
 		QSpinBox *speed_spin;
 
-		int current_mode; /* MODE_SEND / MODE_RECEIVE. */
-
 		QMenu *program_menu;
+		QMenu *help;
+
+		QAction *startstop_action;
 		QAction *sync_speed_action;
 		QAction *adaptive_receive_action;
-
-		QMenu *help;
 		QAction *about_action;
+
+		TextArea *textarea;
+
+		/* Wrappers for creating UI. */
+		void make_central_widget(void);
+		void make_toolbar(void);
+		void make_mode_combo(void);
+		void make_program_menu(void);
+		void make_help_menu(void);
+		void make_status_bar(void);
+
+
+
+
+		bool is_running;
+
+		int current_mode; /* MODE_SEND / MODE_RECEIVE. */
 
 		Sender *sender;
 		Receiver *receiver;
 
 		cw_config_t *config;
-
-		TextArea *textarea;
 
 		/* Poll timer, used to ensure that all of the
 		   application processing can be handled in the
@@ -135,15 +147,8 @@ namespace cw {
 		static void libcw_keying_event_static(struct timeval *timestamp, int key_state, void *arg);
 		void libcw_keying_event(int key_state);
 
-		/* Wrappers for creating UI. */
-		void make_central_widget(void);
-		void make_toolbar(void);
-		void make_mode_combo(void);
-		void make_program_menu(void);
-		void make_help_menu(void);
-		void make_status_bar(void);
-
 		void make_sender_receiver(void);
+
 
 
 
