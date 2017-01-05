@@ -35,32 +35,8 @@ namespace cw {
 */
 bool Mode::is_same_type_as(const Mode *other) const
 {
-	return (is_dictionary() && other->is_dictionary())
-		|| (is_keyboard() && other->is_keyboard())
+	return (is_keyboard() && other->is_keyboard())
 		|| (is_receive() && other->is_receive());
-}
-
-
-
-
-
-/**
-   Return a string composed of an appropriately sized group of random
-   elements from the contained dictionary.
-*/
-std::string DictionaryMode::get_random_word_group() const
-{
-	std::string random_group;
-
-	const int group_size = cw_dictionary_get_group_size(dictionary);
-	random_group.resize(group_size);
-
-	for (int group = 0; group < group_size; group++) {
-		const char *element = cw_dictionary_get_random_word(dictionary);
-		random_group += element;
-	}
-
-	return random_group;
 }
 
 
@@ -97,15 +73,6 @@ private:
 */
 ModeSetHelper::ModeSetHelper()
 {
-	/* Start the modes with the known dictionaries. */
-	for (const cw_dictionary_t *dict = cw_dictionaries_iterate(NULL);
-	     dict;
-	     dict = cw_dictionaries_iterate(dict)) {
-
-		const std::string description = cw_dictionary_get_description(dict);
-		modes.push_back(new DictionaryMode(description, dict));
-	}
-
 	/* Add keyboard send and keyer receive. */
 	modes.push_back(new KeyboardMode("Send Keyboard CW"));
 	modes.push_back(new ReceiveMode("Receive Keyed CW"));

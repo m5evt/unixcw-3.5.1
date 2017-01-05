@@ -38,7 +38,6 @@ namespace cw {
 
 
 
-	class DictionaryMode;
 	class KeyboardMode;
 	class ReceiveMode;
 
@@ -46,9 +45,7 @@ namespace cw {
 
 
 
-	/* Class describing an operating mode.  All modes have a
-	   description, and dictionary modes add a way to generate
-	   random groups of words from the dictionary. */
+	/* Class describing an operating mode. */
 
 	class Mode {
 	public:
@@ -60,11 +57,9 @@ namespace cw {
 
 		bool is_same_type_as(const Mode *other) const;
 
-		inline virtual bool is_dictionary() const { return false; };
 		inline virtual bool is_keyboard()   const { return false; };
 		inline virtual bool is_receive()    const { return false; };
 
-		virtual const DictionaryMode *get_dmode() const { return NULL; };
 		virtual const KeyboardMode *get_kmode()   const { return NULL; };
 		virtual const ReceiveMode *get_rmode()    const { return NULL; };
 
@@ -75,30 +70,6 @@ namespace cw {
 		Mode(const Mode &);
 		Mode &operator=(const Mode &);
 	};
-
-
-
-
-
-	class DictionaryMode : public Mode {
-	public:
-		DictionaryMode(const std::string &descr, const cw_dictionary_t *dict) :
-			Mode (descr),
-			dictionary (dict) { }
-
-		std::string get_random_word_group() const;
-
-		inline virtual bool is_dictionary() const { return true; };
-		inline virtual const DictionaryMode *get_dmode() const { return this; };
-
-	private:
-		const cw_dictionary_t *dictionary;  /* Dictionary of the mode. */
-
-		/* Prevent unwanted operations. */
-		DictionaryMode(const DictionaryMode &);
-		DictionaryMode &operator=(const DictionaryMode &);
-	};
-
 
 
 
