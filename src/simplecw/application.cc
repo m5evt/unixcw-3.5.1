@@ -631,11 +631,6 @@ void Application::make_program_menu(void)
 
 	program_menu->addSeparator();
 
-	qa = new QAction("&Close", this);
-	qa->setShortcut(Qt::CTRL + Qt::Key_W);
-	connect(qa, SIGNAL (triggered()), SLOT (close()));
-	program_menu->addAction(qa);
-
 
 	qa = new QAction("&Quit", qApp);
 	qa->setShortcut(Qt::CTRL + Qt::Key_Q);
