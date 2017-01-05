@@ -99,7 +99,6 @@ Application::Application(cw_config_t *config) :
 
 	make_toolbar();
 	make_program_menu();
-	make_settings_menu();
 	make_help_menu();
 	make_status_bar();
 
@@ -623,6 +622,14 @@ void Application::make_program_menu(void)
 
 	program_menu->addSeparator();
 
+	adaptive_receive_action = new QAction("&Adaptive CW Receive Speed", this);
+	adaptive_receive_action->setCheckable(true);
+	adaptive_receive_action->setChecked(true);
+	connect(adaptive_receive_action, SIGNAL (toggled(bool)), SLOT (change_adaptive_receive()));
+	program_menu->addAction(adaptive_receive_action);
+
+
+	program_menu->addSeparator();
 
 	qa = new QAction("&Close", this);
 	qa->setShortcut(Qt::CTRL + Qt::Key_W);
@@ -637,25 +644,6 @@ void Application::make_program_menu(void)
 
 	return;
 }
-
-
-
-
-
-void Application::make_settings_menu(void)
-{
-	QMenu *settings = new QMenu("&Settings", this);
-	QMainWindow::menuBar()->addMenu(settings);
-
-	adaptive_receive_action = new QAction("&Adaptive CW Receive Speed", this);
-	adaptive_receive_action->setCheckable(true);
-	adaptive_receive_action->setChecked(true);
-	connect(adaptive_receive_action, SIGNAL (toggled(bool)), SLOT (change_adaptive_receive()));
-	settings->addAction(adaptive_receive_action);
-
-	return;
-}
-
 
 
 

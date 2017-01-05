@@ -109,8 +109,6 @@ namespace cw {
 
 		QMenu *program_menu;
 		QAction *sync_speed_action;
-
-		QMenu *settings;
 		QAction *adaptive_receive_action;
 
 		QMenu *help;
@@ -142,7 +140,6 @@ namespace cw {
 		void make_toolbar(void);
 		void make_mode_combo(void);
 		void make_program_menu(void);
-		void make_settings_menu(void);
 		void make_help_menu(void);
 		void make_status_bar(void);
 
