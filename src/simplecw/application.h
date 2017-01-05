@@ -81,31 +81,19 @@ namespace cw {
 		void startstop();
 		void start();
 		void stop();
-		void new_instance();
 		void clear();
-		void fonts();
-		void colors();
-		void toggle_toolbar();
 		void poll_timer_event();
 
 		/* These Qt widget callback functions interact with
 		   libcw. */
 		void sync_speed();
 		void change_speed();
-		void change_frequency();
-		void change_volume();
-		void change_gap();
 		void change_mode();
-		void change_curtis_mode_b();
 		void change_adaptive_receive();
 
 
 	private:
-		QPixmap xcwcp_icon;
-
 		bool is_running;
-		QPixmap start_icon;
-		QPixmap stop_icon;
 
 		/* GUI elements used throughout the class. */
 		QToolBar *toolbar; // main toolbar
@@ -113,25 +101,17 @@ namespace cw {
 		QAction *startstop_action; /* Shared between toolbar and Progam menu */
 		QComboBox *mode_combo;
 		QSpinBox *speed_spin;
-		QSpinBox *frequency_spin;
-		QSpinBox *volume_spin;
-		QSpinBox *gap_spin;
 
 
 		QMenu *program_menu;
-		QAction *new_window_action;
 		QAction *clear_display_action;
 		QAction *sync_speed_action;
 		QAction *close_action;
 		QAction *quit_action;
 
 		QMenu *settings;
-		QAction *reverse_paddles_action;
 		QAction *curtis_mode_b_action;
 		QAction *adaptive_receive_action;
-		QAction *font_settings_action;
-		QAction *color_settings_action;
-		QAction *toolbar_visibility_action;
 
 		QMenu *help;
 		QAction *about_action;

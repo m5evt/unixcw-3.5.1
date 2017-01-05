@@ -44,10 +44,6 @@
 #include <QHideEvent>
 
 
-#include "icons/icon_start.xpm"
-#include "icons/icon_stop.xpm"
-#include "icons/icon_mini_xcwcp.xpm"
-
 #include "application.h"
 #include "sender.h"
 #include "receiver.h"
@@ -75,55 +71,11 @@ namespace cw {
 */
 
 
-/* Strings displayed in 'about' dialog. */
 const QString ABOUT_CAPTION = QString(_("Xcwcp version "))
                                   + PACKAGE_VERSION;
 
 const QString ABOUT_TEXT = QString(_("Xcwcp version "))
                                + PACKAGE_VERSION + "\n" + CW_COPYRIGHT;
-
-/* Strings for whats-this dialogs. */
-const QString STARTSTOP_WHATSTHIS =
-  _("When this button shows <img source=\"start\">, click it to begin "
-  "sending or receiving.  Only one window may send at a time.<br><br>"
-  "When the button shows <img source=\"stop\">, click it to finish "
-  "sending or receiving.\n\n");
-
-const QString MODE_WHATSTHIS =
-  _("This allows you to change what Xcwcp does.  Most of the available "
-  "selections will probably generate random CW characters of one form or "
-  "another.<br><br>"
-  "The exceptions are Send Keyboard CW, which sends the characters "
-  "that you type at the keyboard, and Receive Keyed CW, which will "
-  "decode CW that you key in using the mouse or keyboard.<br><br>"
-  "To key CW into Xcwcp for receive mode, use either the mouse or the "
-  "keyboard.  On the mouse, the left and right buttons form an Iambic "
-  "keyer, and the middle mouse button works as a straight key.<br><br>"
-  "On the keyboard, use the Left and Right cursor keys for Iambic keyer "
-  "control, and the Up or Down cursor keys, or the Space, Enter, or "
-  "Return keys, as a straight key.");
-
-const QString SPEED_WHATSTHIS =
-  _("This controls the CW sending speed.  If you deselect adaptive "
-  "receive speed, it also controls the CW receiving speed.");
-
-const QString FREQUENCY_WHATSTHIS =
-  _("This sets the frequency of the CW tone on the system sound card "
-  "or console.<br><br>"
-  "It affects both sent CW and receive sidetone.");
-
-const QString VOLUME_WHATSTHIS =
-  _("This sets the volume of the CW tone on the system sound card.  "
-  "It is not possible to control console sound volume, so in this "
-  "case, all values other than zero produce tones.<br><br>"
-  "The volume control affects both sent CW and receive sidetone.");
-
-const QString GAP_WHATSTHIS =
-  _("This sets the \"Farnsworth\" gap used in sending CW.  This gap is an "
-  "extra number of dit-length silences between CW characters.");
-
-
-
 
 
 /**
@@ -144,13 +96,8 @@ Application::Application(cw_config_t *config) :
 	make_sender_receiver();
 
 
-	start_icon = QPixmap(icon_start_xpm);
-	stop_icon = QPixmap(icon_stop_xpm);
-	xcwcp_icon = QPixmap(icon_mini_xcwcp_xpm);
-
 	QMainWindow::setAttribute(Qt::WA_DeleteOnClose, true);
-	QMainWindow::setWindowTitle(_("Xcwcp"));
-	QMainWindow::setWindowIcon(xcwcp_icon);
+	QMainWindow::setWindowTitle("simplecw");
 	QMainWindow::resize(800, 400);
 
 	make_toolbar();
@@ -288,10 +235,6 @@ void Application::start()
 	   can do it by just calling the slots for the GUI widgets
 	   directly. */
 	change_speed();
-	change_frequency();
-	change_volume();
-	change_gap();
-	change_curtis_mode_b();
 	/* Call the adaptive receive change callback to synchronize
 	   the CW library with this instance's idea of receive
 	   tracking and speed. */
@@ -302,9 +245,8 @@ void Application::start()
 	receiver->clear();
 
 
-	startstop_action->setIcon(stop_icon);
+	startstop_action->setIcon(QIcon::fromTheme("media-playback-stop"));
 	startstop_action->setText(_("Stop"));
-	startstop_action->setToolTip(_("Stop"));
 
 	this->is_running = true;
 
@@ -344,9 +286,8 @@ void Application::stop()
 	saved_receive_speed = cw_rec_get_speed(receiver->rec);
 
 
-	startstop_action->setIcon(start_icon);
-	startstop_action->setText(_("Start"));
-	startstop_action->setToolTip(_("Start"));
+	startstop_action->setIcon(QIcon::fromTheme("media-playback-start"));
+	startstop_action->setText("Start");
 
 	this->is_running = false;
 
@@ -355,23 +296,6 @@ void Application::stop()
 
 	return;
 }
-
-
-
-
-
-/**
-   \brief Create a new instance of the Xcwcp application
-*/
-void Application::new_instance()
-{
-	Application *app = new Application(this->config);
-	//app->setCaption(_("Xcwcp"));
-	app->show();
-
-	return;
-}
-
 
 
 
@@ -445,69 +369,6 @@ void Application::change_speed()
 
 
 /**
-   \brief Handle change of frequency in spin box in main window
-
-   The only action necessary is to write the new value out to the CW
-   library. We do this only when we are active, i.e. when we are using
-   libcw.
-*/
-void Application::change_frequency()
-{
-	if (!cw_gen_set_frequency(sender->gen, frequency_spin->value())) {
-		perror("cw_gen_set_frequency");
-		abort();
-	}
-
-	return;
-}
-
-
-
-
-
-/**
-   \brief Handle change of volume in spin box in main window
-
-   The only action necessary is to write the new value out to the CW
-   library. We do this only when we are active, i.e. when we are using
-   libcw.
-*/
-void Application::change_volume()
-{
-	if (!cw_gen_set_volume(sender->gen, volume_spin->value())) {
-		perror("cw_gen_set_volume");
-		abort();
-	}
-
-	return;
-}
-
-
-
-
-
-/**
-   \brief Handle change of gap in spin box in main window
-
-   The only action necessary is to write the new value out to the CW
-   library. We do this only when we are active, i.e. when we are using
-   libcw.
-*/
-void Application::change_gap()
-{
-	if (!cw_gen_set_gap(sender->gen, gap_spin->value())) {
-		perror("cw_gen_set_gap");
-		abort();
-	}
-
-	return;
-}
-
-
-
-
-
-/**
    Handle a change of mode.  Synchronize mode and receive speed if
    moving to a receive mode, then clear the sender and receiver and
    any pending tones.
@@ -536,25 +397,6 @@ void Application::change_mode()
 
 	return;
 }
-
-
-
-
-
-/**
-   Called whenever the user requests a change of Curtis iambic mode.
-   The function simply passes the Curtis mode on to the CW library if
-   active, and ignores the call if not.
-*/
-void Application::change_curtis_mode_b()
-{
-	curtis_mode_b_action->isChecked()
-		? cw_key_ik_enable_curtis_mode_b(receiver->key)
-		: cw_key_ik_disable_curtis_mode_b(receiver->key);
-
-	return;
-}
-
 
 
 
@@ -594,48 +436,6 @@ void Application::change_adaptive_receive()
 
 
 
-
-/**
-   \brief Use a font dialog to allow selection of text font in text
-   area
-*/
-void Application::fonts()
-{
-	bool status;
-
-	QFont font = QFontDialog::getFont(&status, this);
-	if (status) {
-		textarea->setFont(font);
-	}
-
-	return;
-}
-
-
-
-
-
-/**
-   \brief Use a color dialog to allow selection of text color in text
-   area
-*/
-void Application::colors()
-{
-	QColor color = QColorDialog::getColor();
-	if (color.isValid()) {
-		QPalette palette;
-		palette.setColor(QPalette::Text, color);
-
-		textarea->setPalette(palette);
-	}
-
-	return;
-}
-
-
-
-
-
 /**
    Handle a timer event from the QTimer we set up on initialization.
    This timer is used for regular polling for sender tone queue low
@@ -670,11 +470,9 @@ void Application::key_event(QKeyEvent *event)
 
 	if (this->is_running) {
 		if (modeset.get_current()->is_keyboard()) {
-			fprintf(stderr, "---------- key event: keyboard mode\n");
 			sender->handle_key_event(event);
 		} else if (modeset.get_current()->is_receive()) {
-			fprintf(stderr, "---------- key event: receiver mode mode\n");
-			receiver->handle_key_event(event, reverse_paddles_action->isChecked());
+			receiver->handle_key_event(event, false);
 		} else {
 			;
 		}
@@ -704,26 +502,8 @@ void Application::mouse_event(QMouseEvent *event)
 		/* Pass the mouse event only to the receiver.  The sender
 		   isn't interested. */
 		if (modeset.get_current()->is_receive()) {
-			fprintf(stderr, "---------- mouse event: receiver mode\n");
-			receiver->handle_mouse_event(event, reverse_paddles_action->isChecked());
+			receiver->handle_mouse_event(event, false);
 		}
-	}
-
-	return;
-}
-
-
-
-
-
-void Application::toggle_toolbar(void)
-{
-	if (toolbar->isVisible()) {
-		toolbar->hide();
-		toolbar_visibility_action->setText("Show Toolbar");
-	} else {
-		toolbar->show();
-		toolbar_visibility_action->setText("Hide Toolbar");
 	}
 
 	return;
@@ -735,13 +515,11 @@ void Application::toggle_toolbar(void)
 
 void Application::make_toolbar(void)
 {
-	toolbar = QMainWindow::addToolBar(_("Xcwcp Operations"));
+	toolbar = QMainWindow::addToolBar("Xcwcp Operations");
 
-	startstop_action = new QAction(_("Start/Stop"), this);
-	startstop_action->setIcon(start_icon);
-	startstop_action->setText(_("Start"));
-	startstop_action->setToolTip(_("Start"));
-	startstop_action->setWhatsThis(STARTSTOP_WHATSTHIS);
+	startstop_action = new QAction("Start/Stop", this);
+	startstop_action->setIcon(QIcon::fromTheme("media-playback-start"));
+	startstop_action->setText("Start");
 	startstop_action->setCheckable(false);
 	connect(startstop_action, SIGNAL (triggered(bool)), this, SLOT (startstop()));
 
@@ -763,18 +541,13 @@ void Application::make_toolbar(void)
 	toolbar->addWidget(mode_combo);
 
 
-	toolbar->addSeparator();
-
-
-	QLabel *speed_label_ = new QLabel(_("Speed:"), 0, 0);
+	QLabel *speed_label_ = new QLabel("Speed:", 0, 0);
 	toolbar->addWidget(speed_label_);
 
 	speed_spin = new QSpinBox(toolbar);
 	speed_spin->setMinimum(CW_SPEED_MIN);
 	speed_spin->setMaximum(CW_SPEED_MAX);
 	speed_spin->setSingleStep(1);
-	speed_spin->setToolTip(_("Speed"));
-	speed_spin->setWhatsThis(SPEED_WHATSTHIS);
 	speed_spin->setSuffix(_(" WPM"));
 	speed_spin->setValue(cw_gen_get_speed(sender->gen));
 	connect(speed_spin, SIGNAL (valueChanged(int)), SLOT (change_speed()));
@@ -787,56 +560,9 @@ void Application::make_toolbar(void)
 	QLabel *tone_label = new QLabel(_("Tone:"));
 	toolbar->addWidget(tone_label);
 
-	frequency_spin = new QSpinBox(toolbar);
-	frequency_spin->setMinimum(CW_FREQUENCY_MIN);
-	frequency_spin->setMaximum(CW_FREQUENCY_MAX);
-	frequency_spin->setSingleStep(20);
-	frequency_spin->setToolTip(_("Frequency"));
-	frequency_spin->setSuffix(_(" Hz"));
-	frequency_spin->setWhatsThis(FREQUENCY_WHATSTHIS);
-	frequency_spin->setValue(cw_gen_get_frequency(sender->gen));
-	connect(frequency_spin, SIGNAL (valueChanged(int)), SLOT (change_frequency()));
-	toolbar->addWidget(frequency_spin);
-
 
 	toolbar->addSeparator();
 
-
-	QLabel *volume_label = new QLabel(_("Volume:"), 0, 0);
-	toolbar->addWidget(volume_label);
-
-	volume_spin = new QSpinBox(toolbar);
-	volume_spin->setMinimum(CW_VOLUME_MIN);
-	volume_spin->setMaximum(CW_VOLUME_MAX);
-	volume_spin->setSingleStep(1);
-	volume_spin->setToolTip(_("Volume"));
-	volume_spin->setSuffix(_(" %"));
-	volume_spin->setWhatsThis(VOLUME_WHATSTHIS);
-	volume_spin->setValue(cw_gen_get_volume(sender->gen));
-	connect(volume_spin, SIGNAL (valueChanged(int)), SLOT (change_volume()));
-	toolbar->addWidget(volume_spin);
-
-
-	toolbar->addSeparator();
-
-
-	QLabel *gap_label = new QLabel(_("Gap:"), 0, 0);
-	toolbar->addWidget(gap_label);
-
-	gap_spin = new QSpinBox(toolbar);
-	gap_spin->setMinimum(CW_GAP_MIN);
-	gap_spin->setMaximum(CW_GAP_MAX);
-	gap_spin->setSingleStep(1);
-	gap_spin->setToolTip(_("Gap"));
-	gap_spin->setSuffix(_(" dot(s)"));
-	gap_spin->setWhatsThis(GAP_WHATSTHIS);
-	gap_spin->setValue(cw_gen_get_gap(sender->gen));
-	connect(gap_spin, SIGNAL (valueChanged(int)), SLOT (change_gap()));
-	toolbar->addWidget(gap_spin);
-
-
-	/* Finally for the toolbar, add whatsthis. */
-	//QWhatsThis::whatsThisButton(toolbar);
 
 	/* This removes context menu for the toolbar. The menu made it
 	   possible to close a toolbar, which complicates 'show/hide'
@@ -857,8 +583,6 @@ void Application::make_toolbar(void)
 void Application::make_mode_combo()
 {
 	mode_combo = new QComboBox(0); //, _("Mode"));
-	mode_combo->setToolTip(_("Mode"));
-	mode_combo->setWhatsThis(MODE_WHATSTHIS);
 	connect(mode_combo, SIGNAL (activated(int)), SLOT (change_mode()));
 
 	/* Append each mode represented in the modes set to the combo
@@ -882,11 +606,6 @@ void Application::make_program_menu(void)
 {
 	program_menu = new QMenu(_("&Program"), this);
 	QMainWindow::menuBar()->addMenu(program_menu);
-
-	new_window_action = new QAction(_("&New Window"), this);
-	new_window_action->setShortcut(Qt::CTRL + Qt::Key_N);
-	connect(new_window_action, SIGNAL (triggered()), SLOT (new_instance()));
-	program_menu->addAction(new_window_action);
 
 
 	program_menu->addSeparator();
@@ -932,49 +651,14 @@ void Application::make_program_menu(void)
 
 void Application::make_settings_menu(void)
 {
-	QMenu *settings = new QMenu(_("&Settings"), this);
+	QMenu *settings = new QMenu("&Settings", this);
 	QMainWindow::menuBar()->addMenu(settings);
-
-
-	reverse_paddles_action = new QAction(_("&Reverse Paddles"), this);
-	reverse_paddles_action->setCheckable(true);
-	reverse_paddles_action->setChecked(false);
-	settings->addAction(reverse_paddles_action);
-
-
-	curtis_mode_b_action = new QAction(_("&Curtis Mode B Timing"), this);
-	curtis_mode_b_action->setCheckable(true);
-	curtis_mode_b_action->setChecked(false);
-	connect(curtis_mode_b_action, SIGNAL (toggled(bool)), SLOT (change_curtis_mode_b()));
-	settings->addAction(curtis_mode_b_action);
-
 
 	adaptive_receive_action = new QAction(_("&Adaptive CW Receive Speed"), this);
 	adaptive_receive_action->setCheckable(true);
 	adaptive_receive_action->setChecked(true);
 	connect(adaptive_receive_action, SIGNAL (toggled(bool)), SLOT (change_adaptive_receive()));
 	settings->addAction(adaptive_receive_action);
-
-
-	settings->addSeparator();
-
-
-	font_settings_action = new QAction(_("&Text font..."), this);
-	connect(font_settings_action, SIGNAL (triggered(bool)), SLOT (fonts()));
-	settings->addAction(font_settings_action);
-
-
-	color_settings_action = new QAction(_("&Text color..."), this);
-	connect(color_settings_action, SIGNAL (triggered(bool)), SLOT (colors()));
-	settings->addAction(color_settings_action);
-
-
-	settings->addSeparator();
-
-
-	toolbar_visibility_action = new QAction(_("Hide toolbar"), this);
-	connect(toolbar_visibility_action, SIGNAL (triggered(bool)), SLOT (toggle_toolbar()));
-	settings->addAction(toolbar_visibility_action);
 
 	return;
 }
