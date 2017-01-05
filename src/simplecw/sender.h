@@ -16,8 +16,8 @@
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
 
-#ifndef H_XCWCP_SENDER
-#define H_XCWCP_SENDER
+#ifndef H_SIMPLECW_SENDER
+#define H_SIMPLECW_SENDER
 
 
 
@@ -104,4 +104,4 @@ namespace cw {
 
 
 
-#endif  /* #ifndef H_XCWCP_SENDER */
+#endif /* #ifndef H_SIMPLECW_SENDER */

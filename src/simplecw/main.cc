@@ -46,7 +46,7 @@
 
 //extern cw_debug_t cw_debug_object;
 
-static void xcwcp_atexit(void);
+static void simplecw_atexit(void);
 static void register_signal_handler(void);
 
 
@@ -102,7 +102,7 @@ int main(int argc, char **argv)
 		//cw_debug_set_flags(&cw_debug_object, CW_DEBUG_KEYING | CW_DEBUG_GENERATOR | CW_DEBUG_TONE_QUEUE | CW_DEBUG_RECEIVE_STATES | CW_DEBUG_KEYER_STATES | CW_DEBUG_INTERNAL| CW_DEBUG_PARAMETERS);
 		//cw_debug_object.level = CW_DEBUG_DEBUG;
 
-		atexit(xcwcp_atexit);
+		atexit(simplecw_atexit);
 
 		register_signal_handler();
 
@@ -165,7 +165,7 @@ int main(int argc, char **argv)
 
 
 
-void xcwcp_atexit(void)
+void simplecw_atexit(void)
 {
 	if (config) {
 		cw_config_delete(&config);

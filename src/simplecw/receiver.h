@@ -16,8 +16,8 @@
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
 
-#ifndef H_XCWCP_RECEIVER
-#define H_XCWCP_RECEIVER
+#ifndef H_SIMPLECW_RECEIVER
+#define H_SIMPLECW_RECEIVER
 
 #include <QMouseEvent>
 #include <QKeyEvent>
@@ -120,11 +120,11 @@ namespace cw {
 		   dashes. Owned by libcw.
 
 		   Initial value of the timestamp is created by
-		   xcwcp's receiver on first "paddle down" event in a
+		   simplecw's receiver on first "paddle down" event in a
 		   character. The timestamp is then updated by libcw
 		   on specific time intervals. The intervals are a
 		   function of keyboard key presses or mouse button
-		   presses recorded by xcwcp. */
+		   presses recorded by simplecw. */
 		struct timeval *timer;
 #endif
 
@@ -149,4 +149,4 @@ namespace cw {
 
 
 
-#endif  /* #endif H_XCWCP_RECEIVER */
+#endif  /* #endif H_SIMPLECW_RECEIVER */

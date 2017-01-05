@@ -22,10 +22,10 @@
 -include $(top_builddir)/Makefile.inc
 
 # program(s) to be built in current dir
-bin_PROGRAMS = xcwcp
+bin_PROGRAMS = simplecw
 
-# source code files used to build xcwcp program
-xcwcp_SOURCES = \
+# source code files used to build simplecw program
+simplecw_SOURCES = \
 	application.cc application.h \
 	moc_application.cc \
 	textarea.cc textarea.h \
@@ -34,9 +34,9 @@ xcwcp_SOURCES = \
 	sender.cc sender.h
 
 # target-specific preprocessor flags (#defs and include dirs)
-xcwcp_CPPFLAGS = $(AM_CPPFLAGS) $(AC_QT5_CFLAGS) $(AC_CFLAG_PIC)
+simplecw_CPPFLAGS = $(AM_CPPFLAGS) $(AC_QT5_CFLAGS) $(AC_CFLAG_PIC)
 # target-specific linker flags (objects to link)
-xcwcp_LDADD = -L$(top_builddir)/src/libcw/.libs -lcw $(AC_QT5_LIBS) $(top_builddir)/src/cwutils/lib_xcwcp.a
+simplecw_LDADD = -L$(top_builddir)/src/libcw/.libs -lcw $(AC_QT5_LIBS) $(top_builddir)/src/cwutils/lib_xcwcp.a
 
 
 
@@ -66,9 +66,9 @@ check:
 # This test target can be invoked manually.
 real_check: all
 	( echo "Trying with OSS audio output";				\
-	  LD_LIBRARY_PATH=../libcw:$$LD_LIBRARY_PATH ./xcwcp -so ) ||	\
+	  LD_LIBRARY_PATH=../libcw:$$LD_LIBRARY_PATH ./simplecw -so ) ||	\
 	( echo "Retrying with ALSA audio output";			\
-	  LD_LIBRARY_PATH=../libcw:$$LD_LIBRARY_PATH ./xcwcp -sa ) ||	\
+	  LD_LIBRARY_PATH=../libcw:$$LD_LIBRARY_PATH ./simplecw -sa ) ||	\
 	( echo "Retrying the test in silent mode";			\
 	  LIBCW_DEBUG=1 						\
-	  LD_LIBRARY_PATH=../libcw:$$LD_LIBRARY_PATH ./xcwcp -sc )
+	  LD_LIBRARY_PATH=../libcw:$$LD_LIBRARY_PATH ./simplecw -sc )

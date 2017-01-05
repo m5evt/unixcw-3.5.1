@@ -3,8 +3,8 @@
   unixcw project is covered by GNU General Public License.
 */
 
-#ifndef H_XCWCP_TEXTAREA
-#define H_XCWCP_TEXTAREA
+#ifndef H_SIMPLECW_TEXTAREA
+#define H_SIMPLECW_TEXTAREA
 
 
 
@@ -61,4 +61,5 @@ namespace cw {
 
 
 
-#endif /* #ifndef H_XCWCP_TEXTAREA */
+
+#endif /* #ifndef H_SIMPLECW_TEXTAREA */

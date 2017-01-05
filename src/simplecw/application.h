@@ -16,8 +16,8 @@
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
 
-#ifndef H_XCWCP_APPLICATION
-#define H_XCWCP_APPLICATION
+#ifndef H_SIMPLECW_APPLICATION
+#define H_SIMPLECW_APPLICATION
 
 
 
@@ -56,7 +56,7 @@ namespace cw {
 
 
 
-	/* Class Application encapsulates the outermost Xcwcp Qt
+	/* Class Application encapsulates the outermost simplecw Qt
 	   application.  Defines slots and signals, as well as the
 	   usual class information. */
 
@@ -168,4 +168,4 @@ namespace cw {
 
 
 
-#endif  /* #ifndef H_XCWCP_APPLICATION */
+#endif  /* #ifndef H_SIMPLECW_APPLICATION */

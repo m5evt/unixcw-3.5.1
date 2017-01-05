@@ -96,7 +96,7 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-bin_PROGRAMS = xcwcp$(EXEEXT)
+bin_PROGRAMS = simplecw$(EXEEXT)
 subdir = src/simplecw
 DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(top_srcdir)/depcomp
@@ -110,12 +110,12 @@ CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
-am_xcwcp_OBJECTS = xcwcp-application.$(OBJEXT) \
-	xcwcp-moc_application.$(OBJEXT) xcwcp-textarea.$(OBJEXT) \
-	xcwcp-main.$(OBJEXT) xcwcp-receiver.$(OBJEXT) \
-	xcwcp-sender.$(OBJEXT)
-xcwcp_OBJECTS = $(am_xcwcp_OBJECTS)
-xcwcp_DEPENDENCIES = $(top_builddir)/src/cwutils/lib_xcwcp.a
+am_simplecw_OBJECTS = simplecw-application.$(OBJEXT) \
+	simplecw-moc_application.$(OBJEXT) simplecw-textarea.$(OBJEXT) \
+	simplecw-main.$(OBJEXT) simplecw-receiver.$(OBJEXT) \
+	simplecw-sender.$(OBJEXT)
+simplecw_OBJECTS = $(am_simplecw_OBJECTS)
+simplecw_DEPENDENCIES = $(top_builddir)/src/cwutils/lib_xcwcp.a
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
@@ -172,8 +172,8 @@ AM_V_CCLD = $(am__v_CCLD_@AM_V@)
 am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
-SOURCES = $(xcwcp_SOURCES)
-DIST_SOURCES = $(xcwcp_SOURCES)
+SOURCES = $(simplecw_SOURCES)
+DIST_SOURCES = $(simplecw_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -335,8 +335,8 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 
-# source code files used to build xcwcp program
-xcwcp_SOURCES = \
+# source code files used to build simplecw program
+simplecw_SOURCES = \
 	application.cc application.h \
 	moc_application.cc \
 	textarea.cc textarea.h \
@@ -346,9 +346,9 @@ xcwcp_SOURCES = \
 
 
 # target-specific preprocessor flags (#defs and include dirs)
-xcwcp_CPPFLAGS = $(AM_CPPFLAGS) $(AC_QT5_CFLAGS) $(AC_CFLAG_PIC)
+simplecw_CPPFLAGS = $(AM_CPPFLAGS) $(AC_QT5_CFLAGS) $(AC_CFLAG_PIC)
 # target-specific linker flags (objects to link)
-xcwcp_LDADD = -L$(top_builddir)/src/libcw/.libs -lcw $(AC_QT5_LIBS) $(top_builddir)/src/cwutils/lib_xcwcp.a
+simplecw_LDADD = -L$(top_builddir)/src/libcw/.libs -lcw $(AC_QT5_LIBS) $(top_builddir)/src/cwutils/lib_xcwcp.a
 
 # CLEANFILES extends list of files that need to be removed when
 # calling "make clean"
@@ -437,9 +437,9 @@ clean-binPROGRAMS:
 	echo " rm -f" $$list; \
 	rm -f $$list
 
-xcwcp$(EXEEXT): $(xcwcp_OBJECTS) $(xcwcp_DEPENDENCIES) $(EXTRA_xcwcp_DEPENDENCIES) 
-	@rm -f xcwcp$(EXEEXT)
-	$(AM_V_CXXLD)$(CXXLINK) $(xcwcp_OBJECTS) $(xcwcp_LDADD) $(LIBS)
+simplecw$(EXEEXT): $(simplecw_OBJECTS) $(simplecw_DEPENDENCIES) $(EXTRA_simplecw_DEPENDENCIES) 
+	@rm -f simplecw$(EXEEXT)
+	$(AM_V_CXXLD)$(CXXLINK) $(simplecw_OBJECTS) $(simplecw_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -447,12 +447,12 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/xcwcp-application.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/xcwcp-main.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/xcwcp-moc_application.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/xcwcp-receiver.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/xcwcp-sender.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/xcwcp-textarea.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/simplecw-application.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/simplecw-main.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/simplecw-moc_application.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/simplecw-receiver.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/simplecw-sender.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/simplecw-textarea.Po@am__quote@
 
 .cc.o:
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -475,89 +475,89 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(LTCXXCOMPILE) -c -o $@ $<
 
-xcwcp-application.o: application.cc
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT xcwcp-application.o -MD -MP -MF $(DEPDIR)/xcwcp-application.Tpo -c -o xcwcp-application.o `test -f 'application.cc' || echo '$(srcdir)/'`application.cc
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/xcwcp-application.Tpo $(DEPDIR)/xcwcp-application.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='application.cc' object='xcwcp-application.o' libtool=no @AMDEPBACKSLASH@
+simplecw-application.o: application.cc
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(simplecw_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT simplecw-application.o -MD -MP -MF $(DEPDIR)/simplecw-application.Tpo -c -o simplecw-application.o `test -f 'application.cc' || echo '$(srcdir)/'`application.cc
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/simplecw-application.Tpo $(DEPDIR)/simplecw-application.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='application.cc' object='simplecw-application.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o xcwcp-application.o `test -f 'application.cc' || echo '$(srcdir)/'`application.cc
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(simplecw_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o simplecw-application.o `test -f 'application.cc' || echo '$(srcdir)/'`application.cc
 
-xcwcp-application.obj: application.cc
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT xcwcp-application.obj -MD -MP -MF $(DEPDIR)/xcwcp-application.Tpo -c -o xcwcp-application.obj `if test -f 'application.cc'; then $(CYGPATH_W) 'application.cc'; else $(CYGPATH_W) '$(srcdir)/application.cc'; fi`
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/xcwcp-application.Tpo $(DEPDIR)/xcwcp-application.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='application.cc' object='xcwcp-application.obj' libtool=no @AMDEPBACKSLASH@
+simplecw-application.obj: application.cc
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(simplecw_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT simplecw-application.obj -MD -MP -MF $(DEPDIR)/simplecw-application.Tpo -c -o simplecw-application.obj `if test -f 'application.cc'; then $(CYGPATH_W) 'application.cc'; else $(CYGPATH_W) '$(srcdir)/application.cc'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/simplecw-application.Tpo $(DEPDIR)/simplecw-application.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='application.cc' object='simplecw-application.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o xcwcp-application.obj `if test -f 'application.cc'; then $(CYGPATH_W) 'application.cc'; else $(CYGPATH_W) '$(srcdir)/application.cc'; fi`
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(simplecw_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o simplecw-application.obj `if test -f 'application.cc'; then $(CYGPATH_W) 'application.cc'; else $(CYGPATH_W) '$(srcdir)/application.cc'; fi`
 
-xcwcp-moc_application.o: moc_application.cc
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT xcwcp-moc_application.o -MD -MP -MF $(DEPDIR)/xcwcp-moc_application.Tpo -c -o xcwcp-moc_application.o `test -f 'moc_application.cc' || echo '$(srcdir)/'`moc_application.cc
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/xcwcp-moc_application.Tpo $(DEPDIR)/xcwcp-moc_application.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='moc_application.cc' object='xcwcp-moc_application.o' libtool=no @AMDEPBACKSLASH@
+simplecw-moc_application.o: moc_application.cc
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(simplecw_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT simplecw-moc_application.o -MD -MP -MF $(DEPDIR)/simplecw-moc_application.Tpo -c -o simplecw-moc_application.o `test -f 'moc_application.cc' || echo '$(srcdir)/'`moc_application.cc
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/simplecw-moc_application.Tpo $(DEPDIR)/simplecw-moc_application.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='moc_application.cc' object='simplecw-moc_application.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o xcwcp-moc_application.o `test -f 'moc_application.cc' || echo '$(srcdir)/'`moc_application.cc
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(simplecw_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o simplecw-moc_application.o `test -f 'moc_application.cc' || echo '$(srcdir)/'`moc_application.cc
 
-xcwcp-moc_application.obj: moc_application.cc
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT xcwcp-moc_application.obj -MD -MP -MF $(DEPDIR)/xcwcp-moc_application.Tpo -c -o xcwcp-moc_application.obj `if test -f 'moc_application.cc'; then $(CYGPATH_W) 'moc_application.cc'; else $(CYGPATH_W) '$(srcdir)/moc_application.cc'; fi`
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/xcwcp-moc_application.Tpo $(DEPDIR)/xcwcp-moc_application.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='moc_application.cc' object='xcwcp-moc_application.obj' libtool=no @AMDEPBACKSLASH@
+simplecw-moc_application.obj: moc_application.cc
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(simplecw_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT simplecw-moc_application.obj -MD -MP -MF $(DEPDIR)/simplecw-moc_application.Tpo -c -o simplecw-moc_application.obj `if test -f 'moc_application.cc'; then $(CYGPATH_W) 'moc_application.cc'; else $(CYGPATH_W) '$(srcdir)/moc_application.cc'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/simplecw-moc_application.Tpo $(DEPDIR)/simplecw-moc_application.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='moc_application.cc' object='simplecw-moc_application.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o xcwcp-moc_application.obj `if test -f 'moc_application.cc'; then $(CYGPATH_W) 'moc_application.cc'; else $(CYGPATH_W) '$(srcdir)/moc_application.cc'; fi`
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(simplecw_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o simplecw-moc_application.obj `if test -f 'moc_application.cc'; then $(CYGPATH_W) 'moc_application.cc'; else $(CYGPATH_W) '$(srcdir)/moc_application.cc'; fi`
 
-xcwcp-textarea.o: textarea.cc
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT xcwcp-textarea.o -MD -MP -MF $(DEPDIR)/xcwcp-textarea.Tpo -c -o xcwcp-textarea.o `test -f 'textarea.cc' || echo '$(srcdir)/'`textarea.cc
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/xcwcp-textarea.Tpo $(DEPDIR)/xcwcp-textarea.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='textarea.cc' object='xcwcp-textarea.o' libtool=no @AMDEPBACKSLASH@
+simplecw-textarea.o: textarea.cc
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(simplecw_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT simplecw-textarea.o -MD -MP -MF $(DEPDIR)/simplecw-textarea.Tpo -c -o simplecw-textarea.o `test -f 'textarea.cc' || echo '$(srcdir)/'`textarea.cc
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/simplecw-textarea.Tpo $(DEPDIR)/simplecw-textarea.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='textarea.cc' object='simplecw-textarea.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o xcwcp-textarea.o `test -f 'textarea.cc' || echo '$(srcdir)/'`textarea.cc
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(simplecw_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o simplecw-textarea.o `test -f 'textarea.cc' || echo '$(srcdir)/'`textarea.cc
 
-xcwcp-textarea.obj: textarea.cc
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT xcwcp-textarea.obj -MD -MP -MF $(DEPDIR)/xcwcp-textarea.Tpo -c -o xcwcp-textarea.obj `if test -f 'textarea.cc'; then $(CYGPATH_W) 'textarea.cc'; else $(CYGPATH_W) '$(srcdir)/textarea.cc'; fi`
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/xcwcp-textarea.Tpo $(DEPDIR)/xcwcp-textarea.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='textarea.cc' object='xcwcp-textarea.obj' libtool=no @AMDEPBACKSLASH@
+simplecw-textarea.obj: textarea.cc
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(simplecw_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT simplecw-textarea.obj -MD -MP -MF $(DEPDIR)/simplecw-textarea.Tpo -c -o simplecw-textarea.obj `if test -f 'textarea.cc'; then $(CYGPATH_W) 'textarea.cc'; else $(CYGPATH_W) '$(srcdir)/textarea.cc'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/simplecw-textarea.Tpo $(DEPDIR)/simplecw-textarea.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='textarea.cc' object='simplecw-textarea.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o xcwcp-textarea.obj `if test -f 'textarea.cc'; then $(CYGPATH_W) 'textarea.cc'; else $(CYGPATH_W) '$(srcdir)/textarea.cc'; fi`
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(simplecw_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o simplecw-textarea.obj `if test -f 'textarea.cc'; then $(CYGPATH_W) 'textarea.cc'; else $(CYGPATH_W) '$(srcdir)/textarea.cc'; fi`
 
-xcwcp-main.o: main.cc
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT xcwcp-main.o -MD -MP -MF $(DEPDIR)/xcwcp-main.Tpo -c -o xcwcp-main.o `test -f 'main.cc' || echo '$(srcdir)/'`main.cc
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/xcwcp-main.Tpo $(DEPDIR)/xcwcp-main.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='main.cc' object='xcwcp-main.o' libtool=no @AMDEPBACKSLASH@
+simplecw-main.o: main.cc
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(simplecw_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT simplecw-main.o -MD -MP -MF $(DEPDIR)/simplecw-main.Tpo -c -o simplecw-main.o `test -f 'main.cc' || echo '$(srcdir)/'`main.cc
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/simplecw-main.Tpo $(DEPDIR)/simplecw-main.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='main.cc' object='simplecw-main.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o xcwcp-main.o `test -f 'main.cc' || echo '$(srcdir)/'`main.cc
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(simplecw_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o simplecw-main.o `test -f 'main.cc' || echo '$(srcdir)/'`main.cc
 
-xcwcp-main.obj: main.cc
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT xcwcp-main.obj -MD -MP -MF $(DEPDIR)/xcwcp-main.Tpo -c -o xcwcp-main.obj `if test -f 'main.cc'; then $(CYGPATH_W) 'main.cc'; else $(CYGPATH_W) '$(srcdir)/main.cc'; fi`
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/xcwcp-main.Tpo $(DEPDIR)/xcwcp-main.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='main.cc' object='xcwcp-main.obj' libtool=no @AMDEPBACKSLASH@
+simplecw-main.obj: main.cc
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(simplecw_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT simplecw-main.obj -MD -MP -MF $(DEPDIR)/simplecw-main.Tpo -c -o simplecw-main.obj `if test -f 'main.cc'; then $(CYGPATH_W) 'main.cc'; else $(CYGPATH_W) '$(srcdir)/main.cc'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/simplecw-main.Tpo $(DEPDIR)/simplecw-main.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='main.cc' object='simplecw-main.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o xcwcp-main.obj `if test -f 'main.cc'; then $(CYGPATH_W) 'main.cc'; else $(CYGPATH_W) '$(srcdir)/main.cc'; fi`
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(simplecw_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o simplecw-main.obj `if test -f 'main.cc'; then $(CYGPATH_W) 'main.cc'; else $(CYGPATH_W) '$(srcdir)/main.cc'; fi`
 
-xcwcp-receiver.o: receiver.cc
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT xcwcp-receiver.o -MD -MP -MF $(DEPDIR)/xcwcp-receiver.Tpo -c -o xcwcp-receiver.o `test -f 'receiver.cc' || echo '$(srcdir)/'`receiver.cc
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/xcwcp-receiver.Tpo $(DEPDIR)/xcwcp-receiver.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='receiver.cc' object='xcwcp-receiver.o' libtool=no @AMDEPBACKSLASH@
+simplecw-receiver.o: receiver.cc
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(simplecw_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT simplecw-receiver.o -MD -MP -MF $(DEPDIR)/simplecw-receiver.Tpo -c -o simplecw-receiver.o `test -f 'receiver.cc' || echo '$(srcdir)/'`receiver.cc
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/simplecw-receiver.Tpo $(DEPDIR)/simplecw-receiver.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='receiver.cc' object='simplecw-receiver.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o xcwcp-receiver.o `test -f 'receiver.cc' || echo '$(srcdir)/'`receiver.cc
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(simplecw_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o simplecw-receiver.o `test -f 'receiver.cc' || echo '$(srcdir)/'`receiver.cc
 
-xcwcp-receiver.obj: receiver.cc
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT xcwcp-receiver.obj -MD -MP -MF $(DEPDIR)/xcwcp-receiver.Tpo -c -o xcwcp-receiver.obj `if test -f 'receiver.cc'; then $(CYGPATH_W) 'receiver.cc'; else $(CYGPATH_W) '$(srcdir)/receiver.cc'; fi`
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/xcwcp-receiver.Tpo $(DEPDIR)/xcwcp-receiver.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='receiver.cc' object='xcwcp-receiver.obj' libtool=no @AMDEPBACKSLASH@
+simplecw-receiver.obj: receiver.cc
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(simplecw_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT simplecw-receiver.obj -MD -MP -MF $(DEPDIR)/simplecw-receiver.Tpo -c -o simplecw-receiver.obj `if test -f 'receiver.cc'; then $(CYGPATH_W) 'receiver.cc'; else $(CYGPATH_W) '$(srcdir)/receiver.cc'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/simplecw-receiver.Tpo $(DEPDIR)/simplecw-receiver.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='receiver.cc' object='simplecw-receiver.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o xcwcp-receiver.obj `if test -f 'receiver.cc'; then $(CYGPATH_W) 'receiver.cc'; else $(CYGPATH_W) '$(srcdir)/receiver.cc'; fi`
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(simplecw_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o simplecw-receiver.obj `if test -f 'receiver.cc'; then $(CYGPATH_W) 'receiver.cc'; else $(CYGPATH_W) '$(srcdir)/receiver.cc'; fi`
 
-xcwcp-sender.o: sender.cc
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT xcwcp-sender.o -MD -MP -MF $(DEPDIR)/xcwcp-sender.Tpo -c -o xcwcp-sender.o `test -f 'sender.cc' || echo '$(srcdir)/'`sender.cc
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/xcwcp-sender.Tpo $(DEPDIR)/xcwcp-sender.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='sender.cc' object='xcwcp-sender.o' libtool=no @AMDEPBACKSLASH@
+simplecw-sender.o: sender.cc
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(simplecw_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT simplecw-sender.o -MD -MP -MF $(DEPDIR)/simplecw-sender.Tpo -c -o simplecw-sender.o `test -f 'sender.cc' || echo '$(srcdir)/'`sender.cc
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/simplecw-sender.Tpo $(DEPDIR)/simplecw-sender.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='sender.cc' object='simplecw-sender.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o xcwcp-sender.o `test -f 'sender.cc' || echo '$(srcdir)/'`sender.cc
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(simplecw_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o simplecw-sender.o `test -f 'sender.cc' || echo '$(srcdir)/'`sender.cc
 
-xcwcp-sender.obj: sender.cc
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT xcwcp-sender.obj -MD -MP -MF $(DEPDIR)/xcwcp-sender.Tpo -c -o xcwcp-sender.obj `if test -f 'sender.cc'; then $(CYGPATH_W) 'sender.cc'; else $(CYGPATH_W) '$(srcdir)/sender.cc'; fi`
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/xcwcp-sender.Tpo $(DEPDIR)/xcwcp-sender.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='sender.cc' object='xcwcp-sender.obj' libtool=no @AMDEPBACKSLASH@
+simplecw-sender.obj: sender.cc
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(simplecw_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT simplecw-sender.obj -MD -MP -MF $(DEPDIR)/simplecw-sender.Tpo -c -o simplecw-sender.obj `if test -f 'sender.cc'; then $(CYGPATH_W) 'sender.cc'; else $(CYGPATH_W) '$(srcdir)/sender.cc'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/simplecw-sender.Tpo $(DEPDIR)/simplecw-sender.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='sender.cc' object='simplecw-sender.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o xcwcp-sender.obj `if test -f 'sender.cc'; then $(CYGPATH_W) 'sender.cc'; else $(CYGPATH_W) '$(srcdir)/sender.cc'; fi`
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(simplecw_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o simplecw-sender.obj `if test -f 'sender.cc'; then $(CYGPATH_W) 'sender.cc'; else $(CYGPATH_W) '$(srcdir)/sender.cc'; fi`
 
 mostlyclean-libtool:
 	-rm -f *.lo
@@ -791,12 +791,12 @@ check:
 # This test target can be invoked manually.
 real_check: all
 	( echo "Trying with OSS audio output";				\
-	  LD_LIBRARY_PATH=../libcw:$$LD_LIBRARY_PATH ./xcwcp -so ) ||	\
+	  LD_LIBRARY_PATH=../libcw:$$LD_LIBRARY_PATH ./simplecw -so ) ||	\
 	( echo "Retrying with ALSA audio output";			\
-	  LD_LIBRARY_PATH=../libcw:$$LD_LIBRARY_PATH ./xcwcp -sa ) ||	\
+	  LD_LIBRARY_PATH=../libcw:$$LD_LIBRARY_PATH ./simplecw -sa ) ||	\
 	( echo "Retrying the test in silent mode";			\
 	  LIBCW_DEBUG=1 						\
-	  LD_LIBRARY_PATH=../libcw:$$LD_LIBRARY_PATH ./xcwcp -sc )
+	  LD_LIBRARY_PATH=../libcw:$$LD_LIBRARY_PATH ./simplecw -sc )
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

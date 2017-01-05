@@ -510,7 +510,7 @@ void Application::mouse_event(QMouseEvent *event)
 
 void Application::make_toolbar(void)
 {
-	toolbar = QMainWindow::addToolBar("Xcwcp Operations");
+	toolbar = QMainWindow::addToolBar("simplecw operations");
 
 	startstop_action = new QAction("Start/Stop", this);
 	startstop_action->setIcon(QIcon::fromTheme("media-playback-start"));
