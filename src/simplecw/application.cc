@@ -70,11 +70,9 @@ namespace cw {
 */
 
 
-const QString ABOUT_CAPTION = QString("simplecw version ")
-                                  + PACKAGE_VERSION;
+const QString ABOUT_CAPTION = QString("simplecw version ") + PACKAGE_VERSION;
 
-const QString ABOUT_TEXT = QString("simplecw version ")
-                               + PACKAGE_VERSION + "\n" + CW_COPYRIGHT;
+const QString ABOUT_TEXT = QString("simplecw version ") + PACKAGE_VERSION + "\n" + CW_COPYRIGHT;
 
 
 /**
@@ -183,9 +181,7 @@ void Application::closeEvent(QCloseEvent *event)
 	bool is_closing = true;
 
 	if (this->is_running) {
-		is_closing = QMessageBox::warning(this, "Xcwcp",
-						  "Busy - are you sure?",
-						  "&Exit", "&Cancel", 0, 0, 1) == 0;
+		is_closing = QMessageBox::warning(this, "simplecw", "Busy - are you sure?", "&Exit", "&Cancel", 0, 0, 1) == 0;
 		if (is_closing) {
 			stop();
 		}

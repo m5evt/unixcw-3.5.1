@@ -31,14 +31,10 @@
 
 #include "libcw2.h"
 
-#include "i18n.h"
-
-
 
 
 
 namespace cw {
-
 
 
 
@@ -580,5 +576,8 @@ void Receiver::poll_space()
 
 	return;
 }
+
+
+
 
 }  /* namespace cw */

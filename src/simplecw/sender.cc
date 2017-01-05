@@ -31,9 +31,6 @@
 
 #include "libcw2.h"
 
-#include "i18n.h"
-
-
 
 
 
@@ -41,10 +38,8 @@ namespace cw {
 
 
 
-Sender::Sender(Application *a, TextArea *t, cw_config_t *config) :
-			app (a),
-			textarea (t),
-			is_queue_idle (true)
+
+Sender::Sender(Application *a, TextArea *t, cw_config_t *config) : app(a), textarea(t), is_queue_idle(true)
 {
 	gen = cw_gen_new_from_config(config);
 	if (!gen) {
@@ -57,7 +52,6 @@ Sender::Sender(Application *a, TextArea *t, cw_config_t *config) :
 
 
 
-
 Sender::~Sender()
 {
 	if (gen) {
@@ -65,7 +59,6 @@ Sender::~Sender()
 		cw_gen_delete(&gen);
 	}
 }
-
 
 
 
@@ -92,7 +85,6 @@ void Sender::poll(int mode)
 	}
 	return;
 }
-
 
 
 
@@ -139,7 +131,6 @@ void Sender::handle_key_event(QKeyEvent *event)
 
 
 
-
 /**
    \brief Clear sender state
 
@@ -153,7 +144,6 @@ void Sender::clear()
 
 	return;
 }
-
 
 
 
@@ -201,7 +191,6 @@ void Sender::dequeue_and_play_character()
 
 
 
-
 /**
    \brief Enqueue a string in player's queue
 
@@ -230,7 +219,6 @@ void Sender::enqueue_string(const std::string &s)
 
 
 
-
 /**
    \brief Delete last character from queue
 
@@ -247,7 +235,6 @@ void Sender::delete_character()
 
 	return;
 }
-
 
 
 

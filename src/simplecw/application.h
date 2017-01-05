@@ -60,8 +60,7 @@ namespace cw {
 	   application.  Defines slots and signals, as well as the
 	   usual class information. */
 
-	class Application :
-		public QMainWindow
+	class Application : public QMainWindow
 	{
 		Q_OBJECT
 	public:
@@ -115,7 +114,6 @@ namespace cw {
 		QAction *quit_action;
 
 		QMenu *settings;
-		QAction *curtis_mode_b_action;
 		QAction *adaptive_receive_action;
 
 		QMenu *help;

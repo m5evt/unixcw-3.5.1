@@ -31,8 +31,6 @@
 
 #include "application.h"
 #include "textarea.h"
-#include "i18n.h"
-
 
 
 
@@ -42,10 +40,7 @@ namespace cw {
 
 
 
-
-TextArea::TextArea(Application *a, QWidget *parent) :
-	QTextEdit (parent),
-	app (a)
+TextArea::TextArea(Application *a, QWidget *parent) : QTextEdit(parent), app(a)
 {
 	/* Block context menu in text area, this is to make right mouse
 	   button work as correct sending key (paddle).
@@ -60,19 +55,6 @@ TextArea::TextArea(Application *a, QWidget *parent) :
 	/* Clear widget. */
 	setPlainText("");
 
-#if 0
-	/* These two lines just repeat the default settings.
-	   TODO: maybe just remove them? */
-
-	/* Words will be wrapped at the right edge of the text
-	   edit. Wrapping occurs at whitespace, keeping whole words
-	   intact. */
-	setLineWrapMode(QTextEdit::WidgetWidth);
-
-	/* Text is wrapped at word boundaries. */
-	setWordWrapMode(QTextOption::WordWrap);
-#endif
-
 	setFontWeight(QFont::Bold);
 
 	setFocus();
@@ -80,7 +62,6 @@ TextArea::TextArea(Application *a, QWidget *parent) :
 	app->setCentralWidget(this);
 	app->show_status("Ready");
 }
-
 
 
 
@@ -98,7 +79,6 @@ void TextArea::keyPressEvent(QKeyEvent *event)
 
 
 
-
 /**
    \brief Catch key event and pass it to Application
 */
@@ -112,7 +92,6 @@ void TextArea::keyReleaseEvent(QKeyEvent *event)
 
 
 
-
 /**
    \brief Catch mouse event and pass it to Application
 */
@@ -122,7 +101,6 @@ void TextArea::mousePressEvent(QMouseEvent *event)
 
 	return;
 }
-
 
 
 
@@ -144,7 +122,6 @@ void TextArea::mouseDoubleClickEvent(QMouseEvent *event)
 
 
 
-
 /**
    \brief Catch mouse event and pass it to Application
 */
@@ -154,7 +131,6 @@ void TextArea::mouseReleaseEvent(QMouseEvent *event)
 
 	return;
 }
-
 
 
 
@@ -173,7 +149,6 @@ QMenu *TextArea::createPopupMenu(const QPoint &)
 
 
 
-
 /**
    \brief Avoid creating popup menu
 
@@ -184,7 +159,6 @@ QMenu *TextArea::createPopupMenu()
 {
 	return NULL;
 }
-
 
 
 
@@ -202,7 +176,6 @@ void TextArea::append(char c)
 
 
 
-
 /**
    \brief React to backspace key
 
@@ -216,7 +189,6 @@ void TextArea::backspace()
 
 	return;
 }
-
 
 
 
