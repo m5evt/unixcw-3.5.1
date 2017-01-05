@@ -28,7 +28,6 @@
 #include "application.h"
 #include "sender.h"
 #include "textarea.h"
-#include "modeset.h"
 
 #include "libcw2.h"
 

@@ -112,8 +112,8 @@ am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
 am_xcwcp_OBJECTS = xcwcp-application.$(OBJEXT) \
 	xcwcp-moc_application.$(OBJEXT) xcwcp-textarea.$(OBJEXT) \
-	xcwcp-main.$(OBJEXT) xcwcp-modeset.$(OBJEXT) \
-	xcwcp-receiver.$(OBJEXT) xcwcp-sender.$(OBJEXT)
+	xcwcp-main.$(OBJEXT) xcwcp-receiver.$(OBJEXT) \
+	xcwcp-sender.$(OBJEXT)
 xcwcp_OBJECTS = $(am_xcwcp_OBJECTS)
 xcwcp_DEPENDENCIES = $(top_builddir)/src/cwutils/lib_xcwcp.a
 AM_V_lt = $(am__v_lt_@AM_V@)
@@ -341,7 +341,6 @@ xcwcp_SOURCES = \
 	moc_application.cc \
 	textarea.cc textarea.h \
 	main.cc \
-	modeset.cc modeset.h \
 	receiver.cc receiver.h\
 	sender.cc sender.h
 
@@ -451,7 +450,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/xcwcp-application.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/xcwcp-main.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/xcwcp-moc_application.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/xcwcp-modeset.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/xcwcp-receiver.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/xcwcp-sender.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/xcwcp-textarea.Po@am__quote@
@@ -532,20 +530,6 @@ xcwcp-main.obj: main.cc
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='main.cc' object='xcwcp-main.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o xcwcp-main.obj `if test -f 'main.cc'; then $(CYGPATH_W) 'main.cc'; else $(CYGPATH_W) '$(srcdir)/main.cc'; fi`
-
-xcwcp-modeset.o: modeset.cc
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT xcwcp-modeset.o -MD -MP -MF $(DEPDIR)/xcwcp-modeset.Tpo -c -o xcwcp-modeset.o `test -f 'modeset.cc' || echo '$(srcdir)/'`modeset.cc
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/xcwcp-modeset.Tpo $(DEPDIR)/xcwcp-modeset.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='modeset.cc' object='xcwcp-modeset.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o xcwcp-modeset.o `test -f 'modeset.cc' || echo '$(srcdir)/'`modeset.cc
-
-xcwcp-modeset.obj: modeset.cc
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT xcwcp-modeset.obj -MD -MP -MF $(DEPDIR)/xcwcp-modeset.Tpo -c -o xcwcp-modeset.obj `if test -f 'modeset.cc'; then $(CYGPATH_W) 'modeset.cc'; else $(CYGPATH_W) '$(srcdir)/modeset.cc'; fi`
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/xcwcp-modeset.Tpo $(DEPDIR)/xcwcp-modeset.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='modeset.cc' object='xcwcp-modeset.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o xcwcp-modeset.obj `if test -f 'modeset.cc'; then $(CYGPATH_W) 'modeset.cc'; else $(CYGPATH_W) '$(srcdir)/modeset.cc'; fi`
 
 xcwcp-receiver.o: receiver.cc
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(xcwcp_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT xcwcp-receiver.o -MD -MP -MF $(DEPDIR)/xcwcp-receiver.Tpo -c -o xcwcp-receiver.o `test -f 'receiver.cc' || echo '$(srcdir)/'`receiver.cc

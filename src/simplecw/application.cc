@@ -48,7 +48,6 @@
 #include "sender.h"
 #include "receiver.h"
 #include "textarea.h"
-#include "modeset.h"
 #include "cw_common.h"
 
 #include "libcw2.h"
@@ -582,18 +581,19 @@ void Application::make_toolbar(void)
 
 void Application::make_mode_combo()
 {
-	mode_combo = new QComboBox(0); //, _("Mode"));
-	connect(mode_combo, SIGNAL (activated(int)), SLOT (change_mode()));
+	this->mode_combo = new QComboBox(0);
+	connect(this->mode_combo, SIGNAL (activated(int)), SLOT (change_mode()));
 
-	/* Append each mode represented in the modes set to the combo
-	   box's contents, then synchronize the current mode. */
-	for (int index = 0; index < modeset.get_count(); index++) {
-		const QVariant data(index);
-		const Mode *mode = modeset.get(index);
-		const QString string = QString::fromUtf8(mode->get_description().c_str());
-		mode_combo->addItem(string, data);
-	}
-	this->current_mode = mode_combo->currentIndex();
+	QVariant data;
+
+	data = QVariant(MODE_SEND);
+	this->mode_combo->addItem("Enter text from keyboard", data);
+
+	data = QVariant(MODE_RECEIVE);
+	this->mode_combo->addItem("Use keyboard keys/mouse buttons as Morse key", data);
+
+	this->mode_combo->setCurrentIndex(MODE_SEND);
+	this->current_mode = MODE_SEND;
 
 	return;
 }

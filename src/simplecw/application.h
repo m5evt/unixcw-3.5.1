@@ -31,7 +31,6 @@
 #include <string>
 #include <deque>
 
-#include "modeset.h"
 #include "cw_common.h"
 
 
@@ -107,7 +106,7 @@ namespace cw {
 		QComboBox *mode_combo;
 		QSpinBox *speed_spin;
 
-		int current_mode = MODE_SEND; /* MODE_SEND / MODE_RECEIVE. */
+		int current_mode; /* MODE_SEND / MODE_RECEIVE. */
 
 		QMenu *program_menu;
 		QAction *clear_display_action;
@@ -121,11 +120,6 @@ namespace cw {
 
 		QMenu *help;
 		QAction *about_action;
-
-		/* Set of modes used by the application; initialized
-		   from dictionaries, with keyboard and receive modes
-		   added. */
-		ModeSet modeset;
 
 		Sender *sender;
 		Receiver *receiver;
