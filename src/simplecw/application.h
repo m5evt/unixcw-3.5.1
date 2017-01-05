@@ -108,10 +108,7 @@ namespace cw {
 		int current_mode; /* MODE_SEND / MODE_RECEIVE. */
 
 		QMenu *program_menu;
-		QAction *clear_display_action;
 		QAction *sync_speed_action;
-		QAction *close_action;
-		QAction *quit_action;
 
 		QMenu *settings;
 		QAction *adaptive_receive_action;

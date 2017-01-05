@@ -595,6 +595,8 @@ void Application::make_mode_combo()
 
 void Application::make_program_menu(void)
 {
+	QAction * qa = NULL;
+
 	program_menu = new QMenu("&Program", this);
 	QMainWindow::menuBar()->addMenu(program_menu);
 
@@ -606,10 +608,10 @@ void Application::make_program_menu(void)
 	program_menu->addAction(startstop_action);
 
 
-	clear_display_action = new QAction("&Clear Text", this);
-	clear_display_action->setShortcut(Qt::CTRL + Qt::Key_C);
-	connect(clear_display_action, SIGNAL (triggered()), SLOT (clear()));
-	program_menu->addAction(clear_display_action);
+	qa = new QAction("&Clear Text", this);
+	qa->setShortcut(Qt::CTRL + Qt::Key_C);
+	connect(qa, SIGNAL (triggered()), SLOT (clear()));
+	program_menu->addAction(qa);
 
 
 	sync_speed_action = new QAction("Synchronize S&peed", this);
@@ -622,16 +624,16 @@ void Application::make_program_menu(void)
 	program_menu->addSeparator();
 
 
-	close_action = new QAction("&Close", this);
-	close_action->setShortcut(Qt::CTRL + Qt::Key_W);
-	connect(close_action, SIGNAL (triggered()), SLOT (close()));
-	program_menu->addAction(close_action);
+	qa = new QAction("&Close", this);
+	qa->setShortcut(Qt::CTRL + Qt::Key_W);
+	connect(qa, SIGNAL (triggered()), SLOT (close()));
+	program_menu->addAction(qa);
 
 
-	quit_action = new QAction("&Quit", qApp);
-	quit_action->setShortcut(Qt::CTRL + Qt::Key_Q);
-	connect(quit_action, SIGNAL (triggered()), qApp, SLOT (closeAllWindows()));
-	program_menu->addAction(quit_action);
+	qa = new QAction("&Quit", qApp);
+	qa->setShortcut(Qt::CTRL + Qt::Key_Q);
+	connect(qa, SIGNAL (triggered()), qApp, SLOT (closeAllWindows()));
+	program_menu->addAction(qa);
 
 	return;
 }
