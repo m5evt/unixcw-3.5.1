@@ -230,6 +230,20 @@ else
 fi
 
 
+# Build simplecw? Yes by default.
+AC_ARG_ENABLE(simplecw,
+    AS_HELP_STRING([--disable-simplecw], [do not build simplecw (simple application with Qt5 user interface)]),
+    [],
+    [enable_simplecw=yes])
+
+AC_MSG_CHECKING([whether to build simplecw])
+if test "$enable_simplecw" = "yes" ; then
+    AC_MSG_RESULT(yes)
+else
+    AC_MSG_RESULT(no)
+fi
+
+
 # This enables experimental solutions in src/libcw/libcw_rec.c, src/libcw_libcw_key.c, src/xcwcp/receiver.cc
 AC_ARG_ENABLE(experimental-receiver,
     AS_HELP_STRING([--enable-experimental-receiver], [enable *experimental* code implementing receiver feature in libcw and xcwcp; for development use only.]),
@@ -376,6 +390,7 @@ fi
 
 if test "$enable_xcwcp" = "no" ; then
     WITH_XCWCP='no'
+    WITH_SIMPLECW='no'
 else
     # http://stackoverflow.com/questions/5178511/integrate-qt-project-with-autotool
     PKG_CHECK_MODULES(QT5, [Qt5Widgets Qt5Gui Qt5Core >= 5.0.0], [
@@ -389,12 +404,14 @@ else
 			   AC_SUBST(MOC)
 
 			   WITH_XCWCP='yes'
+			   WITH_SIMPLECW='yes'
 
 			   ], [
 
 			   AC_MSG_WARN([Cannot find Qt5 files - unable to build xcwcp])
 
 			   WITH_XCWCP='no'
+			   WITH_SIMPLECW='no'
 
 			   ])
 fi
@@ -480,6 +497,10 @@ fi
 
 if test "$WITH_XCWCP" = 'yes' ; then
     SRC_SUBDIRS="$SRC_SUBDIRS xcwcp"
+fi
+
+if test "$WITH_SIMPLECW" = 'yes' ; then
+    SRC_SUBDIRS="$SRC_SUBDIRS simplecw"
 fi
 
 AC_SUBST(SRC_SUBDIRS)
@@ -613,6 +634,9 @@ fi
 if test "$WITH_XCWCP" = 'yes' ; then
    AC_CONFIG_FILES([src/xcwcp/Makefile])
 fi
+if test "$WITH_SIMPLECW" = 'yes' ; then
+   AC_CONFIG_FILES([src/simplecw/Makefile])
+fi
 
 
 
@@ -639,6 +663,7 @@ AC_MSG_NOTICE([build cw:  ..............................  yes])
 AC_MSG_NOTICE([build cwgen:  ...........................  yes])
 AC_MSG_NOTICE([build cwcp:  ............................  $WITH_CWCP])
 AC_MSG_NOTICE([build xcwcp:  ...........................  $WITH_XCWCP])
+AC_MSG_NOTICE([build simplecw:  ........................  $WITH_SIMPLECW])
 if test "$enable_experimental_receiver" = 'yes' ; then
    AC_MSG_NOTICE([enable experimental receiver code: ......  $enable_experimental_receiver])
 fi

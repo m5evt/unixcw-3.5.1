@@ -790,6 +790,7 @@ enable_alsa
 enable_pulseaudio
 enable_cwcp
 enable_xcwcp
+enable_simplecw
 enable_experimental_receiver
 enable_dev
 '
@@ -1448,6 +1449,8 @@ Optional Features:
                           interface)
   --disable-xcwcp         do not build xcwcp (application with Qt5 user
                           interface)
+  --disable-simplecw      do not build simplecw (simple application with Qt5
+                          user interface)
   --enable-experimental-receiver
                           enable *experimental* code implementing receiver
                           feature in libcw and xcwcp; for development use
@@ -16580,6 +16583,26 @@ $as_echo "no" >&6; }
 fi
 
 
+# Build simplecw? Yes by default.
+# Check whether --enable-simplecw was given.
+if test "${enable_simplecw+set}" = set; then :
+  enableval=$enable_simplecw;
+else
+  enable_simplecw=yes
+fi
+
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether to build simplecw" >&5
+$as_echo_n "checking whether to build simplecw... " >&6; }
+if test "$enable_simplecw" = "yes" ; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+else
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
 # This enables experimental solutions in src/libcw/libcw_rec.c, src/libcw_libcw_key.c, src/xcwcp/receiver.cc
 # Check whether --enable-experimental-receiver was given.
 if test "${enable_experimental_receiver+set}" = set; then :
@@ -16918,6 +16941,7 @@ fi
 
 if test "$enable_xcwcp" = "no" ; then
     WITH_XCWCP='no'
+    WITH_SIMPLECW='no'
 else
     # http://stackoverflow.com/questions/5178511/integrate-qt-project-with-autotool
 
@@ -17105,6 +17129,7 @@ fi
 $as_echo "$as_me: WARNING: Cannot find Qt5 files - unable to build xcwcp" >&2;}
 
 			   WITH_XCWCP='no'
+			   WITH_SIMPLECW='no'
 
 
 elif test $pkg_failed = untried; then
@@ -17116,6 +17141,7 @@ $as_echo "no" >&6; }
 $as_echo "$as_me: WARNING: Cannot find Qt5 files - unable to build xcwcp" >&2;}
 
 			   WITH_XCWCP='no'
+			   WITH_SIMPLECW='no'
 
 
 else
@@ -17181,6 +17207,7 @@ $as_echo "QT5 LIBS is $QT5_LIBS" >&6; }
 
 
 			   WITH_XCWCP='yes'
+			   WITH_SIMPLECW='yes'
 
 
 fi
@@ -17997,6 +18024,10 @@ if test "$WITH_XCWCP" = 'yes' ; then
     SRC_SUBDIRS="$SRC_SUBDIRS xcwcp"
 fi
 
+if test "$WITH_SIMPLECW" = 'yes' ; then
+    SRC_SUBDIRS="$SRC_SUBDIRS simplecw"
+fi
+
 
 
 
@@ -18170,6 +18201,10 @@ if test "$WITH_CWCP" = 'yes' ; then
 fi
 if test "$WITH_XCWCP" = 'yes' ; then
    ac_config_files="$ac_config_files src/xcwcp/Makefile"
+
+fi
+if test "$WITH_SIMPLECW" = 'yes' ; then
+   ac_config_files="$ac_config_files src/simplecw/Makefile"
 
 fi
 
@@ -19307,6 +19342,7 @@ do
     "src/cwgen/Makefile") CONFIG_FILES="$CONFIG_FILES src/cwgen/Makefile" ;;
     "src/cwcp/Makefile") CONFIG_FILES="$CONFIG_FILES src/cwcp/Makefile" ;;
     "src/xcwcp/Makefile") CONFIG_FILES="$CONFIG_FILES src/xcwcp/Makefile" ;;
+    "src/simplecw/Makefile") CONFIG_FILES="$CONFIG_FILES src/simplecw/Makefile" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;
   esac
@@ -20863,6 +20899,8 @@ $as_echo "$as_me: build cwgen:  ...........................  yes" >&6;}
 $as_echo "$as_me: build cwcp:  ............................  $WITH_CWCP" >&6;}
 { $as_echo "$as_me:${as_lineno-$LINENO}: build xcwcp:  ...........................  $WITH_XCWCP" >&5
 $as_echo "$as_me: build xcwcp:  ...........................  $WITH_XCWCP" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}: build simplecw:  ........................  $WITH_SIMPLECW" >&5
+$as_echo "$as_me: build simplecw:  ........................  $WITH_SIMPLECW" >&6;}
 if test "$enable_experimental_receiver" = 'yes' ; then
    { $as_echo "$as_me:${as_lineno-$LINENO}: enable experimental receiver code: ......  $enable_experimental_receiver" >&5
 $as_echo "$as_me: enable experimental receiver code: ......  $enable_experimental_receiver" >&6;}
