@@ -147,7 +147,7 @@ void Application::libcw_keying_event_static(struct timeval *timestamp, int key_s
 	   function cannot determine this for itself. */
 	if (app
 	    && app->is_running
-	    && app->modeset.get_current()->is_receive()) {
+	    && app->current_mode == MODE_RECEIVE) { /* Receive events from key. */
 
 		//fprintf(stderr, "calling callback, stage 1 (key = %d)\n", key_state);
 		app->receiver->handle_libcw_keying_event(timestamp, key_state);
@@ -376,13 +376,13 @@ void Application::change_speed()
 void Application::change_mode()
 {
 	/* Get the mode to which mode we're changing. */
-	const Mode *new_mode = modeset.get(mode_combo->currentIndex());
+	int new_mode = mode_combo->currentIndex();
 
 	/* If this changes mode type, set the speed synchronization
 	   menu item state to enabled for receive mode, disabled
 	   otherwise.  And for tidiness, clear the display. */
-	if (!new_mode->is_same_type_as(modeset.get_current())) {
-		sync_speed_action->setEnabled(new_mode->is_receive());
+	if (new_mode != this->current_mode) {
+		sync_speed_action->setEnabled(new_mode == MODE_RECEIVE); /* Receive events from key. */
 		textarea->clear();
 	}
 
@@ -392,8 +392,8 @@ void Application::change_mode()
 		receiver->clear();
 	}
 
-	/* Keep the ModeSet synchronized to mode_combo changes. */
-	modeset.set_current(mode_combo->currentIndex());
+	/* Keep the mode synchronized to mode_combo changes. */
+	this->current_mode = mode_combo->currentIndex();
 
 	return;
 }
@@ -444,8 +444,8 @@ void Application::change_adaptive_receive()
 void Application::poll_timer_event()
 {
 	if (this->is_running) {
-		sender->poll(modeset.get_current());
-		receiver->poll(modeset.get_current());
+		sender->poll(this->current_mode);
+		receiver->poll(this->current_mode);
 	}
 
 	return;
@@ -469,9 +469,9 @@ void Application::key_event(QKeyEvent *event)
 	// event->ignore();
 
 	if (this->is_running) {
-		if (modeset.get_current()->is_keyboard()) {
+		if (this->current_mode == MODE_SEND) { /* Send / play. */
 			sender->handle_key_event(event);
-		} else if (modeset.get_current()->is_receive()) {
+		} else if (this->current_mode == MODE_RECEIVE) { /* Receive. */
 			receiver->handle_key_event(event, false);
 		} else {
 			;
@@ -501,7 +501,7 @@ void Application::mouse_event(QMouseEvent *event)
 	if (this->is_running) {
 		/* Pass the mouse event only to the receiver.  The sender
 		   isn't interested. */
-		if (modeset.get_current()->is_receive()) {
+		if (this->current_mode == MODE_RECEIVE) { /* Receive events from key. */
 			receiver->handle_mouse_event(event, false);
 		}
 	}
@@ -593,7 +593,7 @@ void Application::make_mode_combo()
 		const QString string = QString::fromUtf8(mode->get_description().c_str());
 		mode_combo->addItem(string, data);
 	}
-	modeset.set_current(mode_combo->currentIndex());
+	this->current_mode = mode_combo->currentIndex();
 
 	return;
 }
@@ -623,7 +623,7 @@ void Application::make_program_menu(void)
 
 	sync_speed_action = new QAction(_("Synchronize S&peed"), this);
 	sync_speed_action->setShortcut(Qt::CTRL + Qt::Key_P);
-	sync_speed_action->setEnabled(modeset.get_current()->is_receive());
+	sync_speed_action->setEnabled(this->current_mode == MODE_RECEIVE); /* Receive events from key. */
 	connect(sync_speed_action, SIGNAL (triggered()), SLOT (sync_speed()));
 	program_menu->addAction(sync_speed_action);
 

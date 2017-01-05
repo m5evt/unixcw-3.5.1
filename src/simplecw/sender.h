@@ -64,7 +64,7 @@ namespace cw {
 
 		/* Poll timeout handler, and keypress event
 		   handler. */
-		void poll(const Mode *current_mode);
+		void poll(int mode);
 		void handle_key_event(QKeyEvent *event);
 
 		/* Clear out queued data on stop, mode change, etc. */

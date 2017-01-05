@@ -60,7 +60,7 @@ namespace cw {
 		~Receiver();
 
 		/* Poll timeout handler. */
-		void poll(const Mode *current_mode);
+		void poll(int mode);
 
 		/* Keyboard key event handler. */
 		void handle_key_event(QKeyEvent *event, bool is_reverse_paddles);

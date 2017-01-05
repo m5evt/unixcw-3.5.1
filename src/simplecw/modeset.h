@@ -119,9 +119,6 @@ namespace cw {
 	public:
 		ModeSet();
 
-		void set_current(int index);
-		const Mode *get_current() const;
-
 		int get_count() const;
 		const Mode *get(int index) const;
 
@@ -133,27 +130,6 @@ namespace cw {
 		ModeSet(const ModeSet &);
 		ModeSet &operator=(const ModeSet &);
 	};
-
-
-
-
-
-	inline void ModeSet::set_current(int index)
-	{
-		current = modes->at(index);
-
-		return;
-	}
-
-
-
-
-
-	inline const Mode *ModeSet::get_current() const
-	{
-		return current;
-	}
-
 
 
 

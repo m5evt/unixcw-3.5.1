@@ -77,19 +77,20 @@ Sender::~Sender()
    Check the CW library tone queue, and if it is getting low, arrange
    for more data to be passed in to the sender.
 */
-void Sender::poll(const Mode *current_mode)
+void Sender::poll(int mode)
 {
-	if (current_mode->is_keyboard()) {
-		if (cw_gen_get_queue_length(this->gen) <= 1) {
-			/* Arrange more data for the sender.  In
-			   dictionary modes, add more random data if
-			   the queue is empty.  In keyboard mode, just
-			   dequeue anything currently on the character
-			   queue. */
-			dequeue_and_play_character();
-		}
+	if (mode != MODE_SEND) {
+		return;
 	}
 
+	if (cw_gen_get_queue_length(this->gen) <= 1) {
+		/* Arrange more data for the sender.  In
+		   dictionary modes, add more random data if
+		   the queue is empty.  In keyboard mode, just
+		   dequeue anything currently on the character
+		   queue. */
+		dequeue_and_play_character();
+	}
 	return;
 }
 

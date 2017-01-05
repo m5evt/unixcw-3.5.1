@@ -42,6 +42,11 @@ namespace cw {
 
 
 
+	enum {
+		MODE_SEND = 0, /* Send/generate/play text entered from keyboard. */
+		MODE_RECEIVE = 1 /* Receive events from a key. */
+	};
+
 
 
 	class Sender;
@@ -102,6 +107,7 @@ namespace cw {
 		QComboBox *mode_combo;
 		QSpinBox *speed_spin;
 
+		int current_mode = MODE_SEND; /* MODE_SEND / MODE_RECEIVE. */
 
 		QMenu *program_menu;
 		QAction *clear_display_action;

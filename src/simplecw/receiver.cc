@@ -81,9 +81,9 @@ Receiver::~Receiver()
 
    \param current_mode
 */
-void Receiver::poll(const Mode *current_mode)
+void Receiver::poll(int mode)
 {
-	if (!current_mode->is_receive()) {
+	if (mode != MODE_RECEIVE) {
 		return;
 	}
 
