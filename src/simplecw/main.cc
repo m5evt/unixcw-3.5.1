@@ -81,8 +81,8 @@ std::string all_options =
 */
 void signal_handler(int signal_number)
 {
-	std::clog << _("Caught signal ") << signal_number
-		  << _(", exiting...") << std::endl;
+	std::clog << "Caught signal " << signal_number
+		  << ", exiting..." << std::endl;
 	exit(EXIT_SUCCESS);
 }
 
@@ -132,33 +132,33 @@ int main(int argc, char **argv)
 		config->register_receiver = 0; /* Originally xcwcp has been using callbacks. */
 
 		if (!cw_process_argv(argc, argv, all_options.c_str(), config)) {
-			fprintf(stderr, _("%s: failed to parse command line args\n"), config->program_name);
+			fprintf(stderr, "%s: failed to parse command line args\n", config->program_name);
 			return EXIT_FAILURE;
 		}
 		if (!cw_config_is_valid(config)) {
-			fprintf(stderr, _("%s: inconsistent arguments\n"), config->program_name);
+			fprintf(stderr, "%s: inconsistent arguments\n", config->program_name);
 			return EXIT_FAILURE;
 		}
 
 		if (config->input_file) {
 			if (!cw_dictionaries_read(config->input_file)) {
-				fprintf(stderr, _("%s: %s\n"), config->program_name, strerror(errno));
-				fprintf(stderr, _("%s: can't load dictionary from input file %s\n"), config->program_name, config->input_file);
+				fprintf(stderr, "%s: %s\n", config->program_name, strerror(errno));
+				fprintf(stderr, "%s: can't load dictionary from input file %s\n", config->program_name, config->input_file);
 				return EXIT_FAILURE;
 			}
 		}
 
 		if (config->output_file) {
 			if (!cw_dictionaries_write(config->output_file)) {
-				fprintf(stderr, _("%s: %s\n"), config->program_name, strerror(errno));
-				fprintf(stderr, _("%s: can't save dictionary to output file  %s\n"), config->program_name, config->input_file);
+				fprintf(stderr, "%s: %s\n", config->program_name, strerror(errno));
+				fprintf(stderr, "%s: can't save dictionary to output file  %s\n", config->program_name, config->input_file);
 				return EXIT_FAILURE;
 			}
 		}
 
 		// Display the application's windows.
 		cw::Application application(config);
-		application.setWindowTitle(_("Xcwcp"));
+		application.setWindowTitle("simplecw");
 		application.check_audio_system(config);
 		application.show();
 		q_application.connect(&q_application, SIGNAL (lastWindowClosed ()),
@@ -208,7 +208,7 @@ void register_signal_handler(void)
 		action.sa_flags = 0;
 		int rv = sigaction(SIGNALS[i], &action, (struct sigaction *) NULL);
 		if (rv == -1) {
-			fprintf(stderr, _("can't register signal: %s\n"), strerror(errno));
+			fprintf(stderr, "can't register signal: %s\n", strerror(errno));
 			exit(EXIT_FAILURE);
 		}
 	}

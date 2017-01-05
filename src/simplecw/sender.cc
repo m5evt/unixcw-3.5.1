@@ -192,7 +192,7 @@ void Sender::dequeue_and_play_character()
 	   the played char at the end to avoid "jumping" of whole
 	   string when width of glyph of played char changes at
 	   variable font width. */
-	QString status = _("Sending at %1 WPM: '%2'");
+	QString status = "Sending at %1 WPM: '%2'";
 	app->show_status(status.arg(cw_gen_get_speed(this->gen)).arg(c));
 
 	return;

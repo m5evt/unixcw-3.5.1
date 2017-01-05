@@ -441,8 +441,8 @@ void Receiver::poll_report_error()
 {
 	/* Handle any receive errors detected on tone end but delayed until here. */
 	app->show_status(libcw_receive_errno == ENOENT
-			 ? _("Badly formed CW element")
-			 : _("Receive buffer overrun"));
+			 ? "Badly formed CW element"
+			 : "Receive buffer overrun");
 
 	libcw_receive_errno = 0;
 
@@ -491,7 +491,7 @@ void Receiver::poll_character()
 		   string to avoid "jumping" of whole string when
 		   width of glyph of received char changes at variable
 		   font width. */
-		QString status = _("Received at %1 WPM: '%2'");
+		QString status = "Received at %1 WPM: '%2'";
 		app->show_status(status.arg(cw_rec_get_speed(this->rec)).arg(c));
 		//fprintf(stderr, "Received character '%c'\n", c);
 
@@ -518,7 +518,7 @@ void Receiver::poll_character()
 				cw_rec_clear_buffer(this->rec);
 				textarea->append('?');
 
-				QString status = _("Unknown character received at %1 WPM");
+				QString status = "Unknown character received at %1 WPM";
 				app->show_status(status.arg(cw_rec_get_speed(this->rec)));
 			}
 			break;

@@ -70,10 +70,10 @@ namespace cw {
 */
 
 
-const QString ABOUT_CAPTION = QString(_("Xcwcp version "))
+const QString ABOUT_CAPTION = QString("simplecw version ")
                                   + PACKAGE_VERSION;
 
-const QString ABOUT_TEXT = QString(_("Xcwcp version "))
+const QString ABOUT_TEXT = QString("simplecw version ")
                                + PACKAGE_VERSION + "\n" + CW_COPYRIGHT;
 
 
@@ -105,7 +105,7 @@ Application::Application(cw_config_t *config) :
 	make_help_menu();
 	make_status_bar();
 
-	this->show_status(_("Ready"));
+	this->show_status("Ready");
 
 	return;
 }
@@ -183,9 +183,9 @@ void Application::closeEvent(QCloseEvent *event)
 	bool is_closing = true;
 
 	if (this->is_running) {
-		is_closing = QMessageBox::warning(this, _("Xcwcp"),
-						  _("Busy - are you sure?"),
-						  _("&Exit"), _("&Cancel"), 0, 0, 1) == 0;
+		is_closing = QMessageBox::warning(this, "Xcwcp",
+						  "Busy - are you sure?",
+						  "&Exit", "&Cancel", 0, 0, 1) == 0;
 		if (is_closing) {
 			stop();
 		}
@@ -245,7 +245,7 @@ void Application::start()
 
 
 	startstop_action->setIcon(QIcon::fromTheme("media-playback-stop"));
-	startstop_action->setText(_("Stop"));
+	startstop_action->setText("Stop");
 
 	this->is_running = true;
 
@@ -291,7 +291,7 @@ void Application::stop()
 	this->is_running = false;
 
 
-	show_status(_("Ready"));
+	show_status("Ready");
 
 	return;
 }
@@ -543,21 +543,16 @@ void Application::make_toolbar(void)
 	QLabel *speed_label_ = new QLabel("Speed:", 0, 0);
 	toolbar->addWidget(speed_label_);
 
+	toolbar->addSeparator();
+
 	speed_spin = new QSpinBox(toolbar);
 	speed_spin->setMinimum(CW_SPEED_MIN);
 	speed_spin->setMaximum(CW_SPEED_MAX);
 	speed_spin->setSingleStep(1);
-	speed_spin->setSuffix(_(" WPM"));
+	speed_spin->setSuffix(" WPM");
 	speed_spin->setValue(cw_gen_get_speed(sender->gen));
 	connect(speed_spin, SIGNAL (valueChanged(int)), SLOT (change_speed()));
 	toolbar->addWidget(speed_spin);
-
-
-	toolbar->addSeparator();
-
-
-	QLabel *tone_label = new QLabel(_("Tone:"));
-	toolbar->addWidget(tone_label);
 
 
 	toolbar->addSeparator();
@@ -604,7 +599,7 @@ void Application::make_mode_combo()
 
 void Application::make_program_menu(void)
 {
-	program_menu = new QMenu(_("&Program"), this);
+	program_menu = new QMenu("&Program", this);
 	QMainWindow::menuBar()->addMenu(program_menu);
 
 
@@ -615,13 +610,13 @@ void Application::make_program_menu(void)
 	program_menu->addAction(startstop_action);
 
 
-	clear_display_action = new QAction(_("&Clear Text"), this);
+	clear_display_action = new QAction("&Clear Text", this);
 	clear_display_action->setShortcut(Qt::CTRL + Qt::Key_C);
 	connect(clear_display_action, SIGNAL (triggered()), SLOT (clear()));
 	program_menu->addAction(clear_display_action);
 
 
-	sync_speed_action = new QAction(_("Synchronize S&peed"), this);
+	sync_speed_action = new QAction("Synchronize S&peed", this);
 	sync_speed_action->setShortcut(Qt::CTRL + Qt::Key_P);
 	sync_speed_action->setEnabled(this->current_mode == MODE_RECEIVE); /* Receive events from key. */
 	connect(sync_speed_action, SIGNAL (triggered()), SLOT (sync_speed()));
@@ -631,13 +626,13 @@ void Application::make_program_menu(void)
 	program_menu->addSeparator();
 
 
-	close_action = new QAction(_("&Close"), this);
+	close_action = new QAction("&Close", this);
 	close_action->setShortcut(Qt::CTRL + Qt::Key_W);
 	connect(close_action, SIGNAL (triggered()), SLOT (close()));
 	program_menu->addAction(close_action);
 
 
-	quit_action = new QAction(_("&Quit"), qApp);
+	quit_action = new QAction("&Quit", qApp);
 	quit_action->setShortcut(Qt::CTRL + Qt::Key_Q);
 	connect(quit_action, SIGNAL (triggered()), qApp, SLOT (closeAllWindows()));
 	program_menu->addAction(quit_action);
@@ -654,7 +649,7 @@ void Application::make_settings_menu(void)
 	QMenu *settings = new QMenu("&Settings", this);
 	QMainWindow::menuBar()->addMenu(settings);
 
-	adaptive_receive_action = new QAction(_("&Adaptive CW Receive Speed"), this);
+	adaptive_receive_action = new QAction("&Adaptive CW Receive Speed", this);
 	adaptive_receive_action->setCheckable(true);
 	adaptive_receive_action->setChecked(true);
 	connect(adaptive_receive_action, SIGNAL (toggled(bool)), SLOT (change_adaptive_receive()));
@@ -669,12 +664,12 @@ void Application::make_settings_menu(void)
 
 void Application::make_help_menu(void)
 {
-	help = new QMenu(_("&Help"), this);
+	help = new QMenu("&Help", this);
 	QMainWindow::menuBar()->addSeparator();
 	QMainWindow::menuBar()->addMenu(help);
 
 
-	about_action = new QAction(_("&About"), this);
+	about_action = new QAction("&About", this);
 	connect(about_action, SIGNAL(triggered(bool)), SLOT(about()));
 	help->addAction(about_action);
 
@@ -751,10 +746,10 @@ void Application::check_audio_system(cw_config_t *config)
 	    && cw_is_pa_possible(NULL)) {
 
 		QMessageBox msgBox;
-		QString message1 = _("Selected audio system is ALSA, but audio on your system is handled by PulseAudio.");
-		QString message2 = _("Expect various problems.\n");
-		QString message3 = _("In this situation it is recommended to run %1 like this:\n" \
-				     "%2 -s p\n\n");
+		QString message1 = "Selected audio system is ALSA, but audio on your system is handled by PulseAudio.";
+		QString message2 = "Expect various problems.\n";
+		QString message3 = "In this situation it is recommended to run %1 like this:\n" \
+			"%2 -s p\n\n";
 		msgBox.setText(message1 + " " + message2 + message3.arg(config->program_name).arg(config->program_name));
 		msgBox.exec();
 	}

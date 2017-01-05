@@ -43,18 +43,6 @@ namespace cw {
 
 
 
-const QString DISPLAY_WHATSTHIS =
-	_("This is the main display for Xcwcp.  The random CW characters that "
-	  "Xcwcp generates, any keyboard input you type, and the CW that you "
-	  "key into Xcwcp all appear here.<br><br>"
-	  "You can clear the display contents from the File menu.<br><br>"
-	  "The status bar shows the current character being sent, any character "
-	  "received, and other general error and Xcwcp status information.");
-
-
-
-
-
 TextArea::TextArea(Application *a, QWidget *parent) :
 	QTextEdit (parent),
 	app (a)
@@ -88,10 +76,9 @@ TextArea::TextArea(Application *a, QWidget *parent) :
 	setFontWeight(QFont::Bold);
 
 	setFocus();
-	setWhatsThis("DISPLAY_WHATSTHIS");
 
 	app->setCentralWidget(this);
-	app->show_status(_("Ready"));
+	app->show_status("Ready");
 }
 
 
