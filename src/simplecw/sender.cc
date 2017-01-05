@@ -76,11 +76,8 @@ void Sender::poll(int mode)
 	}
 
 	if (cw_gen_get_queue_length(this->gen) <= 1) {
-		/* Arrange more data for the sender.  In
-		   dictionary modes, add more random data if
-		   the queue is empty.  In keyboard mode, just
-		   dequeue anything currently on the character
-		   queue. */
+		/* Arrange more data for the sender. Just dequeue
+		   anything currently on the character queue. */
 		dequeue_and_play_character();
 	}
 	return;

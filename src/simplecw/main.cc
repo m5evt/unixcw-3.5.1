@@ -40,10 +40,8 @@
 #include "libcw2.h"
 #include "libcw_debug.h"
 
-#include "i18n.h"
 #include "cmdline.h"
 #include "cw_copyright.h"
-#include "dictionary.h"
 
 
 //extern cw_debug_t cw_debug_object;
@@ -138,22 +136,6 @@ int main(int argc, char **argv)
 		if (!cw_config_is_valid(config)) {
 			fprintf(stderr, "%s: inconsistent arguments\n", config->program_name);
 			return EXIT_FAILURE;
-		}
-
-		if (config->input_file) {
-			if (!cw_dictionaries_read(config->input_file)) {
-				fprintf(stderr, "%s: %s\n", config->program_name, strerror(errno));
-				fprintf(stderr, "%s: can't load dictionary from input file %s\n", config->program_name, config->input_file);
-				return EXIT_FAILURE;
-			}
-		}
-
-		if (config->output_file) {
-			if (!cw_dictionaries_write(config->output_file)) {
-				fprintf(stderr, "%s: %s\n", config->program_name, strerror(errno));
-				fprintf(stderr, "%s: can't save dictionary to output file  %s\n", config->program_name, config->input_file);
-				return EXIT_FAILURE;
-			}
 		}
 
 		// Display the application's windows.
