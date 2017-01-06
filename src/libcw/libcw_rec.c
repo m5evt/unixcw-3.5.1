@@ -186,7 +186,7 @@ cw_rec_t *cw_rec_new_internal(void)
 	rec->mark_end.tv_sec = 0;
 	rec->mark_end.tv_usec = 0;
 
-	rec->representation[0] = '\0';
+	memset(rec->representation, 0, sizeof (rec->representation));
 	rec->representation_ind = 0;
 
 
@@ -1571,7 +1571,9 @@ int cw_rec_poll_character_internal(cw_rec_t *rec,
 
 void cw_rec_clear_buffer_internal(cw_rec_t *rec)
 {
+	memset(rec->representation, 0, sizeof (rec->representation));
 	rec->representation_ind = 0;
+
 	CW_REC_SET_STATE (rec, RS_IDLE, (&cw_debug_object));
 
 	return;
@@ -1622,7 +1624,9 @@ int cw_rec_get_buffer_length_internal(cw_rec_t *rec)
 */
 void cw_rec_reset_internal(cw_rec_t *rec)
 {
+	memset(rec->representation, 0, sizeof (rec->representation));
 	rec->representation_ind = 0;
+
 	CW_REC_SET_STATE ((rec), RS_IDLE, (&cw_debug_object));
 
 	cw_rec_reset_receive_statistics_internal(rec);
