@@ -1088,7 +1088,7 @@ int cw_rec_mark_begin(cw_rec_t *rec, const struct timeval *timestamp)
 	   idle, or in inter-mark-space of a current character. */
 	if (rec->state != RS_IDLE && rec->state != RS_SPACE) {
 		cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
-			      "libcw: receive state not idle and not inter-mark-space: %s", cw_receiver_states[rec->state]);
+			      "libcw:rec:mark_begin: receive state not idle and not inter-mark-space: %s", cw_receiver_states[rec->state]);
 
 		errno = ERANGE;
 		return CW_FAILURE;
@@ -1180,7 +1180,7 @@ int cw_rec_mark_end(cw_rec_t *rec, const struct timeval *timestamp)
 		rec->mark_end = saved_end_timestamp;
 
 		cw_debug_msg (&cw_debug_object, CW_DEBUG_KEYING, CW_DEBUG_INFO,
-			      "libcw: '%d [us]' mark identified as spike noise (threshold = '%d [us]')",
+			      "libcw:rec:mark_end: '%d [us]' mark identified as spike noise (threshold = '%d [us]')",
 			      mark_len, rec->noise_spike_threshold);
 
 		errno = EAGAIN;
@@ -1227,6 +1227,8 @@ int cw_rec_mark_end(cw_rec_t *rec, const struct timeval *timestamp)
 
 	/* Add the mark to the receiver's representation buffer. */
 	rec->representation[rec->representation_ind++] = mark;
+	cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_DEBUG,
+		      "libcw:rec:mark_end: recognized representation is '%s'", rec->representation);
 
 	/* We just added a mark to the receive buffer.  If it's full,
 	   then we have to do something, even though it's unlikely.
@@ -1238,7 +1240,7 @@ int cw_rec_mark_end(cw_rec_t *rec, const struct timeval *timestamp)
 		CW_REC_SET_STATE (rec, RS_EOC_GAP_ERR, (&cw_debug_object));
 
 		cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
-			      "libcw: receiver's representation buffer is full");
+			      "libcw:rec:mark_end: receiver's representation buffer is full");
 
 		errno = ENOMEM;
 		return CW_FAILURE;
@@ -1297,9 +1299,7 @@ int cw_rec_identify_mark_internal(cw_rec_t *rec, int mark_len, /* out */ char *m
 	if (mark_len >= rec->dot_len_min
 	    && mark_len <= rec->dot_len_max) {
 
-		cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-			      "libcw: mark '%d [us]' recognized as DOT (limits: %d - %d [us])",
-			      mark_len, rec->dot_len_min, rec->dot_len_max);
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO, "libcw:rec:identify: mark '%d [us]' recognized as DOT (limits: %d - %d [us])", mark_len, rec->dot_len_min, rec->dot_len_max);
 
 		*mark = CW_DOT_REPRESENTATION;
 		return CW_SUCCESS;
@@ -1309,9 +1309,7 @@ int cw_rec_identify_mark_internal(cw_rec_t *rec, int mark_len, /* out */ char *m
 	if (mark_len >= rec->dash_len_min
 	    && mark_len <= rec->dash_len_max) {
 
-		cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-			      "libcw: mark '%d [us]' recognized as DASH (limits: %d - %d [us])",
-			      mark_len, rec->dash_len_min, rec->dash_len_max);
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO, "libcw:rec:identify: mark '%d [us]' recognized as DASH (limits: %d - %d [us])", mark_len, rec->dash_len_min, rec->dash_len_max);
 
 		*mark = CW_DASH_REPRESENTATION;
 		return CW_SUCCESS;
@@ -1320,11 +1318,11 @@ int cw_rec_identify_mark_internal(cw_rec_t *rec, int mark_len, /* out */ char *m
 	/* This mark is not a dot or a dash, so we have an error
 	   case. */
 	cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
-		      "libcw: unrecognized mark, len = %d [us]", mark_len);
+		      "libcw:rec:identify: unrecognized mark, len = %d [us]", mark_len);
 	cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
-		      "libcw: dot limits: %d - %d [us]", rec->dot_len_min, rec->dot_len_max);
+		      "libcw:rec:identify: dot limits: %d - %d [us]", rec->dot_len_min, rec->dot_len_max);
 	cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
-		      "libcw: dash limits: %d - %d [us]", rec->dash_len_min, rec->dash_len_max);
+		      "libcw:rec:identify: dash limits: %d - %d [us]", rec->dash_len_min, rec->dash_len_max);
 
 	/* We should never reach here when in adaptive timing receive
 	   mode - a mark should be always recognized as dot or dash,
@@ -1332,7 +1330,10 @@ int cw_rec_identify_mark_internal(cw_rec_t *rec, int mark_len, /* out */ char *m
 	   point. */
 	if (rec->is_adaptive_receive_mode) {
 		cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
-			      "libcw: unrecognized mark in adaptive receive");
+			      "libcw:rec:identify: unrecognized mark in adaptive receive");
+	} else {
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
+			      "libcw:rec:identify: unrecognized mark in non-adaptive receive");
 	}
 
 
