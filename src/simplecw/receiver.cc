@@ -384,17 +384,11 @@ void Receiver::poll_character()
 {
 	char c;
 
-	/* Don't use receiver->timer - it is used exclusively for
-	   marking initial "key down" events. Use local timer2.
+	struct timeval timer;
+	gettimeofday(&timer, NULL);
+	//fprintf(stderr, "poll_character:  %10ld : %10ld\n", timer.tv_sec, timer.tv_usec);
 
-	   Additionally using receiver->timer here would mess up time
-	   intervals measured by receiver->timer, and that would
-	   interfere with recognizing dots and dashes. */
-	struct timeval timer2;
-	gettimeofday(&timer2, NULL);
-	//fprintf(stderr, "poll_receive_char:  %10ld : %10ld\n", timer2.tv_sec, timer2.tv_usec);
-
-	if (cw_rec_poll_character(this->rec, &timer2, &c, NULL, NULL)) {
+	if (cw_rec_poll_character(this->rec, &timer, &c, NULL, NULL)) {
 		/* Receiver stores full, well formed
 		   character. Display it. */
 		textarea->append(c);
@@ -471,14 +465,12 @@ void Receiver::poll_space()
 	   information about an inter-character space. If it is longer
 	   than a regular inter-character space, then the receiver
 	   will treat it as inter-word space, and communicate it over
-	   is_end_of_word.
+	   is_end_of_word. */
 
-	   Don't use receiver->timer - it is used eclusively for
-	   marking initial "key down" events. Use local timer2. */
-	struct timeval timer2;
-	gettimeofday(&timer2, NULL);
-	//fprintf(stderr, "poll_space(): %10ld : %10ld\n", timer2.tv_sec, timer2.tv_usec);
-	cw_rec_poll_character(this->rec, &timer2, NULL, &is_end_of_word, NULL);
+	struct timeval timer;
+	gettimeofday(&timer, NULL);
+	//fprintf(stderr, "poll_space(): %10ld : %10ld\n", timer.tv_sec, timer.tv_usec);
+	cw_rec_poll_character(this->rec, &timer, NULL, &is_end_of_word, NULL);
 	if (is_end_of_word) {
 		//fprintf(stderr, "End of word\n\n");
 		textarea->append(' ');
