@@ -307,6 +307,11 @@ struct cw_rec_struct {
 #ifdef WITH_EXPERIMENTAL_RECEIVER
 	cw_rec_push_callback_t *push_callback;
 #endif
+
+	/* Flag indicating if receive polling has received a
+	   character, and may need to augment it with a word
+	   space on a later poll. */
+	bool is_pending_inter_word_space;
 };
 
 
@@ -432,6 +437,8 @@ cw_rec_t *cw_rec_new(void)
 #ifdef WITH_EXPERIMENTAL_RECEIVER
 	rec->push_callback = NULL;
 #endif
+
+	rec->is_pending_inter_word_space = false;
 
 	return rec;
 }
@@ -1083,6 +1090,21 @@ bool cw_rec_get_adaptive_mode(cw_rec_t *rec)
 /* For top-level comment see cw_start_receive_tone(). */
 int cw_rec_mark_begin(cw_rec_t *rec, const struct timeval *timestamp)
 {
+	/* If this is a tone start and we're awaiting an inter-word
+	   space, cancel that wait and clear the receive buffer. */
+	if (rec->is_pending_inter_word_space) {
+		/* Tell receiver to prepare (to make space) for
+		   receiving new character. */
+
+		/* The tone start means that we're seeing the next
+		   incoming character within the same word, so no
+		   inter-word space is possible at this point in
+		   time. The space that we were observing/waiting for,
+		   was just inter-character space. */
+		cw_rec_clear_buffer(rec);
+	}
+
+
 	/* If the receive state is not idle or inter-mark-space, this is a
 	   state error.  A start of mark can only happen while we are
 	   idle, or in inter-mark-space of a current character. */
@@ -1788,6 +1810,19 @@ int cw_rec_poll_character(cw_rec_t *rec,
 		return CW_FAILURE;
 	}
 
+	/* A full character has been received. Directly after
+	   it comes a space. Either a short inter-character
+	   space followed by another character (in this case
+	   we won't display the inter-character space), or
+	   longer inter-word space - this space we would like
+	   to catch and display.
+
+	   Set a flag indicating that next poll may result in
+	   inter-word space. */
+	if (!end_of_word) {
+		rec->is_pending_inter_word_space = true;
+	}
+
 	/* If we got this far, all is well, so return what we received. */
 	if (c) {
 		*c = character;
@@ -1809,6 +1844,8 @@ void cw_rec_clear_buffer(cw_rec_t *rec)
 {
 	memset(rec->representation, 0, sizeof (rec->representation));
 	rec->representation_ind = 0;
+
+	rec->is_pending_inter_word_space = false;
 
 	CW_REC_SET_STATE (rec, RS_IDLE, (&cw_debug_object));
 
@@ -2019,6 +2056,13 @@ void cw_rec_sync_parameters_internal(cw_rec_t *rec)
 	return;
 }
 
+
+
+
+bool cw_rec_poll_is_pending_inter_word_space(cw_rec_t const * rec)
+{
+	return rec->is_pending_inter_word_space;
+}
 
 
 

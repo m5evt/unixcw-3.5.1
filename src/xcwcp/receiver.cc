@@ -49,7 +49,6 @@ Receiver::Receiver(Application *a, TextArea *t)
 	app = a;
 	textarea = t;
 
-	is_pending_inter_word_space = false;
 	libcw_receive_errno = 0;
 
 	tracked_key_state = false;
@@ -91,13 +90,13 @@ void Receiver::poll(const Mode *current_mode)
 		poll_report_error();
 	}
 
-	if (is_pending_inter_word_space) {
+	if (cw_rec_poll_is_pending_inter_word_space(this->rec)) {
 
 		/* Check if receiver received the pending inter-word
 		   space. */
 		poll_space();
 
-		if (!is_pending_inter_word_space) {
+		if (!cw_rec_poll_is_pending_inter_word_space(this->rec)) {
 			/* We received the pending space. After it the
 			   receiver may have received another
 			   character.  Try to get it too. */
@@ -357,21 +356,6 @@ void Receiver::handle_libcw_keying_event(struct timeval *t, int key_state)
 		tracked_key_state = key_state;
 	}
 
-	/* If this is a tone start and we're awaiting an inter-word
-	   space, cancel that wait and clear the receive buffer. */
-	if (key_state && is_pending_inter_word_space) {
-		/* Tell receiver to prepare (to make space) for
-		   receiving new character. */
-		cw_rec_clear_buffer(this->rec);
-
-		/* The tone start means that we're seeing the next
-		   incoming character within the same word, so no
-		   inter-word space is possible at this point in
-		   time. The space that we were observing/waiting for,
-		   was just inter-character space. */
-		is_pending_inter_word_space = false;
-	}
-
 	//fprintf(stderr, "calling callback, stage 2\n");
 
 	/* Pass tone state on to the library.  For tone end, check to
@@ -424,7 +408,6 @@ void Receiver::handle_libcw_keying_event(struct timeval *t, int key_state)
 void Receiver::clear()
 {
 	cw_rec_clear_buffer(this->rec);
-	is_pending_inter_word_space = false;
 	libcw_receive_errno = 0;
 	tracked_key_state = false;
 
@@ -481,11 +464,7 @@ void Receiver::poll_character()
 		   space followed by another character (in this case
 		   we won't display the inter-character space), or
 		   longer inter-word space - this space we would like
-		   to catch and display.
-
-		   Set a flag indicating that next poll may result in
-		   inter-word space. */
-		is_pending_inter_word_space = true;
+		   to catch and display. */
 
 		/* Update the status bar to show the character
 		   received.  Put the received char at the end of
@@ -564,19 +543,17 @@ void Receiver::poll_space()
 		//fprintf(stderr, "End of word\n\n");
 		textarea->append(' ');
 		cw_rec_clear_buffer(this->rec);
-		is_pending_inter_word_space = false;
 	} else {
-		/* We don't reset is_pending_inter_word_space. The
-		   space that currently lasts, and isn't long enough
-		   to be considered inter-word space, may grow to
-		   become the inter-word space. Or not.
+		/* The space that currently lasts after last polled
+		   non-space character isn't long enough to be
+		   considered inter-word space. It may grow to become
+		   the inter-word space. Or not.
 
 		   This growing of inter-character space into
 		   inter-word space may be terminated by incoming next
 		   tone (key down event) - the tone will mark
 		   beginning of new character within the same
-		   word. And since a new character begins, the flag
-		   will be reset (elsewhere). */
+		   word. */
 	}
 
 	return;

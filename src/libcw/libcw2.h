@@ -202,6 +202,7 @@ void      cw_rec_register_push_callback(cw_rec_t *rec, cw_rec_push_callback_t *c
 /* receiver module: receiver's helper functions. */
 int  cw_rec_poll_representation(cw_rec_t *rec, const struct timeval *timestamp, char *representation, bool *is_end_of_word, bool *is_error);
 int  cw_rec_poll_character(cw_rec_t *rec, const struct timeval *timestamp, char *c, bool *is_end_of_word, bool *is_error);
+bool cw_rec_poll_is_pending_inter_word_space(cw_rec_t const * rec);
 void cw_rec_clear_buffer(cw_rec_t *rec);
 
 

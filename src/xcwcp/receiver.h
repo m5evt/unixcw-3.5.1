@@ -87,11 +87,6 @@ namespace cw {
 		Application *app;
 		TextArea *textarea;
 
-		/* Flag indicating if receive polling has received a
-		   character, and may need to augment it with a word
-		   space on a later poll. */
-		volatile bool is_pending_inter_word_space;
-
 		/* Flag indicating possible receive errno detected in
 		   signal handler context and needing to be passed to
 		   the foreground. */
