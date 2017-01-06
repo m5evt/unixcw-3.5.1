@@ -149,6 +149,7 @@ void Receiver::handle_key_event(QKeyEvent *event)
 			event->accept();
 
 		} else {
+			event->accept();
 			; /* Some other, uninteresting key. Ignore it. */
 		}
 	}
