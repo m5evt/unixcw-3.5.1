@@ -438,8 +438,13 @@ void Application::change_adaptive_receive()
 void Application::poll_timer_event()
 {
 	if (this->is_running) {
-		sender->poll(this->current_mode);
-		receiver->poll(this->current_mode);
+		if (this->current_mode == MODE_SEND) {
+			sender->poll();
+		} else if (this->current_mode == MODE_RECEIVE) {
+			receiver->poll();
+		} else {
+			;
+		}
 	}
 
 	return;
@@ -466,7 +471,7 @@ void Application::key_event(QKeyEvent *event)
 		if (this->current_mode == MODE_SEND) { /* Send / play. */
 			sender->handle_key_event(event);
 		} else if (this->current_mode == MODE_RECEIVE) { /* Receive. */
-			receiver->handle_key_event(event, false);
+			receiver->handle_key_event(event);
 		} else {
 			;
 		}
@@ -496,7 +501,7 @@ void Application::mouse_event(QMouseEvent *event)
 		/* Pass the mouse event only to the receiver.  The sender
 		   isn't interested. */
 		if (this->current_mode == MODE_RECEIVE) { /* Receive events from key. */
-			receiver->handle_mouse_event(event, false);
+			receiver->handle_mouse_event(event);
 		}
 	}
 

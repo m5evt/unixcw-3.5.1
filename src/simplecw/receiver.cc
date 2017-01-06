@@ -49,9 +49,6 @@ Receiver::Receiver(Application *a, TextArea *t)
 
 	tracked_key_state = false;
 
-	is_left_down = false;
-	is_right_down = false;
-
 	this->rec = cw_rec_new();
 	this->key = cw_key_new();
 }
@@ -76,12 +73,8 @@ Receiver::~Receiver()
 
    \param current_mode
 */
-void Receiver::poll(int mode)
+void Receiver::poll()
 {
-	if (mode != MODE_RECEIVE) {
-		return;
-	}
-
 	if (libcw_receive_errno != 0) {
 		poll_report_error();
 	}
@@ -120,9 +113,8 @@ void Receiver::poll(int mode)
    Call the function only when receiver mode is active.
 
    \param event - key event in main window to handle
-   \param is_reverse_paddles
 */
-void Receiver::handle_key_event(QKeyEvent *event, bool is_reverse_paddles)
+void Receiver::handle_key_event(QKeyEvent *event)
 {
 	if (event->isAutoRepeat()) {
 		/* Ignore repeated key events.  This prevents
@@ -145,16 +137,15 @@ void Receiver::handle_key_event(QKeyEvent *event, bool is_reverse_paddles)
 			/* These keys are obvious candidates for
 			   "straight key" key. */
 
-			fprintf(stderr, "---------- handle key event: sk: %d\n", is_down);
 			sk_event(is_down);
 			event->accept();
 
 		} else if (event->key() == Qt::Key_Left) {
-			ik_left_event(is_down, is_reverse_paddles);
+			ik_left_event(is_down);
 			event->accept();
 
 		} else if (event->key() == Qt::Key_Right) {
-			ik_right_event(is_down, is_reverse_paddles);
+			ik_right_event(is_down);
 			event->accept();
 
 		} else {
@@ -179,9 +170,8 @@ void Receiver::handle_key_event(QKeyEvent *event, bool is_reverse_paddles)
    Call the function only when receiver mode is active.
 
    \param event - mouse event to handle
-   \param is_reverse_paddles
 */
-void Receiver::handle_mouse_event(QMouseEvent *event, bool is_reverse_paddles)
+void Receiver::handle_mouse_event(QMouseEvent *event)
 {
 	if (event->type() == QEvent::MouseButtonPress
 	    || event->type() == QEvent::MouseButtonDblClick
@@ -191,16 +181,15 @@ void Receiver::handle_mouse_event(QMouseEvent *event, bool is_reverse_paddles)
 			|| event->type() == QEvent::MouseButtonDblClick;
 
 		if (event->button() == Qt::MidButton) {
-			fprintf(stderr, "---------- handle mouse event: sk: %d\n", is_down);
 			sk_event(is_down);
 			event->accept();
 
 		} else if (event->button() == Qt::LeftButton) {
-			ik_left_event(is_down, is_reverse_paddles);
+			ik_left_event(is_down);
 			event->accept();
 
 		} else if (event->button() == Qt::RightButton) {
-			ik_right_event(is_down, is_reverse_paddles);
+			ik_right_event(is_down);
 			event->accept();
 
 		} else {
@@ -223,13 +212,6 @@ void Receiver::handle_mouse_event(QMouseEvent *event, bool is_reverse_paddles)
 */
 void Receiver::sk_event(bool is_down)
 {
-#if 0
-	/* Prepare timestamp for libcw on both "key up" and "key down"
-	   events. */
-	gettimeofday(this->timer, NULL);
-	// fprintf(stderr, "time on Skey down:  %10ld : %10ld\n", this->timer->tv_sec, this->timer->tv_usec);
-#endif
-
 	cw_key_sk_notify_event(this->key, is_down);
 
 	return;
@@ -243,31 +225,12 @@ void Receiver::sk_event(bool is_down)
    \brief Handle event on left paddle of iambic keyer
 
    \param is_down
-   \param is_reverse_paddles
 */
-void Receiver::ik_left_event(bool is_down, bool is_reverse_paddles)
+void Receiver::ik_left_event(bool is_down)
 {
-	is_left_down = is_down;
-#if 0
-	if (is_left_down && !is_right_down) {
-		/* Prepare timestamp for libcw, but only for initial
-		   "paddle down" event at the beginning of
-		   character. Don't create the timestamp for any
-		   successive "paddle down" events inside a character.
-
-		   In case of iambic keyer the timestamps for every
-		   next (non-initial) "paddle up" or "paddle down"
-		   event in a character will be created by libcw. */
-		gettimeofday(this->timer, NULL);
-		//fprintf(stderr, "time on Lkey down:  %10ld : %10ld\n", this->timer->tv_sec, this->timer->tv_usec);
-	}
-#endif
-
 	/* Inform libcw about state of left paddle regardless of state
 	   of the other paddle. */
-	is_reverse_paddles
-		? cw_key_ik_notify_dash_paddle_event(this->key, is_down)
-		: cw_key_ik_notify_dot_paddle_event(this->key, is_down);
+	cw_key_ik_notify_dot_paddle_event(this->key, is_down);
 
 	return;
 }
@@ -280,31 +243,12 @@ void Receiver::ik_left_event(bool is_down, bool is_reverse_paddles)
    \brief Handle event on right paddle of iambic keyer
 
    \param is_down
-   \param is_reverse_paddles
 */
-void Receiver::ik_right_event(bool is_down, bool is_reverse_paddles)
+void Receiver::ik_right_event(bool is_down)
 {
-	is_right_down = is_down;
-#if 0
-	if (is_right_down && !is_left_down) {
-		/* Prepare timestamp for libcw, but only for initial
-		   "paddle down" event at the beginning of
-		   character. Don't create the timestamp for any
-		   successive "paddle down" events inside a character.
-
-		   In case of iambic keyer the timestamps for every
-		   next (non-initial) "paddle up" or "paddle down"
-		   event in a character will be created by libcw. */
-		gettimeofday(this->timer, NULL);
-		//fprintf(stderr, "time on Rkey down:  %10ld : %10ld\n", this->timer->tv_sec, this->timer->tv_usec);
-	}
-#endif
-
 	/* Inform libcw about state of left paddle regardless of state
 	   of the other paddle. */
-	is_reverse_paddles
-		? cw_key_ik_notify_dot_paddle_event(this->key, is_down)
-		: cw_key_ik_notify_dash_paddle_event(this->key, is_down);
+	cw_key_ik_notify_dash_paddle_event(this->key, is_down);
 
 	return;
 }

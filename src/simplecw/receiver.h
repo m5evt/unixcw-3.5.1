@@ -60,19 +60,19 @@ namespace cw {
 		~Receiver();
 
 		/* Poll timeout handler. */
-		void poll(int mode);
+		void poll();
 
 		/* Keyboard key event handler. */
-		void handle_key_event(QKeyEvent *event, bool is_reverse_paddles);
+		void handle_key_event(QKeyEvent *event);
 
 		/* Mouse button press event handler. */
-		void handle_mouse_event(QMouseEvent *event, bool is_reverse_paddles);
+		void handle_mouse_event(QMouseEvent *event);
 
 		/* Straight key and iambic keyer event handler
 		   helpers. */
 		void sk_event(bool is_down);
-		void ik_left_event(bool is_down, bool is_reverse_paddles);
-		void ik_right_event(bool is_down, bool is_reverse_paddles);
+		void ik_left_event(bool is_down);
+		void ik_right_event(bool is_down);
 
 		/* CW library keying event handler. */
 		void handle_libcw_keying_event(struct timeval *t, int key_state);
@@ -103,30 +103,6 @@ namespace cw {
 		   application instance, and the other to another
 		   instance. */
 		volatile bool tracked_key_state;
-
-		/* State of left and right paddle of iambic keyer. The
-		   flags are common for keying with keyboard keys and
-		   with mouse buttons.
-
-		   A timestamp for libcw needs to be generated only in
-		   situations when one of the paddles comes down and
-		   the other is up. This is why we observe state of
-		   both paddles separately. */
-		bool is_left_down;
-		bool is_right_down;
-
-#if 0
-		/* Timer for measuring length of dots and
-		   dashes. Owned by libcw.
-
-		   Initial value of the timestamp is created by
-		   simplecw's receiver on first "paddle down" event in a
-		   character. The timestamp is then updated by libcw
-		   on specific time intervals. The intervals are a
-		   function of keyboard key presses or mouse button
-		   presses recorded by simplecw. */
-		struct timeval *timer;
-#endif
 
 		/* Poll primitives to handle receive errors,
 		   characters, and inter-word spaces. */

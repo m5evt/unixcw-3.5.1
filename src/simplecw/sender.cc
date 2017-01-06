@@ -69,12 +69,8 @@ Sender::~Sender()
    Check the CW library tone queue, and if it is getting low, arrange
    for more data to be passed in to the sender.
 */
-void Sender::poll(int mode)
+void Sender::poll()
 {
-	if (mode != MODE_SEND) {
-		return;
-	}
-
 	if (cw_gen_get_queue_length(this->gen) <= 1) {
 		/* Arrange more data for the sender. Just dequeue
 		   anything currently on the character queue. */
@@ -179,8 +175,7 @@ void Sender::dequeue_and_play_character()
 	   the played char at the end to avoid "jumping" of whole
 	   string when width of glyph of played char changes at
 	   variable font width. */
-	QString status = "Sending at %1 WPM: '%2'";
-	app->show_status(status.arg(cw_gen_get_speed(this->gen)).arg(c));
+	app->show_status(QString("Sending at %1 WPM: '%2'").arg(cw_gen_get_speed(this->gen)).arg(c));
 
 	return;
 }

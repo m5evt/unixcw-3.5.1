@@ -62,9 +62,10 @@ namespace cw {
 		Sender(Application *a, TextArea *t, cw_config_t *config);
 		~Sender();
 
-		/* Poll timeout handler, and keypress event
-		   handler. */
-		void poll(int mode);
+		/* Poll timeout handler. */
+		void poll();
+
+		/* Keypress event handler. */
 		void handle_key_event(QKeyEvent *event);
 
 		/* Clear out queued data on stop, mode change, etc. */
