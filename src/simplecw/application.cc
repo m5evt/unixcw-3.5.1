@@ -98,8 +98,7 @@ Application::Application(cw_config_t *config) :
 	QMainWindow::resize(800, 400);
 
 	make_toolbar();
-	make_program_menu();
-	make_help_menu();
+	make_menus();
 	make_status_bar();
 
 	this->show_status("Ready");
@@ -514,7 +513,7 @@ void Application::mouse_event(QMouseEvent *event)
 
 void Application::make_toolbar(void)
 {
-	toolbar = QMainWindow::addToolBar("simplecw operations");
+	QToolBar * toolbar = QMainWindow::addToolBar("simplecw operations");
 
 	startstop_action = new QAction("Start/Stop", this);
 	startstop_action->setIcon(QIcon::fromTheme("media-playback-start"));
@@ -527,7 +526,7 @@ void Application::make_toolbar(void)
 	   gain focus through Tab key, whereas action can't. The focus
 	   for button is, for some reason, invisible, but it's
 	   there. */
-	startstop_button = new QToolButton(toolbar);
+	QToolButton * startstop_button = new QToolButton(toolbar);
 	startstop_button->setDefaultAction(startstop_action);
 	startstop_button->setCheckable(false);
 	toolbar->addWidget(startstop_button);
@@ -597,11 +596,11 @@ void Application::make_mode_combo()
 
 
 
-void Application::make_program_menu(void)
+void Application::make_menus(void)
 {
 	QAction * qa = NULL;
 
-	program_menu = new QMenu("&Program", this);
+	QMenu * program_menu = new QMenu("&Program", this);
 	QMainWindow::menuBar()->addMenu(program_menu);
 
 
@@ -642,22 +641,16 @@ void Application::make_program_menu(void)
 	connect(qa, SIGNAL (triggered()), qApp, SLOT (closeAllWindows()));
 	program_menu->addAction(qa);
 
-	return;
-}
 
 
-
-
-void Application::make_help_menu(void)
-{
-	help = new QMenu("&Help", this);
+	QMenu * help = new QMenu("&Help", this);
 	QMainWindow::menuBar()->addSeparator();
 	QMainWindow::menuBar()->addMenu(help);
 
+	qa = new QAction("&About", this);
+	connect(qa, SIGNAL(triggered(bool)), SLOT(about()));
+	help->addAction(qa);
 
-	about_action = new QAction("&About", this);
-	connect(about_action, SIGNAL(triggered(bool)), SLOT(about()));
-	help->addAction(about_action);
 
 	return;
 }

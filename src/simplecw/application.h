@@ -97,19 +97,12 @@ namespace cw {
 
 	private:
 		/* GUI */
-		QToolBar *toolbar;
-		QToolButton *startstop_button;
-
 		QComboBox *mode_combo;
 		QSpinBox *speed_spin;
-
-		QMenu *program_menu;
-		QMenu *help;
 
 		QAction *startstop_action;
 		QAction *sync_speed_action;
 		QAction *adaptive_receive_action;
-		QAction *about_action;
 
 		TextArea *textarea;
 
@@ -117,8 +110,7 @@ namespace cw {
 		void make_central_widget(void);
 		void make_toolbar(void);
 		void make_mode_combo(void);
-		void make_program_menu(void);
-		void make_help_menu(void);
+		void make_menus(void);
 		void make_status_bar(void);
 
 
