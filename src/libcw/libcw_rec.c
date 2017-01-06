@@ -992,8 +992,8 @@ void cw_rec_reset_receive_statistics_internal(cw_rec_t *rec)
 	{								\
 		cw_debug_msg ((m_debug_object),				\
 			      CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,	\
-			      "libcw: receive state %s -> %s",		\
-			      cw_receiver_states[m_rec->state], cw_receiver_states[m_new_state]); \
+			      "libcw:rec:state: %s -> %s @ %s:%d",	\
+			      cw_receiver_states[m_rec->state], cw_receiver_states[m_new_state], __FUNCTION__, __LINE__); \
 		m_rec->state = m_new_state;				\
 	}
 
@@ -1090,9 +1090,16 @@ int cw_rec_mark_begin(cw_rec_t *rec, const struct timeval *timestamp)
 		cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
 			      "libcw:rec:mark_begin: receive state not idle and not inter-mark-space: %s", cw_receiver_states[rec->state]);
 
+		/*
+		  ->state should be RS_IDLE at the beginning of new character;
+		  ->state should be RS_SPACE in the middle of character (between marks).
+		*/
+
 		errno = ERANGE;
 		return CW_FAILURE;
 	}
+	cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
+		      "libcw:rec:mark_begin: receive state: %s", cw_receiver_states[rec->state]);
 
 	/* Validate and save the timestamp, or get one and then save
 	   it.  This is a beginning of mark. */
@@ -1133,9 +1140,13 @@ int cw_rec_mark_end(cw_rec_t *rec, const struct timeval *timestamp)
 {
 	/* The receive state is expected to be inside of a mark. */
 	if (rec->state != RS_MARK) {
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
+			      "libcw:rec:mark_end: receive state not RS_MARK: %s", cw_receiver_states[rec->state]);
 		errno = ERANGE;
 		return CW_FAILURE;
 	}
+	cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
+		      "libcw:rec:mark_end: receive state: %s", cw_receiver_states[rec->state]);
 
 	/* Take a safe copy of the current end timestamp, in case we need
 	   to put it back if we decide this mark is really just noise. */
@@ -1227,7 +1238,7 @@ int cw_rec_mark_end(cw_rec_t *rec, const struct timeval *timestamp)
 
 	/* Add the mark to the receiver's representation buffer. */
 	rec->representation[rec->representation_ind++] = mark;
-	cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_DEBUG,
+	cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
 		      "libcw:rec:mark_end: recognized representation is '%s'", rec->representation);
 
 	/* We just added a mark to the receive buffer.  If it's full,
@@ -1678,7 +1689,7 @@ void cw_rec_poll_representation_eoc_internal(cw_rec_t *rec, int space_len,
 	}
 
 	cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-		      "libcw: receive state -> %s", cw_receiver_states[rec->state]);
+		      "libcw:rec:poll_eoc: state: %s", cw_receiver_states[rec->state]);
 
 	/* Return the representation from receiver's buffer. */
 	if (is_end_of_word) {
