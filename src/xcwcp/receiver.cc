@@ -492,15 +492,10 @@ void Receiver::poll_character()
 
 		case ENOENT:
 			/* Invalid character in receiver's buffer. */
-			{	/* New scope to avoid gcc 3.2.2
-				   internal compiler error. */
+			cw_rec_clear_buffer(this->rec);
+			textarea->append('?');
+			app->show_status(QString(_("Unknown character received at %1 WPM")).arg(cw_rec_get_speed(this->rec)));
 
-				cw_rec_clear_buffer(this->rec);
-				textarea->append('?');
-
-				QString status = _("Unknown character received at %1 WPM");
-				app->show_status(status.arg(cw_rec_get_speed(this->rec)));
-			}
 			break;
 
 		default:
