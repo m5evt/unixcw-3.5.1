@@ -375,12 +375,10 @@ cw_rec_t *cw_rec_new(void)
 	rec->noise_spike_threshold      = CW_REC_NOISE_THRESHOLD_INITIAL;
 
 	/* TODO: this variable is not set in
-	   cw_rec_reset_receive_parameters_internal(). Why
-	   is it separated from the four main
-	   variables? Is it because it is a
-	   derivative of speed? But speed is a
-	   derivative of this variable in adaptive
-	   speed mode. */
+	   cw_rec_reset_parameters_internal().  Why is it separated
+	   from the four main variables? Is it because it is a
+	   derivative of speed? But speed is a derivative of this
+	   variable in adaptive speed mode. */
 	rec->adaptive_speed_threshold = CW_REC_SPEED_THRESHOLD_INITIAL;
 
 
@@ -922,7 +920,7 @@ void cw_rec_get_statistics_internal(cw_rec_t *rec, double *dot_sd, double *dash_
    Clear the receive statistics buffer by removing all records from it and
    returning it to its initial default state.
 */
-void cw_rec_reset_receive_statistics_internal(cw_rec_t *rec)
+void cw_rec_reset_statistics(cw_rec_t *rec)
 {
 	for (int i = 0; i < CW_REC_STATISTICS_CAPACITY; i++) {
 		rec->statistics[i].type = CW_REC_STAT_NONE;
@@ -1097,8 +1095,11 @@ int cw_rec_mark_begin(cw_rec_t *rec, const struct timeval *timestamp)
 		   incoming character within the same word, so no
 		   inter-word space is possible at this point in
 		   time. The space that we were observing/waiting for,
-		   was just inter-character space. */
-		cw_rec_clear_buffer(rec);
+		   was just inter-character space.
+
+		   reset_state() will reset state of rec, including
+		   is_pending_inter_word_space flag. */
+		cw_rec_reset_state(rec);
 	}
 
 
@@ -1833,8 +1834,12 @@ int cw_rec_poll_character(cw_rec_t *rec,
 
 
 
+/**
+   \brief Reset state of receiver
 
-void cw_rec_clear_buffer(cw_rec_t *rec)
+   The function doesn't reset parameters or statistics.
+*/
+void cw_rec_reset_state(cw_rec_t * rec)
 {
 	memset(rec->representation, 0, sizeof (rec->representation));
 	rec->representation_ind = 0;
@@ -1876,39 +1881,10 @@ int cw_rec_get_buffer_length_internal(cw_rec_t *rec)
 
 
 
-
-/**
-   \brief Clear receive data
-
-   Clear the receiver's representation buffer, statistics, and any
-   retained receiver's state.  This function is suitable for calling
-   from an application exit handler.
-
-   TODO: this function should do much more than it is doing
-   now. Verify and - if necessary - revise the function.
-
-   \param rec - receiver
-*/
-void cw_rec_reset_internal(cw_rec_t *rec)
-{
-	memset(rec->representation, 0, sizeof (rec->representation));
-	rec->representation_ind = 0;
-
-	CW_REC_SET_STATE ((rec), RS_IDLE, (&cw_debug_object));
-
-	cw_rec_reset_receive_statistics_internal(rec);
-
-	return;
-}
-
-
-
-
-
 /**
   \brief Reset essential receive parameters to their initial values
 */
-void cw_rec_reset_receive_parameters_internal(cw_rec_t *rec)
+void cw_rec_reset_parameters_internal(cw_rec_t *rec)
 {
 	cw_assert (rec, "receiver is NULL");
 
@@ -2219,8 +2195,8 @@ unsigned int test_cw_rec_with_base_data_fixed(void)
 		//test_cw_rec_print_data(data);
 
 		/* Reset. */
-		cw_rec_reset_internal(rec);
-		cw_rec_clear_buffer(rec);
+		cw_rec_reset_statistics(rec);
+		cw_rec_reset_state(rec);
 
 		cw_rec_set_speed(rec, speed);
 		cw_rec_disable_adaptive_mode(rec);
@@ -2433,10 +2409,10 @@ void test_cw_rec_test_begin_end(cw_rec_t *rec, struct cw_rec_test_data *data)
 			   we have a copy of character. The receiver
 			   no longer needs to store the
 			   representation. If I understand this
-			   correctly, the call to clear() is necessary
+			   correctly, the call to reset_state() is necessary
 			   to prepare the receiver for receiving next
 			   character. */
-			cw_rec_clear_buffer(rec);
+			cw_rec_reset_state(rec);
 			int length = cw_rec_get_buffer_length_internal(rec);
 			cw_assert (length == 0,
 				   "cw_rec_get_buffer_length_internal(): length of cleared buffer is non zero (is %d)",
@@ -2521,8 +2497,8 @@ unsigned int test_cw_rec_with_random_data_fixed(void)
 		//test_cw_rec_print_data(data);
 
 		/* Reset. */
-		cw_rec_reset_internal(rec);
-		cw_rec_clear_buffer(rec);
+		cw_rec_reset_statistics(rec);
+		cw_rec_reset_state(rec);
 
 		cw_rec_set_speed(rec, speed);
 		cw_rec_disable_adaptive_mode(rec);
@@ -2562,8 +2538,8 @@ unsigned int test_cw_rec_with_random_data_adaptive(void)
 	cw_assert (rec, "Failed to get new receiver\n");
 
 	/* Reset. */
-	cw_rec_reset_internal(rec);
-	cw_rec_clear_buffer(rec);
+	cw_rec_reset_statistics(rec);
+	cw_rec_reset_state(rec);
 
 	cw_rec_set_speed(rec, CW_SPEED_MAX);
 	cw_rec_enable_adaptive_mode(rec);
@@ -3046,7 +3022,7 @@ unsigned int test_cw_get_receive_parameters(void)
 	cw_rec_t *rec = cw_rec_new();
 	cw_assert (rec, "Failed to get new receiver\n");
 
-	cw_rec_reset_receive_parameters_internal(rec);
+	cw_rec_reset_parameters_internal(rec);
 	cw_rec_sync_parameters_internal(rec);
 
 	int dot_len_ideal = 0,

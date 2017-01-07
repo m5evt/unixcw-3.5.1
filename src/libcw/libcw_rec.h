@@ -9,9 +9,7 @@
 
 
 
-
 #include "libcw2.h"
-
 
 
 
@@ -26,17 +24,9 @@ enum { CW_DOT_CALIBRATION = 1200000 };
 
 
 
-
-
-/* Receiver's reset functions. */
-void cw_rec_reset_receive_parameters_internal(cw_rec_t *rec);
-void cw_rec_reset_receive_statistics_internal(cw_rec_t *rec);
-void cw_rec_reset_internal(cw_rec_t *rec);
-
-
-/* Other helper functions. */
-void cw_rec_sync_parameters_internal(cw_rec_t *rec);
-void cw_rec_get_parameters_internal(cw_rec_t *rec,
+void cw_rec_reset_parameters_internal(cw_rec_t * rec);
+void cw_rec_sync_parameters_internal(cw_rec_t * rec);
+void cw_rec_get_parameters_internal(cw_rec_t * rec,
 				    int *dot_len_ideal, int *dash_len_ideal,
 				    int *dot_len_min, int *dot_len_max,
 				    int *dash_len_min, int *dash_len_max,
@@ -55,7 +45,6 @@ int cw_rec_get_receive_buffer_capacity_internal(void);
 
 
 
-
 #ifdef LIBCW_UNIT_TESTS
 
 unsigned int test_cw_rec_identify_mark_internal(void);
@@ -66,7 +55,6 @@ unsigned int test_cw_get_receive_parameters(void);
 unsigned int test_cw_rec_parameter_getters_setters(void);
 
 #endif /* #ifdef LIBCW_UNIT_TESTS */
-
 
 
 

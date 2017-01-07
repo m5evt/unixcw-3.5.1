@@ -385,7 +385,7 @@ void Receiver::handle_libcw_keying_event(struct timeval *t, int key_state)
 			case ENOMEM:
 			case ENOENT:
 				libcw_receive_errno = errno;
-				cw_rec_clear_buffer(this->rec);
+				cw_rec_reset_state(this->rec);
 				break;
 
 			default:
@@ -407,7 +407,7 @@ void Receiver::handle_libcw_keying_event(struct timeval *t, int key_state)
 */
 void Receiver::clear()
 {
-	cw_rec_clear_buffer(this->rec);
+	cw_rec_reset_state(this->rec);
 	libcw_receive_errno = 0;
 	tracked_key_state = false;
 
@@ -492,7 +492,7 @@ void Receiver::poll_character()
 
 		case ENOENT:
 			/* Invalid character in receiver's buffer. */
-			cw_rec_clear_buffer(this->rec);
+			cw_rec_reset_state(this->rec);
 			textarea->append('?');
 			app->show_status(QString(_("Unknown character received at %1 WPM")).arg(cw_rec_get_speed(this->rec)));
 
@@ -537,7 +537,7 @@ void Receiver::poll_space()
 	if (is_end_of_word) {
 		//fprintf(stderr, "End of word\n\n");
 		textarea->append(' ');
-		cw_rec_clear_buffer(this->rec);
+		cw_rec_reset_state(this->rec);
 	} else {
 		/* The space that currently lasts after last polled
 		   non-space character isn't long enough to be

@@ -239,7 +239,7 @@ void Receiver::ik_left_event(bool is_down)
 */
 void Receiver::ik_right_event(bool is_down)
 {
-	/* Inform libcw about state of left paddle regardless of state
+	/* Inform libcw about state of right paddle regardless of state
 	   of the other paddle. */
 	cw_key_ik_notify_dash_paddle_event(this->key, is_down);
 
@@ -250,12 +250,12 @@ void Receiver::ik_right_event(bool is_down)
 
 
 /**
-   \brief Clear the library receive buffer and our own flags
+   \brief Clear receiver state
 */
 void Receiver::clear()
 {
-	cw_rec_clear_buffer(this->rec);
-	libcw_receive_errno = 0;
+	cw_rec_reset_state(this->rec);
+	this->libcw_receive_errno = 0;
 
 	return;
 }
@@ -332,7 +332,7 @@ void Receiver::poll_character()
 
 		case ENOENT:
 			/* Invalid character in receiver's buffer. */
-			cw_rec_clear_buffer(this->rec);
+			cw_rec_reset_state(this->rec);
 			textarea->append('?');
 			app->show_status(QString("Unknown character received at %1 WPM").arg(cw_rec_get_speed(this->rec)));
 			break;
@@ -374,7 +374,7 @@ void Receiver::poll_space()
 	if (is_end_of_word) {
 		//fprintf(stderr, "End of word\n\n");
 		textarea->append(' ');
-		cw_rec_clear_buffer(this->rec);
+		cw_rec_reset_state(this->rec);
 	} else {
 		/* The space that currently lasts after last polled
 		   non-space character isn't long enough to be
