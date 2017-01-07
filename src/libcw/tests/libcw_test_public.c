@@ -103,15 +103,19 @@ static int test_audio_system = CW_AUDIO_NONE;
 
 
 /* Tone queue module. */
+#if 0
 static void test_tone_queue_1(cw_test_stats_t *stats);
 static void test_tone_queue_2(cw_test_stats_t *stats);
 static void test_tone_queue_3(cw_test_stats_t *stats);
+#endif
 static void test_tone_queue_callback(cw_gen_t *gen, cw_test_stats_t *stats);
 /* Generator module. */
+#if 0
 static void test_volume_functions(cw_test_stats_t *stats);
 static void test_send_primitives(cw_test_stats_t *stats);
-static void test_send_character_and_string(cw_gen_t *gen, cw_test_stats_t *stats);
 static void test_representations(cw_test_stats_t *stats);
+#endif
+static void test_send_character_and_string(cw_gen_t *gen, cw_test_stats_t *stats);
 /* Morse key module. */
 static void test_keyer(cw_key_t *key, cw_test_stats_t *stats);
 static void test_straight_key(cw_key_t *key, cw_test_stats_t *stats);
@@ -530,7 +534,7 @@ void test_tone_queue_3(cw_test_stats_t *stats)
 
 
 
-static int cw_test_tone_queue_callback_data = 999999;
+static size_t cw_test_tone_queue_callback_data = 999999;
 static int cw_test_helper_tq_callback_capture = false;
 
 struct cw_test_struct{
@@ -596,7 +600,7 @@ void test_tone_queue_callback(cw_gen_t *gen, cw_test_stats_t *stats)
 		failure = abs(diff) > 1;
 
 		failure ? stats->failures++ : stats->successes++;
-		n = printf("libcw: tone queue callback:           level at callback = %d:", cw_test_tone_queue_callback_data);
+		n = printf("libcw: tone queue callback:           level at callback = %zd:", cw_test_tone_queue_callback_data);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 		cw_gen_flush_queue(gen);
@@ -620,7 +624,7 @@ static void cw_test_helper_tq_callback(void *data)
 		*(s->data) = cw_gen_get_queue_length(s->gen);
 
 		cw_test_helper_tq_callback_capture = false;
-		fprintf(stderr, "libcw/tq: cw_test_helper_tq_callback:    captured level = %d\n", *(s->data));
+		fprintf(stderr, "libcw/tq: cw_test_helper_tq_callback:    captured level = %zd\n", *(s->data));
 	}
 
 	return;
@@ -1578,8 +1582,6 @@ void cw_test_print_stats(void)
 int main(int argc, char *const argv[])
 {
 	int rv = 0;
-
-	static const int SIGNALS[] = { SIGHUP, SIGINT, SIGQUIT, SIGPIPE, SIGTERM, 0 };
 
 	//cw_debug_set_flags(&cw_debug_object_dev, CW_DEBUG_RECEIVE_STATES | CW_DEBUG_TONE_QUEUE | CW_DEBUG_GENERATOR | CW_DEBUG_KEYING);
 	//cw_debug_object_dev.level = CW_DEBUG_DEBUG;
