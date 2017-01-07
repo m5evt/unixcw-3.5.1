@@ -1008,31 +1008,25 @@ void Application::make_sender_receiver(void)
 
 	cw_key_register_generator(receiver->key, sender->gen);
 
-	if (this->config->register_receiver) {
-		fprintf(stderr, "---------- cw_key: register receiver\n");
-		cw_key_register_receiver(receiver->key, receiver->rec);
-	} else {
-		/* Register class's static function as key's keying
-		   event callback. It's important here that we
-		   register the static function, since once we have
-		   been into and out of 'C', all concept of 'this' is
-		   lost.  It's the job of the static handler to work
-		   out which class instance is using the CW library,
-		   and call the instance's libcw_keying_event()
-		   function.
+	/* Register class's static function as key's keying
+	   event callback. It's important here that we
+	   register the static function, since once we have
+	   been into and out of 'C', all concept of 'this' is
+	   lost.  It's the job of the static handler to work
+	   out which class instance is using the CW library,
+	   and call the instance's libcw_keying_event()
+	   function.
 
-		   The handler called back by libcw is important
-		   because it's used to send to libcw's receiver
-		   information about timings of events (key down and
-		   key up events).
+	   The handler called back by libcw is important
+	   because it's used to send to libcw's receiver
+	   information about timings of events (key down and
+	   key up events).
 
-		   Without the callback the library can play sounds as
-		   key or paddles are pressed, but since receiver
-		   doesn't receive timing parameters it won't be able
-		   to identify entered Morse code. */
-		fprintf(stderr, "---------- cw_key: register callback\n");
-		cw_key_register_keying_callback(receiver->key, libcw_keying_event_static, (void *) this);
-	}
+	   Without the callback the library can play sounds as
+	   key or paddles are pressed, but since receiver
+	   doesn't receive timing parameters it won't be able
+	   to identify entered Morse code. */
+	cw_key_register_keying_callback(receiver->key, libcw_keying_event_static, (void *) this);
 
 	saved_receive_speed = cw_rec_get_speed(receiver->rec);
 

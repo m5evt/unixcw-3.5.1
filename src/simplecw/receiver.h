@@ -74,9 +74,6 @@ namespace cw {
 		void ik_left_event(bool is_down);
 		void ik_right_event(bool is_down);
 
-		/* CW library keying event handler. */
-		void handle_libcw_keying_event(struct timeval *t, int key_state);
-
 		/* Clear out queued data on stop, mode change, etc. */
 		void clear();
 
@@ -91,13 +88,6 @@ namespace cw {
 		   signal handler context and needing to be passed to
 		   the foreground. */
 		volatile int libcw_receive_errno;
-
-		/* Safety flag to ensure that we keep the library in
-		   sync with keyer events.  Without, there's a chance
-		   that of a on-off event, one half will go to one
-		   application instance, and the other to another
-		   instance. */
-		volatile bool tracked_key_state;
 
 		/* Poll primitives to handle receive errors,
 		   characters, and inter-word spaces. */

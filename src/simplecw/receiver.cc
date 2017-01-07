@@ -46,8 +46,6 @@ Receiver::Receiver(Application *a, TextArea *t)
 
 	libcw_receive_errno = 0;
 
-	tracked_key_state = false;
-
 	this->rec = cw_rec_new();
 	this->key = cw_key_new();
 }
@@ -256,92 +254,6 @@ void Receiver::ik_right_event(bool is_down)
 
 
 
-
-/**
-   \brief Handler for the keying callback from the CW library
-   indicating that the state of a key has changed.
-
-   The "key" is libcw's internal key structure. Its state is updated
-   by libcw when e.g. one iambic keyer paddle is constantly
-   pressed. It is also updated in other situations. In any case: the
-   function is called whenever state of this key changes.
-
-   Notice that the description above talks about a key, not about a
-   receiver. Key's states need to be interpreted by receiver, which is
-   a separate task. Key and receiver are separate concepts. This
-   function connects them. The connection is made through \p t and \p
-   key_state values which come from a key, and are passed to receiver.
-
-   This function, called on key state changes, calls receiver
-   functions to ensure that receiver does "receive" the key state
-   changes.
-
-   This function is called in signal handler context, and it takes
-   care to call only functions that are safe within that context.  In
-   particular, it goes out of its way to deliver results by setting
-   flags that are later handled by receive polling.
-*/
-void Receiver::handle_libcw_keying_event(struct timeval *t, int key_state)
-{
-	/* Ignore calls where the key state matches our tracked key
-	   state.  This avoids possible problems where this event
-	   handler is redirected between application instances; we
-	   might receive an end of tone without seeing the start of
-	   tone. */
-	if (key_state == tracked_key_state) {
-		//fprintf(stderr, "tracked key state == %d\n", tracked_key_state);
-		return;
-	} else {
-		//fprintf(stderr, "tracked key state := %d\n", key_state);
-		tracked_key_state = key_state;
-	}
-
-	//fprintf(stderr, "calling callback, stage 2\n");
-
-	/* Pass tone state on to the library.  For tone end, check to
-	   see if the library has registered any receive error. */
-	if (key_state) {
-		/* Key down. */
-		//fprintf(stderr, "start receive tone: %10ld . %10ld\n", t->tv_sec, t->tv_usec);
-		if (!cw_rec_mark_begin(this->rec, t)) {
-			perror("cw_rec_mark_begin");
-			abort();
-		}
-	} else {
-		/* Key up. */
-		//fprintf(stderr, "end receive tone:   %10ld . %10ld\n", t->tv_sec, t->tv_usec);
-		if (!cw_rec_mark_end(this->rec, t)) {
-			/* Handle receive error detected on tone end.
-			   For ENOMEM and ENOENT we set the error in a
-			   class flag, and display the appropriate
-			   message on the next receive poll. */
-			switch (errno) {
-			case EAGAIN:
-				/* libcw treated the tone as noise (it
-				   was shorter than noise threshold).
-				   No problem, not an error. */
-				break;
-
-			case ENOMEM:
-			case ENOENT:
-				libcw_receive_errno = errno;
-				cw_rec_clear_buffer(this->rec);
-				break;
-
-			default:
-				perror("cw_rec_mark_end");
-				abort();
-			}
-		}
-	}
-
-	return;
-}
-
-
-
-
-
 /**
    \brief Clear the library receive buffer and our own flags
 */
@@ -349,7 +261,6 @@ void Receiver::clear()
 {
 	cw_rec_clear_buffer(this->rec);
 	libcw_receive_errno = 0;
-	tracked_key_state = false;
 
 	return;
 }

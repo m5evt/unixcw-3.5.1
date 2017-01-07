@@ -135,13 +135,7 @@ namespace cw {
 		   tracked speed on start. */
 		int saved_receive_speed;
 
-		/* Keying callback function for libcw. */
-		static void libcw_keying_event_static(struct timeval *timestamp, int key_state, void *arg);
-		void libcw_keying_event(int key_state);
-
 		void make_sender_receiver(void);
-
-
 
 
 		/* Prevent unwanted operations. */

@@ -108,53 +108,6 @@ Application::Application(cw_config_t *config) :
 
 
 
-
-
-/**
-   \brief Keying callback to handle key events reported by libcw
-
-   This is the class-level keying callback that is called by libcw's
-   key module every time a state of libcw's key changes.
-
-   Third argument of the callback is used to determine which
-   Application instance (class object) should pass the callback to its
-   receiver.
-
-   This function is called in signal handler context.
-
-   This callback and \p arg have been registered as callback and
-   callback's argument using libcw key's
-   cw_key_register_keying_callback function.
-
-   \p arg is casted to 'Application *' in the function.
-
-   \param timestamp - timestamp of key event
-   \param key_state - state of libcw's key after the event (current state of key)
-   \param arg - instance of Application class that should handle this callback
-*/
-void Application::libcw_keying_event_static(struct timeval *timestamp, int key_state, void *arg)
-{
-	const Application *app = (Application *) arg;
-
-	/* Notify the receiver about a libcw keying event only if
-	   there is an instance that is actively using the library
-	   and the instance is in receive mode.  The receiver handler
-	   function cannot determine this for itself. */
-	if (app
-	    && app->is_running
-	    && app->current_mode == MODE_RECEIVE) { /* Receive events from key. */
-
-		//fprintf(stderr, "calling callback, stage 1 (key = %d)\n", key_state);
-		app->receiver->handle_libcw_keying_event(timestamp, key_state);
-	}
-
-	return;
-}
-
-
-
-
-
 /**
    \brief Pop up a brief dialog about the application.
 */
@@ -665,32 +618,7 @@ void Application::make_sender_receiver(void)
 	receiver = new Receiver(this, textarea);
 
 	cw_key_register_generator(receiver->key, sender->gen);
-
-	if (this->config->register_receiver) {
-		fprintf(stderr, "---------- cw_key: register receiver\n");
-		cw_key_register_receiver(receiver->key, receiver->rec);
-	} else {
-		/* Register class's static function as key's keying
-		   event callback. It's important here that we
-		   register the static function, since once we have
-		   been into and out of 'C', all concept of 'this' is
-		   lost.  It's the job of the static handler to work
-		   out which class instance is using the CW library,
-		   and call the instance's libcw_keying_event()
-		   function.
-
-		   The handler called back by libcw is important
-		   because it's used to send to libcw's receiver
-		   information about timings of events (key down and
-		   key up events).
-
-		   Without the callback the library can play sounds as
-		   key or paddles are pressed, but since receiver
-		   doesn't receive timing parameters it won't be able
-		   to identify entered Morse code. */
-		fprintf(stderr, "---------- cw_key: register callback\n");
-		cw_key_register_keying_callback(receiver->key, libcw_keying_event_static, (void *) this);
-	}
+	cw_key_register_receiver(receiver->key, receiver->rec);
 
 	saved_receive_speed = cw_rec_get_speed(receiver->rec);
 

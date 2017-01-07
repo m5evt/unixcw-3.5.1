@@ -127,7 +127,6 @@ int main(int argc, char **argv)
 		}
 		config->has_practice_time = 0;
 		config->has_infile = false;
-		config->register_receiver = 0; /* Originally xcwcp has been using callbacks. */
 
 		if (!cw_process_argv(argc, argv, all_options.c_str(), config)) {
 			fprintf(stderr, "%s: failed to parse command line args\n", config->program_name);
