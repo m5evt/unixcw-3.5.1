@@ -401,6 +401,14 @@ void cw_key_register_generator(cw_key_t *key, cw_gen_t *gen)
 
 
 /**
+   Receiver should somehow receive key events from physical or logical
+   key. This can be done in one of two ways:
+
+   1. key events -> key variable -> cw_key_tk_set_value_internal() ->
+      -> cw_rec_mark_{begin|end}(key->rec, ...)
+   2. key events -> key variable -> cw_key_tk_set_value_internal() ->
+      -> key->key_callback_function() -> cw_rec_mark_{begin|end}(rec, ...)
+
 
    There should be a binding between key and a receiver.
 
