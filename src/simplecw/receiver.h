@@ -80,9 +80,7 @@ class Receiver {
 	   the foreground. */
 	volatile int libcw_receive_errno;
 
-	/* Poll primitives to handle receive errors,
-	   characters, and inter-word spaces. */
-	void poll_report_error();
+	/* Poll methods to extract from libcw's receiver characters and inter-word spaces. */
 	void poll_character();
 	void poll_space();
 

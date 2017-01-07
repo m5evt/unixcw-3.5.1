@@ -68,7 +68,9 @@ Receiver::~Receiver()
 void Receiver::poll()
 {
 	if (libcw_receive_errno != 0) {
-		poll_report_error();
+		/* Handle any receive errors detected on tone end but delayed until here. */
+		app->show_status(libcw_receive_errno == ENOENT ? "Badly formed CW element" : "Receive buffer overrun");
+		libcw_receive_errno = 0;
 	}
 
 	if (cw_rec_poll_is_pending_inter_word_space(this->rec)) {
@@ -259,26 +261,6 @@ void Receiver::clear()
 
 	return;
 }
-
-
-
-
-
-/**
-   \brief Handle any error registered when handling a libcw keying event
-*/
-void Receiver::poll_report_error()
-{
-	/* Handle any receive errors detected on tone end but delayed until here. */
-	app->show_status(libcw_receive_errno == ENOENT
-			 ? "Badly formed CW element"
-			 : "Receive buffer overrun");
-
-	libcw_receive_errno = 0;
-
-	return;
-}
-
 
 
 
