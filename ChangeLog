@@ -1,3 +1,31 @@
+2017-01-07 Kamil Ignacak
+
+	* libcw/tests: Removing libcw/tests/libcw_test_public
+	executable. All code used to build this executable has been moved
+	to either libcw/libcw_<module_name>.c, or to
+	libcw/libcw_test_internal.c.
+
+	libcw/libcw_test_internal.c will be renamed soon. It still
+	requires lots of work: making the test functions more uniform
+	(e.g. in terms of how they print test results), making all
+	functions count test statistics, making all test executed
+	conditionally (depending on command line options passed to test
+	executable).
+
+	This change is meant to put tests into one place. Before this
+	change I had two big text executables, now I have only one big
+	test executable (big in terms of number of tests executed).
+
+	It should be now easier to run tests: I don't have to think which
+	of the two executables to run.
+
+2017-01-05 Kamil Ignacak
+
+	* simplecw: creating simplecw application It's a copy of xcwcp,
+	but with all non-essential code removed. It is meant as a simple
+	demonstration of libcw's generator, receiver and key
+	functionality.
+
 2016-05-03 Kamil Ignacak
 
 	* libcw/bugfix: fixing a bug in libcw/generator that may have lead
