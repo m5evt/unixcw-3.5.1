@@ -34,11 +34,6 @@
 
 
 
-namespace cw {
-
-
-
-
 Sender::Sender(Application *a, TextArea *t, cw_config_t *config) : app(a), textarea(t), is_queue_idle(true)
 {
 	gen = cw_gen_new_from_config(config);
@@ -227,8 +222,3 @@ void Sender::delete_character()
 
 	return;
 }
-
-
-
-
-}  /* namespace cw */

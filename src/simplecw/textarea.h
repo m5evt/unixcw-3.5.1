@@ -24,40 +24,36 @@
 
 
 
+class Application;
 
-namespace cw {
+class TextArea : public QTextEdit {
+	//Q_OBJECT
+ public:
+	TextArea(Application *application, QWidget *parent = 0);
+	~TextArea() {};
 
-	class Application;
+	void append(char c);
+	void backspace();
 
-	class TextArea : public QTextEdit {
-		//Q_OBJECT
-	public:
-		TextArea(Application *application, QWidget *parent = 0);
-		~TextArea() {};
+ protected:
+	// Functions overridden to catch events from the parent class.
+	void keyPressEvent(QKeyEvent *event);
+	void keyReleaseEvent(QKeyEvent *event);
+	void mousePressEvent(QMouseEvent *event);
+	void mouseDoubleClickEvent(QMouseEvent *event);
+	void mouseReleaseEvent(QMouseEvent *event);
+	// Are these necessary after adding fontPointSize() in constructor?
+	virtual QMenu *createPopupMenu(const QPoint &);
+	virtual QMenu *createPopupMenu();
 
-		void append(char c);
-		void backspace();
+ private:
+	// Application to forward key and mouse events to.
+	Application *app;
 
-	protected:
-		// Functions overridden to catch events from the parent class.
-		void keyPressEvent(QKeyEvent *event);
-		void keyReleaseEvent(QKeyEvent *event);
-		void mousePressEvent(QMouseEvent *event);
-		void mouseDoubleClickEvent(QMouseEvent *event);
-		void mouseReleaseEvent(QMouseEvent *event);
-		// Are these necessary after adding fontPointSize() in constructor?
-		virtual QMenu *createPopupMenu(const QPoint &);
-		virtual QMenu *createPopupMenu();
-
-	private:
-		// Application to forward key and mouse events to.
-		Application *app;
-
-		// Prevent unwanted operations.
-		TextArea(const TextArea &);
-		TextArea &operator=(const TextArea &);
-	};
-} /* namespace cw */
+	// Prevent unwanted operations.
+	TextArea(const TextArea &);
+	TextArea &operator=(const TextArea &);
+};
 
 
 

@@ -34,11 +34,6 @@
 
 
 
-namespace cw {
-
-
-
-
 Receiver::Receiver(Application *a, TextArea *t)
 {
 	app = a;
@@ -395,8 +390,3 @@ void Receiver::poll_space()
 
 	return;
 }
-
-
-
-
-}  /* namespace cw */

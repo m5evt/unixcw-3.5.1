@@ -27,85 +27,69 @@
 
 
 
-
 #include "libcw2.h"
 
 
 
 
-
-namespace cw {
-
-
-
-
-
-	class Application;
-	class TextArea;
-	class Mode;
+class Application;
+class TextArea;
+class Mode;
 
 
 
 
+/* Class Receiver encapsulates the main application receiver
+   data and functions.  Receiver abstracts states associated
+   with receiving, event handling, libcw keyer event handling,
+   and data passed between signal handler and foreground
+   contexts. */
+class Receiver {
+ public:
 
-	/* Class Receiver encapsulates the main application receiver
-	   data and functions.  Receiver abstracts states associated
-	   with receiving, event handling, libcw keyer event handling,
-	   and data passed between signal handler and foreground
-	   contexts. */
-	class Receiver {
-	public:
+	Receiver(Application *a, TextArea *t);
+	~Receiver();
 
-		Receiver(Application *a, TextArea *t);
-		~Receiver();
+	/* Poll timeout handler. */
+	void poll();
 
-		/* Poll timeout handler. */
-		void poll();
+	/* Keyboard key event handler. */
+	void handle_key_event(QKeyEvent *event);
 
-		/* Keyboard key event handler. */
-		void handle_key_event(QKeyEvent *event);
+	/* Mouse button press event handler. */
+	void handle_mouse_event(QMouseEvent *event);
 
-		/* Mouse button press event handler. */
-		void handle_mouse_event(QMouseEvent *event);
+	/* Straight key and iambic keyer event handler
+	   helpers. */
+	void sk_event(bool is_down);
+	void ik_left_event(bool is_down);
+	void ik_right_event(bool is_down);
 
-		/* Straight key and iambic keyer event handler
-		   helpers. */
-		void sk_event(bool is_down);
-		void ik_left_event(bool is_down);
-		void ik_right_event(bool is_down);
+	/* Clear out queued data on stop, mode change, etc. */
+	void clear();
 
-		/* Clear out queued data on stop, mode change, etc. */
-		void clear();
+	cw_rec_t *rec;
+	cw_key_t *key;
 
-		cw_rec_t *rec;
-		cw_key_t *key;
+ private:
+	Application *app;
+	TextArea *textarea;
 
-	private:
-		Application *app;
-		TextArea *textarea;
+	/* Flag indicating possible receive errno detected in
+	   signal handler context and needing to be passed to
+	   the foreground. */
+	volatile int libcw_receive_errno;
 
-		/* Flag indicating possible receive errno detected in
-		   signal handler context and needing to be passed to
-		   the foreground. */
-		volatile int libcw_receive_errno;
+	/* Poll primitives to handle receive errors,
+	   characters, and inter-word spaces. */
+	void poll_report_error();
+	void poll_character();
+	void poll_space();
 
-		/* Poll primitives to handle receive errors,
-		   characters, and inter-word spaces. */
-		void poll_report_error();
-		void poll_character();
-		void poll_space();
-
-		/* Prevent unwanted operations. */
-		Receiver(const Receiver &);
-		Receiver &operator=(const Receiver &);
-	};
-
-
-
-
-
-}  /* namespace cw */
-
+	/* Prevent unwanted operations. */
+	Receiver(const Receiver &);
+	Receiver &operator=(const Receiver &);
+};
 
 
 

@@ -50,7 +50,6 @@ static void simplecw_atexit(void);
 static void register_signal_handler(void);
 
 
-namespace {
 cw_config_t *config = NULL; /* program-specific configuration */
 std::string all_options =
 	"s:|sound,"
@@ -83,10 +82,6 @@ void signal_handler(int signal_number)
 		  << ", exiting..." << std::endl;
 	exit(EXIT_SUCCESS);
 }
-
-
-}  // namespace
-
 
 
 
@@ -138,7 +133,7 @@ int main(int argc, char **argv)
 		}
 
 		// Display the application's windows.
-		cw::Application application(config);
+		Application application(config);
 		application.setWindowTitle("simplecw");
 		application.check_audio_system(config);
 		application.show();

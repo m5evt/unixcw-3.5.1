@@ -35,11 +35,6 @@
 
 
 
-namespace cw {
-
-
-
-
 TextArea::TextArea(Application *a, QWidget *parent) : QTextEdit(parent), app(a)
 {
 	/* Block context menu in text area, this is to make right mouse
@@ -189,8 +184,3 @@ void TextArea::backspace()
 
 	return;
 }
-
-
-
-
-}  // namespace cw

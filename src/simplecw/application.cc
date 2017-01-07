@@ -58,13 +58,6 @@
 
 
 
-
-namespace cw {
-
-
-
-
-
 /*
   Module variables, miscellaneous other stuff
 */
@@ -680,9 +673,3 @@ void Application::clear_status()
 
 	return;
 }
-
-
-
-
-
-}  /* namespace cw */

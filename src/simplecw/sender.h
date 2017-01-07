@@ -42,65 +42,50 @@
 
 
 
-
-namespace cw {
-
-
-
-
-
-	class Application;
-	class TextArea;
-	class Mode;
+class Application;
+class TextArea;
+class Mode;
 
 
 
 
+class Sender {
+ public:
+	Sender(Application *a, TextArea *t, cw_config_t *config);
+	~Sender();
 
-	class Sender {
-	public:
-		Sender(Application *a, TextArea *t, cw_config_t *config);
-		~Sender();
+	/* Poll timeout handler. */
+	void poll();
 
-		/* Poll timeout handler. */
-		void poll();
+	/* Keypress event handler. */
+	void handle_key_event(QKeyEvent *event);
 
-		/* Keypress event handler. */
-		void handle_key_event(QKeyEvent *event);
+	/* Clear out queued data on stop, mode change, etc. */
+	void clear();
 
-		/* Clear out queued data on stop, mode change, etc. */
-		void clear();
+	cw_gen_t *gen;
 
-		cw_gen_t *gen;
-
-	private:
-		/* Deque and queue manipulation functions, used to
-		   handle and maintain the buffer of characters
-		   awaiting sending through libcw. */
-		void dequeue_and_play_character();
-		void enqueue_string(const std::string &word);
-		void delete_character();
-
-
-		Application *app;
-		TextArea *textarea;
+ private:
+	/* Deque and queue manipulation functions, used to
+	   handle and maintain the buffer of characters
+	   awaiting sending through libcw. */
+	void dequeue_and_play_character();
+	void enqueue_string(const std::string &word);
+	void delete_character();
 
 
-		bool is_queue_idle;
-		std::deque<char> queue;
+	Application *app;
+	TextArea *textarea;
 
 
-		/* Prevent unwanted operations. */
-		Sender(const Sender &);
-		Sender &operator=(const Sender &);
-	};
+	bool is_queue_idle;
+	std::deque<char> queue;
 
 
-
-
-
-}  /* namespace cw */
-
+	/* Prevent unwanted operations. */
+	Sender(const Sender &);
+	Sender &operator=(const Sender &);
+};
 
 
 
