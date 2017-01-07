@@ -22,7 +22,7 @@ SUBDIRS=tests
 
 # targets to be built in this directory
 lib_LTLIBRARIES=libcw.la
-check_PROGRAMS=libcw_test_internal
+check_PROGRAMS=libcw_test
 man_MANS=libcw.3 cw.7
 pkgconfig_DATA=libcw.pc
 
@@ -81,9 +81,9 @@ libcw_include_HEADERS = libcw2.h libcw_debug.h
 
 
 
-# target: libcw_test_internal, a test program invoking unit tests for
-# (internal) functions defined in libcw_xyz.c files;
-# main() is defined in libcw_test_internal.c.
+# target: libcw_test, a test program invoking unit tests for
+# test functions defined in libcw_<module>.c files;
+# main() is defined in libcw_test.c.
 
 # For now I can't move this test to tests/ because the target refers
 # to $(LIBCW_BASE_C_FILES) files residing in this directory, and not
@@ -91,17 +91,17 @@ libcw_include_HEADERS = libcw2.h libcw_debug.h
 # "AM_INIT_AUTOMAKE([subdir-objects])" in configure.ac, but I don't
 # know how portable it is.
 
-# source code files used to build libcw_test_internal program
-libcw_test_internal_SOURCES = $(LIBCW_BASE_C_FILES) libcw_test_internal.c
+# source code files used to build libcw_test program
+libcw_test_SOURCES = $(LIBCW_BASE_C_FILES) libcw_test.c
 
 # target-specific preprocessor flags (#defs and include dirs)
-libcw_test_internal_CPPFLAGS = $(AM_CPPFLAGS) -DLIBCW_UNIT_TESTS
+libcw_test_CPPFLAGS = $(AM_CPPFLAGS) -DLIBCW_UNIT_TESTS
 
 # target-specific linker flags (objects to link)
-libcw_test_internal_LDADD=-lm -lpthread $(DL_LIB) $(OSS_LIB)
+libcw_test_LDADD=-lm -lpthread $(DL_LIB) $(OSS_LIB)
 
 # target-specific compiler flags
-libcw_test_internal_CFLAGS = -rdynamic
+libcw_test_CFLAGS = -rdynamic
 
 
 
@@ -136,7 +136,7 @@ TESTS = $(check_SCRIPTS)
 # run test programs
 check_SCRIPTS = libcw_test_internal.sh ./tests/libcw_test_tq_short_space.sh
 libcw_test_internal.sh:
-	echo './libcw_test_internal | grep "test result: success"' > libcw_test_internal.sh
+	echo './libcw_test | grep "test result: success"' > libcw_test_internal.sh
 	chmod +x libcw_test_internal.sh
 ./tests/libcw_test_tq_short_space.sh:
 	echo './tests/libcw_test_tq_short_space | grep "test result: success"' > ./tests/libcw_test_tq_short_space.sh
