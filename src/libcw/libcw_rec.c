@@ -33,21 +33,20 @@
    inter-character, inter-word) it is, and when a full character has
    been received.
 
-   This is done with cw_start_receive_tone() and cw_end_receive_tone()
+   This is done with cw_rec_mark_begin() and cw_rec_mark_end()
    functions.
 
    The second method is to inform receiver not about start and stop of
    marks (dots/dashes), but about full marks themselves.  This is done
-   with cw_receive_buffer_dot() and cw_receive_buffer_dash() - two
-   functions that are one level of abstraction above functions from
-   first method.
+   with cw_rec_add_mark(): a function that is one level of abstraction
+   above functions from first method.
 
 
    Currently there is only one method of passing received data
    (characters) from receiver to client code. This is done by client
    code cyclically polling the receiver with
-   cw_receive_representation() or with cw_receive_character() which is
-   built on top of cw_receive_representation().
+   cw_rec_poll_representation() or cw_rec_poll_character() (which
+   itself is built on top of cw_rec_poll_representation()).
 
 
    Duration (length) of marks, spaces and few other things is in
@@ -1086,8 +1085,6 @@ bool cw_rec_get_adaptive_mode(cw_rec_t *rec)
 
 
 
-
-/* For top-level comment see cw_start_receive_tone(). */
 int cw_rec_mark_begin(cw_rec_t *rec, const struct timeval *timestamp)
 {
 	/* If this is a tone start and we're awaiting an inter-word
@@ -1155,9 +1152,6 @@ int cw_rec_mark_begin(cw_rec_t *rec, const struct timeval *timestamp)
 
 
 
-
-
-/* For top-level comment see cw_end_receive_tone(). */
 int cw_rec_mark_end(cw_rec_t *rec, const struct timeval *timestamp)
 {
 	/* The receive state is expected to be inside of a mark. */
@@ -1490,7 +1484,7 @@ void cw_rec_update_averages_internal(cw_rec_t *rec, int mark_len, char mark)
    is NULL, the timestamp for current time is used.
 
    The receiver's state is updated as if we had just received a call
-   to cw_end_receive_tone().
+   to cw_rec_mark_end().
 
    \param rec - receiver
    \param timestamp - timestamp of "end of mark" event
@@ -2258,9 +2252,7 @@ unsigned int test_cw_rec_with_base_data_fixed(void)
 
    As mentioned in file's top-level comment, there are two main
    methods to add data to receiver. This function tests first method:
-   using cw_start_receive_tone() and cw_end_receive_tone() functions
-   (or cw_rec_mark_begin() and cw_rec_mark_end()
-   functions that are used to implement them).
+   using cw_rec_mark_begin() and cw_rec_mark_end().
 
    Other helper functions are used/tested here as well, because adding
    marks and spaces to receiver is just half of the job necessary to
