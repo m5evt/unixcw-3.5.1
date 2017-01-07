@@ -284,10 +284,7 @@ int main(int argc, char *const argv[])
 	}
 
 
-
-
-
-	rv = cw_test_dependent("a", "kg");
+	rv = cw_test_dependent(sound_systems, modules);
 
 	/* "make check" facility requires this message to be
 	   printed on stdout; don't localize it */
@@ -405,6 +402,7 @@ int cw_test_dependent_with(int audio_system, const char *modules, cw_test_stats_
 			(*cw_unit_tests_tq[i])(gen, stats);
 			i++;
 		}
+		fprintf(out_file, "\n");
 	}
 
 	if (strstr(modules, "g")) {
@@ -414,8 +412,8 @@ int cw_test_dependent_with(int audio_system, const char *modules, cw_test_stats_
 			(*cw_unit_tests_gen[i])(gen, stats);
 			i++;
 		}
+		fprintf(out_file, "\n");
 	}
-
 
 	if (strstr(modules, "k")) {
 		int i = 0;
@@ -424,9 +422,8 @@ int cw_test_dependent_with(int audio_system, const char *modules, cw_test_stats_
 	                (*cw_unit_tests_key[i])(key, stats);
 			i++;
 		}
+		fprintf(out_file, "\n");
 	}
-
-
 
 	sleep(1);
 	cw_key_delete(&key);
