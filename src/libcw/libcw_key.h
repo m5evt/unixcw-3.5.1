@@ -34,8 +34,10 @@ void cw_key_sk_reset_internal(cw_key_t *key);
 
 #ifdef LIBCW_UNIT_TESTS
 
-unsigned int test_keyer(void);
-unsigned int test_straight_key(void);
+#include "libcw_test.h"
+
+unsigned int test_keyer(cw_key_t * key, cw_test_stats_t * stats);
+unsigned int test_straight_key(cw_key_t * key, cw_test_stats_t * stats);
 
 #endif /* #ifdef LIBCW_UNIT_TESTS */
 

@@ -1491,46 +1491,12 @@ int test_setup(cw_gen_t ** gen, cw_key_t ** key, int audio_system);
 
 
 
-int test_setup(cw_gen_t ** gen, cw_key_t ** key, int audio_system)
-{
-	*gen = cw_gen_new(audio_system, NULL);
-	if (!*gen) {
-		fprintf(stderr, "libcw: can't create generator, stopping the test\n");
-		return CW_FAILURE;
-	}
-
-	*key = cw_key_new();
-	if (!*key) {
-		fprintf(stderr, "libcw: can't create key, stopping the test\n");
-		return CW_FAILURE;
-	}
-	cw_key_register_generator(*key, *gen);
-
-	int rv = cw_gen_start(*gen);
-	if (rv != 1) {
-		fprintf(stderr, "libcw: can't start generator, stopping the test\n");
-		cw_gen_delete(gen);
-		return CW_FAILURE;
-	}
-
-	cw_gen_reset_parameters_internal(*gen);
-	/* Reset requires resynchronization. */
-	cw_gen_sync_parameters_internal(*gen);
-	cw_gen_set_speed(*gen, 30);
-	errno = 0;
-
-	return CW_SUCCESS;
-}
-
-
-
-
 /**
    tests::cw_key_ik_notify_paddle_event()
    tests::cw_key_ik_wait_for_element()
    tests::cw_key_ik_get_paddles()
 */
-unsigned int test_keyer(void)
+unsigned int test_keyer(cw_key_t * key, cw_test_stats_t * stats)
 {
 	int p = fprintf(out_file, "libcw:key: iambic keyer operation:\n");
 	fflush(out_file);
@@ -1538,15 +1504,6 @@ unsigned int test_keyer(void)
 	/* Perform some tests on the iambic keyer.  The latch finer
 	   timing points are not tested here, just the basics - dots,
 	   dashes, and alternating dots and dashes. */
-
-	cw_gen_t * gen = NULL;
-	cw_key_t * key = NULL;
-	if (!test_setup(&gen, &key, CW_AUDIO_ALSA)) {
-		p = fprintf(out_file, "libcw:key: iambic keyer operation:");
-		CW_TEST_PRINT_TEST_RESULT(true, p);
-		fflush(out_file);
-		return -1;
-	}
 
 	int dot_paddle, dash_paddle;
 
@@ -1557,7 +1514,7 @@ unsigned int test_keyer(void)
 		   this is a dot. */
 		bool failure = !cw_key_ik_notify_paddle_event(key, true, false);
 
-		//failure ? stats->failures++ : stats->successes++;
+		failure ? stats->failures++ : stats->successes++;
 		int n = fprintf(out_file, "libcw:key: cw_key_ik_notify_paddle_event(key, true, false):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
@@ -1575,7 +1532,7 @@ unsigned int test_keyer(void)
 		}
 		putchar('\n');
 
-		//!success ? stats->failures++ : stats->successes++;
+		!success ? stats->failures++ : stats->successes++;
 		n = fprintf(out_file, "libcw:key: cw_key_ik_wait_for_element():");
 		CW_TEST_PRINT_TEST_RESULT (!success, n);
 	}
@@ -1587,7 +1544,7 @@ unsigned int test_keyer(void)
 		cw_key_ik_get_paddles(key, &dot_paddle, &dash_paddle);
 		bool failure = !dot_paddle || dash_paddle;
 
-		//failure ? stats->failures++ : stats->successes++;
+		failure ? stats->failures++ : stats->successes++;
 		int n = fprintf(out_file, "libcw:key: cw_keyer_get_keyer_paddles():");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
@@ -1602,7 +1559,7 @@ unsigned int test_keyer(void)
 
 		bool failure = !cw_key_ik_notify_paddle_event(key, false, true);
 
-		//failure ? stats->failures++ : stats->successes++;
+		failure ? stats->failures++ : stats->successes++;
 		int n = fprintf(out_file, "libcw:key: cw_key_ik_notify_paddle_event(key, false, true):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
@@ -1620,7 +1577,7 @@ unsigned int test_keyer(void)
 		}
 		putchar('\n');
 
-		//!success ? stats->failures++ : stats->successes++;
+		!success ? stats->failures++ : stats->successes++;
 		n = fprintf(out_file, "libcw:key: cw_key_ik_wait_for_element():");
 		CW_TEST_PRINT_TEST_RESULT (!success, n);
 	}
@@ -1632,7 +1589,7 @@ unsigned int test_keyer(void)
 		cw_key_ik_get_paddles(key, &dot_paddle, &dash_paddle);
 		bool failure = dot_paddle || !dash_paddle;
 
-		//failure ? stats->failures++ : stats->successes++;
+		failure ? stats->failures++ : stats->successes++;
 		int n = fprintf(out_file, "libcw:key: cw_key_ik_get_paddles():");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
@@ -1647,7 +1604,7 @@ unsigned int test_keyer(void)
 		   the same time.*/
 		bool failure = !cw_key_ik_notify_paddle_event(key, true, true);
 
-		//failure ? stats->failures++ : stats->successes++;
+		failure ? stats->failures++ : stats->successes++;
 		int n = fprintf(out_file, "libcw:key: cw_key_ik_notify_paddle_event(true, true):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
@@ -1662,7 +1619,7 @@ unsigned int test_keyer(void)
 		}
 		putchar('\n');
 
-		//!success ? stats->failures++ : stats->successes++;
+		!success ? stats->failures++ : stats->successes++;
 		n = fprintf(out_file, "libcw:key: cw_key_ik_wait_for_element:");
 		CW_TEST_PRINT_TEST_RESULT (!success, n);
 	}
@@ -1674,7 +1631,7 @@ unsigned int test_keyer(void)
 		cw_key_ik_get_paddles(key, &dot_paddle, &dash_paddle);
 		bool failure = !dot_paddle || !dash_paddle;
 
-		//failure ? stats->failures++ : stats->successes++;
+		failure ? stats->failures++ : stats->successes++;
 		int n = fprintf(out_file, "libcw:key: cw_key_ik_get_paddles():");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
@@ -1685,19 +1642,12 @@ unsigned int test_keyer(void)
 	{
 		bool failure = !cw_key_ik_notify_paddle_event(key, false, false);
 
-		//failure ? stats->failures++ : stats->successes++;
+		failure ? stats->failures++ : stats->successes++;
 		int n = fprintf(out_file, "libcw:key: cw_key_ik_notify_paddle_event(false, false):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
 	cw_key_ik_wait_for_keyer(key);
-
-	sleep(1);
-	cw_key_delete(&key);
-	sleep(1);
-	cw_gen_stop(gen);
-	sleep(1);
-	cw_gen_delete(&gen);
 
 	p = fprintf(out_file, "libcw:key: iambic keyer operation:");
 	CW_TEST_PRINT_TEST_RESULT(false, p);
@@ -1715,19 +1665,10 @@ unsigned int test_keyer(void)
    tests::cw_key_sk_get_state()
    tests::cw_key_sk_is_busy()
 */
-unsigned int test_straight_key(void)
+unsigned int test_straight_key(cw_key_t * key, cw_test_stats_t * stats)
 {
 	int p = fprintf(out_file, "libcw:key: straight key operation:\n");
 	fflush(out_file);
-
-	cw_gen_t * gen = NULL;
-	cw_key_t * key = NULL;
-	if (!test_setup(&gen, &key, CW_AUDIO_ALSA)) {
-		p = fprintf(out_file, "libcw:key: iambic keyer operation:");
-		CW_TEST_PRINT_TEST_RESULT(true, p);
-		fflush(out_file);
-		return -1;
-	}
 
 	{
 		bool event_failure = false;
@@ -1754,15 +1695,15 @@ unsigned int test_straight_key(void)
 			}
 		}
 
-		//event_failure ? stats->failures++ : stats->successes++;
+		event_failure ? stats->failures++ : stats->successes++;
 		int n = fprintf(out_file, "libcw:key: cw_key_sk_notify_event(<key open>):");
 		CW_TEST_PRINT_TEST_RESULT (event_failure, n);
 
-		//state_failure ? stats->failures++ : stats->successes++;
+		state_failure ? stats->failures++ : stats->successes++;
 		n = fprintf(out_file, "libcw:key: cw_key_sk_get_state():");
 		CW_TEST_PRINT_TEST_RESULT (state_failure, n);
 
-		//busy_failure ? stats->failures++ : stats->successes++;
+		busy_failure ? stats->failures++ : stats->successes++;
 		n = fprintf(out_file, "libcw:key: cw_straight_key_busy():");
 		CW_TEST_PRINT_TEST_RESULT (busy_failure, n);
 	}
@@ -1794,15 +1735,15 @@ unsigned int test_straight_key(void)
 		}
 
 
-		//event_failure ? stats->failures++ : stats->successes++;
+		event_failure ? stats->failures++ : stats->successes++;
 		int n = fprintf(out_file, "libcw:key: cw_key_sk_notify_event(<key closed>):");
 		CW_TEST_PRINT_TEST_RESULT (event_failure, n);
 
-		//state_failure ? stats->failures++ : stats->successes++;
+		state_failure ? stats->failures++ : stats->successes++;
 		n = fprintf(out_file, "libcw:key: cw_key_sk_get_state():");
 		CW_TEST_PRINT_TEST_RESULT (state_failure, n);
 
-		//busy_failure ? stats->failures++ : stats->successes++;
+		busy_failure ? stats->failures++ : stats->successes++;
 		n = fprintf(out_file, "libcw:key: cw_straight_key_busy():");
 		CW_TEST_PRINT_TEST_RESULT (busy_failure, n);
 	}
@@ -1823,7 +1764,7 @@ unsigned int test_straight_key(void)
 			}
 		}
 
-		//event_failure ? stats->failures++ : stats->successes++;
+		event_failure ? stats->failures++ : stats->successes++;
 		int n = fprintf(out_file, "libcw:key: cw_key_sk_notify_event(<key open>):");
 		CW_TEST_PRINT_TEST_RESULT (event_failure, n);
 
@@ -1832,17 +1773,10 @@ unsigned int test_straight_key(void)
 		int state = cw_key_sk_get_state(key);
 		state_failure = state != CW_KEY_STATE_OPEN;
 
-		//state_failure ? stats->failures++ : stats->successes++;
+		state_failure ? stats->failures++ : stats->successes++;
 		n = fprintf(out_file, "libcw:key: cw_key_sk_get_state():");
 		CW_TEST_PRINT_TEST_RESULT (state_failure, n);
 	}
-
-	sleep(20);
-	cw_key_delete(&key);
-	sleep(1);
-	cw_gen_stop(gen);
-	sleep(1);
-	cw_gen_delete(&gen);
 
 	p = fprintf(out_file, "libcw:key: straight key operation:");
 	CW_TEST_PRINT_TEST_RESULT(false, p);
