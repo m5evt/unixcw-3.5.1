@@ -17,6 +17,7 @@
   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
+#include "config.h"
 
 #if defined(HAVE_STRING_H)
 # include <string.h>
@@ -29,6 +30,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h> /* gettimeofday() */
+#include <signal.h>
+#include <ctype.h>
+#include <limits.h>
+#include <unistd.h>
+#include <errno.h>
+#include <getopt.h>
+#include <assert.h>
 
 #include "libcw2.h"
 
@@ -43,7 +51,13 @@
 #include "libcw_null.h"
 #include "libcw_console.h"
 #include "libcw_oss.h"
+
 #include "libcw_test.h"
+
+
+
+
+#define _XOPEN_SOURCE 600 /* signaction() + SA_RESTART */
 
 
 
@@ -60,10 +74,12 @@ static cw_test_stats_t cw_stats_alsa    = { .successes = 0, .failures = 0 };
 static cw_test_stats_t cw_stats_pa      = { .successes = 0, .failures = 0 };
 
 
-
+static void cw_test_print_stats(void);
 static int cw_test_dependent_with(int audio_system, const char *modules, cw_test_stats_t *stats);
 static int cw_test_dependent(const char *audio_systems, const char *modules);
 static void cw_test_setup(cw_gen_t *gen);
+static void signal_handler(int signal_number);
+static void register_signal_handler(void);
 
 
 /* This variable will be used in "forever" test. This test function
@@ -206,14 +222,54 @@ static cw_key_test_function_t cw_unit_tests_key[] = {
 
 
 
-int main(void)
+
+/**
+   \return EXIT_SUCCESS if all tests complete successfully,
+   \return EXIT_FAILURE otherwise
+*/
+int main(int argc, char *const argv[])
 {
 	fprintf(stderr, "libcw unit tests\n\n");
 
+	int rv = 0;
 
-	struct timeval tv;
-	gettimeofday(&tv, NULL);
-	srand((int) tv.tv_usec);
+	//cw_debug_set_flags(&cw_debug_object_dev, CW_DEBUG_RECEIVE_STATES | CW_DEBUG_TONE_QUEUE | CW_DEBUG_GENERATOR | CW_DEBUG_KEYING);
+	//cw_debug_object_dev.level = CW_DEBUG_DEBUG;
+
+	unsigned int testset = 0;
+
+	struct timeval seed;
+	gettimeofday(&seed, NULL);
+	// fprintf(stderr, "seed: %d\n", (int) seed.tv_usec);
+	srand(seed.tv_usec);
+
+	/* Obtain a bitmask of the tests to run from the command line
+	   arguments. If none, then default to ~0, which effectively
+	   requests all tests. */
+	if (argc > 1) {
+		testset = 0;
+		for (int arg = 1; arg < argc; arg++) {
+			unsigned int test = strtoul(argv[arg], NULL, 0);
+			testset |= 1 << test;
+		}
+	} else {
+		testset = ~0;
+	}
+
+#define CW_SYSTEMS_MAX 5
+	char sound_systems[CW_SYSTEMS_MAX + 1];
+#define CW_MODULES_MAX 3  /* g, t, k */
+	char modules[CW_MODULES_MAX + 1];
+	modules[0] = '\0';
+
+	if (!cw_test_args(argc, argv, sound_systems, CW_SYSTEMS_MAX, modules, CW_MODULES_MAX)) {
+		cw_test_print_help(argv[0]);
+		exit(EXIT_FAILURE);
+	}
+
+
+	atexit(cw_test_print_stats);
+	register_signal_handler();
 
 	//cw_debug_set_flags(&cw_debug_object, CW_DEBUG_RECEIVE_STATES);
 	//cw_debug_object.level = CW_DEBUG_INFO;
@@ -227,15 +283,52 @@ int main(void)
 		i++;
 	}
 
-	cw_test_dependent("a", "kg");
+
+
+
+
+	rv = cw_test_dependent("a", "kg");
 
 	/* "make check" facility requires this message to be
 	   printed on stdout; don't localize it */
 	fprintf(stdout, "\nlibcw: test result: success\n\n");
 
-
-	return 0;
+	return rv == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }
+
+
+
+/* Show the signal caught, and exit. */
+void signal_handler(int signal_number)
+{
+	fprintf(stderr, "\nCaught signal %d, exiting...\n", signal_number);
+	exit(EXIT_SUCCESS);
+}
+
+
+
+
+
+void register_signal_handler(void)
+{
+	/* Set up signal handler to exit on a range of signals. */
+	const int SIGNALS[] = { SIGHUP, SIGINT, SIGQUIT, SIGPIPE, SIGTERM, 0 };
+	for (int i = 0; SIGNALS[i]; i++) {
+
+		struct sigaction action;
+		memset(&action, 0, sizeof(action));
+		action.sa_handler = signal_handler;
+		action.sa_flags = 0;
+		int rv = sigaction(SIGNALS[i], &action, (struct sigaction *) NULL);
+		if (rv == -1) {
+			fprintf(stderr, "can't register signal: %s\n", strerror(errno));
+			exit(EXIT_FAILURE);
+		}
+	}
+
+	return;
+}
+
 
 
 
@@ -476,6 +569,112 @@ void cw_test_print_stats(void)
 	} else {
 		printf("no tests were performed\n");
 	}
+
+	return;
+}
+
+
+
+
+int cw_test_args(int argc, char *const argv[],
+		 char *sound_systems, size_t systems_max,
+		 char *modules, size_t modules_max)
+{
+	strncpy(sound_systems, "ncoap", systems_max);
+	sound_systems[systems_max] = '\0';
+
+	strncpy(modules, "gtko", modules_max);
+	modules[modules_max] = '\0';
+
+	if (argc == 1) {
+		fprintf(stderr, "sound systems = \"%s\"\n", sound_systems);
+		fprintf(stderr, "modules = \"%s\"\n", modules);
+		return CW_SUCCESS;
+	}
+
+	int opt;
+	while ((opt = getopt(argc, argv, "m:s:")) != -1) {
+		switch (opt) {
+		case 's':
+			{
+				size_t len = strlen(optarg);
+				if (!len || len > systems_max) {
+					return CW_FAILURE;
+				}
+
+				int j = 0;
+				for (size_t i = 0; i < len; i++) {
+					if (optarg[i] != 'n'
+					    && optarg[i] != 'c'
+					    && optarg[i] != 'o'
+					    && optarg[i] != 'a'
+					    && optarg[i] != 'p') {
+
+						return CW_FAILURE;
+					} else {
+						sound_systems[j] = optarg[i];
+						j++;
+					}
+				}
+				sound_systems[j] = '\0';
+			}
+			break;
+		case 'm':
+			{
+				size_t len = strlen(optarg);
+				if (!len || len > modules_max) {
+					return CW_FAILURE;
+				}
+
+				int j = 0;
+				for (size_t i = 0; i < len; i++) {
+					if (optarg[i] != 'g'       /* Generator. */
+					    && optarg[i] != 't'    /* Tone queue. */
+					    && optarg[i] != 'k'    /* Morse key. */
+					    && optarg[i] != 'o') { /* Other. */
+
+						return CW_FAILURE;
+					} else {
+						modules[j] = optarg[i];
+						j++;
+					}
+				}
+				modules[j] = '\0';
+
+			}
+
+			break;
+		default: /* '?' */
+			return CW_FAILURE;
+		}
+	}
+
+	fprintf(stderr, "sound systems = \"%s\"\n", sound_systems);
+	fprintf(stderr, "modules = \"%s\"\n", modules);
+	return CW_SUCCESS;
+}
+
+
+
+
+
+void cw_test_print_help(const char *progname)
+{
+	fprintf(stderr, "Usage: %s [-s <sound systems>] [-m <modules>]\n\n", progname);
+	fprintf(stderr, "       <sound system> is one or more of those:\n");
+	fprintf(stderr, "       n - null\n");
+	fprintf(stderr, "       c - console\n");
+	fprintf(stderr, "       o - OSS\n");
+	fprintf(stderr, "       a - ALSA\n");
+	fprintf(stderr, "       p - PulseAudio\n");
+	fprintf(stderr, "\n");
+	fprintf(stderr, "       <modules> is one or more of those:\n");
+	fprintf(stderr, "       g - generator\n");
+	fprintf(stderr, "       t - tone queue\n");
+	fprintf(stderr, "       k - Morse key\n");
+	fprintf(stderr, "       o - other\n");
+	fprintf(stderr, "\n");
+	fprintf(stderr, "       If no argument is provided, the program will attempt to test all audio systems and all modules\n");
 
 	return;
 }
