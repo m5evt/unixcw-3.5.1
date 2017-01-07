@@ -19,10 +19,10 @@
 -include $(top_builddir)/Makefile.inc
 
 # targets to be built in this directory
-check_PROGRAMS=libcw_test_public libcw_test_simple_gen libcw_test_tq_short_space
+check_PROGRAMS=libcw_test_simple_gen libcw_test_tq_short_space
 
 
-EXTRA_DIST=libcw_test_public.c libcw_test_simple_gen.c libcw_test_tq_short_space.c \
+EXTRA_DIST=libcw_test_simple_gen.c libcw_test_tq_short_space.c \
 	libcw_test.c libcw_test.h
 
 
@@ -33,26 +33,6 @@ EXTRA_DIST=libcw_test_public.c libcw_test_simple_gen.c libcw_test_tq_short_space
 check_LIBRARIES = libcw_check.a
 libcw_check_a_SOURCES = libcw_test.c
 libcw_check_a_CPPFLAGS = $(AM_CPPFLAGS)
-
-
-
-
-
-# target: libcw_test_public: a test program testing only public API of libcw library;
-# main() is defined in libcw_test_public.c
-# Source code files used to build libcw_test_public program.
-# This test tests library's public API, so the target should depend on
-# a regular shared library file found in build directory. It shouldn't
-# compile all *.c files that are used to create library, it should
-# compile only test files and "link" them with this library file.
-libcw_test_public_SOURCES = libcw_test_public.c
-
-# target-specific preprocessor flags (#defs and include dirs)
-libcw_test_public_CPPFLAGS = $(AM_CPPFLAGS)
-
-# target-specific linker flags (objects to link)
-libcw_test_public_LDADD = -lm -lpthread $(DL_LIB) libcw_check.a -L../.libs -lcw
-
 
 
 
