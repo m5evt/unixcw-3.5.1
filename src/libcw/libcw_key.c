@@ -1479,13 +1479,7 @@ void cw_key_delete(cw_key_t **key)
 
 #ifdef LIBCW_UNIT_TESTS
 
-
 #include "libcw_test.h"
-
-
-
-
-int test_setup(cw_gen_t ** gen, cw_key_t ** key, int audio_system);
 
 
 
@@ -1669,21 +1663,19 @@ unsigned int test_straight_key(cw_key_t * key, cw_test_stats_t * stats)
 	int p = fprintf(out_file, "libcw:key: straight key operation:\n");
 	fflush(out_file);
 
+	/* See what happens when we tell the library N times in a row that key is open. */
 	{
 		bool event_failure = false;
 		bool state_failure = false;
 		bool busy_failure = false;
 
-		/* Not sure why, but we have N calls informing the
-		   library that the key is not pressed.  TODO: why we
-		   have N identical calls in a row? */
 		for (int i = 0; i < 10; i++) {
-			if (!cw_key_sk_notify_event(key, CW_KEY_STATE_OPEN)) {
+			if (CW_SUCCESS != cw_key_sk_notify_event(key, CW_KEY_STATE_OPEN)) {
 				event_failure = true;
 				break;
 			}
 
-			if (cw_key_sk_get_state(key)) {
+			if (CW_KEY_STATE_OPEN != cw_key_sk_get_state(key)) {
 				state_failure = true;
 				break;
 			}
@@ -1699,16 +1691,17 @@ unsigned int test_straight_key(cw_key_t * key, cw_test_stats_t * stats)
 		CW_TEST_PRINT_TEST_RESULT (event_failure, n);
 
 		state_failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:key: cw_key_sk_get_state():");
+		n = fprintf(out_file, "libcw:key: cw_key_sk_get_state(<key open>):");
 		CW_TEST_PRINT_TEST_RESULT (state_failure, n);
 
 		busy_failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:key: cw_straight_key_busy():");
+		n = fprintf(out_file, "libcw:key: cw_straight_key_busy(<key open>):");
 		CW_TEST_PRINT_TEST_RESULT (busy_failure, n);
 	}
 
 
 
+	/* See what happens when we tell the library N times in a row that key is closed. */
 	{
 		bool event_failure = false;
 		bool state_failure = false;
@@ -1717,12 +1710,12 @@ unsigned int test_straight_key(cw_key_t * key, cw_test_stats_t * stats)
 		/* Again not sure why we have N identical calls in a
 		   row. TODO: why? */
 		for (int i = 0; i < 10; i++) {
-			if (!cw_key_sk_notify_event(key, CW_KEY_STATE_CLOSED)) {
+			if (CW_SUCCESS != cw_key_sk_notify_event(key, CW_KEY_STATE_CLOSED)) {
 				event_failure = true;
 				break;
 			}
 
-			if (!cw_key_sk_get_state(key)) {
+			if (CW_KEY_STATE_CLOSED != cw_key_sk_get_state(key)) {
 				state_failure = true;
 				break;
 			}
@@ -1739,43 +1732,98 @@ unsigned int test_straight_key(cw_key_t * key, cw_test_stats_t * stats)
 		CW_TEST_PRINT_TEST_RESULT (event_failure, n);
 
 		state_failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:key: cw_key_sk_get_state():");
+		n = fprintf(out_file, "libcw:key: cw_key_sk_get_state(<key closed>):");
 		CW_TEST_PRINT_TEST_RESULT (state_failure, n);
 
 		busy_failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:key: cw_straight_key_busy():");
+		n = fprintf(out_file, "libcw:key: cw_straight_key_busy(<key closed>):");
 		CW_TEST_PRINT_TEST_RESULT (busy_failure, n);
 	}
 
-
-	sleep(1);
 
 
 	{
 		bool event_failure = false;
 		bool state_failure = false;
+		bool busy_failure = false;
 
-		/* Even more identical calls. TODO: why? */
-		for (int i = 0; i < 10; i++) {
-			if (!cw_key_sk_notify_event(key, CW_KEY_STATE_OPEN)) {
+		struct timespec t;
+		int usecs = CW_USECS_PER_SEC;
+		cw_usecs_to_timespec_internal(&t, usecs);
+
+
+		/* Alternate between open and closed. */
+		for (int i = 0; i < 5; i++) {
+			if (CW_SUCCESS != cw_key_sk_notify_event(key, CW_KEY_STATE_OPEN)) {
 				event_failure = true;
 				break;
 			}
+
+			if (CW_KEY_STATE_OPEN != cw_key_sk_get_state(key)) {
+				state_failure = true;
+				break;
+			}
+
+			if (cw_key_sk_is_busy(key)) {
+				busy_failure = true;
+				break;
+			}
+
+			fprintf(out_file, "%d", CW_KEY_STATE_OPEN);
+			fflush(out_file);
+#ifdef __FreeBSD__
+			/* There is a problem with nanosleep() and
+			   signals on FreeBSD. */
+			sleep(1);
+#else
+			cw_nanosleep_internal(&t);
+#endif
+
+			if (CW_SUCCESS != cw_key_sk_notify_event(key, CW_KEY_STATE_CLOSED)) {
+				event_failure = true;
+				break;
+			}
+
+			if (CW_KEY_STATE_CLOSED != cw_key_sk_get_state(key)) {
+				state_failure = true;
+				break;
+			}
+
+			if (!cw_key_sk_is_busy(key)) {
+				busy_failure = true;
+				break;
+			}
+
+			fprintf(out_file, "%d", CW_KEY_STATE_CLOSED);
+			fflush(stdout);
+#ifdef __FreeBSD__
+			/* There is a problem with nanosleep() and
+			   signals on FreeBSD. */
+			sleep(1);
+#else
+			cw_nanosleep_internal(&t);
+#endif
 		}
 
+		/* Whatever happens, don't leave the key closed. */
+		cw_key_sk_notify_event(key, CW_KEY_STATE_OPEN);
+
+		fprintf(out_file, "\n");
+		fflush(out_file);
+
 		event_failure ? stats->failures++ : stats->successes++;
-		int n = fprintf(out_file, "libcw:key: cw_key_sk_notify_event(<key open>):");
+		int n = fprintf(out_file, "libcw: cw_key_sk_notify_event(<key open/closed>):");
 		CW_TEST_PRINT_TEST_RESULT (event_failure, n);
 
-
-		/* The key should be open, the function should return false. */
-		int state = cw_key_sk_get_state(key);
-		state_failure = state != CW_KEY_STATE_OPEN;
-
 		state_failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:key: cw_key_sk_get_state():");
+		n = fprintf(out_file, "libcw: cw_key_sk_get_state(<key open/closed>):");
 		CW_TEST_PRINT_TEST_RESULT (state_failure, n);
+
+		busy_failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw: cw_straight_key_busy(<key open/closed>):");
+		CW_TEST_PRINT_TEST_RESULT (busy_failure, n);
 	}
+
 
 	p = fprintf(out_file, "libcw:key: straight key operation:");
 	CW_TEST_PRINT_TEST_RESULT(false, p);

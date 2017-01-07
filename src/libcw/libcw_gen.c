@@ -3763,9 +3763,6 @@ unsigned int test_cw_gen_representations(cw_gen_t * gen, cw_test_stats_t * stats
 */
 unsigned int test_cw_gen_send_character_and_string(cw_gen_t * gen, cw_test_stats_t * stats)
 {
-	int p = fprintf(out_file, "libcw:gen: send character and string:");
-	fflush(out_file);
-
 	/* Test: sending all supported characters as individual characters. */
 	{
 		char charlist[UCHAR_MAX + 1];
@@ -3773,11 +3770,11 @@ unsigned int test_cw_gen_send_character_and_string(cw_gen_t * gen, cw_test_stats
 
 		/* Send all the characters from the charlist individually. */
 		cw_list_characters(charlist);
-		printf("libcw: cw_send_character(<valid>):\n"
-		       "libcw:     ");
+		fprintf(out_file, "libcw:gen: cw_enqueue_character(<valid>):\n"
+			"libcw:gen:     ");
 		for (int i = 0; charlist[i] != '\0'; i++) {
-			putchar(charlist[i]);
-			fflush(stdout);
+			fprintf(out_file, "%c", charlist[i]);
+			fflush(out_file);
 			if (!cw_gen_enqueue_character(gen, charlist[i])) {
 				failure = true;
 				break;
@@ -3785,10 +3782,10 @@ unsigned int test_cw_gen_send_character_and_string(cw_gen_t * gen, cw_test_stats
 			cw_gen_wait_for_queue_level(gen, 0);
 		}
 
-		putchar('\n');
+		fprintf(out_file, "\n");
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_gen_enqueue_character(<valid>):");
+		int n = fprintf(out_file,"libcw:gen: cw_gen_enqueue_character(<valid>):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -3797,7 +3794,7 @@ unsigned int test_cw_gen_send_character_and_string(cw_gen_t * gen, cw_test_stats
 	/* Test: sending invalid character. */
 	{
 		bool failure = cw_gen_enqueue_character(gen, 0);
-		int n = printf("libcw: cw_gen_enqueue_character(<invalid>):");
+		int n = fprintf(out_file, "libcw:gen: cw_gen_enqueue_character(<invalid>):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -3809,20 +3806,20 @@ unsigned int test_cw_gen_send_character_and_string(cw_gen_t * gen, cw_test_stats
 		cw_list_characters(charlist);
 
 		/* Send the complete charlist as a single string. */
-		printf("libcw: cw_gen_enqueue_string(<valid>):\n"
-		       "libcw:     %s\n", charlist);
+		fprintf(out_file, "libcw:gen: cw_gen_enqueue_string(<valid>):\n"
+			"libcw:gen:     %s\n", charlist);
 		bool failure = !cw_gen_enqueue_string(gen, charlist);
 
 		while (cw_gen_get_queue_length(gen) > 0) {
-			printf("libcw: tone queue length %-6zu\r", cw_gen_get_queue_length(gen));
-			fflush(stdout);
+			fprintf(out_file, "libcw:gen: tone queue length %-6zu\r", cw_gen_get_queue_length(gen));
+			fflush(out_file);
 			cw_gen_wait_for_tone(gen);
 		}
-		printf("libcw: tone queue length %-6zu\n", cw_gen_get_queue_length(gen));
+		fprintf(out_file, "libcw:gen tone queue length %-6zu\n", cw_gen_get_queue_length(gen));
 		cw_gen_wait_for_queue_level(gen, 0);
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_gen_enqueue_string(<valid>):");
+		int n = fprintf(out_file, "libcw:gen: cw_gen_enqueue_string(<valid>):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -3830,12 +3827,9 @@ unsigned int test_cw_gen_send_character_and_string(cw_gen_t * gen, cw_test_stats
 	/* Test: sending invalid string. */
 	{
 		bool failure = cw_gen_enqueue_string(gen, "%INVALID%");
-		int n = printf("libcw: cw_gen_enqueue_string(<invalid>):");
+		int n = fprintf(out_file, "libcw:gen: cw_gen_enqueue_string(<invalid>):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
-
-
-	CW_TEST_PRINT_TEST_RESULT(false, p);
 
 	return 0;
 }
