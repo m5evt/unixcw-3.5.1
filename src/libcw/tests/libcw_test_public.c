@@ -116,9 +116,6 @@ static void test_send_primitives(cw_test_stats_t *stats);
 static void test_representations(cw_test_stats_t *stats);
 #endif
 static void test_send_character_and_string(cw_gen_t *gen, cw_test_stats_t *stats);
-/* Morse key module. */
-static void test_keyer(cw_key_t *key, cw_test_stats_t *stats);
-static void test_straight_key(cw_key_t *key, cw_test_stats_t *stats);
 
 
 
@@ -991,300 +988,6 @@ void test_send_character_and_string(cw_gen_t *gen, cw_test_stats_t *stats)
 
 
 
-
-/**
-   tests::cw_key_ik_notify_paddle_event()
-   tests::cw_key_ik_wait_for_element()
-   tests::cw_key_ik_get_paddles()
-*/
-void test_keyer(cw_key_t *key, cw_test_stats_t *stats)
-{
-	printf("libcw: %s():\n", __func__);
-
-	/* Perform some tests on the iambic keyer.  The latch finer
-	   timing points are not tested here, just the basics - dots,
-	   dashes, and alternating dots and dashes. */
-
-	int dot_paddle, dash_paddle;
-
-	/* Test: keying dot. */
-	{
-		/* Seems like this function calls means "keyer pressed
-		   until further notice". First argument is true, so
-		   this is a dot. */
-		bool failure = !cw_key_ik_notify_paddle_event(key, true, false);
-
-		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_key_ik_notify_paddle_event(key, true, false):");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-
-
-
-		bool success = true;
-		/* Since a "dot" paddle is pressed, get 30 "dot"
-		   events from the keyer. */
-		printf("libcw: testing iambic keyer dots   ");
-		fflush(stdout);
-		for (int i = 0; i < 30; i++) {
-			success = success && cw_key_ik_wait_for_element(key);
-			putchar('.');
-			fflush(stdout);
-		}
-		putchar('\n');
-
-		!success ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_key_ik_wait_for_element():");
-		CW_TEST_PRINT_TEST_RESULT (!success, n);
-	}
-
-
-
-	/* Test: preserving of paddle states. */
-	{
-		cw_key_ik_get_paddles(key, &dot_paddle, &dash_paddle);
-		bool failure = !dot_paddle || dash_paddle;
-
-		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_keyer_get_keyer_paddles():");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-	}
-
-
-
-	/* Test: keying dash. */
-	{
-		/* As above, it seems like this function calls means
-		   "keyer pressed until further notice". Second
-		   argument is true, so this is a dash. */
-
-		bool failure = !cw_key_ik_notify_paddle_event(key, false, true);
-
-		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_key_ik_notify_paddle_event(key, false, true):");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-
-
-
-		bool success = true;
-		/* Since a "dash" paddle is pressed, get 30 "dash"
-		   events from the keyer. */
-		printf("libcw: testing iambic keyer dashes ");
-		fflush(stdout);
-		for (int i = 0; i < 30; i++) {
-			success = success && cw_key_ik_wait_for_element(key);
-			putchar('-');
-			fflush(stdout);
-		}
-		putchar('\n');
-
-		!success ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_key_ik_wait_for_element():");
-		CW_TEST_PRINT_TEST_RESULT (!success, n);
-	}
-
-
-
-	/* Test: preserving of paddle states. */
-	{
-		cw_key_ik_get_paddles(key, &dot_paddle, &dash_paddle);
-		bool failure = dot_paddle || !dash_paddle;
-
-		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_key_ik_get_paddles():");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-	}
-
-
-
-	/* Test: keying alternate dit/dash. */
-	{
-		/* As above, it seems like this function calls means
-		   "keyer pressed until further notice". Both
-		   arguments are true, so both paddles are pressed at
-		   the same time.*/
-		bool failure = !cw_key_ik_notify_paddle_event(key, true, true);
-
-		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_key_ik_notify_paddle_event(true, true):");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-
-
-		bool success = true;
-		printf("libcw: testing iambic alternating  ");
-		fflush(stdout);
-		for (int i = 0; i < 30; i++) {
-			success = success && cw_key_ik_wait_for_element(key);
-			putchar('#');
-			fflush(stdout);
-		}
-		putchar('\n');
-
-		!success ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_key_ik_wait_for_element:");
-		CW_TEST_PRINT_TEST_RESULT (!success, n);
-	}
-
-
-
-	/* Test: preserving of paddle states. */
-	{
-		cw_key_ik_get_paddles(key, &dot_paddle, &dash_paddle);
-		bool failure = !dot_paddle || !dash_paddle;
-
-		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_key_ik_get_paddles():");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-	}
-
-
-
-	/* Test: set new state of paddles: no paddle pressed. */
-	{
-		bool failure = !cw_key_ik_notify_paddle_event(key, false, false);
-
-		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_key_ik_notify_paddle_event(false, false):");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-	}
-
-	cw_key_ik_wait_for_keyer(key);
-
-
-	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
-
-	return;
-}
-
-
-
-
-
-/**
-   tests::cw_key_sk_notify_event()
-   tests::cw_key_sk_get_state()
-   tests::cw_key_sk_is_busy()
-*/
-void test_straight_key(cw_key_t *key, cw_test_stats_t *stats)
-{
-	printf("libcw: %s():\n", __func__);
-
-	{
-		bool event_failure = false;
-		bool state_failure = false;
-		bool busy_failure = false;
-
-		/* Not sure why, but we have N calls informing the
-		   library that the key is not pressed.  TODO: why we
-		   have N identical calls in a row? */
-		for (int i = 0; i < 10; i++) {
-			if (!cw_key_sk_notify_event(key, CW_KEY_STATE_OPEN)) {
-				event_failure = true;
-				break;
-			}
-
-			if (cw_key_sk_get_state(key)) {
-				state_failure = true;
-				break;
-			}
-
-			if (cw_key_sk_is_busy(key)) {
-				busy_failure = true;
-				break;
-			}
-		}
-
-		event_failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_key_sk_notify_event(<key open>):");
-		CW_TEST_PRINT_TEST_RESULT (event_failure, n);
-
-		state_failure ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_key_sk_get_state():");
-		CW_TEST_PRINT_TEST_RESULT (state_failure, n);
-
-		busy_failure ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_straight_key_busy():");
-		CW_TEST_PRINT_TEST_RESULT (busy_failure, n);
-	}
-
-
-
-	{
-		bool event_failure = false;
-		bool state_failure = false;
-		bool busy_failure = false;
-
-		/* Again not sure why we have N identical calls in a
-		   row. TODO: why? */
-		for (int i = 0; i < 10; i++) {
-			if (!cw_key_sk_notify_event(key, CW_KEY_STATE_CLOSED)) {
-				event_failure = true;
-				break;
-			}
-
-			if (!cw_key_sk_get_state(key)) {
-				state_failure = true;
-				break;
-			}
-
-			if (!cw_key_sk_is_busy(key)) {
-				busy_failure = true;
-				break;
-			}
-		}
-
-
-		event_failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_key_sk_notify_event(<key closed>):");
-		CW_TEST_PRINT_TEST_RESULT (event_failure, n);
-
-		state_failure ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_key_sk_get_state():");
-		CW_TEST_PRINT_TEST_RESULT (state_failure, n);
-
-		busy_failure ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_straight_key_busy():");
-		CW_TEST_PRINT_TEST_RESULT (busy_failure, n);
-	}
-
-
-	sleep(1);
-
-
-	{
-		bool event_failure = false;
-		bool state_failure = false;
-
-		/* Even more identical calls. TODO: why? */
-		for (int i = 0; i < 10; i++) {
-			if (!cw_key_sk_notify_event(key, CW_KEY_STATE_OPEN)) {
-				event_failure = true;
-				break;
-			}
-		}
-
-		event_failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_key_sk_notify_event(<key open>):");
-		CW_TEST_PRINT_TEST_RESULT (event_failure, n);
-
-
-		/* The key should be open, the function should return false. */
-		int state = cw_key_sk_get_state(key);
-		state_failure = state != CW_KEY_STATE_OPEN;
-
-		state_failure ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_key_sk_get_state():");
-		CW_TEST_PRINT_TEST_RESULT (state_failure, n);
-	}
-
-
-	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
-
-	return;
-}
-
-
-
-
 /*---------------------------------------------------------------------*/
 /*  Unit tests drivers                                                 */
 /*---------------------------------------------------------------------*/
@@ -1349,17 +1052,6 @@ static void (*const CW_TEST_FUNCTIONS_DEP_G[])(cw_gen_t *, cw_test_stats_t *) = 
 };
 
 
-/* Tests that are dependent on a sound system being configured.
-   Morse key module functions */
-static void (*const CW_TEST_FUNCTIONS_DEP_K[])(cw_key_t *key, cw_test_stats_t *) = {
-	test_keyer,
-	test_straight_key,
-
-	NULL
-};
-
-
-
 
 
 /**
@@ -1417,13 +1109,14 @@ int cw_test_dependent_with(int audio_system, const char *modules, cw_test_stats_
 		}
 	}
 
-
+#if 0
 	if (strstr(modules, "k")) {
 		for (int test = 0; CW_TEST_FUNCTIONS_DEP_K[test]; test++) {
 			cw_test_setup(gen);
 	                (*CW_TEST_FUNCTIONS_DEP_K[test])(key, stats);
 		}
 	}
+#endif
 
 
 	sleep(1);

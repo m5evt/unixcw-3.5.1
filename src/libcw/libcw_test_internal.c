@@ -38,6 +38,7 @@
 #include "libcw_data.h"
 #include "libcw_tq.h"
 #include "libcw_utils.h"
+#include "libcw_key.h"
 
 #include "libcw_null.h"
 #include "libcw_console.h"
@@ -133,6 +134,9 @@ static cw_test_function_t cw_unit_tests[] = {
 	/* cw_debug module */
 	test_cw_debug_flags_internal,
 
+	/* 'key' module. */
+	test_keyer,
+	test_straight_key,
 
 	NULL
 };

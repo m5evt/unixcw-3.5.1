@@ -9,15 +9,12 @@
 
 
 
-
 #include <stdbool.h>
 
 
 
 
-
 #include "libcw2.h"
-
 
 
 
@@ -32,6 +29,15 @@ void cw_key_ik_reset_internal(cw_key_t *key);
 
 void cw_key_sk_reset_internal(cw_key_t *key);
 
+
+
+
+#ifdef LIBCW_UNIT_TESTS
+
+unsigned int test_keyer(void);
+unsigned int test_straight_key(void);
+
+#endif /* #ifdef LIBCW_UNIT_TESTS */
 
 
 

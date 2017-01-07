@@ -1468,3 +1468,390 @@ void cw_key_delete(cw_key_t **key)
 
 	return;
 }
+
+
+
+
+/* *** Unit tests *** */
+
+
+
+
+#ifdef LIBCW_UNIT_TESTS
+
+
+#include "libcw_test.h"
+#define out_file stdout
+
+
+
+
+int test_setup(cw_gen_t ** gen, cw_key_t ** key, int audio_system);
+
+
+
+
+int test_setup(cw_gen_t ** gen, cw_key_t ** key, int audio_system)
+{
+	*gen = cw_gen_new(audio_system, NULL);
+	if (!*gen) {
+		fprintf(stderr, "libcw: can't create generator, stopping the test\n");
+		return CW_FAILURE;
+	}
+
+	*key = cw_key_new();
+	if (!*key) {
+		fprintf(stderr, "libcw: can't create key, stopping the test\n");
+		return CW_FAILURE;
+	}
+	cw_key_register_generator(*key, *gen);
+
+	int rv = cw_gen_start(*gen);
+	if (rv != 1) {
+		fprintf(stderr, "libcw: can't start generator, stopping the test\n");
+		cw_gen_delete(gen);
+		return CW_FAILURE;
+	}
+
+	cw_gen_reset_parameters_internal(*gen);
+	/* Reset requires resynchronization. */
+	cw_gen_sync_parameters_internal(*gen);
+	cw_gen_set_speed(*gen, 30);
+	errno = 0;
+
+	return CW_SUCCESS;
+}
+
+
+
+
+/**
+   tests::cw_key_ik_notify_paddle_event()
+   tests::cw_key_ik_wait_for_element()
+   tests::cw_key_ik_get_paddles()
+*/
+unsigned int test_keyer(void)
+{
+	int p = fprintf(out_file, "libcw:key: iambic keyer operation:\n");
+	fflush(out_file);
+
+	/* Perform some tests on the iambic keyer.  The latch finer
+	   timing points are not tested here, just the basics - dots,
+	   dashes, and alternating dots and dashes. */
+
+	cw_gen_t * gen = NULL;
+	cw_key_t * key = NULL;
+	if (!test_setup(&gen, &key, CW_AUDIO_ALSA)) {
+		p = fprintf(out_file, "libcw:key: iambic keyer operation:");
+		CW_TEST_PRINT_TEST_RESULT(true, p);
+		fflush(out_file);
+		return -1;
+	}
+
+	int dot_paddle, dash_paddle;
+
+	/* Test: keying dot. */
+	{
+		/* Seems like this function calls means "keyer pressed
+		   until further notice". First argument is true, so
+		   this is a dot. */
+		bool failure = !cw_key_ik_notify_paddle_event(key, true, false);
+
+		//failure ? stats->failures++ : stats->successes++;
+		int n = fprintf(out_file, "libcw:key: cw_key_ik_notify_paddle_event(key, true, false):");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+
+
+
+		bool success = true;
+		/* Since a "dot" paddle is pressed, get 30 "dot"
+		   events from the keyer. */
+		fprintf(out_file, "libcw:key: testing iambic keyer dots   ");
+		fflush(out_file);
+		for (int i = 0; i < 30; i++) {
+			success = success && cw_key_ik_wait_for_element(key);
+			putchar('.');
+			fflush(out_file);
+		}
+		putchar('\n');
+
+		//!success ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:key: cw_key_ik_wait_for_element():");
+		CW_TEST_PRINT_TEST_RESULT (!success, n);
+	}
+
+
+
+	/* Test: preserving of paddle states. */
+	{
+		cw_key_ik_get_paddles(key, &dot_paddle, &dash_paddle);
+		bool failure = !dot_paddle || dash_paddle;
+
+		//failure ? stats->failures++ : stats->successes++;
+		int n = fprintf(out_file, "libcw:key: cw_keyer_get_keyer_paddles():");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+	}
+
+
+
+	/* Test: keying dash. */
+	{
+		/* As above, it seems like this function calls means
+		   "keyer pressed until further notice". Second
+		   argument is true, so this is a dash. */
+
+		bool failure = !cw_key_ik_notify_paddle_event(key, false, true);
+
+		//failure ? stats->failures++ : stats->successes++;
+		int n = fprintf(out_file, "libcw:key: cw_key_ik_notify_paddle_event(key, false, true):");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+
+
+
+		bool success = true;
+		/* Since a "dash" paddle is pressed, get 30 "dash"
+		   events from the keyer. */
+		fprintf(out_file, "libcw:key: testing iambic keyer dashes ");
+		fflush(out_file);
+		for (int i = 0; i < 30; i++) {
+			success = success && cw_key_ik_wait_for_element(key);
+			putchar('-');
+			fflush(out_file);
+		}
+		putchar('\n');
+
+		//!success ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:key: cw_key_ik_wait_for_element():");
+		CW_TEST_PRINT_TEST_RESULT (!success, n);
+	}
+
+
+
+	/* Test: preserving of paddle states. */
+	{
+		cw_key_ik_get_paddles(key, &dot_paddle, &dash_paddle);
+		bool failure = dot_paddle || !dash_paddle;
+
+		//failure ? stats->failures++ : stats->successes++;
+		int n = fprintf(out_file, "libcw:key: cw_key_ik_get_paddles():");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+	}
+
+
+
+	/* Test: keying alternate dit/dash. */
+	{
+		/* As above, it seems like this function calls means
+		   "keyer pressed until further notice". Both
+		   arguments are true, so both paddles are pressed at
+		   the same time.*/
+		bool failure = !cw_key_ik_notify_paddle_event(key, true, true);
+
+		//failure ? stats->failures++ : stats->successes++;
+		int n = fprintf(out_file, "libcw:key: cw_key_ik_notify_paddle_event(true, true):");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+
+
+		bool success = true;
+		fprintf(out_file, "libcw:key: testing iambic alternating  ");
+		fflush(out_file);
+		for (int i = 0; i < 30; i++) {
+			success = success && cw_key_ik_wait_for_element(key);
+			putchar('#');
+			fflush(out_file);
+		}
+		putchar('\n');
+
+		//!success ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:key: cw_key_ik_wait_for_element:");
+		CW_TEST_PRINT_TEST_RESULT (!success, n);
+	}
+
+
+
+	/* Test: preserving of paddle states. */
+	{
+		cw_key_ik_get_paddles(key, &dot_paddle, &dash_paddle);
+		bool failure = !dot_paddle || !dash_paddle;
+
+		//failure ? stats->failures++ : stats->successes++;
+		int n = fprintf(out_file, "libcw:key: cw_key_ik_get_paddles():");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+	}
+
+
+
+	/* Test: set new state of paddles: no paddle pressed. */
+	{
+		bool failure = !cw_key_ik_notify_paddle_event(key, false, false);
+
+		//failure ? stats->failures++ : stats->successes++;
+		int n = fprintf(out_file, "libcw:key: cw_key_ik_notify_paddle_event(false, false):");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+	}
+
+	cw_key_ik_wait_for_keyer(key);
+
+	sleep(1);
+	cw_key_delete(&key);
+	sleep(1);
+	cw_gen_stop(gen);
+	sleep(1);
+	cw_gen_delete(&gen);
+
+	p = fprintf(out_file, "libcw:key: iambic keyer operation:");
+	CW_TEST_PRINT_TEST_RESULT(false, p);
+	fflush(out_file);
+
+	return 0;
+}
+
+
+
+
+
+/**
+   tests::cw_key_sk_notify_event()
+   tests::cw_key_sk_get_state()
+   tests::cw_key_sk_is_busy()
+*/
+unsigned int test_straight_key(void)
+{
+	int p = fprintf(out_file, "libcw:key: straight key operation:\n");
+	fflush(out_file);
+
+	cw_gen_t * gen = NULL;
+	cw_key_t * key = NULL;
+	if (!test_setup(&gen, &key, CW_AUDIO_ALSA)) {
+		p = fprintf(out_file, "libcw:key: iambic keyer operation:");
+		CW_TEST_PRINT_TEST_RESULT(true, p);
+		fflush(out_file);
+		return -1;
+	}
+
+	{
+		bool event_failure = false;
+		bool state_failure = false;
+		bool busy_failure = false;
+
+		/* Not sure why, but we have N calls informing the
+		   library that the key is not pressed.  TODO: why we
+		   have N identical calls in a row? */
+		for (int i = 0; i < 10; i++) {
+			if (!cw_key_sk_notify_event(key, CW_KEY_STATE_OPEN)) {
+				event_failure = true;
+				break;
+			}
+
+			if (cw_key_sk_get_state(key)) {
+				state_failure = true;
+				break;
+			}
+
+			if (cw_key_sk_is_busy(key)) {
+				busy_failure = true;
+				break;
+			}
+		}
+
+		//event_failure ? stats->failures++ : stats->successes++;
+		int n = fprintf(out_file, "libcw:key: cw_key_sk_notify_event(<key open>):");
+		CW_TEST_PRINT_TEST_RESULT (event_failure, n);
+
+		//state_failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:key: cw_key_sk_get_state():");
+		CW_TEST_PRINT_TEST_RESULT (state_failure, n);
+
+		//busy_failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:key: cw_straight_key_busy():");
+		CW_TEST_PRINT_TEST_RESULT (busy_failure, n);
+	}
+
+
+
+	{
+		bool event_failure = false;
+		bool state_failure = false;
+		bool busy_failure = false;
+
+		/* Again not sure why we have N identical calls in a
+		   row. TODO: why? */
+		for (int i = 0; i < 10; i++) {
+			if (!cw_key_sk_notify_event(key, CW_KEY_STATE_CLOSED)) {
+				event_failure = true;
+				break;
+			}
+
+			if (!cw_key_sk_get_state(key)) {
+				state_failure = true;
+				break;
+			}
+
+			if (!cw_key_sk_is_busy(key)) {
+				busy_failure = true;
+				break;
+			}
+		}
+
+
+		//event_failure ? stats->failures++ : stats->successes++;
+		int n = fprintf(out_file, "libcw:key: cw_key_sk_notify_event(<key closed>):");
+		CW_TEST_PRINT_TEST_RESULT (event_failure, n);
+
+		//state_failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:key: cw_key_sk_get_state():");
+		CW_TEST_PRINT_TEST_RESULT (state_failure, n);
+
+		//busy_failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:key: cw_straight_key_busy():");
+		CW_TEST_PRINT_TEST_RESULT (busy_failure, n);
+	}
+
+
+	sleep(1);
+
+
+	{
+		bool event_failure = false;
+		bool state_failure = false;
+
+		/* Even more identical calls. TODO: why? */
+		for (int i = 0; i < 10; i++) {
+			if (!cw_key_sk_notify_event(key, CW_KEY_STATE_OPEN)) {
+				event_failure = true;
+				break;
+			}
+		}
+
+		//event_failure ? stats->failures++ : stats->successes++;
+		int n = fprintf(out_file, "libcw:key: cw_key_sk_notify_event(<key open>):");
+		CW_TEST_PRINT_TEST_RESULT (event_failure, n);
+
+
+		/* The key should be open, the function should return false. */
+		int state = cw_key_sk_get_state(key);
+		state_failure = state != CW_KEY_STATE_OPEN;
+
+		//state_failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:key: cw_key_sk_get_state():");
+		CW_TEST_PRINT_TEST_RESULT (state_failure, n);
+	}
+
+	sleep(20);
+	cw_key_delete(&key);
+	sleep(1);
+	cw_gen_stop(gen);
+	sleep(1);
+	cw_gen_delete(&gen);
+
+	p = fprintf(out_file, "libcw:key: straight key operation:");
+	CW_TEST_PRINT_TEST_RESULT(false, p);
+	fflush(out_file);
+
+	return 0;
+}
+
+
+
+
+#endif /* #ifdef LIBCW_UNIT_TESTS */
