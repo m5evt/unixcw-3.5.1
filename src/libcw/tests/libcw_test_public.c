@@ -1305,12 +1305,12 @@ void test_straight_key(cw_test_stats_t *stats)
 
 		/* Alternate between open and closed. */
 		for (int i = 0; i < 5; i++) {
-			if (!cw_notify_straight_key_event(CW_KEY_STATE_OPEN)) {
+			if (CW_SUCCESS != cw_notify_straight_key_event(CW_KEY_STATE_OPEN)) {
 				event_failure = true;
 				break;
 			}
 
-			if (cw_get_straight_key_state()) {
+			if (CW_KEY_STATE_OPEN != cw_get_straight_key_state()) {
 				state_failure = true;
 				break;
 			}
@@ -1330,12 +1330,12 @@ void test_straight_key(cw_test_stats_t *stats)
 			cw_nanosleep_internal(&t);
 #endif
 
-			if (!cw_notify_straight_key_event(CW_KEY_STATE_CLOSED)) {
+			if (CW_SUCCESS != cw_notify_straight_key_event(CW_KEY_STATE_CLOSED)) {
 				event_failure = true;
 				break;
 			}
 
-			if (!cw_get_straight_key_state()) {
+			if (CW_KEY_STATE_CLOSED != cw_get_straight_key_state()) {
 				state_failure = true;
 				break;
 			}
@@ -1355,6 +1355,9 @@ void test_straight_key(cw_test_stats_t *stats)
 			cw_nanosleep_internal(&t);
 #endif
 		}
+
+		/* Whatever happens during tests, keep the key open after the tests. */
+		cw_notify_straight_key_event(CW_KEY_STATE_OPEN);
 
 		printf("\n");
 		fflush(stdout);
