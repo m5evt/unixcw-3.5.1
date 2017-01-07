@@ -59,12 +59,6 @@ class Receiver {
 	/* Mouse button press event handler. */
 	void handle_mouse_event(QMouseEvent *event);
 
-	/* Straight key and iambic keyer event handler
-	   helpers. */
-	void sk_event(bool is_down);
-	void ik_left_event(bool is_down);
-	void ik_right_event(bool is_down);
-
 	/* Clear out queued data on stop, mode change, etc. */
 	void clear();
 
@@ -72,6 +66,22 @@ class Receiver {
 	cw_key_t *key;
 
  private:
+	/* Prevent unwanted operations. */
+	Receiver(const Receiver &);
+	Receiver &operator=(const Receiver &);
+
+	/* Straight key and iambic keyer event handler
+	   helpers. */
+	void sk_event(bool is_down);
+	void ik_left_event(bool is_down);
+	void ik_right_event(bool is_down);
+
+
+	/* Poll methods to extract from libcw's receiver characters and inter-word spaces. */
+	void poll_character();
+	void poll_space();
+
+
 	Application *app;
 	TextArea *textarea;
 
@@ -79,14 +89,6 @@ class Receiver {
 	   signal handler context and needing to be passed to
 	   the foreground. */
 	volatile int libcw_receive_errno;
-
-	/* Poll methods to extract from libcw's receiver characters and inter-word spaces. */
-	void poll_character();
-	void poll_space();
-
-	/* Prevent unwanted operations. */
-	Receiver(const Receiver &);
-	Receiver &operator=(const Receiver &);
 };
 
 

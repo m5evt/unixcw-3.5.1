@@ -66,6 +66,10 @@ class Sender {
 	cw_gen_t *gen;
 
  private:
+	/* Prevent unwanted operations. */
+	Sender(const Sender &);
+	Sender &operator=(const Sender &);
+
 	/* Deque and queue manipulation functions, used to
 	   handle and maintain the buffer of characters
 	   awaiting sending through libcw. */
@@ -80,11 +84,6 @@ class Sender {
 
 	bool is_queue_idle;
 	std::deque<char> queue;
-
-
-	/* Prevent unwanted operations. */
-	Sender(const Sender &);
-	Sender &operator=(const Sender &);
 };
 
 
