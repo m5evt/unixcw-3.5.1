@@ -80,17 +80,27 @@ const QString ABOUT_TEXT = QString("simplecw version ") + PACKAGE_VERSION + "\n"
    everything we need to register to get the application up and
    running.
 */
-Application::Application(cw_config_t *config) :
-	QMainWindow (0)
+Application::Application(cw_config_t *config) :	QMainWindow(0)
 {
-	this->config = config;
 	this->is_running = false;
 
 	textarea = new TextArea(this, this->parentWidget());
 	setCentralWidget(this->textarea);
 
 
-	make_sender_receiver();
+
+	this->sender = new Sender(this, this->textarea, config);
+	this->receiver = new Receiver(this, this->textarea);
+
+	cw_key_register_generator(this->receiver->key, this->sender->gen);
+	cw_key_register_receiver(this->receiver->key, this->receiver->rec);
+
+	this->saved_receive_speed = cw_rec_get_speed(this->receiver->rec);
+
+	/* Create a timer for polling sender and receiver. */
+	this->poll_timer = new QTimer(this);
+	connect(this->poll_timer, SIGNAL (timeout()), SLOT (poll_timer_event()));
+
 
 
 	QMainWindow::setAttribute(Qt::WA_DeleteOnClose, true);
@@ -105,6 +115,7 @@ Application::Application(cw_config_t *config) :
 
 	return;
 }
+
 
 
 
@@ -607,28 +618,6 @@ void Application::make_menus(void)
 
 	return;
 }
-
-
-
-
-
-void Application::make_sender_receiver(void)
-{
-	sender = new Sender(this, textarea, config);
-	receiver = new Receiver(this, textarea);
-
-	cw_key_register_generator(receiver->key, sender->gen);
-	cw_key_register_receiver(receiver->key, receiver->rec);
-
-	saved_receive_speed = cw_rec_get_speed(receiver->rec);
-
-	/* Create a timer for polling sender and receiver. */
-	poll_timer = new QTimer(this);
-	connect(poll_timer, SIGNAL (timeout()), SLOT (poll_timer_event()));
-
-	return;
-}
-
 
 
 

@@ -123,8 +123,6 @@ namespace cw {
 		Sender *sender;
 		Receiver *receiver;
 
-		cw_config_t *config;
-
 		/* Poll timer, used to ensure that all of the
 		   application processing can be handled in the
 		   foreground, rather than in the signal handling
@@ -134,8 +132,6 @@ namespace cw {
 		/* Saved receive speed, used to reinstate adaptive
 		   tracked speed on start. */
 		int saved_receive_speed;
-
-		void make_sender_receiver(void);
 
 
 		/* Prevent unwanted operations. */
