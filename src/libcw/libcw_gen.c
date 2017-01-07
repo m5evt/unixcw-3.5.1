@@ -3484,4 +3484,363 @@ unsigned int test_cw_gen_parameter_getters_setters(void)
 
 
 
+
+#if 0
+/**
+   \brief Test control of volume
+
+   Fill tone queue with short tones, then check that we can move the
+   volume through its entire range.  Flush the queue when complete.
+
+   tests::cw_get_volume_limits()
+   tests::cw_set_volume()
+   tests::cw_get_volume()
+*/
+unsigned int test_cw_gen_volume_functions(cw_gen_t * gen, cw_test_stats_t * stats)
+{
+	int p = fprintf(out_file, "libcw:gen: volume functions:");
+	fflush(out_file);
+
+	int cw_min = -1, cw_max = -1;
+
+	/* Test: get range of allowed volumes. */
+	{
+		cw_get_volume_limits(&cw_min, &cw_max);
+
+		bool failure = cw_min != CW_VOLUME_MIN
+			|| cw_max != CW_VOLUME_MAX;
+
+		failure ? stats->failures++ : stats->successes++;
+		int n = fprintf(stderr, "libcw: cw_get_volume_limits(): %d, %d", cw_min, cw_max);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+	}
+
+
+	/* Test: decrease volume from max to low. */
+	{
+		/* Fill the tone queue with valid tones. */
+		while (!cw_is_tone_queue_full()) {
+			cw_queue_tone(100000, 440);
+		}
+
+		bool set_failure = false;
+		bool get_failure = false;
+
+		/* TODO: why call the cw_wait_for_tone() at the
+		   beginning and end of loop's body? */
+		for (int i = cw_max; i >= cw_min; i -= 10) {
+			cw_wait_for_tone();
+			if (!cw_set_volume(i)) {
+				set_failure = true;
+				break;
+			}
+
+			if (cw_get_volume() != i) {
+				get_failure = true;
+				break;
+			}
+
+			cw_wait_for_tone();
+		}
+
+		set_failure ? stats->failures++ : stats->successes++;
+		int n = fprintf(stderr, "libcw: cw_set_volume() (down):");
+		CW_TEST_PRINT_TEST_RESULT (set_failure, n);
+
+		get_failure ? stats->failures++ : stats->successes++;
+		n = fprintf(stderr, "libcw: cw_get_volume() (down):");
+		CW_TEST_PRINT_TEST_RESULT (get_failure, n);
+	}
+
+
+
+
+	/* Test: increase volume from zero to high. */
+	{
+		/* Fill tone queue with valid tones. */
+		while (!cw_is_tone_queue_full()) {
+			cw_queue_tone(100000, 440);
+		}
+
+		bool set_failure = false;
+		bool get_failure = false;
+
+		/* TODO: why call the cw_wait_for_tone() at the
+		   beginning and end of loop's body? */
+		for (int i = cw_min; i <= cw_max; i += 10) {
+			cw_wait_for_tone();
+			if (!cw_set_volume(i)) {
+				set_failure = true;
+				break;
+			}
+
+			if (cw_get_volume() != i) {
+				get_failure = true;
+				break;
+			}
+			cw_wait_for_tone();
+		}
+
+		set_failure ? stats->failures++ : stats->successes++;
+		int n = fprintf(stderr, "libcw: cw_set_volume() (up):");
+		CW_TEST_PRINT_TEST_RESULT (set_failure, n);
+
+		get_failure ? stats->failures++ : stats->successes++;
+		n = fprintf(stderr, "libcw: cw_get_volume() (up):");
+		CW_TEST_PRINT_TEST_RESULT (get_failure, n);
+	}
+
+	cw_wait_for_tone();
+	cw_flush_tone_queue();
+
+	CW_TEST_PRINT_TEST_RESULT(false, p);
+
+	return;
+}
+
+
+
+
+
+
+/**
+   \brief Test enqueueing and playing most basic elements of Morse code
+
+   tests::cw_send_dot()
+   tests::cw_send_dash()
+   tests::cw_send_character_space()
+   tests::cw_send_word_space()
+*/
+unsigned int test_cw_gen_send_primitives(cw_gen_t * gen, cw_test_stats_t * stats)
+{
+	int p = fprintf(out_file, "libcw:gen: send primitives:");
+	fflush(out_file);
+
+	int N = 20;
+
+	/* Test: sending dot. */
+	{
+		bool failure = false;
+		for (int i = 0; i < N; i++) {
+			if (!cw_send_dot()) {
+				failure = true;
+				break;
+			}
+		}
+		cw_wait_for_tone_queue();
+
+		failure ? stats->failures++ : stats->successes++;
+		int n = printf("libcw: cw_send_dot():");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+	}
+
+
+
+	/* Test: sending dash. */
+	{
+		bool failure = false;
+		for (int i = 0; i < N; i++) {
+			if (!cw_send_dash()) {
+				failure = true;
+				break;
+			}
+		}
+		cw_wait_for_tone_queue();
+
+		failure ? stats->failures++ : stats->successes++;
+		int n = printf("libcw: cw_send_dash():");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+	}
+
+
+	/* Test: sending character space. */
+	{
+		bool failure = false;
+		for (int i = 0; i < N; i++) {
+			if (!cw_send_character_space()) {
+				failure = true;
+				break;
+			}
+		}
+		cw_wait_for_tone_queue();
+
+		failure ? stats->failures++ : stats->successes++;
+		int n = printf("libcw: cw_send_character_space():");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+	}
+
+
+
+	/* Test: sending word space. */
+	{
+		bool failure = false;
+		for (int i = 0; i < N; i++) {
+			if (!cw_send_word_space()) {
+				failure = true;
+				break;
+			}
+		}
+		cw_wait_for_tone_queue();
+
+		failure ? stats->failures++ : stats->successes++;
+		int n = printf("libcw: cw_send_word_space():");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+	}
+
+	CW_TEST_PRINT_TEST_RESULT(false, p);
+
+	return;
+}
+
+
+
+
+
+/**
+   \brief Playing representations of characters
+
+   tests::cw_send_representation()
+   tests::cw_send_representation_partial()
+*/
+unsigned int test_cw_gen_representations(cw_gen_t * gen, cw_test_stats_t * stats)
+{
+	int p = fprintf(out_file, "libcw:gen: send representations:");
+	fflush(out_file);
+
+	/* Test: sending valid representations. */
+	{
+		bool failure = !cw_send_representation(".-.-.-")
+			|| !cw_send_representation(".-")
+			|| !cw_send_representation("---")
+			|| !cw_send_representation("...-");
+
+		failure ? stats->failures++ : stats->successes++;
+		int n = printf("libcw: cw_send_representation(<valid>):");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+	}
+
+
+
+	/* Test: sending invalid representations. */
+	{
+		bool failure = cw_send_representation("INVALID")
+			|| cw_send_representation("_._")
+			|| cw_send_representation("-_-");
+
+		failure ? stats->failures++ : stats->successes++;
+		int n = printf("libcw: cw_send_representation(<invalid>):");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+	}
+
+
+
+	/* Test: sending partial representation of a valid string. */
+	{
+		bool failure = !cw_send_representation_partial(".-.-.-");
+
+		failure ? stats->failures++ : stats->successes++;
+		int n = printf("libcw: cw_send_representation_partial():");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+	}
+
+
+	cw_wait_for_tone_queue();
+
+	CW_TEST_PRINT_TEST_RESULT(false, p);
+
+	return;
+}
+#endif
+
+
+
+
+/**
+   Send all supported characters: first as individual characters, and then as a string.
+
+   tests::cw_send_character()
+   tests::cw_send_string()
+*/
+unsigned int test_cw_gen_send_character_and_string(cw_gen_t * gen, cw_test_stats_t * stats)
+{
+	int p = fprintf(out_file, "libcw:gen: send character and string:");
+	fflush(out_file);
+
+	/* Test: sending all supported characters as individual characters. */
+	{
+		char charlist[UCHAR_MAX + 1];
+		bool failure = false;
+
+		/* Send all the characters from the charlist individually. */
+		cw_list_characters(charlist);
+		printf("libcw: cw_send_character(<valid>):\n"
+		       "libcw:     ");
+		for (int i = 0; charlist[i] != '\0'; i++) {
+			putchar(charlist[i]);
+			fflush(stdout);
+			if (!cw_gen_enqueue_character(gen, charlist[i])) {
+				failure = true;
+				break;
+			}
+			cw_gen_wait_for_queue_level(gen, 0);
+		}
+
+		putchar('\n');
+
+		failure ? stats->failures++ : stats->successes++;
+		int n = printf("libcw: cw_gen_enqueue_character(<valid>):");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+	}
+
+
+
+	/* Test: sending invalid character. */
+	{
+		bool failure = cw_gen_enqueue_character(gen, 0);
+		int n = printf("libcw: cw_gen_enqueue_character(<invalid>):");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+	}
+
+
+
+	/* Test: sending all supported characters as single string. */
+	{
+		char charlist[UCHAR_MAX + 1];
+		cw_list_characters(charlist);
+
+		/* Send the complete charlist as a single string. */
+		printf("libcw: cw_gen_enqueue_string(<valid>):\n"
+		       "libcw:     %s\n", charlist);
+		bool failure = !cw_gen_enqueue_string(gen, charlist);
+
+		while (cw_gen_get_queue_length(gen) > 0) {
+			printf("libcw: tone queue length %-6zu\r", cw_gen_get_queue_length(gen));
+			fflush(stdout);
+			cw_gen_wait_for_tone(gen);
+		}
+		printf("libcw: tone queue length %-6zu\n", cw_gen_get_queue_length(gen));
+		cw_gen_wait_for_queue_level(gen, 0);
+
+		failure ? stats->failures++ : stats->successes++;
+		int n = printf("libcw: cw_gen_enqueue_string(<valid>):");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+	}
+
+
+	/* Test: sending invalid string. */
+	{
+		bool failure = cw_gen_enqueue_string(gen, "%INVALID%");
+		int n = printf("libcw: cw_gen_enqueue_string(<invalid>):");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+	}
+
+
+	CW_TEST_PRINT_TEST_RESULT(false, p);
+
+	return 0;
+}
+
+
+
+
 #endif /* #ifdef LIBCW_UNIT_TESTS */

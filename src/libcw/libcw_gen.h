@@ -424,6 +424,17 @@ unsigned int test_cw_gen_parameter_getters_setters(void);
 */
 unsigned int test_cw_gen_forever_sub(int seconds, int audio_system, const char *audio_device);
 
+
+#if 0
+unsigned int test_cw_gen_volume_functions(cw_gen_t * gen, cw_test_stats_t * stats);
+unsigned int test_cw_gen_send_primitives(cw_gen_t * gen, cw_test_stats_t * stats);
+unsigned int test_cw_gen_representations(cw_gen_t * gen, cw_test_stats_t * stats);
+#endif
+unsigned int test_cw_gen_send_character_and_string(cw_gen_t * gen, cw_test_stats_t * stats);
+
+
+
+
 #endif /* #ifdef LIBCW_UNIT_TESTS */
 
 

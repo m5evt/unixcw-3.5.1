@@ -1481,7 +1481,6 @@ void cw_key_delete(cw_key_t **key)
 
 
 #include "libcw_test.h"
-#define out_file stdout
 
 
 

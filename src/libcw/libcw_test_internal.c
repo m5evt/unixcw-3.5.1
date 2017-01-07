@@ -97,6 +97,7 @@ static int test_audio_system = CW_AUDIO_NONE;
 
 typedef unsigned int (*cw_test_function_t)(void);
 typedef unsigned int (*cw_key_test_function_t)(cw_key_t * key, cw_test_stats_t * stats);
+typedef unsigned int (*cw_gen_test_function_t)(cw_gen_t * gen, cw_test_stats_t * stats);
 
 static cw_test_function_t cw_unit_tests[] = {
 
@@ -159,6 +160,25 @@ static cw_test_function_t cw_unit_tests[] = {
 };
 
 
+
+/* Tests that are dependent on a sound system being configured.
+   Generator module functions. */
+static cw_gen_test_function_t cw_unit_tests_gen[] = {
+#if 0
+	test_cw_gen_volume_functions,
+	test_cw_gen_send_primitives,
+#endif
+	test_cw_gen_send_character_and_string,
+#if 0
+	test_cw_gen_representations,
+#endif
+
+	NULL
+};
+
+
+
+
 /* 'key' module. */
 static cw_key_test_function_t cw_unit_tests_key[] = {
 	test_keyer,
@@ -190,7 +210,7 @@ int main(void)
 		i++;
 	}
 
-	cw_test_dependent("a", "k");
+	cw_test_dependent("a", "kg");
 
 	/* "make check" facility requires this message to be
 	   printed on stdout; don't localize it */
@@ -277,15 +297,17 @@ int cw_test_dependent_with(int audio_system, const char *modules, cw_test_stats_
 		}
 	}
 
+#endif
 
 	if (strstr(modules, "g")) {
-		for (int test = 0; CW_TEST_FUNCTIONS_DEP_G[test]; test++) {
+		int i = 0;
+		while (cw_unit_tests_gen[i]) {
 			cw_test_setup(gen);
-			(*CW_TEST_FUNCTIONS_DEP_G[test])(gen, stats);
+			(*cw_unit_tests_gen[i])(gen, stats);
+			i++;
 		}
 	}
 
-#endif
 
 	if (strstr(modules, "k")) {
 		int i = 0;

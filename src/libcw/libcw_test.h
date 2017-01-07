@@ -9,16 +9,14 @@
 
 
 
+#include <stddef.h> /* size_t */
+
+#define out_file stdout
+
 typedef struct {
 	int successes;
 	int failures;
 } cw_test_stats_t;
-
-
-
-
-#include <stddef.h> /* size_t */
-
 
 
 
