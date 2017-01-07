@@ -1779,4 +1779,496 @@ unsigned int test_cw_tq_wait_for_level_internal(void)
 
 
 
+
+#if 0
+/**
+   \brief Simple tests of queueing and dequeueing of tones
+
+   Ensure we can generate a few simple tones, and wait for them to end.
+
+   tests::cw_queue_tone()
+   tests::cw_get_tone_queue_length()
+   tests::cw_wait_for_tone()
+   tests::cw_wait_for_tone_queue()
+*/
+void test_cw_tq_1(cw_test_stats_t *stats)
+{
+	int p = fprintf(stdout, "libcw:tq: test 1:");
+
+	int l = 0;         /* Measured length of tone queue. */
+	int expected = 0;  /* Expected length of tone queue. */
+
+	int cw_min, cw_max;
+
+	cw_set_volume(70);
+	cw_get_frequency_limits(&cw_min, &cw_max);
+
+	int N = 6;              /* Number of test tones put in queue. */
+	int duration = 100000;  /* Duration of tone. */
+	int delta_f = ((cw_max - cw_min) / (N - 1));      /* Delta of frequency in loops. */
+
+
+	/* Test 1: enqueue N tones, and wait for each of them
+	   separately. Control length of tone queue in the process. */
+
+	/* Enqueue first tone. Don't check queue length yet.
+
+	   The first tone is being dequeued right after enqueueing, so
+	   checking the queue length would yield incorrect result.
+	   Instead, enqueue the first tone, and during the process of
+	   dequeueing it, enqueue rest of the tones in the loop,
+	   together with checking length of the tone queue. */
+	int f = cw_min;
+	bool failure = !cw_queue_tone(duration, f);
+	failure ? stats->failures++ : stats->successes++;
+	int n = printf("libcw: cw_queue_tone():");
+	CW_TEST_PRINT_TEST_RESULT (failure, n);
+
+
+	/* This is to make sure that rest of tones is enqueued when
+	   the first tone is being dequeued. */
+	usleep(duration / 4);
+
+	/* Enqueue rest of N tones. It is now safe to check length of
+	   tone queue before and after queueing each tone: length of
+	   the tone queue should increase (there won't be any decrease
+	   due to dequeueing of first tone). */
+	printf("libcw: enqueueing (1): \n");
+	for (int i = 1; i < N; i++) {
+
+		/* Monitor length of a queue as it is filled - before
+		   adding a new tone. */
+		l = cw_get_tone_queue_length();
+		expected = (i - 1);
+		failure = l != expected;
+
+		failure ? stats->failures++ : stats->successes++;
+		n = printf("libcw: cw_get_tone_queue_length(): pre (#%02d):", i);
+		// n = printf("libcw: cw_get_tone_queue_length(): pre-queue: expected %d != result %d:", expected, l);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+
+
+		/* Add a tone to queue. All frequencies should be
+		   within allowed range, so there should be no
+		   error. */
+		f = cw_min + i * delta_f;
+		failure = !cw_queue_tone(duration, f);
+
+		failure ? stats->failures++ : stats->successes++;
+		n = printf("libcw: cw_queue_tone():");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+
+
+
+		/* Monitor length of a queue as it is filled - after
+		   adding a new tone. */
+		l = cw_get_tone_queue_length();
+		expected = (i - 1) + 1;
+		failure = l != expected;
+
+		failure ? stats->failures++ : stats->successes++;
+		n = printf("libcw: cw_get_tone_queue_length(): post (#%02d):", i);
+		// n = printf("libcw: cw_get_tone_queue_length(): post-queue: expected %d != result %d:", expected, l);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+	}
+
+
+
+	/* Above we have queued N tones. libcw starts dequeueing first
+	   of them before the last one is enqueued. This is why below
+	   we should only check for N-1 of them. Additionally, let's
+	   wait a moment till dequeueing of the first tone is without
+	   a question in progress. */
+
+	usleep(duration / 4);
+
+	/* And this is the proper test - waiting for dequeueing tones. */
+	printf("libcw: dequeueing (1):\n");
+	for (int i = 1; i < N; i++) {
+
+		/* Monitor length of a queue as it is emptied - before dequeueing. */
+		l = cw_get_tone_queue_length();
+		expected = N - i;
+		//printf("libcw: cw_get_tone_queue_length(): pre:  l = %d\n", l);
+		failure = l != expected;
+
+		failure ? stats->failures++ : stats->successes++;
+		n = printf("libcw: cw_get_tone_queue_length(): pre (#%02d):", i);
+		// n = printf("libcw: cw_get_tone_queue_length(): pre-dequeue:  expected %d != result %d: failure\n", expected, l);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+
+
+
+		/* Wait for each of N tones to be dequeued. */
+		failure = !cw_wait_for_tone();
+
+		failure ? stats->failures++ : stats->successes++;
+		n = printf("libcw: cw_wait_for_tone():");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+
+
+
+		/* Monitor length of a queue as it is emptied - after dequeueing. */
+		l = cw_get_tone_queue_length();
+		expected = N - i - 1;
+		//printf("libcw: cw_get_tone_queue_length(): post: l = %d\n", l);
+		failure = l != expected;
+
+		failure ? stats->failures++ : stats->successes++;
+		n = printf("libcw: cw_get_tone_queue_length(): post (#%02d):", i);
+		// n = printf("libcw: cw_get_tone_queue_length(): post-dequeue: expected %d != result %d: failure\n", expected, l);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+	}
+
+
+
+	/* Test 2: fill a queue, but this time don't wait for each
+	   tone separately, but wait for a whole queue to become
+	   empty. */
+	failure = false;
+	printf("libcw: enqueueing (2):\n");
+	f = 0;
+	for (int i = 0; i < N; i++) {
+		f = cw_min + i * delta_f;
+		if (!cw_queue_tone(duration, f)) {
+			failure = true;
+			break;
+		}
+	}
+
+	failure ? stats->failures++ : stats->successes++;
+	n = printf("libcw: cw_queue_tone(%08d, %04d):", duration, f);
+	CW_TEST_PRINT_TEST_RESULT (failure, n);
+
+
+
+	printf("libcw: dequeueing (2):\n");
+
+	failure = !cw_wait_for_tone_queue();
+
+	failure ? stats->failures++ : stats->successes++;
+	n = printf("libcw: cw_wait_for_tone_queue():");
+	CW_TEST_PRINT_TEST_RESULT (failure, n);
+
+	return;
+}
+
+
+
+
+
+/**
+   Run the complete range of tone generation, at 100Hz intervals,
+   first up the octaves, and then down.  If the queue fills, though it
+   shouldn't with this amount of data, then pause until it isn't so
+   full.
+
+   tests::cw_wait_for_tone()
+   tests::cw_queue_tone()
+   tests::cw_wait_for_tone_queue()
+*/
+void test_cw_tq_2(cw_test_stats_t *stats)
+{
+	int p = fprintf(stdout, "libcw:tq: test 2:");
+
+	cw_set_volume(70);
+	int duration = 40000;
+
+	int cw_min, cw_max;
+	cw_get_frequency_limits(&cw_min, &cw_max);
+
+	bool wait_failure = false;
+	bool queue_failure = false;
+
+	for (int i = cw_min; i < cw_max; i += 100) {
+		while (cw_is_tone_queue_full()) {
+			if (!cw_wait_for_tone()) {
+				wait_failure = true;
+				break;
+			}
+		}
+
+		if (!cw_queue_tone(duration, i)) {
+			queue_failure = true;
+			break;
+		}
+	}
+
+	for (int i = cw_max; i > cw_min; i -= 100) {
+		while (cw_is_tone_queue_full()) {
+			if (!cw_wait_for_tone()) {
+				wait_failure = true;
+				break;
+			}
+		}
+		if (!cw_queue_tone(duration, i)) {
+			queue_failure = true;
+			break;
+		}
+	}
+
+
+	queue_failure ? stats->failures++ : stats->successes++;
+	int n = printf("libcw: cw_queue_tone():");
+	CW_TEST_PRINT_TEST_RESULT (queue_failure, n);
+
+
+	wait_failure ? stats->failures++ : stats->successes++;
+	n = printf("libcw: cw_wait_for_tone():");
+	CW_TEST_PRINT_TEST_RESULT (wait_failure, n);
+
+
+	n = printf("libcw: cw_wait_for_tone_queue():");
+	fflush(stdout);
+	bool wait_tq_failure = !cw_wait_for_tone_queue();
+	wait_tq_failure ? stats->failures++ : stats->successes++;
+	CW_TEST_PRINT_TEST_RESULT (wait_tq_failure, n);
+
+
+	cw_queue_tone(0, 0);
+	cw_wait_for_tone_queue();
+
+	return;
+}
+
+
+
+
+
+/**
+   Test the tone queue manipulations, ensuring that we can fill the
+   queue, that it looks full when it is, and that we can flush it all
+   again afterwards, and recover.
+
+   tests::cw_get_tone_queue_capacity()
+   tests::cw_get_tone_queue_length()
+   tests::cw_queue_tone()
+   tests::cw_wait_for_tone_queue()
+*/
+void test_cw_tq_3(cw_test_stats_t *stats)
+{
+	int p = fprintf(stdout, "libcw:tq: test 3:");
+
+	/* Small setup. */
+	cw_set_volume(70);
+
+
+
+	/* Test: properties (capacity and length) of empty tq. */
+	{
+		fprintf(stderr, "libcw:  --  initial test on empty tq:\n");
+
+		/* Empty tone queue and make sure that it is really
+		   empty (wait for info from libcw). */
+		cw_flush_tone_queue();
+		cw_wait_for_tone_queue();
+
+		int capacity = cw_get_tone_queue_capacity();
+		bool failure = capacity != CW_TONE_QUEUE_CAPACITY_MAX;
+
+		failure ? stats->failures++ : stats->successes++;
+		int n = printf("libcw: cw_get_tone_queue_capacity(): %d %s %d:",
+			       capacity, failure ? "!=" : "==", CW_TONE_QUEUE_CAPACITY_MAX);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+
+
+
+		int len_empty = cw_get_tone_queue_length();
+		failure = len_empty > 0;
+
+		failure ? stats->failures++ : stats->successes++;
+		n = printf("libcw: cw_get_tone_queue_length() when tq empty: %d %s 0:", len_empty, failure ? "!=" : "==");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+	}
+
+
+
+	/* Test: properties (capacity and length) of full tq. */
+
+	/* FIXME: we call cw_queue_tone() until tq is full, and then
+	   expect the tq to be full while we perform tests. Doesn't
+	   the tq start dequeuing tones right away? Can we expect the
+	   tq to be full for some time after adding last tone?
+	   Hint: check when a length of tq is decreased. Probably
+	   after playing first tone on tq, which - in this test - is
+	   pretty long. Or perhaps not. */
+	{
+		fprintf(stderr, "libcw:  --  test on full tq:\n");
+
+		int i = 0;
+		/* FIXME: cw_is_tone_queue_full() is not tested */
+		while (!cw_is_tone_queue_full()) {
+			cw_queue_tone(1000000, 100 + (i++ & 1) * 100);
+		}
+
+		int capacity = cw_get_tone_queue_capacity();
+		bool failure = capacity != CW_TONE_QUEUE_CAPACITY_MAX;
+
+		failure ? stats->failures++ : stats->successes++;
+		int n = printf("libcw: cw_get_tone_queue_capacity(): %d %s %d:",
+			       capacity, failure ? "!=" : "==", CW_TONE_QUEUE_CAPACITY_MAX);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+
+
+
+		int len_full = cw_get_tone_queue_length();
+		failure = len_full != CW_TONE_QUEUE_CAPACITY_MAX;
+
+		failure ? stats->failures++ : stats->successes++;
+		n = printf("libcw: cw_get_tone_queue_length() when tq full: %d %s %d:",
+			   len_full, failure ? "!=" : "==", CW_TONE_QUEUE_CAPACITY_MAX);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+	}
+
+
+
+	/* Test: attempt to add tone to full queue. */
+	{
+		errno = 0;
+		int status = cw_queue_tone(1000000, 100);
+		bool failure = status || errno != EAGAIN;
+
+		failure ? stats->failures++ : stats->successes++;
+		int n = printf("libcw: cw_queue_tone() for full tq:");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+	}
+
+
+
+	/* Test: check again properties (capacity and length) of empty
+	   tq after it has been in use.
+
+	   Empty the tq, ensure that it is empty, and do the test. */
+	{
+		fprintf(stderr, "libcw:  --  final test on empty tq:\n");
+
+		/* Empty tone queue and make sure that it is really
+		   empty (wait for info from libcw). */
+		cw_flush_tone_queue();
+		cw_wait_for_tone_queue();
+
+		int capacity = cw_get_tone_queue_capacity();
+		bool failure = capacity != CW_TONE_QUEUE_CAPACITY_MAX;
+
+		failure ? stats->failures++ : stats->successes++;
+		int n = printf("libcw: cw_get_tone_queue_capacity(): %d %s %d:",
+			       capacity, failure ? "!=" : "==", CW_TONE_QUEUE_CAPACITY_MAX);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+
+
+
+		/* Test that the tq is really empty after
+		   cw_wait_for_tone_queue() has returned. */
+		int len_empty = cw_get_tone_queue_length();
+		failure = len_empty > 0;
+
+		failure ? stats->failures++ : stats->successes++;
+		n = printf("libcw: cw_get_tone_queue_length() when tq empty: %d %s 0:", len_empty, failure ? "!=" : "==");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+	}
+
+	return;
+}
+#endif
+
+
+
+static void cw_test_helper_tq_callback(void * data);
+static size_t cw_test_tone_queue_callback_data = 999999;
+static int cw_test_helper_tq_callback_capture = false;
+
+struct cw_test_struct{
+	cw_gen_t *gen;
+	size_t *data;
+};
+
+
+/**
+   tests::cw_register_tone_queue_low_callback()
+*/
+unsigned int test_cw_tq_callback(cw_gen_t *gen, cw_test_stats_t *stats)
+{
+	int p = fprintf(stdout, "libcw:tq: test tq callback:");
+
+	struct cw_test_struct s;
+	s.gen = gen;
+	s.data = &cw_test_tone_queue_callback_data;
+
+	for (int i = 1; i < 10; i++) {
+		/* Test the callback mechanism for very small values,
+		   but for a bit larger as well. */
+		int level = i <= 5 ? i : 3 * i;
+
+		int rv = cw_gen_register_low_level_callback(gen, cw_test_helper_tq_callback, (void *) &s, level);
+		bool failure = rv == CW_FAILURE;
+		sleep(1);
+
+		failure ? stats->failures++ : stats->successes++;
+		int n = printf("libcw: cw_register_tone_queue_low_callback(): threshold = %d:", level);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+
+
+		/* Add a lot of tones to tone queue. "a lot" means two
+		   times more than a value of trigger level. */
+		for (int j = 0; j < 2 * level; j++) {
+			rv = cw_gen_enqueue_character(gen, 'e');
+			assert (rv);
+		}
+
+
+		/* Allow the callback to work only after initial
+		   filling of queue. */
+		cw_test_helper_tq_callback_capture = true;
+
+		/* Wait for the queue to be drained to zero. While the
+		   tq is drained, and level of tq reaches trigger
+		   level, a callback will be called. Its only task is
+		   to copy the current level (tq level at time of
+		   calling the callback) value into
+		   cw_test_tone_queue_callback_data.
+
+		   Since the value of trigger level is different in
+		   consecutive iterations of loop, we can test the
+		   callback for different values of trigger level. */
+		cw_gen_wait_for_queue_level(gen, 0);
+
+		/* Because of order of calling callback and decreasing
+		   length of queue, I think that it's safe to assume
+		   that there may be a difference of 1 between these
+		   two values. */
+		int diff = level - cw_test_tone_queue_callback_data;
+		failure = abs(diff) > 1;
+
+		failure ? stats->failures++ : stats->successes++;
+		n = printf("libcw: tone queue callback:           level at callback = %zd:", cw_test_tone_queue_callback_data);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+
+		cw_gen_flush_queue(gen);
+	}
+
+	return 0;
+}
+
+
+
+
+
+static void cw_test_helper_tq_callback(void *data)
+{
+	if (cw_test_helper_tq_callback_capture) {
+		struct cw_test_struct *s = (struct cw_test_struct *) data;
+
+		*(s->data) = cw_gen_get_queue_length(s->gen);
+
+		cw_test_helper_tq_callback_capture = false;
+		fprintf(stderr, "libcw/tq: cw_test_helper_tq_callback:    captured level = %zd\n", *(s->data));
+	}
+
+	return;
+}
+
+
+
+
+
 #endif /* #ifdef LIBCW_UNIT_TESTS */

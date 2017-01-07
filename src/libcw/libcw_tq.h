@@ -228,6 +228,8 @@ bool cw_tq_is_full_internal(cw_tone_queue_t *tq);
 
 #ifdef LIBCW_UNIT_TESTS
 
+#include "libcw_test.h"
+
 unsigned int test_cw_tq_new_delete_internal(void);
 unsigned int test_cw_tq_init_internal(void);
 unsigned int test_cw_tq_get_capacity_internal(void);
@@ -240,6 +242,15 @@ unsigned int test_cw_tq_is_full_internal(void);
 unsigned int test_cw_tq_test_capacity_1(void);
 unsigned int test_cw_tq_test_capacity_2(void);
 unsigned int test_cw_tq_wait_for_level_internal(void);
+
+#if 0
+unsigned int test_cw_tq_1(cw_gen_t * gen, cw_test_stats_t * stats);
+unsigned int test_cw_tq_2(cw_gen_t * gen, cw_test_stats_t * stats);
+unsigned int test_cw_tq_3(cw_gen_t * gen, cw_test_stats_t * stats);
+#endif
+unsigned int test_cw_tq_callback(cw_gen_t * gen, cw_test_stats_t * stats);
+
+
 
 #endif /* #ifdef LIBCW_UNIT_TESTS */
 

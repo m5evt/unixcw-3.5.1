@@ -98,6 +98,8 @@ static int test_audio_system = CW_AUDIO_NONE;
 typedef unsigned int (*cw_test_function_t)(void);
 typedef unsigned int (*cw_key_test_function_t)(cw_key_t * key, cw_test_stats_t * stats);
 typedef unsigned int (*cw_gen_test_function_t)(cw_gen_t * gen, cw_test_stats_t * stats);
+typedef unsigned int (*cw_tq_test_function_t)(cw_gen_t * gen, cw_test_stats_t * stats);
+
 
 static cw_test_function_t cw_unit_tests[] = {
 
@@ -158,6 +160,21 @@ static cw_test_function_t cw_unit_tests[] = {
 
 	NULL
 };
+
+
+/* Tests that are dependent on a sound system being configured.
+   Tone queue module functions */
+static cw_tq_test_function_t cw_unit_tests_tq[] = {
+#if 0
+	test_cw_tq_1,
+	test_cw_tq_2,
+	test_cw_tq_3,
+#endif
+	test_cw_tq_callback,
+
+	NULL
+};
+
 
 
 
@@ -288,16 +305,14 @@ int cw_test_dependent_with(int audio_system, const char *modules, cw_test_stats_
 		return -1;
 	}
 
-#if 0
-
 	if (strstr(modules, "t")) {
-		for (int test = 0; CW_TEST_FUNCTIONS_DEP_T[test]; test++) {
+		int i = 0;
+		while (cw_unit_tests_tq[i]) {
 			cw_test_setup(gen);
-	                (*CW_TEST_FUNCTIONS_DEP_T[test])(gen, stats);
+			(*cw_unit_tests_tq[i])(gen, stats);
+			i++;
 		}
 	}
-
-#endif
 
 	if (strstr(modules, "g")) {
 		int i = 0;
