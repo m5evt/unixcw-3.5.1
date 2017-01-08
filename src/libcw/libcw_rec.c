@@ -536,8 +536,6 @@ float cw_rec_get_speed(cw_rec_t *rec)
    value of tolerance.
    errno is set to EINVAL if \p new_value is out of range.
 
-   testedin::test_parameter_ranges()
-
    \param new_value - new value of tolerance to be assigned to receiver
 
    \return CW_SUCCESS on success
