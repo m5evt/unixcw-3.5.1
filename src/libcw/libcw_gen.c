@@ -169,8 +169,8 @@ static int   cw_gen_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone)
 static int   cw_gen_write_to_soundcard_internal(cw_gen_t *gen, cw_tone_t *tone, bool empty_tone);
 
 static int   cw_gen_enqueue_valid_character_internal(cw_gen_t *gen, char c);
-static int   cw_gen_enqueue_valid_character_no_eoc_space_internal(cw_gen_t *gen, char character);
-static int   cw_gen_enqueue_representation_no_eoc_space_internal(cw_gen_t *gen, const char *representation);
+static int   cw_gen_enqueue_valid_character_partial_internal(cw_gen_t *gen, char character);
+static int   cw_gen_enqueue_representation_partial_internal(cw_gen_t *gen, const char *representation);
 
 static void  cw_gen_recalculate_slopes_internal(cw_gen_t *gen);
 
@@ -2006,6 +2006,8 @@ void cw_gen_get_timing_parameters_internal(cw_gen_t *gen,
    Function also returns CW_FAILURE if adding the element to queue of
    tones failed.
 
+   testedin::test_cw_gen_enqueue_primitives()
+
    \param gen - generator to be used to enqueue a mark and inter-mark space
    \param mark - mark to send: Dot (CW_DOT_REPRESENTATION) or Dash (CW_DASH_REPRESENTATION)
 
@@ -2063,6 +2065,8 @@ int cw_gen_enqueue_mark_internal(cw_gen_t *gen, char mark)
 
    Inter-character adjustment space is added at the end.
 
+   testedin::test_cw_gen_enqueue_primitives()
+
    \param gen
 
    \return CW_SUCCESS on success
@@ -2098,6 +2102,8 @@ int cw_gen_enqueue_eoc_space_internal(cw_gen_t *gen)
    form a full standard end-of-word space (seven Units).
 
    Inter-word adjustment space is added at the end.
+
+   testedin::test_cw_gen_enqueue_primitives()
 
    \param gen
 
@@ -2198,10 +2204,9 @@ int cw_gen_enqueue_eow_space_internal(cw_gen_t *gen)
    *Every* mark from the \p representation is followed by a standard
    inter-mark space.
 
-   Function does not enqueue inter-character space at the end of
-   representation (i.e. after the last inter-mark space). This means
-   that there is only one inter-mark space enqueued at the end of the
-   representation.
+   "partial" means that the inter-character space is not appended at
+   the end of Marks and Spaces enqueued in generator (but the last
+   inter-mark space is).
 
    Function sets errno to EAGAIN if there is not enough space in tone
    queue to enqueue \p representation.
@@ -2210,13 +2215,15 @@ int cw_gen_enqueue_eow_space_internal(cw_gen_t *gen)
    the function allows caller to do some neat tricks, but it also
    means that the function can be abused.
 
+   testedin::test_cw_gen_enqueue_representations()
+
    \param gen - generator used to enqueue the representation
    \param representation - representation to enqueue
 
    \return CW_FAILURE on failure
    \return CW_SUCCESS on success
 */
-int cw_gen_enqueue_representation_no_eoc_space_internal(cw_gen_t *gen, const char *representation)
+int cw_gen_enqueue_representation_partial_internal(cw_gen_t *gen, const char *representation)
 {
 	/* Before we let this representation loose on tone generation,
 	   we'd really like to know that all of its tones will get queued
@@ -2249,13 +2256,13 @@ int cw_gen_enqueue_representation_no_eoc_space_internal(cw_gen_t *gen, const cha
 /**
    \brief Look up and enqueue a given ASCII character as Morse code
 
-   After enqueueing last Mark (Dot or Dash) comprising a character, an
-   inter-mark space is enqueued.  Inter-character space is not
-   enqueued after that last inter-mark space.
-
    _valid_character_ in function's name means that the function
    expects the character \p c to be valid (\p c should be validated by
    caller before passing it to the function).
+
+   "partial" means that the inter-character space is not appended at
+   the end of Marks and Spaces enqueued in generator (but the last
+   inter-mark space is).
 
    Function sets errno to ENOENT if \p c is not a recognized character.
 
@@ -2265,7 +2272,7 @@ int cw_gen_enqueue_representation_no_eoc_space_internal(cw_gen_t *gen, const cha
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_gen_enqueue_valid_character_no_eoc_space_internal(cw_gen_t *gen, char c)
+int cw_gen_enqueue_valid_character_partial_internal(cw_gen_t *gen, char c)
 {
 	if (!gen) {
 		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
@@ -2289,7 +2296,7 @@ int cw_gen_enqueue_valid_character_no_eoc_space_internal(cw_gen_t *gen, char c)
 		return CW_FAILURE;
 	}
 
-	if (!cw_gen_enqueue_representation_no_eoc_space_internal(gen, r)) {
+	if (!cw_gen_enqueue_representation_partial_internal(gen, r)) {
 		return CW_FAILURE;
 	}
 
@@ -2323,7 +2330,7 @@ int cw_gen_enqueue_valid_character_no_eoc_space_internal(cw_gen_t *gen, char c)
 */
 int cw_gen_enqueue_valid_character_internal(cw_gen_t *gen, char c)
 {
-	if (!cw_gen_enqueue_valid_character_no_eoc_space_internal(gen, c)) {
+	if (!cw_gen_enqueue_valid_character_partial_internal(gen, c)) {
 		return CW_FAILURE;
 	}
 
@@ -2361,6 +2368,8 @@ int cw_gen_enqueue_valid_character_internal(cw_gen_t *gen, char c)
    ways to check the progress of sending.
 
    TODO: add cw_gen_wait_for_tone_internal().
+
+   testedin::test_cw_gen_enqueue_character_and_string()
 
    \param gen - generator to enqueue the character to
    \param c - character to enqueue in generator
@@ -2423,7 +2432,7 @@ int cw_gen_enqueue_character_parital(cw_gen_t *gen, char c)
 		return CW_FAILURE;
 	}
 
-	if (!cw_gen_enqueue_valid_character_no_eoc_space_internal(gen, c)) {
+	if (!cw_gen_enqueue_valid_character_partial_internal(gen, c)) {
 		return CW_FAILURE;
 	}
 
@@ -2458,6 +2467,8 @@ int cw_gen_enqueue_character_parital(cw_gen_t *gen, char c)
    immediately).  The actual sending happens in background processing.
    See cw_gen_wait_for_tone_internal() and cw_gen_wait_for_queue() for
    ways to check the progress of sending.
+
+   testedin::test_cw_gen_enqueue_character_and_string()
 
    \param gen - generator to use
    \param string - string to enqueue
@@ -3597,7 +3608,7 @@ unsigned int test_cw_gen_volume_functions(cw_gen_t * gen, cw_test_stats_t * stat
 
 	return;
 }
-
+#endif /* #if 0 */
 
 
 
@@ -3606,12 +3617,11 @@ unsigned int test_cw_gen_volume_functions(cw_gen_t * gen, cw_test_stats_t * stat
 /**
    \brief Test enqueueing and playing most basic elements of Morse code
 
-   tests::cw_send_dot()
-   tests::cw_send_dash()
-   tests::cw_send_character_space()
-   tests::cw_send_word_space()
+   tests::cw_gen_enqueue_mark_internal()
+   tests::cw_gen_enqueue_eoc_space_internal()
+   tests::cw_gen_enqueue_eow_space_internal()
 */
-unsigned int test_cw_gen_send_primitives(cw_gen_t * gen, cw_test_stats_t * stats)
+unsigned int test_cw_gen_enqueue_primitives(cw_gen_t * gen, cw_test_stats_t * stats)
 {
 	int p = fprintf(out_file, "libcw:gen: send primitives:");
 	fflush(out_file);
@@ -3622,15 +3632,15 @@ unsigned int test_cw_gen_send_primitives(cw_gen_t * gen, cw_test_stats_t * stats
 	{
 		bool failure = false;
 		for (int i = 0; i < N; i++) {
-			if (!cw_send_dot()) {
+			if (CW_SUCCESS != cw_gen_enqueue_mark_internal(gen, CW_DOT_REPRESENTATION)) {
 				failure = true;
 				break;
 			}
 		}
-		cw_wait_for_tone_queue();
+		cw_gen_wait_for_tone(gen);
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_send_dot():");
+		int n = printf("libcw: cw_gen_enqueue_mark_internal(CW_DOT_REPRESENTATION):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -3640,117 +3650,105 @@ unsigned int test_cw_gen_send_primitives(cw_gen_t * gen, cw_test_stats_t * stats
 	{
 		bool failure = false;
 		for (int i = 0; i < N; i++) {
-			if (!cw_send_dash()) {
+			if (CW_SUCCESS != cw_gen_enqueue_mark_internal(gen, CW_DASH_REPRESENTATION)) {
 				failure = true;
 				break;
 			}
 		}
-		cw_wait_for_tone_queue();
+		cw_gen_wait_for_tone(gen);
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_send_dash():");
+		int n = printf("libcw: cw_gen_enqueue_mark_internal(CW_DASH_REPRESENTATION):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
 
-	/* Test: sending character space. */
+	/* Test: sending inter-character space. */
 	{
 		bool failure = false;
 		for (int i = 0; i < N; i++) {
-			if (!cw_send_character_space()) {
+			if (CW_SUCCESS != cw_gen_enqueue_eoc_space_internal(gen)) {
 				failure = true;
 				break;
 			}
 		}
-		cw_wait_for_tone_queue();
+		cw_gen_wait_for_tone(gen);
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_send_character_space():");
+		int n = printf("libcw: cw_gen_enqueue_eoc_space_internal():");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
 
 
-	/* Test: sending word space. */
+	/* Test: sending inter-word space. */
 	{
 		bool failure = false;
 		for (int i = 0; i < N; i++) {
-			if (!cw_send_word_space()) {
+			if (CW_SUCCESS != cw_gen_enqueue_eow_space_internal(gen)) {
 				failure = true;
 				break;
 			}
 		}
-		cw_wait_for_tone_queue();
+		cw_gen_wait_for_tone(gen);
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_send_word_space():");
+		int n = printf("libcw: cw_gen_enqueue_eow_space_internal():");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
 	CW_TEST_PRINT_TEST_RESULT(false, p);
 
-	return;
+	return 0;
 }
-
 
 
 
 
 /**
-   \brief Playing representations of characters
+   \brief Test playing representations of characters
 
-   tests::cw_send_representation()
-   tests::cw_send_representation_partial()
+   tests::cw_gen_enqueue_representation_partial_internal()
 */
-unsigned int test_cw_gen_representations(cw_gen_t * gen, cw_test_stats_t * stats)
+unsigned int test_cw_gen_enqueue_representations(cw_gen_t * gen, cw_test_stats_t * stats)
 {
-	int p = fprintf(out_file, "libcw:gen: send representations:");
-	fflush(out_file);
+	/* Representation is valid when it contains dots and dashes
+	   only.  cw_gen_enqueue_representation_partial_internal()
+	   doesn't care about correct mapping of representation to a
+	   character. */
 
 	/* Test: sending valid representations. */
 	{
-		bool failure = !cw_send_representation(".-.-.-")
-			|| !cw_send_representation(".-")
-			|| !cw_send_representation("---")
-			|| !cw_send_representation("...-");
+		bool failure = (CW_SUCCESS != cw_gen_enqueue_representation_partial_internal(gen, ".-.-.-"))
+			|| (CW_SUCCESS != cw_gen_enqueue_representation_partial_internal(gen, ".-"))
+			|| (CW_SUCCESS != cw_gen_enqueue_representation_partial_internal(gen, "---"))
+			|| (CW_SUCCESS != cw_gen_enqueue_representation_partial_internal(gen, "...-"));
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_send_representation(<valid>):");
+		int n = fprintf(out_file, "libcw:gen: cw_gen_enqueue_representation_partial_internal(<valid>):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
-
 
 
 	/* Test: sending invalid representations. */
 	{
-		bool failure = cw_send_representation("INVALID")
-			|| cw_send_representation("_._")
-			|| cw_send_representation("-_-");
+		bool failure = (CW_SUCCESS == cw_gen_enqueue_representation_partial_internal(gen, "INVALID"))
+			|| (CW_SUCCESS == cw_gen_enqueue_representation_partial_internal(gen, "_._T"))
+			|| (CW_SUCCESS == cw_gen_enqueue_representation_partial_internal(gen, "_.A_."))
+			|| (CW_SUCCESS == cw_gen_enqueue_representation_partial_internal(gen, "S-_-"));
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_send_representation(<invalid>):");
+		int n = fprintf(out_file, "libcw:gen: cw_gen_enqueue_representation_partial_internal(<invalid>):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
+	cw_gen_wait_for_tone(gen);
 
+	struct timespec req = { .tv_sec = 3, .tv_nsec = 0 };
+	cw_nanosleep_internal(&req);
 
-	/* Test: sending partial representation of a valid string. */
-	{
-		bool failure = !cw_send_representation_partial(".-.-.-");
-
-		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_send_representation_partial():");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-	}
-
-
-	cw_wait_for_tone_queue();
-
-	CW_TEST_PRINT_TEST_RESULT(false, p);
-
-	return;
+	return 0;
 }
-#endif
 
 
 
@@ -3758,10 +3756,10 @@ unsigned int test_cw_gen_representations(cw_gen_t * gen, cw_test_stats_t * stats
 /**
    Send all supported characters: first as individual characters, and then as a string.
 
-   tests::cw_send_character()
-   tests::cw_send_string()
+   tests::cw_gen_enqueue_character()
+   tests::cw_gen_enqueue_string()
 */
-unsigned int test_cw_gen_send_character_and_string(cw_gen_t * gen, cw_test_stats_t * stats)
+unsigned int test_cw_gen_enqueue_character_and_string(cw_gen_t * gen, cw_test_stats_t * stats)
 {
 	/* Test: sending all supported characters as individual characters. */
 	{
@@ -3775,7 +3773,7 @@ unsigned int test_cw_gen_send_character_and_string(cw_gen_t * gen, cw_test_stats
 		for (int i = 0; charlist[i] != '\0'; i++) {
 			fprintf(out_file, "%c", charlist[i]);
 			fflush(out_file);
-			if (!cw_gen_enqueue_character(gen, charlist[i])) {
+			if (CW_SUCCESS != cw_gen_enqueue_character(gen, charlist[i])) {
 				failure = true;
 				break;
 			}
@@ -3793,7 +3791,9 @@ unsigned int test_cw_gen_send_character_and_string(cw_gen_t * gen, cw_test_stats
 
 	/* Test: sending invalid character. */
 	{
-		bool failure = cw_gen_enqueue_character(gen, 0);
+		bool failure = CW_SUCCESS == cw_gen_enqueue_character(gen, 0);
+
+		failure ? stats->failures++ : stats->successes++;
 		int n = fprintf(out_file, "libcw:gen: cw_gen_enqueue_character(<invalid>):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
@@ -3808,7 +3808,7 @@ unsigned int test_cw_gen_send_character_and_string(cw_gen_t * gen, cw_test_stats
 		/* Send the complete charlist as a single string. */
 		fprintf(out_file, "libcw:gen: cw_gen_enqueue_string(<valid>):\n"
 			"libcw:gen:     %s\n", charlist);
-		bool failure = !cw_gen_enqueue_string(gen, charlist);
+		bool failure = CW_SUCCESS != cw_gen_enqueue_string(gen, charlist);
 
 		while (cw_gen_get_queue_length(gen) > 0) {
 			fprintf(out_file, "libcw:gen: tone queue length %-6zu\r", cw_gen_get_queue_length(gen));
@@ -3826,7 +3826,9 @@ unsigned int test_cw_gen_send_character_and_string(cw_gen_t * gen, cw_test_stats
 
 	/* Test: sending invalid string. */
 	{
-		bool failure = cw_gen_enqueue_string(gen, "%INVALID%");
+		bool failure = CW_SUCCESS == cw_gen_enqueue_string(gen, "%INVALID%");
+
+		failure ? stats->failures++ : stats->successes++;
 		int n = fprintf(out_file, "libcw:gen: cw_gen_enqueue_string(<invalid>):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}

@@ -427,10 +427,10 @@ unsigned int test_cw_gen_forever_sub(int seconds, int audio_system, const char *
 
 #if 0
 unsigned int test_cw_gen_volume_functions(cw_gen_t * gen, cw_test_stats_t * stats);
-unsigned int test_cw_gen_send_primitives(cw_gen_t * gen, cw_test_stats_t * stats);
-unsigned int test_cw_gen_representations(cw_gen_t * gen, cw_test_stats_t * stats);
 #endif
-unsigned int test_cw_gen_send_character_and_string(cw_gen_t * gen, cw_test_stats_t * stats);
+unsigned int test_cw_gen_enqueue_primitives(cw_gen_t * gen, cw_test_stats_t * stats);
+unsigned int test_cw_gen_enqueue_representations(cw_gen_t * gen, cw_test_stats_t * stats);
+unsigned int test_cw_gen_enqueue_character_and_string(cw_gen_t * gen, cw_test_stats_t * stats);
 
 
 

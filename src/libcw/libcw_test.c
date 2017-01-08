@@ -118,7 +118,6 @@ typedef unsigned int (*cw_tq_test_function_t)(cw_gen_t * gen, cw_test_stats_t * 
 
 
 static cw_test_function_t cw_unit_tests[] = {
-
 	/* cw_data module */
 	test_cw_representation_to_hash_internal,
 	test_cw_representation_to_character_internal,
@@ -199,12 +198,10 @@ static cw_tq_test_function_t cw_unit_tests_tq[] = {
 static cw_gen_test_function_t cw_unit_tests_gen[] = {
 #if 0
 	test_cw_gen_volume_functions,
-	test_cw_gen_send_primitives,
 #endif
-	test_cw_gen_send_character_and_string,
-#if 0
-	test_cw_gen_representations,
-#endif
+	test_cw_gen_enqueue_primitives,
+	test_cw_gen_enqueue_representations,
+	test_cw_gen_enqueue_character_and_string,
 
 	NULL
 };
