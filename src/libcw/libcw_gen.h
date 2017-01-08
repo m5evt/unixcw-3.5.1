@@ -406,9 +406,7 @@ void cw_gen_get_timing_parameters_internal(cw_gen_t *gen, int *dot_len, int *das
 unsigned int test_cw_gen_set_tone_slope(void);
 unsigned int test_cw_gen_tone_slope_shape_enums(void);
 unsigned int test_cw_gen_new_delete(void);
-unsigned int test_cw_gen_forever_internal(void);
-unsigned int test_cw_gen_get_timing_parameters_internal(void);
-unsigned int test_cw_gen_parameter_getters_setters(void);
+
 
 
 /* This is helper function (performing the real test), used in
@@ -422,10 +420,9 @@ unsigned int test_cw_gen_parameter_getters_setters(void);
    So libcw_test_internal does basic tests ("does it work at all?"),
    and libcw_test_public does full test.
 */
-unsigned int test_cw_gen_forever_sub(int seconds, int audio_system, const char *audio_device);
-
-
-
+unsigned int test_cw_gen_forever_internal(cw_gen_t * gen, cw_test_stats_t * stats);
+unsigned int test_cw_gen_get_timing_parameters_internal(cw_gen_t * gen, cw_test_stats_t * stats);
+unsigned int test_cw_gen_parameter_getters_setters(cw_gen_t * gen, cw_test_stats_t * stats);
 unsigned int test_cw_gen_volume_functions(cw_gen_t * gen, cw_test_stats_t * stats);
 unsigned int test_cw_gen_enqueue_primitives(cw_gen_t * gen, cw_test_stats_t * stats);
 unsigned int test_cw_gen_enqueue_representations(cw_gen_t * gen, cw_test_stats_t * stats);

@@ -423,7 +423,8 @@ int cw_timestamp_compare_internal(const struct timeval *earlier,
 
    See CW_SPEED_MIN and CW_SPEED_MAX in libcw.h for values.
 
-   testedin::test_cw_get_x_limits()
+   testedin::test_cw_get_x_limits_internal()
+   testedin::test_cw_gen_parameter_getters_setters()
 
    \param min_speed - minimal allowed speed
    \param max_speed - maximal allowed speed
@@ -452,7 +453,8 @@ void cw_get_speed_limits(int *min_speed, int *max_speed)
 
    See CW_FREQUENCY_MIN and CW_FREQUENCY_MAX in libcw.h for values.
 
-   testedin::test_cw_get_x_limits()
+   testedin::test_cw_get_x_limits_internal()
+   testedin::test_cw_gen_parameter_getters_setters()
 
    \param min_frequency - minimal allowed frequency
    \param max_frequency - maximal allowed frequency
@@ -481,8 +483,9 @@ void cw_get_frequency_limits(int *min_frequency, int *max_frequency)
 
    See CW_VOLUME_MIN and CW_VOLUME_MAX in libcw.h for values.
 
-   testedin::test_cw_get_x_limits()
+   testedin::test_cw_get_x_limits_internal()
    testedin::test_cw_gen_volume_functions()
+   testedin::test_cw_gen_parameter_getters_setters()
 
    \param min_volume - minimal allowed volume
    \param max_volume - maximal allowed volume
@@ -510,7 +513,8 @@ void cw_get_volume_limits(int *min_volume, int *max_volume)
 
    See CW_GAP_MIN and CW_GAP_MAX in libcw.h for values.
 
-   testedin::test_cw_get_x_limits()
+   testedin::test_cw_get_x_limits_internal()
+   testedin::test_cw_gen_parameter_getters_setters()
 
    \param min_gap - minimal allowed gap
    \param max_gap - maximal allowed gap
@@ -538,7 +542,7 @@ void cw_get_gap_limits(int *min_gap, int *max_gap)
 
    See CW_TOLERANCE_MIN and CW_TOLERANCE_MAX in libcw.h for values.
 
-   testedin::test_cw_get_x_limits()
+   testedin::test_cw_get_x_limits_internal()
 
    \param min_tolerance - minimal allowed tolerance
    \param max_tolerance - maximal allowed tolerance
@@ -566,7 +570,8 @@ void cw_get_tolerance_limits(int *min_tolerance, int *max_tolerance)
 
    See CW_WEIGHTING_MIN and CW_WEIGHTING_MAX in libcw.h for values.
 
-   testedin::test_cw_get_x_limits()
+   testedin::test_cw_get_x_limits_internal()
+   testedin::test_cw_gen_parameter_getters_setters()
 
    \param min_weighting - minimal allowed weighting
    \param max_weighting - maximal allowed weighting

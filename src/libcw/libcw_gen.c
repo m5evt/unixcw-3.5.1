@@ -1688,7 +1688,7 @@ void cw_gen_write_calculate_tone_internal(cw_gen_t *gen, cw_tone_t *tone)
 
    errno is set to EINVAL if \p new_value is out of range.
 
-   testedin::test_parameter_ranges()
+   testedin::test_cw_gen_parameter_getters_setters()
 
    \param gen - generator for which to set the speed
    \param new_value - new value of send speed to be assigned to generator
@@ -1730,6 +1730,8 @@ int cw_gen_set_speed(cw_gen_t *gen, int new_value)
 
    errno is set to EINVAL if \p new_value is out of range.
 
+   testedin::test_cw_gen_parameter_getters_setters()
+
    \param gen - generator for which to set new frequency
    \param new_value - new value of frequency to be assigned to generator
 
@@ -1767,6 +1769,7 @@ int cw_gen_set_frequency(cw_gen_t *gen, int new_value)
    errno is set to EINVAL if \p new_value is out of range.
 
    testedin::test_cw_gen_volume_functions()
+   testedin::test_cw_gen_parameter_getters_setters()
 
    \param gen - generator for which to set a volume level
    \param new_value - new value of volume to be assigned to generator
@@ -1799,6 +1802,8 @@ int cw_gen_set_volume(cw_gen_t *gen, int new_value)
    See libcw.h/CW_GAP_{INITIAL|MIN|MAX} for initial/minimal/maximal
    value of gap.
    errno is set to EINVAL if \p new_value is out of range.
+
+   testedin::test_cw_gen_parameter_getters_setters()
 
    \param gen - generator for which to set gap
    \param new_value - new value of gap to be assigned to generator
@@ -1834,6 +1839,8 @@ int cw_gen_set_gap(cw_gen_t *gen, int new_value)
    value of weighting.
    errno is set to EINVAL if \p new_value is out of range.
 
+   testedin::test_cw_gen_parameter_getters_setters()
+
    \param gen - generator for which to set new weighting
    \param new_value - new value of weighting to be assigned for generator
 
@@ -1865,6 +1872,8 @@ int cw_gen_set_weighting(cw_gen_t *gen, int new_value)
 /**
    \brief Get sending speed from generator
 
+   testedin::test_cw_gen_parameter_getters_setters()
+
    \param gen - generator from which to get the parameter
 
    \return current value of the generator's send speed
@@ -1883,6 +1892,8 @@ int cw_gen_get_speed(cw_gen_t *gen)
 
    Function returns "frequency" parameter of generator,
    even if the generator is stopped, or volume of generated sound is zero.
+
+   testedin::test_cw_gen_parameter_getters_setters()
 
    \param gen - generator from which to get the parameter
 
@@ -1904,6 +1915,7 @@ int cw_gen_get_frequency(cw_gen_t *gen)
    even if the generator is stopped.
 
    testedin::test_cw_gen_volume_functions()
+   testedin::test_cw_gen_parameter_getters_setters()
 
    \param gen - generator from which to get the parameter
 
@@ -1920,6 +1932,8 @@ int cw_gen_get_volume(cw_gen_t *gen)
 /**
    \brief Get sending gap from generator
 
+   testedin::test_cw_gen_parameter_getters_setters()
+
    \param gen - generator from which to get the parameter
 
    \return current value of generator's sending gap
@@ -1935,6 +1949,8 @@ int cw_gen_get_gap(cw_gen_t *gen)
 
 /**
    \brief Get sending weighting from generator
+
+   testedin::test_cw_gen_parameter_getters_setters()
 
    \param gen - generator from which to get the parameter
 
@@ -1957,6 +1973,8 @@ int cw_gen_get_weighting(cw_gen_t *gen)
    microseconds.
 
    Use NULL for the pointer argument to any parameter value not required.
+
+   testedin::test_cw_gen_get_timing_parameters_internal()
 
    \param gen
    \param dot_len
@@ -2960,16 +2978,14 @@ unsigned int test_cw_gen_new_delete(void)
 	}
 
 
-	/* Inner loop limit. */
-	int m = n;
-
-
 	/* new() + start() + stop() + delete() */
 	for (int i = 0; i < n; i++) {
 		fprintf(stderr, "libcw/gen: generator test 4/4, loop #%d/%d\n", i, n);
 
 		cw_gen_t *gen = cw_gen_new(CW_AUDIO_NULL, NULL);
 		cw_assert (gen, "failed to initialize generator (loop #%d)", i);
+
+		int m = n;
 
 		for (int j = 0; j < m; j++) {
 			int rv = cw_gen_start(gen);
@@ -3263,36 +3279,10 @@ unsigned int test_cw_gen_tone_slope_shape_enums(void)
 
 
 
-
-/* Version of test_cw_gen_forever() to be used in libcw_test_internal
-   test executable.
-
-   It's not a test of a "forever" function, but of "forever"
-   functionality.
-*/
-unsigned int test_cw_gen_forever_internal(void)
+unsigned int test_cw_gen_forever_internal(cw_gen_t * gen, cw_test_stats_t * stats)
 {
-	int seconds = 2;
-	int p = fprintf(stdout, "libcw/gen: forever tone (%d seconds):", seconds);
-	fflush(stdout);
+	const int seconds = 3;
 
-	unsigned int rv = test_cw_gen_forever_sub(2, CW_AUDIO_NULL, (const char *) NULL);
-	cw_assert (rv == 0, "\"forever\" test failed");
-
-	CW_TEST_PRINT_TEST_RESULT(false, p);
-
-	return 0;
-}
-
-
-
-
-
-unsigned int test_cw_gen_forever_sub(int seconds, int audio_system, const char *audio_device)
-{
-	cw_gen_t *gen = cw_gen_new(audio_system, audio_device);
-	cw_assert (gen, "ERROR: failed to create generator\n");
-	cw_gen_start(gen);
 	sleep(1);
 
 	cw_tone_t tone;
@@ -3301,11 +3291,11 @@ unsigned int test_cw_gen_forever_sub(int seconds, int audio_system, const char *
 	int freq = 500;
 
 	CW_TONE_INIT(&tone, freq, len, CW_SLOPE_MODE_RISING_SLOPE);
-	cw_tq_enqueue_internal(gen->tq, &tone);
+	int rv1 = cw_tq_enqueue_internal(gen->tq, &tone);
 
 	CW_TONE_INIT(&tone, freq, gen->quantum_len, CW_SLOPE_MODE_NO_SLOPES);
 	tone.is_forever = true;
-	int rv = cw_tq_enqueue_internal(gen->tq, &tone);
+	int rv2 = cw_tq_enqueue_internal(gen->tq, &tone);
 
 #ifdef __FreeBSD__  /* Tested on FreeBSD 10. */
 	/* Separate path for FreeBSD because for some reason signals
@@ -3322,11 +3312,15 @@ unsigned int test_cw_gen_forever_sub(int seconds, int audio_system, const char *
 	cw_nanosleep_internal(&t);
 #endif
 
-	CW_TONE_INIT(&tone, freq, len, CW_SLOPE_MODE_FALLING_SLOPE);
-	rv = cw_tq_enqueue_internal(gen->tq, &tone);
-	cw_assert (rv, "failed to enqueue last tone");
+	/* Silence the generator. */
+	CW_TONE_INIT(&tone, 0, len, CW_SLOPE_MODE_FALLING_SLOPE);
+	int rv3 = cw_tq_enqueue_internal(gen->tq, &tone);
 
-	cw_gen_delete(&gen);
+	bool failure = (rv1 != CW_SUCCESS || rv2 != CW_SUCCESS || rv3 != CW_SUCCESS);
+
+	failure ? stats->failures++ : stats->successes++;
+	int n = fprintf(out_file, "libcw:gen: forever tone:");
+	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 	return 0;
 }
@@ -3334,14 +3328,11 @@ unsigned int test_cw_gen_forever_sub(int seconds, int audio_system, const char *
 
 
 
-
-/* cw_gen_get_timing_parameters_internal() is independent of audio
-   system, so it should be ok to test it with CW_AUDIO_NULL only. */
-unsigned int test_cw_gen_get_timing_parameters_internal(void)
+/**
+   tests::cw_gen_get_timing_parameters_internal()
+*/
+unsigned int test_cw_gen_get_timing_parameters_internal(cw_gen_t * gen, cw_test_stats_t * stats)
 {
-	int p = fprintf(stdout, "libcw/gen: test_cw_gen_get_timing_parameters_internal:");
-	fflush(stdout);
-
 	int initial = -5;
 
 	int dot_len = initial;
@@ -3352,9 +3343,6 @@ unsigned int test_cw_gen_get_timing_parameters_internal(void)
 	int additional_space_len = initial;
 	int adjustment_space_len = initial;
 
-
-	cw_gen_t *gen = cw_gen_new(CW_AUDIO_NULL, NULL);
-	cw_assert (gen, "failed to create new generator");
 
 	cw_gen_reset_parameters_internal(gen);
 	/* Reset requires resynchronization. */
@@ -3370,19 +3358,17 @@ unsigned int test_cw_gen_get_timing_parameters_internal(void)
 					      &additional_space_len,
 					      &adjustment_space_len);
 
-	cw_assert (dot_len != initial, "failed to get dot_len, is now %d", dot_len);
-	cw_assert (dash_len != initial, "failed to get dash_len, is now %d", dash_len);
-	cw_assert (eom_space_len != initial, "failed to get eom_space_len, is now %d", eom_space_len);
-	cw_assert (eoc_space_len != initial, "failed to get eoc_space_len, is now %d", eoc_space_len);
-	cw_assert (eow_space_len != initial, "failed to get eow_space_len, is now %d", eow_space_len);
-	cw_assert (additional_space_len != initial, "failed to get additional_space_len, is now %d", additional_space_len);
-	cw_assert (adjustment_space_len != initial, "failed to get adjustment_space_len, is now %d", adjustment_space_len);
+	bool failure = (dot_len == initial)
+		|| (dash_len == initial)
+		|| (eom_space_len == initial)
+		|| (eoc_space_len == initial)
+		|| (eow_space_len == initial)
+		|| (additional_space_len == initial)
+		|| (adjustment_space_len == initial);
 
-
-	cw_gen_delete(&gen);
-
-
-	CW_TEST_PRINT_TEST_RESULT(false, p);
+	failure ? stats->failures++ : stats->successes++;
+	int n = fprintf(out_file, "libcw:gen: get timing parameters:");
+	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 	return 0;
 }
@@ -3390,20 +3376,29 @@ unsigned int test_cw_gen_get_timing_parameters_internal(void)
 
 
 
+/**
+   \brief Test setting and getting of some basic parameters
 
-/* Parameter getters and setters are independent of audio system, so
-   they can be tested just with CW_AUDIO_NULL.  This is even more true
-   for limit getters, which don't require a generator at all. */
-unsigned int test_cw_gen_parameter_getters_setters(void)
+   tests::cw_get_speed_limits()
+   tests::cw_get_frequency_limits()
+   tests::cw_get_volume_limits()
+   tests::cw_get_gap_limits()
+   tests::cw_get_weighting_limits()
+
+   tests::cw_gen_set_speed()
+   tests::cw_gen_set_frequency()
+   tests::cw_gen_set_volume()
+   tests::cw_gen_set_gap()
+   tests::cw_gen_set_weighting()
+
+   tests::cw_gen_get_speed()
+   tests::cw_gen_get_frequency()
+   tests::cw_gen_get_volume()
+   tests::cw_gen_get_gap()
+   tests::cw_gen_get_weighting()
+*/
+unsigned int test_cw_gen_parameter_getters_setters(cw_gen_t * gen, cw_test_stats_t * stats)
 {
-	int p = fprintf(stdout, "libcw/gen: basic parameter getters and setters:");
-	fflush(stdout);
-
-	cw_gen_t *gen = cw_gen_new(CW_AUDIO_NULL, "");
-	cw_assert (gen, "failed to create new generator");
-
-	/* Test setting and getting of some basic parameters. */
-
 	int off_limits = 10000;
 
 	struct {
@@ -3432,59 +3427,61 @@ unsigned int test_cw_gen_parameter_getters_setters(void)
 
 	for (int i = 0; test_data[i].get_limits; i++) {
 
-		int status;
 		int value = 0;
+		bool failure = false;
+		int n = 0;
 
-		/* Get limits of values to be tested. */
-		/* Notice that getters of parameter limits are tested
-		   in test_cw_get_x_limits(). */
+		/* Test getting limits of values to be tested. */
 		test_data[i].get_limits(&test_data[i].min, &test_data[i].max);
 
-		cw_assert (test_data[i].min > -off_limits, "%s: failed to get low limit, returned value = %d", test_data[i].name, test_data[i].min);
-		cw_assert (test_data[i].max <  off_limits, "%s: failed to get high limit, returned value = %d", test_data[i].name, test_data[i].max);
+		failure = (test_data[i].min <= -off_limits) || (test_data[i].max >= off_limits);
+
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:gen: get %s limits:", test_data[i].name);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 
-		/* Test out-of-range value lower than minimum. */
+		/* Test setting out-of-range value lower than minimum. */
 		errno = 0;
 		value = test_data[i].min - 1;
-		status = test_data[i].set_new_value(gen, value);
+		failure = (CW_SUCCESS == test_data[i].set_new_value(gen, value)) || (errno != EINVAL);
 
-		cw_assert (status == CW_FAILURE, "%s: setting value below minimum succeeded\n"
-			   "minimum is %d, attempted value is %d",
-			   test_data[i].name, test_data[i].min, value);
-		cw_assert (errno == EINVAL, "%s: setting value below minimum didn't result in EINVAL\n"
-			   "minimum is %d, attempted value is %d",
-			   test_data[i].name, test_data[i].min, value);
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:gen: set %s below limit:", test_data[i].name);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 
-		/* Test out-of-range value higher than maximum. */
+		/* Test setting out-of-range value higher than maximum. */
 		errno = 0;
 		value = test_data[i].max + 1;
-		status = test_data[i].set_new_value(gen, value);
+		failure = (CW_SUCCESS == test_data[i].set_new_value(gen, value)) || (errno != EINVAL);
 
-		cw_assert (status == CW_FAILURE, "%s: setting value above minimum succeeded\n"
-			   "maximum is %d, attempted value is %d",
-			   test_data[i].name, test_data[i].min, value);
-		cw_assert (errno == EINVAL, "%s: setting value above maximum didn't result in EINVAL\n"
-			   "maximum is %d, attempted value is %d",
-			   test_data[i].name, test_data[i].min, value);
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:gen: set %s above limit:", test_data[i].name);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 
-		/* Test in-range values. Set with setter and then read back with getter. */
+		/* Test setting in-range values. Set with setter and then read back with getter. */
+		failure = false;
 		for (int j = test_data[i].min; j <= test_data[i].max; j++) {
-			test_data[i].set_new_value(gen, j);
+			failure = (CW_SUCCESS != test_data[i].set_new_value(gen, j));
+			if (failure) {
+				break;
+			}
 
-			cw_assert (test_data[i].get_value(gen) == j, "%s: setting value in-range failed for value = %d", test_data[i].name, j);
+			failure = (test_data[i].get_value(gen) != j);
+			if (failure) {
+				break;
+			}
 		}
+
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:gen: set %s within limits:", test_data[i].name);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
-
-
-	cw_gen_delete(&gen);
-
-	CW_TEST_PRINT_TEST_RESULT(false, p);
 
 	return 0;
 }
