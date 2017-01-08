@@ -230,12 +230,9 @@ bool cw_tq_is_full_internal(cw_tone_queue_t *tq);
 
 #include "libcw_test.h"
 
-unsigned int test_cw_tq_new_delete_internal(void);
+
 unsigned int test_cw_tq_init_internal(void);
-unsigned int test_cw_tq_get_capacity_internal(void);
-unsigned int test_cw_tq_prev_index_internal(void);
-unsigned int test_cw_tq_next_index_internal(void);
-unsigned int test_cw_tq_length_internal(void);
+
 unsigned int test_cw_tq_enqueue_dequeue_internal(void);
 unsigned int test_cw_tq_enqueue_args_internal(void);
 unsigned int test_cw_tq_is_full_internal(void);
@@ -246,9 +243,15 @@ unsigned int test_cw_tq_wait_for_level_internal(void);
 #if 0
 unsigned int test_cw_tq_1(cw_gen_t * gen, cw_test_stats_t * stats);
 unsigned int test_cw_tq_2(cw_gen_t * gen, cw_test_stats_t * stats);
-unsigned int test_cw_tq_3(cw_gen_t * gen, cw_test_stats_t * stats);
+
 #endif
+unsigned int test_cw_tq_new_delete_internal(cw_gen_t * gen, cw_test_stats_t * stats);
+unsigned int test_cw_tq_get_capacity_internal(cw_gen_t * gen, cw_test_stats_t * stats);
+unsigned int test_cw_tq_length_internal(cw_gen_t * unused, cw_test_stats_t * stats);
 unsigned int test_cw_tq_callback(cw_gen_t * gen, cw_test_stats_t * stats);
+unsigned int test_cw_tq_prev_index_internal(cw_gen_t * unused, cw_test_stats_t * stats);
+unsigned int test_cw_tq_next_index_internal(cw_gen_t * unused, cw_test_stats_t * stats);
+unsigned int test_cw_tq_operations_3(cw_gen_t * gen, cw_test_stats_t * stats);
 
 
 

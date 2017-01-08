@@ -131,11 +131,6 @@ static cw_test_function_t cw_unit_tests[] = {
 
 
 	/* cw_tq module */
-	test_cw_tq_new_delete_internal,
-	test_cw_tq_get_capacity_internal,
-	test_cw_tq_prev_index_internal,
-	test_cw_tq_next_index_internal,
-	test_cw_tq_length_internal,
 	test_cw_tq_enqueue_dequeue_internal,
 	test_cw_tq_enqueue_args_internal,
 	test_cw_tq_is_full_internal,
@@ -181,9 +176,15 @@ static cw_tq_test_function_t cw_unit_tests_tq[] = {
 #if 0
 	test_cw_tq_1,
 	test_cw_tq_2,
-	test_cw_tq_3,
+
 #endif
+	test_cw_tq_new_delete_internal,
+	test_cw_tq_get_capacity_internal,
+	test_cw_tq_length_internal,
+	test_cw_tq_prev_index_internal,
+	test_cw_tq_next_index_internal,
 	test_cw_tq_callback,
+	test_cw_tq_operations_3,
 
 	NULL
 };
