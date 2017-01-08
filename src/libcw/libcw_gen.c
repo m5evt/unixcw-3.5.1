@@ -1766,6 +1766,8 @@ int cw_gen_set_frequency(cw_gen_t *gen, int new_value)
    value of volume.
    errno is set to EINVAL if \p new_value is out of range.
 
+   testedin::test_cw_gen_volume_functions()
+
    \param gen - generator for which to set a volume level
    \param new_value - new value of volume to be assigned to generator
 
@@ -1901,6 +1903,8 @@ int cw_gen_get_frequency(cw_gen_t *gen)
    Function returns "volume" parameter of generator,
    even if the generator is stopped.
 
+   testedin::test_cw_gen_volume_functions()
+
    \param gen - generator from which to get the parameter
 
    \return current value of generator's sound volume
@@ -1909,10 +1913,6 @@ int cw_gen_get_volume(cw_gen_t *gen)
 {
 	return gen->volume_percent;
 }
-
-
-
-
 
 
 
@@ -3484,9 +3484,7 @@ unsigned int test_cw_gen_parameter_getters_setters(void)
 
 	cw_gen_delete(&gen);
 
-
 	CW_TEST_PRINT_TEST_RESULT(false, p);
-
 
 	return 0;
 }
@@ -3494,9 +3492,6 @@ unsigned int test_cw_gen_parameter_getters_setters(void)
 
 
 
-
-
-#if 0
 /**
    \brief Test control of volume
 
@@ -3504,14 +3499,11 @@ unsigned int test_cw_gen_parameter_getters_setters(void)
    volume through its entire range.  Flush the queue when complete.
 
    tests::cw_get_volume_limits()
-   tests::cw_set_volume()
-   tests::cw_get_volume()
+   tests::cw_gen_set_volume()
+   tests::cw_gen_get_volume()
 */
 unsigned int test_cw_gen_volume_functions(cw_gen_t * gen, cw_test_stats_t * stats)
 {
-	int p = fprintf(out_file, "libcw:gen: volume functions:");
-	fflush(out_file);
-
 	int cw_min = -1, cw_max = -1;
 
 	/* Test: get range of allowed volumes. */
@@ -3522,7 +3514,7 @@ unsigned int test_cw_gen_volume_functions(cw_gen_t * gen, cw_test_stats_t * stat
 			|| cw_max != CW_VOLUME_MAX;
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = fprintf(stderr, "libcw: cw_get_volume_limits(): %d, %d", cw_min, cw_max);
+		int n = fprintf(out_file, "libcw:gen: cw_get_volume_limits(): %d, %d", cw_min, cw_max);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -3530,36 +3522,38 @@ unsigned int test_cw_gen_volume_functions(cw_gen_t * gen, cw_test_stats_t * stat
 	/* Test: decrease volume from max to low. */
 	{
 		/* Fill the tone queue with valid tones. */
-		while (!cw_is_tone_queue_full()) {
-			cw_queue_tone(100000, 440);
+		while (!cw_gen_is_queue_full(gen)) {
+			cw_tone_t tone;
+			CW_TONE_INIT(&tone, 440, 100000, CW_SLOPE_MODE_STANDARD_SLOPES);
+			cw_tq_enqueue_internal(gen->tq, &tone);
 		}
 
 		bool set_failure = false;
 		bool get_failure = false;
 
-		/* TODO: why call the cw_wait_for_tone() at the
+		/* TODO: why call the cw_gen_wait_for_tone() at the
 		   beginning and end of loop's body? */
 		for (int i = cw_max; i >= cw_min; i -= 10) {
-			cw_wait_for_tone();
-			if (!cw_set_volume(i)) {
+			cw_gen_wait_for_tone(gen);
+			if (CW_SUCCESS != cw_gen_set_volume(gen, i)) {
 				set_failure = true;
 				break;
 			}
 
-			if (cw_get_volume() != i) {
+			if (cw_gen_get_volume(gen) != i) {
 				get_failure = true;
 				break;
 			}
 
-			cw_wait_for_tone();
+			cw_gen_wait_for_tone(gen);
 		}
 
 		set_failure ? stats->failures++ : stats->successes++;
-		int n = fprintf(stderr, "libcw: cw_set_volume() (down):");
+		int n = fprintf(out_file, "libcw:gen: cw_gen_set_volume() (down):");
 		CW_TEST_PRINT_TEST_RESULT (set_failure, n);
 
 		get_failure ? stats->failures++ : stats->successes++;
-		n = fprintf(stderr, "libcw: cw_get_volume() (down):");
+		n = fprintf(out_file, "libcw:gen: cw_gen_get_volume() (down):");
 		CW_TEST_PRINT_TEST_RESULT (get_failure, n);
 	}
 
@@ -3569,47 +3563,45 @@ unsigned int test_cw_gen_volume_functions(cw_gen_t * gen, cw_test_stats_t * stat
 	/* Test: increase volume from zero to high. */
 	{
 		/* Fill tone queue with valid tones. */
-		while (!cw_is_tone_queue_full()) {
-			cw_queue_tone(100000, 440);
+		while (!cw_gen_is_queue_full(gen)) {
+			cw_tone_t tone;
+			CW_TONE_INIT(&tone, 440, 100000, CW_SLOPE_MODE_STANDARD_SLOPES);
+			cw_tq_enqueue_internal(gen->tq, &tone);
 		}
 
 		bool set_failure = false;
 		bool get_failure = false;
 
-		/* TODO: why call the cw_wait_for_tone() at the
+		/* TODO: why call the cw_gen_wait_for_tone() at the
 		   beginning and end of loop's body? */
 		for (int i = cw_min; i <= cw_max; i += 10) {
-			cw_wait_for_tone();
-			if (!cw_set_volume(i)) {
+			cw_gen_wait_for_tone(gen);
+			if (CW_SUCCESS != cw_gen_set_volume(gen, i)) {
 				set_failure = true;
 				break;
 			}
 
-			if (cw_get_volume() != i) {
+			if (cw_gen_get_volume(gen) != i) {
 				get_failure = true;
 				break;
 			}
-			cw_wait_for_tone();
+			cw_gen_wait_for_tone(gen);
 		}
 
 		set_failure ? stats->failures++ : stats->successes++;
-		int n = fprintf(stderr, "libcw: cw_set_volume() (up):");
+		int n = fprintf(out_file, "libcw:gen: cw_gen_set_volume() (up):");
 		CW_TEST_PRINT_TEST_RESULT (set_failure, n);
 
 		get_failure ? stats->failures++ : stats->successes++;
-		n = fprintf(stderr, "libcw: cw_get_volume() (up):");
+		n = fprintf(out_file, "libcw:gen: cw_gen_get_volume() (up):");
 		CW_TEST_PRINT_TEST_RESULT (get_failure, n);
 	}
 
-	cw_wait_for_tone();
-	cw_flush_tone_queue();
+	cw_gen_wait_for_tone(gen);
+	cw_tq_flush_internal(gen->tq);
 
-	CW_TEST_PRINT_TEST_RESULT(false, p);
-
-	return;
+	return 0;
 }
-#endif /* #if 0 */
-
 
 
 
@@ -3623,9 +3615,6 @@ unsigned int test_cw_gen_volume_functions(cw_gen_t * gen, cw_test_stats_t * stat
 */
 unsigned int test_cw_gen_enqueue_primitives(cw_gen_t * gen, cw_test_stats_t * stats)
 {
-	int p = fprintf(out_file, "libcw:gen: send primitives:");
-	fflush(out_file);
-
 	int N = 20;
 
 	/* Test: sending dot. */
@@ -3640,7 +3629,7 @@ unsigned int test_cw_gen_enqueue_primitives(cw_gen_t * gen, cw_test_stats_t * st
 		cw_gen_wait_for_tone(gen);
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_gen_enqueue_mark_internal(CW_DOT_REPRESENTATION):");
+		int n = printf("libcw:gen: cw_gen_enqueue_mark_internal(CW_DOT_REPRESENTATION):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -3658,7 +3647,7 @@ unsigned int test_cw_gen_enqueue_primitives(cw_gen_t * gen, cw_test_stats_t * st
 		cw_gen_wait_for_tone(gen);
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_gen_enqueue_mark_internal(CW_DASH_REPRESENTATION):");
+		int n = printf("libcw:gen: cw_gen_enqueue_mark_internal(CW_DASH_REPRESENTATION):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -3675,7 +3664,7 @@ unsigned int test_cw_gen_enqueue_primitives(cw_gen_t * gen, cw_test_stats_t * st
 		cw_gen_wait_for_tone(gen);
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_gen_enqueue_eoc_space_internal():");
+		int n = printf("libcw:gen: cw_gen_enqueue_eoc_space_internal():");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -3693,11 +3682,9 @@ unsigned int test_cw_gen_enqueue_primitives(cw_gen_t * gen, cw_test_stats_t * st
 		cw_gen_wait_for_tone(gen);
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_gen_enqueue_eow_space_internal():");
+		int n = printf("libcw:gen: cw_gen_enqueue_eow_space_internal():");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
-
-	CW_TEST_PRINT_TEST_RESULT(false, p);
 
 	return 0;
 }

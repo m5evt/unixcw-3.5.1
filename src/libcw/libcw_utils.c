@@ -482,7 +482,7 @@ void cw_get_frequency_limits(int *min_frequency, int *max_frequency)
    See CW_VOLUME_MIN and CW_VOLUME_MAX in libcw.h for values.
 
    testedin::test_cw_get_x_limits()
-   testedin::test_volume_functions()
+   testedin::test_cw_gen_volume_functions()
 
    \param min_volume - minimal allowed volume
    \param max_volume - maximal allowed volume

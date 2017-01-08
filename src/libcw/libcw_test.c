@@ -118,6 +118,7 @@ typedef unsigned int (*cw_tq_test_function_t)(cw_gen_t * gen, cw_test_stats_t * 
 
 
 static cw_test_function_t cw_unit_tests[] = {
+#if 0
 	/* cw_data module */
 	test_cw_representation_to_hash_internal,
 	test_cw_representation_to_character_internal,
@@ -172,7 +173,7 @@ static cw_test_function_t cw_unit_tests[] = {
 
 	/* cw_debug module */
 	test_cw_debug_flags_internal,
-
+#endif
 	NULL
 };
 
@@ -196,13 +197,10 @@ static cw_tq_test_function_t cw_unit_tests_tq[] = {
 /* Tests that are dependent on a sound system being configured.
    Generator module functions. */
 static cw_gen_test_function_t cw_unit_tests_gen[] = {
-#if 0
 	test_cw_gen_volume_functions,
-#endif
 	test_cw_gen_enqueue_primitives,
 	test_cw_gen_enqueue_representations,
 	test_cw_gen_enqueue_character_and_string,
-
 	NULL
 };
 
@@ -279,7 +277,6 @@ int main(int argc, char *const argv[])
 		cw_unit_tests[i]();
 		i++;
 	}
-
 
 	rv = cw_test_dependent(sound_systems, modules);
 
