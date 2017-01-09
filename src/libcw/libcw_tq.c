@@ -396,6 +396,8 @@ size_t cw_tq_get_high_water_mark_internal(cw_tone_queue_t *tq)
    \brief Return number of items on tone queue
 
    testedin::test_cw_tq_length_internal()
+   testedin::test_cw_tq_enqueue_internal()
+   testedin::test_cw_tq_dequeue_internal()
 
    \param tq - tone queue
 
@@ -940,8 +942,8 @@ void cw_tq_flush_internal(cw_tone_queue_t *tq)
 
 
 static cw_tone_queue_t *test_cw_tq_capacity_test_init(size_t capacity, size_t high_water_mark, size_t head_shift);
-static unsigned int test_cw_tq_enqueue_internal(cw_tone_queue_t *tq);
-static unsigned int test_cw_tq_dequeue_internal(cw_tone_queue_t *tq);
+static unsigned int test_cw_tq_enqueue_internal(cw_tone_queue_t * tq, cw_test_stats_t * stats);
+static unsigned int test_cw_tq_dequeue_internal(cw_tone_queue_t * tq, cw_test_stats_t * stats);
 
 
 
@@ -1226,22 +1228,18 @@ unsigned int test_cw_tq_length_internal(__attribute__((unused)) cw_gen_t * unuse
   First we fill a tone queue when testing enqueue(), and then use the
   tone queue to test dequeue().
 */
-unsigned int test_cw_tq_enqueue_dequeue_internal(void)
+unsigned int test_cw_tq_enqueue_dequeue_internal(__attribute__((unused)) cw_gen_t * unused, cw_test_stats_t * stats)
 {
-	cw_tone_queue_t *tq = cw_tq_new_internal();
-	cw_assert (tq, "failed to create new tone queue");
+	cw_tone_queue_t * tq = cw_tq_new_internal();
+	cw_assert (tq, "libcw:tq: failed to create new tone queue");
 	tq->state = CW_TQ_BUSY; /* TODO: why this assignment? */
 
 	/* Fill the tone queue with tones. */
-	unsigned int rv = test_cw_tq_enqueue_internal(tq);
-	cw_assert (rv == 0, "test of enqueue() failed");
-
-
+	test_cw_tq_enqueue_internal(tq, stats);
 
 	/* Use the same (now filled) tone queue to test dequeue()
 	   function. */
-        rv = test_cw_tq_dequeue_internal(tq);
-	cw_assert (rv == 0, "test of dequeue() failed");
+        test_cw_tq_dequeue_internal(tq, stats);
 
 	cw_tq_delete_internal(&tq);
 
@@ -1254,43 +1252,68 @@ unsigned int test_cw_tq_enqueue_dequeue_internal(void)
 
 /**
    tests::cw_tq_enqueue_internal()
+   tests::cw_tq_length_internal()
 */
-unsigned int test_cw_tq_enqueue_internal(cw_tone_queue_t *tq)
+unsigned int test_cw_tq_enqueue_internal(cw_tone_queue_t * tq, cw_test_stats_t * stats)
 {
-	int p = fprintf(stdout, "libcw/tq: cw_tq_enqueue_internal():");
-
 	/* At this point cw_tq_length_internal() should be
 	   tested, so we can use it to verify correctness of 'enqueue'
 	   function. */
 
 	cw_tone_t tone;
 	CW_TONE_INIT(&tone, 1, 1, CW_SLOPE_MODE_NO_SLOPES);
+	bool enqueue_failure = false;
+	bool length_failure = false;
+	bool failure = false;
+	int n = 0;
 
 	for (size_t i = 0; i < tq->capacity; i++) {
 
 		/* This tests for potential problems with function call. */
 		int rv = cw_tq_enqueue_internal(tq, &tone);
-		cw_assert (rv, "failed to enqueue tone #%zu/%zu", i, tq->capacity);
+		if (rv != CW_SUCCESS) {
+			fprintf(out_file, "libcw:tq: enqueue: failed to enqueue tone #%zu/%zu", i, tq->capacity);
+			enqueue_failure = true;
+			break;
+		}
 
 		/* This tests for correctness of working of the 'enqueue' function. */
 		size_t len = cw_tq_length_internal(tq);
-		cw_assert (len == i + 1, "incorrect tone queue length: %zu != %zu", len, i + 1);
+		if (len != i + 1) {
+			fprintf(out_file, "libcw:tq: enqueue: incorrect tone queue length: %zu != %zu", len, i + 1);
+			length_failure = true;
+			break;
+		}
 	}
+
+	enqueue_failure ? stats->failures++ : stats->successes++;
+	n = fprintf(out_file, "libcw:tq: enqueue: enqueueing tones to queue:");
+	CW_TEST_PRINT_TEST_RESULT (enqueue_failure, n);
+
+	length_failure ? stats->failures++ : stats->successes++;
+	n = fprintf(out_file, "libcw:tq: enqueue: length of tq during enqueueing:");
+	CW_TEST_PRINT_TEST_RESULT (length_failure, n);
+
 
 
 	/* Try adding a tone to full tq. */
 	/* This tests for potential problems with function call.
 	   Enqueueing should fail when the queue is full. */
-	cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_TONE_QUEUE, CW_DEBUG_INFO,
-		      "libcw/tq: test: adding a tone to full queue, expect \"tq is full\" message");
+	fprintf(out_file, "libcw:tq: you may now see \"EE:libcw/tq: can't enqueue tone, tq is full\" message:\n");
+	fflush(out_file);
 	int rv = cw_tq_enqueue_internal(tq, &tone);
-	cw_assert (rv == CW_FAILURE, "was able to add tone to full queue");
+	failure = rv != CW_FAILURE;
+	failure ? stats->failures++ : stats->successes++;
+	n = fprintf(out_file, "libcw:tq: enqueue: attempting to enqueue tone to full queue:");
+	CW_TEST_PRINT_TEST_RESULT (failure, n);
+
 
 	/* This tests for correctness of working of the 'enqueue'
 	   function.  Full tq should not grow beyond its capacity. */
-	cw_assert (tq->len == tq->capacity, "length of full tone queue is not equal to capacity: %zu != %zu", tq->len, tq->capacity);
-
-	CW_TEST_PRINT_TEST_RESULT(false, p);
+	failure = (tq->len != tq->capacity);
+	failure ? stats->failures++ : stats->successes++;
+	n = fprintf(out_file, "libcw:tq: enqueue: length of full queue == capacity (%zd == %zd):", tq->len, tq->capacity);
+	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 	return 0;
 }
@@ -1298,46 +1321,71 @@ unsigned int test_cw_tq_enqueue_internal(cw_tone_queue_t *tq)
 
 
 
-
 /**
    tests::cw_tq_dequeue_internal()
+   tests::cw_tq_length_internal()
 */
-unsigned int test_cw_tq_dequeue_internal(cw_tone_queue_t *tq)
+unsigned int test_cw_tq_dequeue_internal(cw_tone_queue_t * tq, cw_test_stats_t * stats)
 {
-	int p = fprintf(stdout, "libcw/tq: cw_tq_dequeue_internal():");
-
 	/* tq should be completely filled after tests of enqueue()
 	   function. */
 
 	/* Test some assertions about full tq, just to be sure. */
 	cw_assert (tq->capacity == tq->len,
-		   "capacity != len of full queue: %zu != %zu",
+		   "libcw:tq: enqueue: capacity != len of full queue: %zu != %zu",
 		   tq->capacity, tq->len);
 
 	cw_tone_t tone;
 	CW_TONE_INIT(&tone, 1, 1, CW_SLOPE_MODE_NO_SLOPES);
+	int n = 0;
+
+	bool dequeue_failure = false;
+	bool length_failure = false;
+	bool failure = false;
 
 	for (size_t i = tq->capacity; i > 0; i--) {
 
 		/* Length of tone queue before dequeue. */
-		cw_assert (i == tq->len,
-			   "iteration before dequeue doesn't match len: %zu != %zu",
-			   i, tq->len);
+		if (i != tq->len) {
+			fprintf(out_file, "libcw:tq: dequeue: iteration before dequeue doesn't match len: %zu != %zu", i, tq->len);
+			length_failure = true;
+			break;
+		}
 
 		/* This tests for potential problems with function call. */
-		bool dequeued = cw_tq_dequeue_internal(tq, &tone);
-		cw_assert (dequeued, "unexpected return value from \"dequeued()\": %d", dequeued);
+		int rv = cw_tq_dequeue_internal(tq, &tone);
+		if (rv != CW_SUCCESS) {
+			fprintf(out_file, "libcw:tq: dequeue: can't dequeue tone %zd/%zd", i, tq->capacity);
+			dequeue_failure = true;
+			break;
+		}
 
 		/* Length of tone queue after dequeue. */
-		cw_assert (i - 1 == tq->len,
-			   "iteration after dequeue doesn't match len: %zu != %zu",
-			   i - 1, tq->len);
+		if (i - 1 != tq->len) {
+			fprintf(out_file, "libcw_tq: dequeue: iteration after dequeue doesn't match len: %zu != %zu",  i - 1, tq->len);
+			length_failure = true;
+			break;
+		}
 	}
+
+	dequeue_failure ? stats->failures++ : stats->successes++;
+	n = fprintf(out_file, "libcw:tq: dequeue: dequeueing tones from queue:");
+	CW_TEST_PRINT_TEST_RESULT (dequeue_failure, n);
+
+	length_failure ? stats->failures++ : stats->successes++;
+	n = fprintf(out_file, "libcw:tq: dequeue: length of tq during dequeueing:");
+	CW_TEST_PRINT_TEST_RESULT (length_failure, n);
+
+
 
 	/* Try removing a tone from empty queue. */
 	/* This tests for potential problems with function call. */
-	bool dequeued = cw_tq_dequeue_internal(tq, &tone);
-	cw_assert (!dequeued, "unexpected return value when dequeueing empty tq: %d", dequeued);
+	int rv = cw_tq_dequeue_internal(tq, &tone);
+	failure = rv != CW_FAILURE;
+	failure ? stats->failures++ : stats->successes++;
+	n = fprintf(out_file, "libcw:tq: dequeue: attempting to dequeue tone from empty queue:");
+	CW_TEST_PRINT_TEST_RESULT (failure, n);
+
 
 	/* This tests for correctness of working of the dequeue()
 	   function.  Empty tq should stay empty.
@@ -1346,17 +1394,11 @@ unsigned int test_cw_tq_dequeue_internal(cw_tone_queue_t *tq)
 	   we can use it to verify correctness of dequeue()
 	   function. */
 	size_t len = cw_tq_length_internal(tq);
-	cw_assert (len == 0, "non-zero returned length of empty tone queue: len = %zu", len);
-	cw_assert (tq->len == 0,
-		   "length of empty queue is != 0 (%zu)",
-		   tq->len);
+	failure = (len != 0) || (tq->len != 0);
+	failure ? stats->failures++ : stats->successes++;
+	n = fprintf(out_file, "libcw:tq: dequeue: length of empty queue == zero (%zd == %zd):", len, tq->len);
+	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
-	/* Try removing a tone from empty queue. */
-	/* This time we should get CW_TQ_NDEQUEUED_IDLE return value. */
-	dequeued = cw_tq_dequeue_internal(tq, &tone);
-	cw_assert (!dequeued, "unexpected return value from \"dequeue\" on empty tone queue: %d", dequeued);
-
-	CW_TEST_PRINT_TEST_RESULT(false, p);
 
 	return 0;
 }
@@ -1718,48 +1760,51 @@ cw_tone_queue_t *test_cw_tq_capacity_test_init(size_t capacity, size_t high_wate
 
    tests::cw_tq_enqueue_internal()
 */
-unsigned int test_cw_tq_enqueue_args_internal(void)
+unsigned int test_cw_tq_enqueue_args_internal(__attribute__((unused)) cw_gen_t * unused, cw_test_stats_t * stats)
 {
-	int n = printf("libcw/tq: cw_tq_enqueue_internal() arguments:");
-
-	cw_tone_queue_t *tq = cw_tq_new_internal();
-	cw_assert (tq, "failed to create a tone queue\n");
+	cw_tone_queue_t * tq = cw_tq_new_internal();
+	cw_assert (tq, "libcw:tq: failed to create a tone queue\n");
 	cw_tone_t tone;
+	int status = CW_FAILURE;
+	bool failure = false;
+	int n = 0;
 
 
-	int f_min = CW_FREQUENCY_MIN, f_max = CW_FREQUENCY_MAX;
+	const int f_min = CW_FREQUENCY_MIN;
+	const int f_max = CW_FREQUENCY_MAX;
 
 
 	/* Test 1: invalid length of tone. */
 	errno = 0;
-	tone.len = -1;            /* Invalid length. */
-	tone.frequency = f_min;   /* Valid frequency. */
-	int status = cw_tq_enqueue_internal(tq, &tone);
-	cw_assert (status == CW_FAILURE, "enqueued tone with invalid length.\n");
-	cw_assert (errno == EINVAL, "bad errno: %s\n", strerror(errno));
+	CW_TONE_INIT(&tone, f_min, -1, CW_SLOPE_MODE_STANDARD_SLOPES);
+	status = cw_tq_enqueue_internal(tq, &tone);
+	failure = (status != CW_FAILURE) || (errno != EINVAL);
+	failure ? stats->failures++ : stats->successes++;
+	n = fprintf(out_file, "libcw:tq: cw_tq_enqueue_internal(invalid duration):");
+	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 	/* Test 2: tone's frequency too low. */
 	errno = 0;
-	tone.len = 100;                /* Valid length. */
-	tone.frequency = f_min - 1;    /* Invalid frequency. */
+	CW_TONE_INIT(&tone, f_min - 1, 100, CW_SLOPE_MODE_STANDARD_SLOPES);
 	status = cw_tq_enqueue_internal(tq, &tone);
-	cw_assert (status == CW_FAILURE, "enqueued tone with too low frequency.\n");
-	cw_assert (errno == EINVAL, "bad errno: %s\n", strerror(errno));
+	failure = (status != CW_FAILURE) || (errno != EINVAL);
+	failure ? stats->failures++ : stats->successes++;
+	n = fprintf(out_file, "libcw:tq: cw_tq_enqueue_internal(too low frequency):");
+	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 	/* Test 3: tone's frequency too high. */
 	errno = 0;
-	tone.len = 100;                /* Valid length. */
-	tone.frequency = f_max + 1;    /* Invalid frequency. */
+	CW_TONE_INIT(&tone, f_max + 1, 100, CW_SLOPE_MODE_STANDARD_SLOPES);
 	status = cw_tq_enqueue_internal(tq, &tone);
-	cw_assert (status == CW_FAILURE, "enqueued tone with too high frequency.\n");
-	cw_assert (errno == EINVAL, "bad errno: %s\n", strerror(errno));
+	failure = (status != CW_FAILURE) || (errno != EINVAL);
+	failure ? stats->failures++ : stats->successes++;
+	n = fprintf(out_file, "libcw:tq: cw_tq_enqueue_internal(too high frequency):");
+	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 	cw_tq_delete_internal(&tq);
-	cw_assert (!tq, "tone queue not deleted properly\n");
-
-	CW_TEST_PRINT_TEST_RESULT (false, n);
+	cw_assert (!tq, "libcw:tq: tone queue not deleted properly\n");
 
 	return 0;
 }
@@ -1827,9 +1872,6 @@ unsigned int test_cw_tq_wait_for_level_internal(void)
 
 
 
-
-
-#if 0
 /**
    \brief Simple tests of queueing and dequeueing of tones
 
@@ -1840,16 +1882,14 @@ unsigned int test_cw_tq_wait_for_level_internal(void)
    tests::cw_wait_for_tone()
    tests::cw_tq_wait_for_level_internal()
 */
-void test_cw_tq_1(cw_test_stats_t *stats)
+unsigned int test_cw_tq_operations_1(cw_gen_t * gen, cw_test_stats_t * stats)
 {
-	int p = fprintf(stdout, "libcw:tq: test 1:");
-
 	int l = 0;         /* Measured length of tone queue. */
 	int expected = 0;  /* Expected length of tone queue. */
 
 	int f_min, f_max;
 
-	cw_set_volume(70);
+	cw_gen_set_volume(gen, 70);
 	cw_get_frequency_limits(&f_min, &f_max);
 
 	int N = 6;              /* Number of test tones put in queue. */
@@ -1868,9 +1908,11 @@ void test_cw_tq_1(cw_test_stats_t *stats)
 	   dequeueing it, enqueue rest of the tones in the loop,
 	   together with checking length of the tone queue. */
 	int f = f_min;
-	bool failure = !cw_tq_enqueue_internal(duration, f);
+	cw_tone_t tone;
+	CW_TONE_INIT(&tone, f, duration, CW_SLOPE_MODE_NO_SLOPES);
+	bool failure = !cw_tq_enqueue_internal(gen->tq, &tone);
 	failure ? stats->failures++ : stats->successes++;
-	int n = printf("libcw: cw_tq_enqueue_internal():");
+	int n = fprintf(out_file, "libcw:tq: cw_tq_enqueue_internal():");
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
@@ -1882,17 +1924,16 @@ void test_cw_tq_1(cw_test_stats_t *stats)
 	   tone queue before and after queueing each tone: length of
 	   the tone queue should increase (there won't be any decrease
 	   due to dequeueing of first tone). */
-	printf("libcw: enqueueing (1): \n");
 	for (int i = 1; i < N; i++) {
 
 		/* Monitor length of a queue as it is filled - before
 		   adding a new tone. */
-		l = cw_tq_length_internal();
+		l = cw_tq_length_internal(gen->tq);
 		expected = (i - 1);
 		failure = l != expected;
 
 		failure ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_tq_length_internal(): pre (#%02d):", i);
+		n = fprintf(out_file, "libcw:tq: cw_tq_length_internal(): pre (#%02d):", i);
 		// n = printf("libcw: cw_tq_length_internal(): pre-queue: expected %d != result %d:", expected, l);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
@@ -1901,23 +1942,23 @@ void test_cw_tq_1(cw_test_stats_t *stats)
 		   within allowed range, so there should be no
 		   error. */
 		f = f_min + i * delta_f;
-		failure = !cw_tq_enqueue_internal(duration, f);
+		CW_TONE_INIT(&tone, f, duration, CW_SLOPE_MODE_NO_SLOPES);
+		failure = !cw_tq_enqueue_internal(gen->tq, &tone);
 
 		failure ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_tq_enqueue_internal():");
+		n = fprintf(out_file, "libcw:tq: cw_tq_enqueue_internal():");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 
 		/* Monitor length of a queue as it is filled - after
 		   adding a new tone. */
-		l = cw_tq_length_internal();
+		l = cw_tq_length_internal(gen->tq);
 		expected = (i - 1) + 1;
 		failure = l != expected;
 
 		failure ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_tq_length_internal(): post (#%02d):", i);
-		// n = printf("libcw: cw_tq_length_internal(): post-queue: expected %d != result %d:", expected, l);
+		n = fprintf(out_file, "libcw:tq: cw_tq_length_internal(): post (#%02d):", i);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -1932,29 +1973,25 @@ void test_cw_tq_1(cw_test_stats_t *stats)
 	usleep(duration / 4);
 
 	/* And this is the proper test - waiting for dequeueing tones. */
-	printf("libcw: dequeueing (1):\n");
 	for (int i = 1; i < N; i++) {
-
+#if 0
 		/* Monitor length of a queue as it is emptied - before dequeueing. */
-		l = cw_tq_length_internal();
+		l = cw_tq_length_internal(gen->tq);
 		expected = N - i;
-		//printf("libcw: cw_tq_length_internal(): pre:  l = %d\n", l);
 		failure = l != expected;
 
 		failure ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_tq_length_internal(): pre (#%02d):", i);
+		n = fprintf(out_file, "libcw:tq: cw_tq_length_internal(): pre (#%02d):", i);
 		// n = printf("libcw: cw_tq_length_internal(): pre-dequeue:  expected %d != result %d: failure\n", expected, l);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
-
 
 
 		/* Wait for each of N tones to be dequeued. */
 		failure = !cw_wait_for_tone();
 
 		failure ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_wait_for_tone():");
+		n = fprintf(out_file, "libcw: cw_wait_for_tone():");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
-
 
 
 		/* Monitor length of a queue as it is emptied - after dequeueing. */
@@ -1967,6 +2004,7 @@ void test_cw_tq_1(cw_test_stats_t *stats)
 		n = printf("libcw: cw_tq_length_internal(): post (#%02d):", i);
 		// n = printf("libcw: cw_tq_length_internal(): post-dequeue: expected %d != result %d: failure\n", expected, l);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
+#endif
 	}
 
 
@@ -1975,33 +2013,30 @@ void test_cw_tq_1(cw_test_stats_t *stats)
 	   tone separately, but wait for a whole queue to become
 	   empty. */
 	failure = false;
-	printf("libcw: enqueueing (2):\n");
 	f = 0;
 	for (int i = 0; i < N; i++) {
 		f = f_min + i * delta_f;
-		if (!cw_tq_enqueue_internal(duration, f)) {
+		CW_TONE_INIT(&tone, f, duration, CW_SLOPE_MODE_NO_SLOPES);
+		if (!cw_tq_enqueue_internal(gen->tq, &tone)) {
 			failure = true;
 			break;
 		}
 	}
 
 	failure ? stats->failures++ : stats->successes++;
-	n = printf("libcw: cw_tq_enqueue_internal(%08d, %04d):", duration, f);
+	n = fprintf(out_file, "libcw:tq: cw_tq_enqueue_internal(%08d, %04d):", duration, f);
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
-
-	printf("libcw: dequeueing (2):\n");
 
 	failure = !cw_tq_wait_for_level_internal(gen->tq, 0);
 
 	failure ? stats->failures++ : stats->successes++;
-	n = printf("libcw: cw_tq_wait_for_level_internal():");
+	n = fprintf(out_file, "libcw:tq: cw_tq_wait_for_level_internal():");
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
-	return;
+	return 0;
 }
-#endif
 
 
 
@@ -2185,7 +2220,7 @@ unsigned int test_cw_tq_operations_3(cw_gen_t * gen, cw_test_stats_t * stats)
 		bool failure = status || errno != EAGAIN;
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = fprintf(out_file, "libcw:tq: adding tone to full queue:");
+		int n = fprintf(out_file, "libcw:tq: trying to enqueue tone to full queue:");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
