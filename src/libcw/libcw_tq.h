@@ -242,8 +242,6 @@ unsigned int test_cw_tq_wait_for_level_internal(void);
 
 #if 0
 unsigned int test_cw_tq_1(cw_gen_t * gen, cw_test_stats_t * stats);
-unsigned int test_cw_tq_2(cw_gen_t * gen, cw_test_stats_t * stats);
-
 #endif
 unsigned int test_cw_tq_new_delete_internal(cw_gen_t * gen, cw_test_stats_t * stats);
 unsigned int test_cw_tq_get_capacity_internal(cw_gen_t * gen, cw_test_stats_t * stats);
@@ -251,6 +249,7 @@ unsigned int test_cw_tq_length_internal(cw_gen_t * unused, cw_test_stats_t * sta
 unsigned int test_cw_tq_callback(cw_gen_t * gen, cw_test_stats_t * stats);
 unsigned int test_cw_tq_prev_index_internal(cw_gen_t * unused, cw_test_stats_t * stats);
 unsigned int test_cw_tq_next_index_internal(cw_gen_t * unused, cw_test_stats_t * stats);
+unsigned int test_cw_tq_operations_2(cw_gen_t * gen, cw_test_stats_t * stats);
 unsigned int test_cw_tq_operations_3(cw_gen_t * gen, cw_test_stats_t * stats);
 
 

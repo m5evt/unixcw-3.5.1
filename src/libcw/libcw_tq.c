@@ -657,6 +657,7 @@ int cw_tq_dequeue_sub_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
    testedin::test_cw_tq_enqueue_args_internal()
    testedin::test_cw_tq_test_capacity_1()
    testedin::test_cw_tq_test_capacity_2()
+   testedin::test_cw_tq_operations_2()
 
    \param tq - tone queue
    \param tone - tone to enqueue
@@ -666,6 +667,9 @@ int cw_tq_dequeue_sub_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 */
 int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 {
+	cw_assert (tq, "libcw:tq: tone queue is null");
+	cw_assert (tone, "libcw:tq: tone is null");
+
 	/* Check the arguments given for realistic values. */
 	if (tone->frequency < CW_FREQUENCY_MIN
 	    || tone->frequency > CW_FREQUENCY_MAX) {
@@ -831,6 +835,7 @@ int cw_tq_wait_for_tone_internal(cw_tone_queue_t *tq)
    The routine always returns CW_SUCCESS.
 
    testedin::test_cw_tq_wait_for_level_internal()
+   testedin::test_cw_tq_operations_2()
 
    \param tq - tone queue
    \param level - low level in queue, at which to return
@@ -1842,14 +1847,14 @@ void test_cw_tq_1(cw_test_stats_t *stats)
 	int l = 0;         /* Measured length of tone queue. */
 	int expected = 0;  /* Expected length of tone queue. */
 
-	int cw_min, cw_max;
+	int f_min, f_max;
 
 	cw_set_volume(70);
-	cw_get_frequency_limits(&cw_min, &cw_max);
+	cw_get_frequency_limits(&f_min, &f_max);
 
 	int N = 6;              /* Number of test tones put in queue. */
 	int duration = 100000;  /* Duration of tone. */
-	int delta_f = ((cw_max - cw_min) / (N - 1));      /* Delta of frequency in loops. */
+	int delta_f = ((f_max - f_min) / (N - 1));      /* Delta of frequency in loops. */
 
 
 	/* Test 1: enqueue N tones, and wait for each of them
@@ -1862,7 +1867,7 @@ void test_cw_tq_1(cw_test_stats_t *stats)
 	   Instead, enqueue the first tone, and during the process of
 	   dequeueing it, enqueue rest of the tones in the loop,
 	   together with checking length of the tone queue. */
-	int f = cw_min;
+	int f = f_min;
 	bool failure = !cw_tq_enqueue_internal(duration, f);
 	failure ? stats->failures++ : stats->successes++;
 	int n = printf("libcw: cw_tq_enqueue_internal():");
@@ -1895,7 +1900,7 @@ void test_cw_tq_1(cw_test_stats_t *stats)
 		/* Add a tone to queue. All frequencies should be
 		   within allowed range, so there should be no
 		   error. */
-		f = cw_min + i * delta_f;
+		f = f_min + i * delta_f;
 		failure = !cw_tq_enqueue_internal(duration, f);
 
 		failure ? stats->failures++ : stats->successes++;
@@ -1973,7 +1978,7 @@ void test_cw_tq_1(cw_test_stats_t *stats)
 	printf("libcw: enqueueing (2):\n");
 	f = 0;
 	for (int i = 0; i < N; i++) {
-		f = cw_min + i * delta_f;
+		f = f_min + i * delta_f;
 		if (!cw_tq_enqueue_internal(duration, f)) {
 			failure = true;
 			break;
@@ -1996,7 +2001,7 @@ void test_cw_tq_1(cw_test_stats_t *stats)
 
 	return;
 }
-
+#endif
 
 
 
@@ -2007,45 +2012,46 @@ void test_cw_tq_1(cw_test_stats_t *stats)
    shouldn't with this amount of data, then pause until it isn't so
    full.
 
-   tests::cw_wait_for_tone()
    tests::cw_tq_enqueue_internal()
    tests::cw_tq_wait_for_level_internal()
 */
-void test_cw_tq_2(cw_test_stats_t *stats)
+unsigned int test_cw_tq_operations_2(cw_gen_t * gen, cw_test_stats_t * stats)
 {
-	int p = fprintf(stdout, "libcw:tq: test 2:");
-
-	cw_set_volume(70);
+	cw_gen_set_volume(gen, 70);
 	int duration = 40000;
 
-	int cw_min, cw_max;
-	cw_get_frequency_limits(&cw_min, &cw_max);
+	int f_min, f_max;
+	cw_get_frequency_limits(&f_min, &f_max);
 
 	bool wait_failure = false;
 	bool queue_failure = false;
 
-	for (int i = cw_min; i < cw_max; i += 100) {
-		while (cw_tq_is_full_internal()) {
-			if (!cw_wait_for_tone()) {
+	for (int f = f_min; f < f_max; f += 100) {
+		while (cw_tq_is_full_internal(gen->tq)) {
+			if (!cw_tq_wait_for_level_internal(gen->tq, 0)) {
 				wait_failure = true;
 				break;
 			}
 		}
 
-		if (!cw_tq_enqueue_internal(duration, i)) {
+		cw_tone_t tone;
+		CW_TONE_INIT(&tone, f, duration, CW_SLOPE_MODE_NO_SLOPES);
+		if (!cw_tq_enqueue_internal(gen->tq, &tone)) {
 			queue_failure = true;
 			break;
 		}
 	}
 
-	for (int i = cw_max; i > cw_min; i -= 100) {
-		while (cw_tq_is_full_internal()) {
-			if (!cw_wait_for_tone()) {
+	for (int f = f_max; f > f_min; f -= 100) {
+		while (cw_tq_is_full_internal(gen->tq)) {
+			if (!cw_tq_wait_for_level_internal(gen->tq, 0)) {
 				wait_failure = true;
 				break;
 			}
 		}
-		if (!cw_tq_enqueue_internal(duration, i)) {
+		cw_tone_t tone;
+		CW_TONE_INIT(&tone, f, duration, CW_SLOPE_MODE_NO_SLOPES);
+		if (!cw_tq_enqueue_internal(gen->tq, &tone)) {
 			queue_failure = true;
 			break;
 		}
@@ -2053,28 +2059,30 @@ void test_cw_tq_2(cw_test_stats_t *stats)
 
 
 	queue_failure ? stats->failures++ : stats->successes++;
-	int n = printf("libcw: cw_tq_enqueue_internal():");
+	int n = fprintf(out_file, "libcw:tq: cw_tq_enqueue_internal():");
 	CW_TEST_PRINT_TEST_RESULT (queue_failure, n);
 
 
 	wait_failure ? stats->failures++ : stats->successes++;
-	n = printf("libcw: cw_wait_for_tone():");
+	n = fprintf(out_file, "libcw:tq: cw_tq_wait_for_level_internal(A):");
 	CW_TEST_PRINT_TEST_RESULT (wait_failure, n);
 
 
-	n = printf("libcw: cw_tq_wait_for_level_internal():");
-	fflush(stdout);
-	bool wait_tq_failure = !cw_tq_wait_for_level_internal(gen, 0);
+	n = fprintf(out_file, "libcw:tq: cw_tq_wait_for_level_internal(B):");
+	fflush(out_file);
+	bool wait_tq_failure = !cw_tq_wait_for_level_internal(gen->tq, 0);
 	wait_tq_failure ? stats->failures++ : stats->successes++;
 	CW_TEST_PRINT_TEST_RESULT (wait_tq_failure, n);
 
 
-	cw_tq_enqueue_internal(0, 0);
+	/* Silence the generator before next test. */
+	cw_tone_t tone;
+	CW_TONE_INIT(&tone, 0, 100, CW_SLOPE_MODE_NO_SLOPES);
+	cw_tq_enqueue_internal(gen->tq, &tone);
 	cw_tq_wait_for_level_internal(gen->tq, 0);
 
-	return;
+	return 0;
 }
-#endif
 
 
 
