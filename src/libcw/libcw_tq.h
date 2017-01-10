@@ -234,11 +234,11 @@ bool cw_tq_is_full_internal(cw_tone_queue_t *tq);
 unsigned int test_cw_tq_init_internal(void);
 
 
-unsigned int test_cw_tq_is_full_internal(void);
-unsigned int test_cw_tq_test_capacity_1(void);
-unsigned int test_cw_tq_test_capacity_2(void);
-unsigned int test_cw_tq_wait_for_level_internal(void);
 
+unsigned int test_cw_tq_test_capacity_1(cw_gen_t * gen, cw_test_stats_t * stats);
+unsigned int test_cw_tq_test_capacity_2(cw_gen_t * gen, cw_test_stats_t * stats);
+unsigned int test_cw_tq_wait_for_level_internal(cw_gen_t * gen, cw_test_stats_t * stats);
+unsigned int test_cw_tq_is_full_internal(cw_gen_t * gen, cw_test_stats_t * stats);
 unsigned int test_cw_tq_enqueue_dequeue_internal(cw_gen_t * gen, cw_test_stats_t * stats);
 unsigned int test_cw_tq_enqueue_args_internal(cw_gen_t * gen, cw_test_stats_t * stats);
 unsigned int test_cw_tq_new_delete_internal(cw_gen_t * gen, cw_test_stats_t * stats);
