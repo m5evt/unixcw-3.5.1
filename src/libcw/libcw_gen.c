@@ -926,8 +926,8 @@ void *cw_gen_dequeue_and_generate_internal(void *arg)
 	cw_tone_t tone;
 	CW_TONE_INIT(&tone, 0, 0, CW_SLOPE_MODE_STANDARD_SLOPES);
 
-	int dequeued_prev = false;
-	int dequeued_now = false;
+	int dequeued_prev = CW_FAILURE;
+	int dequeued_now = CW_FAILURE;
 
 	while (gen->do_dequeue_and_generate) {
 		dequeued_now = cw_tq_dequeue_internal(gen->tq, &tone);
