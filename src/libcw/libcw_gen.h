@@ -403,23 +403,12 @@ void cw_gen_get_timing_parameters_internal(cw_gen_t *gen, int *dot_len, int *das
 
 #ifdef LIBCW_UNIT_TESTS
 
-unsigned int test_cw_gen_set_tone_slope(void);
-unsigned int test_cw_gen_tone_slope_shape_enums(void);
-unsigned int test_cw_gen_new_delete(void);
 
 
 
-/* This is helper function (performing the real test), used in
-   libcw_test_public and in libcw_test_internal.
-
-   "forever" feature is not a part of public api, so in theory it
-   shouldn't be tested in libcw_test_public, but the libcw_test_public
-   is able to perform tests with different audio sinks, whereas
-   libcw_test_internal only uses NULL audio sink.
-
-   So libcw_test_internal does basic tests ("does it work at all?"),
-   and libcw_test_public does full test.
-*/
+unsigned int test_cw_gen_set_tone_slope(cw_gen_t * gen, cw_test_stats_t * stats);
+unsigned int test_cw_gen_tone_slope_shape_enums(cw_gen_t * gen, cw_test_stats_t * stats);
+unsigned int test_cw_gen_new_delete(cw_gen_t * gen, cw_test_stats_t * stats);
 unsigned int test_cw_gen_forever_internal(cw_gen_t * gen, cw_test_stats_t * stats);
 unsigned int test_cw_gen_get_timing_parameters_internal(cw_gen_t * gen, cw_test_stats_t * stats);
 unsigned int test_cw_gen_parameter_getters_setters(cw_gen_t * gen, cw_test_stats_t * stats);
@@ -432,7 +421,6 @@ unsigned int test_cw_gen_enqueue_character_and_string(cw_gen_t * gen, cw_test_st
 
 
 #endif /* #ifdef LIBCW_UNIT_TESTS */
-
 
 
 

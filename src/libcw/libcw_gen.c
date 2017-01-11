@@ -2916,93 +2916,173 @@ bool cw_gen_is_queue_full(cw_gen_t *gen)
    tests::cw_gen_new()
    tests::cw_gen_delete()
 */
-unsigned int test_cw_gen_new_delete(void)
+unsigned int test_cw_gen_new_delete(__attribute__((unused)) cw_gen_t * unused, cw_test_stats_t * stats)
 {
-	int p = fprintf(stdout, "libcw/gen: cw_gen_new/start/stop/delete():\n");
-	fflush(stdout);
-
 	/* Arbitrary number of calls to a set of tested functions. */
-	int n = 100;
+	int max = 100;
+
+	bool failure = true;
+	int n = 0;
 
 	/* new() + delete() */
-	for (int i = 0; i < n; i++) {
-		fprintf(stderr, "libcw/gen: generator test 1/4, loop #%d/%d\n", i, n);
+	for (int i = 0; i < max; i++) {
+		fprintf(stderr, "libcw:gen:new/delete: generator test 1/4, loop #%d/%d\n", i, max);
 
-		cw_gen_t *gen = cw_gen_new(CW_AUDIO_NULL, NULL);
-		cw_assert (gen, "failed to initialize generator (loop #%d)", i);
+		cw_gen_t * gen = cw_gen_new(CW_AUDIO_NULL, NULL);
+		failure = (NULL == gen);
+		if (failure) {
+			fprintf(out_file, "libcw:gen:new/delete: failed to initialize generator (loop #%d)", i);
+			break;
+		}
 
-		/* Try to access some fields in cw_gen_t just to be
-		   sure that the gen has been allocated properly. */
-		cw_assert (gen->buffer_sub_start == 0, "buffer_sub_start in new generator is not at zero");
+		/* Try to access some fields in cw_gen_t just to be sure that the gen has been allocated properly. */
+		failure = (gen->buffer_sub_start != 0);
+		if (failure) {
+			fprintf(out_file, "libcw:gen:new/delete: buffer_sub_start in new generator is not at zero");
+			break;
+		}
+
 		gen->buffer_sub_stop = gen->buffer_sub_start + 10;
-		cw_assert (gen->buffer_sub_stop == 10, "buffer_sub_stop didn't store correct new value");
+		failure = (gen->buffer_sub_stop != 10);
+		if (failure) {
+			fprintf(out_file, "libcw:gen:new/delete: buffer_sub_stop didn't store correct new value");
+			break;
+		}
 
-		cw_assert (gen->client.name == (char *) NULL, "initial value of generator's client name is not NULL");
+		failure = (gen->client.name != (char *) NULL);
+		if (failure) {
+			fprintf(out_file, "libcw:gen:new/delete: initial value of generator's client name is not NULL");
+			break;
+		}
 
-		cw_assert (gen->tq, "tone queue is NULL");
-
-		cw_gen_delete(&gen);
-		cw_assert (gen == NULL, "delete() didn't set the pointer to NULL (loop #%d)", i);
-	}
-
-
-	n = 5;
-
-
-	/* new() + start() + delete() (skipping stop() on purpose). */
-	for (int i = 0; i < n; i++) {
-		fprintf(stderr, "libcw/gen: generator test 2/4, loop #%d/%d\n", i, n);
-
-		cw_gen_t *gen = cw_gen_new(CW_AUDIO_NULL, NULL);
-		cw_assert (gen, "failed to initialize generator (loop #%d)", i);
-
-		int rv = cw_gen_start(gen);
-		cw_assert (rv, "failed to start generator (loop #%d)", i);
-
-		cw_gen_delete(&gen);
-		cw_assert (gen == NULL, "delete() didn't set the pointer to NULL (loop #%d)", i);
-	}
-
-
-	/* new() + stop() + delete() (skipping start() on purpose). */
-	fprintf(stderr, "libcw/gen: generator test 3/4\n");
-	for (int i = 0; i < n; i++) {
-		cw_gen_t *gen = cw_gen_new(CW_AUDIO_NULL, NULL);
-		cw_assert (gen, "failed to initialize generator (loop #%d)", i);
-
-		int rv = cw_gen_stop(gen);
-		cw_assert (rv, "failed to stop generator (loop #%d)", i);
-
-		cw_gen_delete(&gen);
-		cw_assert (gen == NULL, "delete() didn't set the pointer to NULL (loop #%d)", i);
-	}
-
-
-	/* new() + start() + stop() + delete() */
-	for (int i = 0; i < n; i++) {
-		fprintf(stderr, "libcw/gen: generator test 4/4, loop #%d/%d\n", i, n);
-
-		cw_gen_t *gen = cw_gen_new(CW_AUDIO_NULL, NULL);
-		cw_assert (gen, "failed to initialize generator (loop #%d)", i);
-
-		int m = n;
-
-		for (int j = 0; j < m; j++) {
-			int rv = cw_gen_start(gen);
-			cw_assert (rv, "failed to start generator (loop #%d-%d)", i, j);
-
-			rv = cw_gen_stop(gen);
-			cw_assert (rv, "failed to stop generator (loop #%d-%d)", i, j);
+		failure = (gen->tq == NULL);
+		if (failure) {
+			fprintf(out_file, "libcw:gen:new/delete: tone queue is NULL");
+			break;
 		}
 
 		cw_gen_delete(&gen);
-		cw_assert (gen == NULL, "delete() didn't set the pointer to NULL (loop #%d)", i);
+		failure = (gen != NULL);
+		if (failure) {
+			fprintf(out_file, "libcw:gen:new/delete: delete() didn't set the pointer to NULL (loop #%d)", i);
+			break;
+		}
 	}
 
+	failure ? stats->failures++ : stats->successes++;
+	n = fprintf(out_file, "libcw:gen:new/delete:");
+	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
-	p = fprintf(stdout, "libcw/gen: cw_gen_new/start/stop/delete():");
-	CW_TEST_PRINT_TEST_RESULT(false, p);
-	fflush(stdout);
+
+
+
+	max = 5;
+
+	/* new() + start() + delete() (skipping stop() on purpose). */
+	for (int i = 0; i < max; i++) {
+		fprintf(stderr, "libcw:gen:new/start/delete: generator test 2/4, loop #%d/%d\n", i, max);
+
+		cw_gen_t * gen = cw_gen_new(CW_AUDIO_NULL, NULL);
+		failure = (gen == NULL);
+		if (failure) {
+			fprintf(out_file, "libcw:gen:new/start/delete: failed to initialize generator (loop #%d)", i);
+			break;
+		}
+
+		failure = (CW_SUCCESS != cw_gen_start(gen));
+		if (failure) {
+			fprintf(out_file, "libcw:gen:new/start/delete: failed to start generator (loop #%d)", i);
+			break;
+		}
+
+		cw_gen_delete(&gen);
+		failure = (gen != NULL);
+		if (failure) {
+			fprintf(out_file, "libcw:gen:new/start/delete: delete() didn't set the pointer to NULL (loop #%d)", i);
+			break;
+		}
+	}
+
+	failure ? stats->failures++ : stats->successes++;
+	n = fprintf(out_file, "libcw:gen:new/start/delete:");
+	CW_TEST_PRINT_TEST_RESULT (failure, n);
+
+
+
+
+	/* new() + stop() + delete() (skipping start() on purpose). */
+	fprintf(stderr, "libcw:gen:new/stop/delete: generator test 3/4\n");
+	for (int i = 0; i < max; i++) {
+		cw_gen_t * gen = cw_gen_new(CW_AUDIO_NULL, NULL);
+		failure = (gen == NULL);
+		if (failure) {
+			fprintf(out_file, "libcw:gen:new/stop/delete: failed to initialize generator (loop #%d)", i);
+			break;
+		}
+
+		failure = (CW_SUCCESS != cw_gen_stop(gen));
+		if (failure) {
+			fprintf(out_file, "libcw:gen:new/stop/delete: failed to stop generator (loop #%d)", i);
+			break;
+		}
+
+		cw_gen_delete(&gen);
+		failure = (gen != NULL);
+		if (failure) {
+			fprintf(out_file, "libcw:gen:new/stop/delete: delete() didn't set the pointer to NULL (loop #%d)", i);
+			break;
+		}
+	}
+
+	failure ? stats->failures++ : stats->successes++;
+	n = fprintf(out_file, "libcw:gen:new/stop/delete:");
+	CW_TEST_PRINT_TEST_RESULT (failure, n);
+
+
+
+
+	/* new() + start() + stop() + delete() */
+	for (int i = 0; i < max; i++) {
+		fprintf(stderr, "libcw:gen:new/start/stop/delete: generator test 4/4, loop #%d/%d\n", i, max);
+
+		cw_gen_t * gen = cw_gen_new(CW_AUDIO_NULL, NULL);
+		failure = (gen == NULL);
+		if (failure) {
+			fprintf(out_file, "libcw:gen:new/start/stop/delete: failed to initialize generator (loop #%d)", i);
+			break;
+		}
+
+		int sub_max = max;
+
+		for (int j = 0; j < sub_max; j++) {
+			failure = (CW_SUCCESS != cw_gen_start(gen));
+			if (failure) {
+				fprintf(out_file, "libcw:gen:new/start/stop/delete: failed to start generator (loop #%d-%d)", i, j);
+				break;
+			}
+
+			failure = (CW_SUCCESS != cw_gen_stop(gen));
+			if (failure) {
+				fprintf(out_file, "libcw:gen:new/start/stop/delete: failed to stop generator (loop #%d-%d)", i, j);
+				break;
+			}
+		}
+		if (failure) {
+			break;
+		}
+
+		cw_gen_delete(&gen);
+		failure = (gen != NULL);
+		if (failure) {
+			fprintf(out_file, "libcw:gen:new/start/stop/delete: delete() didn't set the pointer to NULL (loop #%d)", i);
+			break;
+		}
+	}
+
+	failure ? stats->failures++ : stats->successes++;
+	n = fprintf(out_file, "libcw:gen:new/start/stop/delete:");
+	CW_TEST_PRINT_TEST_RESULT (failure, n);
+
 
 	return 0;
 }
@@ -3010,23 +3090,26 @@ unsigned int test_cw_gen_new_delete(void)
 
 
 
-unsigned int test_cw_gen_set_tone_slope(void)
+unsigned int test_cw_gen_set_tone_slope(__attribute__((unused)) cw_gen_t * unused, cw_test_stats_t * stats)
 {
-	int p = fprintf(stdout, "libcw/gen: cw_gen_set_tone_slope():");
-
 	int audio_system = CW_AUDIO_NULL;
+	bool failure = true;
+	int n = 0;
 
 	/* Test 0: test property of newly created generator. */
 	{
-		cw_gen_t *gen = cw_gen_new(audio_system, NULL);
-		cw_assert (gen, "failed to initialize generator in test 0");
+		cw_gen_t * gen = cw_gen_new(audio_system, NULL);
+		cw_assert (gen, "libcw:gen:set slope: failed to initialize generator in test 0");
 
+		failure = (gen->tone_slope.shape != CW_TONE_SLOPE_SHAPE_RAISED_COSINE);
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:gen:set slope: initial shape (%d):", gen->tone_slope.shape);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
-		cw_assert (gen->tone_slope.shape == CW_TONE_SLOPE_SHAPE_RAISED_COSINE,
-			   "new generator has unexpected initial slope shape %d", gen->tone_slope.shape);
-		cw_assert (gen->tone_slope.len == CW_AUDIO_SLOPE_LEN,
-			   "new generator has unexpected initial slope length %d", gen->tone_slope.len);
-
+		failure = (gen->tone_slope.len != CW_AUDIO_SLOPE_LEN);
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:gen:set slope: initial length (%d):", gen->tone_slope.len);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 		cw_gen_delete(&gen);
 	}
@@ -3041,13 +3124,13 @@ unsigned int test_cw_gen_set_tone_slope(void)
 	   shape and larger than zero slope length. You just can't
 	   have rectangular slopes that have non-zero length." */
 	{
-		cw_gen_t *gen = cw_gen_new(audio_system, NULL);
-		cw_assert (gen, "failed to initialize generator in test A");
+		cw_gen_t * gen = cw_gen_new(audio_system, NULL);
+		cw_assert (gen, "libcw:gen:set slope: failed to initialize generator in test A");
 
-
-		int rv = cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_RECTANGULAR, 10);
-		cw_assert (!rv, "function accepted conflicting arguments");
-
+		failure = (CW_SUCCESS == cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_RECTANGULAR, 10));
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:gen:set slope: conflicting arguments:");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 		cw_gen_delete(&gen);
 	}
@@ -3060,22 +3143,26 @@ unsigned int test_cw_gen_set_tone_slope(void)
 	   slope_shape and \p slope_len, the function won't change
 	   any of the related two generator's parameters." */
 	{
-		cw_gen_t *gen = cw_gen_new(audio_system, NULL);
-		cw_assert (gen, "failed to initialize generator in test B");
-
+		cw_gen_t * gen = cw_gen_new(audio_system, NULL);
+		cw_assert (gen, "libcw:gen:set slope: failed to initialize generator in test B");
 
 		int shape_before = gen->tone_slope.shape;
 		int len_before = gen->tone_slope.len;
 
-		int rv = cw_gen_set_tone_slope(gen, -1, -1);
-		cw_assert (rv, "failed to set tone slope");
+		failure = (CW_SUCCESS != cw_gen_set_tone_slope(gen, -1, -1));
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:gen:set slope: set tone slope -1 -1:");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
-		cw_assert (gen->tone_slope.shape == shape_before,
-			   "tone slope shape changed from %d to %d", shape_before, gen->tone_slope.shape);
+		failure = (gen->tone_slope.shape != shape_before);
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:gen:set slope -1 -1: shape (%d / %d)", shape_before, gen->tone_slope.shape);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
-		cw_assert (gen->tone_slope.len == len_before,
-			   "tone slope length changed from %d to %d", len_before, gen->tone_slope.len);
-
+		failure = (gen->tone_slope.len != len_before);
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:gen:set slope -1 -1: len (%d / %d):", len_before, gen->tone_slope.len);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 		cw_gen_delete(&gen);
 	}
@@ -3089,8 +3176,8 @@ unsigned int test_cw_gen_set_tone_slope(void)
 	   set only this generator's parameter that is different than
 	   '-1'." */
 	{
-		cw_gen_t *gen = cw_gen_new(audio_system, NULL);
-		cw_assert (gen, "failed to initialize generator in test C1");
+		cw_gen_t * gen = cw_gen_new(audio_system, NULL);
+		cw_assert (gen, "libcw:gen:set slope: failed to initialize generator in test C1");
 
 
 		/* At the beginning of test these values are
@@ -3100,51 +3187,57 @@ unsigned int test_cw_gen_set_tone_slope(void)
 		int expected_shape = CW_TONE_SLOPE_SHAPE_RAISED_COSINE;
 		int expected_len = CW_AUDIO_SLOPE_LEN;
 
-
 		/* At this point generator should have initial values
 		   of its parameters (yes, that's test zero again). */
-		cw_assert (gen->tone_slope.shape == expected_shape,
-			   "new generator has unexpected initial slope shape %d", gen->tone_slope.shape);
-		cw_assert (gen->tone_slope.len == expected_len,
-			   "new generator has unexpected initial slope length %d", gen->tone_slope.len);
+		failure = (gen->tone_slope.shape != expected_shape);
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:gen:set slope: N -1: initial shape (%d / %d):", gen->tone_slope.shape, expected_shape);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+
+		failure = (gen->tone_slope.len != expected_len);
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:gen:set slope: N -1: initial length (%d / %d):", gen->tone_slope.len, expected_len);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 		/* Set only new slope shape. */
 		expected_shape = CW_TONE_SLOPE_SHAPE_LINEAR;
-		int rv = cw_gen_set_tone_slope(gen, expected_shape, -1);
-		cw_assert (rv, "failed to set linear slope shape with unchanged slope length");
+		failure = (CW_SUCCESS != cw_gen_set_tone_slope(gen, expected_shape, -1));
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:gen:set slope: N -1: set:");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 		/* At this point only slope shape should be updated. */
-		cw_assert (gen->tone_slope.shape == expected_shape,
-			   "failed to set new shape of slope; shape is %d", gen->tone_slope.shape);
-		cw_assert (gen->tone_slope.len == expected_len,
-			   "failed to preserve slope length; length is %d", gen->tone_slope.len);
+		failure = (gen->tone_slope.shape != expected_shape);
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:gen:set slope: N -1: get:");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+
+		failure = (gen->tone_slope.len != expected_len);
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:gen:set slope: N -1: preserved length:");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+
 
 
 		/* Set only new slope length. */
 		expected_len = 30;
-		rv = cw_gen_set_tone_slope(gen, -1, expected_len);
-		cw_assert (rv, "failed to set positive slope length with unchanged slope shape");
+		failure = (CW_SUCCESS != cw_gen_set_tone_slope(gen, -1, expected_len));
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:gen:set slope: -1 N: set:");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 		/* At this point only slope length should be updated
 		   (compared to previous function call). */
-		cw_assert (gen->tone_slope.shape == expected_shape,
-			   "failed to preserve shape of slope; shape is %d", gen->tone_slope.shape);
-		cw_assert (gen->tone_slope.len == expected_len,
-			   "failed to set new slope length; length is %d", gen->tone_slope.len);
+		failure = (gen->tone_slope.len != expected_len);
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:gen:set slope: -1 N: get (%d / %d):", gen->tone_slope.len, expected_len);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
-
-		/* Set only new slope shape. */
-		expected_shape = CW_TONE_SLOPE_SHAPE_SINE;
-		rv = cw_gen_set_tone_slope(gen, expected_shape, -1);
-		cw_assert (rv, "failed to set new slope shape with unchanged slope length");
-
-		/* At this point only slope shape should be updated
-		   (compared to previous function call). */
-		cw_assert (gen->tone_slope.shape == expected_shape,
-			   "failed to set new shape of slope; shape is %d", gen->tone_slope.shape);
-		cw_assert (gen->tone_slope.len == expected_len,
-			   "failed to preserve slope length; length is %d", gen->tone_slope.len);
+		failure = (gen->tone_slope.shape != expected_shape);
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:gen:set slope: -1 N: preserved shape:");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 		cw_gen_delete(&gen);
@@ -3158,8 +3251,8 @@ unsigned int test_cw_gen_set_tone_slope(void)
 	   function will set generator's slope length to zero, even if
 	   value of \p slope_len is '-1'." */
 	{
-		cw_gen_t *gen = cw_gen_new(audio_system, NULL);
-		cw_assert (gen, "failed to initialize generator in test C2");
+		cw_gen_t * gen = cw_gen_new(audio_system, NULL);
+		cw_assert (gen, "libcw:gen:set slope: failed to initialize generator in test C2");
 
 
 		/* At the beginning of test these values are
@@ -3169,28 +3262,42 @@ unsigned int test_cw_gen_set_tone_slope(void)
 		int expected_shape = CW_TONE_SLOPE_SHAPE_RAISED_COSINE;
 		int expected_len = CW_AUDIO_SLOPE_LEN;
 
-
 		/* At this point generator should have initial values
 		   of its parameters (yes, that's test zero again). */
-		cw_assert (gen->tone_slope.shape == expected_shape,
-			   "new generator has unexpected initial slope shape %d", gen->tone_slope.shape);
-		cw_assert (gen->tone_slope.len == expected_len,
-			   "new generator has unexpected initial slope length %d", gen->tone_slope.len);
+		failure = (gen->tone_slope.shape != expected_shape);
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:gen:set slope: initial shape (%d / %d):", gen->tone_slope.shape, expected_shape);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+
+		failure = (gen->tone_slope.len != expected_len);
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:gen:set slope: initial length (%d / %d):", gen->tone_slope.len, expected_len);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+
 
 
 		/* Set only new slope shape. */
 		expected_shape = CW_TONE_SLOPE_SHAPE_RECTANGULAR;
 		expected_len = 0; /* Even though we won't pass this to function, this is what we expect to get after this call. */
-		int rv = cw_gen_set_tone_slope(gen, expected_shape, -1);
-		cw_assert (rv, "failed to set rectangular slope shape with unchanged slope length");
+		failure = (CW_SUCCESS != cw_gen_set_tone_slope(gen, expected_shape, -1));
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:gen:set slope: set rectangular:");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+
 
 		/* At this point slope shape AND slope length should
 		   be updated (slope length is updated only because of
 		   requested rectangular slope shape). */
-		cw_assert (gen->tone_slope.shape == expected_shape,
-			   "failed to set new shape of slope; shape is %d", gen->tone_slope.shape);
-		cw_assert (gen->tone_slope.len == expected_len,
-			   "failed to get expected slope length; length is %d", gen->tone_slope.len);
+		failure = (gen->tone_slope.shape != expected_shape);
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:gen:set slope: set rectangular: shape (%d/ %d):", gen->tone_slope.shape, expected_shape);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+
+
+		failure = (gen->tone_slope.len != expected_len);
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:gen:set slope: set rectangular: length (%d / %d):", gen->tone_slope.len, expected_len);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 		cw_gen_delete(&gen);
@@ -3204,47 +3311,97 @@ unsigned int test_cw_gen_set_tone_slope(void)
 	   shape with zero length of the slopes. The slopes will be
 	   non-rectangular, but just unusually short." */
 	{
-		cw_gen_t *gen = cw_gen_new(audio_system, NULL);
-		cw_assert (gen, "failed to initialize generator in test D");
+		cw_gen_t * gen = cw_gen_new(audio_system, NULL);
+		cw_assert (gen, "libcw:gen:set slope: failed to initialize generator in test D");
 
 
-		int rv = cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_LINEAR, 0);
-		cw_assert (rv, "failed to set linear slope with zero length");
-		cw_assert (gen->tone_slope.shape == CW_TONE_SLOPE_SHAPE_LINEAR,
-			   "failed to set linear slope shape; shape is %d", gen->tone_slope.shape);
-		cw_assert (gen->tone_slope.len == 0,
-			   "failed to set zero slope length; length is %d", gen->tone_slope.len);
+		failure = (CW_SUCCESS != cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_LINEAR, 0));
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:gen:set slope: LINEAR 0: set:");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+
+		failure = (gen->tone_slope.shape != CW_TONE_SLOPE_SHAPE_LINEAR);
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:gen:set slope: LINEAR 0: get:");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+
+		failure = (gen->tone_slope.len != 0);
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:gen:set slope: LINEAR 0: length (%d):", gen->tone_slope.len);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
-		rv = cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_RAISED_COSINE, 0);
-		cw_assert (rv, "failed to set raised cosine slope with zero length");
-		cw_assert (gen->tone_slope.shape == CW_TONE_SLOPE_SHAPE_RAISED_COSINE,
-			   "failed to set raised cosine slope shape; shape is %d", gen->tone_slope.shape);
-		cw_assert (gen->tone_slope.len == 0,
-			   "failed to set zero slope length; length is %d", gen->tone_slope.len);
+
+		failure = (CW_SUCCESS != cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_RAISED_COSINE, 0));
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:gen:set slope: RAISED_COSINE 0: set:");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+
+		failure = (gen->tone_slope.shape != CW_TONE_SLOPE_SHAPE_RAISED_COSINE);
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:gen:set slope: RAISED_COSINE 0: get:");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+
+		failure = (gen->tone_slope.len != 0);
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:gen:set slope: RAISED_COSINE 0: length (%d):", gen->tone_slope.len);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
-		rv = cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_SINE, 0);
-		cw_assert (rv, "failed to set sine slope with zero length");
-		cw_assert (gen->tone_slope.shape == CW_TONE_SLOPE_SHAPE_SINE,
-			   "failed to set sine slope shape; shape is %d", gen->tone_slope.shape);
-		cw_assert (gen->tone_slope.len == 0,
-			   "failed to set zero slope length; length is %d", gen->tone_slope.len);
+
+		failure = (CW_SUCCESS != cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_SINE, 0));
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:gen:set slope: SINE 0: set:");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+
+		failure = (gen->tone_slope.shape != CW_TONE_SLOPE_SHAPE_SINE);
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:gen:set slope: SINE 0: get:");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+
+		failure = (gen->tone_slope.len != 0);
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:gen:set slope: SINE 0: length (%d):", gen->tone_slope.len);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
-		rv = cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_RECTANGULAR, 0);
-		cw_assert (rv, "failed to set rectangular slope with zero length");
-		cw_assert (gen->tone_slope.shape == CW_TONE_SLOPE_SHAPE_RECTANGULAR,
-			   "failed to set rectangular slope shape; shape is %d", gen->tone_slope.shape);
-		cw_assert (gen->tone_slope.len == 0,
-			   "failed to set zero slope length; length is %d", gen->tone_slope.len);
+
+		failure = (CW_SUCCESS != cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_RECTANGULAR, 0));
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:gen:set slope: RECTANGULAR 0: set:");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+
+		failure = (gen->tone_slope.shape != CW_TONE_SLOPE_SHAPE_RECTANGULAR);
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:gen:set slope: RECTANGULAR 0: get:");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+
+		failure = (gen->tone_slope.len != 0);
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:gen:set slope: RECTANGULAR 0: length (%d):", gen->tone_slope.len);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+
+
+
+		failure = (CW_SUCCESS != cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_LINEAR, 0));
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:gen:set slope: LINEAR 0: set:");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+
+		failure = (gen->tone_slope.shape != CW_TONE_SLOPE_SHAPE_LINEAR);
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:gen:set slope: LINEAR 0: get:");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+
+		failure = (gen->tone_slope.len != 0);
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:gen:set slope: LINEAR 0: length (%d):", gen->tone_slope.len);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 		cw_gen_delete(&gen);
 	}
 
-
-	CW_TEST_PRINT_TEST_RESULT(false, p);
 
 	return 0;
 }
@@ -3262,16 +3419,16 @@ unsigned int test_cw_gen_set_tone_slope(void)
    I'm testing these values to be sure that when I get a silly idea to
    modify them, the test will catch this modification.
 */
-unsigned int test_cw_gen_tone_slope_shape_enums(void)
+unsigned int test_cw_gen_tone_slope_shape_enums(__attribute__((unused)) cw_gen_t * unused, cw_test_stats_t * stats)
 {
-	int p = fprintf(stdout, "libcw/gen: CW_TONE_SLOPE_SHAPE_*:");
+	bool failure = CW_TONE_SLOPE_SHAPE_LINEAR < 0
+		|| CW_TONE_SLOPE_SHAPE_RAISED_COSINE < 0
+		|| CW_TONE_SLOPE_SHAPE_SINE < 0
+		|| CW_TONE_SLOPE_SHAPE_RECTANGULAR < 0;
 
-	cw_assert (CW_TONE_SLOPE_SHAPE_LINEAR >= 0,        "CW_TONE_SLOPE_SHAPE_LINEAR is negative: %d",        CW_TONE_SLOPE_SHAPE_LINEAR);
-	cw_assert (CW_TONE_SLOPE_SHAPE_RAISED_COSINE >= 0, "CW_TONE_SLOPE_SHAPE_RAISED_COSINE is negative: %d", CW_TONE_SLOPE_SHAPE_RAISED_COSINE);
-	cw_assert (CW_TONE_SLOPE_SHAPE_SINE >= 0,          "CW_TONE_SLOPE_SHAPE_SINE is negative: %d",          CW_TONE_SLOPE_SHAPE_SINE);
-	cw_assert (CW_TONE_SLOPE_SHAPE_RECTANGULAR >= 0,   "CW_TONE_SLOPE_SHAPE_RECTANGULAR is negative: %d",   CW_TONE_SLOPE_SHAPE_RECTANGULAR);
-
-	CW_TEST_PRINT_TEST_RESULT(false, p);
+	failure ? stats->failures++ : stats->successes++;
+	int n = fprintf(out_file, "libcw:gen:slope shape enums:");
+	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 	return 0;
 }

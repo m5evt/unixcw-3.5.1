@@ -130,11 +130,6 @@ static cw_test_function_t cw_unit_tests[] = {
 	test_validate_representation_internal,
 
 
-	/* cw_gen module */
-	test_cw_gen_set_tone_slope,
-	test_cw_gen_tone_slope_shape_enums,
-	test_cw_gen_new_delete,
-
 
 	/* cw_utils module */
 	test_cw_timestamp_compare_internal,
@@ -189,6 +184,10 @@ static cw_tq_test_function_t cw_unit_tests_tq[] = {
 /* Tests that are dependent on a sound system being configured.
    Generator module functions. */
 static cw_gen_test_function_t cw_unit_tests_gen[] = {
+
+	test_cw_gen_set_tone_slope,
+	test_cw_gen_tone_slope_shape_enums,
+	test_cw_gen_new_delete,
 	test_cw_gen_get_timing_parameters_internal,
 	test_cw_gen_parameter_getters_setters,
 	test_cw_gen_volume_functions,
