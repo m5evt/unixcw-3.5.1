@@ -608,10 +608,8 @@ void cw_get_weighting_limits(int *min_weighting, int *max_weighting)
 /**
    tests::cw_timestamp_compare_internal()
 */
-unsigned int test_cw_timestamp_compare_internal(void)
+unsigned int test_cw_timestamp_compare_internal(cw_test_stats_t * stats)
 {
-	int p = fprintf(stdout, "libcw/utils: cw_timestamp_compare_internal():");
-
 	struct timeval earlier_timestamp;
 	struct timeval later_timestamp;
 
@@ -633,6 +631,8 @@ unsigned int test_cw_timestamp_compare_internal(void)
 	earlier_timestamp.tv_sec = 3;
 	earlier_timestamp.tv_usec = 567;
 
+	bool failure = true;
+
 	int i = 0;
 	while (expected_deltas[i] != -1) {
 
@@ -640,12 +640,19 @@ unsigned int test_cw_timestamp_compare_internal(void)
 		later_timestamp.tv_usec = earlier_timestamp.tv_usec + (expected_deltas[i] % CW_USECS_PER_SEC);
 
 		int delta = cw_timestamp_compare_internal(&earlier_timestamp, &later_timestamp);
-		cw_assert (delta == expected_deltas[i], "test #%d: unexpected delta: %d != %d", i, delta, expected_deltas[i]);
+		failure = (delta != expected_deltas[i]);
+		if (failure) {
+			fprintf(out_file, "libcw:utils:compare timestamp: test #%d: unexpected delta: %d != %d\n", i, delta, expected_deltas[i]);
+			break;
+		}
 
 		i++;
 	}
 
-	CW_TEST_PRINT_TEST_RESULT(false, p);
+	failure ? stats->failures++ : stats->successes++;
+	int n = fprintf(out_file, "libcw:utils:compare timestamp:");
+	CW_TEST_PRINT_TEST_RESULT (failure, n);
+
 
 	return 0;
 }
@@ -657,29 +664,36 @@ unsigned int test_cw_timestamp_compare_internal(void)
 /**
    tests::cw_timestamp_validate_internal()
 */
-unsigned int test_cw_timestamp_validate_internal(void)
+unsigned int test_cw_timestamp_validate_internal(cw_test_stats_t * stats)
 {
-	int p = fprintf(stdout, "libcw/utils: cw_timestamp_validate_internal():");
-
 	struct timeval out_timestamp;
 	struct timeval in_timestamp;
 	struct timeval ref_timestamp; /* Reference timestamp. */
 	int rv = 0;
+
+	bool failure = true;
+	int n = 0;
+
+
 
 
 	/* Test 1 - get current time. */
 	out_timestamp.tv_sec = 0;
 	out_timestamp.tv_usec = 0;
 
-	cw_assert (!gettimeofday(&ref_timestamp, NULL), "failed to get reference time");
+	cw_assert (!gettimeofday(&ref_timestamp, NULL), "libcw:utils:validate timestamp 1: failed to get reference time");
 
 	rv = cw_timestamp_validate_internal(&out_timestamp, NULL);
-	cw_assert (rv, "test 1: failed to get current timestamp with cw_timestamp_validate_internal(), errno = %d", errno);
+	failure = (CW_SUCCESS != rv);
+	failure ? stats->failures++ : stats->successes++;
+	n = fprintf(out_file, "libcw:utils:validate timestamp:current timestamp:");
+	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 #if 0
 	fprintf(stderr, "\nINFO: delay in getting timestamp is %d microseconds\n",
 		cw_timestamp_compare_internal(&ref_timestamp, &out_timestamp));
 #endif
+
 
 
 
@@ -691,11 +705,23 @@ unsigned int test_cw_timestamp_validate_internal(void)
 	in_timestamp.tv_usec = 987;
 
 	rv = cw_timestamp_validate_internal(&out_timestamp, &in_timestamp);
-	cw_assert (rv, "test 2: failed to validate timestamp with cw_timestamp_validate_internal(), errno = %d", errno);
-	cw_assert (out_timestamp.tv_sec == in_timestamp.tv_sec, "test 2: failed to correctly copy seconds: %d != %d",
-		   (int) out_timestamp.tv_sec, (int) in_timestamp.tv_sec);
-	cw_assert (out_timestamp.tv_usec == in_timestamp.tv_usec, "test 2: failed to correctly copy microseconds: %d != %d",
-		   (int) out_timestamp.tv_usec, (int) in_timestamp.tv_usec);
+	failure = (CW_SUCCESS != rv)
+		|| (out_timestamp.tv_sec != in_timestamp.tv_sec)
+		|| (out_timestamp.tv_usec != in_timestamp.tv_usec);
+
+	if (failure) {
+		fprintf(out_file, "libcw:utils:validate timestamp:validate and copy:"
+			"rv = %d,"
+			"%d / %d,"
+			"%d / %d",
+			rv,
+			(int) out_timestamp.tv_sec, (int) in_timestamp.tv_sec,
+			(int) out_timestamp.tv_usec, (int) in_timestamp.tv_usec);
+	}
+	failure ? stats->failures++ : stats->successes++;
+	n = fprintf(out_file, "libcw:utils:validate timestamp:validate and copy:");
+	CW_TEST_PRINT_TEST_RESULT (failure, n);
+
 
 
 
@@ -706,8 +732,13 @@ unsigned int test_cw_timestamp_validate_internal(void)
 	in_timestamp.tv_usec = 987;
 
 	rv = cw_timestamp_validate_internal(&out_timestamp, &in_timestamp);
-	cw_assert (!rv, "test 3: failed to recognize invalid seconds");
-	cw_assert (errno == EINVAL, "failed to properly set errno, errno is %d", errno);
+	failure = (rv == CW_SUCCESS) || (errno != EINVAL);
+	if (failure) {
+		fprintf(out_file, "libcw:utils:validate timestamp:invalid seconds: rv==CW_FAILURE = %d, errno==EINVAL = %d\n", rv == CW_FAILURE, errno == EINVAL);
+	}
+	failure ? stats->failures++ : stats->successes++;
+	n = fprintf(out_file, "libcw:utils:validate timestamp:invalid seconds:");
+	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 
@@ -719,8 +750,14 @@ unsigned int test_cw_timestamp_validate_internal(void)
 	in_timestamp.tv_usec = CW_USECS_PER_SEC + 1;
 
 	rv = cw_timestamp_validate_internal(&out_timestamp, &in_timestamp);
-	cw_assert (!rv, "test 4: failed to recognize invalid microseconds");
-	cw_assert (errno == EINVAL, "test 4: failed to properly set errno, errno is %d", errno);
+	failure = (rv == CW_SUCCESS)
+		|| (errno != EINVAL);
+	if (failure) {
+		fprintf(out_file, "libcw:utils:validate timestamp:invalid milliseconds: rv==CW_FAILURE = %d, errno==EINVAL = %d\n", rv == CW_FAILURE, errno == EINVAL);
+	}
+	failure ? stats->failures++ : stats->successes++;
+	n = fprintf(out_file, "libcw:utils:validate timestamp:invalid milliseconds:");
+	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 
@@ -732,11 +769,14 @@ unsigned int test_cw_timestamp_validate_internal(void)
 	in_timestamp.tv_usec = -1;
 
 	rv = cw_timestamp_validate_internal(&out_timestamp, &in_timestamp);
-	cw_assert (!rv, "test 5: failed to recognize invalid microseconds");
-	cw_assert (errno == EINVAL, "test 5: failed to properly set errno, errno is %d", errno);
+	failure = (rv == CW_SUCCESS) || (errno != EINVAL);
+	if (failure) {
+		fprintf(out_file, "libcw:utils:validate timestamp:negative milliseconds: rv==CW_FAILURE = %d, errno==EINVAL = %d\n", rv == CW_FAILURE, errno == EINVAL);
+	}
+	failure ? stats->failures++ : stats->successes++;
+	n = fprintf(out_file, "libcw:utils:validate timestamp:negative milliseconds:");
+	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
-
-	CW_TEST_PRINT_TEST_RESULT(false, p);
 
 	return 0;
 }
@@ -748,10 +788,8 @@ unsigned int test_cw_timestamp_validate_internal(void)
 /**
    tests::cw_usecs_to_timespec_internal()
 */
-unsigned int test_cw_usecs_to_timespec_internal(void)
+unsigned int test_cw_usecs_to_timespec_internal(cw_test_stats_t * stats)
 {
-	int p = fprintf(stdout, "libcw/utils: cw_usecs_to_timespec_internal():");
-
 	struct {
 		int input;
 		struct timespec t;
@@ -765,6 +803,8 @@ unsigned int test_cw_usecs_to_timespec_internal(void)
 		{          -1,    {   0,             0 }},
 	};
 
+	bool failure = true;
+
 	int i = 0;
 	while (input_data[i].input != -1) {
 		struct timespec result = { .tv_sec = 0, .tv_nsec = 0 };
@@ -773,13 +813,24 @@ unsigned int test_cw_usecs_to_timespec_internal(void)
 		fprintf(stderr, "input = %d usecs, output = %ld.%ld\n",
 			input_data[i].input, (long) result.tv_sec, (long) result.tv_nsec);
 #endif
-		assert(result.tv_sec == input_data[i].t.tv_sec);
-		assert(result.tv_nsec == input_data[i].t.tv_nsec);
+		failure = (result.tv_sec != input_data[i].t.tv_sec);
+		if (failure) {
+			fprintf(out_file, "libcw:utils:usecs to timespec: test %d: %d [s] != %d [s]\n", result.tv_sec, input_data[i].t.tv_sec);
+			break;
+		}
+
+		failure = (result.tv_nsec != input_data[i].t.tv_nsec);
+		if (failure) {
+			fprintf(out_file, "libcw:utils:usecs to timespec: test %d: %d [ns] != %d [ns]\n", result.tv_nsec, input_data[i].t.tv_nsec);
+			break;
+		}
 
 		i++;
 	}
 
-	CW_TEST_PRINT_TEST_RESULT (false, p);
+	failure ? stats->failures++ : stats->successes++;
+	int n = fprintf(out_file, "libcw:utils:usecs to timespec:");
+	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 	return 0;
 }
@@ -792,7 +843,7 @@ unsigned int test_cw_usecs_to_timespec_internal(void)
 /**
    tests::cw_version()
 */
-unsigned int test_cw_version_internal(void)
+unsigned int test_cw_version_internal(cw_test_stats_t * stats)
 {
 	int current = 77, revision = 88, age = 99; /* Dummy values. */
 	cw_version(&current, &revision, &age);
@@ -815,10 +866,16 @@ unsigned int test_cw_version_internal(void)
 	char *str = buffer;
 	int c = 0, r = 0, a = 0;
 
+	bool failure = true;
+
 	for (int i = 0; ; i++, str = NULL) {
 
-		char *token = strtok(str, ":");
+		char * token = strtok(str, ":");
 		if (token == NULL) {
+			failure = (i != 3);
+			if (failure) {
+				fprintf(out_file, "libcw:utils:version: stopping at token %d\n", i);
+			}
 			break;
 		}
 
@@ -829,16 +886,20 @@ unsigned int test_cw_version_internal(void)
 		} else if (i == 2) {
 			a = atoi(token);
 		} else {
-			cw_assert (0, "too many tokens in \"%s\"\n", LIBCW_VERSION);
+			failure = true;
+			fprintf(out_file, "libcw:utils:version: too many tokens in \"%s\"\n", LIBCW_VERSION);
 		}
 	}
 
-	cw_assert (current == c,  "Incorrect \"current\": %d != %d\n", current, c);
-	cw_assert (revision == r, "Incorrect \"revision\": %d != %d\n", revision, r);
-	cw_assert (age == a,      "Incorrect \"age\": %d != %d\n", age, a);
 
-	int n = fprintf(stdout, "libcw/utils: get version: %d:%d:%d", current, revision, age);
-	CW_TEST_PRINT_TEST_RESULT (false, n);
+	failure = (current != c) || (revision != r) || (age != a);
+	if (failure) {
+		fprintf(out_file, "libcw:utils:version: current: %d / %d; revision: %d / %d; age: %d / %d\n", current, c, revision, r, age, a);
+	}
+
+	failure ? stats->failures++ : stats->successes++;
+	int n = fprintf(out_file, "libcw:utils:version: %d:%d:%d:", c, r, a);
+	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 	return 0;
 }
@@ -850,15 +911,17 @@ unsigned int test_cw_version_internal(void)
 /**
    tests::cw_license()
 */
-unsigned int test_cw_license_internal(void)
+unsigned int test_cw_license_internal(cw_test_stats_t * stats)
 {
 	/* Well, there isn't much to test here. The function just
 	   prints the license to stdout, and that's it. */
 
 	cw_license();
 
-	int n = fprintf(stdout, "libcw/utils: printing license:");
+	false ? stats->failures++ : stats->successes++;
+	int n = fprintf(out_file, "libcw:utils:license:");
 	CW_TEST_PRINT_TEST_RESULT (false, n);
+
 
 	return 0;
 }
@@ -877,7 +940,7 @@ unsigned int test_cw_license_internal(void)
    tests::cw_get_tolerance_limits()
    tests::cw_get_weighting_limits()
 */
-unsigned int test_cw_get_x_limits_internal(void)
+unsigned int test_cw_get_x_limits_internal(cw_test_stats_t * stats)
 {
 	struct {
 		void (* getter)(int *min, int *max);
@@ -901,23 +964,35 @@ unsigned int test_cw_get_x_limits_internal(void)
 
 	for (int i = 0; test_data[i].getter; i++) {
 
+		bool min_failure = true;
+		bool max_failure = true;
+		int n = 0;
+
 		/* Get limits of a parameter. */
 		test_data[i].getter(&test_data[i].get_min, &test_data[i].get_max);
 
 		/* Test that limits are as expected (values received
 		   by function call match those defined in library's
 		   header file). */
-		cw_assert (test_data[i].get_min == test_data[i].min,
-			   "Failed to get correct minimum of %s\n",
-			   test_data[i].name);
+		min_failure = (test_data[i].get_min != test_data[i].min);
+		if (min_failure) {
+			fprintf(out_file, "libcw:utils:limits: failed to get correct minimum of %s\n", test_data[i].name);
+		}
 
-		cw_assert (test_data[i].get_max == test_data[i].max,
-			   "Failed to get correct maximum of %s\n",
-			   test_data[i].name);
+		max_failure = (test_data[i].get_max != test_data[i].max);
+		if (max_failure) {
+			fprintf(out_file, "libcw:utils:limits: failed to get correct maximum of %s\n", test_data[i].name);
+		}
+
+		min_failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:utils:get min %s:", test_data[i].name);
+		CW_TEST_PRINT_TEST_RESULT (min_failure, n);
+
+		max_failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw:utils:get max %s:", test_data[i].name);
+		CW_TEST_PRINT_TEST_RESULT (max_failure, n);
 	}
 
-	int n = fprintf(stdout, "libcw/utils: cw_get_X_limits():");
-	CW_TEST_PRINT_TEST_RESULT (false, n);
 
 	return 0;
 }

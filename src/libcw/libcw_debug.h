@@ -239,7 +239,11 @@ void cw_dev_debug_print_generator_setup(cw_gen_t *gen);
 
 
 #ifdef LIBCW_UNIT_TESTS
-unsigned int test_cw_debug_flags_internal(void);
+
+#include "libcw_test.h"
+
+
+unsigned int test_cw_debug_flags_internal(cw_test_stats_t * stats);
 #endif /* #ifdef LIBCW_UNIT_TESTS */
 
 

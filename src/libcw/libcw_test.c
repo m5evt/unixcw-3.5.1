@@ -112,6 +112,7 @@ static int test_audio_system = CW_AUDIO_NONE;
 
 
 typedef unsigned int (*cw_test_function_t)(void);
+typedef unsigned int (*cw_test_function_stats_t)(cw_test_stats_t * stats);
 typedef unsigned int (*cw_key_test_function_t)(cw_key_t * key, cw_test_stats_t * stats);
 typedef unsigned int (*cw_gen_test_function_t)(cw_gen_t * gen, cw_test_stats_t * stats);
 typedef unsigned int (*cw_tq_test_function_t)(cw_gen_t * gen, cw_test_stats_t * stats);
@@ -129,7 +130,20 @@ static cw_test_function_t cw_unit_tests[] = {
 	test_validate_character_and_string_internal,
 	test_validate_representation_internal,
 
+	/* cw_rec module */
+	test_cw_rec_identify_mark_internal,
+	test_cw_rec_with_base_data_fixed,
+	test_cw_rec_with_random_data_fixed,
+	test_cw_rec_with_random_data_adaptive,
+	test_cw_get_receive_parameters,
+	test_cw_rec_parameter_getters_setters,
+#endif
+	NULL
+};
 
+
+
+static cw_test_function_stats_t cw_unit_tests_other_s[] = {
 
 	/* cw_utils module */
 	test_cw_timestamp_compare_internal,
@@ -139,21 +153,12 @@ static cw_test_function_t cw_unit_tests[] = {
 	test_cw_license_internal,
 	test_cw_get_x_limits_internal,
 
-
-	/* cw_rec module */
-	test_cw_rec_identify_mark_internal,
-	test_cw_rec_with_base_data_fixed,
-	test_cw_rec_with_random_data_fixed,
-	test_cw_rec_with_random_data_adaptive,
-	test_cw_get_receive_parameters,
-	test_cw_rec_parameter_getters_setters,
-
-
 	/* cw_debug module */
 	test_cw_debug_flags_internal,
-#endif
+
 	NULL
 };
+
 
 
 /* Tests that are dependent on a sound system being configured.
@@ -408,6 +413,15 @@ int cw_test_dependent_with(int audio_system, const char *modules, cw_test_stats_
 		while (cw_unit_tests_key[i]) {
 			cw_test_setup(gen);
 	                (*cw_unit_tests_key[i])(key, stats);
+			i++;
+		}
+		fprintf(out_file, "\n");
+	}
+
+	if (strstr(modules, "o")) {
+		int i = 0;
+		while (cw_unit_tests_other_s[i]) {
+	                (*cw_unit_tests_other_s[i])(stats);
 			i++;
 		}
 		fprintf(out_file, "\n");
