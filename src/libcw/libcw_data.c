@@ -1303,11 +1303,8 @@ int cw_check_string(const char *string)
 
    TODO: test calling the function with invalid representation.
 */
-unsigned int test_cw_representation_to_hash_internal(void)
+unsigned int test_cw_representation_to_hash_internal(cw_test_stats_t * stats)
 {
-	int p = fprintf(stdout, "libcw/data: cw_representation_to_hash_internal():");
-
-
 	/* Intended contents of input[] is something like that:
 	  input[0]  = "."
 	  input[1]  = "-"
@@ -1335,7 +1332,7 @@ unsigned int test_cw_representation_to_hash_internal(void)
 	*/
 	char input[REPRESENTATION_TABLE_SIZE][REPRESENTATION_LEN + 1];
 
-	/* build table of all valid representations ("valid" as in "build
+	/* build table of all valid representations ("valid" as in "built
 	   from dash and dot, no longer than REPRESENTATION_LEN"). */
 	long int rep = 0;
 	for (unsigned int len = 1; len <= REPRESENTATION_LEN; len++) {
@@ -1364,14 +1361,22 @@ unsigned int test_cw_representation_to_hash_internal(void)
 		}
 	}
 
-	/* compute hash for every valid representation */
+	bool failure = true;
+
+	/* Compute hash for every valid representation. */
 	for (int i = 0; i < rep; i++) {
 		unsigned int hash = cw_representation_to_hash_internal(input[i]);
 		/* The function returns values in range 2 - 255. */
-		cw_assert (hash >= 2 && hash <= 255, "Invalid hash #%d: %u\n", i, hash)
+		failure = (hash < 2) || (hash > 255);
+		if (failure) {
+			fprintf(out_file, "libcw/data: representation to hash: Invalid hash #%d: %u\n", i, hash);
+			break;
+		}
 	}
 
-	CW_TEST_PRINT_TEST_RESULT(false, p);
+	failure ? stats->failures++ : stats->successes++;
+	int n = fprintf(out_file, "libcw/data: representation to hash:");
+	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 	return 0;
 }
@@ -1383,9 +1388,9 @@ unsigned int test_cw_representation_to_hash_internal(void)
 /**
    tests::cw_representation_to_character_internal()
 */
-unsigned int test_cw_representation_to_character_internal(void)
+unsigned int test_cw_representation_to_character_internal(cw_test_stats_t * stats)
 {
-	int p = fprintf(stdout, "libcw/data: cw_representation_to_character_internal():");
+	bool failure = true;
 
 	/* The test is performed by comparing results of function
 	   using fast lookup table, and function using direct
@@ -1396,10 +1401,16 @@ unsigned int test_cw_representation_to_character_internal(void)
 		int lookup = cw_representation_to_character_internal(cw_entry->representation);
 		int direct = cw_representation_to_character_direct_internal(cw_entry->representation);
 
-		cw_assert (lookup == direct, "Failed for \"%s\"\n", cw_entry->representation);
+		failure = (lookup != direct);
+		if (failure) {
+			fprintf(out_file, "libcw/data: representation to character: failed for \"%s\"\n", cw_entry->representation);
+			break;
+		}
 	}
 
-	CW_TEST_PRINT_TEST_RESULT(false, p);
+	failure ? stats->failures++ : stats->successes++;
+	int n = fprintf(out_file, "libcw/data: representation to character:");
+	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 	return 0;
 }
@@ -1409,11 +1420,8 @@ unsigned int test_cw_representation_to_character_internal(void)
 
 
 
-unsigned int test_cw_representation_to_character_internal_speed(void)
+unsigned int test_cw_representation_to_character_internal_speed(cw_test_stats_t * stats)
 {
-	int p = fprintf(stdout, "libcw/data: cw_representation_to_character() speed gain: ");
-
-
 	/* Testing speed gain between function with direct lookup, and
 	   function with fast lookup table.  Test is preformed by
 	   running each function N times with timer started before the
@@ -1447,10 +1455,13 @@ unsigned int test_cw_representation_to_character_internal_speed(void)
 
 	int direct = cw_timestamp_compare_internal(&start, &stop);
 
-	p += fprintf(stdout, "%.2f", 1.0 * direct / lookup);
 
+	float gain = 1.0 * direct / lookup;
+	bool failure = gain < 1.1;
 
-	CW_TEST_PRINT_TEST_RESULT(false, p);
+	failure ? stats->failures++ : stats->successes++;
+	int n = fprintf(out_file, "libcw/data: lookup speed gain: %.2f", gain);
+	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 	return 0;
 }
@@ -1468,9 +1479,11 @@ unsigned int test_cw_representation_to_character_internal_speed(void)
    tests::cw_character_to_representation()
    tests::cw_representation_to_character()
 */
-unsigned int test_character_lookups_internal(void)
+unsigned int test_character_lookups_internal(cw_test_stats_t * stats)
 {
 	int count = 0; /* Number of characters. */
+	bool failure = true;
+	int n = 0;
 
 	/* Test: get number of characters known to libcw. */
 	{
@@ -1480,10 +1493,12 @@ unsigned int test_character_lookups_internal(void)
 		   thing is certain: the number is larger than
 		   zero. */
 		count = cw_get_character_count();
-		cw_assert (count > 0, "Invalid number of characters: %d\n", count);
 
-		int n = printf("libcw/data: cw_get_character_count(): %d:", count);
-		CW_TEST_PRINT_TEST_RESULT (false, n);
+		failure = (count <= 0);
+
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw/data: character count (%d):", count);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
 
@@ -1494,15 +1509,13 @@ unsigned int test_character_lookups_internal(void)
 		   character count discovered above. */
 
 		cw_list_characters(charlist);
-		printf("libcw/data: cw_list_characters():\n"
-		       "libcw/data: %s\n", charlist);
+		fprintf(out_file, "libcw/data: list of characters: %s\n", charlist);
 		size_t len = strlen(charlist);
-		cw_assert (count == (int) len,
-			   "Number of characters don't match: %d != %zd\n",
-			   count, len);
+		failure = (count != (int) len);
 
-		int n = printf("libcw/data: character count is correct (%d == %d)", count, (int) len);
-		CW_TEST_PRINT_TEST_RESULT (false, n);
+		failure ? stats->failures++ : stats->successes++;
+		n = printf("libcw/data: character list length (%d / %d):", count, (int) len);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
 
@@ -1514,48 +1527,67 @@ unsigned int test_character_lookups_internal(void)
 		   to representations, let's do this as well. */
 
 		int rep_len = cw_get_maximum_representation_length();
-		cw_assert (rep_len > 0, "Maximum representation length invalid: %d\n", rep_len);
+		failure = (rep_len <= 0);
 
-		int n = printf("libcw/data: cw_get_maximum_representation_length(): %d:", rep_len);
-		CW_TEST_PRINT_TEST_RESULT (false, n);
+		failure ? stats->failures++ : stats->successes++;
+		n = printf("libcw/data: maximum representation length (%d):", rep_len);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
 
 
 	/* Test: character <--> representation lookup. */
 	{
+		bool c2r_failure = true;
+		bool r2c_failure = true;
+		bool two_way_failure = true;
+		int n = 0;
+
 		/* For each character, look up its representation, the
 		   look up each representation in the opposite
 		   direction. */
 
 		for (int i = 0; charlist[i] != '\0'; i++) {
 
-			char *representation = cw_character_to_representation(charlist[i]);
-			cw_assert (representation, "Failed to get a representation string (#%d)\n", i);
+			char * representation = cw_character_to_representation(charlist[i]);
+			c2r_failure = (representation == NULL);
+			if (c2r_failure) {
+				fprintf(out_file, "libcw/data: character lookup: character to representation failed for #%d (char '%c')\n", i, charlist[i]);
+				break;
+			}
+
 
 
 			/* Here we convert the representation into an output char 'c'. */
 			char c = cw_representation_to_character(representation);
-			cw_assert (c, "Failed to get character for a representation (#%d)\n", i);
-
+			r2c_failure = (0 == c);
+			if (r2c_failure) {
+				fprintf(out_file, "libcw/data: representation to character failed for #%d (representation '%s')\n", i, representation);
+				break;
+			}
 
 			/* Compare output char with input char. */
-			cw_assert (charlist[i] == c, "Two-way lookup failure for char '%c' (#%d)\n", c, i);
+			two_way_failure = (charlist[i] != c);
+			if (two_way_failure) {
+				fprintf(out_file, "libcw/data: character lookup: two-way lookup failed for #%d ('%c' -> '%s' -> '%c')\n", i, charlist[i], representation, c);
+				break;
+			}
 
 			free(representation);
 			representation = NULL;
 		}
 
-		int n = printf("libcw/data: cw_character_to_representation():");
-		CW_TEST_PRINT_TEST_RESULT (false, n);
+		c2r_failure ? stats->failures++ : stats->successes++;
+		n = printf("libcw/data: character lookup: char to representation:");
+		CW_TEST_PRINT_TEST_RESULT (c2r_failure, n);
 
+		r2c_failure ? stats->failures++ : stats->successes++;
+		n = printf("libcw/data: character lookup: representation to char:");
+		CW_TEST_PRINT_TEST_RESULT (r2c_failure, n);
 
-		n = printf("libcw/data: cw_representation_to_character():");
-		CW_TEST_PRINT_TEST_RESULT (false, n);
-
-
-		n = printf("libcw/data: two-way lookup for character lookups:");
-		CW_TEST_PRINT_TEST_RESULT (false, n);
+		two_way_failure ? stats->failures++ : stats->successes++;
+		n = printf("libcw/data: character lookup: two-way lookup:");
+		CW_TEST_PRINT_TEST_RESULT (two_way_failure, n);
 	}
 
 	return 0;
@@ -1573,20 +1605,23 @@ unsigned int test_character_lookups_internal(void)
    tests::cw_get_maximum_procedural_expansion_length()
    tests::cw_lookup_procedural_character()
 */
-unsigned int test_prosign_lookups_internal(void)
+unsigned int test_prosign_lookups_internal(cw_test_stats_t * stats)
 {
 	/* Collect and print out a list of characters in the
 	   procedural signals expansion table. */
 
 	int count = 0; /* Number of prosigns. */
+	bool failure = true;
+	int n = 0;
 
 	/* Test: get number of prosigns known to libcw. */
 	{
 		count = cw_get_procedural_character_count();
-		cw_assert (count > 0, "Invalid number of procedural characters: %d\n", count);
+		failure = (count <= 0);
 
-		int n = printf("libcw/data: cw_get_procedural_character_count(): %d", count);
-		CW_TEST_PRINT_TEST_RESULT (false, n);
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw/data: procedural character count (%d):", count);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
 
@@ -1595,15 +1630,13 @@ unsigned int test_prosign_lookups_internal(void)
 	/* Test: get list of characters supported by libcw. */
 	{
 		cw_list_procedural_characters(charlist);
-		printf("libcw/data: cw_list_procedural_characters():\n"
-		       "libcw/data: %s\n", charlist);
+		fprintf(out_file, "libcw/data: list of procedural characters: %s\n", charlist);
 		size_t len = strlen(charlist);
-		cw_assert (count == (int) len,
-			   "Number of characters don't match: %d != %zd\n",
-			   count, len);
+		failure = (count != (int) len);
 
-		int n = printf("libcw/data: procedural character count is correct (%d == %d)", count, (int) len);
-		CW_TEST_PRINT_TEST_RESULT (false, n);
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw/data: procedural character list length (%d / %d):", count, (int) len);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
 
@@ -1611,11 +1644,11 @@ unsigned int test_prosign_lookups_internal(void)
 	/* Test: expansion length. */
 	{
 		int exp_len = cw_get_maximum_procedural_expansion_length();
-		cw_assert (exp_len > 0,
-			   "Expansion length invalid: %d\n", exp_len);
+		failure = (exp_len <= 0);
 
-		int n = printf("libcw/data: cw_get_maximum_procedural_expansion_length(): %d", exp_len);
-		CW_TEST_PRINT_TEST_RESULT (false, n);
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw/data: maximum procedural expansion length (%d):", (int) exp_len);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
 
@@ -1626,30 +1659,39 @@ unsigned int test_prosign_lookups_internal(void)
 		   expansion and check for two or three characters,
 		   and a true/false assignment to the display hint. */
 
+		bool lookup_failure = false;
+		bool check_failure = false;
+
 		for (int i = 0; charlist[i] != '\0'; i++) {
 			char expansion[256];
 			int is_usually_expanded = -1;
 
-			cw_assert (cw_lookup_procedural_character(charlist[i],
-								  expansion,
-								  &is_usually_expanded),
-				   "Lookup of character '%c' (#%d) failed", charlist[i], i);
+			lookup_failure = (CW_SUCCESS != cw_lookup_procedural_character(charlist[i],
+										       expansion,
+										       &is_usually_expanded));
+			if (lookup_failure) {
+				fprintf(out_file, "libcw/data: procedural character lookup: lookup of character '%c' (#%d) failed\n", charlist[i], i);
+				break;
+			}
 
 
 			/* TODO: comment, please. */
 			if ((strlen(expansion) != 2 && strlen(expansion) != 3)
 			    || is_usually_expanded == -1) {
 
-				cw_assert (0, "Expansion check failed\n");
+				check_failure = true;
+				fprintf(out_file, "libcw/data: procedural character lookup: expansion check failed (#%d)\n", i);
+				break;
 			}
 		}
 
-		int n = printf("libcw/data: cw_lookup_procedural_character():");
-		CW_TEST_PRINT_TEST_RESULT (false, n);
+		lookup_failure ? stats->failures++ : stats->successes++;
+		n = printf("libcw/data: procedural character lookup: lookup:");
+		CW_TEST_PRINT_TEST_RESULT (lookup_failure, n);
 
-		n = printf("libcw/data: cw_lookup_procedural_() mapping:");
-		CW_TEST_PRINT_TEST_RESULT (false, n);
-
+		check_failure ? stats->failures++ : stats->successes++;
+		n = printf("libcw/data: procedural character lookup: lookup check:");
+		CW_TEST_PRINT_TEST_RESULT (check_failure, n);
 	}
 
 	return 0;
@@ -1663,7 +1705,7 @@ unsigned int test_prosign_lookups_internal(void)
    tests::cw_get_maximum_phonetic_length()
    tests::cw_lookup_phonetic()
 */
-unsigned int test_phonetic_lookups_internal(void)
+unsigned int test_phonetic_lookups_internal(cw_test_stats_t * stats)
 {
 	/* For each ASCII character, look up its phonetic and check
 	   for a string that start with this character, if alphabetic,
@@ -1673,21 +1715,29 @@ unsigned int test_phonetic_lookups_internal(void)
 	   zero. */
 	{
 		int len = cw_get_maximum_phonetic_length();
-		cw_assert (len > 0, "Maximum phonetic length invalid: %d\n", len);
+		bool failure = (len <= 0);
 
-		int n = printf("libcw/data: cw_get_maximum_phonetic_length(): %d", len);
-		CW_TEST_PRINT_TEST_RESULT (false, n);
+		failure ? stats->failures++ : stats->successes++;
+		int n = fprintf(out_file, "libcw/data: phonetic lookup: maximum phonetic length (%d):", len);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
 
 	/* Test: lookup of phonetic + reverse lookup. */
 	{
+		bool lookup_failure = true;
+		bool reverse_failure = true;
+		int n = 0;
+
 		for (int i = 0; i < UCHAR_MAX; i++) {
 			char phonetic[256];
 
 			int status = cw_lookup_phonetic((char) i, phonetic);
-			cw_assert (status == (bool) isalpha(i),
-				   "Lookup of phonetic '%c' (#%d) failed\n", (char ) i, i);
+			lookup_failure = (status != (bool) isalpha(i));
+			if (lookup_failure) {
+				fprintf(out_file, "libcw/data: phonetic lookup: lookup of phonetic '%c' (#%d) failed\n", (char ) i, i);
+				break;
+			}
 
 			if (status && (bool) isalpha(i)) {
 				/* We have looked up a letter, it has
@@ -1695,17 +1745,21 @@ unsigned int test_phonetic_lookups_internal(void)
 				   the first letter of phonetic should
 				   be the same as the looked up
 				   letter. */
-				cw_assert (phonetic[0] == toupper((char) i),
-					   "Reverse lookup failed for phonetic \"%s\" ('%c' / #%d)\n",
-					   phonetic, (char) i, i);
+				reverse_failure = (phonetic[0] != toupper((char) i));
+				if (reverse_failure) {
+					fprintf(out_file, "libcw/data: phonetic lookup: reverse lookup failed for phonetic \"%s\" ('%c' / #%d)\n", phonetic, (char) i, i);
+					break;
+				}
 			}
 		}
 
-		int n = printf("libcw/data: cw_lookup_phonetic():");
-		CW_TEST_PRINT_TEST_RESULT (false, n);
+		lookup_failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw/data: phonetic lookup: lookup:");
+		CW_TEST_PRINT_TEST_RESULT (lookup_failure, n);
 
-		n = printf("libcw/data: reverse lookup for phonetic characters:");
-		CW_TEST_PRINT_TEST_RESULT (false, n);
+		reverse_failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw/data: phonetic lookup: reverse lookup:");
+		CW_TEST_PRINT_TEST_RESULT (reverse_failure, n);
 	}
 
 	return 0;
@@ -1721,10 +1775,14 @@ unsigned int test_phonetic_lookups_internal(void)
    tests::cw_character_is_valid()
    tests::cw_string_is_valid()
 */
-unsigned int test_validate_character_and_string_internal(void)
+unsigned int test_validate_character_and_string_internal(cw_test_stats_t * stats)
 {
 	/* Test: validation of individual characters. */
 	{
+		bool failure_valid = true;
+		bool failure_invalid = true;
+		int n = 0;
+
 		char charlist[UCHAR_MAX + 1];
 		cw_list_characters(charlist);
 
@@ -1736,48 +1794,57 @@ unsigned int test_validate_character_and_string_internal(void)
 				   recognized/supported as 'sendable' by
 				   libcw.  cw_character_is_valid() should
 				   confirm it. */
-				cw_assert (cw_character_is_valid(i),
-					   "Valid character '%c' / #%d not recognized as valid\n",
-					   (char ) i, i);
+				failure_valid = (false == cw_character_is_valid(i));
+				if (failure_valid) {
+					fprintf(out_file, "libcw/data: validate character: valid character '%c' / #%d not recognized as valid\n", (char ) i, i);
+					break;
+				}
 			} else {
 				/* The 'i' character is not
 				   recognized/supported by libcw.
 				   cw_character_is_valid() should return false
 				   to signify that the char is invalid. */
-				cw_assert (!cw_character_is_valid(i),
-					   "Invalid character '%c' / #%d recognized as valid\n",
-					   (char ) i, i);
+				failure_invalid = (true == cw_character_is_valid(i));
+				if (failure_invalid) {
+					fprintf(out_file, "libcw/data: validate character: invalid character '%c' / #%d recognized as valid\n", (char ) i, i);
+					break;
+				}
 			}
 		}
 
-		int n = printf("libcw/data: cw_character_is_valid(<valid>):");
-		CW_TEST_PRINT_TEST_RESULT (false, n);
+		failure_valid ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw/data: validate character: valid characters:");
+		CW_TEST_PRINT_TEST_RESULT (failure_valid, n);
 
-		n = printf("libcw/data: cw_character_is_valid(<invalid>):");
-		CW_TEST_PRINT_TEST_RESULT (false, n);
+		failure_invalid ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw/data: validate character: invalid characters:");
+		CW_TEST_PRINT_TEST_RESULT (failure_invalid, n);
 	}
 
 
 
 	/* Test: validation of string as a whole. */
 	{
+		bool failure = true;
+		int n = 0;
 		/* Check the whole charlist item as a single string,
 		   then check a known invalid string. */
 
 		char charlist[UCHAR_MAX + 1];
 		cw_list_characters(charlist);
-		cw_assert (cw_string_is_valid(charlist),
-			   "String with valid characters not recognized as valid\n");
+		failure = (CW_SUCCESS != cw_string_is_valid(charlist));
 
-		int n = printf("libcw/data: cw_string_is_valid(<valid>):");
-		CW_TEST_PRINT_TEST_RESULT (false, n);
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw/data: validate string: valid string:");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+
 
 		/* Test invalid string. */
-		cw_assert (!cw_string_is_valid("%INVALID%"),
-			   "String with invalid characters recognized as valid\n");
+		failure = (CW_SUCCESS == cw_string_is_valid("%INVALID%"));
 
-		n = printf("libcw/data: cw_string_is_valid(<invalid>):");
-		CW_TEST_PRINT_TEST_RESULT (false, n);
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw/data: validate string: invalid string:");
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
 
@@ -1793,28 +1860,34 @@ unsigned int test_validate_character_and_string_internal(void)
 
    tests::cw_representation_is_valid()
 */
-unsigned int test_validate_representation_internal(void)
+unsigned int test_validate_representation_internal(cw_test_stats_t * stats)
 {
 	/* Test: validating valid representations. */
 	{
-		cw_assert (cw_representation_is_valid(".-.-.-"), "Valid representation #1 not recognized as valid.\n");
-		cw_assert (cw_representation_is_valid(".-"),     "Valid representation #2 not recognized as valid.\n");
-		cw_assert (cw_representation_is_valid("---"),    "Valid representation #3 not recognized as valid.\n");
-		cw_assert (cw_representation_is_valid("...-"),   "Valid representation #4 not recognized as valid.\n");
+		int rv1 = cw_representation_is_valid(".-.-.-");
+		int rv2 = cw_representation_is_valid(".-");
+		int rv3 = cw_representation_is_valid("---");
+		int rv4 = cw_representation_is_valid("...-");
 
-		int n = printf("libcw/data: cw_representation_is_valid(<valid>):");
-		CW_TEST_PRINT_TEST_RESULT (false, n);
+		bool failure = (rv1 != CW_SUCCESS) || (rv2 != CW_SUCCESS) || (rv3 != CW_SUCCESS) || (rv4 != CW_SUCCESS);
+
+		failure ? stats->failures++ : stats->successes++;
+		int n = fprintf(out_file, "libcw/data: validate representation: valid (%d/%d/%d/%d):", rv1, rv2, rv3, rv4);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
 
 	/* Test: validating invalid representations. */
 	{
-		cw_assert (!cw_representation_is_valid("INVALID"), "Invalid representation #1 not recognized as invalid.\n");
-		cw_assert (!cw_representation_is_valid("_._"),     "Invalid representation #2 not recognized as invalid.\n");
-		cw_assert (!cw_representation_is_valid("-_-"),     "Invalid representation #3 not recognized as invalid.\n");
+		int rv1 = cw_representation_is_valid("INVALID");
+		int rv2 = cw_representation_is_valid("_._");
+		int rv3 = cw_representation_is_valid("-_-");
 
-		int n = printf("libcw/data: cw_representation_is_valid(<invalid>):");
-		CW_TEST_PRINT_TEST_RESULT (false, n);
+		bool failure = (rv1 == CW_SUCCESS) || (rv2 == CW_SUCCESS) || (rv3 == CW_SUCCESS);
+
+		failure ? stats->failures++ : stats->successes++;
+		int n = fprintf(out_file, "libcw/data: validate representation: invalid (%d/%d/%d):", rv1, rv2, rv3);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
 	return 0;

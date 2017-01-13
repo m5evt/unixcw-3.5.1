@@ -120,16 +120,6 @@ typedef unsigned int (*cw_tq_test_function_t)(cw_gen_t * gen, cw_test_stats_t * 
 
 static cw_test_function_t cw_unit_tests[] = {
 #if 0
-	/* cw_data module */
-	test_cw_representation_to_hash_internal,
-	test_cw_representation_to_character_internal,
-	test_cw_representation_to_character_internal_speed,
-	test_character_lookups_internal,
-	test_prosign_lookups_internal,
-	test_phonetic_lookups_internal,
-	test_validate_character_and_string_internal,
-	test_validate_representation_internal,
-
 	/* cw_rec module */
 	test_cw_rec_identify_mark_internal,
 	test_cw_rec_with_base_data_fixed,
@@ -152,6 +142,17 @@ static cw_test_function_stats_t cw_unit_tests_other_s[] = {
 	test_cw_version_internal,
 	test_cw_license_internal,
 	test_cw_get_x_limits_internal,
+
+	/* cw_data module */
+	test_cw_representation_to_hash_internal,
+	test_cw_representation_to_character_internal,
+	test_cw_representation_to_character_internal_speed,
+	test_character_lookups_internal,
+	test_prosign_lookups_internal,
+	test_phonetic_lookups_internal,
+	test_validate_character_and_string_internal,
+	test_validate_representation_internal,
+
 
 	/* cw_debug module */
 	test_cw_debug_flags_internal,
