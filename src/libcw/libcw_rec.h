@@ -47,12 +47,14 @@ int cw_rec_get_receive_buffer_capacity_internal(void);
 
 #ifdef LIBCW_UNIT_TESTS
 
-unsigned int test_cw_rec_identify_mark_internal(void);
-unsigned int test_cw_rec_with_base_data_fixed(void);
-unsigned int test_cw_rec_with_random_data_fixed(void);
-unsigned int test_cw_rec_with_random_data_adaptive(void);
-unsigned int test_cw_get_receive_parameters(void);
-unsigned int test_cw_rec_parameter_getters_setters(void);
+#include "libcw_test.h"
+
+unsigned int test_cw_rec_identify_mark_internal(cw_test_stats_t * stats);
+unsigned int test_cw_rec_with_base_data_fixed(cw_test_stats_t * stats);
+unsigned int test_cw_rec_with_random_data_fixed(cw_test_stats_t * stats);
+unsigned int test_cw_rec_with_random_data_adaptive(cw_test_stats_t * stats);
+unsigned int test_cw_rec_get_parameters(cw_test_stats_t * stats);
+unsigned int test_cw_rec_parameter_getters_setters(cw_test_stats_t * stats);
 
 #endif /* #ifdef LIBCW_UNIT_TESTS */
 

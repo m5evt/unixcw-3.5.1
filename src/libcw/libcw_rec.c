@@ -2086,7 +2086,7 @@ static struct cw_rec_test_data *test_cw_rec_new_random_data_adaptive(int speed_m
 
 static void test_cw_rec_delete_data(struct cw_rec_test_data **data);
 __attribute__((unused)) static void test_cw_rec_print_data(struct cw_rec_test_data *data);
-static void test_cw_rec_test_begin_end(cw_rec_t *rec, struct cw_rec_test_data *data);
+static void test_cw_rec_test_begin_end(cw_rec_t * rec, struct cw_rec_test_data * data, cw_test_stats_t * stats);
 
 /* Functions creating tables of test values: characters and speeds.
    Characters and speeds will be combined into test (timing) data. */
@@ -2110,7 +2110,7 @@ static float *test_cw_rec_new_speeds_adaptive(int speed_min, int speed_max, size
 
    Currently the function only works for non-adaptive receiving.
 */
-unsigned int test_cw_rec_identify_mark_internal(void)
+unsigned int test_cw_rec_identify_mark_internal(cw_test_stats_t * stats)
 {
 	int p = fprintf(stdout, "libcw/rec: cw_rec_identify_mark_internal() (non-adaptive):");
 
@@ -2180,7 +2180,7 @@ unsigned int test_cw_rec_identify_mark_internal(void)
 
 /* Test a receiver with small and simple set of all characters
    supported by libcw. The test is done with fixed speed. */
-unsigned int test_cw_rec_with_base_data_fixed(void)
+unsigned int test_cw_rec_with_base_data_fixed(cw_test_stats_t * stats)
 {
 	int p = fprintf(stdout, "libcw/rec: test begin/end functions base data/fixed speed:");
 
@@ -2204,7 +2204,7 @@ unsigned int test_cw_rec_with_base_data_fixed(void)
 			   cw_rec_get_speed(rec), speed);
 
 		/* Actual tests of receiver functions are here. */
-		test_cw_rec_test_begin_end(rec, data);
+		test_cw_rec_test_begin_end(rec, data, stats);
 
 
 		test_cw_rec_delete_data(&data);
@@ -2236,7 +2236,7 @@ unsigned int test_cw_rec_with_base_data_fixed(void)
    \param rec - receiver variable used during tests
    \param data - table with timings, used to test the receiver
 */
-void test_cw_rec_test_begin_end(cw_rec_t *rec, struct cw_rec_test_data *data)
+void test_cw_rec_test_begin_end(cw_rec_t * rec, struct cw_rec_test_data * data, cw_test_stats_t * stats)
 {
 	struct timeval tv;
 	tv.tv_sec = 0;
@@ -2482,7 +2482,7 @@ struct cw_rec_test_data *test_cw_rec_new_base_data_fixed(int speed, int fuzz_per
 
 /* Test a receiver with large set of random data. The test is done
    with fixed speed. */
-unsigned int test_cw_rec_with_random_data_fixed(void)
+unsigned int test_cw_rec_with_random_data_fixed(cw_test_stats_t * stats)
 {
 	int p = fprintf(stdout, "libcw/rec: test begin/end functions random data/fixed speed:");
 
@@ -2506,7 +2506,7 @@ unsigned int test_cw_rec_with_random_data_fixed(void)
 			   cw_rec_get_speed(rec), speed);
 
 		/* Actual tests of receiver functions are here. */
-		test_cw_rec_test_begin_end(rec, data);
+		test_cw_rec_test_begin_end(rec, data, stats);
 
 
 		test_cw_rec_delete_data(&data);
@@ -2525,7 +2525,7 @@ unsigned int test_cw_rec_with_random_data_fixed(void)
 
 /* Test a receiver with large set of random data. The test is done
    with varying speed. */
-unsigned int test_cw_rec_with_random_data_adaptive(void)
+unsigned int test_cw_rec_with_random_data_adaptive(cw_test_stats_t * stats)
 {
 	int p = fprintf(stdout, "libcw/rec: test begin/end functions random data/adaptive:");
 
@@ -2547,7 +2547,7 @@ unsigned int test_cw_rec_with_random_data_adaptive(void)
 		   cw_rec_get_speed(rec), CW_SPEED_MAX);
 
 	/* Actual tests of receiver functions are here. */
-	test_cw_rec_test_begin_end(rec, data);
+	test_cw_rec_test_begin_end(rec, data, stats);
 
 
 	test_cw_rec_delete_data(&data);
@@ -3014,126 +3014,109 @@ void test_cw_rec_print_data(struct cw_rec_test_data *data)
 
 
 
-
-unsigned int test_cw_get_receive_parameters(void)
+unsigned int test_cw_rec_get_parameters(cw_test_stats_t * stats)
 {
-	cw_rec_t *rec = cw_rec_new();
-	cw_assert (rec, "Failed to get new receiver\n");
+	bool failure = true;
+	int n = 0;
+
+	cw_rec_t * rec = cw_rec_new();
+	cw_assert (rec, "libcw/rec: get: failed to create new receiver\n");
 
 	cw_rec_reset_parameters_internal(rec);
 	cw_rec_sync_parameters_internal(rec);
 
-	int dot_len_ideal = 0,
-		dash_len_ideal = 0,
+	int dot_len_ideal = 0;
+	int dash_len_ideal = 0;
 
-		dot_len_min = 0,
-		dot_len_max = 0,
+	int dot_len_min = 0;
+	int dot_len_max = 0;
 
-		dash_len_min = 0,
-		dash_len_max = 0,
+	int dash_len_min = 0;
+	int dash_len_max = 0;
 
-		eom_len_min = 0,
-		eom_len_max = 0,
-		eom_len_ideal = 0,
+	int eom_len_min = 0;
+	int eom_len_max = 0;
+	int eom_len_ideal = 0;
 
-		eoc_len_min = 0,
-		eoc_len_max = 0,
-		eoc_len_ideal = 0,
+	int eoc_len_min = 0;
+	int eoc_len_max = 0;
+	int eoc_len_ideal = 0;
 
-		adaptive_speed_threshold = 0;
+	int adaptive_speed_threshold = 0;
 
 	cw_rec_get_parameters_internal(rec,
-				       &dot_len_ideal, &dash_len_ideal,
-				       &dot_len_min, &dot_len_max,
-				       &dash_len_min, &dash_len_max,
-
-				       &eom_len_min,
-				       &eom_len_max,
-				       &eom_len_ideal,
-
-				       &eoc_len_min,
-				       &eoc_len_max,
-				       &eoc_len_ideal,
-
+				       &dot_len_ideal, &dash_len_ideal, &dot_len_min, &dot_len_max, &dash_len_min, &dash_len_max,
+				       &eom_len_min, &eom_len_max, &eom_len_ideal,
+				       &eoc_len_min, &eoc_len_max, &eoc_len_ideal,
 				       &adaptive_speed_threshold);
 
 	cw_rec_delete(&rec);
 
-	printf("libcw/rec: cw_get_receive_parameters():\n" \
-	       "libcw/rec: dot/dash:  %d, %d, %d, %d, %d, %d\n" \
-	       "libcw/rec: eom:       %d, %d, %d\n" \
-	       "libcw/rec: eoc:       %d, %d, %d\n" \
-	       "libcw/rec: threshold: %d\n",
+	fprintf(out_file,
+		"libcw/rec: get: dot/dash:  %d, %d, %d, %d, %d, %d\n" \
+		"libcw/rec: get: eom:       %d, %d, %d\n" \
+		"libcw/rec: get: eoc:       %d, %d, %d\n" \
+		"libcw/rec: get: threshold: %d\n",
 
-	       dot_len_ideal, dash_len_ideal,
-	       dot_len_min, dot_len_max,
-	       dash_len_min, dash_len_max,
-
-	       eom_len_min,
-	       eom_len_max,
-	       eom_len_ideal,
-
-	       eoc_len_min,
-	       eoc_len_max,
-	       eoc_len_ideal,
-
-	       adaptive_speed_threshold);
+		dot_len_ideal, dash_len_ideal, dot_len_min, dot_len_max, dash_len_min, dash_len_max,
+		eom_len_min, eom_len_max, eom_len_ideal,
+		eoc_len_min, eoc_len_max, eoc_len_ideal,
+		adaptive_speed_threshold);
 
 
-	cw_assert (dot_len_ideal > 0
-		   && dash_len_ideal > 0
-		   && dot_len_min > 0
-		   && dot_len_max > 0
-		   && dash_len_min > 0
-		   && dash_len_max > 0
+	failure = (dot_len_ideal <= 0
+		   || dash_len_ideal <= 0
+		   || dot_len_min <= 0
+		   || dot_len_max <= 0
+		   || dash_len_min <= 0
+		   || dash_len_max <= 0
 
-		   && eom_len_min > 0
-		   && eom_len_max > 0
-		   && eom_len_ideal > 0
+		   || eom_len_min <= 0
+		   || eom_len_max <= 0
+		   || eom_len_ideal <= 0
 
-		   && eoc_len_min > 0
-		   && eoc_len_max > 0
-		   && eoc_len_ideal > 0
+		   || eoc_len_min <= 0
+		   || eoc_len_max <= 0
+		   || eoc_len_ideal <= 0
 
-		   && adaptive_speed_threshold > 0,
-
-		   "One of parameters is non-positive\n");
+		   || adaptive_speed_threshold <= 0);
 
 
-
-	cw_assert (dot_len_max < dash_len_min,
-		   "Maximum dot length is no smaller than minimum dash length: %d - %d\n",
-		   dot_len_max, dash_len_min);
-
-	cw_assert (dot_len_min < dot_len_ideal
-		   && dot_len_ideal < dot_len_max,
-		   "Inconsistency in dot lengths: %d - %d - %d\n",
-		   dot_len_min, dot_len_ideal, dot_len_max);
-
-	cw_assert (dash_len_min < dash_len_ideal
-		   && dash_len_ideal < dash_len_max,
-		   "Inconsistency in dash lengths: %d - %d - %d\n",
-		   dash_len_min, dash_len_ideal, dash_len_max);
+	failure = dot_len_max >= dash_len_min;
+	failure ? stats->failures++ : stats->successes++;
+	n = fprintf(out_file, "libcw:rec: get: max dot len < min dash len (%d/%d):", dot_len_max, dash_len_min);
+	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
-
-	cw_assert (eom_len_max < eoc_len_min,
-		   "Maximum eom length is no smaller than minimum eoc length: %d - %d\n",
-		   eom_len_max, eoc_len_min);
-
-	cw_assert (eom_len_min < eom_len_ideal
-		   && eom_len_ideal < eom_len_max,
-		   "Inconsistency in eom lengths: %d - %d - %d\n",
-		   eom_len_min, eom_len_ideal, eom_len_max);
-
-	cw_assert (eoc_len_min < eoc_len_ideal
-		   && eoc_len_ideal < eoc_len_max,
-		   "Inconsistency in eoc lengths: %d - %d - %d\n",
-		   eoc_len_min, eoc_len_ideal, eoc_len_max);
+	failure = (dot_len_min >= dot_len_ideal) || (dot_len_ideal >= dot_len_max);
+	failure ? stats->failures++ : stats->successes++;
+	n = fprintf(out_file, "libcw:rec: get: dot len consistency (%d/%d/%d):", dot_len_min, dot_len_ideal, dot_len_max);
+	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
-	int n = printf("libcw/rec: cw_rec_get_parameters_internal():");
-	CW_TEST_PRINT_TEST_RESULT (false, n);
+	failure = (dash_len_min >= dash_len_ideal) || (dash_len_ideal >= dash_len_max);
+	failure ? stats->failures++ : stats->successes++;
+	n = fprintf(out_file, "libcw:rec: get: dash len consistency (%d/%d/%d):", dash_len_min, dash_len_ideal, dash_len_max);
+	CW_TEST_PRINT_TEST_RESULT (failure, n);
+
+
+	failure = (eom_len_max >= eoc_len_min);
+	failure ? stats->failures++ : stats->successes++;
+	n = fprintf(out_file, "libcw:rec: get: max eom len < min eoc len (%d/%d):", eom_len_max, eoc_len_min);
+	CW_TEST_PRINT_TEST_RESULT (failure, n);
+
+
+	failure = (eom_len_min >= eom_len_ideal) || (eom_len_ideal >= eom_len_max);
+	failure ? stats->failures++ : stats->successes++;
+	n = fprintf(out_file, "libcw:rec: get: eom len consistency (%d/%d/%d)", eom_len_min, eom_len_ideal, eom_len_max);
+	CW_TEST_PRINT_TEST_RESULT (failure, n);
+
+
+	failure = (eoc_len_min >= eoc_len_ideal) || (eoc_len_ideal >= eoc_len_max);
+	failure ? stats->failures++ : stats->successes++;
+	n = fprintf(out_file, "libcw:rec: get: eoc len consistency (%d/%d/%d)", eoc_len_min, eoc_len_ideal, eoc_len_max);
+	CW_TEST_PRINT_TEST_RESULT (failure, n);
+
 
 	return 0;
 }
@@ -3145,13 +3128,10 @@ unsigned int test_cw_get_receive_parameters(void)
 /* Parameter getters and setters are independent of audio system, so
    they can be tested just with CW_AUDIO_NULL.  This is even more true
    for limit getters, which don't require a receiver at all. */
-unsigned int test_cw_rec_parameter_getters_setters(void)
+unsigned int test_cw_rec_parameter_getters_setters(cw_test_stats_t * stats)
 {
-	int p = fprintf(stdout, "libcw/rec: basic parameter getters and setters:");
-	fflush(stdout);
-
-	cw_rec_t *rec = cw_rec_new();
-	cw_assert (rec, "failed to create new receiver");
+	cw_rec_t * rec = cw_rec_new();
+	cw_assert (rec, "libcw/rec: get/set: failed to create new receiver\n");
 
 	/* Test setting and getting of some basic parameters. */
 
@@ -3172,10 +3152,16 @@ unsigned int test_cw_rec_parameter_getters_setters(void)
 
 		const char *name;
 	} test_data[] = {
-		{ cw_get_speed_limits,      cw_rec_set_speed,      cw_rec_get_speed,      off_limits,  -off_limits,  "receive_speed" },
+		{ cw_get_speed_limits,      cw_rec_set_speed,      cw_rec_get_speed,      off_limits,  -off_limits,  "receive speed" },
 		{ cw_get_tolerance_limits,  cw_rec_set_tolerance,  cw_rec_get_tolerance,  off_limits,  -off_limits,  "tolerance"     },
 		{ NULL,                     NULL,                  NULL,                           0,            0,  NULL            }
 	};
+
+	bool get_failure = true;
+	bool set_min_failure = true;
+	bool set_max_failure = true;
+	bool set_ok_failure = true;
+	int n = 0;
 
 
 	for (int i = 0; test_data[i].get_limits; i++) {
@@ -3186,8 +3172,16 @@ unsigned int test_cw_rec_parameter_getters_setters(void)
 		/* Get limits of values to be tested. */
 		test_data[i].get_limits(&test_data[i].min, &test_data[i].max);
 
-		cw_assert (test_data[i].min > -off_limits, "%s: failed to get low limit, returned value = %d", test_data[i].name, test_data[i].min);
-		cw_assert (test_data[i].max <  off_limits, "%s: failed to get high limit, returned value = %d", test_data[i].name, test_data[i].max);
+		get_failure = (test_data[i].min <= -off_limits);
+		if (get_failure) {
+			fprintf(out_file, "libcw/rec: get/set param: get min %s: failed to get low limit, returned value = %d\n", test_data[i].name, test_data[i].min);
+			break;
+		}
+		get_failure = (test_data[i].max >= off_limits);
+		if (get_failure) {
+			fprintf(out_file, "libcw/rec: get/set param: get max %s: failed to get high limit, returned value = %d\n", test_data[i].name, test_data[i].max);
+			break;
+		}
 
 
 
@@ -3196,12 +3190,16 @@ unsigned int test_cw_rec_parameter_getters_setters(void)
 		value = test_data[i].min - 1;
 		status = test_data[i].set_new_value(rec, value);
 
-		cw_assert (status == CW_FAILURE, "%s: setting value below minimum succeeded\n"
-			   "minimum is %d, attempted value is %d",
-			   test_data[i].name, test_data[i].min, value);
-		cw_assert (errno == EINVAL, "%s: setting value below minimum didn't result in EINVAL\n"
-			   "minimum is %d, attempted value is %d",
-			   test_data[i].name, test_data[i].min, value);
+		set_min_failure = (status == CW_SUCCESS);
+		if (set_min_failure) {
+			fprintf(out_file, "libcw/rec: get/set param: setting %s value below minimum succeeded, minimum is %d, attempted value is %d\n", test_data[i].name, test_data[i].min, value);
+			break;
+		}
+		set_min_failure = (errno != EINVAL);
+		if (set_min_failure) {
+			fprintf(out_file, "libcw/rec: get/set param: setting %s value below minimum didn't result in EINVAL, minimum is %d, attempted value is %d\n", test_data[i].name, test_data[i].min, value);
+			break;
+		}
 
 
 
@@ -3210,12 +3208,16 @@ unsigned int test_cw_rec_parameter_getters_setters(void)
 		value = test_data[i].max + 1;
 		status = test_data[i].set_new_value(rec, value);
 
-		cw_assert (status == CW_FAILURE, "%s: setting value above minimum succeeded\n"
-			   "maximum is %d, attempted value is %d",
-			   test_data[i].name, test_data[i].min, value);
-		cw_assert (errno == EINVAL, "%s: setting value above maximum didn't result in EINVAL\n"
-			   "maximum is %d, attempted value is %d",
-			   test_data[i].name, test_data[i].min, value);
+		set_max_failure = (status == CW_SUCCESS);
+		if (set_max_failure) {
+			fprintf(out_file, "libcw/rec: get/set param: setting %s value above minimum succeeded, maximum is %d, attempted value is %d\n", test_data[i].name, test_data[i].min, value);
+			break;
+		}
+		set_max_failure = (errno != EINVAL);
+		if (set_max_failure) {
+			fprintf(out_file, "libcw/rec: get/set param: setting %s value above maximum didn't result in EINVAL, maximum is %d, attempted value is %d\n", test_data[i].name, test_data[i].min, value);
+			break;
+		}
 
 
 
@@ -3224,16 +3226,35 @@ unsigned int test_cw_rec_parameter_getters_setters(void)
 			test_data[i].set_new_value(rec, j);
 
 			float diff = test_data[i].get_value(rec) - j;
-			cw_assert (diff < 0.01, "%s: setting value in-range failed for value = %d", test_data[i].name, j);
+			set_ok_failure = (diff >= 0.01);
+			if (set_ok_failure) {
+				fprintf(out_file, "libcw/rec: get/set param: setting %s value in-range failed for value = %d\n", test_data[i].name, j);
+				break;
+			}
+		}
+		if (set_ok_failure) {
+			break;
 		}
 	}
-
 
 	cw_rec_delete(&rec);
 
 
-	CW_TEST_PRINT_TEST_RESULT(false, p);
+	get_failure ? stats->failures++ : stats->successes++;
+	n = fprintf(out_file, "libcw:rec: get/set param: get:");
+	CW_TEST_PRINT_TEST_RESULT (get_failure, n);
 
+	set_min_failure ? stats->failures++ : stats->successes++;
+	n = fprintf(out_file, "libcw:rec: get/set param: set value below min:");
+	CW_TEST_PRINT_TEST_RESULT (set_min_failure, n);
+
+	set_max_failure ? stats->failures++ : stats->successes++;
+	n = fprintf(out_file, "libcw:rec: get/set param: set value above max:");
+	CW_TEST_PRINT_TEST_RESULT (set_max_failure, n);
+
+	set_ok_failure ? stats->failures++ : stats->successes++;
+	n = fprintf(out_file, "libcw:rec: get/set param: set value in range:");
+	CW_TEST_PRINT_TEST_RESULT (set_ok_failure, n);
 
 	return 0;
 }

@@ -125,8 +125,6 @@ static cw_test_function_t cw_unit_tests[] = {
 	test_cw_rec_with_base_data_fixed,
 	test_cw_rec_with_random_data_fixed,
 	test_cw_rec_with_random_data_adaptive,
-	test_cw_get_receive_parameters,
-	test_cw_rec_parameter_getters_setters,
 #endif
 	NULL
 };
@@ -215,6 +213,13 @@ static cw_key_test_function_t cw_unit_tests_key[] = {
 };
 
 
+static cw_test_function_stats_t cw_unit_tests_rec1[] = {
+	test_cw_rec_get_parameters,
+	test_cw_rec_parameter_getters_setters,
+
+	NULL
+};
+
 
 
 
@@ -251,9 +256,9 @@ int main(int argc, char *const argv[])
 		testset = ~0;
 	}
 
-#define CW_SYSTEMS_MAX 5
+#define CW_SYSTEMS_MAX (sizeof ("ncoap"))
 	char sound_systems[CW_SYSTEMS_MAX + 1];
-#define CW_MODULES_MAX 3  /* g, t, k */
+#define CW_MODULES_MAX (sizeof ("gtkro"))
 	char modules[CW_MODULES_MAX + 1];
 	modules[0] = '\0';
 
@@ -414,6 +419,15 @@ int cw_test_dependent_with(int audio_system, const char *modules, cw_test_stats_
 		while (cw_unit_tests_key[i]) {
 			cw_test_setup(gen);
 	                (*cw_unit_tests_key[i])(key, stats);
+			i++;
+		}
+		fprintf(out_file, "\n");
+	}
+
+	if (strstr(modules, "r")) {
+		int i = 0;
+		while (cw_unit_tests_rec1[i]) {
+	                (*cw_unit_tests_rec1[i])(stats);
 			i++;
 		}
 		fprintf(out_file, "\n");
@@ -583,7 +597,7 @@ int cw_test_args(int argc, char *const argv[],
 	strncpy(sound_systems, "ncoap", systems_max);
 	sound_systems[systems_max] = '\0';
 
-	strncpy(modules, "gtko", modules_max);
+	strncpy(modules, "gtkro", modules_max);
 	modules[modules_max] = '\0';
 
 	if (argc == 1) {
@@ -631,6 +645,7 @@ int cw_test_args(int argc, char *const argv[],
 					if (optarg[i] != 'g'       /* Generator. */
 					    && optarg[i] != 't'    /* Tone queue. */
 					    && optarg[i] != 'k'    /* Morse key. */
+					    && optarg[i] != 'r'    /* Receiver. */
 					    && optarg[i] != 'o') { /* Other. */
 
 						return CW_FAILURE;
@@ -672,6 +687,7 @@ void cw_test_print_help(const char *progname)
 	fprintf(stderr, "       g - generator\n");
 	fprintf(stderr, "       t - tone queue\n");
 	fprintf(stderr, "       k - Morse key\n");
+	fprintf(stderr, "       r - receiver\n");
 	fprintf(stderr, "       o - other\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "       If no argument is provided, the program will attempt to test all audio systems and all modules\n");
