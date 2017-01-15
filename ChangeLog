@@ -1,3 +1,8 @@
+2017-01-15 Kamil Ignacak
+	* libcw/tests: All standard unit tests now are run by the same
+	driver in a single executable (libcw_test). All these unit tests
+	calculate result statistics.
+
 2017-01-07 Kamil Ignacak
 
 	* libcw/tests: Removing libcw/tests/libcw_test_public
