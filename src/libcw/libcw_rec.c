@@ -2086,7 +2086,7 @@ static struct cw_rec_test_data *test_cw_rec_new_random_data_adaptive(int speed_m
 
 static void test_cw_rec_delete_data(struct cw_rec_test_data **data);
 __attribute__((unused)) static void test_cw_rec_print_data(struct cw_rec_test_data *data);
-static void test_cw_rec_test_begin_end(cw_rec_t * rec, struct cw_rec_test_data * data, cw_test_stats_t * stats);
+static bool test_cw_rec_test_begin_end(cw_rec_t * rec, struct cw_rec_test_data * data, cw_test_stats_t * stats);
 
 /* Functions creating tables of test values: characters and speeds.
    Characters and speeds will be combined into test (timing) data. */
@@ -2204,8 +2204,11 @@ unsigned int test_cw_rec_with_base_data_fixed(cw_test_stats_t * stats)
 			   cw_rec_get_speed(rec), speed);
 
 		/* Actual tests of receiver functions are here. */
-		test_cw_rec_test_begin_end(rec, data, stats);
+		bool failure = test_cw_rec_test_begin_end(rec, data, stats);
 
+		failure ? stats->failures++ : stats->successes++;
+		int n = fprintf(out_file, "libcw:rec: begin/end: base data and fixed speed %d:", speed);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 		test_cw_rec_delete_data(&data);
 	}
@@ -2236,11 +2239,22 @@ unsigned int test_cw_rec_with_base_data_fixed(cw_test_stats_t * stats)
    \param rec - receiver variable used during tests
    \param data - table with timings, used to test the receiver
 */
-void test_cw_rec_test_begin_end(cw_rec_t * rec, struct cw_rec_test_data * data, cw_test_stats_t * stats)
+bool test_cw_rec_test_begin_end(cw_rec_t * rec, struct cw_rec_test_data * data, cw_test_stats_t * stats)
 {
-	struct timeval tv;
-	tv.tv_sec = 0;
-	tv.tv_usec = 0;
+	struct timeval tv = { 0, 0 };
+
+	bool begin_end_failure = false;
+
+	bool buffer_length_failure = true;
+
+	bool poll_representation_failure = true;
+	bool match_representation_failure = true;
+	bool error_representation_failure = true;
+	bool word_representation_failure = true;
+
+	bool poll_character_failure = true;
+	bool match_character_failure = true;
+	bool empty_failure = true;
 
 	for (int i = 0; data[i].r; i++) {
 
@@ -2307,9 +2321,11 @@ void test_cw_rec_test_begin_end(cw_rec_t * rec, struct cw_rec_test_data * data, 
 		   to receiver's buffer. */
 		{
 			int n = cw_rec_get_buffer_length_internal(rec);
-			cw_assert (n == (int) strlen(data[i].r),
-				   "cw_rec_get_buffer_length_internal() <nonempty>:  %d != %zd",
-				   n, strlen(data[i].r));
+			buffer_length_failure = (n != (int) strlen(data[i].r));
+			if (buffer_length_failure) {
+				fprintf(out_file, "libcw/rec: begin/end: cw_rec_get_buffer_length_internal(<nonempty>): %d != %zd\n", n, strlen(data[i].r));
+				break;
+			}
 		}
 
 
@@ -2339,26 +2355,39 @@ void test_cw_rec_test_begin_end(cw_rec_t * rec, struct cw_rec_test_data * data, 
 			   + jitter). In libcw maximum recognizable
 			   length of "end of character" space is 5 x
 			   dot. */
-			cw_assert (cw_rec_poll_representation(rec, &tv, representation, &is_word, &is_error),
-				   "cw_rec_poll_representation() returns false");
+			poll_representation_failure = (CW_SUCCESS != cw_rec_poll_representation(rec, &tv, representation, &is_word, &is_error));
+			if (poll_representation_failure) {
+				fprintf(out_file, "libcw/rec: begin/end: poll representation returns !CW_SUCCESS\n");
+				break;
+			}
 
-			cw_assert (strcmp(representation, data[i].r) == 0,
-				   "cw_rec_poll_representation(): polled representation does not match test representation:" \
-				   "\"%s\"   !=   \"%s\"", representation, data[i].r);
+			match_representation_failure = (0 != strcmp(representation, data[i].r));
+			if (match_representation_failure) {
+				fprintf(out_file, "libcw/rec: being/end: polled representation does not match test representation: \"%s\" != \"%s\"\n", representation, data[i].r);
+				break;
+			}
 
-			cw_assert (!is_error,
-				   "cw_rec_poll_representation() sets is_error to true");
+			error_representation_failure = (true == is_error);
+			if (error_representation_failure) {
+				fprintf(out_file, "libcw/rec: begin/end: poll representation sets is_error\n");
+				break;
+			}
+
+
 
 			/* If the last space in character's data is
 			   end-of-word space (which is indicated by
 			   is_last_in_word), then is_word should be
 			   set by poll() to true. Otherwise both
 			   values should be false. */
-			cw_assert (is_word == data[i].is_last_in_word,
-				   "'is_word' flag error: function returns '%d', data is tagged with '%d'\n" \
-				   "'%c'  '%c'  '%c'  '%c'  '%c'",
-				   is_word, data[i].is_last_in_word,
-				   data[i - 2].c, data[i - 1].c, data[i].c, data[i + 1].c, data[i + 2].c );
+			word_representation_failure = (is_word != data[i].is_last_in_word);
+			if (word_representation_failure) {
+				fprintf(out_file, "libcw/rec: begin/end: poll representation: 'is_word' flag error: function returns '%d', data is tagged with '%d'\n" \
+					"'%c'  '%c'  '%c'  '%c'  '%c'",
+					is_word, data[i].is_last_in_word,
+					data[i - 2].c, data[i - 1].c, data[i].c, data[i + 1].c, data[i + 2].c );
+				break;
+			}
 
 #if 0
 			/* Debug code. Print times of character with
@@ -2377,7 +2406,6 @@ void test_cw_rec_test_begin_end(cw_rec_t * rec, struct cw_rec_test_data * data, 
 
 
 
-
 		char c;
 		/* Test: getting character from receiver's buffer. */
 		{
@@ -2386,16 +2414,18 @@ void test_cw_rec_test_begin_end(cw_rec_t * rec, struct cw_rec_test_data * data, 
 			/* The representation is still held in
 			   receiver. Ask receiver for converting the
 			   representation to character. */
-			cw_assert (cw_rec_poll_character(rec, &tv, &c, &is_word, &is_error),
-				   "cw_rec_poll_character() returns false");
+			poll_character_failure = (CW_SUCCESS != cw_rec_poll_character(rec, &tv, &c, &is_word, &is_error));
+			if (poll_character_failure) {
+				fprintf(out_file, "libcw/rec: begin/end: poll character false\n");
+				break;
+			}
 
-			cw_assert (c == data[i].c,
-				   "cw_rec_poll_character(): polled character does not match test character:" \
-				   "'%c' != '%c':", c, data[i].c);
+			match_character_failure = (c != data[i].c);
+			if (match_character_failure) {
+				fprintf(out_file, "libcw/rec: begin/end: polled character does not match test character: '%c' != '%c'\n", c, data[i].c);
+				break;
+			}
 		}
-
-
-
 
 
 
@@ -2412,9 +2442,12 @@ void test_cw_rec_test_begin_end(cw_rec_t * rec, struct cw_rec_test_data * data, 
 			   character. */
 			cw_rec_reset_state(rec);
 			int length = cw_rec_get_buffer_length_internal(rec);
-			cw_assert (length == 0,
-				   "cw_rec_get_buffer_length_internal(): length of cleared buffer is non zero (is %d)",
-				   length);
+
+			empty_failure = (length != 0);
+			if (empty_failure) {
+				fprintf(out_file, "libcw/rec: begin/end: get buffer length: length of cleared buffer is non zero (is %d)",  length);
+				break;
+			}
 		}
 
 
@@ -2430,10 +2463,13 @@ void test_cw_rec_test_begin_end(cw_rec_t * rec, struct cw_rec_test_data * data, 
 			       );
 		}
 #endif
+
 	}
 
-
-	return;
+	return begin_end_failure
+		|| buffer_length_failure
+		|| poll_representation_failure || match_representation_failure || error_representation_failure || word_representation_failure
+		|| poll_character_failure || match_character_failure || empty_failure;
 }
 
 
@@ -2506,7 +2542,11 @@ unsigned int test_cw_rec_with_random_data_fixed(cw_test_stats_t * stats)
 			   cw_rec_get_speed(rec), speed);
 
 		/* Actual tests of receiver functions are here. */
-		test_cw_rec_test_begin_end(rec, data, stats);
+		bool failure = test_cw_rec_test_begin_end(rec, data, stats);
+
+		failure ? stats->failures++ : stats->successes++;
+		int n = fprintf(out_file, "libcw:rec: begin/end: random data and fixed speed %d:", speed);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 		test_cw_rec_delete_data(&data);
@@ -2547,8 +2587,11 @@ unsigned int test_cw_rec_with_random_data_adaptive(cw_test_stats_t * stats)
 		   cw_rec_get_speed(rec), CW_SPEED_MAX);
 
 	/* Actual tests of receiver functions are here. */
-	test_cw_rec_test_begin_end(rec, data, stats);
+	bool failure = test_cw_rec_test_begin_end(rec, data, stats);
 
+	failure ? stats->failures++ : stats->successes++;
+	int n = fprintf(out_file, "libcw:rec: begin/end: random data and adaptive speed:");
+	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 	test_cw_rec_delete_data(&data);
 
@@ -3160,7 +3203,7 @@ unsigned int test_cw_rec_parameter_getters_setters(cw_test_stats_t * stats)
 	bool get_failure = true;
 	bool set_min_failure = true;
 	bool set_max_failure = true;
-	bool set_ok_failure = true;
+	bool set_ok_failure = false;
 	int n = 0;
 
 
@@ -3182,7 +3225,6 @@ unsigned int test_cw_rec_parameter_getters_setters(cw_test_stats_t * stats)
 			fprintf(out_file, "libcw/rec: get/set param: get max %s: failed to get high limit, returned value = %d\n", test_data[i].name, test_data[i].max);
 			break;
 		}
-
 
 
 		/* Test out-of-range value lower than minimum. */
@@ -3220,7 +3262,6 @@ unsigned int test_cw_rec_parameter_getters_setters(cw_test_stats_t * stats)
 		}
 
 
-
 		/* Test in-range values. Set with setter and then read back with getter. */
 		for (int j = test_data[i].min; j <= test_data[i].max; j++) {
 			test_data[i].set_new_value(rec, j);
@@ -3228,7 +3269,9 @@ unsigned int test_cw_rec_parameter_getters_setters(cw_test_stats_t * stats)
 			float diff = test_data[i].get_value(rec) - j;
 			set_ok_failure = (diff >= 0.01);
 			if (set_ok_failure) {
-				fprintf(out_file, "libcw/rec: get/set param: setting %s value in-range failed for value = %d\n", test_data[i].name, j);
+				fprintf(stderr, "libcw/rec: get/set param: setting value in-range failed for %s value = %d (%f - %d = %f)\n",
+					test_data[i].name, j,
+					(float) test_data[i].get_value(rec), j, diff);
 				break;
 			}
 		}
