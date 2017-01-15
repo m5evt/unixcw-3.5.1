@@ -50,9 +50,9 @@ int cw_rec_get_receive_buffer_capacity_internal(void);
 #include "libcw_test.h"
 
 unsigned int test_cw_rec_identify_mark_internal(cw_test_stats_t * stats);
-unsigned int test_cw_rec_with_base_data_fixed(cw_test_stats_t * stats);
-unsigned int test_cw_rec_with_random_data_fixed(cw_test_stats_t * stats);
-unsigned int test_cw_rec_with_random_data_adaptive(cw_test_stats_t * stats);
+unsigned int test_cw_rec_test_with_base_constant(cw_test_stats_t * stats);
+unsigned int test_cw_rec_test_with_random_constant(cw_test_stats_t * stats);
+unsigned int test_cw_rec_test_with_random_varying(cw_test_stats_t * stats);
 unsigned int test_cw_rec_get_parameters(cw_test_stats_t * stats);
 unsigned int test_cw_rec_parameter_getters_setters(cw_test_stats_t * stats);
 

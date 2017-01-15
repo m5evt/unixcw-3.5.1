@@ -2037,10 +2037,6 @@ bool cw_rec_poll_is_pending_inter_word_space(cw_rec_t const * rec)
 
 #ifdef WITH_EXPERIMENTAL_RECEIVER
 
-
-
-
-
 void cw_rec_register_push_callback(cw_rec_t *rec, cw_rec_push_callback_t *callback)
 {
 	rec->push_callback = callback;
@@ -2048,11 +2044,14 @@ void cw_rec_register_push_callback(cw_rec_t *rec, cw_rec_push_callback_t *callba
 	return;
 }
 
-
-
-
-
 #endif
+
+
+
+
+
+
+
 
 
 
@@ -2063,38 +2062,35 @@ void cw_rec_register_push_callback(cw_rec_t *rec, cw_rec_push_callback_t *callba
 
 
 
-
-#define TEST_CW_REC_DATA_LEN_MAX 30 /* There is no character that would have data that long. */
+#define TEST_CW_REC_DATA_LEN_MAX 30 /* There is no character that would have that many time points corresponding to a representation. */
 struct cw_rec_test_data {
-	char c;                           /* Character. */
-	char *r;                          /* Character's representation (dots and dashes). */
-	float s;                          /* Send speed (speed at which the character is incoming). */
-	int d[TEST_CW_REC_DATA_LEN_MAX];  /* Data points - time information for marks and spaces. */
-	int nd;                           /* Number of data points. */
+	char c;                               /* Character. */
+	char * representation;                /* Character's representation (dots and dashes). */
+	int times[TEST_CW_REC_DATA_LEN_MAX];  /* Character's representation's times - time information for marks and spaces. */
+	int n_times;                          /* Number of data points encoding given representation of given character. */
+	float speed;                          /* Send speed (speed at which the character is incoming). */
 
-	bool is_last_in_word;              /* Is this character a last character in a word? (is it followed by end-of-word space?) */
+	bool is_last_in_word;                 /* Is this character a last character in a word? (is it followed by end-of-word space?) */
 };
 
 
 
 
+static struct cw_rec_test_data * test_cw_rec_generate_data(const char * characters, float speeds[], int fuzz_percent);
+static struct cw_rec_test_data * test_cw_rec_generate_base_data_constant(int speed, int fuzz_percent);
+static struct cw_rec_test_data * test_cw_rec_generate_data_random_constant(int speed, int fuzz_percent);
+static struct cw_rec_test_data * test_cw_rec_generate_data_random_varying(int speed_min, int speed_max, int fuzz_percent);
 
-static struct cw_rec_test_data *test_cw_rec_new_data(const char *characters, float speeds[], int fuzz_percent);
-static struct cw_rec_test_data *test_cw_rec_new_base_data_fixed(int speed, int fuzz_percent);
-static struct cw_rec_test_data *test_cw_rec_new_random_data_fixed(int speed, int fuzz_percent);
-static struct cw_rec_test_data *test_cw_rec_new_random_data_adaptive(int speed_min, int speed_max, int fuzz_percent);
-
-static void test_cw_rec_delete_data(struct cw_rec_test_data **data);
-__attribute__((unused)) static void test_cw_rec_print_data(struct cw_rec_test_data *data);
+static void test_cw_rec_delete_data(struct cw_rec_test_data ** data);
+__attribute__((unused)) static void test_cw_rec_print_data(struct cw_rec_test_data * data);
 static bool test_cw_rec_test_begin_end(cw_rec_t * rec, struct cw_rec_test_data * data);
 
 /* Functions creating tables of test values: characters and speeds.
    Characters and speeds will be combined into test (timing) data. */
-static char  *test_cw_rec_new_base_characters(void);
-static char  *test_cw_rec_new_random_characters(int n);
-static float *test_cw_rec_new_speeds_fixed(int speed, size_t n);
-static float *test_cw_rec_new_speeds_adaptive(int speed_min, int speed_max, size_t n);
-
+static char  * test_cw_rec_new_base_characters(void);
+static char  * test_cw_rec_generate_characters_random(int n);
+static float * test_cw_rec_generate_speeds_constant(int speed, size_t n);
+static float * test_cw_rec_generate_speeds_varying(int speed_min, int speed_max, size_t n);
 
 
 
@@ -2127,7 +2123,10 @@ unsigned int test_cw_rec_identify_mark_internal(cw_test_stats_t * stats)
 		int n = 0;
 		char representation;
 
-		/* Test marks of length within allowed lengths of dots. */
+
+
+
+		/* Test marks that have length appropriate for a dot. */
 		int len_step = (rec->dot_len_max - rec->dot_len_min) / 10;
 		for (int len = rec->dot_len_min; len < rec->dot_len_max; len += len_step) {
 			rv = cw_rec_identify_mark_internal(rec, len, &representation);
@@ -2139,7 +2138,7 @@ unsigned int test_cw_rec_identify_mark_internal(cw_test_stats_t * stats)
 			}
 			failure = (representation != CW_DOT_REPRESENTATION);
 			if (failure) {
-				fprintf(out_file, "libcw/rec: identify mark @ %02d [wpm]: got something else than dot for len = %d [us]\n", speed, len);
+				fprintf(out_file, "libcw/rec: identify mark @ %02d [wpm]: failed to get dot representation for len = %d [us]\n", speed, len);
 				break;
 			}
 		}
@@ -2160,7 +2159,6 @@ unsigned int test_cw_rec_identify_mark_internal(cw_test_stats_t * stats)
 
 
 
-
 		/* Test mark longer than maximal length of dot (but shorter than minimal length of dash). */
 		rv = cw_rec_identify_mark_internal(rec, rec->dot_len_max + 1, &representation);
 		failure = (rv != CW_FAILURE);
@@ -2171,8 +2169,7 @@ unsigned int test_cw_rec_identify_mark_internal(cw_test_stats_t * stats)
 
 
 
-
-		/* Test marks of length within allowed lengths of dashes. */
+		/* Test marks that have length appropriate for a dash. */
 		len_step = (rec->dash_len_max - rec->dash_len_min) / 10;
 		for (int len = rec->dash_len_min; len < rec->dash_len_max; len += len_step) {
 			rv = cw_rec_identify_mark_internal(rec, len, &representation);
@@ -2185,7 +2182,7 @@ unsigned int test_cw_rec_identify_mark_internal(cw_test_stats_t * stats)
 
 			failure = (representation != CW_DASH_REPRESENTATION);
 			if (failure) {
-				fprintf(out_file, "libcw/rec: identify mark @ %02d [wpm]: got something else than dash for len = %d [us]\n", speed, len);
+				fprintf(out_file, "libcw/rec: identify mark @ %02d [wpm]: failed to get dash representation for len = %d [us]\n", speed, len);
 				break;
 			}
 		}
@@ -2222,17 +2219,22 @@ unsigned int test_cw_rec_identify_mark_internal(cw_test_stats_t * stats)
 
 
 
+/*
+  Test a receiver with data set that has following characteristics:
 
-/* Test a receiver with small and simple set of all characters
-   supported by libcw. The test is done with fixed speed. */
-unsigned int test_cw_rec_with_base_data_fixed(cw_test_stats_t * stats)
+  Characters: base (all characters supported by libcw, occurring only once in the data set, in ordered fashion).
+  Send speeds: constant (each character will be sent to receiver at the same, constant speed).
+
+  This function is used to test receiver with test data set guaranteed to contain all characters supported by libcw.
+*/
+unsigned int test_cw_rec_test_with_base_constant(cw_test_stats_t * stats)
 {
 	cw_rec_t * rec = cw_rec_new();
-	cw_assert (rec, "libcw/rec: begin/end: base data and fixed speed: failed to get new receiver\n");
+	cw_assert (rec, "libcw/rec: begin/end: base/constant: failed to create new receiver\n");
 
 
 	for (int speed = CW_SPEED_MIN; speed <= CW_SPEED_MAX; speed++) {
-		struct cw_rec_test_data *data = test_cw_rec_new_base_data_fixed(speed, 0);
+		struct cw_rec_test_data * data = test_cw_rec_generate_base_data_constant(speed, 0);
 		//test_cw_rec_print_data(data);
 
 		/* Reset. */
@@ -2242,14 +2244,15 @@ unsigned int test_cw_rec_with_base_data_fixed(cw_test_stats_t * stats)
 		cw_rec_set_speed(rec, speed);
 		cw_rec_disable_adaptive_mode(rec);
 
-		float diff = cw_rec_get_speed(rec) - speed;
-		cw_assert (diff < 0.1, "libcw/rec: begin/end: base data and fixed speed: %f != %d",  cw_rec_get_speed(rec), speed);
+		/* Make sure that the test speed has been set correctly. */
+		float diff = cw_rec_get_speed(rec) - (float) speed;
+		cw_assert (diff < 0.1, "libcw/rec: begin/end: base/constant: %f != %f\n",  cw_rec_get_speed(rec), (float) speed);
 
 		/* Actual tests of receiver functions are here. */
 		bool failure = test_cw_rec_test_begin_end(rec, data);
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = fprintf(out_file, "libcw:rec: begin/end: base data and fixed speed %d:", speed);
+		int n = fprintf(out_file, "libcw:rec: begin/end: base/constant @ %02d [wpm]:", speed);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 		test_cw_rec_delete_data(&data);
@@ -2296,13 +2299,14 @@ bool test_cw_rec_test_begin_end(cw_rec_t * rec, struct cw_rec_test_data * data)
 	bool match_character_failure = true;
 	bool empty_failure = true;
 
-	for (int i = 0; data[i].r; i++) {
+	for (int i = 0; data[i].representation; i++) {
 
 #ifdef LIBCW_UNIT_TESTS_VERBOSE
-		printf("\nlibcw: input test data #%d: <%c> / <%s> @ %.2f [wpm] (%d time values)\n",
-		       i, data[i].c, data[i].r, data[i].s, data[i].nd);
+		printf("\nlibcw/rec: begin/end: input test data #%d: <%c> / <%s> @ %.2f [wpm] (%d time values)\n",
+		       i, data[i].c, data[i].r, data[i].s, data[i].n_times);
 #endif
 
+#if 0 /* Should we remove it? */
 		/* Start sending every character at the beginning of a
 		   new second.
 
@@ -2311,8 +2315,9 @@ bool test_cw_rec_test_begin_end(cw_rec_t * rec, struct cw_rec_test_data * data)
 		   good assumption when we have a speed of tens of
 		   WPM. If the speed will be lower, the assumption
 		   will be false. */
-		//tv.tv_sec = 0;
-		//tv.tv_usec = 0;
+		tv.tv_sec = 0;
+		tv.tv_usec = 0;
+#endif
 
 		/* This loop simulates "key down" and "key up" events
 		   in specific moments, and in specific time
@@ -2321,17 +2326,14 @@ bool test_cw_rec_test_begin_end(cw_rec_t * rec, struct cw_rec_test_data * data)
 		   key down -> call to cw_rec_mark_begin()
 		   key up -> call to cw_rec_mark_end().
 
-		   First "key down" event is at 0 seconds 0
-		   microseconds. Time of every following event is
-		   calculated by iterating over tone lengths specified
-		   in data table. */
+		   First "key down" event is at X seconds Y
+		   microseconds (see initialization of 'tv'). Time of
+		   every following event is calculated by iterating
+		   over tone lengths specified in data table. */
 		int tone;
-		for (tone = 0; data[i].d[tone] > 0; tone++) {
+		for (tone = 0; data[i].times[tone] > 0; tone++) {
 			begin_end_failure = false;
 
-			/* Here we just assume that
-			   cw_rec_mark_bein{start|end}_receive_tone() functions just
-			   work. No checking of return values. */
 			if (tone % 2) {
 				int rv = cw_rec_mark_end(rec, &tv);
 				if (CW_SUCCESS != rv) {
@@ -2348,7 +2350,7 @@ bool test_cw_rec_test_begin_end(cw_rec_t * rec, struct cw_rec_test_data * data)
 				}
 			}
 
-			tv.tv_usec += data[i].d[tone];
+			tv.tv_usec += data[i].times[tone];
 			if (tv.tv_usec >= CW_USECS_PER_SEC) {
 				/* Moving event to next second. */
 				tv.tv_sec += tv.tv_usec / CW_USECS_PER_SEC;
@@ -2374,9 +2376,9 @@ bool test_cw_rec_test_begin_end(cw_rec_t * rec, struct cw_rec_test_data * data)
 		   to receiver's buffer. */
 		{
 			int n = cw_rec_get_buffer_length_internal(rec);
-			buffer_length_failure = (n != (int) strlen(data[i].r));
+			buffer_length_failure = (n != (int) strlen(data[i].representation));
 			if (buffer_length_failure) {
-				fprintf(out_file, "libcw/rec: begin/end: cw_rec_get_buffer_length_internal(<nonempty>): %d != %zd\n", n, strlen(data[i].r));
+				fprintf(out_file, "libcw/rec: begin/end: cw_rec_get_buffer_length_internal(<nonempty>): %d != %zd\n", n, strlen(data[i].representation));
 				break;
 			}
 		}
@@ -2396,7 +2398,7 @@ bool test_cw_rec_test_begin_end(cw_rec_t * rec, struct cw_rec_test_data * data)
 			/* Notice that we call the function with last
 			   timestamp (tv) from input data. The last
 			   timestamp in the input data represents end
-			   of final space (end-of-character space).
+			   of final end-of-character space.
 
 			   With this final passing of "end of space"
 			   timestamp to libcw the test code informs
@@ -2414,9 +2416,9 @@ bool test_cw_rec_test_begin_end(cw_rec_t * rec, struct cw_rec_test_data * data)
 				break;
 			}
 
-			match_representation_failure = (0 != strcmp(representation, data[i].r));
+			match_representation_failure = (0 != strcmp(representation, data[i].representation));
 			if (match_representation_failure) {
-				fprintf(out_file, "libcw/rec: being/end: polled representation does not match test representation: \"%s\" != \"%s\"\n", representation, data[i].r);
+				fprintf(out_file, "libcw/rec: being/end: polled representation does not match test representation: \"%s\" != \"%s\"\n", representation, data[i].representation);
 				break;
 			}
 
@@ -2448,7 +2450,7 @@ bool test_cw_rec_test_begin_end(cw_rec_t * rec, struct cw_rec_test_data * data)
 			   space. */
 			if (data[i].is_last_in_word) {
 				fprintf(stderr, "------- character '%c' is last in word\n", data[i].c);
-				for (int m = 0; m < data[i].nd; m++) {
+				for (int m = 0; m < data[i].n_times; m++) {
 					fprintf(stderr, "#%d: %d\n", m, data[i].d[m]);
 				}
 			}
@@ -2512,8 +2514,7 @@ bool test_cw_rec_test_begin_end(cw_rec_t * rec, struct cw_rec_test_data * data)
 
 #if 0
 		if (adaptive) {
-			printf("libcw: adaptive speed tracking reports %d wpm\n",
-			       );
+			printf("libcw: adaptive speed tracking reports %f [wpm]\n",  );
 		}
 #endif
 
@@ -2528,17 +2529,22 @@ bool test_cw_rec_test_begin_end(cw_rec_t * rec, struct cw_rec_test_data * data)
 
 
 
+/*
+  Generate small test data set.
 
-/* Generate small test data set with all characters supported by libcw
-   and a fixed speed. */
-struct cw_rec_test_data *test_cw_rec_new_base_data_fixed(int speed, int fuzz_percent)
+  Characters: base (all characters supported by libcw, occurring only once in the data set, in ordered fashion).
+  Send speeds: constant (each character will be sent to receiver at the same, constant speed).
+
+  This function is used to generate a data set guaranteed to contain all characters supported by libcw.
+*/
+struct cw_rec_test_data * test_cw_rec_generate_base_data_constant(int speed, int fuzz_percent)
 {
 	/* All characters supported by libcw.  Don't use
 	   get_characters_random(): for this test get a small table of
 	   all characters supported by libcw. This should be a quick
 	   test, and it should cover all characters. */
-	char *base_characters = test_cw_rec_new_base_characters();
-	cw_assert (base_characters, "test_cw_rec_new_base_characters() failed");
+	char * base_characters = test_cw_rec_new_base_characters();
+	cw_assert (base_characters, "libcw/rec: new base data fixed: test_cw_rec_new_base_characters() failed\n");
 
 
 	size_t n = strlen(base_characters);
@@ -2546,14 +2552,14 @@ struct cw_rec_test_data *test_cw_rec_new_base_data_fixed(int speed, int fuzz_per
 
 	/* Fixed speed receive mode - speed is constant for all
 	   characters. */
-	float *speeds = test_cw_rec_new_speeds_fixed(speed, n);
-	cw_assert (speeds, "test_cw_rec_new_speeds_fixed() failed");
+	float * speeds = test_cw_rec_generate_speeds_constant(speed, n);
+	cw_assert (speeds, "libcw/rec: new base data fixed: test_cw_rec_generate_speeds_constant() failed\n");
 
 
 	/* Generate timing data for given set of characters, each
 	   character is sent with speed dictated by speeds[]. */
-	struct cw_rec_test_data *data = test_cw_rec_new_data(base_characters, speeds, fuzz_percent);
-	cw_assert (data, "failed to get test data");
+	struct cw_rec_test_data * data = test_cw_rec_generate_data(base_characters, speeds, fuzz_percent);
+	cw_assert (data, "libcw/rec: failed to generate base/fixed test data\n");
 
 
 	free(base_characters);
@@ -2569,18 +2575,22 @@ struct cw_rec_test_data *test_cw_rec_new_base_data_fixed(int speed, int fuzz_per
 
 
 
-/* Test a receiver with large set of random data. The test is done
-   with fixed speed. */
-unsigned int test_cw_rec_with_random_data_fixed(cw_test_stats_t * stats)
-{
-	int p = fprintf(stdout, "libcw/rec: test begin/end functions random data/fixed speed:");
+/*
+  Test a receiver with data set that has following characteristics:
 
-	cw_rec_t *rec = cw_rec_new();
-	cw_assert (rec, "Failed to get new receiver\n");
+  Characters: random (all characters supported by libcw + inter-word space, occurring once or more in the data set, in random fashion).
+  Send speeds: constant (each character will be sent to receiver at the same, constant speed).
+
+  This function is used to test receiver with very large test data set.
+*/
+unsigned int test_cw_rec_test_with_random_constant(cw_test_stats_t * stats)
+{
+	cw_rec_t * rec = cw_rec_new();
+	cw_assert (rec, "libcw/rec: begin/end: random/constant: failed to create new receiver\n");
 
 
 	for (int speed = CW_SPEED_MIN; speed <= CW_SPEED_MAX; speed++) {
-		struct cw_rec_test_data *data = test_cw_rec_new_random_data_fixed(speed, 0);
+		struct cw_rec_test_data * data = test_cw_rec_generate_data_random_constant(speed, 0);
 		//test_cw_rec_print_data(data);
 
 		/* Reset. */
@@ -2590,15 +2600,15 @@ unsigned int test_cw_rec_with_random_data_fixed(cw_test_stats_t * stats)
 		cw_rec_set_speed(rec, speed);
 		cw_rec_disable_adaptive_mode(rec);
 
+		/* Verify that test speed has been set correctly. */
 		float diff = cw_rec_get_speed(rec) - speed;
-		cw_assert (diff < 0.1, "incorrect receive speed: %f != %d",
-			   cw_rec_get_speed(rec), speed);
+		cw_assert (diff < 0.1, "libcw/rec: begin/end: random/constant: incorrect receive speed: %f != %f\n", cw_rec_get_speed(rec), (float) speed);
 
 		/* Actual tests of receiver functions are here. */
 		bool failure = test_cw_rec_test_begin_end(rec, data);
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = fprintf(out_file, "libcw:rec: begin/end: random data and fixed speed %d:", speed);
+		int n = fprintf(out_file, "libcw:rec: begin/end: random/constant @ %02d [wpm]:", speed);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
@@ -2607,8 +2617,6 @@ unsigned int test_cw_rec_with_random_data_fixed(cw_test_stats_t * stats)
 
 	cw_rec_delete(&rec);
 
-	CW_TEST_PRINT_TEST_RESULT(false, p);
-
 	return 0;
 }
 
@@ -2616,17 +2624,21 @@ unsigned int test_cw_rec_with_random_data_fixed(cw_test_stats_t * stats)
 
 
 
-/* Test a receiver with large set of random data. The test is done
-   with varying speed. */
-unsigned int test_cw_rec_with_random_data_adaptive(cw_test_stats_t * stats)
-{
-	int p = fprintf(stdout, "libcw/rec: test begin/end functions random data/adaptive:");
+/*
+  Test a receiver with data set that has following characteristics:
 
-	struct cw_rec_test_data *data = test_cw_rec_new_random_data_adaptive(CW_SPEED_MIN, CW_SPEED_MAX, 0);
+  Characters: random (all characters supported by libcw + inter-word space, occurring once or more in the data set, in random fashion).
+  Send speeds: varying (each character will be sent to receiver at different speed).
+
+  This function is used to test receiver with very large test data set.
+*/
+unsigned int test_cw_rec_test_with_random_varying(cw_test_stats_t * stats)
+{
+	struct cw_rec_test_data * data = test_cw_rec_generate_data_random_varying(CW_SPEED_MIN, CW_SPEED_MAX, 0);
 	//test_cw_rec_print_data(data);
 
-	cw_rec_t *rec = cw_rec_new();
-	cw_assert (rec, "Failed to get new receiver\n");
+	cw_rec_t * rec = cw_rec_new();
+	cw_assert (rec, "libcw/rec: begin/end: random/varying: failed to create new receiver\n");
 
 	/* Reset. */
 	cw_rec_reset_statistics(rec);
@@ -2635,22 +2647,20 @@ unsigned int test_cw_rec_with_random_data_adaptive(cw_test_stats_t * stats)
 	cw_rec_set_speed(rec, CW_SPEED_MAX);
 	cw_rec_enable_adaptive_mode(rec);
 
+	/* Verify that initial test speed has been set correctly. */
 	float diff = cw_rec_get_speed(rec) - CW_SPEED_MAX;
-	cw_assert (diff < 0.1, "incorrect receive speed: %f != %d",
-		   cw_rec_get_speed(rec), CW_SPEED_MAX);
+	cw_assert (diff < 0.1, "libcw/rec: begin/end: random/varying: incorrect receive speed: %f != %f\n", cw_rec_get_speed(rec), (float) CW_SPEED_MAX);
 
 	/* Actual tests of receiver functions are here. */
 	bool failure = test_cw_rec_test_begin_end(rec, data);
 
 	failure ? stats->failures++ : stats->successes++;
-	int n = fprintf(out_file, "libcw:rec: begin/end: random data and adaptive speed:");
+	int n = fprintf(out_file, "libcw:rec: begin/end: random/varying:");
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 	test_cw_rec_delete_data(&data);
 
 	cw_rec_delete(&rec);
-
-	CW_TEST_PRINT_TEST_RESULT(false, p);
 
 	return 0;
 }
@@ -2659,28 +2669,30 @@ unsigned int test_cw_rec_with_random_data_adaptive(cw_test_stats_t * stats)
 
 
 
-/* This function generates a large set of data using characters from
-   base set.  The characters in data are randomized and space
-   characters are added.  Size of data set is tens of times larger
-   than for base data. Speed of data is constant for all
-   characters. */
-struct cw_rec_test_data *test_cw_rec_new_random_data_fixed(int speed, int fuzz_percent)
+/*
+  Generate large test data set.
+
+  Characters: random (all characters supported by libcw + inter-word space, occurring once or more in the data set, in random fashion).
+  Send speeds: constant (each character will be sent to receiver at the same, constant speed).
+
+  This function is used to generate a large test data set.
+*/
+struct cw_rec_test_data * test_cw_rec_generate_data_random_constant(int speed, int fuzz_percent)
 {
-	int n = cw_get_character_count() * 30;
+	const int n = cw_get_character_count() * 30;
 
-	char *characters = test_cw_rec_new_random_characters(n);
-	cw_assert (characters, "test_cw_rec_new_random_characters() failed");
+	char * characters = test_cw_rec_generate_characters_random(n);
+	cw_assert (characters, "libcw/rec: test_cw_rec_generate_characters_random() failed\n");
 
-	/* Fixed speed receive mode - speed is constant for all
-	   characters. */
-	float *speeds = test_cw_rec_new_speeds_fixed(speed, n);
-	cw_assert (speeds, "test_cw_rec_new_speeds_fixed() failed");
+	/* Fixed speed receive mode - speed is constant for all characters. */
+	float * speeds = test_cw_rec_generate_speeds_constant(speed, n);
+	cw_assert (speeds, "libcw/rec: test_cw_rec_generate_speeds_constant() failed\n");
 
 
 	/* Generate timing data for given set of characters, each
 	   character is sent with speed dictated by speeds[]. */
-	struct cw_rec_test_data *data = test_cw_rec_new_data(characters, speeds, fuzz_percent);
-	cw_assert (data, "failed to get test data");
+	struct cw_rec_test_data * data = test_cw_rec_generate_data(characters, speeds, fuzz_percent);
+	cw_assert (data, "libcw/rec: random/constant: failed to generate test data\n");
 
 
 	free(characters);
@@ -2696,29 +2708,31 @@ struct cw_rec_test_data *test_cw_rec_new_random_data_fixed(int speed, int fuzz_p
 
 
 
-/* This function generates a large set of data using characters from
-   base set.  The characters in data are randomized and space
-   characters are added.  Size of data set is tens of times larger
-   than for base data.
+/*
+  Generate large test data set.
 
-   Speed of data is varying. */
-struct cw_rec_test_data *test_cw_rec_new_random_data_adaptive(int speed_min, int speed_max, int fuzz_percent)
+  Characters: random (all characters supported by libcw + inter-word space, occurring once or more in the data set, in random fashion).
+  Send speeds: constant (each character will be sent to receiver at the same, constant speed).
+
+  This function is used to generate a large test data set.
+*/
+struct cw_rec_test_data * test_cw_rec_generate_data_random_varying(int speed_min, int speed_max, int fuzz_percent)
 {
 	int n = cw_get_character_count() * 30;
 
-	char *characters = test_cw_rec_new_random_characters(n);
-	cw_assert (characters, "test_cw_rec_new_random_characters() failed");
+	char *characters = test_cw_rec_generate_characters_random(n);
+	cw_assert (characters, "libcw/rec: begin/end: test_cw_rec_generate_characters_random() failed\n");
 
 	/* Adaptive speed receive mode - speed varies for all
 	   characters. */
-	float *speeds = test_cw_rec_new_speeds_adaptive(speed_min, speed_max, n);
-	cw_assert (speeds, "test_cw_rec_new_speeds_adaptive() failed");
+	float * speeds = test_cw_rec_generate_speeds_varying(speed_min, speed_max, n);
+	cw_assert (speeds, "libcw/rec: test_cw_rec_generate_speeds_varying() failed\n");
 
 
 	/* Generate timing data for given set of characters, each
 	   character is sent with speed dictated by speeds[]. */
-	struct cw_rec_test_data *data = test_cw_rec_new_data(characters, speeds, fuzz_percent);
-	cw_assert (data, "failed to get test data");
+	struct cw_rec_test_data *data = test_cw_rec_generate_data(characters, speeds, fuzz_percent);
+	cw_assert (data, "libcw/rec: failed to generate random/varying test data\n");
 
 
 	free(characters);
@@ -2741,11 +2755,11 @@ struct cw_rec_test_data *test_cw_rec_new_random_data_adaptive(int speed_min, int
 
    \return allocated string.
 */
-char *test_cw_rec_new_base_characters(void)
+char * test_cw_rec_new_base_characters(void)
 {
 	int n = cw_get_character_count();
-	char *base_characters = (char *) malloc((n + 1) * sizeof (char));
-	cw_assert (base_characters, "malloc() failed");
+	char * base_characters = (char *) malloc((n + 1) * sizeof (char));
+	cw_assert (base_characters, "libcw/rec: get base characters: malloc() failed\n");
 	cw_list_characters(base_characters);
 
 	return base_characters;
@@ -2770,17 +2784,17 @@ char *test_cw_rec_new_base_characters(void)
 
    \return string of random characters (including spaces)
 */
-char *test_cw_rec_new_random_characters(int n)
+char * test_cw_rec_generate_characters_random(int n)
 {
 	/* All characters supported by libcw - this will be an input
 	   set of all characters. */
-	char *base_characters = test_cw_rec_new_base_characters();
-	cw_assert (base_characters, "test_cw_rec_new_base_characters() failed");
+	char * base_characters = test_cw_rec_new_base_characters();
+	cw_assert (base_characters, "libcw/rec: test_cw_rec_new_base_characters() failed\n");
 	size_t length = strlen(base_characters);
 
 
-	char *characters = (char *) malloc ((n + 1) * sizeof (char));
-	cw_assert (characters, "malloc() failed");
+	char * characters = (char *) malloc ((n + 1) * sizeof (char));
+	cw_assert (characters, "libcw/rec: malloc() failed\n");
 	for (int i = 0; i < n; i++) {
 		int r = rand() % length;
 		if (!(r % 3)) {
@@ -2818,7 +2832,7 @@ char *test_cw_rec_new_random_characters(int n)
 
 
 /**
-   \brief Generate a table of fixed speeds
+   \brief Generate a table of constant speeds
 
    Function allocates and returns a table of speeds of constant value
    specified by \p speed. There are \p n valid (non-negative) values
@@ -2830,15 +2844,15 @@ char *test_cw_rec_new_random_characters(int n)
 
    \return table of speeds of constant value
 */
-float *test_cw_rec_new_speeds_fixed(int speed, size_t n)
+float * test_cw_rec_generate_speeds_constant(int speed, size_t n)
 {
-	cw_assert (speed > 0, "speed must be larger than zero");
+	cw_assert (speed > 0, "libcw/rec: generate speeds constant: speed must be larger than zero\n");
 
-	float *speeds = (float *) malloc((n + 1) * sizeof (float));
-	cw_assert (speeds, "malloc() failed");
+	float * speeds = (float *) malloc((n + 1) * sizeof (float));
+	cw_assert (speeds, "libcw/rec: generate speeds constant: malloc() failed\n");
 
 	for (size_t i = 0; i < n; i++) {
-		/* Fixed speed receive mode - speed is constant for
+		/* Fixed speed receive mode - speed values are constant for
 		   all characters. */
 		speeds[i] = (float) speed;
 	}
@@ -2867,14 +2881,14 @@ float *test_cw_rec_new_speeds_fixed(int speed, size_t n)
 
    \return table of speeds
 */
-float *test_cw_rec_new_speeds_adaptive(int speed_min, int speed_max, size_t n)
+float * test_cw_rec_generate_speeds_varying(int speed_min, int speed_max, size_t n)
 {
-	cw_assert (speed_min > 0, "speed_min must be larger than zero");
-	cw_assert (speed_max > 0, "speed_max must be larger than zero");
-	cw_assert (speed_min <= speed_max, "speed_min can't be larger than speed_max");
+	cw_assert (speed_min > 0, "libcw/rec: generate speeds varying: speed_min must be larger than zero\n");
+	cw_assert (speed_max > 0, "libcw/rec: generate speeds varying: speed_max must be larger than zero\n");
+	cw_assert (speed_min <= speed_max, "libcw/rec: generate speeds varying: speed_min can't be larger than speed_max\n");
 
-	float *speeds = (float *) malloc((n + 1) * sizeof (float));
-	cw_assert (speeds, "malloc() failed");
+	float * speeds = (float *) malloc((n + 1) * sizeof (float));
+	cw_assert (speeds, "libcw/rec: generate speeds varying: malloc() failed\n");
 
 	for (size_t i = 0; i < n; i++) {
 
@@ -2894,7 +2908,6 @@ float *test_cw_rec_new_speeds_adaptive(int speed_min, int speed_max, size_t n)
 
 	return speeds;
 }
-
 
 
 
@@ -2928,10 +2941,10 @@ float *test_cw_rec_new_speeds_adaptive(int speed_min, int speed_max, size_t n)
    parameter after the space is zero. For character 'A' that would
    look like this:
 
-   .-    ==   40000 (dot); 40000 (space); 120000 (dash); 240000 (end-of-word space); 0 (guard, zero timing)
+   .-    ==   40000 (dot mark); 40000 (inter-mark space); 120000 (dash mark); 240000 (end-of-word space); 0 (guard, zero timing)
 
    Last element in the created table (a guard "pseudo-character") has
-   'r' field set to NULL.
+   'representation' field set to NULL.
 
    Use test_cw_rec_delete_data() to deallocate the timing data table.
 
@@ -2940,16 +2953,16 @@ float *test_cw_rec_new_speeds_adaptive(int speed_min, int speed_max, size_t n)
 
    \return table of timing data sets
 */
-struct cw_rec_test_data *test_cw_rec_new_data(const char *characters, float speeds[], __attribute__((unused)) int fuzz_percent)
+struct cw_rec_test_data * test_cw_rec_generate_data(char const * characters, float speeds[], __attribute__((unused)) int fuzz_percent)
 {
 	size_t n = strlen(characters);
 	/* +1 for guard. */
-	struct cw_rec_test_data *test_data = (struct cw_rec_test_data *) malloc((n + 1) * sizeof(struct cw_rec_test_data));
-	cw_assert (test_data, "malloc() failed");
+	struct cw_rec_test_data * test_data = (struct cw_rec_test_data *) malloc((n + 1) * sizeof(struct cw_rec_test_data));
+	cw_assert (test_data, "libcw/rec: generate data: malloc() failed\n");
 
 	/* Initialization. */
 	for (size_t i = 0; i < n + 1; i++) {
-		test_data[i].r = (char *) NULL;
+		test_data[i].representation = (char *) NULL;
 	}
 
 	size_t out = 0; /* For indexing output data table. */
@@ -2967,9 +2980,9 @@ struct cw_rec_test_data *test_cw_rec_new_data(const char *characters, float spee
 			/* We don't want to affect current output
 			   character, we want to turn end-of-char
 			   space of previous character into
-			   end-of-word space, hence 'j - 1'. */
-			int ilast = test_data[out - 1].nd - 1;    /* Index of last space (end-of-char, to become end-of-word). */
-			test_data[out - 1].d[ilast] = unit_len * 6; /* unit_len * 5 is the minimal end-of-word space. */
+			   end-of-word space, hence 'out - 1'. */
+			int space_i = test_data[out - 1].n_times - 1;    /* Index of last space (end-of-char, to become end-of-word). */
+			test_data[out - 1].times[space_i] = unit_len * 6; /* unit_len * 5 is the minimal end-of-word space. */
 
 			test_data[out - 1].is_last_in_word = true;
 
@@ -2980,59 +2993,59 @@ struct cw_rec_test_data *test_cw_rec_new_data(const char *characters, float spee
 
 
 		test_data[out].c = characters[in];
-		test_data[out].r = cw_character_to_representation(test_data[out].c);
-		cw_assert (test_data[out].r,
-			   "cw_character_to_representation() failed for input char #%zu: '%c'\n",
+		test_data[out].representation = cw_character_to_representation(test_data[out].c);
+		cw_assert (test_data[out].representation,
+			   "libcw/rec: generate data: cw_character_to_representation() failed for input char #%zu: '%c'\n",
 			   in, characters[in]);
-		test_data[out].s = speeds[in];
+		test_data[out].speed = speeds[in];
 
 
 		/* Build table of times (data points) 'd[]' for given
 		   representation 'r'. */
 
 
-		size_t nd = 0; /* Number of data points in data table. */
+		size_t n_times = 0; /* Number of data points in data table. */
 
-		size_t rep_length = strlen(test_data[out].r);
+		size_t rep_length = strlen(test_data[out].representation);
 		for (size_t k = 0; k < rep_length; k++) {
 
 			/* Length of mark. */
-			if (test_data[out].r[k] == CW_DOT_REPRESENTATION) {
-				test_data[out].d[nd] = unit_len;
+			if (test_data[out].representation[k] == CW_DOT_REPRESENTATION) {
+				test_data[out].times[n_times] = unit_len;
 
-			} else if (test_data[out].r[k] == CW_DASH_REPRESENTATION) {
-				test_data[out].d[nd] = unit_len * 3;
+			} else if (test_data[out].representation[k] == CW_DASH_REPRESENTATION) {
+				test_data[out].times[n_times] = unit_len * 3;
 
 			} else {
-				cw_assert (0, "unknown char in representation: '%c'\n", test_data[out].r[k]);
+				cw_assert (0, "libcw/rec: generate data: unknown char in representation: '%c'\n", test_data[out].representation[k]);
 			}
-			nd++;
+			n_times++;
 
 
 			/* Length of space (inter-mark space). Mark
 			   and space always go in pair. */
-			test_data[out].d[nd] = unit_len;
-			nd++;
+			test_data[out].times[n_times] = unit_len;
+			n_times++;
 		}
 
 		/* Every character has non-zero marks and spaces. */
-		cw_assert (nd > 0, "number of data points is %zu for representation '%s'\n", nd, test_data[out].r);
+		cw_assert (n_times > 0, "libcw/rec: generate data: number of data points is %zu for representation '%s'\n", n_times, test_data[out].representation);
 
 		/* Mark and space always go in pair, so nd should be even. */
-		cw_assert (! (nd % 2), "number of times is not even");
+		cw_assert (! (n_times % 2), "libcw/rec: generate data: number of times is not even\n");
 
 		/* Mark/space pair per each dot or dash. */
-		cw_assert (nd == 2 * rep_length, "number of times incorrect: %zu != 2 * %zu\n", nd, rep_length);
+		cw_assert (n_times == 2 * rep_length, "libcw/rec: generate data: number of times incorrect: %zu != 2 * %zu\n", n_times, rep_length);
 
 
 		/* Graduate that last space (inter-mark space) into
 		   end-of-character space. */
-		test_data[out].d[nd - 1] = (unit_len * 3) + (unit_len / 2);
+		test_data[out].times[n_times - 1] = (unit_len * 3) + (unit_len / 2);
 
 		/* Guard. */
-		test_data[out].d[nd] = 0;
+		test_data[out].times[n_times] = 0;
 
-		test_data[out].nd = (size_t ) nd;
+		test_data[out].n_times = n_times;
 
 		/* This may be overwritten by this function when a
 		   space character (' ') is encountered in input
@@ -3044,7 +3057,7 @@ struct cw_rec_test_data *test_cw_rec_new_data(const char *characters, float spee
 
 
 	/* Guard. */
-	test_data[n].r = (char *) NULL;
+	test_data[n].representation = (char *) NULL;
 
 
 	return test_data;
@@ -3059,12 +3072,12 @@ struct cw_rec_test_data *test_cw_rec_new_data(const char *characters, float spee
 
    \param data - pointer to data to be deallocated
 */
-void test_cw_rec_delete_data(struct cw_rec_test_data **data)
+void test_cw_rec_delete_data(struct cw_rec_test_data ** data)
 {
 	int i = 0;
-	while ((*data)[i].r) {
-		free((*data)[i].r);
-		(*data)[i].r = (char *) NULL;
+	while ((*data)[i].representation) {
+		free((*data)[i].representation);
+		(*data)[i].representation = (char *) NULL;
 
 		i++;
 	}
@@ -3084,20 +3097,20 @@ void test_cw_rec_delete_data(struct cw_rec_test_data **data)
 
    \param data timing data to be printed
 */
-void test_cw_rec_print_data(struct cw_rec_test_data *data)
+void test_cw_rec_print_data(struct cw_rec_test_data * data)
 {
 	int i = 0;
 
 	fprintf(stderr, "---------------------------------------------------------------------------------------------------------------------------------------------------------\n");
-	while (data[i].r) {
+	while (data[i].representation) {
 		/* Debug output. */
 		if (!(i % 10)) {
 			/* Print header. */
 			fprintf(stderr, "char  repr      [wpm]    mark     space      mark     space      mark     space      mark     space      mark     space      mark     space      mark     space\n");
 		}
-		fprintf(stderr, "%c     %-7s  %02.2f", data[i].c, data[i].r, data[i].s);
-		for (int j = 0; j < data[i].nd; j++) {
-			fprintf(stderr, "%9d ", data[i].d[j]);
+		fprintf(stderr, "%c     %-7s  %02.2f", data[i].c, data[i].representation, data[i].speed);
+		for (int j = 0; j < data[i].n_times; j++) {
+			fprintf(stderr, "%9d ", data[i].times[j]);
 		}
 		fprintf(stderr, "\n");
 
@@ -3354,7 +3367,6 @@ unsigned int test_cw_rec_parameter_getters_setters(cw_test_stats_t * stats)
 
 	return 0;
 }
-
 
 
 
