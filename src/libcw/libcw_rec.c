@@ -2086,7 +2086,7 @@ static struct cw_rec_test_data *test_cw_rec_new_random_data_adaptive(int speed_m
 
 static void test_cw_rec_delete_data(struct cw_rec_test_data **data);
 __attribute__((unused)) static void test_cw_rec_print_data(struct cw_rec_test_data *data);
-static bool test_cw_rec_test_begin_end(cw_rec_t * rec, struct cw_rec_test_data * data, cw_test_stats_t * stats);
+static bool test_cw_rec_test_begin_end(cw_rec_t * rec, struct cw_rec_test_data * data);
 
 /* Functions creating tables of test values: characters and speeds.
    Characters and speeds will be combined into test (timing) data. */
@@ -2112,64 +2112,109 @@ static float *test_cw_rec_new_speeds_adaptive(int speed_min, int speed_max, size
 */
 unsigned int test_cw_rec_identify_mark_internal(cw_test_stats_t * stats)
 {
-	int p = fprintf(stdout, "libcw/rec: cw_rec_identify_mark_internal() (non-adaptive):");
-
-	cw_rec_t *rec = cw_rec_new();
-	cw_assert (rec, "Failed to get new receiver\n");
+	cw_rec_t * rec = cw_rec_new();
+	cw_assert (rec, "libcw/rec: identify mark: failed to create new receiver\n");
 	cw_rec_disable_adaptive_mode(rec);
 
 	int speed_step = (CW_SPEED_MAX - CW_SPEED_MIN) / 10;
 
-	for (int i = CW_SPEED_MIN; i < CW_SPEED_MAX; i += speed_step) {
-		int rv = cw_rec_set_speed(rec, i);
-		cw_assert (rv, "Failed to set receive speed = %d [wpm]\n", i);
+	for (int speed = CW_SPEED_MIN; speed < CW_SPEED_MAX; speed += speed_step) {
+		int rv = cw_rec_set_speed(rec, speed);
+		cw_assert (rv, "libcw/rec: identify mark @ %02d [wpm]: failed to set receive speed\n", speed);
 
 
+		bool failure = true;
+		int n = 0;
 		char representation;
 
 		/* Test marks of length within allowed lengths of dots. */
 		int len_step = (rec->dot_len_max - rec->dot_len_min) / 10;
-		for (int j = rec->dot_len_min; j < rec->dot_len_max; j += len_step) {
-			rv = cw_rec_identify_mark_internal(rec, j, &representation);
+		for (int len = rec->dot_len_min; len < rec->dot_len_max; len += len_step) {
+			rv = cw_rec_identify_mark_internal(rec, len, &representation);
 
-			cw_assert (rv, "failed to identify dot for speed = %d [wpm], len = %d [us]", i, j);
-			cw_assert (representation == CW_DOT_REPRESENTATION, "got something else than dot for speed = %d [wpm], len = %d [us]", i, j);
+			failure = (rv != CW_SUCCESS);
+			if (failure) {
+				fprintf(out_file, "libcw/rec: identify mark @ %02d [wpm]: failed to identify dot for len = %d [us]\n", speed, len);
+				break;
+			}
+			failure = (representation != CW_DOT_REPRESENTATION);
+			if (failure) {
+				fprintf(out_file, "libcw/rec: identify mark @ %02d [wpm]: got something else than dot for len = %d [us]\n", speed, len);
+				break;
+			}
 		}
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw/rec: identify mark @ %02d [wpm]: identify valid dot:", speed);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+
+
+
 
 		/* Test mark shorter than minimal length of dot. */
 		rv = cw_rec_identify_mark_internal(rec, rec->dot_len_min - 1, &representation);
-		cw_assert (!rv, "incorrectly identified short mark as a dot for speed = %d [wpm]", i);
+		failure = (rv != CW_FAILURE);
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw/rec: identify mark @ %02d [wpm]: mark shorter than min dot:", speed);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+
+
+
+
 
 		/* Test mark longer than maximal length of dot (but shorter than minimal length of dash). */
 		rv = cw_rec_identify_mark_internal(rec, rec->dot_len_max + 1, &representation);
-		cw_assert (!rv, "incorrectly identified long mark as a dot for speed = %d [wpm]", i);
+		failure = (rv != CW_FAILURE);
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw/rec: identify mark @ %02d [wpm]: mark longer than max dot:", speed);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+
 
 
 
 
 		/* Test marks of length within allowed lengths of dashes. */
 		len_step = (rec->dash_len_max - rec->dash_len_min) / 10;
-		for (int j = rec->dash_len_min; j < rec->dash_len_max; j += len_step) {
-			rv = cw_rec_identify_mark_internal(rec, j, &representation);
+		for (int len = rec->dash_len_min; len < rec->dash_len_max; len += len_step) {
+			rv = cw_rec_identify_mark_internal(rec, len, &representation);
 
-			cw_assert (rv, "failed to identify dash for speed = %d [wpm], len = %d [us]", i, j);
-			cw_assert (representation == CW_DASH_REPRESENTATION, "got something else than dash for speed = %d [wpm], len = %d [us]", i, j);
+			failure = (rv != CW_SUCCESS);
+			if (failure) {
+				fprintf(out_file, "libcw/rec: identify mark @ %02d [wpm]: failed to identify dash for len = %d [us]\n", speed, len);
+				break;
+			}
+
+			failure = (representation != CW_DASH_REPRESENTATION);
+			if (failure) {
+				fprintf(out_file, "libcw/rec: identify mark @ %02d [wpm]: got something else than dash for len = %d [us]\n", speed, len);
+				break;
+			}
 		}
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw/rec: identify mark @ %02d [wpm]: identify valid dash:", speed);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+
+
+
 
 		/* Test mark shorter than minimal length of dash (but longer than maximal length of dot). */
 		rv = cw_rec_identify_mark_internal(rec, rec->dash_len_min - 1, &representation);
-		cw_assert (!rv, "incorrectly identified short mark as a dash for speed = %d [wpm]", i);
+		failure = (rv != CW_FAILURE);
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw/rec: identify mark @ %02d [wpm]: mark shorter than min dash:", speed);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
+
+
+
 
 		/* Test mark longer than maximal length of dash. */
 		rv = cw_rec_identify_mark_internal(rec, rec->dash_len_max + 1, &representation);
-		cw_assert (!rv, "incorrectly identified long mark as a dash for speed = %d [wpm]", i);
+		failure = (rv != CW_FAILURE);
+		failure ? stats->failures++ : stats->successes++;
+		n = fprintf(out_file, "libcw/rec: identify mark @ %02d [wpm]: mark longer than max dash:", speed);
+		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
 	cw_rec_delete(&rec);
-
-
-
-	CW_TEST_PRINT_TEST_RESULT(false, p);
 
 	return 0;
 }
@@ -2182,10 +2227,8 @@ unsigned int test_cw_rec_identify_mark_internal(cw_test_stats_t * stats)
    supported by libcw. The test is done with fixed speed. */
 unsigned int test_cw_rec_with_base_data_fixed(cw_test_stats_t * stats)
 {
-	int p = fprintf(stdout, "libcw/rec: test begin/end functions base data/fixed speed:");
-
-	cw_rec_t *rec = cw_rec_new();
-	cw_assert (rec, "Failed to get new receiver\n");
+	cw_rec_t * rec = cw_rec_new();
+	cw_assert (rec, "libcw/rec: begin/end: base data and fixed speed: failed to get new receiver\n");
 
 
 	for (int speed = CW_SPEED_MIN; speed <= CW_SPEED_MAX; speed++) {
@@ -2200,11 +2243,10 @@ unsigned int test_cw_rec_with_base_data_fixed(cw_test_stats_t * stats)
 		cw_rec_disable_adaptive_mode(rec);
 
 		float diff = cw_rec_get_speed(rec) - speed;
-		cw_assert (diff < 0.1, "incorrect receive speed: %f != %d",
-			   cw_rec_get_speed(rec), speed);
+		cw_assert (diff < 0.1, "libcw/rec: begin/end: base data and fixed speed: %f != %d",  cw_rec_get_speed(rec), speed);
 
 		/* Actual tests of receiver functions are here. */
-		bool failure = test_cw_rec_test_begin_end(rec, data, stats);
+		bool failure = test_cw_rec_test_begin_end(rec, data);
 
 		failure ? stats->failures++ : stats->successes++;
 		int n = fprintf(out_file, "libcw:rec: begin/end: base data and fixed speed %d:", speed);
@@ -2214,8 +2256,6 @@ unsigned int test_cw_rec_with_base_data_fixed(cw_test_stats_t * stats)
 	}
 
 	cw_rec_delete(&rec);
-
-	CW_TEST_PRINT_TEST_RESULT(false, p);
 
 	return 0;
 }
@@ -2239,11 +2279,11 @@ unsigned int test_cw_rec_with_base_data_fixed(cw_test_stats_t * stats)
    \param rec - receiver variable used during tests
    \param data - table with timings, used to test the receiver
 */
-bool test_cw_rec_test_begin_end(cw_rec_t * rec, struct cw_rec_test_data * data, cw_test_stats_t * stats)
+bool test_cw_rec_test_begin_end(cw_rec_t * rec, struct cw_rec_test_data * data)
 {
 	struct timeval tv = { 0, 0 };
 
-	bool begin_end_failure = false;
+	bool begin_end_failure = true;
 
 	bool buffer_length_failure = true;
 
@@ -2287,16 +2327,25 @@ bool test_cw_rec_test_begin_end(cw_rec_t * rec, struct cw_rec_test_data * data, 
 		   in data table. */
 		int tone;
 		for (tone = 0; data[i].d[tone] > 0; tone++) {
+			begin_end_failure = false;
 
 			/* Here we just assume that
 			   cw_rec_mark_bein{start|end}_receive_tone() functions just
 			   work. No checking of return values. */
 			if (tone % 2) {
 				int rv = cw_rec_mark_end(rec, &tv);
-				cw_assert (rv, "cw_rec_mark_end(): %d.%d", (int) tv.tv_sec, (int) tv.tv_usec);
+				if (CW_SUCCESS != rv) {
+					fprintf(out_file, "libcw/rec: begin/end: cw_rec_mark_end(): tone = %d, time = %d.%d\n", tone, (int) tv.tv_sec, (int) tv.tv_usec);
+					begin_end_failure = true;
+					break;
+				}
 			} else {
 				int rv = cw_rec_mark_begin(rec, &tv);
-				cw_assert (rv, "cw_rec_mark_begin(): %d.%d", (int) tv.tv_sec, (int) tv.tv_usec);
+				if (CW_SUCCESS != rv) {
+					fprintf(out_file, "libcw/rec: begin/end: cw_rec_mark_begin(): tone = %d, time = %d.%d\n", tone, (int) tv.tv_sec, (int) tv.tv_usec);
+					begin_end_failure = true;
+					break;
+				}
 			}
 
 			tv.tv_usec += data[i].d[tone];
@@ -2312,6 +2361,10 @@ bool test_cw_rec_test_begin_end(cw_rec_t * rec, struct cw_rec_test_data * data, 
 			   cw_receive_representation(). */
 		}
 
+		cw_assert (tone, "libcw/rec: begin/end executed zero times\n");
+		if (begin_end_failure) {
+			break;
+		}
 
 
 
@@ -2542,7 +2595,7 @@ unsigned int test_cw_rec_with_random_data_fixed(cw_test_stats_t * stats)
 			   cw_rec_get_speed(rec), speed);
 
 		/* Actual tests of receiver functions are here. */
-		bool failure = test_cw_rec_test_begin_end(rec, data, stats);
+		bool failure = test_cw_rec_test_begin_end(rec, data);
 
 		failure ? stats->failures++ : stats->successes++;
 		int n = fprintf(out_file, "libcw:rec: begin/end: random data and fixed speed %d:", speed);
@@ -2587,7 +2640,7 @@ unsigned int test_cw_rec_with_random_data_adaptive(cw_test_stats_t * stats)
 		   cw_rec_get_speed(rec), CW_SPEED_MAX);
 
 	/* Actual tests of receiver functions are here. */
-	bool failure = test_cw_rec_test_begin_end(rec, data, stats);
+	bool failure = test_cw_rec_test_begin_end(rec, data);
 
 	failure ? stats->failures++ : stats->successes++;
 	int n = fprintf(out_file, "libcw:rec: begin/end: random data and adaptive speed:");
