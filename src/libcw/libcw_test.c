@@ -204,9 +204,9 @@ static cw_test_function_stats_t cw_unit_tests_rec1[] = {
 	test_cw_rec_get_parameters,
 	test_cw_rec_parameter_getters_setters,
 	test_cw_rec_identify_mark_internal,
-	test_cw_rec_with_base_data_fixed,
-	test_cw_rec_with_random_data_fixed,
-	test_cw_rec_with_random_data_adaptive,
+	test_cw_rec_test_with_base_constant,
+	test_cw_rec_test_with_random_constant,
+	test_cw_rec_test_with_random_varying,
 
 	NULL
 };
@@ -224,8 +224,12 @@ int main(int argc, char *const argv[])
 
 	int rv = 0;
 
-	cw_debug_set_flags(&cw_debug_object, CW_DEBUG_RECEIVE_STATES | CW_DEBUG_TONE_QUEUE | CW_DEBUG_GENERATOR | CW_DEBUG_KEYING);
-	cw_debug_object.level = CW_DEBUG_ERROR;
+	//cw_debug_set_flags(&cw_debug_object, CW_DEBUG_RECEIVE_STATES | CW_DEBUG_TONE_QUEUE | CW_DEBUG_GENERATOR | CW_DEBUG_KEYING);
+	//cw_debug_object.level = CW_DEBUG_ERROR;
+
+	//cw_debug_set_flags(&cw_debug_object_dev, CW_DEBUG_RECEIVE_STATES | CW_DEBUG_TONE_QUEUE | CW_DEBUG_GENERATOR | CW_DEBUG_KEYING);
+	//cw_debug_object_dev.level = CW_DEBUG_DEBUG;
+
 
 	unsigned int testset = 0;
 
@@ -261,13 +265,6 @@ int main(int argc, char *const argv[])
 
 	atexit(cw_test_print_stats);
 	register_signal_handler();
-
-	//cw_debug_set_flags(&cw_debug_object, CW_DEBUG_RECEIVE_STATES);
-	//cw_debug_object.level = CW_DEBUG_INFO;
-
-	cw_debug_set_flags(&cw_debug_object_dev, CW_DEBUG_RECEIVE_STATES | CW_DEBUG_TONE_QUEUE | CW_DEBUG_GENERATOR | CW_DEBUG_KEYING);
-	cw_debug_object_dev.level = CW_DEBUG_DEBUG;
-
 
 	rv = cw_test_dependent(sound_systems, modules);
 
