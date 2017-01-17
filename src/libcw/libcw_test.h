@@ -30,7 +30,7 @@ static const int cw_test_print_width = 75;
    different than "success". This makes finding failed tests
    easier. */
 #define CW_TEST_PRINT_TEST_RESULT(m_failure, m_n) {			\
-		printf("%*s\n", (cw_test_print_width - m_n), m_failure ? " FAIL! " : "success"); \
+		printf("%*s\n", (cw_test_print_width - m_n), m_failure ? "\x1B[7m FAIL! \x1B[0m" : "success"); \
 	}
 
 #define CW_TEST_PRINT_FUNCTION_COMPLETED(m_func_name) {			\
