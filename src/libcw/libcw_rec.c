@@ -3237,10 +3237,146 @@ unsigned int test_cw_rec_get_parameters(cw_test_stats_t * stats)
 /* Parameter getters and setters are independent of audio system, so
    they can be tested just with CW_AUDIO_NULL.  This is even more true
    for limit getters, which don't require a receiver at all. */
-unsigned int test_cw_rec_parameter_getters_setters(cw_test_stats_t * stats)
+unsigned int test_cw_rec_parameter_getters_setters_1(cw_test_stats_t * stats)
 {
 	cw_rec_t * rec = cw_rec_new();
-	cw_assert (rec, "libcw/rec: get/set: failed to create new receiver\n");
+	cw_assert (rec, "libcw/rec: get/set param 1: failed to create new receiver\n");
+
+	/* Test setting and getting of some basic parameters. */
+
+	int off_limits = 10000;
+
+	struct {
+		/* There are tree functions that take part in the
+		   test: first gets range of acceptable values,
+		   seconds sets a new value of parameter, and third
+		   reads back the value. */
+
+		void (* get_limits)(int *min, int *max);
+		int (* set_new_value)(cw_rec_t *rec, int new_value);
+		float (* get_value)(cw_rec_t *rec);
+
+		int min; /* Minimal acceptable value of parameter. */
+		int max; /* Maximal acceptable value of parameter. */
+
+		const char *name;
+	} test_data[] = {
+		{ cw_get_speed_limits,      cw_rec_set_speed,      cw_rec_get_speed,      off_limits,  -off_limits,  "receive speed" },
+		{ NULL,                     NULL,                  NULL,                           0,            0,  NULL            }
+	};
+
+	bool get_failure = true;
+	bool set_min_failure = true;
+	bool set_max_failure = true;
+	bool set_ok_failure = false;
+	int n = 0;
+
+
+	for (int i = 0; test_data[i].get_limits; i++) {
+
+		int status;
+		int value = 0;
+
+		/* Get limits of values to be tested. */
+		test_data[i].get_limits(&test_data[i].min, &test_data[i].max);
+
+		get_failure = (test_data[i].min <= -off_limits);
+		if (get_failure) {
+			fprintf(out_file, "libcw/rec: get/set param 1: get min %s: failed to get low limit, returned value = %d\n", test_data[i].name, test_data[i].min);
+			break;
+		}
+		get_failure = (test_data[i].max >= off_limits);
+		if (get_failure) {
+			fprintf(out_file, "libcw/rec: get/set param 1: get max %s: failed to get high limit, returned value = %d\n", test_data[i].name, test_data[i].max);
+			break;
+		}
+
+
+		/* Test out-of-range value lower than minimum. */
+		errno = 0;
+		value = test_data[i].min - 1;
+		status = test_data[i].set_new_value(rec, value);
+
+		set_min_failure = (status == CW_SUCCESS);
+		if (set_min_failure) {
+			fprintf(out_file, "libcw/rec: get/set param 1: setting %s value below minimum succeeded, minimum is %d, attempted value is %d\n", test_data[i].name, test_data[i].min, value);
+			break;
+		}
+		set_min_failure = (errno != EINVAL);
+		if (set_min_failure) {
+			fprintf(out_file, "libcw/rec: get/set param 1: setting %s value below minimum didn't result in EINVAL, minimum is %d, attempted value is %d\n", test_data[i].name, test_data[i].min, value);
+			break;
+		}
+
+
+
+		/* Test out-of-range value higher than maximum. */
+		errno = 0;
+		value = test_data[i].max + 1;
+		status = test_data[i].set_new_value(rec, value);
+
+		set_max_failure = (status == CW_SUCCESS);
+		if (set_max_failure) {
+			fprintf(out_file, "libcw/rec: get/set param 1: setting %s value above minimum succeeded, maximum is %d, attempted value is %d\n", test_data[i].name, test_data[i].min, value);
+			break;
+		}
+		set_max_failure = (errno != EINVAL);
+		if (set_max_failure) {
+			fprintf(out_file, "libcw/rec: get/set param 1: setting %s value above maximum didn't result in EINVAL, maximum is %d, attempted value is %d\n", test_data[i].name, test_data[i].min, value);
+			break;
+		}
+
+
+		/* Test in-range values. Set with setter and then read back with getter. */
+		for (int j = test_data[i].min; j <= test_data[i].max; j++) {
+			test_data[i].set_new_value(rec, j);
+
+			float diff = test_data[i].get_value(rec) - j;
+			set_ok_failure = (diff >= 0.01);
+			if (set_ok_failure) {
+				fprintf(stderr, "libcw/rec: get/set param 1: setting value in-range failed for %s value = %d (%f - %d = %f)\n",
+					test_data[i].name, j,
+					(float) test_data[i].get_value(rec), j, diff);
+				break;
+			}
+		}
+		if (set_ok_failure) {
+			break;
+		}
+	}
+
+	cw_rec_delete(&rec);
+
+
+	get_failure ? stats->failures++ : stats->successes++;
+	n = fprintf(out_file, "libcw:rec: get/set param 1: get:");
+	CW_TEST_PRINT_TEST_RESULT (get_failure, n);
+
+	set_min_failure ? stats->failures++ : stats->successes++;
+	n = fprintf(out_file, "libcw:rec: get/set param 1: set value below min:");
+	CW_TEST_PRINT_TEST_RESULT (set_min_failure, n);
+
+	set_max_failure ? stats->failures++ : stats->successes++;
+	n = fprintf(out_file, "libcw:rec: get/set param 1: set value above max:");
+	CW_TEST_PRINT_TEST_RESULT (set_max_failure, n);
+
+	set_ok_failure ? stats->failures++ : stats->successes++;
+	n = fprintf(out_file, "libcw:rec: get/set param 1: set value in range:");
+	CW_TEST_PRINT_TEST_RESULT (set_ok_failure, n);
+
+	return 0;
+}
+
+
+
+
+/* Parameter getters and setters are independent of audio system, so
+   they can be tested just with CW_AUDIO_NULL.  This is even more true
+   for limit getters, which don't require a receiver at all. */
+unsigned int test_cw_rec_parameter_getters_setters_2(cw_test_stats_t * stats)
+{
+	cw_rec_t * rec = cw_rec_new();
+	cw_assert (rec, "libcw/rec: get/set param 2: failed to create new receiver\n");
 
 	/* Test setting and getting of some basic parameters. */
 
@@ -3261,7 +3397,6 @@ unsigned int test_cw_rec_parameter_getters_setters(cw_test_stats_t * stats)
 
 		const char *name;
 	} test_data[] = {
-		{ cw_get_speed_limits,      cw_rec_set_speed,      cw_rec_get_speed,      off_limits,  -off_limits,  "receive speed" },
 		{ cw_get_tolerance_limits,  cw_rec_set_tolerance,  cw_rec_get_tolerance,  off_limits,  -off_limits,  "tolerance"     },
 		{ NULL,                     NULL,                  NULL,                           0,            0,  NULL            }
 	};
@@ -3283,12 +3418,12 @@ unsigned int test_cw_rec_parameter_getters_setters(cw_test_stats_t * stats)
 
 		get_failure = (test_data[i].min <= -off_limits);
 		if (get_failure) {
-			fprintf(out_file, "libcw/rec: get/set param: get min %s: failed to get low limit, returned value = %d\n", test_data[i].name, test_data[i].min);
+			fprintf(out_file, "libcw/rec: get/set param 2: get min %s: failed to get low limit, returned value = %d\n", test_data[i].name, test_data[i].min);
 			break;
 		}
 		get_failure = (test_data[i].max >= off_limits);
 		if (get_failure) {
-			fprintf(out_file, "libcw/rec: get/set param: get max %s: failed to get high limit, returned value = %d\n", test_data[i].name, test_data[i].max);
+			fprintf(out_file, "libcw/rec: get/set param 2: get max %s: failed to get high limit, returned value = %d\n", test_data[i].name, test_data[i].max);
 			break;
 		}
 
@@ -3300,7 +3435,7 @@ unsigned int test_cw_rec_parameter_getters_setters(cw_test_stats_t * stats)
 
 		set_min_failure = (status == CW_SUCCESS);
 		if (set_min_failure) {
-			fprintf(out_file, "libcw/rec: get/set param: setting %s value below minimum succeeded, minimum is %d, attempted value is %d\n", test_data[i].name, test_data[i].min, value);
+			fprintf(out_file, "libcw/rec: get/set param 2: setting %s value below minimum succeeded, minimum is %d, attempted value is %d\n", test_data[i].name, test_data[i].min, value);
 			break;
 		}
 		set_min_failure = (errno != EINVAL);
@@ -3318,12 +3453,12 @@ unsigned int test_cw_rec_parameter_getters_setters(cw_test_stats_t * stats)
 
 		set_max_failure = (status == CW_SUCCESS);
 		if (set_max_failure) {
-			fprintf(out_file, "libcw/rec: get/set param: setting %s value above minimum succeeded, maximum is %d, attempted value is %d\n", test_data[i].name, test_data[i].min, value);
+			fprintf(out_file, "libcw/rec: get/set param 2: setting %s value above minimum succeeded, maximum is %d, attempted value is %d\n", test_data[i].name, test_data[i].min, value);
 			break;
 		}
 		set_max_failure = (errno != EINVAL);
 		if (set_max_failure) {
-			fprintf(out_file, "libcw/rec: get/set param: setting %s value above maximum didn't result in EINVAL, maximum is %d, attempted value is %d\n", test_data[i].name, test_data[i].min, value);
+			fprintf(out_file, "libcw/rec: get/set param 2: setting %s value above maximum didn't result in EINVAL, maximum is %d, attempted value is %d\n", test_data[i].name, test_data[i].min, value);
 			break;
 		}
 
@@ -3335,7 +3470,7 @@ unsigned int test_cw_rec_parameter_getters_setters(cw_test_stats_t * stats)
 			float diff = test_data[i].get_value(rec) - j;
 			set_ok_failure = (diff >= 0.01);
 			if (set_ok_failure) {
-				fprintf(stderr, "libcw/rec: get/set param: setting value in-range failed for %s value = %d (%f - %d = %f)\n",
+				fprintf(stderr, "libcw/rec: get/set param 2: setting value in-range failed for %s value = %d (%f - %d = %f)\n",
 					test_data[i].name, j,
 					(float) test_data[i].get_value(rec), j, diff);
 				break;
@@ -3350,19 +3485,19 @@ unsigned int test_cw_rec_parameter_getters_setters(cw_test_stats_t * stats)
 
 
 	get_failure ? stats->failures++ : stats->successes++;
-	n = fprintf(out_file, "libcw:rec: get/set param: get:");
+	n = fprintf(out_file, "libcw:rec: get/set param 2: get:");
 	CW_TEST_PRINT_TEST_RESULT (get_failure, n);
 
 	set_min_failure ? stats->failures++ : stats->successes++;
-	n = fprintf(out_file, "libcw:rec: get/set param: set value below min:");
+	n = fprintf(out_file, "libcw:rec: get/set param 2: set value below min:");
 	CW_TEST_PRINT_TEST_RESULT (set_min_failure, n);
 
 	set_max_failure ? stats->failures++ : stats->successes++;
-	n = fprintf(out_file, "libcw:rec: get/set param: set value above max:");
+	n = fprintf(out_file, "libcw:rec: get/set param 2: set value above max:");
 	CW_TEST_PRINT_TEST_RESULT (set_max_failure, n);
 
 	set_ok_failure ? stats->failures++ : stats->successes++;
-	n = fprintf(out_file, "libcw:rec: get/set param: set value in range:");
+	n = fprintf(out_file, "libcw:rec: get/set param 2: set value in range:");
 	CW_TEST_PRINT_TEST_RESULT (set_ok_failure, n);
 
 	return 0;

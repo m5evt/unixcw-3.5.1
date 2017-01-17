@@ -54,7 +54,8 @@ unsigned int test_cw_rec_test_with_base_constant(cw_test_stats_t * stats);
 unsigned int test_cw_rec_test_with_random_constant(cw_test_stats_t * stats);
 unsigned int test_cw_rec_test_with_random_varying(cw_test_stats_t * stats);
 unsigned int test_cw_rec_get_parameters(cw_test_stats_t * stats);
-unsigned int test_cw_rec_parameter_getters_setters(cw_test_stats_t * stats);
+unsigned int test_cw_rec_parameter_getters_setters_1(cw_test_stats_t * stats);
+unsigned int test_cw_rec_parameter_getters_setters_2(cw_test_stats_t * stats);
 
 #endif /* #ifdef LIBCW_UNIT_TESTS */
 
