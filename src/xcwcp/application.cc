@@ -1044,7 +1044,7 @@ void Application::make_sender_receiver(void)
 void Application::make_status_bar(void)
 {
 	QString label("Output: ");
-	label += cw_gen_get_audio_system_label(sender->gen);
+	label += cw_get_audio_system_label(cw_gen_get_audio_system(sender->gen));
 	QLabel *sound_system = new QLabel(label);
 	statusBar()->addPermanentWidget(sound_system);
 

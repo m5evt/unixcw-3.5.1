@@ -44,7 +44,7 @@
    6. if you iterated over all samples in tone, but you still didn't
       fill up that last buffer, dequeue next tone from queue, go to #2
    7. if there are no more tones in queue, pad the buffer with silence,
-      and push the buffer to audio sink.
+      push the buffer to audio sink, and wait for signal from tone queue.
 
    Looks simple, right? But it's the little details that ruin it all.
    One of the details is tone's slopes.
@@ -180,34 +180,20 @@ static void  cw_gen_write_calculate_tone_internal(cw_gen_t *gen, cw_tone_t *tone
 
 
 
+
 /**
-   \brief Get a copy of readable label of current audio system
+   \brief Get id of audio system used by given generator (one of enum cw_audio_system values)
 
-   Get a copy of human-readable string describing audio system
-   associated currently with given \p gen.
+   You can use cw_get_audio_system_label() to get string corresponding
+   to value returned by this function.
 
-   The function returns newly allocated pointer to one of following
-   strings: "None", "Null", "Console", "OSS", "ALSA", "PulseAudio",
-   "Soundcard".
+   \param gen - generator from which to get audio system
 
-   The returned pointer is owned by caller.
-
-   Notice that the function returns a new pointer to newly allocated
-   string. cw_gen_get_audio_system_label() returns a pointer to
-   static string owned by library.
-
-   \param gen - generator for which to check audio system label
-
-   \return audio system's label
+   \return audio system's id
 */
-char *cw_gen_get_audio_system_label(cw_gen_t *gen)
+int cw_gen_get_audio_system(cw_gen_t const * gen)
 {
-	char *s = strdup(cw_get_audio_system_label(gen->audio_system));
-	if (!s) {
-		cw_vdm ("failed to strdup() audio system label for audio system %d\n", gen->audio_system);
-	}
-
-	return s;
+	return gen->audio_system;
 }
 
 
@@ -216,8 +202,13 @@ char *cw_gen_get_audio_system_label(cw_gen_t *gen)
 
 /**
    \brief Start a generator
+
+   Start given \p generator. As soon as there are tones enqueued in generator, the generator will start playing them.
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on errors
 */
-int cw_gen_start(cw_gen_t *gen)
+int cw_gen_start(cw_gen_t * gen)
 {
 	gen->phase_offset = 0.0;
 
@@ -228,45 +219,45 @@ int cw_gen_start(cw_gen_t *gen)
 
 	gen->client.thread_id = pthread_self();
 
-	if (gen->audio_system == CW_AUDIO_NULL
-	    || gen->audio_system == CW_AUDIO_CONSOLE
-	    || gen->audio_system == CW_AUDIO_OSS
-	    || gen->audio_system == CW_AUDIO_ALSA
-	    || gen->audio_system == CW_AUDIO_PA) {
+	if (gen->audio_system != CW_AUDIO_NULL
+	    && gen->audio_system != CW_AUDIO_CONSOLE
+	    && gen->audio_system != CW_AUDIO_OSS
+	    && gen->audio_system != CW_AUDIO_ALSA
+	    && gen->audio_system != CW_AUDIO_PA) {
 
-		/* cw_gen_dequeue_and_generate_internal() is THE
-		   function that does the main job of generating
-		   tones. */
-		int rv = pthread_create(&gen->thread.id, &gen->thread.attr,
-					cw_gen_dequeue_and_generate_internal,
-					(void *) gen);
-		if (rv != 0) {
-			gen->do_dequeue_and_generate = false;
-
-			cw_debug_msg (&cw_debug_object, CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
-				      "libcw: failed to create %s generator thread", cw_get_audio_system_label(gen->audio_system));
-			return CW_FAILURE;
-		} else {
-			gen->thread.running = true;
-
-			/* For some yet unknown reason you have to put
-			   usleep() here, otherwise a generator may
-			   work incorrectly */
-			usleep(100000);
-#ifdef LIBCW_WITH_DEV
-			cw_dev_debug_print_generator_setup(gen);
-#endif
-			return CW_SUCCESS;
-		}
-	} else {
 		gen->do_dequeue_and_generate = false;
 
 		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
-			      "libcw: unsupported audio system %d", gen->audio_system);
+			      "libcw/gen: unsupported audio system %d", gen->audio_system);
 		return CW_FAILURE;
 	}
-}
 
+
+	/* cw_gen_dequeue_and_generate_internal() is THE
+	   function that does the main job of generating
+	   tones. */
+	int rv = pthread_create(&gen->thread.id, &gen->thread.attr,
+				cw_gen_dequeue_and_generate_internal,
+				(void *) gen);
+	if (rv != 0) {
+		gen->do_dequeue_and_generate = false;
+
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+			      "libcw/gen: failed to create %s generator thread", cw_get_audio_system_label(gen->audio_system));
+		return CW_FAILURE;
+	} else {
+		gen->thread.running = true;
+
+		/* For some yet unknown reason you have to put
+		   usleep() here, otherwise a generator may
+		   work incorrectly */
+		usleep(100000);
+#ifdef LIBCW_WITH_DEV
+		cw_dev_debug_print_generator_setup(gen);
+#endif
+		return CW_SUCCESS;
+	}
+}
 
 
 
@@ -288,7 +279,7 @@ int cw_gen_start(cw_gen_t *gen)
    \return CW_SUCCESS on success
    \return CW_FAILURE on errors
 */
-int cw_gen_set_audio_device_internal(cw_gen_t *gen, const char *device)
+int cw_gen_set_audio_device_internal(cw_gen_t * gen, char const * device)
 {
 	/* this should be NULL, either because it has been
 	   initialized statically as NULL, or set to
@@ -299,7 +290,7 @@ int cw_gen_set_audio_device_internal(cw_gen_t *gen, const char *device)
 	if (gen->audio_system == CW_AUDIO_NONE) {
 		gen->audio_device = (char *) NULL;
 		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
-			      "libcw: no audio system specified");
+			      "libcw/gen: no audio system specified");
 		return CW_FAILURE;
 	}
 
@@ -310,14 +301,12 @@ int cw_gen_set_audio_device_internal(cw_gen_t *gen, const char *device)
 	}
 
 	if (!gen->audio_device) {
-		cw_debug_msg (&cw_debug_object, CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
-			      "libcw: malloc()");
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_STDLIB, CW_DEBUG_ERROR, "libcw/gen: malloc()");
 		return CW_FAILURE;
 	} else {
 		return CW_SUCCESS;
 	}
 }
-
 
 
 
@@ -341,14 +330,14 @@ int cw_gen_set_audio_device_internal(cw_gen_t *gen, const char *device)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure to silence an audio sink
 */
-int cw_gen_silence_internal(cw_gen_t *gen)
+int cw_gen_silence_internal(cw_gen_t * gen)
 {
 	if (!gen) {
-		/* this may happen because the process of finalizing
-		   usage of libcw is rather complicated; this should
-		   be somehow resolved */
+		/* This may happen because the process of finalizing
+		   usage of libcw is rather complicated. This should
+		   be somehow resolved. */
 		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_WARNING,
-			      "libcw: called the function for NULL generator");
+			      "libcw/gen: called the function for NULL generator");
 		return CW_SUCCESS;
 	}
 
@@ -363,8 +352,8 @@ int cw_gen_silence_internal(cw_gen_t *gen)
 
 	/* Somewhere there may be a key in "down" state and we need to
 	   make it go "up", regardless of audio sink (even for
-	   CDW_AUDIO_NULL!). Otherwise the key may stay in "down"
-	   state forever. */
+	   CDW_AUDIO_NULL, because that audio system can also be used with a key).
+	   Otherwise the key may stay in "down" state forever. */
 	cw_tone_t tone;
 	CW_TONE_INIT(&tone, 0, gen->quantum_len, CW_SLOPE_MODE_NO_SLOPES);
 	int status = cw_tq_enqueue_internal(gen->tq, &tone);
@@ -387,7 +376,7 @@ int cw_gen_silence_internal(cw_gen_t *gen)
 		cw_console_silence(gen);
 	} else {
 		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
-			      "libcw: called silence() function for generator without audio system specified");
+			      "libcw/gen: called silence() function for generator without audio system specified");
 	}
 
 	if (gen->audio_system == CW_AUDIO_ALSA) {
@@ -409,18 +398,17 @@ int cw_gen_silence_internal(cw_gen_t *gen)
 
    testedin::test_cw_gen_new_delete()
 */
-cw_gen_t *cw_gen_new(int audio_system, const char *device)
+cw_gen_t * cw_gen_new(int audio_system, char const * device)
 {
 #ifdef LIBCW_WITH_DEV
 	fprintf(stderr, "libcw build %s %s\n", __DATE__, __TIME__);
 #endif
 
-	cw_assert (audio_system != CW_AUDIO_NONE, "can't create generator with audio system \"NONE\"");
+	cw_assert (audio_system != CW_AUDIO_NONE, "libcw/gen: can't create generator with audio system '%s'", cw_get_audio_system_label(audio_system));
 
-	cw_gen_t *gen = (cw_gen_t *) malloc(sizeof (cw_gen_t));
+	cw_gen_t * gen = (cw_gen_t *) malloc(sizeof (cw_gen_t));
 	if (!gen) {
-		cw_debug_msg (&cw_debug_object, CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
-			      "libcw: malloc()");
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_STDLIB, CW_DEBUG_ERROR, "libcw/gen: malloc()");
 		return (cw_gen_t *) NULL;
 	}
 
@@ -495,7 +483,7 @@ cw_gen_t *cw_gen_new(int audio_system, const char *device)
 		gen->client.name = (char *) NULL;
 
 
-		/* cw key associated with this generator. */
+		/* CW key associated with this generator. */
 		gen->key = (cw_key_t *) NULL;
 	}
 
@@ -511,6 +499,7 @@ cw_gen_t *cw_gen_new(int audio_system, const char *device)
 		pthread_attr_setdetachstate(&gen->thread.attr, PTHREAD_CREATE_JOINABLE);
 		gen->thread.running = false;
 
+		/* TODO: doesn't this duplicate gen->thread.running flag? */
 		gen->do_dequeue_and_generate = false;
 	}
 
@@ -552,7 +541,7 @@ cw_gen_t *cw_gen_new(int audio_system, const char *device)
 		int rv = cw_gen_new_open_internal(gen, audio_system, device);
 		if (rv == CW_FAILURE) {
 			cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
-				      "libcw: failed to open audio device for audio system '%s' and device '%s'", cw_get_audio_system_label(audio_system), device);
+				      "libcw/gen: failed to open audio device for audio system '%s' and device '%s'", cw_get_audio_system_label(audio_system), device);
 			cw_gen_delete(&gen);
 			return (cw_gen_t *) NULL;
 		}
@@ -560,12 +549,12 @@ cw_gen_t *cw_gen_new(int audio_system, const char *device)
 		if (audio_system == CW_AUDIO_NULL
 		    || audio_system == CW_AUDIO_CONSOLE) {
 
-			; /* the two types of audio output don't require audio buffer */
+			; /* The two types of audio output don't require audio buffer. */
 		} else {
 			gen->buffer = (cw_sample_t *) malloc(gen->buffer_n_samples * sizeof (cw_sample_t));
 			if (!gen->buffer) {
 				cw_debug_msg (&cw_debug_object, CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
-					      "libcw: malloc()");
+					      "libcw/gen: malloc()");
 				cw_gen_delete(&gen);
 				return (cw_gen_t *) NULL;
 			}
@@ -577,9 +566,9 @@ cw_gen_t *cw_gen_new(int audio_system, const char *device)
 		rv = cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_RAISED_COSINE, CW_AUDIO_SLOPE_LEN);
 		if (rv == CW_FAILURE) {
 			cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
-				      "libcw: failed to set slope");
+				      "libcw/gen: failed to set slope");
 			cw_gen_delete(&gen);
-		return (cw_gen_t *) NULL;
+			return (cw_gen_t *) NULL;
 		}
 	}
 
@@ -589,15 +578,14 @@ cw_gen_t *cw_gen_new(int audio_system, const char *device)
 
 
 
-
 /**
    \brief Delete a generator
 
    testedin::test_cw_gen_new_delete()
 */
-void cw_gen_delete(cw_gen_t **gen)
+void cw_gen_delete(cw_gen_t ** gen)
 {
-	cw_assert (gen, "generator is NULL");
+	cw_assert (gen, "libcw/gen: generator is NULL");
 
 	if (!*gen) {
 		return;
@@ -605,7 +593,7 @@ void cw_gen_delete(cw_gen_t **gen)
 
 	if ((*gen)->do_dequeue_and_generate) {
 		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG,
-			      "libcw: you forgot to call cw_gen_stop()");
+			      "libcw/gen: you forgot to call cw_gen_stop()");
 		cw_gen_stop(*gen);
 	}
 
@@ -630,7 +618,7 @@ void cw_gen_delete(cw_gen_t **gen)
 	if ((*gen)->close_device) {
 		(*gen)->close_device(*gen);
 	} else {
-		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG, "libcw: WARNING: NULL function pointer, something went wrong");
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_WARNING, "libcw/gen: WARNING: 'close' function pointer is NULL, something went wrong");
 	}
 
 	pthread_attr_destroy(&((*gen)->thread.attr));
@@ -664,14 +652,14 @@ void cw_gen_delete(cw_gen_t **gen)
    You have to use cw_gen_start() if you want to enqueue and
    generate tones with the same generator again.
 
-   It seems that only silencing of generator's audio sink may fail,
-   and this is when this function may return CW_FAILURE. Otherwise
-   function returns CW_SUCCESS.
+   The function may return CW_FAILURE only when silencing of
+   generator's audio sink fails.
+   Otherwise function returns CW_SUCCESS.
 
    \return CW_SUCCESS if all four actions completed (successfully)
    \return CW_FAILURE if any of the four actions failed (see note above)
 */
-int cw_gen_stop(cw_gen_t *gen)
+int cw_gen_stop(cw_gen_t * gen)
 {
 	if (!gen) {
 		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_WARNING,
@@ -744,7 +732,7 @@ int cw_gen_stop(cw_gen_t *gen)
 	   This is to force the loop to start new cycle, notice that
 	   gen->do_dequeue_and_generate is false, and to get the thread
 	   function to return (and thus to end the thread). */
-#if 0
+#if 0 /* This was disabled some time before 2017-01-19. */
 	pthread_mutex_lock(&gen->tq->wait_mutex);
 	pthread_cond_broadcast(&gen->tq->wait_var);
 	pthread_mutex_unlock(&gen->tq->wait_mutex);
@@ -754,7 +742,7 @@ int cw_gen_stop(cw_gen_t *gen)
 	pthread_cond_signal(&gen->tq->dequeue_var); /* Use pthread_cond_signal() because there is only one listener. */
 	pthread_mutex_unlock(&gen->tq->dequeue_mutex);
 
-#if 0   /* Original implementation using signals. */
+#if 0   /* Original implementation using signals. */  /* This was disabled some time before 2017-01-19. */
 	pthread_kill(gen->thread.id, SIGALRM);
 #endif
 
@@ -765,7 +753,7 @@ int cw_gen_stop(cw_gen_t *gen)
 
 
 
-int cw_gen_join_thread_internal(cw_gen_t *gen)
+int cw_gen_join_thread_internal(cw_gen_t * gen)
 {
 	/* TODO: this comment may no longer be true and necessary.
 	   Sleep a bit to postpone closing a device.  This way we can
@@ -808,7 +796,7 @@ int cw_gen_join_thread_internal(cw_gen_t *gen)
 		gen->thread.running = false;
 		return CW_SUCCESS;
 	} else {
-		cw_debug_msg (&cw_debug_object, CW_DEBUG_GENERATOR, CW_DEBUG_ERROR, "libcw/gen: failed to join threads: \"%s\"", strerror(rv));
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_GENERATOR, CW_DEBUG_ERROR, "libcw/gen: failed to join threads: '%s'", strerror(rv));
 		return CW_FAILURE;
 	}
 }
@@ -818,21 +806,21 @@ int cw_gen_join_thread_internal(cw_gen_t *gen)
 
 
 /**
-  \brief Open audio system
+   \brief Open audio system
 
-  A wrapper for code trying to open audio device specified by
-  \p audio_system.  Open audio system will be assigned to given
-  generator. Caller can also specify audio device to use instead
-  of a default one.
+   A wrapper for code trying to open audio device specified by
+   \p audio_system.  Open audio system will be assigned to given
+   generator. Caller can also specify audio device to use instead
+   of a default one.
 
-  \param gen - freshly created generator
-  \param audio_system - audio system to open and assign to the generator
-  \param device - name of audio device to be used instead of a default one
+   \param gen - freshly created generator
+   \param audio_system - audio system to open and assign to the generator
+   \param device - name of audio device to be used instead of a default one
 
-  \return CW_SUCCESS on success
-  \return CW_FAILURE otherwise
+   \return CW_SUCCESS on success
+   \return CW_FAILURE otherwise
 */
-int cw_gen_new_open_internal(cw_gen_t *gen, int audio_system, const char *device)
+int cw_gen_new_open_internal(cw_gen_t * gen, int audio_system, char const * device)
 {
 	/* FIXME: this functionality is partially duplicated in
 	   src/cwutils/cw_common.c/cw_gen_new_from_config() */
@@ -847,7 +835,7 @@ int cw_gen_new_open_internal(cw_gen_t *gen, int audio_system, const char *device
 
 	if (audio_system == CW_AUDIO_NULL) {
 
-		const char *dev = device ? device : default_audio_devices[CW_AUDIO_NULL];
+		char const * dev = device ? device : default_audio_devices[CW_AUDIO_NULL];
 		if (cw_is_null_possible(dev)) {
 			cw_null_configure(gen, dev);
 			return gen->open_device(gen);
@@ -857,7 +845,7 @@ int cw_gen_new_open_internal(cw_gen_t *gen, int audio_system, const char *device
 	if (audio_system == CW_AUDIO_PA
 	    || audio_system == CW_AUDIO_SOUNDCARD) {
 
-		const char *dev = device ? device : default_audio_devices[CW_AUDIO_PA];
+		char const * dev = device ? device : default_audio_devices[CW_AUDIO_PA];
 		if (cw_is_pa_possible(dev)) {
 			cw_pa_configure(gen, dev);
 			return gen->open_device(gen);
@@ -867,7 +855,7 @@ int cw_gen_new_open_internal(cw_gen_t *gen, int audio_system, const char *device
 	if (audio_system == CW_AUDIO_OSS
 	    || audio_system == CW_AUDIO_SOUNDCARD) {
 
-		const char *dev = device ? device : default_audio_devices[CW_AUDIO_OSS];
+		char const * dev = device ? device : default_audio_devices[CW_AUDIO_OSS];
 		if (cw_is_oss_possible(dev)) {
 			cw_oss_configure(gen, dev);
 			return gen->open_device(gen);
@@ -877,7 +865,7 @@ int cw_gen_new_open_internal(cw_gen_t *gen, int audio_system, const char *device
 	if (audio_system == CW_AUDIO_ALSA
 	    || audio_system == CW_AUDIO_SOUNDCARD) {
 
-		const char *dev = device ? device : default_audio_devices[CW_AUDIO_ALSA];
+		char const * dev = device ? device : default_audio_devices[CW_AUDIO_ALSA];
 		if (cw_is_alsa_possible(dev)) {
 			cw_alsa_configure(gen, dev);
 			return gen->open_device(gen);
@@ -886,14 +874,14 @@ int cw_gen_new_open_internal(cw_gen_t *gen, int audio_system, const char *device
 
 	if (audio_system == CW_AUDIO_CONSOLE) {
 
-		const char *dev = device ? device : default_audio_devices[CW_AUDIO_CONSOLE];
+		char const * dev = device ? device : default_audio_devices[CW_AUDIO_CONSOLE];
 		if (cw_is_console_possible(dev)) {
 			cw_console_configure(gen, dev);
 			return gen->open_device(gen);
 		}
 	}
 
-	/* there is no next audio system type to try */
+	/* There is no next audio system type to try. */
 	return CW_FAILURE;
 }
 
@@ -903,6 +891,8 @@ int cw_gen_new_open_internal(cw_gen_t *gen, int audio_system, const char *device
 
 /**
    \brief Dequeue tones and push them to audio output
+
+   This is a thread function.
 
    Function dequeues tones from tone queue associated with generator
    and then sends them to preconfigured audio output (soundcard, NULL
@@ -919,9 +909,9 @@ int cw_gen_new_open_internal(cw_gen_t *gen, int audio_system, const char *device
 
    \return NULL pointer
 */
-void *cw_gen_dequeue_and_generate_internal(void *arg)
+void * cw_gen_dequeue_and_generate_internal(void * arg)
 {
-	cw_gen_t *gen = (cw_gen_t *) arg;
+	cw_gen_t * gen = (cw_gen_t *) arg;
 
 	cw_tone_t tone;
 	CW_TONE_INIT(&tone, 0, 0, CW_SLOPE_MODE_STANDARD_SLOPES);
@@ -960,7 +950,7 @@ void *cw_gen_dequeue_and_generate_internal(void *arg)
 			pthread_cond_wait(&gen->tq->dequeue_var, &gen->tq->dequeue_mutex);
 			pthread_mutex_unlock(&(gen->tq->dequeue_mutex));
 
-#if 0                   /* Original implementation using signals. */
+#if 0                   /* Original implementation using signals. */ /* This code has been disabled some time before 2017-01-19. */
 			/* TODO: can we / should we specify on which
 			   signal exactly we are waiting for? */
 			cw_signal_wait_internal();
@@ -973,16 +963,16 @@ void *cw_gen_dequeue_and_generate_internal(void *arg)
 		if (gen->key) {
 			int state = CW_KEY_STATE_OPEN;
 
-			if (dequeued_now && (dequeued_prev || !dequeued_prev)) {
+			if (dequeued_now && (dequeued_prev || !dequeued_prev)) { /* FIXME: second part of && expression is either very verbose or wrong. */
 				state = tone.frequency ? CW_KEY_STATE_CLOSED : CW_KEY_STATE_OPEN;
 			} else if (!dequeued_now && dequeued_prev) {
-				state =  CW_KEY_STATE_OPEN;
+				state = CW_KEY_STATE_OPEN;
 			} else {
 				/* !dequeued_now && !dequeued_prev,
 				   which was was caught right after
 				   cw_tq_dequeue_internal(). No other
 				   combinations are possible. */
-				cw_assert (0, "uncaught combination of flags: dequeued_now = %d, dequeued_prev = %d",
+				cw_assert (0, "libcw/gen: uncaught combination of flags: dequeued_now = %d, dequeued_prev = %d",
 					   dequeued_now, dequeued_prev);
 			}
 			cw_key_tk_set_value_internal(gen->key, state);
@@ -994,7 +984,7 @@ void *cw_gen_dequeue_and_generate_internal(void *arg)
 
 
 #ifdef LIBCW_WITH_DEV
-		cw_debug_ev ((&cw_debug_object_ev), 0, tone.frequency ? CW_DEBUG_EVENT_TONE_HIGH : CW_DEBUG_EVENT_TONE_LOW);
+		cw_debug_ev (&cw_debug_object_ev, 0, tone.frequency ? CW_DEBUG_EVENT_TONE_HIGH : CW_DEBUG_EVENT_TONE_LOW);
 #endif
 
 		if (gen->audio_system == CW_AUDIO_NULL) {
@@ -1024,7 +1014,7 @@ void *cw_gen_dequeue_and_generate_internal(void *arg)
 		pthread_mutex_unlock(&gen->tq->wait_mutex);
 
 
-#if 0           /* Original implementation using signals. */
+#if 0           /* Original implementation using signals. */ /* This code has been disabled some time before 2017-01-19. */
 		pthread_kill(gen->client.thread_id, SIGALRM);
 #endif
 
@@ -1056,13 +1046,13 @@ void *cw_gen_dequeue_and_generate_internal(void *arg)
 		}
 
 #ifdef LIBCW_WITH_DEV
-		cw_debug_ev ((&cw_debug_object_ev), 0, tone.frequency ? CW_DEBUG_EVENT_TONE_LOW : CW_DEBUG_EVENT_TONE_HIGH);
+		cw_debug_ev (&cw_debug_object_ev, 0, tone.frequency ? CW_DEBUG_EVENT_TONE_LOW : CW_DEBUG_EVENT_TONE_HIGH);
 #endif
 
 	} /* while (gen->do_dequeue_and_generate) */
 
 	cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_INFO,
-		      "libcw: EXIT: generator stopped (gen->do_dequeue_and_generate = %d)", gen->do_dequeue_and_generate);
+		      "libcw/gen: EXIT: generator stopped (gen->do_dequeue_and_generate = %d)", gen->do_dequeue_and_generate);
 
 	/* Some functions in client thread may be waiting for the last
 	   notification from the generator thread to continue/finalize
@@ -1081,7 +1071,7 @@ void *cw_gen_dequeue_and_generate_internal(void *arg)
 	pthread_cond_broadcast(&gen->tq->wait_var);
 	pthread_mutex_unlock(&gen->tq->wait_mutex);
 
-#if 0   /* Original implementation using signals. */
+#if 0   /* Original implementation using signals. */ /* This code has been disabled some time before 2017-01-19. */
 	pthread_kill(gen->client.thread_id, SIGALRM);
 #endif
 
@@ -1215,17 +1205,10 @@ int cw_gen_calculate_sine_wave_internal(cw_gen_t *gen, cw_tone_t *tone)
 */
 int cw_gen_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone)
 {
-#if 0
-	int amplitude = 0;
-	/* Blunt algorithm for calculating amplitude;
-	   for debug purposes only. */
-	if (tone->frequency) {
-		amplitude = gen->volume_abs;
-	} else {
-		amplitude = 0;
-	}
+#if 0   /* Blunt algorithm for calculating amplitude. For debug purposes only. */
 
-	return amplitude;
+	return tone->frequency ? gen->volume_abs : 0;
+
 #else
 
 	if (tone->frequency <= 0) {
@@ -1266,7 +1249,7 @@ int cw_gen_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone)
 		assert (amplitude >= 0);
 
 	} else {
-		cw_assert (0, "->sample_iterator out of bounds:\n"
+		cw_assert (0, "libcw/gen: ->sample_iterator out of bounds:\n"
 			   "tone->sample_iterator: %d\n"
 			   "tone->n_samples: %"PRId64"\n"
 			   "tone->rising_slope_n_samples: %d\n"
@@ -1347,7 +1330,7 @@ int cw_gen_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_gen_set_tone_slope(cw_gen_t *gen, int slope_shape, int slope_len)
+int cw_gen_set_tone_slope(cw_gen_t * gen, int slope_shape, int slope_len)
 {
 	assert (gen);
 
@@ -1356,7 +1339,7 @@ int cw_gen_set_tone_slope(cw_gen_t *gen, int slope_shape, int slope_len)
 	    && slope_len > 0) {
 
 		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
-			      "libcw: requested a rectangular slope shape, but also requested slope len > 0");
+			      "libcw/gen: requested a rectangular slope shape, but also requested slope len > 0");
 
 		return CW_FAILURE;
 	}
@@ -1377,7 +1360,7 @@ int cw_gen_set_tone_slope(cw_gen_t *gen, int slope_shape, int slope_len)
 
 
 	int slope_n_samples = ((gen->sample_rate / 100) * gen->tone_slope.len) / 10000;
-	cw_assert (slope_n_samples >= 0, "negative slope_n_samples: %d", slope_n_samples);
+	cw_assert (slope_n_samples >= 0, "libcw/gen: negative slope_n_samples: %d", slope_n_samples);
 
 
 	/* Reallocate the table of slope amplitudes only when necessary.
@@ -1402,7 +1385,7 @@ int cw_gen_set_tone_slope(cw_gen_t *gen, int slope_shape, int slope_len)
 			gen->tone_slope.amplitudes = realloc(gen->tone_slope.amplitudes, sizeof(float) * slope_n_samples);
 			if (!gen->tone_slope.amplitudes) {
 				cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
-					      "libcw: failed to realloc() table of slope amplitudes");
+					      "libcw/gen: failed to realloc() table of slope amplitudes");
 				return CW_FAILURE;
 			}
 		}
@@ -1426,7 +1409,7 @@ int cw_gen_set_tone_slope(cw_gen_t *gen, int slope_shape, int slope_len)
 
    \param gen - generator
 */
-void cw_gen_recalculate_slopes_internal(cw_gen_t *gen)
+void cw_gen_recalculate_slopes_internal(cw_gen_t * gen)
 {
 	/* The values in amplitudes[] change from zero to max (at
 	   least for any sane slope shape), so naturally they can be
@@ -1449,10 +1432,10 @@ void cw_gen_recalculate_slopes_internal(cw_gen_t *gen)
 		} else if (gen->tone_slope.shape == CW_TONE_SLOPE_SHAPE_RECTANGULAR) {
 			/* CW_TONE_SLOPE_SHAPE_RECTANGULAR is covered
 			   before entering this "for" loop. */
-			cw_assert (0, "we shouldn't be here, calculating rectangular slopes");
+			cw_assert (0, "libcw/gen: we shouldn't be here, calculating rectangular slopes");
 
 		} else {
-			cw_assert (0, "unsupported slope shape %d", gen->tone_slope.shape);
+			cw_assert (0, "libcw/gen: unsupported slope shape %d", gen->tone_slope.shape);
 		}
 	}
 
@@ -1466,7 +1449,7 @@ void cw_gen_recalculate_slopes_internal(cw_gen_t *gen)
 /**
    \brief Write tone to soundcard
 */
-int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, cw_tone_t *tone, bool empty_tone)
+int cw_gen_write_to_soundcard_internal(cw_gen_t * gen, cw_tone_t * tone, bool empty_tone)
 {
 	if (empty_tone) {
 		/* No valid tone dequeued from tone queue. We need
@@ -1483,11 +1466,13 @@ int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, cw_tone_t *tone, bool empt
 	/* Total number of samples to write in a loop below. */
 	int64_t samples_to_write = tone->n_samples;
 
-#if 0
+#if 0   /* Debug code. */
+
 	fprintf(stderr, "++++ entering loop, tone->frequency = %d, buffer->n_samples = %d, tone->n_samples = %d, samples_to_write = %d\n",
 		tone->frequency, gen->buffer_n_samples, tone->n_samples, samples_to_write);
 	fprintf(stderr, "++++ entering loop, expected ~%f loops\n", 1.0 * samples_to_write / gen->buffer_n_samples);
 	int debug_loop = 0;
+
 #endif
 
 
@@ -1523,16 +1508,18 @@ int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, cw_tone_t *tone, bool empt
 		int buffer_sub_n_samples = gen->buffer_sub_stop - gen->buffer_sub_start + 1;
 
 
-#if 0
+#if 0           /* Debug code. */
+
 		fprintf(stderr, "++++        loop #%d, buffer_sub_n_samples = %d\n", ++debug_loop, buffer_sub_n_samples);
 		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG,
-			      "libcw: sub start: %d, sub stop: %d, sub len: %d, to calculate: %d", gen->buffer_sub_start, gen->buffer_sub_stop, buffer_sub_n_samples, samples_to_write);
+			      "libcw/gen: sub start: %d, sub stop: %d, sub len: %d, to calculate: %d", gen->buffer_sub_start, gen->buffer_sub_stop, buffer_sub_n_samples, samples_to_write);
+
 #endif
 
 
 		int calculated = cw_gen_calculate_sine_wave_internal(gen, tone);
 		cw_assert (calculated == buffer_sub_n_samples,
-			   "calculated wrong number of samples: %d != %d",
+			   "libcw/gen: calculated wrong number of samples: %d != %d",
 			   calculated, buffer_sub_n_samples);
 
 
@@ -1556,16 +1543,18 @@ int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, cw_tone_t *tone, bool empt
 			gen->buffer_sub_start = gen->buffer_sub_stop + 1;
 
 			cw_assert (gen->buffer_sub_start <= gen->buffer_n_samples - 1,
-				   "sub start out of range: sub start = %d, buffer n samples = %d",
+				   "libcw/gen: sub start out of range: sub start = %d, buffer n samples = %d",
 				   gen->buffer_sub_start, gen->buffer_n_samples);
 		}
 
 		samples_to_write -= buffer_sub_n_samples;
 
-#if 0
+#if 0           /* Debug code. */
+
 		if (samples_to_write < 0) {
-			cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG, "samples left = %d", samples_to_write);
+			cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG, "libcw/gen: samples left = %d", samples_to_write);
 		}
+
 #endif
 
 	} /* while (samples_to_write > 0) { */
@@ -1579,7 +1568,7 @@ int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, cw_tone_t *tone, bool empt
 
 
 
-void cw_gen_write_calculate_empty_tone_internal(cw_gen_t *gen, cw_tone_t *tone)
+void cw_gen_write_calculate_empty_tone_internal(cw_gen_t * gen, cw_tone_t * tone)
 {
 	/* All tones have been already dequeued from tone queue.
 
@@ -1633,7 +1622,7 @@ void cw_gen_write_calculate_empty_tone_internal(cw_gen_t *gen, cw_tone_t *tone)
 
 
 
-void cw_gen_write_calculate_tone_internal(cw_gen_t *gen, cw_tone_t *tone)
+void cw_gen_write_calculate_tone_internal(cw_gen_t * gen, cw_tone_t * tone)
 {
 	/* Recalculate tone parameters from microseconds into
 	   samples. After this point the samples will be all that
@@ -1647,7 +1636,7 @@ void cw_gen_write_calculate_tone_internal(cw_gen_t *gen, cw_tone_t *tone)
 	//fprintf(stderr, "++++ length of regular tone = %d [samples]\n", tone->n_samples);
 
 	/* Length of a single slope (rising or falling). */
-	int slope_n_samples= gen->sample_rate / 100;
+	int slope_n_samples = gen->sample_rate / 100;
 	slope_n_samples *= gen->tone_slope.len;
 	slope_n_samples /= 10000;
 
@@ -1668,7 +1657,7 @@ void cw_gen_write_calculate_tone_internal(cw_gen_t *gen, cw_tone_t *tone)
 		tone->falling_slope_n_samples = 0;
 
 	} else {
-		cw_assert (0, "unknown tone slope mode %d", tone->slope_mode);
+		cw_assert (0, "libcw/gen: unknown tone slope mode %d", tone->slope_mode);
 	}
 
 	tone->sample_iterator = 0;
@@ -1696,7 +1685,7 @@ void cw_gen_write_calculate_tone_internal(cw_gen_t *gen, cw_tone_t *tone)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_gen_set_speed(cw_gen_t *gen, int new_value)
+int cw_gen_set_speed(cw_gen_t * gen, int new_value)
 {
 	if (new_value < CW_SPEED_MIN || new_value > CW_SPEED_MAX) {
 		errno = EINVAL;
@@ -1738,7 +1727,7 @@ int cw_gen_set_speed(cw_gen_t *gen, int new_value)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_gen_set_frequency(cw_gen_t *gen, int new_value)
+int cw_gen_set_frequency(cw_gen_t * gen, int new_value)
 {
 	if (new_value < CW_FREQUENCY_MIN || new_value > CW_FREQUENCY_MAX) {
 		errno = EINVAL;
@@ -1777,7 +1766,7 @@ int cw_gen_set_frequency(cw_gen_t *gen, int new_value)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_gen_set_volume(cw_gen_t *gen, int new_value)
+int cw_gen_set_volume(cw_gen_t * gen, int new_value)
 {
 	if (new_value < CW_VOLUME_MIN || new_value > CW_VOLUME_MAX) {
 		errno = EINVAL;
@@ -1811,7 +1800,7 @@ int cw_gen_set_volume(cw_gen_t *gen, int new_value)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_gen_set_gap(cw_gen_t *gen, int new_value)
+int cw_gen_set_gap(cw_gen_t * gen, int new_value)
 {
 	if (new_value < CW_GAP_MIN || new_value > CW_GAP_MAX) {
 		errno = EINVAL;
@@ -1847,7 +1836,7 @@ int cw_gen_set_gap(cw_gen_t *gen, int new_value)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_gen_set_weighting(cw_gen_t *gen, int new_value)
+int cw_gen_set_weighting(cw_gen_t * gen, int new_value)
 {
 	if (new_value < CW_WEIGHTING_MIN || new_value > CW_WEIGHTING_MAX) {
 		errno = EINVAL;
@@ -1878,7 +1867,7 @@ int cw_gen_set_weighting(cw_gen_t *gen, int new_value)
 
    \return current value of the generator's send speed
 */
-int cw_gen_get_speed(cw_gen_t *gen)
+int cw_gen_get_speed(cw_gen_t const * gen)
 {
 	return gen->send_speed;
 }
@@ -1899,7 +1888,7 @@ int cw_gen_get_speed(cw_gen_t *gen)
 
    \return current value of generator's frequency
 */
-int cw_gen_get_frequency(cw_gen_t *gen)
+int cw_gen_get_frequency(cw_gen_t const * gen)
 {
 	return gen->frequency;
 }
@@ -1921,7 +1910,7 @@ int cw_gen_get_frequency(cw_gen_t *gen)
 
    \return current value of generator's sound volume
 */
-int cw_gen_get_volume(cw_gen_t *gen)
+int cw_gen_get_volume(cw_gen_t const * gen)
 {
 	return gen->volume_percent;
 }
@@ -1938,7 +1927,7 @@ int cw_gen_get_volume(cw_gen_t *gen)
 
    \return current value of generator's sending gap
 */
-int cw_gen_get_gap(cw_gen_t *gen)
+int cw_gen_get_gap(cw_gen_t const * gen)
 {
 	return gen->gap;
 }
@@ -1956,7 +1945,7 @@ int cw_gen_get_gap(cw_gen_t *gen)
 
    \return current value of generator's sending weighting
 */
-int cw_gen_get_weighting(cw_gen_t *gen)
+int cw_gen_get_weighting(cw_gen_t const * gen)
 {
 	return gen->weighting;
 }
@@ -1985,13 +1974,13 @@ int cw_gen_get_weighting(cw_gen_t *gen)
    \param additional_space_len
    \param adjustment_space_len
 */
-void cw_gen_get_timing_parameters_internal(cw_gen_t *gen,
-					   int *dot_len,
-					   int *dash_len,
-					   int *eom_space_len,
-					   int *eoc_space_len,
-					   int *eow_space_len,
-					   int *additional_space_len, int *adjustment_space_len)
+void cw_gen_get_timing_parameters_internal(cw_gen_t * gen,
+					   int * dot_len,
+					   int * dash_len,
+					   int * eom_space_len,
+					   int * eoc_space_len,
+					   int * eow_space_len,
+					   int * additional_space_len, int * adjustment_space_len)
 {
 	cw_gen_sync_parameters_internal(gen);
 
@@ -2032,7 +2021,7 @@ void cw_gen_get_timing_parameters_internal(cw_gen_t *gen,
    \return CW_FAILURE on failure
    \return CW_SUCCESS on success
 */
-int cw_gen_enqueue_mark_internal(cw_gen_t *gen, char mark)
+int cw_gen_enqueue_mark_internal(cw_gen_t * gen, char mark)
 {
 	int status;
 
@@ -2090,7 +2079,7 @@ int cw_gen_enqueue_mark_internal(cw_gen_t *gen, char mark)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_gen_enqueue_eoc_space_internal(cw_gen_t *gen)
+int cw_gen_enqueue_eoc_space_internal(cw_gen_t * gen)
 {
 	/* Synchronize low-level timing parameters. */
 	cw_gen_sync_parameters_internal(gen);
@@ -2128,7 +2117,7 @@ int cw_gen_enqueue_eoc_space_internal(cw_gen_t *gen)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_gen_enqueue_eow_space_internal(cw_gen_t *gen)
+int cw_gen_enqueue_eow_space_internal(cw_gen_t * gen)
 {
 	/* Synchronize low-level timing parameters. */
 	cw_gen_sync_parameters_internal(gen);
@@ -2205,7 +2194,7 @@ int cw_gen_enqueue_eow_space_internal(cw_gen_t *gen)
 	}
 
 	cw_debug_msg (&cw_debug_object, CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG,
-		      "libcw: enqueued %d tones per eow space, tq len = %zu",
+		      "libcw/gen: enqueued %d tones per eow space, tq len = %zu",
 		      enqueued, cw_tq_length_internal(gen->tq));
 
 	return CW_SUCCESS;
@@ -2241,7 +2230,7 @@ int cw_gen_enqueue_eow_space_internal(cw_gen_t *gen)
    \return CW_FAILURE on failure
    \return CW_SUCCESS on success
 */
-int cw_gen_enqueue_representation_partial_internal(cw_gen_t *gen, const char *representation)
+int cw_gen_enqueue_representation_partial_internal(cw_gen_t * gen, char const * representation)
 {
 	/* Before we let this representation loose on tone generation,
 	   we'd really like to know that all of its tones will get queued
@@ -2290,11 +2279,11 @@ int cw_gen_enqueue_representation_partial_internal(cw_gen_t *gen, const char *re
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_gen_enqueue_valid_character_partial_internal(cw_gen_t *gen, char c)
+int cw_gen_enqueue_valid_character_partial_internal(cw_gen_t * gen, char c)
 {
 	if (!gen) {
 		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
-			      "libcw: no generator available");
+			      "libcw/gen: no generator available");
 		return CW_FAILURE;
 	}
 
@@ -2306,7 +2295,7 @@ int cw_gen_enqueue_valid_character_partial_internal(cw_gen_t *gen, char c)
 	const char *r = cw_character_to_representation_internal(c);
 
 	/* This shouldn't happen since we are in _valid_character_ function... */
-	cw_assert (r, "libcw/data: failed to find representation for character '%c'/%hhx", c, c);
+	cw_assert (r, "libcw/gen: failed to find representation for character '%c'/%hhx", c, c);
 
 	/* ... but fail gracefully anyway. */
 	if (!r) {
@@ -2346,7 +2335,7 @@ int cw_gen_enqueue_valid_character_partial_internal(cw_gen_t *gen, char c)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_gen_enqueue_valid_character_internal(cw_gen_t *gen, char c)
+int cw_gen_enqueue_valid_character_internal(cw_gen_t * gen, char c)
 {
 	if (!cw_gen_enqueue_valid_character_partial_internal(gen, c)) {
 		return CW_FAILURE;
@@ -2395,7 +2384,7 @@ int cw_gen_enqueue_valid_character_internal(cw_gen_t *gen, char c)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_gen_enqueue_character(cw_gen_t *gen, char c)
+int cw_gen_enqueue_character(cw_gen_t * gen, char c)
 {
 	if (!cw_character_is_valid(c)) {
 		errno = ENOENT;
@@ -2443,7 +2432,7 @@ int cw_gen_enqueue_character(cw_gen_t *gen, char c)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_gen_enqueue_character_parital(cw_gen_t *gen, char c)
+int cw_gen_enqueue_character_parital(cw_gen_t * gen, char c)
 {
 	if (!cw_character_is_valid(c)) {
 		errno = ENOENT;
@@ -2494,7 +2483,7 @@ int cw_gen_enqueue_character_parital(cw_gen_t *gen, char c)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_gen_enqueue_string(cw_gen_t *gen, const char *string)
+int cw_gen_enqueue_string(cw_gen_t * gen, char const * string)
 {
 	/* Check that the string is composed of valid characters. */
 	if (!cw_string_is_valid(string)) {
@@ -2523,9 +2512,9 @@ int cw_gen_enqueue_string(cw_gen_t *gen, const char *string)
 
   \param gen
 */
-void cw_gen_reset_parameters_internal(cw_gen_t *gen)
+void cw_gen_reset_parameters_internal(cw_gen_t * gen)
 {
-	cw_assert (gen, "generator is NULL");
+	cw_assert (gen, "libcw/gen: generator is NULL");
 
 	gen->send_speed = CW_SPEED_INITIAL;
 	gen->frequency = CW_FREQUENCY_INITIAL;
@@ -2549,9 +2538,9 @@ void cw_gen_reset_parameters_internal(cw_gen_t *gen)
 
    \param gen - generator
 */
-void cw_gen_sync_parameters_internal(cw_gen_t *gen)
+void cw_gen_sync_parameters_internal(cw_gen_t * gen)
 {
-	cw_assert (gen, "generator is NULL");
+	cw_assert (gen, "libcw/gen: generator is NULL");
 
 	/* Do nothing if we are already synchronized. */
 	if (gen->parameters_in_sync) {
@@ -2603,7 +2592,7 @@ void cw_gen_sync_parameters_internal(cw_gen_t *gen)
 	gen->adjustment_space_len = (7 * gen->additional_space_len) / 3;
 
 	cw_debug_msg (&cw_debug_object, CW_DEBUG_PARAMETERS, CW_DEBUG_INFO,
-		      "libcw: send usec timings <%d [wpm]>: dot: %d, dash: %d, %d, %d, %d, %d, %d",
+		      "libcw/gen: send usec timings <%d [wpm]>: dot: %d, dash: %d, %d, %d, %d, %d, %d",
 		      gen->send_speed, gen->dot_len, gen->dash_len,
 		      gen->eom_space_len, gen->eoc_space_len,
 		      gen->eow_space_len, gen->additional_space_len, gen->adjustment_space_len);
@@ -2633,7 +2622,7 @@ void cw_gen_sync_parameters_internal(cw_gen_t *gen)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_gen_enqueue_begin_mark_internal(cw_gen_t *gen)
+int cw_gen_enqueue_begin_mark_internal(cw_gen_t * gen)
 {
 	/* In case of straight key we don't know at all how long the
 	   tone should be (we don't know for how long the key will be
@@ -2654,7 +2643,7 @@ int cw_gen_enqueue_begin_mark_internal(cw_gen_t *gen)
 		rv = cw_tq_enqueue_internal(gen->tq, &tone);
 
 		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
-			      "libcw: tone queue: len = %zu", cw_tq_length_internal(gen->tq));
+			      "libcw/gen: tone queue: len = %zu", cw_tq_length_internal(gen->tq));
 	}
 
 	return rv;
@@ -2679,7 +2668,7 @@ int cw_gen_enqueue_begin_mark_internal(cw_gen_t *gen)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_gen_enqueue_begin_space_internal(cw_gen_t *gen)
+int cw_gen_enqueue_begin_space_internal(cw_gen_t * gen)
 {
 	if (gen->audio_system == CW_AUDIO_CONSOLE) {
 		/* FIXME: I think that enqueueing tone is not just a
@@ -2749,7 +2738,7 @@ int cw_gen_enqueue_begin_space_internal(cw_gen_t *gen)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_gen_enqueue_pure_symbol_internal(cw_gen_t *gen, char symbol)
+int cw_gen_enqueue_pure_symbol_internal(cw_gen_t * gen, char symbol)
 {
 	cw_tone_t tone;
 
@@ -2763,7 +2752,7 @@ int cw_gen_enqueue_pure_symbol_internal(cw_gen_t *gen, char symbol)
 		CW_TONE_INIT(&tone, 0, gen->eom_space_len, CW_SLOPE_MODE_NO_SLOPES);
 
 	} else {
-		cw_assert (0, "unknown key symbol '%d'", symbol);
+		cw_assert (0, "libcw/gen: unknown key symbol '%d'", symbol);
 	}
 
 	return cw_tq_enqueue_internal(gen->tq, &tone);
@@ -2789,7 +2778,7 @@ int cw_gen_enqueue_pure_symbol_internal(cw_gen_t *gen, char symbol)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_gen_wait_for_queue_level(cw_gen_t *gen, size_t level)
+int cw_gen_wait_for_queue_level(cw_gen_t * gen, size_t level)
 {
 	return cw_tq_wait_for_level_internal(gen->tq, level);
 }
@@ -2806,7 +2795,7 @@ int cw_gen_wait_for_queue_level(cw_gen_t *gen, size_t level)
 
    \param gen - generator to flush
 */
-void cw_gen_flush_queue(cw_gen_t *gen)
+void cw_gen_flush_queue(cw_gen_t * gen)
 {
 	/* This function locks and unlocks mutex. */
 	cw_tq_flush_internal(gen->tq);
@@ -2832,9 +2821,9 @@ void cw_gen_flush_queue(cw_gen_t *gen)
 
    \return char string with current console device path
 */
-const char *cw_gen_get_console_device(cw_gen_t *gen)
+char const * cw_gen_get_console_device(cw_gen_t const * gen)
 {
-	cw_assert (gen, "gen is NULL");
+	cw_assert (gen, "libcw/gen: gen is NULL");
 	return gen->audio_device;
 }
 
@@ -2851,9 +2840,9 @@ const char *cw_gen_get_console_device(cw_gen_t *gen)
 
    \return char string with current soundcard device name or device path
 */
-const char *cw_gen_get_soundcard_device(cw_gen_t *gen)
+const char * cw_gen_get_soundcard_device(cw_gen_t const * gen)
 {
-	cw_assert (gen, "gen is NULL");
+	cw_assert (gen, "libcw/gen: gen is NULL");
 	return gen->audio_device;
 }
 
@@ -2861,7 +2850,7 @@ const char *cw_gen_get_soundcard_device(cw_gen_t *gen)
 
 
 
-size_t cw_gen_get_queue_length(cw_gen_t *gen)
+size_t cw_gen_get_queue_length(cw_gen_t const * gen)
 {
 	return cw_tq_length_internal(gen->tq);
 }
@@ -2870,7 +2859,7 @@ size_t cw_gen_get_queue_length(cw_gen_t *gen)
 
 
 
-int cw_gen_register_low_level_callback(cw_gen_t *gen, cw_queue_low_callback_t callback_func, void *callback_arg, size_t level)
+int cw_gen_register_low_level_callback(cw_gen_t * gen, cw_queue_low_callback_t callback_func, void * callback_arg, size_t level)
 {
 	return cw_tq_register_low_level_callback_internal(gen->tq, callback_func, callback_arg, level);
 }
@@ -2879,7 +2868,7 @@ int cw_gen_register_low_level_callback(cw_gen_t *gen, cw_queue_low_callback_t ca
 
 
 
-int cw_gen_wait_for_tone(cw_gen_t *gen)
+int cw_gen_wait_for_tone(cw_gen_t * gen)
 {
 	return cw_tq_wait_for_tone_internal(gen->tq);
 }
@@ -2888,7 +2877,7 @@ int cw_gen_wait_for_tone(cw_gen_t *gen)
 
 
 
-bool cw_gen_is_queue_full(cw_gen_t *gen)
+bool cw_gen_is_queue_full(cw_gen_t const * gen)
 {
 	return cw_tq_is_full_internal(gen->tq);
 }
@@ -2926,51 +2915,51 @@ unsigned int test_cw_gen_new_delete(__attribute__((unused)) cw_gen_t * unused, c
 
 	/* new() + delete() */
 	for (int i = 0; i < max; i++) {
-		fprintf(stderr, "libcw:gen:new/delete: generator test 1/4, loop #%d/%d\n", i, max);
+		fprintf(stderr, "libcw/gen:new/delete: generator test 1/4, loop #%d/%d\n", i, max);
 
 		cw_gen_t * gen = cw_gen_new(CW_AUDIO_NULL, NULL);
 		failure = (NULL == gen);
 		if (failure) {
-			fprintf(out_file, "libcw:gen:new/delete: failed to initialize generator (loop #%d)", i);
+			fprintf(out_file, "libcw/gen:new/delete: failed to initialize generator (loop #%d)", i);
 			break;
 		}
 
 		/* Try to access some fields in cw_gen_t just to be sure that the gen has been allocated properly. */
 		failure = (gen->buffer_sub_start != 0);
 		if (failure) {
-			fprintf(out_file, "libcw:gen:new/delete: buffer_sub_start in new generator is not at zero");
+			fprintf(out_file, "libcw/gen:new/delete: buffer_sub_start in new generator is not at zero");
 			break;
 		}
 
 		gen->buffer_sub_stop = gen->buffer_sub_start + 10;
 		failure = (gen->buffer_sub_stop != 10);
 		if (failure) {
-			fprintf(out_file, "libcw:gen:new/delete: buffer_sub_stop didn't store correct new value");
+			fprintf(out_file, "libcw/gen:new/delete: buffer_sub_stop didn't store correct new value");
 			break;
 		}
 
 		failure = (gen->client.name != (char *) NULL);
 		if (failure) {
-			fprintf(out_file, "libcw:gen:new/delete: initial value of generator's client name is not NULL");
+			fprintf(out_file, "libcw/gen:new/delete: initial value of generator's client name is not NULL");
 			break;
 		}
 
 		failure = (gen->tq == NULL);
 		if (failure) {
-			fprintf(out_file, "libcw:gen:new/delete: tone queue is NULL");
+			fprintf(out_file, "libcw/gen:new/delete: tone queue is NULL");
 			break;
 		}
 
 		cw_gen_delete(&gen);
 		failure = (gen != NULL);
 		if (failure) {
-			fprintf(out_file, "libcw:gen:new/delete: delete() didn't set the pointer to NULL (loop #%d)", i);
+			fprintf(out_file, "libcw/gen:new/delete: delete() didn't set the pointer to NULL (loop #%d)", i);
 			break;
 		}
 	}
 
 	failure ? stats->failures++ : stats->successes++;
-	n = fprintf(out_file, "libcw:gen:new/delete:");
+	n = fprintf(out_file, "libcw/gen:new/delete:");
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
@@ -2980,62 +2969,62 @@ unsigned int test_cw_gen_new_delete(__attribute__((unused)) cw_gen_t * unused, c
 
 	/* new() + start() + delete() (skipping stop() on purpose). */
 	for (int i = 0; i < max; i++) {
-		fprintf(stderr, "libcw:gen:new/start/delete: generator test 2/4, loop #%d/%d\n", i, max);
+		fprintf(stderr, "libcw/gen:new/start/delete: generator test 2/4, loop #%d/%d\n", i, max);
 
 		cw_gen_t * gen = cw_gen_new(CW_AUDIO_NULL, NULL);
 		failure = (gen == NULL);
 		if (failure) {
-			fprintf(out_file, "libcw:gen:new/start/delete: failed to initialize generator (loop #%d)", i);
+			fprintf(out_file, "libcw/gen:new/start/delete: failed to initialize generator (loop #%d)", i);
 			break;
 		}
 
 		failure = (CW_SUCCESS != cw_gen_start(gen));
 		if (failure) {
-			fprintf(out_file, "libcw:gen:new/start/delete: failed to start generator (loop #%d)", i);
+			fprintf(out_file, "libcw/gen:new/start/delete: failed to start generator (loop #%d)", i);
 			break;
 		}
 
 		cw_gen_delete(&gen);
 		failure = (gen != NULL);
 		if (failure) {
-			fprintf(out_file, "libcw:gen:new/start/delete: delete() didn't set the pointer to NULL (loop #%d)", i);
+			fprintf(out_file, "libcw/gen:new/start/delete: delete() didn't set the pointer to NULL (loop #%d)", i);
 			break;
 		}
 	}
 
 	failure ? stats->failures++ : stats->successes++;
-	n = fprintf(out_file, "libcw:gen:new/start/delete:");
+	n = fprintf(out_file, "libcw/gen:new/start/delete:");
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 
 
 	/* new() + stop() + delete() (skipping start() on purpose). */
-	fprintf(stderr, "libcw:gen:new/stop/delete: generator test 3/4\n");
+	fprintf(stderr, "libcw/gen:new/stop/delete: generator test 3/4\n");
 	for (int i = 0; i < max; i++) {
 		cw_gen_t * gen = cw_gen_new(CW_AUDIO_NULL, NULL);
 		failure = (gen == NULL);
 		if (failure) {
-			fprintf(out_file, "libcw:gen:new/stop/delete: failed to initialize generator (loop #%d)", i);
+			fprintf(out_file, "libcw/gen:new/stop/delete: failed to initialize generator (loop #%d)", i);
 			break;
 		}
 
 		failure = (CW_SUCCESS != cw_gen_stop(gen));
 		if (failure) {
-			fprintf(out_file, "libcw:gen:new/stop/delete: failed to stop generator (loop #%d)", i);
+			fprintf(out_file, "libcw/gen:new/stop/delete: failed to stop generator (loop #%d)", i);
 			break;
 		}
 
 		cw_gen_delete(&gen);
 		failure = (gen != NULL);
 		if (failure) {
-			fprintf(out_file, "libcw:gen:new/stop/delete: delete() didn't set the pointer to NULL (loop #%d)", i);
+			fprintf(out_file, "libcw/gen:new/stop/delete: delete() didn't set the pointer to NULL (loop #%d)", i);
 			break;
 		}
 	}
 
 	failure ? stats->failures++ : stats->successes++;
-	n = fprintf(out_file, "libcw:gen:new/stop/delete:");
+	n = fprintf(out_file, "libcw/gen:new/stop/delete:");
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
@@ -3043,12 +3032,12 @@ unsigned int test_cw_gen_new_delete(__attribute__((unused)) cw_gen_t * unused, c
 
 	/* new() + start() + stop() + delete() */
 	for (int i = 0; i < max; i++) {
-		fprintf(stderr, "libcw:gen:new/start/stop/delete: generator test 4/4, loop #%d/%d\n", i, max);
+		fprintf(stderr, "libcw/gen:new/start/stop/delete: generator test 4/4, loop #%d/%d\n", i, max);
 
 		cw_gen_t * gen = cw_gen_new(CW_AUDIO_NULL, NULL);
 		failure = (gen == NULL);
 		if (failure) {
-			fprintf(out_file, "libcw:gen:new/start/stop/delete: failed to initialize generator (loop #%d)", i);
+			fprintf(out_file, "libcw/gen:new/start/stop/delete: failed to initialize generator (loop #%d)", i);
 			break;
 		}
 
@@ -3057,13 +3046,13 @@ unsigned int test_cw_gen_new_delete(__attribute__((unused)) cw_gen_t * unused, c
 		for (int j = 0; j < sub_max; j++) {
 			failure = (CW_SUCCESS != cw_gen_start(gen));
 			if (failure) {
-				fprintf(out_file, "libcw:gen:new/start/stop/delete: failed to start generator (loop #%d-%d)", i, j);
+				fprintf(out_file, "libcw/gen:new/start/stop/delete: failed to start generator (loop #%d-%d)", i, j);
 				break;
 			}
 
 			failure = (CW_SUCCESS != cw_gen_stop(gen));
 			if (failure) {
-				fprintf(out_file, "libcw:gen:new/start/stop/delete: failed to stop generator (loop #%d-%d)", i, j);
+				fprintf(out_file, "libcw/gen:new/start/stop/delete: failed to stop generator (loop #%d-%d)", i, j);
 				break;
 			}
 		}
@@ -3074,13 +3063,13 @@ unsigned int test_cw_gen_new_delete(__attribute__((unused)) cw_gen_t * unused, c
 		cw_gen_delete(&gen);
 		failure = (gen != NULL);
 		if (failure) {
-			fprintf(out_file, "libcw:gen:new/start/stop/delete: delete() didn't set the pointer to NULL (loop #%d)", i);
+			fprintf(out_file, "libcw/gen:new/start/stop/delete: delete() didn't set the pointer to NULL (loop #%d)", i);
 			break;
 		}
 	}
 
 	failure ? stats->failures++ : stats->successes++;
-	n = fprintf(out_file, "libcw:gen:new/start/stop/delete:");
+	n = fprintf(out_file, "libcw/gen:new/start/stop/delete:");
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
@@ -3099,16 +3088,16 @@ unsigned int test_cw_gen_set_tone_slope(__attribute__((unused)) cw_gen_t * unuse
 	/* Test 0: test property of newly created generator. */
 	{
 		cw_gen_t * gen = cw_gen_new(audio_system, NULL);
-		cw_assert (gen, "libcw:gen:set slope: failed to initialize generator in test 0");
+		cw_assert (gen, "libcw/gen:set slope: failed to initialize generator in test 0");
 
 		failure = (gen->tone_slope.shape != CW_TONE_SLOPE_SHAPE_RAISED_COSINE);
 		failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:gen:set slope: initial shape (%d):", gen->tone_slope.shape);
+		n = fprintf(out_file, "libcw/gen:set slope: initial shape (%d):", gen->tone_slope.shape);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 		failure = (gen->tone_slope.len != CW_AUDIO_SLOPE_LEN);
 		failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:gen:set slope: initial length (%d):", gen->tone_slope.len);
+		n = fprintf(out_file, "libcw/gen:set slope: initial length (%d):", gen->tone_slope.len);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 		cw_gen_delete(&gen);
@@ -3125,11 +3114,11 @@ unsigned int test_cw_gen_set_tone_slope(__attribute__((unused)) cw_gen_t * unuse
 	   have rectangular slopes that have non-zero length." */
 	{
 		cw_gen_t * gen = cw_gen_new(audio_system, NULL);
-		cw_assert (gen, "libcw:gen:set slope: failed to initialize generator in test A");
+		cw_assert (gen, "libcw/gen:set slope: failed to initialize generator in test A");
 
 		failure = (CW_SUCCESS == cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_RECTANGULAR, 10));
 		failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:gen:set slope: conflicting arguments:");
+		n = fprintf(out_file, "libcw/gen:set slope: conflicting arguments:");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 		cw_gen_delete(&gen);
@@ -3144,24 +3133,24 @@ unsigned int test_cw_gen_set_tone_slope(__attribute__((unused)) cw_gen_t * unuse
 	   any of the related two generator's parameters." */
 	{
 		cw_gen_t * gen = cw_gen_new(audio_system, NULL);
-		cw_assert (gen, "libcw:gen:set slope: failed to initialize generator in test B");
+		cw_assert (gen, "libcw/gen:set slope: failed to initialize generator in test B");
 
 		int shape_before = gen->tone_slope.shape;
 		int len_before = gen->tone_slope.len;
 
 		failure = (CW_SUCCESS != cw_gen_set_tone_slope(gen, -1, -1));
 		failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:gen:set slope: set tone slope -1 -1:");
+		n = fprintf(out_file, "libcw/gen:set slope: set tone slope -1 -1:");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 		failure = (gen->tone_slope.shape != shape_before);
 		failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:gen:set slope -1 -1: shape (%d / %d)", shape_before, gen->tone_slope.shape);
+		n = fprintf(out_file, "libcw/gen:set slope -1 -1: shape (%d / %d)", shape_before, gen->tone_slope.shape);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 		failure = (gen->tone_slope.len != len_before);
 		failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:gen:set slope -1 -1: len (%d / %d):", len_before, gen->tone_slope.len);
+		n = fprintf(out_file, "libcw/gen:set slope -1 -1: len (%d / %d):", len_before, gen->tone_slope.len);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 		cw_gen_delete(&gen);
@@ -3177,7 +3166,7 @@ unsigned int test_cw_gen_set_tone_slope(__attribute__((unused)) cw_gen_t * unuse
 	   '-1'." */
 	{
 		cw_gen_t * gen = cw_gen_new(audio_system, NULL);
-		cw_assert (gen, "libcw:gen:set slope: failed to initialize generator in test C1");
+		cw_assert (gen, "libcw/gen:set slope: failed to initialize generator in test C1");
 
 
 		/* At the beginning of test these values are
@@ -3191,12 +3180,12 @@ unsigned int test_cw_gen_set_tone_slope(__attribute__((unused)) cw_gen_t * unuse
 		   of its parameters (yes, that's test zero again). */
 		failure = (gen->tone_slope.shape != expected_shape);
 		failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:gen:set slope: N -1: initial shape (%d / %d):", gen->tone_slope.shape, expected_shape);
+		n = fprintf(out_file, "libcw/gen:set slope: N -1: initial shape (%d / %d):", gen->tone_slope.shape, expected_shape);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 		failure = (gen->tone_slope.len != expected_len);
 		failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:gen:set slope: N -1: initial length (%d / %d):", gen->tone_slope.len, expected_len);
+		n = fprintf(out_file, "libcw/gen:set slope: N -1: initial length (%d / %d):", gen->tone_slope.len, expected_len);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
@@ -3204,18 +3193,18 @@ unsigned int test_cw_gen_set_tone_slope(__attribute__((unused)) cw_gen_t * unuse
 		expected_shape = CW_TONE_SLOPE_SHAPE_LINEAR;
 		failure = (CW_SUCCESS != cw_gen_set_tone_slope(gen, expected_shape, -1));
 		failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:gen:set slope: N -1: set:");
+		n = fprintf(out_file, "libcw/gen:set slope: N -1: set:");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 		/* At this point only slope shape should be updated. */
 		failure = (gen->tone_slope.shape != expected_shape);
 		failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:gen:set slope: N -1: get:");
+		n = fprintf(out_file, "libcw/gen:set slope: N -1: get:");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 		failure = (gen->tone_slope.len != expected_len);
 		failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:gen:set slope: N -1: preserved length:");
+		n = fprintf(out_file, "libcw/gen:set slope: N -1: preserved length:");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
@@ -3224,19 +3213,19 @@ unsigned int test_cw_gen_set_tone_slope(__attribute__((unused)) cw_gen_t * unuse
 		expected_len = 30;
 		failure = (CW_SUCCESS != cw_gen_set_tone_slope(gen, -1, expected_len));
 		failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:gen:set slope: -1 N: set:");
+		n = fprintf(out_file, "libcw/gen:set slope: -1 N: set:");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 		/* At this point only slope length should be updated
 		   (compared to previous function call). */
 		failure = (gen->tone_slope.len != expected_len);
 		failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:gen:set slope: -1 N: get (%d / %d):", gen->tone_slope.len, expected_len);
+		n = fprintf(out_file, "libcw/gen:set slope: -1 N: get (%d / %d):", gen->tone_slope.len, expected_len);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 		failure = (gen->tone_slope.shape != expected_shape);
 		failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:gen:set slope: -1 N: preserved shape:");
+		n = fprintf(out_file, "libcw/gen:set slope: -1 N: preserved shape:");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
@@ -3252,7 +3241,7 @@ unsigned int test_cw_gen_set_tone_slope(__attribute__((unused)) cw_gen_t * unuse
 	   value of \p slope_len is '-1'." */
 	{
 		cw_gen_t * gen = cw_gen_new(audio_system, NULL);
-		cw_assert (gen, "libcw:gen:set slope: failed to initialize generator in test C2");
+		cw_assert (gen, "libcw/gen:set slope: failed to initialize generator in test C2");
 
 
 		/* At the beginning of test these values are
@@ -3266,12 +3255,12 @@ unsigned int test_cw_gen_set_tone_slope(__attribute__((unused)) cw_gen_t * unuse
 		   of its parameters (yes, that's test zero again). */
 		failure = (gen->tone_slope.shape != expected_shape);
 		failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:gen:set slope: initial shape (%d / %d):", gen->tone_slope.shape, expected_shape);
+		n = fprintf(out_file, "libcw/gen:set slope: initial shape (%d / %d):", gen->tone_slope.shape, expected_shape);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 		failure = (gen->tone_slope.len != expected_len);
 		failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:gen:set slope: initial length (%d / %d):", gen->tone_slope.len, expected_len);
+		n = fprintf(out_file, "libcw/gen:set slope: initial length (%d / %d):", gen->tone_slope.len, expected_len);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
@@ -3281,7 +3270,7 @@ unsigned int test_cw_gen_set_tone_slope(__attribute__((unused)) cw_gen_t * unuse
 		expected_len = 0; /* Even though we won't pass this to function, this is what we expect to get after this call. */
 		failure = (CW_SUCCESS != cw_gen_set_tone_slope(gen, expected_shape, -1));
 		failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:gen:set slope: set rectangular:");
+		n = fprintf(out_file, "libcw/gen:set slope: set rectangular:");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
@@ -3290,13 +3279,13 @@ unsigned int test_cw_gen_set_tone_slope(__attribute__((unused)) cw_gen_t * unuse
 		   requested rectangular slope shape). */
 		failure = (gen->tone_slope.shape != expected_shape);
 		failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:gen:set slope: set rectangular: shape (%d/ %d):", gen->tone_slope.shape, expected_shape);
+		n = fprintf(out_file, "libcw/gen:set slope: set rectangular: shape (%d/ %d):", gen->tone_slope.shape, expected_shape);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 		failure = (gen->tone_slope.len != expected_len);
 		failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:gen:set slope: set rectangular: length (%d / %d):", gen->tone_slope.len, expected_len);
+		n = fprintf(out_file, "libcw/gen:set slope: set rectangular: length (%d / %d):", gen->tone_slope.len, expected_len);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
@@ -3312,90 +3301,90 @@ unsigned int test_cw_gen_set_tone_slope(__attribute__((unused)) cw_gen_t * unuse
 	   non-rectangular, but just unusually short." */
 	{
 		cw_gen_t * gen = cw_gen_new(audio_system, NULL);
-		cw_assert (gen, "libcw:gen:set slope: failed to initialize generator in test D");
+		cw_assert (gen, "libcw/gen:set slope: failed to initialize generator in test D");
 
 
 		failure = (CW_SUCCESS != cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_LINEAR, 0));
 		failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:gen:set slope: LINEAR 0: set:");
+		n = fprintf(out_file, "libcw/gen:set slope: LINEAR 0: set:");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 		failure = (gen->tone_slope.shape != CW_TONE_SLOPE_SHAPE_LINEAR);
 		failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:gen:set slope: LINEAR 0: get:");
+		n = fprintf(out_file, "libcw/gen:set slope: LINEAR 0: get:");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 		failure = (gen->tone_slope.len != 0);
 		failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:gen:set slope: LINEAR 0: length (%d):", gen->tone_slope.len);
+		n = fprintf(out_file, "libcw/gen:set slope: LINEAR 0: length (%d):", gen->tone_slope.len);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 
 		failure = (CW_SUCCESS != cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_RAISED_COSINE, 0));
 		failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:gen:set slope: RAISED_COSINE 0: set:");
+		n = fprintf(out_file, "libcw/gen:set slope: RAISED_COSINE 0: set:");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 		failure = (gen->tone_slope.shape != CW_TONE_SLOPE_SHAPE_RAISED_COSINE);
 		failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:gen:set slope: RAISED_COSINE 0: get:");
+		n = fprintf(out_file, "libcw/gen:set slope: RAISED_COSINE 0: get:");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 		failure = (gen->tone_slope.len != 0);
 		failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:gen:set slope: RAISED_COSINE 0: length (%d):", gen->tone_slope.len);
+		n = fprintf(out_file, "libcw/gen:set slope: RAISED_COSINE 0: length (%d):", gen->tone_slope.len);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 
 		failure = (CW_SUCCESS != cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_SINE, 0));
 		failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:gen:set slope: SINE 0: set:");
+		n = fprintf(out_file, "libcw/gen:set slope: SINE 0: set:");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 		failure = (gen->tone_slope.shape != CW_TONE_SLOPE_SHAPE_SINE);
 		failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:gen:set slope: SINE 0: get:");
+		n = fprintf(out_file, "libcw/gen:set slope: SINE 0: get:");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 		failure = (gen->tone_slope.len != 0);
 		failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:gen:set slope: SINE 0: length (%d):", gen->tone_slope.len);
+		n = fprintf(out_file, "libcw/gen:set slope: SINE 0: length (%d):", gen->tone_slope.len);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 
 		failure = (CW_SUCCESS != cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_RECTANGULAR, 0));
 		failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:gen:set slope: RECTANGULAR 0: set:");
+		n = fprintf(out_file, "libcw/gen:set slope: RECTANGULAR 0: set:");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 		failure = (gen->tone_slope.shape != CW_TONE_SLOPE_SHAPE_RECTANGULAR);
 		failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:gen:set slope: RECTANGULAR 0: get:");
+		n = fprintf(out_file, "libcw/gen:set slope: RECTANGULAR 0: get:");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 		failure = (gen->tone_slope.len != 0);
 		failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:gen:set slope: RECTANGULAR 0: length (%d):", gen->tone_slope.len);
+		n = fprintf(out_file, "libcw/gen:set slope: RECTANGULAR 0: length (%d):", gen->tone_slope.len);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 
 		failure = (CW_SUCCESS != cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_LINEAR, 0));
 		failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:gen:set slope: LINEAR 0: set:");
+		n = fprintf(out_file, "libcw/gen:set slope: LINEAR 0: set:");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 		failure = (gen->tone_slope.shape != CW_TONE_SLOPE_SHAPE_LINEAR);
 		failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:gen:set slope: LINEAR 0: get:");
+		n = fprintf(out_file, "libcw/gen:set slope: LINEAR 0: get:");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 		failure = (gen->tone_slope.len != 0);
 		failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:gen:set slope: LINEAR 0: length (%d):", gen->tone_slope.len);
+		n = fprintf(out_file, "libcw/gen:set slope: LINEAR 0: length (%d):", gen->tone_slope.len);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
@@ -3427,7 +3416,7 @@ unsigned int test_cw_gen_tone_slope_shape_enums(__attribute__((unused)) cw_gen_t
 		|| CW_TONE_SLOPE_SHAPE_RECTANGULAR < 0;
 
 	failure ? stats->failures++ : stats->successes++;
-	int n = fprintf(out_file, "libcw:gen:slope shape enums:");
+	int n = fprintf(out_file, "libcw/gen:slope shape enums:");
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 	return 0;
@@ -3476,7 +3465,7 @@ unsigned int test_cw_gen_forever_internal(cw_gen_t * gen, cw_test_stats_t * stat
 	bool failure = (rv1 != CW_SUCCESS || rv2 != CW_SUCCESS || rv3 != CW_SUCCESS);
 
 	failure ? stats->failures++ : stats->successes++;
-	int n = fprintf(out_file, "libcw:gen: forever tone:");
+	int n = fprintf(out_file, "libcw/gen: forever tone:");
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 	return 0;
@@ -3524,7 +3513,7 @@ unsigned int test_cw_gen_get_timing_parameters_internal(cw_gen_t * gen, cw_test_
 		|| (adjustment_space_len == initial);
 
 	failure ? stats->failures++ : stats->successes++;
-	int n = fprintf(out_file, "libcw:gen: get timing parameters:");
+	int n = fprintf(out_file, "libcw/gen: get timing parameters:");
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 	return 0;
@@ -3564,9 +3553,9 @@ unsigned int test_cw_gen_parameter_getters_setters(cw_gen_t * gen, cw_test_stats
 		   seconds sets a new value of parameter, and third
 		   reads back the value. */
 
-		void (* get_limits)(int *min, int *max);
-		int (* set_new_value)(cw_gen_t *gen, int new_value);
-		int (* get_value)(cw_gen_t *gen);
+		void (* get_limits)(int * min, int * max);
+		int (* set_new_value)(cw_gen_t * gen, int new_value);
+		int (* get_value)(cw_gen_t const * gen);
 
 		int min; /* Minimal acceptable value of parameter. */
 		int max; /* Maximal acceptable value of parameter. */
@@ -3594,7 +3583,7 @@ unsigned int test_cw_gen_parameter_getters_setters(cw_gen_t * gen, cw_test_stats
 		failure = (test_data[i].min <= -off_limits) || (test_data[i].max >= off_limits);
 
 		failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:gen: get %s limits:", test_data[i].name);
+		n = fprintf(out_file, "libcw/gen: get %s limits:", test_data[i].name);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
@@ -3605,7 +3594,7 @@ unsigned int test_cw_gen_parameter_getters_setters(cw_gen_t * gen, cw_test_stats
 		failure = (CW_SUCCESS == test_data[i].set_new_value(gen, value)) || (errno != EINVAL);
 
 		failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:gen: set %s below limit:", test_data[i].name);
+		n = fprintf(out_file, "libcw/gen: set %s below limit:", test_data[i].name);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
@@ -3616,7 +3605,7 @@ unsigned int test_cw_gen_parameter_getters_setters(cw_gen_t * gen, cw_test_stats
 		failure = (CW_SUCCESS == test_data[i].set_new_value(gen, value)) || (errno != EINVAL);
 
 		failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:gen: set %s above limit:", test_data[i].name);
+		n = fprintf(out_file, "libcw/gen: set %s above limit:", test_data[i].name);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
@@ -3636,7 +3625,7 @@ unsigned int test_cw_gen_parameter_getters_setters(cw_gen_t * gen, cw_test_stats
 		}
 
 		failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:gen: set %s within limits:", test_data[i].name);
+		n = fprintf(out_file, "libcw/gen: set %s within limits:", test_data[i].name);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -3668,7 +3657,7 @@ unsigned int test_cw_gen_volume_functions(cw_gen_t * gen, cw_test_stats_t * stat
 			|| cw_max != CW_VOLUME_MAX;
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = fprintf(out_file, "libcw:gen: cw_get_volume_limits(): %d, %d", cw_min, cw_max);
+		int n = fprintf(out_file, "libcw/gen: cw_get_volume_limits(): %d, %d", cw_min, cw_max);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -3703,11 +3692,11 @@ unsigned int test_cw_gen_volume_functions(cw_gen_t * gen, cw_test_stats_t * stat
 		}
 
 		set_failure ? stats->failures++ : stats->successes++;
-		int n = fprintf(out_file, "libcw:gen: cw_gen_set_volume() (down):");
+		int n = fprintf(out_file, "libcw/gen: cw_gen_set_volume() (down):");
 		CW_TEST_PRINT_TEST_RESULT (set_failure, n);
 
 		get_failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:gen: cw_gen_get_volume() (down):");
+		n = fprintf(out_file, "libcw/gen: cw_gen_get_volume() (down):");
 		CW_TEST_PRINT_TEST_RESULT (get_failure, n);
 	}
 
@@ -3743,11 +3732,11 @@ unsigned int test_cw_gen_volume_functions(cw_gen_t * gen, cw_test_stats_t * stat
 		}
 
 		set_failure ? stats->failures++ : stats->successes++;
-		int n = fprintf(out_file, "libcw:gen: cw_gen_set_volume() (up):");
+		int n = fprintf(out_file, "libcw/gen: cw_gen_set_volume() (up):");
 		CW_TEST_PRINT_TEST_RESULT (set_failure, n);
 
 		get_failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:gen: cw_gen_get_volume() (up):");
+		n = fprintf(out_file, "libcw/gen: cw_gen_get_volume() (up):");
 		CW_TEST_PRINT_TEST_RESULT (get_failure, n);
 	}
 
@@ -3783,7 +3772,7 @@ unsigned int test_cw_gen_enqueue_primitives(cw_gen_t * gen, cw_test_stats_t * st
 		cw_gen_wait_for_tone(gen);
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw:gen: cw_gen_enqueue_mark_internal(CW_DOT_REPRESENTATION):");
+		int n = printf("libcw/gen: cw_gen_enqueue_mark_internal(CW_DOT_REPRESENTATION):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -3801,7 +3790,7 @@ unsigned int test_cw_gen_enqueue_primitives(cw_gen_t * gen, cw_test_stats_t * st
 		cw_gen_wait_for_tone(gen);
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw:gen: cw_gen_enqueue_mark_internal(CW_DASH_REPRESENTATION):");
+		int n = printf("libcw/gen: cw_gen_enqueue_mark_internal(CW_DASH_REPRESENTATION):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -3818,7 +3807,7 @@ unsigned int test_cw_gen_enqueue_primitives(cw_gen_t * gen, cw_test_stats_t * st
 		cw_gen_wait_for_tone(gen);
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw:gen: cw_gen_enqueue_eoc_space_internal():");
+		int n = printf("libcw/gen: cw_gen_enqueue_eoc_space_internal():");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -3836,7 +3825,7 @@ unsigned int test_cw_gen_enqueue_primitives(cw_gen_t * gen, cw_test_stats_t * st
 		cw_gen_wait_for_tone(gen);
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw:gen: cw_gen_enqueue_eow_space_internal():");
+		int n = printf("libcw/gen: cw_gen_enqueue_eow_space_internal():");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -3866,7 +3855,7 @@ unsigned int test_cw_gen_enqueue_representations(cw_gen_t * gen, cw_test_stats_t
 			|| (CW_SUCCESS != cw_gen_enqueue_representation_partial_internal(gen, "...-"));
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = fprintf(out_file, "libcw:gen: cw_gen_enqueue_representation_partial_internal(<valid>):");
+		int n = fprintf(out_file, "libcw/gen: cw_gen_enqueue_representation_partial_internal(<valid>):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -3879,7 +3868,7 @@ unsigned int test_cw_gen_enqueue_representations(cw_gen_t * gen, cw_test_stats_t
 			|| (CW_SUCCESS == cw_gen_enqueue_representation_partial_internal(gen, "S-_-"));
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = fprintf(out_file, "libcw:gen: cw_gen_enqueue_representation_partial_internal(<invalid>):");
+		int n = fprintf(out_file, "libcw/gen: cw_gen_enqueue_representation_partial_internal(<invalid>):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -3909,8 +3898,8 @@ unsigned int test_cw_gen_enqueue_character_and_string(cw_gen_t * gen, cw_test_st
 
 		/* Send all the characters from the charlist individually. */
 		cw_list_characters(charlist);
-		fprintf(out_file, "libcw:gen: cw_enqueue_character(<valid>):\n"
-			"libcw:gen:     ");
+		fprintf(out_file, "libcw/gen: cw_enqueue_character(<valid>):\n"
+			"libcw/gen:     ");
 		for (int i = 0; charlist[i] != '\0'; i++) {
 			fprintf(out_file, "%c", charlist[i]);
 			fflush(out_file);
@@ -3924,7 +3913,7 @@ unsigned int test_cw_gen_enqueue_character_and_string(cw_gen_t * gen, cw_test_st
 		fprintf(out_file, "\n");
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = fprintf(out_file,"libcw:gen: cw_gen_enqueue_character(<valid>):");
+		int n = fprintf(out_file,"libcw/gen: cw_gen_enqueue_character(<valid>):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -3935,7 +3924,7 @@ unsigned int test_cw_gen_enqueue_character_and_string(cw_gen_t * gen, cw_test_st
 		bool failure = CW_SUCCESS == cw_gen_enqueue_character(gen, 0);
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = fprintf(out_file, "libcw:gen: cw_gen_enqueue_character(<invalid>):");
+		int n = fprintf(out_file, "libcw/gen: cw_gen_enqueue_character(<invalid>):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -3947,12 +3936,12 @@ unsigned int test_cw_gen_enqueue_character_and_string(cw_gen_t * gen, cw_test_st
 		cw_list_characters(charlist);
 
 		/* Send the complete charlist as a single string. */
-		fprintf(out_file, "libcw:gen: cw_gen_enqueue_string(<valid>):\n"
-			"libcw:gen:     %s\n", charlist);
+		fprintf(out_file, "libcw/gen: cw_gen_enqueue_string(<valid>):\n"
+			"libcw/gen:     %s\n", charlist);
 		bool failure = CW_SUCCESS != cw_gen_enqueue_string(gen, charlist);
 
 		while (cw_gen_get_queue_length(gen) > 0) {
-			fprintf(out_file, "libcw:gen: tone queue length %-6zu\r", cw_gen_get_queue_length(gen));
+			fprintf(out_file, "libcw/gen: tone queue length %-6zu\r", cw_gen_get_queue_length(gen));
 			fflush(out_file);
 			cw_gen_wait_for_tone(gen);
 		}
@@ -3960,7 +3949,7 @@ unsigned int test_cw_gen_enqueue_character_and_string(cw_gen_t * gen, cw_test_st
 		cw_gen_wait_for_queue_level(gen, 0);
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = fprintf(out_file, "libcw:gen: cw_gen_enqueue_string(<valid>):");
+		int n = fprintf(out_file, "libcw/gen: cw_gen_enqueue_string(<valid>):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -3970,7 +3959,7 @@ unsigned int test_cw_gen_enqueue_character_and_string(cw_gen_t * gen, cw_test_st
 		bool failure = CW_SUCCESS == cw_gen_enqueue_string(gen, "%INVALID%");
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = fprintf(out_file, "libcw:gen: cw_gen_enqueue_string(<invalid>):");
+		int n = fprintf(out_file, "libcw/gen: cw_gen_enqueue_string(<invalid>):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 

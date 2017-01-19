@@ -147,18 +147,18 @@ typedef void (* cw_queue_low_callback_t)(void*);
 
 
 /* generator module: basic functions. */
-cw_gen_t *cw_gen_new(int audio_system, const char *device);
-void      cw_gen_delete(cw_gen_t **gen);
-int       cw_gen_start(cw_gen_t *gen);
-int       cw_gen_stop(cw_gen_t *gen);
+cw_gen_t * cw_gen_new(int audio_system, char const * device);
+void       cw_gen_delete(cw_gen_t ** gen);
+int        cw_gen_start(cw_gen_t * gen);
+int        cw_gen_stop(cw_gen_t * gen);
 
 
 /* generator module: getters of generator's basic parameters. */
-int cw_gen_get_speed(cw_gen_t *gen);
-int cw_gen_get_frequency(cw_gen_t *gen);
-int cw_gen_get_volume(cw_gen_t *gen);
-int cw_gen_get_gap(cw_gen_t *gen);
-int cw_gen_get_weighting(cw_gen_t *gen);
+int cw_gen_get_speed(cw_gen_t const * gen);
+int cw_gen_get_frequency(cw_gen_t const * gen);
+int cw_gen_get_volume(cw_gen_t const * gen);
+int cw_gen_get_gap(cw_gen_t const * gen);
+int cw_gen_get_weighting(cw_gen_t const * gen);
 
 
 /* generator module: setters of generator's basic parameters. */
@@ -170,22 +170,22 @@ int cw_gen_set_weighting(cw_gen_t *gen, int new_value);
 
 
 /* generator module: queue functions. */
-int    cw_gen_enqueue_character(cw_gen_t *gen, char c);
-int    cw_gen_enqueue_character_parital(cw_gen_t *gen, char c);
-int    cw_gen_enqueue_string(cw_gen_t *gen, const char *string);
-int    cw_gen_wait_for_queue_level(cw_gen_t *gen, size_t level);
-int    cw_gen_wait_for_tone(cw_gen_t *gen);
-void   cw_gen_flush_queue(cw_gen_t *gen);
-size_t cw_gen_get_queue_length(cw_gen_t *gen);
-int    cw_gen_register_low_level_callback(cw_gen_t *gen, cw_queue_low_callback_t callback_func, void *callback_arg, size_t level);
+int    cw_gen_enqueue_character(cw_gen_t * gen, char c);
+int    cw_gen_enqueue_character_parital(cw_gen_t * gen, char c);
+int    cw_gen_enqueue_string(cw_gen_t * gen, char const * string);
+int    cw_gen_wait_for_queue_level(cw_gen_t * gen, size_t level);
+int    cw_gen_wait_for_tone(cw_gen_t * gen);
+void   cw_gen_flush_queue(cw_gen_t * gen);
+size_t cw_gen_get_queue_length(cw_gen_t const * gen);
+int    cw_gen_register_low_level_callback(cw_gen_t * gen, cw_queue_low_callback_t callback_func, void * callback_arg, size_t level);
 
 
 /* generator module: misc functions. */
-int         cw_gen_set_tone_slope(cw_gen_t *gen, int slope_shape, int slope_usecs);
-const char *cw_gen_get_console_device(cw_gen_t *gen);
-const char *cw_gen_get_soundcard_device(cw_gen_t *gen);
-char       *cw_gen_get_audio_system_label(cw_gen_t *gen);
-bool        cw_gen_is_queue_full(cw_gen_t *gen);
+int          cw_gen_set_tone_slope(cw_gen_t * gen, int slope_shape, int slope_usecs);
+char const * cw_gen_get_console_device(cw_gen_t const * gen);
+char const * cw_gen_get_soundcard_device(cw_gen_t const * gen);
+int          cw_gen_get_audio_system(cw_gen_t const * gen);
+bool         cw_gen_is_queue_full(cw_gen_t const * gen);
 
 
 /* receiver module: receiver's main functions. */

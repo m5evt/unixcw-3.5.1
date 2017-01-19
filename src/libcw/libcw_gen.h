@@ -378,25 +378,25 @@ struct cw_gen_struct {
 
 
 /* Generator's enqueue primitives. */
-int cw_gen_enqueue_mark_internal(cw_gen_t *gen, char mark);
-int cw_gen_enqueue_eoc_space_internal(cw_gen_t *gen);
-int cw_gen_enqueue_eow_space_internal(cw_gen_t *gen);
+int cw_gen_enqueue_mark_internal(cw_gen_t * gen, char mark);
+int cw_gen_enqueue_eoc_space_internal(cw_gen_t * gen);
+int cw_gen_enqueue_eow_space_internal(cw_gen_t * gen);
 
 /* These are also enqueue primitives, but are intended to be used on
    hardware key events. */
-int cw_gen_enqueue_begin_mark_internal(cw_gen_t *gen);
-int cw_gen_enqueue_begin_space_internal(cw_gen_t *gen);
-int cw_gen_enqueue_pure_symbol_internal(cw_gen_t *gen, char symbol);
+int cw_gen_enqueue_begin_mark_internal(cw_gen_t * gen);
+int cw_gen_enqueue_begin_space_internal(cw_gen_t * gen);
+int cw_gen_enqueue_pure_symbol_internal(cw_gen_t * gen, char symbol);
 
 
 
 
 
-int  cw_gen_set_audio_device_internal(cw_gen_t *gen, const char *device);
-int  cw_gen_silence_internal(cw_gen_t *gen);
-void cw_gen_reset_parameters_internal(cw_gen_t *gen);
-void cw_gen_sync_parameters_internal(cw_gen_t *gen);
-void cw_gen_get_timing_parameters_internal(cw_gen_t *gen, int *dot_len, int *dash_len, int *eom_space_len, int *eoc_space_len, int *eow_space_len, int *additional_space_len, int *adjustment_space_len);
+int  cw_gen_set_audio_device_internal(cw_gen_t * gen, char const * device);
+int  cw_gen_silence_internal(cw_gen_t * gen);
+void cw_gen_reset_parameters_internal(cw_gen_t * gen);
+void cw_gen_sync_parameters_internal(cw_gen_t * gen);
+void cw_gen_get_timing_parameters_internal(cw_gen_t * gen, int * dot_len, int * dash_len, int * eom_space_len, int * eoc_space_len, int * eow_space_len, int * additional_space_len, int * adjustment_space_len);
 
 
 
