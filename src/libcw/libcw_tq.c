@@ -816,15 +816,13 @@ int cw_tq_wait_for_tone_internal(cw_tone_queue_t * tq)
    level.  If at the time of function call the level of queue is
    already equal or lower than \p level, function returns immediately.
 
-   The function always returns CW_SUCCESS.
-
    testedin::test_cw_tq_wait_for_level_internal()
    testedin::test_cw_tq_operations_2()
 
    \param tq - tone queue
    \param level - low level in queue, at which to return
 
-   \return CW_SUCCESS on success
+   \return CW_SUCCESS
 */
 int cw_tq_wait_for_level_internal(cw_tone_queue_t * tq, size_t level)
 {

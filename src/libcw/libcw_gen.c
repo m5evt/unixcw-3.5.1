@@ -182,25 +182,6 @@ static void  cw_gen_write_calculate_tone_internal(cw_gen_t *gen, cw_tone_t *tone
 
 
 /**
-   \brief Get id of audio system used by given generator (one of enum cw_audio_system values)
-
-   You can use cw_get_audio_system_label() to get string corresponding
-   to value returned by this function.
-
-   \param gen - generator from which to get audio system
-
-   \return audio system's id
-*/
-int cw_gen_get_audio_system(cw_gen_t const * gen)
-{
-	return gen->audio_system;
-}
-
-
-
-
-
-/**
    \brief Start a generator
 
    Start given \p generator. As soon as there are tones enqueued in generator, the generator will start playing them.
@@ -2317,7 +2298,7 @@ int cw_gen_enqueue_valid_character_partial_internal(cw_gen_t * gen, char c)
 
 
 /**
-   \brief Look up and enqueue a given ASCII character as Morse code
+   \brief Enqueue a given ASCII character as Morse code
 
    After enqueueing last Mark (Dot or Dash) comprising a character, an
    inter-mark space is enqueued.  Inter-character space is enqueued
@@ -2327,7 +2308,9 @@ int cw_gen_enqueue_valid_character_partial_internal(cw_gen_t * gen, char c)
    expects the character \p c to be valid (\p c should be validated by
    caller before passing it to the function).
 
-   Function sets errno to ENOENT if \p character is not a recognized character.
+   \errno ENOENT - character \p c is not a recognized character.
+
+   \reviewed on 2017-01-20
 
    \param gen - generator to be used to enqueue character
    \param c - character to enqueue
@@ -2358,25 +2341,25 @@ int cw_gen_enqueue_valid_character_internal(cw_gen_t * gen, char c)
    Inter-mark + inter-character delay is appended at the end of
    enqueued Marks.
 
-   On success the function returns CW_SUCCESS.
-   On failure the function returns CW_FAILURE and sets errno.
+   \errno ENOENT - the given character \p c is not a valid Morse
+   character.
 
-   errno is set to ENOENT if the given character \p c is not a valid
-   Morse character.
-   errno is set to EBUSY if current audio sink or keying system is
-   busy.
-   errno is set to EAGAIN if the generator's tone queue is full, or if
-   there is insufficient space to queue the tones for the character.
+   \errno EBUSY - generator's audio sink or keying system is busy.
+
+   \errno EAGAIN - generator's tone queue is full, or there is
+   insufficient space to queue the tones for the character.
 
    This routine returns as soon as the character and trailing spaces
-   have been successfully queued for sending (that is, almost
-   immediately).  The actual sending happens in background processing.
-   See cw_gen_wait_for_tone_internal() and cw_gen_wait_for_queue() for
-   ways to check the progress of sending.
-
-   TODO: add cw_gen_wait_for_tone_internal().
+   (inter-mark and inter-character spaces) have been successfully
+   queued for sending/playing by the generator, without waiting for
+   generator to even start playing the character.  The actual sending
+   happens in background processing. See cw_gen_wait_for_tone() and
+   cw_gen_wait_for_queue_level() for ways to check the progress of
+   sending.
 
    testedin::test_cw_gen_enqueue_character_and_string()
+
+   \reviewed on 2017-01-20
 
    \param gen - generator to enqueue the character to
    \param c - character to enqueue in generator
@@ -2404,27 +2387,28 @@ int cw_gen_enqueue_character(cw_gen_t * gen, char c)
 
 
 /**
-   \brief Look up and enqueue a given ASCII character as Morse code
+   \brief Enqueue a given ASCII character as Morse code
 
-   "partial" means that the inter-character space is not appended at
+   "pure" means that the inter-character space is not appended at
    the end of Marks and Spaces enqueued in generator (but the last
    inter-mark space is). This enables the formation of combination
    characters by client code.
 
-   On success the function returns CW_SUCCESS.
-   On failure the function returns CW_FAILURE and sets errno.
+   This routine returns as soon as the character has been successfully
+   queued for sending/playing by the generator, without waiting for
+   generator to even start playing the character. The actual sending
+   happens in background processing.  See cw_gen_wait_for_tone() and
+   cw_gen_wait_for_queue() for ways to check the progress of sending.
 
-   errno is set to ENOENT if the given character \p c is not a valid
-   Morse character.
-   errno is set to EBUSY if the audio sink or keying system is busy.
-   errno is set to EAGAIN if the tone queue is full, or if there is
+   \reviewed on 2017-01-20
+
+   \errno ENOENT - given character \p c is not a valid Morse
+   character.
+
+   \errno EBUSY - generator's audio sink or keying system is busy.
+
+   \errno EAGAIN - generator's tone queue is full, or there is
    insufficient space to queue the tones for the character.
-
-   This routine returns as soon as the character and trailing spaces
-   have been successfully queued for sending (that is, almost
-   immediately).  The actual sending happens in background processing.
-   See cw_gen_wait_for_tone_internal() and cw_gen_wait_for_queue() for
-   ways to check the progress of sending.
 
    \param gen - generator to use
    \param c - character to enqueue
@@ -2432,7 +2416,7 @@ int cw_gen_enqueue_character(cw_gen_t * gen, char c)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_gen_enqueue_character_parital(cw_gen_t * gen, char c)
+int cw_gen_enqueue_character_pure(cw_gen_t * gen, char c)
 {
 	if (!cw_character_is_valid(c)) {
 		errno = ENOENT;
@@ -2443,7 +2427,7 @@ int cw_gen_enqueue_character_parital(cw_gen_t * gen, char c)
 		return CW_FAILURE;
 	}
 
-	/* _partial(): don't enqueue eoc space. */
+	/* _pure(): don't enqueue eoc space. */
 
 	return CW_SUCCESS;
 }
@@ -2453,29 +2437,33 @@ int cw_gen_enqueue_character_parital(cw_gen_t * gen, char c)
 
 
 /**
-   \brief Enqueue a given ASCII string in Morse code
-
-   errno is set to ENOENT if any character in the string is not a
-   valid Morse character.
-
-   errno is set to EBUSY if audio sink or keying system is busy.
-
-   errno is set to EAGAIN if the tone queue is full or if the tone
-   queue runs out of space part way through queueing the string.
-   However, an indeterminate number of the characters from the string
-   will have already been queued.
+   \brief Enqueue a given ASCII string in generator, to be played with Morse code.
 
    For safety, clients can ensure the tone queue is empty before
    queueing a string, or use cw_gen_enqueue_character() if they
    need finer control.
 
-   This routine returns as soon as the character and trailing spaces
-   have been successfully queued for sending (that is, almost
-   immediately).  The actual sending happens in background processing.
-   See cw_gen_wait_for_tone_internal() and cw_gen_wait_for_queue() for
-   ways to check the progress of sending.
+   This routine returns as soon as the string has been successfully
+   queued for sending/playing by the generator, without waiting for
+   generator to even start playing the string. The actual
+   playing/sending happens in background. See cw_gen_wait_for_tone()
+   and cw_gen_wait_for_queue() for ways to check the progress of
+   sending.
 
    testedin::test_cw_gen_enqueue_character_and_string()
+
+   \errno ENOENT - \p string argument is invalid (one or more
+   characters in the string is not a valid Morse character). No tones
+   from such string are going to be enqueued.
+
+   \errno EBUSY  - generator's audio sink or keying system is busy
+
+   \errno EAGAIN - generator's tone queue is full or the tone queue
+   is likely to run out of space part way through queueing the string.
+   However, an indeterminate number of the characters from the string
+   will have already been queued.
+
+   \reviewed on 2017-01-20
 
    \param gen - generator to use
    \param string - string to enqueue
@@ -2508,9 +2496,13 @@ int cw_gen_enqueue_string(cw_gen_t * gen, char const * string)
 
 
 /**
-  \brief Reset generator's essential parameters to their initial values
+   \brief Reset generator's essential parameters to their initial values
 
-  \param gen
+   You need to call cw_gen_sync_parameters_internal() after call to this function.
+
+   \reviewed on 2017-01-20
+
+   \param gen
 */
 void cw_gen_reset_parameters_internal(cw_gen_t * gen)
 {
@@ -2617,6 +2609,8 @@ void cw_gen_sync_parameters_internal(cw_gen_t * gen)
    The function is called in very specific context, see cw_key module
    for details.
 
+   \reviewed on 2017-01-20
+
    \param gen - generator
 
    \return CW_SUCCESS on success
@@ -2625,26 +2619,37 @@ void cw_gen_sync_parameters_internal(cw_gen_t * gen)
 int cw_gen_enqueue_begin_mark_internal(cw_gen_t * gen)
 {
 	/* In case of straight key we don't know at all how long the
-	   tone should be (we don't know for how long the key will be
-	   closed).
+	   tone should be (we don't know for how long the straight key
+	   will be closed).
 
 	   Let's enqueue a beginning of mark (rising slope) +
 	   "forever" (constant) tone. The constant tone will be generated
-	   until function receives CW_KEY_STATE_OPEN key state. */
+	   until key goes into CW_KEY_STATE_OPEN state. */
 
 	cw_tone_t tone;
 	CW_TONE_INIT(&tone, gen->frequency, gen->tone_slope.len, CW_SLOPE_MODE_RISING_SLOPE);
 	int rv = cw_tq_enqueue_internal(gen->tq, &tone);
 
-	if (rv == CW_SUCCESS) {
-
-		CW_TONE_INIT(&tone, gen->frequency, gen->quantum_len, CW_SLOPE_MODE_NO_SLOPES);
-		tone.is_forever = true;
-		rv = cw_tq_enqueue_internal(gen->tq, &tone);
-
-		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
-			      "libcw/gen: tone queue: len = %zu", cw_tq_length_internal(gen->tq));
+	if (rv != CW_SUCCESS) {
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_TONE_QUEUE, CW_DEBUG_ERROR,
+			      "libcw/gen: enqueue begin mark: failed to enqueue rising slope: '%s'", strerror(errno));
 	}
+
+	/* If there was an error during enqueue of rising slope of
+	   mark, assume that it was a transient error, and proceed to
+	   enqueueing forever tone. Only after we fail to enqueue the
+	   "main" tone, we are allowed to return failure to caller. */
+	CW_TONE_INIT(&tone, gen->frequency, gen->quantum_len, CW_SLOPE_MODE_NO_SLOPES);
+	tone.is_forever = true;
+	rv = cw_tq_enqueue_internal(gen->tq, &tone);
+
+	if (rv != CW_SUCCESS) {
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_TONE_QUEUE, CW_DEBUG_ERROR,
+			      "libcw/gen: enqueue begin mark: failed to enqueue forever tone: '%s'", strerror(errno));
+	}
+
+	cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
+		      "libcw/gen: enqueue begin mark: tone queue len = %zu", cw_tq_length_internal(gen->tq));
 
 	return rv;
 }
@@ -2663,6 +2668,8 @@ int cw_gen_enqueue_begin_mark_internal(cw_gen_t * gen)
    The function is called in very specific context, see cw_key module
    for details.
 
+   \reviewed on 2017-01-20
+
    \param gen - generator
 
    \return CW_SUCCESS on success
@@ -2675,9 +2682,8 @@ int cw_gen_enqueue_begin_space_internal(cw_gen_t * gen)
 		   matter of generating it using generator, but also a
 		   matter of timing events using generator. Enqueueing
 		   tone here and dequeueing it later will be used to
-		   control state of a key. So if we switch state of
-		   key just for quantum_len usecs, then there may be a
-		   problem. */
+		   control state of a key. How does enqueueing a
+		   quantum tone influences the key state? */
 
 
 		/* Generate just a bit of silence, just to switch
@@ -2697,6 +2703,8 @@ int cw_gen_enqueue_begin_space_internal(cw_gen_t * gen)
 			   platforms, some sound systems may need to
 			   constantly generate "silent" tone. These four
 			   lines of code are just for them.
+
+			   FIXME: what occasions? what platforms? what sound systems?
 
 			   It would be better to avoid queueing silent
 			   "forever" tone because this increases CPU
@@ -2732,6 +2740,11 @@ int cw_gen_enqueue_begin_space_internal(cw_gen_t * gen)
    The function is called in very specific context, see cw_key module
    for details.
 
+   \reviewed on 2017-01-20
+
+   \errno EINVAL - invalid values of tone parameters
+   \errno EAGAIN - tone queue is full
+
    \param gen - generator
    \param symbol - symbol to enqueue (Space/Dot/Dash)
 
@@ -2740,7 +2753,7 @@ int cw_gen_enqueue_begin_space_internal(cw_gen_t * gen)
 */
 int cw_gen_enqueue_pure_symbol_internal(cw_gen_t * gen, char symbol)
 {
-	cw_tone_t tone;
+	cw_tone_t tone = { 0 };
 
 	if (symbol == CW_DOT_REPRESENTATION) {
 		CW_TONE_INIT(&tone, gen->frequency, gen->dot_len, CW_SLOPE_MODE_STANDARD_SLOPES);
@@ -2761,22 +2774,24 @@ int cw_gen_enqueue_pure_symbol_internal(cw_gen_t * gen, char symbol)
 
 
 
-
 /**
-   \brief Wait for generator's tone queue to drain until only as many tones as given in level remain queued
+   \brief Wait for generator's tone queue to drain until only as many tones as given in \p level remain queued
 
    This function is for use by programs that want to optimize
    themselves to avoid the cleanup that happens when generator's tone
    queue drains completely. Such programs have a short time in which
    to add more tones to the queue.
 
-   The function returns CW_SUCCESS on success.
+   The function returns when queue's level is equal or lower than \p
+   level.  If at the time of function call the level of queue is
+   already equal or lower than \p level, function returns immediately.
+
+   \reviewed on 2017-01-20
 
    \param gen - generator on which to wait
-   \param level - low level in queue, at which to return
+   \param level - level in queue, at which to return
 
-   \return CW_SUCCESS on success
-   \return CW_FAILURE on failure
+   \return CW_SUCCESS
 */
 int cw_gen_wait_for_queue_level(cw_gen_t * gen, size_t level)
 {
@@ -2810,46 +2825,50 @@ void cw_gen_flush_queue(cw_gen_t * gen)
 
 
 
-
-
 /**
-   \brief Return char string with console device path
+   \brief Return char string with generator's audio device path/name
 
    Returned pointer is owned by library.
 
+   \reviewed on 2017-01-20
+
    \param gen
 
-   \return char string with current console device path
+   \return char string with generator's audio device path/name
 */
-char const * cw_gen_get_console_device(cw_gen_t const * gen)
+char const * cw_gen_get_audio_device(cw_gen_t const * gen)
 {
-	cw_assert (gen, "libcw/gen: gen is NULL");
+	cw_assert (gen, "libcw/gen: generator is NULL");
 	return gen->audio_device;
 }
 
 
 
 
-
 /**
-   \brief Return char string with soundcard device name/path
+   \brief Get id of audio system used by given generator (one of enum cw_audio_system values)
 
-   Returned pointer is owned by library.
+   You can use cw_get_audio_system_label() to get string corresponding
+   to value returned by this function.
 
-   \param gen
+   \reviewed on 2017-01-20
 
-   \return char string with current soundcard device name or device path
+   \param gen - generator from which to get audio system
+
+   \return audio system's id
 */
-const char * cw_gen_get_soundcard_device(cw_gen_t const * gen)
+int cw_gen_get_audio_system(cw_gen_t const * gen)
 {
-	cw_assert (gen, "libcw/gen: gen is NULL");
-	return gen->audio_device;
+	cw_assert (gen, "libcw/gen: generator is NULL");
+	return gen->audio_system;
 }
 
 
 
 
-
+/**
+   \reviewed on 2017-01-20
+*/
 size_t cw_gen_get_queue_length(cw_gen_t const * gen)
 {
 	return cw_tq_length_internal(gen->tq);
@@ -2858,12 +2877,13 @@ size_t cw_gen_get_queue_length(cw_gen_t const * gen)
 
 
 
-
+/**
+   \reviewed on 2017-01-20
+*/
 int cw_gen_register_low_level_callback(cw_gen_t * gen, cw_queue_low_callback_t callback_func, void * callback_arg, size_t level)
 {
 	return cw_tq_register_low_level_callback_internal(gen->tq, callback_func, callback_arg, level);
 }
-
 
 
 
@@ -2876,12 +2896,13 @@ int cw_gen_wait_for_tone(cw_gen_t * gen)
 
 
 
-
+/**
+   \reviewed on 2017-01-20
+*/
 bool cw_gen_is_queue_full(cw_gen_t const * gen)
 {
 	return cw_tq_is_full_internal(gen->tq);
 }
-
 
 
 
