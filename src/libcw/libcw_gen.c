@@ -175,8 +175,8 @@ static int   cw_gen_enqueue_representation_partial_internal(cw_gen_t *gen, const
 static void  cw_gen_recalculate_slopes_internal(cw_gen_t *gen);
 
 static int   cw_gen_join_thread_internal(cw_gen_t *gen);
-static void  cw_gen_write_calculate_empty_tone_internal(cw_gen_t *gen, cw_tone_t *tone);
-static void  cw_gen_write_calculate_tone_internal(cw_gen_t *gen, cw_tone_t *tone);
+static void  cw_gen_empty_tone_calculate_samples_size_internal(cw_gen_t const * gen, cw_tone_t *tone);
+static void  cw_gen_tone_calculate_samples_size_internal(cw_gen_t const * gen, cw_tone_t *tone);
 
 
 
@@ -1436,28 +1436,32 @@ int cw_gen_write_to_soundcard_internal(cw_gen_t * gen, cw_tone_t * tone, bool em
 		/* No valid tone dequeued from tone queue. We need
 		   samples to complete filling buffer, but they have
 		   to be empty samples. */
-		cw_gen_write_calculate_empty_tone_internal(gen, tone);
+		cw_gen_empty_tone_calculate_samples_size_internal(gen, tone);
 	} else {
 		/* Valid tone dequeued from tone queue. Use it to
 		   calculate samples in buffer. */
-		cw_gen_write_calculate_tone_internal(gen, tone);
+		cw_gen_tone_calculate_samples_size_internal(gen, tone);
 	}
+	/* After the calculations above, we can use 'tone' to generate
+	   samples in the same way, regardless of state of tone queue
+	   (regardless of what the tone queue returned in last call).
+
+	   Simply look at tone's frequency and tone's samples count. */
 
 
 	/* Total number of samples to write in a loop below. */
 	int64_t samples_to_write = tone->n_samples;
 
 #if 0   /* Debug code. */
-
-	fprintf(stderr, "++++ entering loop, tone->frequency = %d, buffer->n_samples = %d, tone->n_samples = %d, samples_to_write = %d\n",
-		tone->frequency, gen->buffer_n_samples, tone->n_samples, samples_to_write);
-	fprintf(stderr, "++++ entering loop, expected ~%f loops\n", 1.0 * samples_to_write / gen->buffer_n_samples);
-	int debug_loop = 0;
+	int n_loops = 0;
+	const float n_loops_expected = 1.0 * samples_to_write / gen->buffer_n_samples;
+	fprintf(stderr, "libcw/gen: entering loop (~%.1f), tone->frequency = %d, buffer->n_samples = %d, samples_to_write = %d\n",
+		n_loops_expected, tone->frequency, gen->buffer_n_samples, samples_to_write);
 
 #endif
 
 
-	// cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG, "libcw: %lld samples, %d us, %d Hz", tone->n_samples, tone->len, gen->frequency);
+	// cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG, "libcw/gen: %lld samples, %d us, %d Hz", tone->n_samples, tone->len, gen->frequency);
 	while (samples_to_write > 0) {
 
 		int64_t free_space = gen->buffer_n_samples - gen->buffer_sub_start;
@@ -1477,7 +1481,7 @@ int cw_gen_write_to_soundcard_internal(cw_gen_t * gen, cw_tone_t * tone, bool em
 			gen->buffer_sub_stop = gen->buffer_n_samples - 1;
 		} else {
 			/* There will be too few samples to fill a
-			   buffer. We can't send an unready buffer to
+			   buffer. We can't send an under-filled buffer to
 			   audio sink. We will have to get more
 			   samples to fill the buffer completely. */
 			gen->buffer_sub_stop = gen->buffer_sub_start + samples_to_write - 1;
@@ -1486,23 +1490,18 @@ int cw_gen_write_to_soundcard_internal(cw_gen_t * gen, cw_tone_t * tone, bool em
 		/* How many samples of audio buffer's subarea will be
 		   calculated in a given cycle of "calculate sine
 		   wave" code? */
-		int buffer_sub_n_samples = gen->buffer_sub_stop - gen->buffer_sub_start + 1;
+		const int buffer_sub_n_samples = gen->buffer_sub_stop - gen->buffer_sub_start + 1;
 
 
 #if 0           /* Debug code. */
 
-		fprintf(stderr, "++++        loop #%d, buffer_sub_n_samples = %d\n", ++debug_loop, buffer_sub_n_samples);
+		fprintf(stderr, "libcw/gen:        loop #%d, buffer_sub_n_samples = %d\n", ++n_loops, buffer_sub_n_samples);
 		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG,
 			      "libcw/gen: sub start: %d, sub stop: %d, sub len: %d, to calculate: %d", gen->buffer_sub_start, gen->buffer_sub_stop, buffer_sub_n_samples, samples_to_write);
-
 #endif
 
-
-		int calculated = cw_gen_calculate_sine_wave_internal(gen, tone);
-		cw_assert (calculated == buffer_sub_n_samples,
-			   "libcw/gen: calculated wrong number of samples: %d != %d",
-			   calculated, buffer_sub_n_samples);
-
+		const int calculated = cw_gen_calculate_sine_wave_internal(gen, tone);
+		cw_assert (calculated == buffer_sub_n_samples, "libcw/gen: calculated wrong number of samples: %d != %d", calculated, buffer_sub_n_samples);
 
 		if (gen->buffer_sub_stop == gen->buffer_n_samples - 1) {
 
@@ -1523,9 +1522,7 @@ int cw_gen_write_to_soundcard_internal(cw_gen_t * gen, cw_tone_t * tone, bool em
 
 			gen->buffer_sub_start = gen->buffer_sub_stop + 1;
 
-			cw_assert (gen->buffer_sub_start <= gen->buffer_n_samples - 1,
-				   "libcw/gen: sub start out of range: sub start = %d, buffer n samples = %d",
-				   gen->buffer_sub_start, gen->buffer_n_samples);
+			cw_assert (gen->buffer_sub_start <= gen->buffer_n_samples - 1, "libcw/gen: sub start out of range: sub start = %d, buffer n samples = %d", gen->buffer_sub_start, gen->buffer_n_samples);
 		}
 
 		samples_to_write -= buffer_sub_n_samples;
@@ -1535,12 +1532,13 @@ int cw_gen_write_to_soundcard_internal(cw_gen_t * gen, cw_tone_t * tone, bool em
 		if (samples_to_write < 0) {
 			cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG, "libcw/gen: samples left = %d", samples_to_write);
 		}
-
 #endif
 
 	} /* while (samples_to_write > 0) { */
 
-	//fprintf(stderr, "++++ left loop, %d loops, samples left = %d\n", debug_loop, (int) samples_to_write);
+#if 0   /* Debug code. */
+	fprintf(stderr, "libcw/gen: left loop, %d / %.1f loops, samples left = %d\n", n_loops, n_loops_expected, (int) samples_to_write);
+#endif
 
 	return 0;
 }
@@ -1549,7 +1547,23 @@ int cw_gen_write_to_soundcard_internal(cw_gen_t * gen, cw_tone_t * tone, bool em
 
 
 
-void cw_gen_write_calculate_empty_tone_internal(cw_gen_t * gen, cw_tone_t * tone)
+/**
+   \brief Generate empty tone with correct/needed values of samples count
+
+   The function sets values tone->..._n_samples fields of empty \p
+   tone based on information from \p gen (i.e. looking on how many
+   samples of silence need to be "created").  The sample count values
+   are set in a way that allows filling remainder of generator's
+   buffer with silence.
+
+   After this point tone length should not be used - it's the samples count that is correct.
+
+   \reviewed on 2017-01-22
+
+   \param gen
+   \param tone - tone for which to calculate samples count.
+*/
+void cw_gen_empty_tone_calculate_samples_size_internal(cw_gen_t * gen, cw_tone_t * tone)
 {
 	/* All tones have been already dequeued from tone queue.
 
@@ -1602,19 +1616,28 @@ void cw_gen_write_calculate_empty_tone_internal(cw_gen_t * gen, cw_tone_t * tone
 
 
 
+/**
+   \brief Recalculate non-empty tone parameters from microseconds into samples
 
-void cw_gen_write_calculate_tone_internal(cw_gen_t * gen, cw_tone_t * tone)
+   The function sets tone->..._n_samples fields of non-empty \p tone
+   based on other information from \p tone and from \p gen.
+
+   After this point tone length should not be used - it's the samples count that is correct.
+
+   \reviewed on 2017-01-22
+
+   \param gen
+   \param tone - tone for which to calculate samples count.
+*/
+void cw_gen_tone_calculate_samples_size_internal(cw_gen_t const * gen, cw_tone_t * tone)
 {
-	/* Recalculate tone parameters from microseconds into
-	   samples. After this point the samples will be all that
-	   matters. */
 
 	/* 100 * 10000 = 1.000.000 usecs per second. */
 	tone->n_samples = gen->sample_rate / 100;
 	tone->n_samples *= tone->len;
 	tone->n_samples /= 10000;
 
-	//fprintf(stderr, "++++ length of regular tone = %d [samples]\n", tone->n_samples);
+	//fprintf(stderr, "libcw/gen: length of regular tone = %d [samples]\n", tone->n_samples);
 
 	/* Length of a single slope (rising or falling). */
 	int slope_n_samples = gen->sample_rate / 100;
