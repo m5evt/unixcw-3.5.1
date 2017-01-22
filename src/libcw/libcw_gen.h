@@ -386,7 +386,7 @@ int cw_gen_enqueue_eow_space_internal(cw_gen_t * gen);
    hardware key events. */
 int cw_gen_enqueue_begin_mark_internal(cw_gen_t * gen);
 int cw_gen_enqueue_begin_space_internal(cw_gen_t * gen);
-int cw_gen_enqueue_pure_symbol_internal(cw_gen_t * gen, char symbol);
+int cw_gen_enqueue_partial_symbol_internal(cw_gen_t * gen, char symbol);
 
 
 
