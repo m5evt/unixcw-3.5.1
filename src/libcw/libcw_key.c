@@ -564,7 +564,7 @@ int cw_key_ik_enqueue_symbol_internal(cw_key_t *key, int key_value, char symbol)
 		}
 
 		/* 'Pure' means without any end-of-mark spaces. */
-		int rv = cw_gen_enqueue_pure_symbol_internal(key->gen, symbol);
+		int rv = cw_gen_enqueue_partial_symbol_internal(key->gen, symbol);
 		cw_assert (rv, "failed to key symbol '%c'", symbol);
 		return rv;
 	} else {

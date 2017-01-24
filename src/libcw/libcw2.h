@@ -177,7 +177,7 @@ int cw_gen_set_weighting(cw_gen_t *gen, int new_value);
 
 /* generator module: queue functions. */
 int    cw_gen_enqueue_character(cw_gen_t * gen, char c);
-int    cw_gen_enqueue_character_pure(cw_gen_t * gen, char c);
+int    cw_gen_enqueue_character_partial(cw_gen_t * gen, char c);
 int    cw_gen_enqueue_string(cw_gen_t * gen, char const * string);
 int    cw_gen_wait_for_queue_level(cw_gen_t * gen, size_t level);
 int    cw_gen_wait_for_tone(cw_gen_t * gen);
