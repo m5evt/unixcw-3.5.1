@@ -480,7 +480,7 @@ void send_cw_character(int c, int is_partial)
 
 	/* Send the character to the CW sender. */
 	int status = is_partial
-		? cw_gen_enqueue_character_pure(generator, character) /* pure == no inter-character space at the end. */
+		? cw_gen_enqueue_character_partial(generator, character) /* partial == no inter-character space at the end. */
 		: cw_gen_enqueue_character(generator, character);
 
 	if (!status) {
