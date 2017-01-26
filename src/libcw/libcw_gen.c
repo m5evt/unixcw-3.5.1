@@ -35,7 +35,7 @@
 
    The inner workings of the generator seem to be quite simple:
    1. dequeue tone from tone queue
-   2. recalculate tone length in usecs into length in samples
+   2. recalculate tone length in microseconds into tone length in samples
    3. for every sample in tone, calculate sine wave sample and
       put it in generator's constant size buffer
    4. if buffer is full of sine wave samples, push it to audio sink
@@ -49,7 +49,6 @@
    Looks simple, right? But it's the little details that ruin it all.
    One of the details is tone's slopes.
 */
-
 
 
 
@@ -74,7 +73,6 @@
 
 
 
-
 #include "libcw_gen.h"
 #include "libcw_rec.h"
 #include "libcw_debug.h"
@@ -88,11 +86,9 @@
 
 
 
-
 #ifndef M_PI  /* C99 may not define M_PI */
 #define M_PI  3.14159265358979323846
 #endif
-
 
 
 
@@ -101,7 +97,6 @@
 extern cw_debug_t cw_debug_object;
 extern cw_debug_t cw_debug_object_ev;
 extern cw_debug_t cw_debug_object_dev;
-
 
 
 
@@ -144,7 +139,6 @@ static const char *default_audio_devices[] = {
 
 
 
-
 /* Generic constants - common for all audio systems (or not used in some of systems). */
 
 static const long int CW_AUDIO_VOLUME_RANGE = (1 << 15);  /* 2^15 = 32768 */
@@ -161,22 +155,21 @@ static const int CW_AUDIO_QUANTUM_LEN_INITIAL = 100;  /* [us] */
 
 
 
+static int    cw_gen_new_open_internal(cw_gen_t * gen, int audio_system, const char * device);
+static void * cw_gen_dequeue_and_generate_internal(void * arg);
+static int    cw_gen_calculate_sine_wave_internal(cw_gen_t * gen, cw_tone_t * tone);
+static int    cw_gen_calculate_amplitude_internal(cw_gen_t * gen, const cw_tone_t * tone);
+static int    cw_gen_write_to_soundcard_internal(cw_gen_t * gen, cw_tone_t * tone, bool is_empty_tone);
 
-static int   cw_gen_new_open_internal(cw_gen_t *gen, int audio_system, const char *device);
-static void *cw_gen_dequeue_and_generate_internal(void *arg);
-static int   cw_gen_calculate_sine_wave_internal(cw_gen_t *gen, cw_tone_t *tone);
-static int   cw_gen_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t const * tone);
-static int   cw_gen_write_to_soundcard_internal(cw_gen_t *gen, cw_tone_t *tone, bool empty_tone);
+static int   cw_gen_enqueue_valid_character_internal(cw_gen_t * gen, char c);
+static int   cw_gen_enqueue_valid_character_partial_internal(cw_gen_t * gen, char character);
+static int   cw_gen_enqueue_representation_partial_internal(cw_gen_t * gen, const char * representation);
 
-static int   cw_gen_enqueue_valid_character_internal(cw_gen_t *gen, char c);
-static int   cw_gen_enqueue_valid_character_partial_internal(cw_gen_t *gen, char character);
-static int   cw_gen_enqueue_representation_partial_internal(cw_gen_t *gen, const char *representation);
+static void  cw_gen_recalculate_slopes_internal(cw_gen_t * gen);
 
-static void  cw_gen_recalculate_slopes_internal(cw_gen_t *gen);
-
-static int   cw_gen_join_thread_internal(cw_gen_t *gen);
-static void  cw_gen_empty_tone_calculate_samples_size_internal(cw_gen_t const * gen, cw_tone_t *tone);
-static void  cw_gen_tone_calculate_samples_size_internal(cw_gen_t const * gen, cw_tone_t *tone);
+static int   cw_gen_join_thread_internal(cw_gen_t * gen);
+static void  cw_gen_empty_tone_calculate_samples_size_internal(const cw_gen_t * gen, cw_tone_t * tone);
+static void  cw_gen_tone_calculate_samples_size_internal(const cw_gen_t * gen, cw_tone_t * tone);
 
 
 
@@ -185,6 +178,8 @@ static void  cw_gen_tone_calculate_samples_size_internal(cw_gen_t const * gen, c
    \brief Start a generator
 
    Start given \p generator. As soon as there are tones enqueued in generator, the generator will start playing them.
+
+   \reviewed on 2017-01-26
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on errors
@@ -198,6 +193,8 @@ int cw_gen_start(cw_gen_t * gen)
 	   function run only when the flag is set. */
 	gen->do_dequeue_and_generate = true;
 
+	/* This generator exists in client's application thread.
+	   Generator's 'dequeue and generate' function will be a separate thread. */
 	gen->client.thread_id = pthread_self();
 
 	if (gen->audio_system != CW_AUDIO_NULL
@@ -227,9 +224,10 @@ int cw_gen_start(cw_gen_t * gen)
 			      "libcw/gen: failed to create %s generator thread", cw_get_audio_system_label(gen->audio_system));
 		return CW_FAILURE;
 	} else {
+		/* TODO: shouldn't we be doing it in generator's thread function? */
 		gen->thread.running = true;
 
-		/* For some yet unknown reason you have to put
+		/* FIXME: For some yet unknown reason we have to put
 		   usleep() here, otherwise a generator may
 		   work incorrectly */
 		usleep(100000);
@@ -254,6 +252,8 @@ int cw_gen_start(cw_gen_t * gen)
 
    Function creates its own copy of input string.
 
+   \reviewed on 2017-01-26
+
    \param gen - generator to be updated
    \param device - device to be assigned to generator \p gen
 
@@ -262,11 +262,11 @@ int cw_gen_start(cw_gen_t * gen)
 */
 int cw_gen_set_audio_device_internal(cw_gen_t * gen, char const * device)
 {
-	/* this should be NULL, either because it has been
+	/* This should be NULL, either because it has been
 	   initialized statically as NULL, or set to
 	   NULL by generator destructor */
-	assert (!gen->audio_device);
-	assert (gen->audio_system != CW_AUDIO_NONE);
+	cw_assert (NULL == gen->audio_device, "libcw/gen: audio device already set\n");
+	cw_assert (gen->audio_system != CW_AUDIO_NONE, "libcw/gen: audio system not set\n");
 
 	if (gen->audio_system == CW_AUDIO_NONE) {
 		gen->audio_device = (char *) NULL;
@@ -306,6 +306,8 @@ int cw_gen_set_audio_device_internal(cw_gen_t * gen, char const * device)
    You probably want to call cw_tq_flush_internal(gen->tq) before
    calling this function.
 
+   \reviewed on 2017-01-26
+
    \param gen - generator using an audio sink that should be silenced
 
    \return CW_SUCCESS on success
@@ -322,7 +324,7 @@ int cw_gen_silence_internal(cw_gen_t * gen)
 		return CW_SUCCESS;
 	}
 
-	if (!(gen->thread.running)) {
+	if (!gen->thread.running) {
 		/* Silencing a generator means enqueueing and generating
 		   a tone with zero frequency.  We shouldn't do this
 		   when a "dequeue-and-generate-a-tone" function is not
@@ -345,10 +347,10 @@ int cw_gen_silence_internal(cw_gen_t * gen)
 	    || gen->audio_system == CW_AUDIO_PA) {
 
 		/* Allow some time for playing the last tone. */
-		usleep(2 * gen->quantum_len);
+		usleep(2 * gen->quantum_len); /* TODO: this should be usleep(2 * tone->len). */
 
 	} else if (gen->audio_system == CW_AUDIO_CONSOLE) {
-		/* sine wave generation should have been stopped
+		/* Sine wave generation should have been stopped
 		   by a code generating dots/dashes, but
 		   just in case...
 
@@ -365,6 +367,8 @@ int cw_gen_silence_internal(cw_gen_t * gen)
 		cw_alsa_drop(gen);
 	}
 
+	/* TODO: we just want to silence the generator, right? So we don't stop it.
+	   This line of code has been disabled some time before 2017-01-26. */
 	//gen->do_dequeue_and_generate = false;
 
 	return status;
@@ -373,9 +377,10 @@ int cw_gen_silence_internal(cw_gen_t * gen)
 
 
 
-
 /**
    \brief Create new generator
+
+   \reviewed on 2017-01-26
 
    testedin::test_cw_gen_new_delete()
 */
@@ -489,7 +494,7 @@ cw_gen_t * cw_gen_new(int audio_system, char const * device)
 	{
 		gen->audio_device = NULL;
 		gen->audio_sink = -1;
-		//gen->audio_system = audio_system;
+		/* gen->audio_system = audio_system; */ /* We handle this field below. */
 		gen->audio_device_is_open = false;
 		gen->dev_raw_sink = -1;
 
@@ -522,7 +527,7 @@ cw_gen_t * cw_gen_new(int audio_system, char const * device)
 		int rv = cw_gen_new_open_internal(gen, audio_system, device);
 		if (rv == CW_FAILURE) {
 			cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
-				      "libcw/gen: failed to open audio device for audio system '%s' and device '%s'", cw_get_audio_system_label(audio_system), device);
+				      "libcw/gen: failed to open audio sink for audio system '%s' and device '%s'", cw_get_audio_system_label(audio_system), device);
 			cw_gen_delete(&gen);
 			return (cw_gen_t *) NULL;
 		}
@@ -562,6 +567,8 @@ cw_gen_t * cw_gen_new(int audio_system, char const * device)
 /**
    \brief Delete a generator
 
+   \reviewed on 2017-01-26
+
    testedin::test_cw_gen_new_delete()
 */
 void cw_gen_delete(cw_gen_t ** gen)
@@ -579,7 +586,7 @@ void cw_gen_delete(cw_gen_t ** gen)
 	}
 
 
-	cw_tq_delete_internal(&((*gen)->tq));
+	cw_tq_delete_internal(&(*gen)->tq);
 
 
 	/* Wait for "write" thread to end accessing output
@@ -602,7 +609,7 @@ void cw_gen_delete(cw_gen_t ** gen)
 		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_WARNING, "libcw/gen: WARNING: 'close' function pointer is NULL, something went wrong");
 	}
 
-	pthread_attr_destroy(&((*gen)->thread.attr));
+	pthread_attr_destroy(&(*gen)->thread.attr);
 
 	free((*gen)->client.name);
 	(*gen)->client.name = NULL;
@@ -621,14 +628,13 @@ void cw_gen_delete(cw_gen_t ** gen)
 
 
 
-
 /**
    \brief Stop a generator
 
-   Empty generator's tone queue.
-   Silence generator's audio sink.
-   Stop generator' "dequeue and generate" thread function.
-   If the thread does not stop in one second, kill it.
+   1. Empty generator's tone queue.
+   2. Silence generator's audio sink.
+   3. Stop generator' "dequeue and generate" thread function.
+   4. If the thread does not stop in one second, kill it.
 
    You have to use cw_gen_start() if you want to enqueue and
    generate tones with the same generator again.
@@ -637,14 +643,18 @@ void cw_gen_delete(cw_gen_t ** gen)
    generator's audio sink fails.
    Otherwise function returns CW_SUCCESS.
 
-   \return CW_SUCCESS if all four actions completed (successfully)
-   \return CW_FAILURE if any of the four actions failed (see note above)
+   \reviewed on 2017-01-26
+
+   \param gen - generator to stop
+
+   \return CW_SUCCESS if all three (four) actions completed (successfully)
+   \return CW_FAILURE if any of the actions failed (see note above)
 */
 int cw_gen_stop(cw_gen_t * gen)
 {
 	if (!gen) {
 		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_WARNING,
-			      "libcw: called the function for NULL generator");
+			      "libcw/gen: called the function for NULL generator");
 		/* Not really a runtime error, so return
 		   CW_SUCCESS. */
 		return CW_SUCCESS;
@@ -691,10 +701,10 @@ int cw_gen_stop(cw_gen_t * gen)
 		      "libcw/gen: gen->do_dequeue_and_generate = false");
 
 	gen->do_dequeue_and_generate = false;
-	fprintf(stderr, "setting do_dequeue_and_generate to %d\n", gen->do_dequeue_and_generate);
+	fprintf(stderr, "libcw/gen: setting do_dequeue_and_generate to %d\n", gen->do_dequeue_and_generate);
 
 	if (!gen->thread.running) {
-		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_INFO, "libcw: EXIT: seems that thread function was not started at all");
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_INFO, "libcw/gen: EXIT: seems that thread function was not started at all");
 
 		/* Don't call pthread_kill() on non-initialized
 		   thread.id. The generator wasn't even started, so
@@ -710,9 +720,11 @@ int cw_gen_stop(cw_gen_t * gen)
 	   may be in a state where dequeue() function returned IDLE
 	   state, and the loop is waiting for new tone.
 
-	   This is to force the loop to start new cycle, notice that
-	   gen->do_dequeue_and_generate is false, and to get the thread
-	   function to return (and thus to end the thread). */
+	   This is to force the loop to start new cycle, make the loop
+	   notice that gen->do_dequeue_and_generate is false, and to
+	   get the thread function to return (and thus to end the
+	   thread). */
+
 #if 0 /* This was disabled some time before 2017-01-19. */
 	pthread_mutex_lock(&gen->tq->wait_mutex);
 	pthread_cond_broadcast(&gen->tq->wait_var);
@@ -720,7 +732,8 @@ int cw_gen_stop(cw_gen_t * gen)
 #endif
 
 	pthread_mutex_lock(&gen->tq->dequeue_mutex);
-	pthread_cond_signal(&gen->tq->dequeue_var); /* Use pthread_cond_signal() because there is only one listener. */
+	/* Use pthread_cond_signal() because there is only one listener: loop in generator's thread function. */
+	pthread_cond_signal(&gen->tq->dequeue_var);
 	pthread_mutex_unlock(&gen->tq->dequeue_mutex);
 
 #if 0   /* Original implementation using signals. */  /* This was disabled some time before 2017-01-19. */
@@ -733,7 +746,16 @@ int cw_gen_stop(cw_gen_t * gen)
 
 
 
+/**
+   \brief Wrapper for pthread_join() and debug code
 
+   \reviewed on 2017-01-26
+
+   \param gen
+
+   \return CW_SUCCESS if joining succeeded
+   \return CW_FAILURE otherwise
+*/
 int cw_gen_join_thread_internal(cw_gen_t * gen)
 {
 	/* TODO: this comment may no longer be true and necessary.
@@ -785,7 +807,6 @@ int cw_gen_join_thread_internal(cw_gen_t * gen)
 
 
 
-
 /**
    \brief Open audio system
 
@@ -793,6 +814,8 @@ int cw_gen_join_thread_internal(cw_gen_t * gen)
    \p audio_system.  Open audio system will be assigned to given
    generator. Caller can also specify audio device to use instead
    of a default one.
+
+   \reviewed on 2017-01-26
 
    \param gen - freshly created generator
    \param audio_system - audio system to open and assign to the generator
@@ -869,7 +892,6 @@ int cw_gen_new_open_internal(cw_gen_t * gen, int audio_system, char const * devi
 
 
 
-
 /**
    \brief Dequeue tones and push them to audio output
 
@@ -883,8 +905,10 @@ int cw_gen_new_open_internal(cw_gen_t * gen, int audio_system, char const * devi
    pushes them to audio output as long as
    generator->do_dequeue_and_generate is true.
 
-   The generator must be fully configured before calling this
-   function.
+   The generator must be fully configured before creating thread with
+   this function.
+
+   \reviewed on 2017-01-26
 
    \param arg - generator (casted to (void *)) to be used for generating tones
 
@@ -939,20 +963,30 @@ void * cw_gen_dequeue_and_generate_internal(void * arg)
 			continue;
 		}
 
-		bool empty_tone = !dequeued_now && dequeued_prev;
+		bool is_empty_tone = !dequeued_now && dequeued_prev;
 
 		if (gen->key) {
 			int state = CW_KEY_STATE_OPEN;
 
-			if (dequeued_now && (dequeued_prev || !dequeued_prev)) { /* FIXME: second part of && expression is either very verbose or wrong. */
+			if ((dequeued_now && dequeued_prev) || (dequeued_now && !dequeued_prev)) {
+				/* Flag combinations 1 and 2.
+				   A valid tone has been dequeued just now. */
 				state = tone.frequency ? CW_KEY_STATE_CLOSED : CW_KEY_STATE_OPEN;
+
 			} else if (!dequeued_now && dequeued_prev) {
+				/* Flag combination 3.
+				   Tone queue just went empty. No tone == no sound. */
 				state = CW_KEY_STATE_OPEN;
+
 			} else {
-				/* !dequeued_now && !dequeued_prev,
-				   which was was caught right after
-				   cw_tq_dequeue_internal(). No other
-				   combinations are possible. */
+				/* !dequeued_now && !dequeued_prev */
+				/* Flag combination 4.
+				   Tone queue continues to be empty.
+				   This combination was handled right
+				   after cw_tq_dequeue_internal(), we
+				   should be waiting there for kick
+				   from tone queue.  Us being here is
+				   an error. */
 				cw_assert (0, "libcw/gen: uncaught combination of flags: dequeued_now = %d, dequeued_prev = %d",
 					   dequeued_now, dequeued_prev);
 			}
@@ -973,7 +1007,7 @@ void * cw_gen_dequeue_and_generate_internal(void * arg)
 		} else if (gen->audio_system == CW_AUDIO_CONSOLE) {
 			cw_console_write(gen, &tone);
 		} else {
-			cw_gen_write_to_soundcard_internal(gen, &tone, empty_tone);
+			cw_gen_write_to_soundcard_internal(gen, &tone, is_empty_tone);
 		}
 
 		/*
@@ -986,11 +1020,12 @@ void * cw_gen_dequeue_and_generate_internal(void * arg)
 		   - allows client code to observe any dequeue event
                      by waiting for signal in
                      cw_tq_wait_for_tone_internal();
-		 */
+		*/
 
 		//fprintf(stderr, "libcw/tq:       sending signal on dequeue, target thread id = %ld\n", gen->client.thread_id);
 
 		pthread_mutex_lock(&gen->tq->wait_mutex);
+		/* There may be many listeners, so use broadcast(). */
 		pthread_cond_broadcast(&gen->tq->wait_var);
 		pthread_mutex_unlock(&gen->tq->wait_mutex);
 
@@ -1002,19 +1037,21 @@ void * cw_gen_dequeue_and_generate_internal(void * arg)
 		/* Generator may be used by iambic keyer to measure
 		   periods of time (lengths of Mark and Space) - this
 		   is achieved by enqueueing Marks and Spaces by keyer
-		   in generator.
+		   in generator. A soundcard playing samples is
+		   surprisingly good at measuring time intervals.
 
 		   At this point the generator has finished generating
 		   a tone of specified length. A duration of Mark or
 		   Space has elapsed. Inform iambic keyer that the
-		   tone it has enqueued has elapsed.
+		   tone it has enqueued has elapsed. The keyer may
+		   want to change its state.
 
 		   (Whether iambic keyer has enqueued any tones or
 		   not, and whether it is waiting for the
 		   notification, is a different story. We will let the
 		   iambic keyer function called below to decide what
 		   to do with the notification. If keyer is in idle
-		   graph state, it will ignore the notification.)
+		   state, it will ignore the notification.)
 
 		   Notice that this mechanism is needed only for
 		   iambic keyer. Inner workings of straight key are
@@ -1049,6 +1086,7 @@ void * cw_gen_dequeue_and_generate_internal(void * arg)
 	cw_nanosleep_internal(&req);
 
 	pthread_mutex_lock(&gen->tq->wait_mutex);
+	/* There may be many listeners, so use broadcast(). */
 	pthread_cond_broadcast(&gen->tq->wait_var);
 	pthread_mutex_unlock(&gen->tq->wait_mutex);
 
@@ -1059,7 +1097,6 @@ void * cw_gen_dequeue_and_generate_internal(void * arg)
 	gen->thread.running = false;
 	return NULL;
 }
-
 
 
 
@@ -1435,15 +1472,15 @@ void cw_gen_recalculate_slopes_internal(cw_gen_t * gen)
 
    \param gen
    \param tone - tone dequeued from queue (if dequeueing was successful); must always be non-NULL
-   \param empty_tone - true if dequeueing was not successful (if no tone was dequeued), false otherwise
+   \param is_empty_tone - true if dequeueing was not successful (if no tone was dequeued), false otherwise
 
    \return 0
 */
-int cw_gen_write_to_soundcard_internal(cw_gen_t * gen, cw_tone_t * tone, bool empty_tone)
+int cw_gen_write_to_soundcard_internal(cw_gen_t * gen, cw_tone_t * tone, bool is_empty_tone)
 {
 	cw_assert (tone, "libcw/gen: 'tone' argument should always be non-NULL, even when dequeueing failed");
 
-	if (empty_tone) {
+	if (is_empty_tone) {
 		/* No valid tone dequeued from tone queue. 'tone'
 		   argument doesn't represent a valid tone. We need
 		   samples to complete filling buffer, but they have
@@ -1682,7 +1719,6 @@ void cw_gen_tone_calculate_samples_size_internal(cw_gen_t const * gen, cw_tone_t
 
 
 
-
 /**
    \brief Set sending speed of generator
 
@@ -1722,7 +1758,6 @@ int cw_gen_set_speed(cw_gen_t * gen, int new_value)
 
 
 
-
 /**
    \brief Set frequency of generator
 
@@ -1752,7 +1787,6 @@ int cw_gen_set_frequency(cw_gen_t * gen, int new_value)
 		return CW_SUCCESS;
 	}
 }
-
 
 
 
@@ -1800,7 +1834,6 @@ int cw_gen_set_volume(cw_gen_t * gen, int new_value)
 
 
 
-
 /**
    \brief Set sending gap of generator
 
@@ -1835,7 +1868,6 @@ int cw_gen_set_gap(cw_gen_t * gen, int new_value)
 
 	return CW_SUCCESS;
 }
-
 
 
 
@@ -1879,7 +1911,6 @@ int cw_gen_set_weighting(cw_gen_t * gen, int new_value)
 
 
 
-
 /**
    \brief Get sending speed from generator
 
@@ -1897,7 +1928,6 @@ int cw_gen_get_speed(cw_gen_t const * gen)
 {
 	return gen->send_speed;
 }
-
 
 
 
@@ -1922,7 +1952,6 @@ int cw_gen_get_frequency(cw_gen_t const * gen)
 {
 	return gen->frequency;
 }
-
 
 
 
@@ -1972,7 +2001,6 @@ int cw_gen_get_gap(cw_gen_t const * gen)
 
 
 
-
 /**
    \brief Get sending weighting from generator
 
@@ -1990,7 +2018,6 @@ int cw_gen_get_weighting(cw_gen_t const * gen)
 {
 	return gen->weighting;
 }
-
 
 
 
@@ -2039,7 +2066,6 @@ void cw_gen_get_timing_parameters_internal(cw_gen_t * gen,
 
 	return;
 }
-
 
 
 
@@ -2103,7 +2129,6 @@ int cw_gen_enqueue_mark_internal(cw_gen_t * gen, char mark)
 
 
 
-
 /**
    \brief Enqueue inter-character space
 
@@ -2135,7 +2160,6 @@ int cw_gen_enqueue_eoc_space_internal(cw_gen_t * gen)
 	CW_TONE_INIT(&tone, 0, gen->eoc_space_len + gen->additional_space_len, CW_SLOPE_MODE_NO_SLOPES);
 	return cw_tq_enqueue_internal(gen->tq, &tone);
 }
-
 
 
 
@@ -2244,7 +2268,6 @@ int cw_gen_enqueue_eow_space_internal(cw_gen_t * gen)
 
 
 
-
 /**
    \brief Enqueue the given representation in generator, to be sent using Morse code
 
@@ -2296,7 +2319,6 @@ int cw_gen_enqueue_representation_partial_internal(cw_gen_t * gen, char const * 
 
 	return CW_SUCCESS;
 }
-
 
 
 
@@ -2358,7 +2380,6 @@ int cw_gen_enqueue_valid_character_partial_internal(cw_gen_t * gen, char c)
 
 
 
-
 /**
    \brief Enqueue a given valid ASCII character in generator, to be sent using Morse code
 
@@ -2392,7 +2413,6 @@ int cw_gen_enqueue_valid_character_internal(cw_gen_t * gen, char c)
 
 	return CW_SUCCESS;
 }
-
 
 
 
@@ -2447,7 +2467,6 @@ int cw_gen_enqueue_character(cw_gen_t * gen, char c)
 
 
 
-
 /**
    \brief Enqueue a given ASCII character in generator, to be sent using Morse code
 
@@ -2493,7 +2512,6 @@ int cw_gen_enqueue_character_partial(cw_gen_t * gen, char c)
 
 	return CW_SUCCESS;
 }
-
 
 
 
@@ -2556,7 +2574,6 @@ int cw_gen_enqueue_string(cw_gen_t * gen, char const * string)
 
 
 
-
 /**
    \brief Reset generator's essential parameters to their initial values
 
@@ -2582,7 +2599,6 @@ void cw_gen_reset_parameters_internal(cw_gen_t * gen)
 	return;
 
 }
-
 
 
 
@@ -2660,7 +2676,6 @@ void cw_gen_sync_parameters_internal(cw_gen_t * gen)
 
 
 
-
 /**
    Helper function intended to hide details of tone queue and of
    enqueueing a tone from cw_key module.
@@ -2715,7 +2730,6 @@ int cw_gen_enqueue_begin_mark_internal(cw_gen_t * gen)
 
 	return rv;
 }
-
 
 
 
@@ -2783,7 +2797,6 @@ int cw_gen_enqueue_begin_space_internal(cw_gen_t * gen)
 		return rv;
 	}
 }
-
 
 
 
@@ -2859,7 +2872,6 @@ int cw_gen_wait_for_queue_level(cw_gen_t * gen, size_t level)
 {
 	return cw_tq_wait_for_level_internal(gen->tq, level);
 }
-
 
 
 
