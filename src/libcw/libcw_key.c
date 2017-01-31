@@ -21,9 +21,8 @@
 /**
    \file libcw_key.c
 
-   \brief Straight key and keyer.
+   \brief Straight key and iambic keyer.
 */
-
 
 
 
@@ -44,28 +43,9 @@
 
 
 
-
 extern cw_debug_t cw_debug_object;
 extern cw_debug_t cw_debug_object_ev;
 extern cw_debug_t cw_debug_object_dev;
-
-
-
-
-
-/* KS stands for Keyer State. */
-enum {
-	KS_IDLE,
-	KS_IN_DOT_A,
-	KS_IN_DASH_A,
-	KS_AFTER_DOT_A,
-	KS_AFTER_DASH_A,
-	KS_IN_DOT_B,
-	KS_IN_DASH_B,
-	KS_AFTER_DOT_B,
-	KS_AFTER_DASH_B
-};
-
 
 
 
@@ -87,24 +67,25 @@ struct cw_key_struct {
 	   (but a generator doesn't need a key). This is why the key
 	   data type has a "generator" field, not the other way
 	   around. */
-	cw_gen_t *gen;
+	cw_gen_t * gen;
 
 
 	/* There should be a binding between key and a receiver.
 
 	   The receiver can get it's properly formed input data (key
-	   down/key up events) from any source, so it's independent
-	   from key. On the other hand the key without receiver is
-	   rather useless. Therefore I think that the key should
-	   contain reference to a receiver, not the other way
-	   around.
+	   down/key up events) from any source (any code that can call
+	   receiver's 'mark_begin()' and 'mark_end()' functions), so
+	   receiver is independent from key. On the other hand the key
+	   without receiver is rather useless. Therefore I think that
+	   the key should contain reference to a receiver, not the
+	   other way around.
 
 	   There may be one purpose of having a key without libcw
 	   receiver: iambic keyer mechanism may be used to ensure a
 	   functioning iambic keyer, but there may be a
 	   different/external/3-rd party receiver that is
 	   controlled/fed by cw_key_t->key_callback_func function. */
-	cw_rec_t *rec;
+	cw_rec_t * rec;
 
 	/* External "on key state change" callback function and its
 	   argument.
@@ -115,7 +96,7 @@ struct cw_key_struct {
 	   function that is passed to us for this purpose, and a void*
 	   argument for it. */
 	cw_key_callback_t key_callback_func;
-	void *key_callback_arg;
+	void * key_callback_arg;
 
 	/* Straight key. */
 	struct {
@@ -146,13 +127,6 @@ struct cw_key_struct {
 		bool curtis_b_latch;   /* Curtis Dot&Dash latch */
 
 		bool lock;             /* FIXME: describe why we need this flag. */
-
-		/* Generator associated with the keyer. Should never
-		   be NULL as iambic keyer *needs* a generator to
-		   function properly (and to generate audible tones).
-		   Set using
-		   cw_key_register_generator_internal(). */
-		/* No separate generator, use cw_key_t->gen. */
 	} ik;
 
 	/* Tone-queue key. */
@@ -163,7 +137,6 @@ struct cw_key_struct {
 	/* Every key event needs to have a timestamp. */
 	struct timeval timer;
 };
-
 
 
 
@@ -194,11 +167,9 @@ struct cw_key_struct {
 
 
 
-
 /* ******************************************************************** */
 /*                        Section:Iambic keyer                          */
 /* ******************************************************************** */
-
 
 
 
@@ -234,9 +205,21 @@ struct cw_key_struct {
 
 
 
+/* KS stands for Keyer State. */
+enum {
+	KS_IDLE,
+	KS_IN_DOT_A,
+	KS_IN_DASH_A,
+	KS_AFTER_DOT_A,
+	KS_AFTER_DASH_A,
+	KS_IN_DOT_B,
+	KS_IN_DASH_B,
+	KS_AFTER_DOT_B,
+	KS_AFTER_DASH_B
+};
 
-/* See also enum of int values, declared in libcw_key.h. */
-static const char *cw_iambic_keyer_states[] = {
+
+static const char * cw_iambic_keyer_states[] = {
 	"KS_IDLE",
 	"KS_IN_DOT_A",
 	"KS_IN_DASH_A",
@@ -251,12 +234,9 @@ static const char *cw_iambic_keyer_states[] = {
 
 
 
-
-static int cw_key_ik_update_state_initial_internal(cw_key_t *key);
-
-static int cw_key_ik_enqueue_symbol_internal(cw_key_t *key, int key_value, char symbol);
-static int cw_key_sk_enqueue_symbol_internal(cw_key_t *key, int key_value);
-
+static int cw_key_ik_update_state_initial_internal(cw_key_t * key);
+static int cw_key_ik_set_value_internal(cw_key_t * key, int key_value, char symbol);
+static int cw_key_sk_set_value_internal(cw_key_t * key, int key_value);
 
 
 
@@ -268,7 +248,6 @@ static int cw_key_sk_enqueue_symbol_internal(cw_key_t *key, int key_value);
 
 
 
-
 /**
    \brief Register external callback function for keying
 
@@ -276,22 +255,27 @@ static int cw_key_sk_enqueue_symbol_internal(cw_key_t *key, int key_value);
    state of a \p key changes from "key open" to "key closed", or
    vice-versa.
 
-   The first argument passed to the registered callback function is the
-   supplied \p callback_arg, if any.  The second argument passed to
-   registered callback function is the key state: CW_KEY_STATE_CLOSED
-   (one/true) for "key closed", and CW_KEY_STATE_OPEN (zero/false) for
-   "key open".
+   The first argument passed to the registered callback is key's timer.
+
+   The second argument passed to the registered callback function is
+   the supplied \p callback_arg, if any.
+
+   The third argument passed to registered callback function is the
+   key state: CW_KEY_STATE_CLOSED (one/true) for "key closed", and
+   CW_KEY_STATE_OPEN (zero/false) for "key open".
 
    Calling this routine with a NULL function address disables keying
    callbacks.
+
+   \reviewed on 2017-01-31
 
    \param key
    \param callback_func - callback function to be called on key state changes
    \param callback_arg - first argument to callback_func
 */
-void cw_key_register_keying_callback(cw_key_t *key,
+void cw_key_register_keying_callback(cw_key_t * key,
 				     cw_key_callback_t callback_func,
-				     void *callback_arg)
+				     void * callback_arg)
 {
 	key->key_callback_func = callback_func;
 	key->key_callback_arg = callback_arg;
@@ -302,14 +286,12 @@ void cw_key_register_keying_callback(cw_key_t *key,
 
 
 
-
-
 /**
    \brief Set new value of key
 
    Set new value of a key. Filter successive key-down or key-up
    actions into a single action (successive calls with the same value
-   of \p key_state don't change internally registered value of key).
+   of \p key_value don't change internally registered value of key).
 
    If and only if the function registers change of key value, an
    external callback function for keying (if configured) is called.
@@ -319,75 +301,76 @@ void cw_key_register_keying_callback(cw_key_t *key,
    queue is treated as a key, and dequeued tones are treated as key
    values. Dequeueing tones is treated as manipulating a key.
 
+   \reviewed on 2017-01-31
+
    \param key - key to use
    \param key_value - key value to be set
 */
-void cw_key_tk_set_value_internal(cw_key_t *key, int key_value)
+void cw_key_tk_set_value_internal(cw_key_t * key, int key_value)
 {
-	cw_assert (key, "key is NULL");
+	cw_assert (key, "libcw/key: tk set value: key is NULL");
 
-	if (key->tk.key_value != key_value) {
-		cw_debug_msg (&cw_debug_object, CW_DEBUG_KEYING, CW_DEBUG_INFO,
-			      "libcw/qk: key value: %d->%d", key->tk.key_value, key_value);
-
-		/* Remember the new key value. */
-		key->tk.key_value = key_value;
-
-		/* In theory client code should register either a
-		   receiver (so events from key are passed to receiver
-		   directly), or a callback (so events from key are
-		   passed to receiver through callback).
-
-		   So *in theory* only one of these "if" blocks will
-		   be executed. */
-
-		if (key->rec) {
-			if (key->tk.key_value) {
-				/* Key down. */
-				cw_rec_mark_begin(key->rec, &key->timer);
-			} else {
-				/* Key up. */
-				cw_rec_mark_end(key->rec, &key->timer);
-			}
-		}
-
-		if (key->key_callback_func) {
-			cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_KEYING, CW_DEBUG_INFO,
-				      "libcw/qk: ====== about to call callback, key value = %d\n", key->tk.key_value);
-
-			(*(key->key_callback_func))(&key->timer, key->tk.key_value, key->key_callback_arg);
-		}
-
-		return;
-	} else {
+	if (key->tk.key_value == key_value) {
 		/* This is not an error. This may happen when
 		   dequeueing 'forever' tone multiple times in a
 		   row. */
 		return;
 	}
+
+	cw_debug_msg (&cw_debug_object, CW_DEBUG_KEYING, CW_DEBUG_INFO,
+		      "libcw/key: tk set value: %d->%d", key->tk.key_value, key_value);
+
+	/* Remember the new key value. */
+	key->tk.key_value = key_value;
+
+	/* In theory client code should register either a receiver (so
+	   events from key are passed to receiver directly), or a
+	   callback (so events from key are passed to receiver through
+	   callback).
+
+	   So *in theory* only one of these "if" blocks will be
+	   executed. */
+
+	if (key->rec) {
+		if (key->tk.key_value) {
+			/* Key down. */
+			cw_rec_mark_begin(key->rec, &key->timer);
+		} else {
+			/* Key up. */
+			cw_rec_mark_end(key->rec, &key->timer);
+		}
+	}
+
+	if (key->key_callback_func) {
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_KEYING, CW_DEBUG_INFO,
+			      "libcw/key: tk set value: about to call callback, key value = %d\n", key->tk.key_value);
+
+		(*(key->key_callback_func))(&key->timer, key->tk.key_value, key->key_callback_arg);
+	}
+
+	return;
 }
 
 
 
 
+/**
+   Comment for key used as iambic keyer:
+   Iambic keyer cannot function without an associated generator. A
+   keyer has to have some generator to function correctly. Generator
+   doesn't care if it has any key registered or not. Thus a function
+   binding a keyer and generator belongs to "iambic keyer" module.
 
-/*
-  Comment for key used as iambic keyer:
-  Iambic keyer cannot function without an associated generator. A
-  keyer has to have some generator to function correctly. Generator
-  doesn't care if it has any key registered or not. Thus a function
-  binding a keyer and generator belongs to "iambic keyer" module.
+   Remember that a generator can exist without a keyer. In applications
+   that do nothing related to keying with iambic keyer, having just a
+   generator is a valid situation.
 
-  Remember that a generator can exist without a keyer. In applications
-  that do nothing related to keying with iambic keyer, having just a
-  generator is a valid situation.
+   \reviewed on 2017-01-31
 
-
-
-  \param key - key that needs to have a generator associated with it
-  \param gen - generator to be used with given keyer
+   \param key - key that needs to have a generator associated with it
+   \param gen - generator to be used with given keyer
 */
-void cw_key_register_generator(cw_key_t *key, cw_gen_t *gen)
+void cw_key_register_generator(cw_key_t * key, cw_gen_t * gen)
 {
 	/* General key. */
 	key->gen = gen;
@@ -399,18 +382,18 @@ void cw_key_register_generator(cw_key_t *key, cw_gen_t *gen)
 
 
 
-
 /**
    Receiver should somehow receive key events from physical or logical
    key. This can be done in one of two ways:
 
    1. key events -> key variable -> cw_key_tk_set_value_internal() ->
-      -> cw_rec_mark_{begin|end}(key->rec, ...)
+      -> registered receiver -> cw_rec_mark_{begin|end}(key->rec, ...)
    2. key events -> key variable -> cw_key_tk_set_value_internal() ->
-      -> key->key_callback_function() -> cw_rec_mark_{begin|end}(rec, ...)
+      -> registered callback function-> key->key_callback_function()
+      -> cw_rec_mark_{begin|end}(rec, ...)
 
-
-   There should be a binding between key and a receiver.
+   When using the first way, there should be a binding between key and
+   a receiver.
 
    The receiver can get it's properly formed input data (key down/key
    up events) from any source, so it's independent from key. On the
@@ -418,16 +401,17 @@ void cw_key_register_generator(cw_key_t *key, cw_gen_t *gen)
    think that the key should contain reference to a receiver, not the
    other way around.
 
-  \param key - key that needs to have a receiver associated with it
-  \param rec - receiver to be used with given key
+   \reviewed on 2017-01-31
+
+   \param key - key that needs to have a receiver associated with it
+   \param rec - receiver to be used with given key
 */
-void cw_key_register_receiver(cw_key_t *key, cw_rec_t *rec)
+void cw_key_register_receiver(cw_key_t * key, cw_rec_t * rec)
 {
 	key->rec = rec;
 
 	return;
 }
-
 
 
 
@@ -446,56 +430,58 @@ void cw_key_register_receiver(cw_key_t *key, cw_rec_t *rec)
    of related generator \p gen is changed accordingly (a tone is
    started or stopped).
 
+   \reviewed on 2017-01-31
+
    \param key - key in use
-   \param key_state - key state to be set
+   \param key_value - key value to be set
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_key_sk_enqueue_symbol_internal(cw_key_t *key, int key_value)
+int cw_key_sk_set_value_internal(cw_key_t * key, int key_value)
 {
-	cw_assert (key, "key is NULL");
-	cw_assert (key->gen, "generator is NULL");
+	cw_assert (key, "libcw/key: sk set value: key is NULL");
+	cw_assert (key->gen, "libcw/key: sk set value: generator is NULL");
 
 	gettimeofday(&key->timer, NULL);
 
-	if (key->sk.key_value != key_value) {
-		cw_debug_msg (&cw_debug_object, CW_DEBUG_KEYING, CW_DEBUG_INFO,
-			      "libcw/sk: key value %d->%d", key->sk.key_value, key_value);
-
-		/* Remember the new key value. */
-		key->sk.key_value = key_value;
-
-		/* Call a registered callback. */
-		if (key->key_callback_func) {
-			cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_KEYING, CW_DEBUG_INFO,
-				      "libcw/sk: ++++++ about to call callback, key value = %d\n", key_value);
-
-			(*(key->key_callback_func))(&key->timer, key->sk.key_value, key->key_callback_arg);
-		}
-
-		int rv;
-		if (key->sk.key_value == CW_KEY_STATE_CLOSED) {
-			/* In case of straight key we don't know at
-			   all how long the tone should be (we don't
-			   know for how long the key will be closed.
-
-			   Let's enqueue a beginning of mark. A
-			   constant tone will be generated until function
-			   receives CW_KEY_STATE_OPEN key state. */
-			rv = cw_gen_enqueue_begin_mark_internal(key->gen);
-		} else {
-			/* CW_KEY_STATE_OPEN, time to go from Mark
-			   (audible tone) to Space (silence). */
-			rv = cw_gen_enqueue_begin_space_internal(key->gen);
-		}
-		cw_assert (rv, "failed to key key value %d", key->sk.key_value);
-		return rv;
-	} else {
+	if (key->sk.key_value == key_value) {
 		/* This may happen when dequeueing 'forever' tone
 		   multiple times in a row. */
 		return CW_SUCCESS;
 	}
+
+	cw_debug_msg (&cw_debug_object, CW_DEBUG_KEYING, CW_DEBUG_INFO,
+		      "libcw/key: sk set value %d->%d", key->sk.key_value, key_value);
+
+	/* Remember the new key value. */
+	key->sk.key_value = key_value;
+
+	/* Call a registered callback. */
+	if (key->key_callback_func) {
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_KEYING, CW_DEBUG_INFO,
+			      "libcw/key: sk set value: about to call callback, key value = %d\n", key->sk.key_value);
+
+		(*(key->key_callback_func))(&key->timer, key->sk.key_value, key->key_callback_arg);
+	}
+
+	int rv;
+	if (key->sk.key_value == CW_KEY_STATE_CLOSED) {
+		/* In case of straight key we don't know at
+		   all how long the tone should be (we don't
+		   know for how long the key will be closed).
+
+		   Let's enqueue a beginning of mark. A
+		   constant tone will be generated until function
+		   receives CW_KEY_STATE_OPEN key state. */
+		rv = cw_gen_enqueue_begin_mark_internal(key->gen);
+	} else {
+		/* CW_KEY_STATE_OPEN, time to go from Mark
+		   (audible tone) to Space (silence). */
+		rv = cw_gen_enqueue_begin_space_internal(key->gen);
+	}
+	cw_assert (CW_SUCCESS == rv, "libcw/key: sk set value: failed to enqueue key value %d", key->sk.key_value);
+	return rv;
 }
 
 
@@ -528,53 +514,54 @@ int cw_key_sk_enqueue_symbol_internal(cw_key_t *key, int key_value)
 
    Function also calls external callback function for keying on every
    change of key's value (if the callback has been registered by
-   client code). Key's value (Open/Closed) is passed to the callback
-   as argument. Callback is called by this function only when there is
-   a change of key value - this function filters successive key-down
-   or key-up actions into a single action.
+   client code). Key's value (CW_KEY_STATE_OPEN/CW_KEY_STATE_CLOSED)
+   is passed to the callback as argument. Callback is called by this
+   function only when there is a change of key value - this function
+   filters successive key-down or key-up actions into a single action.
 
    TODO: explain difference and relation between key's value and
    keyer's graph state.
 
+   \reviewed on 2017-01-31
+
    \param key - current key
-   \param key_value - key value to be set (Mark/Space)
+   \param key_value - key value to be set (CW_KEY_STATE_OPEN/CW_KEY_STATE_CLOSED)
    \param symbol - symbol to enqueue (Space, Dot, Dash)
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_key_ik_enqueue_symbol_internal(cw_key_t *key, int key_value, char symbol)
+int cw_key_ik_set_value_internal(cw_key_t * key, int key_value, char symbol)
 {
-	cw_assert (key, "keyer is NULL");
-	cw_assert (key->gen, "generator is NULL");
+	cw_assert (key, "libcw/key: ik set value: keyer is NULL");
+	cw_assert (key->gen, "libcw/key: ik set value: generator is NULL");
 
-	if (key->ik.key_value != key_value) {
-		cw_debug_msg (&cw_debug_object, CW_DEBUG_KEYING, CW_DEBUG_INFO,
-			      "libcw/ik: key value %d->%d", key->ik.key_value, key_value);
-
-		/* Remember the new key value. */
-		key->ik.key_value = key_value;
-
-		/* Call a registered callback. */
-		if (key->key_callback_func) {
-			cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_KEYING, CW_DEBUG_INFO,
-				      "libcw/ik: ------ about to call callback, key value = %d\n", key_value);
-
-			(*(key->key_callback_func))(&key->timer, key->ik.key_value, key->key_callback_arg);
-		}
-
-		/* 'Pure' means without any end-of-mark spaces. */
-		int rv = cw_gen_enqueue_partial_symbol_internal(key->gen, symbol);
-		cw_assert (rv, "failed to key symbol '%c'", symbol);
-		return rv;
-	} else {
+	if (key->ik.key_value == key_value) {
 		/* This is not an error. This may happen when
 		   dequeueing 'forever' tone multiple times in a
 		   row. */
 		return CW_SUCCESS;
 	}
-}
 
+	cw_debug_msg (&cw_debug_object, CW_DEBUG_KEYING, CW_DEBUG_INFO,
+		      "libcw/key: ik set value %d->%d", key->ik.key_value, key_value);
+
+	/* Remember the new key value. */
+	key->ik.key_value = key_value;
+
+	/* Call a registered callback. */
+	if (key->key_callback_func) {
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_KEYING, CW_DEBUG_INFO,
+			      "libcw/key: ik set value: about to call callback, key value = %d\n", key->ik.key_value);
+
+		(*(key->key_callback_func))(&key->timer, key->ik.key_value, key->key_callback_arg);
+	}
+
+	/* 'Partial' means without any end-of-mark spaces. */
+	int rv = cw_gen_enqueue_partial_symbol_internal(key->gen, symbol);
+	cw_assert (CW_SUCCESS == rv, "libcw/key: ik set value: failed to key symbol '%c'", symbol);
+	return rv;
+}
 
 
 
@@ -582,7 +569,6 @@ int cw_key_ik_enqueue_symbol_internal(cw_key_t *key, int key_value, char symbol)
 /* ******************************************************************** */
 /*                        Section:Iambic keyer                          */
 /* ******************************************************************** */
-
 
 
 
@@ -598,9 +584,11 @@ int cw_key_ik_enqueue_symbol_internal(cw_key_t *key, int key_value, char symbol)
    element is also sent. Some operators prefer mode B, but timing is
    more critical in this mode. The default mode is Curtis mode A.
 
+   \reviewed on 2017-01-31
+
    \param key
 */
-void cw_key_ik_enable_curtis_mode_b(cw_key_t *key)
+void cw_key_ik_enable_curtis_mode_b(cw_key_t * key)
 {
 	key->ik.curtis_mode_b = true;
 	return;
@@ -609,13 +597,14 @@ void cw_key_ik_enable_curtis_mode_b(cw_key_t *key)
 
 
 
-
 /**
    See documentation of cw_key_ik_enable_curtis_mode_b() for more information
 
+   \reviewed on 2017-01-31
+
    \param key
 */
-void cw_key_ik_disable_curtis_mode_b(cw_key_t *key)
+void cw_key_ik_disable_curtis_mode_b(cw_key_t * key)
 {
 	key->ik.curtis_mode_b = false;
 	return;
@@ -628,12 +617,14 @@ void cw_key_ik_disable_curtis_mode_b(cw_key_t *key)
 /**
    See documentation of cw_enable_iambic_curtis_mode_b() for more information
 
+   \reviewed on 2017-01-31
+
    \param key
 
    \return true if Curtis mode is enabled for the key
    \return false otherwise
 */
-bool cw_key_ik_get_curtis_mode_b(cw_key_t *key)
+bool cw_key_ik_get_curtis_mode_b(const cw_key_t * key)
 {
 	return key->ik.curtis_mode_b;
 }
@@ -719,7 +710,7 @@ int cw_key_ik_update_graph_state_internal(cw_key_t *key)
 		/* We are ending a dot, so turn off tone and begin the
 		   after-dot delay.
 		   No routine status checks are made! (TODO) */
-		cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_OPEN, CW_SYMBOL_SPACE);
+		cw_key_ik_set_value_internal(key, CW_KEY_STATE_OPEN, CW_SYMBOL_SPACE);
 		key->ik.graph_state = key->ik.graph_state == KS_IN_DOT_A
 			? KS_AFTER_DOT_A : KS_AFTER_DOT_B;
 		break;
@@ -736,7 +727,7 @@ int cw_key_ik_update_graph_state_internal(cw_key_t *key)
 		/* We are ending a dash, so turn off tone and begin
 		   the after-dash delay.
 		   No routine status checks are made! (TODO) */
-		cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_OPEN, CW_SYMBOL_SPACE);
+		cw_key_ik_set_value_internal(key, CW_KEY_STATE_OPEN, CW_SYMBOL_SPACE);
 		key->ik.graph_state = key->ik.graph_state == KS_IN_DASH_A
 			? KS_AFTER_DASH_A : KS_AFTER_DASH_B;
 
@@ -769,10 +760,10 @@ int cw_key_ik_update_graph_state_internal(cw_key_t *key)
 		}
 
 		if (key->ik.graph_state == KS_AFTER_DOT_B) {
-			cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_CLOSED, CW_DASH_REPRESENTATION);
+			cw_key_ik_set_value_internal(key, CW_KEY_STATE_CLOSED, CW_DASH_REPRESENTATION);
 			key->ik.graph_state = KS_IN_DASH_A;
 		} else if (key->ik.dash_latch) {
-			cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_CLOSED, CW_DASH_REPRESENTATION);
+			cw_key_ik_set_value_internal(key, CW_KEY_STATE_CLOSED, CW_DASH_REPRESENTATION);
 			if (key->ik.curtis_b_latch){
 				key->ik.curtis_b_latch = false;
 				key->ik.graph_state = KS_IN_DASH_B;
@@ -780,7 +771,7 @@ int cw_key_ik_update_graph_state_internal(cw_key_t *key)
 				key->ik.graph_state = KS_IN_DASH_A;
 			}
 		} else if (key->ik.dot_latch) {
-			cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_CLOSED, CW_DOT_REPRESENTATION);
+			cw_key_ik_set_value_internal(key, CW_KEY_STATE_CLOSED, CW_DOT_REPRESENTATION);
 			key->ik.graph_state = KS_IN_DOT_A;
 		} else {
 			key->ik.graph_state = KS_IDLE;
@@ -815,10 +806,10 @@ int cw_key_ik_update_graph_state_internal(cw_key_t *key)
 		   idling. */
 
 		if (key->ik.graph_state == KS_AFTER_DASH_B) {
-			cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_CLOSED, CW_DOT_REPRESENTATION);
+			cw_key_ik_set_value_internal(key, CW_KEY_STATE_CLOSED, CW_DOT_REPRESENTATION);
 			key->ik.graph_state = KS_IN_DOT_A;
 		} else if (key->ik.dot_latch) {
-			cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_CLOSED, CW_DOT_REPRESENTATION);
+			cw_key_ik_set_value_internal(key, CW_KEY_STATE_CLOSED, CW_DOT_REPRESENTATION);
 			if (key->ik.curtis_b_latch) {
 				key->ik.curtis_b_latch = false;
 				key->ik.graph_state = KS_IN_DOT_B;
@@ -826,7 +817,7 @@ int cw_key_ik_update_graph_state_internal(cw_key_t *key)
 				key->ik.graph_state = KS_IN_DOT_A;
 			}
 		} else if (key->ik.dash_latch) {
-			cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_CLOSED, CW_DASH_REPRESENTATION);
+			cw_key_ik_set_value_internal(key, CW_KEY_STATE_CLOSED, CW_DASH_REPRESENTATION);
 			key->ik.graph_state = KS_IN_DASH_A;
 		} else {
 			key->ik.graph_state = KS_IDLE;
@@ -1333,7 +1324,7 @@ int cw_key_sk_notify_event(cw_key_t *key, int key_state)
 
 	/* Do tones and keying, and set up timeouts and soundcard
 	   activities to match the new key state. */
-	int rv = cw_key_sk_enqueue_symbol_internal(key, key_state);
+	int rv = cw_key_sk_set_value_internal(key, key_state);
 
 	return rv;
 }

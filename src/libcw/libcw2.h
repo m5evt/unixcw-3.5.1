@@ -236,9 +236,9 @@ void      cw_key_delete(cw_key_t **key);
 
 
 /* key module. */
-void cw_key_ik_enable_curtis_mode_b(cw_key_t *key);
-void cw_key_ik_disable_curtis_mode_b(cw_key_t *key);
-bool cw_key_ik_get_curtis_mode_b(cw_key_t *key);
+void cw_key_ik_enable_curtis_mode_b(cw_key_t * key);
+void cw_key_ik_disable_curtis_mode_b(cw_key_t * key);
+bool cw_key_ik_get_curtis_mode_b(const cw_key_t * key);
 int  cw_key_ik_notify_paddle_event(cw_key_t *key, int dot_paddle_state, int dash_paddle_state);
 int  cw_key_ik_notify_dot_paddle_event(cw_key_t *key, int dot_paddle_state);
 int  cw_key_ik_notify_dash_paddle_event(cw_key_t *key, int dash_paddle_state);
