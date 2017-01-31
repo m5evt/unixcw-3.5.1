@@ -245,11 +245,11 @@ int  cw_key_ik_notify_dash_paddle_event(cw_key_t *key, int dash_paddle_state);
 
 int  cw_key_ik_wait_for_element(cw_key_t *key);
 int  cw_key_ik_wait_for_keyer(cw_key_t *key);
-void cw_key_ik_get_paddles(cw_key_t *key, int *dot_paddle_state, int *dash_paddle_state);
+void cw_key_ik_get_paddles(cw_key_t * key, /* out */ int * dot_paddle_state, /* out */ int * dash_paddle_state);
 
-int  cw_key_sk_notify_event(cw_key_t *key, int key_state);
-int  cw_key_sk_get_state(cw_key_t *key);
-bool cw_key_sk_is_busy(cw_key_t *key);
+int  cw_key_sk_notify_event(cw_key_t * key, int key_value);
+int  cw_key_sk_get_value(const cw_key_t * key);
+bool cw_key_sk_is_busy(const cw_key_t * key);
 
 void cw_key_register_keying_callback(cw_key_t *key, cw_key_callback_t callback_func, void *callback_arg);
 void cw_key_register_generator(cw_key_t *key, cw_gen_t *gen);

@@ -108,13 +108,13 @@ struct cw_key_struct {
 	   known state of the paddles, and latch false-to-true
 	   transitions while busy, to form the iambic effect.  For
 	   Curtis mode B, the keyer also latches any point where both
-	   paddle states are true at the same time. */
+	   paddle values are CLOSED at the same time. */
 	struct {
 		int graph_state;       /* State of iambic keyer state machine. */
-		int key_value;         /* Open/Closed, Space/Mark, NoSound/Sound. */
+		int key_value;         /* CW_KEY_STATE_OPEN or CW_KEY_STATE_CLOSED (Space/Mark, NoSound/Sound). */
 
-		bool dot_paddle;       /* Dot paddle state */
-		bool dash_paddle;      /* Dash paddle state */
+		bool dot_paddle;       /* Dot paddle value. CW_KEY_STATE_OPEN or CW_KEY_STATE_CLOSED. */
+		bool dash_paddle;      /* Dash paddle value. CW_KEY_STATE_OPEN or CW_KEY_STATE_CLOSED. */
 
 		bool dot_latch;        /* Dot false->true latch */
 		bool dash_latch;       /* Dash false->true latch */
@@ -613,7 +613,6 @@ void cw_key_ik_disable_curtis_mode_b(cw_key_t * key)
 
 
 
-
 /**
    See documentation of cw_enable_iambic_curtis_mode_b() for more information
 
@@ -632,9 +631,8 @@ bool cw_key_ik_get_curtis_mode_b(const cw_key_t * key)
 
 
 
-
 /**
-   \brief Update state of iambic keyer, queue tone representing state of the iambic keyer
+   \brief Update state of iambic keyer, enqueue tone representing state of the iambic keyer
 
    It seems that the function is called when a client code informs
    about change of state of one of paddles. So I think what the
@@ -646,12 +644,14 @@ bool cw_key_ik_get_curtis_mode_b(const cw_key_t * key)
    dequeued and pushed to audio system. I don't know why make the call
    in that place for iambic keyer, but not for straight key.
 
+   \reviewed on 2017-01-30
+
    \param key - iambic key
 
    \return CW_FAILURE if there is a lock and the function cannot proceed
    \return CW_SUCCESS otherwise
 */
-int cw_key_ik_update_graph_state_internal(cw_key_t *key)
+int cw_key_ik_update_graph_state_internal(cw_key_t * key)
 {
 	if (!key) {
 		/* This function is called from generator thread. It
@@ -661,21 +661,21 @@ int cw_key_ik_update_graph_state_internal(cw_key_t *key)
 
 		   TODO: move this check earlier in call stack, so
 		   that less functions are called before silently
-		   discovering that key doesn't exist.. */
+		   discovering that key doesn't exist. */
 		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_INTERNAL, CW_DEBUG_DEBUG,
-			      "libcw/ik: NULL key, silently accepting");
+			      "libcw/key: ik update: NULL key, silently accepting");
 		return CW_SUCCESS;
 	}
 
 	/* This function is called from generator thread function, so
 	   the generator must exist. Be paranoid and check it, just in
-	   case :) */
-	cw_assert (key->gen, "generator is NULL");
+	   case. */
+	cw_assert (key->gen, "libcw/key: ik update: generator is NULL");
 
 
 	if (key->ik.lock) {
 		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_INTERNAL, CW_DEBUG_ERROR,
-			      "libcw/ik: lock in thread %ld", (long) pthread_self());
+			      "libcw/key: ik update: lock in thread %ld", (long) pthread_self());
 		return CW_FAILURE;
 	}
 	key->ik.lock = true;
@@ -701,36 +701,33 @@ int cw_key_ik_update_graph_state_internal(cw_key_t *key)
 	case KS_IN_DOT_A:
 	case KS_IN_DOT_B:
 		/* Verify that key value and keyer graph state are in
-		   sync.  We are *at the end* of Mark, so key should
+		   sync.  We are *at the end* of Mark (Dot), so key should
 		   be (still) closed. */
 		cw_assert (key->ik.key_value == CW_KEY_STATE_CLOSED,
-			   "inconsistency between keyer state (%s) ad key value (%d)",
+			   "libcw/key: ik update: inconsistency between keyer state (%s) ad key value (%d)",
 			   cw_iambic_keyer_states[key->ik.graph_state], key->ik.key_value);
 
-		/* We are ending a dot, so turn off tone and begin the
-		   after-dot delay.
+		/* We are ending a Dot, so turn off tone and begin the
+		   after-dot Space.
 		   No routine status checks are made! (TODO) */
 		cw_key_ik_set_value_internal(key, CW_KEY_STATE_OPEN, CW_SYMBOL_SPACE);
-		key->ik.graph_state = key->ik.graph_state == KS_IN_DOT_A
-			? KS_AFTER_DOT_A : KS_AFTER_DOT_B;
+		key->ik.graph_state = key->ik.graph_state == KS_IN_DOT_A ? KS_AFTER_DOT_A : KS_AFTER_DOT_B;
 		break;
 
 	case KS_IN_DASH_A:
 	case KS_IN_DASH_B:
 		/* Verify that key value and keyer graph state are in
-		   sync.  We are *at the end* of Mark, so key should
+		   sync.  We are *at the end* of Mark (Dash), so key should
 		   be (still) closed. */
 		cw_assert (key->ik.key_value == CW_KEY_STATE_CLOSED,
-			   "inconsistency between keyer state (%s) ad key value (%d)",
+			   "libcw/key: ik update: inconsistency between keyer state (%s) ad key value (%d)",
 			   cw_iambic_keyer_states[key->ik.graph_state], key->ik.key_value);
 
-		/* We are ending a dash, so turn off tone and begin
-		   the after-dash delay.
+		/* We are ending a Dash, so turn off tone and begin
+		   the after-dash Space.
 		   No routine status checks are made! (TODO) */
 		cw_key_ik_set_value_internal(key, CW_KEY_STATE_OPEN, CW_SYMBOL_SPACE);
-		key->ik.graph_state = key->ik.graph_state == KS_IN_DASH_A
-			? KS_AFTER_DASH_A : KS_AFTER_DASH_B;
-
+		key->ik.graph_state = key->ik.graph_state == KS_IN_DASH_A ? KS_AFTER_DASH_A : KS_AFTER_DASH_B;
 		break;
 
 	case KS_AFTER_DOT_A:
@@ -739,10 +736,10 @@ int cw_key_ik_update_graph_state_internal(cw_key_t *key)
 		   sync.  We are *at the end* of Space, so key should
 		   be (still) open. */
 		cw_assert (key->ik.key_value == CW_KEY_STATE_OPEN,
-			   "inconsistency between keyer state (%s) ad key value (%d)",
+			   "libcw/key: ik update: inconsistency between keyer state (%s) ad key value (%d)",
 			   cw_iambic_keyer_states[key->ik.graph_state], key->ik.key_value);
 
-		/* If we have just finished a dot or a dash and its
+		/* If we have just finished a Dot or a Dash and its
 		   post-mark delay, then reset the latches as
 		   appropriate.  Next, if in a _B state, go straight
 		   to the opposite element state.  If in an _A state,
@@ -762,9 +759,10 @@ int cw_key_ik_update_graph_state_internal(cw_key_t *key)
 		if (key->ik.graph_state == KS_AFTER_DOT_B) {
 			cw_key_ik_set_value_internal(key, CW_KEY_STATE_CLOSED, CW_DASH_REPRESENTATION);
 			key->ik.graph_state = KS_IN_DASH_A;
+
 		} else if (key->ik.dash_latch) {
 			cw_key_ik_set_value_internal(key, CW_KEY_STATE_CLOSED, CW_DASH_REPRESENTATION);
-			if (key->ik.curtis_b_latch){
+			if (key->ik.curtis_b_latch) {
 				key->ik.curtis_b_latch = false;
 				key->ik.graph_state = KS_IN_DASH_B;
 			} else {
@@ -785,7 +783,7 @@ int cw_key_ik_update_graph_state_internal(cw_key_t *key)
 		   sync.  We are *at the end* of Space, so key should
 		   be (still) open. */
 		cw_assert (key->ik.key_value == CW_KEY_STATE_OPEN,
-			   "inconsistency between keyer state (%s) ad key value (%d)",
+			   "libcw/key: ik update: inconsistency between keyer state (%s) ad key value (%d)",
 			   cw_iambic_keyer_states[key->ik.graph_state], key->ik.key_value);
 
 		if (!key->ik.dash_paddle) {
@@ -808,6 +806,7 @@ int cw_key_ik_update_graph_state_internal(cw_key_t *key)
 		if (key->ik.graph_state == KS_AFTER_DASH_B) {
 			cw_key_ik_set_value_internal(key, CW_KEY_STATE_CLOSED, CW_DOT_REPRESENTATION);
 			key->ik.graph_state = KS_IN_DOT_A;
+
 		} else if (key->ik.dot_latch) {
 			cw_key_ik_set_value_internal(key, CW_KEY_STATE_CLOSED, CW_DOT_REPRESENTATION);
 			if (key->ik.curtis_b_latch) {
@@ -827,7 +826,7 @@ int cw_key_ik_update_graph_state_internal(cw_key_t *key)
 	}
 
 	cw_debug_msg (&cw_debug_object, CW_DEBUG_KEYER_STATES, CW_DEBUG_INFO,
-		      "libcw/ik: keyer state: %s -> %s",
+		      "libcw/key: ik update: keyer state: %s -> %s",
 		      cw_iambic_keyer_states[old_state], cw_iambic_keyer_states[key->ik.graph_state]);
 
 	key->ik.lock = false;
@@ -837,15 +836,13 @@ int cw_key_ik_update_graph_state_internal(cw_key_t *key)
 
 
 
-
-
 /**
    \brief Inform iambic keyer logic about changed state of iambic keyer's paddles
 
    Function informs the library that the iambic keyer paddles have
    changed state.  The new paddle states are recorded, and if either
-   transition from false to true, paddle latches (for iambic
-   functions) are also set.
+   transition from CW_KEY_STATE_OPEN to CW_KEY_STATE_CLOSED, paddle
+   latches (for iambic functions) are also set.
 
    On success, the routine returns CW_SUCCESS.
    On failure, it returns CW_FAILURE, with errno set to EBUSY if the
@@ -858,17 +855,18 @@ int cw_key_ik_update_graph_state_internal(cw_key_t *key)
    and cw_keyer_wait() for details about how to check the current status of
    iambic keyer background processing.
 
+   \reviewed on 2017-01-31
 
    \param key
-   \param dot_paddle_state
-   \param dash_paddle_state
+   \param dot_paddle_state: CW_KEY_STATE_CLOSED or CW_KEY_STATE_OPEN
+   \param dash_paddle_state: CW_KEY_STATE_CLOSED or CW_KEY_STATE_OPEN
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_key_ik_notify_paddle_event(cw_key_t *key, int dot_paddle_state, int dash_paddle_state)
+int cw_key_ik_notify_paddle_event(cw_key_t * key, int dot_paddle_state, int dash_paddle_state)
 {
-#if 0 /* This is disabled, but I'm not sure why. */
+#if 0 /* This is disabled, but I'm not sure why. */  /* This code has been disabled some time before 2017-01-31. */
 	/* If the tone queue or the straight key are busy, this is going to
 	   conflict with our use of the sound card, console sounder, and
 	   keying system.  So return an error status in this case. */
@@ -879,30 +877,41 @@ int cw_key_ik_notify_paddle_event(cw_key_t *key, int dot_paddle_state, int dash_
 #endif
 
 	/* Clean up and save the paddle states passed in. */
+#if 0    /* This code has been disabled on 2017-01-31. */
 	key->ik.dot_paddle = (dot_paddle_state != 0);
 	key->ik.dash_paddle = (dash_paddle_state != 0);
+#else
+	key->ik.dot_paddle = dot_paddle_state;
+	key->ik.dash_paddle = dash_paddle_state;
+#endif
 
-	/* Update the paddle latches if either paddle goes true.
-	   The latches are checked in the signal handler, so if the paddles
-	   go back to false during this element, the item still gets
-	   actioned.  The signal handler is also responsible for clearing
-	   down the latches. TODO: verify the comment. */
-	if (key->ik.dot_paddle) {
+	/* Update the paddle latches if either paddle goes CLOSED.
+	   The latches are checked in the signal handler, so if the
+	   paddles go back to OPEN during this element, the item still
+	   gets actioned.  The signal handler is also responsible for
+	   clearing down the latches. TODO: verify the comment. */
+	if (key->ik.dot_paddle == CW_KEY_STATE_CLOSED) {
 		key->ik.dot_latch = true;
 	}
-	if (key->ik.dash_paddle) {
+	if (key->ik.dash_paddle == CW_KEY_STATE_CLOSED) {
 		key->ik.dash_latch = true;
 	}
 
-	/* If in Curtis mode B, make a special check for both paddles true
-	   at the same time.  This flag is checked by the signal handler,
-	   to determine whether to add mode B trailing timing elements. TODO: verify this comment. */
-	if (key->ik.curtis_mode_b && key->ik.dot_paddle && key->ik.dash_paddle) {
+
+	if (key->ik.curtis_mode_b
+	    && key->ik.dot_paddle == CW_KEY_STATE_CLOSED
+	    && key->ik.dash_paddle == CW_KEY_STATE_CLOSED) {
+
+		/* Both paddles closed at the same time in Curtis mode B.
+
+		   This flag is checked by the signal handler, to
+		   determine whether to add mode B trailing timing
+		   elements. TODO: verify this comment. */
 		key->ik.curtis_b_latch = true;
 	}
 
 	cw_debug_msg (&cw_debug_object, CW_DEBUG_KEYER_STATES, CW_DEBUG_INFO,
-		      "libcw/ik: keyer paddles %d,%d, latches %d,%d, curtis_b %d",
+		      "libcw/key: ik notify: paddles %d,%d, latches %d,%d, curtis_b %d",
 		      key->ik.dot_paddle, key->ik.dash_paddle,
 		      key->ik.dot_latch, key->ik.dash_latch, key->ik.curtis_b_latch);
 
@@ -931,30 +940,31 @@ int cw_key_ik_notify_paddle_event(cw_key_t *key, int dot_paddle_state, int dash_
 
 
 
-
 /**
    \brief Initiate work of iambic keyer state machine
 
    State machine for iambic keyer must be pushed from KS_IDLE
    state. Call this function to do this.
 
+   \reviewed on 2017-01-31
+
    \param key
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_key_ik_update_state_initial_internal(cw_key_t *key)
+int cw_key_ik_update_state_initial_internal(cw_key_t * key)
 {
-	cw_assert (key, "keyer is NULL");
-	cw_assert (key->gen, "generator is NULL");
+	cw_assert (key, "libcw/key: ik update initial: keyer is NULL");
+	cw_assert (key->gen, "libcw/key: ik update initial: generator is NULL");
 
-	if (!key->ik.dot_paddle && !key->ik.dash_paddle) {
+	if (key->ik.dot_paddle == CW_KEY_STATE_OPEN && key->ik.dash_paddle == CW_KEY_STATE_OPEN) {
 		/* Both paddles are open/up. We certainly don't want
 		   to start any process upon "both paddles open"
 		   event. But the function shouldn't have been called
 		   in that situation. */
 		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_KEYER_STATES, CW_DEBUG_ERROR,
-			      "libcw/ik: called update_state_initial() function when both paddles are up");
+			      "libcw/key: ik update initial: called the function when both paddles are open");
 
 		/* Silently accept.
 		   TODO: maybe it's a good idea, or maybe bad one to
@@ -964,14 +974,14 @@ int cw_key_ik_update_state_initial_internal(cw_key_t *key)
 
 	int old_state = key->ik.graph_state;
 
-	if (key->ik.dot_paddle) {
+	if (key->ik.dot_paddle == CW_KEY_STATE_CLOSED) {
 		/* "Dot" paddle pressed. Pretend that we are in "after
 		   dash" space, so that keyer will have to transit
 		   into "dot" mark state. */
 		key->ik.graph_state = key->ik.curtis_b_latch
 			? KS_AFTER_DASH_B : KS_AFTER_DASH_A;
 
-	} else { /* key->ik.dash_paddle */
+	} else { /* key->ik.dash_paddle == CW_KEY_STATE_CLOSED */
 		/* "Dash" paddle pressed. Pretend that we are in
 		   "after dot" space, so that keyer will have to
 		   transit into "dash" mark state. */
@@ -981,20 +991,23 @@ int cw_key_ik_update_state_initial_internal(cw_key_t *key)
 	}
 
 	cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
-		      "libcw/ik: keyer state (init): %s -> %s",
+		      "libcw/key: ik update initial: keyer state: %s -> %s",
 		      cw_iambic_keyer_states[old_state], cw_iambic_keyer_states[key->ik.graph_state]);
 
 
 	/* Here comes the "real" initial transition - this is why we
-	   called this function. */
+	   called this function. We will transition from state set
+	   above into "real" state, reflecting state of paddles. */
 	int rv = cw_key_ik_update_graph_state_internal(key);
 	if (rv == CW_FAILURE) {
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_KEYER_STATES, CW_DEBUG_ERROR,
+			      "libcw/key: ik update initial: call to update_state_initial() failed first time");
 		/* Just try again, once. */
 		usleep(1000);
 		rv = cw_key_ik_update_graph_state_internal(key);
-		if (!rv) {
-			cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_KEYER_STATES, CW_DEBUG_ERROR,
-				      "libcw/ik: call to update_state_initial() failed");
+		if (rv == CW_FAILURE) {
+			cw_debug_msg (&cw_debug_object, CW_DEBUG_KEYER_STATES, CW_DEBUG_ERROR,
+				      "libcw/key: ik update initial: call to update_state_initial() failed twice");
 		}
 	}
 
@@ -1004,23 +1017,23 @@ int cw_key_ik_update_state_initial_internal(cw_key_t *key)
 
 
 
-
 /**
-   \brief Change state of dot paddle
+   \brief Change state of Dot paddle
 
-   Alter the state of just one of the two iambic keyer paddles.
-   The other paddle state of the paddle pair remains unchanged.
+   Alter the state of Dot paddle. State of Dash paddle remains unchanged.
 
    See cw_key_ik_notify_paddle_event() for details of iambic
    keyer background processing, and how to check its status.
 
+   \reviewed on 2017-01-31
+
    \param key
-   \param dot_paddle_state
+   \param dot_paddle_state: CW_KEY_STATE_CLOSED or CW_KEY_STATE_OPEN
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_key_ik_notify_dot_paddle_event(cw_key_t *key, int dot_paddle_state)
+int cw_key_ik_notify_dot_paddle_event(cw_key_t * key, int dot_paddle_state)
 {
 	return cw_key_ik_notify_paddle_event(key, dot_paddle_state, key->ik.dash_paddle);
 }
@@ -1028,17 +1041,23 @@ int cw_key_ik_notify_dot_paddle_event(cw_key_t *key, int dot_paddle_state)
 
 
 
-
 /**
-   See documentation of cw_notify_keyer_dot_paddle_event() for more information
+   \brief Change state of Dash paddle
+
+   Alter the state of Dash paddle. State of Dot paddle remains unchanged.
+
+   See cw_key_ik_notify_paddle_event() for details of iambic
+   keyer background processing, and how to check its status.
+
+   \reviewed on 2017-01-31
 
    \param key
-   \param dash_paddle_state
+   \param dash_paddle_state: CW_KEY_STATE_CLOSED or CW_KEY_STATE_OPEN
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_key_ik_notify_dash_paddle_event(cw_key_t *key, int dash_paddle_state)
+int cw_key_ik_notify_dash_paddle_event(cw_key_t * key, int dash_paddle_state)
 {
 	return cw_key_ik_notify_paddle_event(key, key->ik.dot_paddle, dash_paddle_state);
 }
@@ -1046,16 +1065,18 @@ int cw_key_ik_notify_dash_paddle_event(cw_key_t *key, int dash_paddle_state)
 
 
 
-
-
 /**
    \brief Get the current saved states of the two paddles
 
+   Either of the last two arguments can be NULL - it won't be updated then.
+
+   \reviewed on 2017-01-31
+
    \param key
-   \param dot_paddle_state
-   \param dash_paddle_state
+   \param dot_paddle_state: will be updated with CW_KEY_STATE_CLOSED or CW_KEY_STATE_OPEN value
+   \param dash_paddle_state: will be updated with CW_KEY_STATE_CLOSED or CW_KEY_STATE_OPEN value
 */
-void cw_key_ik_get_paddles(cw_key_t *key, int *dot_paddle_state, int *dash_paddle_state)
+void cw_key_ik_get_paddles(cw_key_t * key, /* out */ int * dot_paddle_state, /* out */ int * dash_paddle_state)
 {
 	if (dot_paddle_state) {
 		*dot_paddle_state = key->ik.dot_paddle;
@@ -1069,21 +1090,23 @@ void cw_key_ik_get_paddles(cw_key_t *key, int *dot_paddle_state, int *dash_paddl
 
 
 
-
-
 /**
    \brief Get the current states of paddle latches
 
    Function returns the current saved states of the two paddle latches.
-   A paddle latches is set to true when the paddle state becomes true,
-   and is cleared if the paddle state is false when the element finishes
+   A paddle latch is set to true when the paddle state becomes CLOSED,
+   and is cleared if the paddle state is OPEN when the element finishes
    sending.
 
+   Either of the last two arguments can be NULL - it won't be updated then.
+
+   \reviewed on 2017-01-31
+
    \param key
-   \param dot_paddle_latch_state
-   \param dash_paddle_latch_state
+   \param dot_paddle_latch_state: will be updated with true or false
+   \param dash_paddle_latch_state: will be updated with true or false
 */
-void cw_key_ik_get_paddle_latches_internal(cw_key_t *key, int *dot_paddle_latch_state, int *dash_paddle_latch_state)
+void cw_key_ik_get_paddle_latches_internal(cw_key_t * key, /* out */ int * dot_paddle_latch_state, /* out */ int * dash_paddle_latch_state)
 {
 	if (dot_paddle_latch_state) {
 		*dot_paddle_latch_state = key->ik.dot_latch;
@@ -1097,16 +1120,17 @@ void cw_key_ik_get_paddle_latches_internal(cw_key_t *key, int *dot_paddle_latch_
 
 
 
-
 /**
    \brief Check if a keyer is busy
 
+   \reviewed on 2017-01-31
+
    \param key
 
-   \return true if keyer is busy
-   \return false if keyer is not busy
+   \return true if keyer is busy (keyer's state is other than IDLE)
+   \return false if keyer is not busy (keyer's state is IDLE)
 */
-bool cw_key_ik_is_busy_internal(cw_key_t *key)
+bool cw_key_ik_is_busy_internal(const cw_key_t * key)
 {
 	return key->ik.graph_state != KS_IDLE;
 }
@@ -1118,17 +1142,19 @@ bool cw_key_ik_is_busy_internal(cw_key_t *key)
 /**
    \brief Wait for end of element from the keyer
 
-   Waits until the end of the current element, dot or dash, from the keyer.
+   Waits until the end of the current element, Dot or Dash, from the keyer.
 
-   The function always returns CW_SUCCESS/
+   The function always returns CW_SUCCESS.
 
    testedin::test_keyer()
+
+   \reviewed on 2017-01-31
 
    \param key
 
    \return CW_SUCCESS
 */
-int cw_key_ik_wait_for_element(cw_key_t *key)
+int cw_key_ik_wait_for_element(cw_key_t * key)
 {
 	/* First wait for the state to move to idle (or just do nothing
 	   if it's not), or to one of the after- states. */
@@ -1140,7 +1166,7 @@ int cw_key_ik_wait_for_element(cw_key_t *key)
 	       && key->ik.graph_state != KS_AFTER_DASH_B) {
 
 		pthread_cond_wait(&key->gen->tq->wait_var, &key->gen->tq->wait_mutex);
-		/* cw_signal_wait_internal(); */ /* Old implementation was using signals. */
+		/* cw_signal_wait_internal(); */ /* Old implementation was using signals. */ /* This code has been disabled some time before 2017-01-31. */
 	}
 	pthread_mutex_unlock(&key->gen->tq->wait_mutex);
 
@@ -1157,13 +1183,12 @@ int cw_key_ik_wait_for_element(cw_key_t *key)
 	       && key->ik.graph_state != KS_IN_DASH_B) {
 
 		pthread_cond_wait(&key->gen->tq->wait_var, &key->gen->tq->wait_mutex);
-		/* cw_signal_wait_internal(); */ /* Old implementation was using signals. */
+		/* cw_signal_wait_internal(); */ /* Old implementation was using signals. */ /* This code has been disabled some time before 2017-01-31. */
 	}
 	pthread_mutex_unlock(&key->gen->tq->wait_mutex);
 
 	return CW_SUCCESS;
 }
-
 
 
 
@@ -1174,19 +1199,21 @@ int cw_key_ik_wait_for_element(cw_key_t *key)
    The routine returns CW_SUCCESS on success.
 
    It returns CW_FAILURE (with errno set to EDEADLK) if either paddle
-   state is true.
+   state is CLOSED.
+
+   \reviewed on 2017-01-31
 
    \param key
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_key_ik_wait_for_keyer(cw_key_t *key)
+int cw_key_ik_wait_for_keyer(cw_key_t * key)
 {
-	/* Check that neither paddle is true; if either is, then the signal
-	   cycle is going to continue forever, and we'll never return from
-	   this routine. TODO: verify this comment. */
-	if (key->ik.dot_paddle || key->ik.dash_paddle) {
+	/* Check that neither paddle is CLOSED; if either is, then the
+	   signal cycle is going to continue forever, and we'll never
+	   return from this routine. TODO: verify this comment. */
+	if (key->ik.dot_paddle == CW_KEY_STATE_CLOSED || key->ik.dash_paddle == CW_KEY_STATE_CLOSED) {
 		errno = EDEADLK;
 		return CW_FAILURE;
 	}
@@ -1195,13 +1222,12 @@ int cw_key_ik_wait_for_keyer(cw_key_t *key)
 	pthread_mutex_lock(&key->gen->tq->wait_mutex);
 	while (key->ik.graph_state != KS_IDLE) {
 		pthread_cond_wait(&key->gen->tq->wait_var, &key->gen->tq->wait_mutex);
-		/* cw_signal_wait_internal(); */ /* Old implementation was using signals. */
+		/* cw_signal_wait_internal(); */ /* Old implementation was using signals. */ /* This code has been disabled some time before 2017-01-31. */
 	}
 	pthread_mutex_unlock(&key->gen->tq->wait_mutex);
 
 	return CW_SUCCESS;
 }
-
 
 
 
@@ -1213,30 +1239,33 @@ int cw_key_ik_wait_for_keyer(cw_key_t *key)
    Curtis 8044 Keyer mode A, and return to silence.  This function is
    suitable for calling from an application exit handler.
 
+   \reviewed on 2017-01-31
+
    \param key
 */
-void cw_key_ik_reset_internal(cw_key_t *key)
+void cw_key_ik_reset_internal(cw_key_t * key)
 {
-	key->ik.dot_paddle = false;
-	key->ik.dash_paddle = false;
+	cw_debug_msg (&cw_debug_object, CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
+		      "libcw/key: ik reset: keyer state %s -> KS_IDLE", cw_iambic_keyer_states[key->ik.graph_state]);
+	key->ik.graph_state = KS_IDLE;
+
+	key->ik.key_value = CW_KEY_STATE_OPEN;
+
+	key->ik.dot_paddle = CW_KEY_STATE_OPEN;
+	key->ik.dash_paddle = CW_KEY_STATE_OPEN;
 	key->ik.dot_latch = false;
 	key->ik.dash_latch = false;
-	key->ik.curtis_b_latch = false;
 	key->ik.curtis_mode_b = false;
-
-	cw_debug_msg (&cw_debug_object, CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
-		      "libcw/ik: keyer state %s -> KS_IDLE", cw_iambic_keyer_states[key->ik.graph_state]);
-	key->ik.graph_state = KS_IDLE;
+	key->ik.curtis_b_latch = false;
 
 	/* Silence sound and stop any background soundcard tone generation. */
 	cw_gen_silence_internal(key->gen);
 
 	cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
-		      "libcw/ik: keyer state -> %s (reset)", cw_iambic_keyer_states[key->ik.graph_state]);
+		      "libcw/key: ik reset: keyer state -> %s (reset)", cw_iambic_keyer_states[key->ik.graph_state]);
 
 	return;
 }
-
 
 
 
@@ -1249,10 +1278,12 @@ void cw_key_ik_reset_internal(cw_key_t *key)
    paddle events, but it turns out that it should be also updated in
    generator dequeue code. Not sure why.
 
+   \reviewed on 2017-01-31
+
    \param key - keyer with timer to be updated
    \param usecs - amount of increase (usually length of a tone)
 */
-void cw_key_ik_increment_timer_internal(cw_key_t *key, int usecs)
+void cw_key_ik_increment_timer_internal(cw_key_t * key, int usecs)
 {
 	if (!key) {
 		/* This function is called from generator thread. It
@@ -1260,7 +1291,7 @@ void cw_key_ik_increment_timer_internal(cw_key_t *key, int usecs)
 		   applications a generator exists, but a keyer does
 		   not exist.  Silently accept this situation. */
 		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_INTERNAL, CW_DEBUG_DEBUG,
-			      "libcw/ik: NULL key, silently accepting");
+			      "libcw/key: ik increment: NULL key, silently accepting");
 		return;
 	}
 
@@ -1273,7 +1304,7 @@ void cw_key_ik_increment_timer_internal(cw_key_t *key, int usecs)
 		   a straight key with this. */
 
 		cw_debug_msg (&cw_debug_object, CW_DEBUG_KEYING, CW_DEBUG_INFO,
-			      "libcw/ik: incrementing timer by %d [us]\n", usecs);
+			      "libcw/key: ik increment: incrementing timer by %d [us]\n", usecs);
 
 		key->timer.tv_usec += usecs % CW_USECS_PER_SEC;
 		key->timer.tv_sec  += usecs / CW_USECS_PER_SEC + key->timer.tv_usec / CW_USECS_PER_SEC;
@@ -1286,7 +1317,6 @@ void cw_key_ik_increment_timer_internal(cw_key_t *key, int usecs)
 
 
 
-
 /* ******************************************************************** */
 /*                        Section:Straight key                          */
 /* ******************************************************************** */
@@ -1294,26 +1324,22 @@ void cw_key_ik_increment_timer_internal(cw_key_t *key, int usecs)
 
 
 
-
 /**
-   \brief Inform the library that the straight key has changed state
+   \brief Set new value of straight key
 
-   This routine returns CW_SUCCESS on success.  On error, it returns CW_FAILURE,
-   with errno set to EBUSY if the tone queue or iambic keyer are using
-   the sound card, console speaker, or keying control system.  If
-   \p key_state indicates no change of state, the call is ignored.
+   If \p key_value indicates no change of state, the call is ignored.
 
-   \p key_state may be either CW_KEY_STATE_OPEN (false) or CW_KEY_STATE_CLOSED (true).
+   \reviewed on 2017-01-31
 
-   \param key
-   \param key_state - state of straight key
+   \param key - straight key to update
+   \param key_value - new value of straight key (CW_KEY_STATE_OPEN / CW_KEY_STATE_CLOSED)
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_key_sk_notify_event(cw_key_t *key, int key_state)
+int cw_key_sk_notify_event(cw_key_t * key, int key_value)
 {
-#if 0 /* This is disabled, but I'm not sure why. */
+#if 0 /* This is disabled, but I'm not sure why. */  /* This code has been disabled some time before 2017-01-31. */
 	/* If the tone queue or the keyer are busy, we can't use the
 	   sound card, console sounder, or the key control system. */
 	if (cw_tq_is_busy_internal(key->gen->tq) || cw_key_ik_is_busy_internal(key)) {
@@ -1322,32 +1348,28 @@ int cw_key_sk_notify_event(cw_key_t *key, int key_state)
 	}
 #endif
 
-	/* Do tones and keying, and set up timeouts and soundcard
-	   activities to match the new key state. */
-	int rv = cw_key_sk_set_value_internal(key, key_state);
-
-	return rv;
+	return cw_key_sk_set_value_internal(key, key_value);
 }
-
 
 
 
 
 /**
-   \brief Get saved state of straight key
+   \brief Get current value of straight key
 
-   Returns the current saved state of the straight key.
+   Returns the current value of the straight key.
+
+   \reviewed on 2017-01-31
 
    \param key
 
-   \return CW_KEY_STATE_CLOSED (true) if the key is down
-   \return CW_KEY_STATE_OPEN (false) if the key up
+   \return CW_KEY_STATE_CLOSED if the key is down
+   \return CW_KEY_STATE_OPEN if the key up
 */
-int cw_key_sk_get_state(cw_key_t *key)
+int cw_key_sk_get_value(const cw_key_t * key)
 {
 	return key->sk.key_value;
 }
-
 
 
 
@@ -1356,20 +1378,21 @@ int cw_key_sk_get_state(cw_key_t *key)
    \brief Check if the straight key is busy
 
    This routine is just a pseudonym for
-   cw_key_sk_get_state(), and exists to fill a hole in the
+   cw_key_sk_get_value(), and exists to fill a hole in the
    API naming conventions. TODO: verify if this function is needed in
    new API.
+
+   \reviewed on 2017-01-31
 
    \param key
 
    \return true if the straight key is busy
    \return false if the straight key is not busy
 */
-bool cw_key_sk_is_busy(cw_key_t *key)
+bool cw_key_sk_is_busy(const cw_key_t * key)
 {
 	return key->sk.key_value;
 }
-
 
 
 
@@ -1379,9 +1402,11 @@ bool cw_key_sk_is_busy(cw_key_t *key)
 
    This function is suitable for calling from an application exit handler.
 
+   \reviewed on 2017-01-31
+
    \param key
 */
-void cw_key_sk_reset_internal(cw_key_t *key)
+void cw_key_sk_reset_internal(cw_key_t * key)
 {
 	key->sk.key_value = CW_KEY_STATE_OPEN;
 
@@ -1389,7 +1414,7 @@ void cw_key_sk_reset_internal(cw_key_t *key)
 	cw_gen_silence_internal(key->gen);
 
 	cw_debug_msg (&cw_debug_object, CW_DEBUG_STRAIGHT_KEY_STATES, CW_DEBUG_INFO,
-		      "libcw/sk: key state ->UP (reset)");
+		      "libcw/key: sk: key state ->OPEN (reset)");
 
 	return;
 }
@@ -1397,13 +1422,20 @@ void cw_key_sk_reset_internal(cw_key_t *key)
 
 
 
+/**
+   \brief Create new key
 
-cw_key_t *cw_key_new(void)
+   \reviewed on 2017-01-31
+
+   \return pointer to new key on success
+   \return NULL on failure
+*/
+cw_key_t * cw_key_new(void)
 {
-	cw_key_t *key = (cw_key_t *) malloc(sizeof (cw_key_t));
+	cw_key_t * key = (cw_key_t *) malloc(sizeof (cw_key_t));
 	if (!key) {
 		cw_debug_msg (&cw_debug_object, CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
-			      "libcw: malloc()");
+			      "libcw/key: new: malloc()");
 		return (cw_key_t *) NULL;
 	}
 
@@ -1416,10 +1448,10 @@ cw_key_t *cw_key_new(void)
 	key->sk.key_value = CW_KEY_STATE_OPEN;
 
 	key->ik.graph_state = KS_IDLE;
-	key->ik.key_value = 0;
+	key->ik.key_value = CW_KEY_STATE_OPEN;
 
-	key->ik.dot_paddle = false;
-	key->ik.dash_paddle = false;
+	key->ik.dot_paddle = CW_KEY_STATE_OPEN;
+	key->ik.dash_paddle = CW_KEY_STATE_OPEN;
 	key->ik.dot_latch = false;
 	key->ik.dash_latch = false;
 
@@ -1428,10 +1460,10 @@ cw_key_t *cw_key_new(void)
 
 	key->ik.lock = false;
 
+	key->tk.key_value = CW_KEY_STATE_OPEN;
+
 	key->timer.tv_sec = 0;
 	key->timer.tv_usec = 0;
-
-	key->tk.key_value = CW_KEY_STATE_OPEN;
 
 	return key;
 }
@@ -1439,11 +1471,18 @@ cw_key_t *cw_key_new(void)
 
 
 
+/**
+   \brief Delete key
 
+   \p key is deallocated. Pointer to \p key is set to NULL.
 
-void cw_key_delete(cw_key_t **key)
+   \reviewed on 2017-01-31
+
+   \param key - pointer to key
+*/
+void cw_key_delete(cw_key_t ** key)
 {
-	cw_assert (key, "key is NULL");
+	cw_assert (key, "libcw/key: delete: key is NULL");
 
 	if (!*key) {
 		return;
@@ -1482,7 +1521,7 @@ void cw_key_delete(cw_key_t **key)
 */
 unsigned int test_keyer(cw_key_t * key, cw_test_stats_t * stats)
 {
-	int p = fprintf(out_file, "libcw:key: iambic keyer operation:\n");
+	int p = fprintf(out_file, "libcw/key: iambic keyer operation:\n");
 	fflush(out_file);
 
 	/* Perform some tests on the iambic keyer.  The latch finer
@@ -1499,7 +1538,7 @@ unsigned int test_keyer(cw_key_t * key, cw_test_stats_t * stats)
 		bool failure = !cw_key_ik_notify_paddle_event(key, true, false);
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = fprintf(out_file, "libcw:key: cw_key_ik_notify_paddle_event(key, true, false):");
+		int n = fprintf(out_file, "libcw/key: cw_key_ik_notify_paddle_event(key, true, false):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
@@ -1507,7 +1546,7 @@ unsigned int test_keyer(cw_key_t * key, cw_test_stats_t * stats)
 		bool success = true;
 		/* Since a "dot" paddle is pressed, get 30 "dot"
 		   events from the keyer. */
-		fprintf(out_file, "libcw:key: testing iambic keyer dots   ");
+		fprintf(out_file, "libcw/key: testing iambic keyer dots   ");
 		fflush(out_file);
 		for (int i = 0; i < 30; i++) {
 			success = success && cw_key_ik_wait_for_element(key);
@@ -1517,7 +1556,7 @@ unsigned int test_keyer(cw_key_t * key, cw_test_stats_t * stats)
 		putchar('\n');
 
 		!success ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:key: cw_key_ik_wait_for_element():");
+		n = fprintf(out_file, "libcw/key: cw_key_ik_wait_for_element():");
 		CW_TEST_PRINT_TEST_RESULT (!success, n);
 	}
 
@@ -1529,7 +1568,7 @@ unsigned int test_keyer(cw_key_t * key, cw_test_stats_t * stats)
 		bool failure = !dot_paddle || dash_paddle;
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = fprintf(out_file, "libcw:key: cw_keyer_get_keyer_paddles():");
+		int n = fprintf(out_file, "libcw/key: cw_keyer_get_keyer_paddles():");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -1544,7 +1583,7 @@ unsigned int test_keyer(cw_key_t * key, cw_test_stats_t * stats)
 		bool failure = !cw_key_ik_notify_paddle_event(key, false, true);
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = fprintf(out_file, "libcw:key: cw_key_ik_notify_paddle_event(key, false, true):");
+		int n = fprintf(out_file, "libcw/key: cw_key_ik_notify_paddle_event(key, false, true):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
@@ -1552,7 +1591,7 @@ unsigned int test_keyer(cw_key_t * key, cw_test_stats_t * stats)
 		bool success = true;
 		/* Since a "dash" paddle is pressed, get 30 "dash"
 		   events from the keyer. */
-		fprintf(out_file, "libcw:key: testing iambic keyer dashes ");
+		fprintf(out_file, "libcw/key: testing iambic keyer dashes ");
 		fflush(out_file);
 		for (int i = 0; i < 30; i++) {
 			success = success && cw_key_ik_wait_for_element(key);
@@ -1562,7 +1601,7 @@ unsigned int test_keyer(cw_key_t * key, cw_test_stats_t * stats)
 		putchar('\n');
 
 		!success ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:key: cw_key_ik_wait_for_element():");
+		n = fprintf(out_file, "libcw/key: cw_key_ik_wait_for_element():");
 		CW_TEST_PRINT_TEST_RESULT (!success, n);
 	}
 
@@ -1574,7 +1613,7 @@ unsigned int test_keyer(cw_key_t * key, cw_test_stats_t * stats)
 		bool failure = dot_paddle || !dash_paddle;
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = fprintf(out_file, "libcw:key: cw_key_ik_get_paddles():");
+		int n = fprintf(out_file, "libcw/key: cw_key_ik_get_paddles():");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -1589,12 +1628,12 @@ unsigned int test_keyer(cw_key_t * key, cw_test_stats_t * stats)
 		bool failure = !cw_key_ik_notify_paddle_event(key, true, true);
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = fprintf(out_file, "libcw:key: cw_key_ik_notify_paddle_event(true, true):");
+		int n = fprintf(out_file, "libcw/key: cw_key_ik_notify_paddle_event(true, true):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 		bool success = true;
-		fprintf(out_file, "libcw:key: testing iambic alternating  ");
+		fprintf(out_file, "libcw/key: testing iambic alternating  ");
 		fflush(out_file);
 		for (int i = 0; i < 30; i++) {
 			success = success && cw_key_ik_wait_for_element(key);
@@ -1604,7 +1643,7 @@ unsigned int test_keyer(cw_key_t * key, cw_test_stats_t * stats)
 		putchar('\n');
 
 		!success ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:key: cw_key_ik_wait_for_element:");
+		n = fprintf(out_file, "libcw/key: cw_key_ik_wait_for_element:");
 		CW_TEST_PRINT_TEST_RESULT (!success, n);
 	}
 
@@ -1616,7 +1655,7 @@ unsigned int test_keyer(cw_key_t * key, cw_test_stats_t * stats)
 		bool failure = !dot_paddle || !dash_paddle;
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = fprintf(out_file, "libcw:key: cw_key_ik_get_paddles():");
+		int n = fprintf(out_file, "libcw/key: cw_key_ik_get_paddles():");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -1627,13 +1666,13 @@ unsigned int test_keyer(cw_key_t * key, cw_test_stats_t * stats)
 		bool failure = !cw_key_ik_notify_paddle_event(key, false, false);
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = fprintf(out_file, "libcw:key: cw_key_ik_notify_paddle_event(false, false):");
+		int n = fprintf(out_file, "libcw/key: cw_key_ik_notify_paddle_event(false, false):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
 	cw_key_ik_wait_for_keyer(key);
 
-	p = fprintf(out_file, "libcw:key: iambic keyer operation:");
+	p = fprintf(out_file, "libcw/key: iambic keyer operation:");
 	CW_TEST_PRINT_TEST_RESULT(false, p);
 	fflush(out_file);
 
@@ -1646,12 +1685,12 @@ unsigned int test_keyer(cw_key_t * key, cw_test_stats_t * stats)
 
 /**
    tests::cw_key_sk_notify_event()
-   tests::cw_key_sk_get_state()
+   tests::cw_key_sk_get_value()
    tests::cw_key_sk_is_busy()
 */
 unsigned int test_straight_key(cw_key_t * key, cw_test_stats_t * stats)
 {
-	int p = fprintf(out_file, "libcw:key: straight key operation:\n");
+	int p = fprintf(out_file, "libcw/key: straight key operation:\n");
 	fflush(out_file);
 
 	/* See what happens when we tell the library N times in a row that key is open. */
@@ -1666,7 +1705,7 @@ unsigned int test_straight_key(cw_key_t * key, cw_test_stats_t * stats)
 				break;
 			}
 
-			if (CW_KEY_STATE_OPEN != cw_key_sk_get_state(key)) {
+			if (CW_KEY_STATE_OPEN != cw_key_sk_get_value(key)) {
 				state_failure = true;
 				break;
 			}
@@ -1678,15 +1717,15 @@ unsigned int test_straight_key(cw_key_t * key, cw_test_stats_t * stats)
 		}
 
 		event_failure ? stats->failures++ : stats->successes++;
-		int n = fprintf(out_file, "libcw:key: cw_key_sk_notify_event(<key open>):");
+		int n = fprintf(out_file, "libcw/key: cw_key_sk_notify_event(<key open>):");
 		CW_TEST_PRINT_TEST_RESULT (event_failure, n);
 
 		state_failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:key: cw_key_sk_get_state(<key open>):");
+		n = fprintf(out_file, "libcw/key: cw_key_sk_get_value(<key open>):");
 		CW_TEST_PRINT_TEST_RESULT (state_failure, n);
 
 		busy_failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:key: cw_straight_key_busy(<key open>):");
+		n = fprintf(out_file, "libcw/key: cw_straight_key_busy(<key open>):");
 		CW_TEST_PRINT_TEST_RESULT (busy_failure, n);
 	}
 
@@ -1706,7 +1745,7 @@ unsigned int test_straight_key(cw_key_t * key, cw_test_stats_t * stats)
 				break;
 			}
 
-			if (CW_KEY_STATE_CLOSED != cw_key_sk_get_state(key)) {
+			if (CW_KEY_STATE_CLOSED != cw_key_sk_get_value(key)) {
 				state_failure = true;
 				break;
 			}
@@ -1719,15 +1758,15 @@ unsigned int test_straight_key(cw_key_t * key, cw_test_stats_t * stats)
 
 
 		event_failure ? stats->failures++ : stats->successes++;
-		int n = fprintf(out_file, "libcw:key: cw_key_sk_notify_event(<key closed>):");
+		int n = fprintf(out_file, "libcw/key: cw_key_sk_notify_event(<key closed>):");
 		CW_TEST_PRINT_TEST_RESULT (event_failure, n);
 
 		state_failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:key: cw_key_sk_get_state(<key closed>):");
+		n = fprintf(out_file, "libcw/key: cw_key_sk_get_value(<key closed>):");
 		CW_TEST_PRINT_TEST_RESULT (state_failure, n);
 
 		busy_failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw:key: cw_straight_key_busy(<key closed>):");
+		n = fprintf(out_file, "libcw/key: cw_straight_key_busy(<key closed>):");
 		CW_TEST_PRINT_TEST_RESULT (busy_failure, n);
 	}
 
@@ -1750,7 +1789,7 @@ unsigned int test_straight_key(cw_key_t * key, cw_test_stats_t * stats)
 				break;
 			}
 
-			if (CW_KEY_STATE_OPEN != cw_key_sk_get_state(key)) {
+			if (CW_KEY_STATE_OPEN != cw_key_sk_get_value(key)) {
 				state_failure = true;
 				break;
 			}
@@ -1775,7 +1814,7 @@ unsigned int test_straight_key(cw_key_t * key, cw_test_stats_t * stats)
 				break;
 			}
 
-			if (CW_KEY_STATE_CLOSED != cw_key_sk_get_state(key)) {
+			if (CW_KEY_STATE_CLOSED != cw_key_sk_get_value(key)) {
 				state_failure = true;
 				break;
 			}
@@ -1807,7 +1846,7 @@ unsigned int test_straight_key(cw_key_t * key, cw_test_stats_t * stats)
 		CW_TEST_PRINT_TEST_RESULT (event_failure, n);
 
 		state_failure ? stats->failures++ : stats->successes++;
-		n = fprintf(out_file, "libcw: cw_key_sk_get_state(<key open/closed>):");
+		n = fprintf(out_file, "libcw: cw_key_sk_get_value(<key open/closed>):");
 		CW_TEST_PRINT_TEST_RESULT (state_failure, n);
 
 		busy_failure ? stats->failures++ : stats->successes++;
@@ -1816,7 +1855,7 @@ unsigned int test_straight_key(cw_key_t * key, cw_test_stats_t * stats)
 	}
 
 
-	p = fprintf(out_file, "libcw:key: straight key operation:");
+	p = fprintf(out_file, "libcw/key: straight key operation:");
 	CW_TEST_PRINT_TEST_RESULT(false, p);
 	fflush(out_file);
 
