@@ -11,7 +11,7 @@
 
 
 #include <stdbool.h>
-
+#include <stdint.h>
 
 
 
@@ -29,10 +29,9 @@ typedef struct cw_entry_struct{
    representation looks like this: ".-" for "a", "--.." for "z", etc. */
 int          cw_representation_lookup_init_internal(const cw_entry_t *lookup[]);
 int          cw_representation_to_character_internal(const char *representation);
-__attribute__((unused)) int cw_representation_to_character_direct_internal(const char *representation);
-unsigned int cw_representation_to_hash_internal(const char *representation);
-const char  *cw_character_to_representation_internal(int c);
-const char  *cw_lookup_procedural_character_internal(int c, bool *is_usually_expanded);
+uint8_t      cw_representation_to_hash_internal(const char *representation);
+const char * cw_character_to_representation_internal(int c);
+const char * cw_lookup_procedural_character_internal(int c, bool *is_usually_expanded);
 
 
 

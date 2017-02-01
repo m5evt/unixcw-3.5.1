@@ -38,7 +38,6 @@
 
 
 
-
 #include <stdio.h>
 #include <limits.h> /* UCHAR_MAX */
 #include <string.h>
@@ -55,12 +54,21 @@
 
 
 
-
 extern cw_debug_t cw_debug_object;
 extern cw_debug_t cw_debug_object_ev;
 extern cw_debug_t cw_debug_object_dev;
 
 
+
+
+#define CW_DATA_MAX_REPRESENTATION_LENGTH 7
+#define CW_DATA_MIN_REPRESENTATION_HASH 2
+#define CW_DATA_MAX_REPRESENTATION_HASH 255
+
+
+
+
+static int cw_representation_to_character_direct_internal(const char * representation);
 
 
 
@@ -69,7 +77,7 @@ extern cw_debug_t cw_debug_object_dev;
   Morse code characters table.  This table allows lookup of the Morse
   representation (shape) of a given alphanumeric character.
   Representations (shapes) are held as a string, with "-" representing
-  dash, and "." representing dot.  The table ends with a NULL entry.
+  Dash, and "." representing Dot.  The table ends with a NULL entry.
 
   Notice that ASCII characters are stored as uppercase characters.
 */
@@ -129,7 +137,6 @@ static const cw_entry_t CW_TABLE[] = {
 
 
 
-
 /**
    \brief Return the number of characters present in character lookup table
 
@@ -144,6 +151,8 @@ static const cw_entry_t CW_TABLE[] = {
 
    testedin::test_character_lookups_internal()
 
+   \reviewed on 2017-02-01
+
    \return number of characters known to libcw
 */
 int cw_get_character_count(void)
@@ -151,14 +160,13 @@ int cw_get_character_count(void)
 	static int character_count = 0;
 
 	if (character_count == 0) {
-		for (const cw_entry_t *cw_entry = CW_TABLE; cw_entry->character; cw_entry++) {
+		for (const cw_entry_t * cw_entry = CW_TABLE; cw_entry->character; cw_entry++) {
 			character_count++;
 		}
 	}
 
 	return character_count;
 }
-
 
 
 
@@ -184,15 +192,17 @@ int cw_get_character_count(void)
 
    testedin::test_character_lookups_internal()
 
+   \reviewed on 2017-02-01
+
    \param list - pointer to space to be filled by function
 */
-void cw_list_characters(char *list)
+void cw_list_characters(char * list)
 {
-	cw_assert (list, "Output pointer is null");
+	cw_assert (list, "libcw/data: output pointer is NULL");
 
 	/* Append each table character to the output string. */
 	int i = 0;
-	for (const cw_entry_t *cw_entry = CW_TABLE; cw_entry->character; cw_entry++) {
+	for (const cw_entry_t * cw_entry = CW_TABLE; cw_entry->character; cw_entry++) {
 		list[i++] = cw_entry->character;
 	}
 
@@ -200,7 +210,6 @@ void cw_list_characters(char *list)
 
 	return;
 }
-
 
 
 
@@ -213,6 +222,8 @@ void cw_list_characters(char *list)
 
    testedin::test_character_lookups_internal()
 
+   \reviewed on 2017-02-01
+
    \return a positive number - length of the longest representation
 */
 int cw_get_maximum_representation_length(void)
@@ -221,8 +232,8 @@ int cw_get_maximum_representation_length(void)
 
 	if (maximum_length == 0) {
 		/* Traverse the main lookup table, finding the longest representation. */
-		for (const cw_entry_t *cw_entry = CW_TABLE; cw_entry->character; cw_entry++) {
-			int length = (int) strlen (cw_entry->representation);
+		for (const cw_entry_t * cw_entry = CW_TABLE; cw_entry->character; cw_entry++) {
+			int length = (int) strlen(cw_entry->representation);
 			if (length > maximum_length) {
 				maximum_length = length;
 			}
@@ -246,23 +257,25 @@ int cw_get_maximum_representation_length(void)
 
    The returned pointer is owned and managed by library.
 
+   \reviewed on 2017-02-01
+
    \param c - character to look up
 
    \return pointer to string with representation of character on success
    \return NULL on failure (when \p c has no representation)
 */
-const char *cw_character_to_representation_internal(int c)
+const char * cw_character_to_representation_internal(int c)
 {
-	static const cw_entry_t *lookup[UCHAR_MAX];  /* Fast lookup table */
+	static const cw_entry_t * lookup[UCHAR_MAX];  /* Fast lookup table */
 	static bool is_initialized = false;
 
 	/* If this is the first call, set up the fast lookup table to give
 	   direct access to the CW table for a given character. */
 	if (!is_initialized) {
 		cw_debug_msg (&cw_debug_object, CW_DEBUG_LOOKUPS, CW_DEBUG_INFO,
-			      "libcw: initialize fast lookup table");
+			      "libcw/data: initializing fast lookup table");
 
-		for (const cw_entry_t *cw_entry = CW_TABLE; cw_entry->character; cw_entry++) {
+		for (const cw_entry_t * cw_entry = CW_TABLE; cw_entry->character; cw_entry++) {
 			lookup[(unsigned char) cw_entry->character] = cw_entry;
 		}
 
@@ -280,67 +293,20 @@ const char *cw_character_to_representation_internal(int c)
 	   return NULL, courtesy of the fact that explicitly uninitialized
 	   static variables are initialized to zero, so lookup[x] is NULL
 	   if it's not assigned to in the above loop. */
-	const cw_entry_t *cw_entry = lookup[(unsigned char) c];
+	const cw_entry_t * cw_entry = lookup[(unsigned char) c];
 
 	if (cw_debug_has_flag((&cw_debug_object), CW_DEBUG_LOOKUPS)) {
 		if (cw_entry) {
-			fprintf(stderr, "libcw: lookup '%c' returned <'%c':\"%s\">\n",
-				c, cw_entry->character, cw_entry->representation);
+			fprintf(stderr, "libcw/data: char to representation: '%c' -> '%c'/'%s'\n", c, cw_entry->character, cw_entry->representation);
 		} else if (isprint(c)) {
-			fprintf(stderr, "libcw: lookup '%c' found nothing\n", c);
+			fprintf(stderr, "libcw/data: char to representation: '%c' -> NOTHING\n", c);
 		} else {
-			fprintf(stderr, "libcw: lookup 0x%02x found nothing\n",
-				(unsigned char) c);
+			fprintf(stderr, "libcw/data: char to representation: '0x%02x' -> NOTHING\n", (unsigned char) c);
 		}
 	}
 
 	return cw_entry ? cw_entry->representation : NULL;
 }
-
-
-
-
-#if 0 /* Disabled on 2015.09.10 because it's no longer used in libcw2. Replaced by cw_character_to_representation(). */
-/**
-   \brief Get representation of a given character
-
-   The function is depreciated, use cw_character_to_representation() instead.
-
-   Return the string representation (shape) of a given Morse code
-   character \p c.
-
-   The routine returns CW_SUCCESS on success, and fills in the string
-   pointer (\p representation) passed in.
-   On failure, it returns CW_FAILURE and sets errno to ENOENT,
-   indicating that the character \p c could not be found.
-
-   The length of \p representation buffer must be at least one greater
-   than the length of longest representation held in the character
-   lookup table. The largest value of length is returned by
-   cw_get_maximum_representation_length().
-
-   \param c - character to look up
-   \param representation - pointer to space for representation of character
-
-   \return CW_SUCCESS on success
-   \return CW_FAILURE on failure
-*/
-int cw_lookup_character(char c, char *representation)
-{
-	/* Lookup the character, and if found, return the string. */
-	const char *retval = cw_character_to_representation_internal(c);
-	if (retval) {
-		if (representation) {
-			strcpy(representation, retval);
-		}
-		return CW_SUCCESS;
-	}
-
-	/* Failed to find the requested character. */
-	errno = ENOENT;
-	return CW_FAILURE;
-}
-#endif
 
 
 
@@ -352,9 +318,11 @@ int cw_lookup_character(char c, char *representation)
    Returned pointer is owned by caller of the function.
 
    On failure function returns NULL and sets errno:
-   ENOENT indicates that the character could not be found.
-   ENOMEM indicates that character has been found, but function failed
+   \errno ENOENT - the character could not be found.
+   \errno ENOMEM - character has been found, but function failed
    to strdup() representation.
+
+   \reviewed on 2017-02-01
 
    testedin::test_character_lookups_internal()
 
@@ -363,25 +331,24 @@ int cw_lookup_character(char c, char *representation)
    \return pointer to freshly allocated representation on success
    \return NULL on failure
 */
-char *cw_character_to_representation(int c)
+char * cw_character_to_representation(int c)
 {
-	/* Lookup the character, and if found, return the string */
-	const char *representation = cw_character_to_representation_internal(c);
-	if (representation) {
-		char *r = strdup(representation);
-		if (r) {
-			return r;
-		} else {
-			errno = ENOMEM;
-			return NULL;
-		}
-	} else {
-		/* Failed to find the requested character */
+	/* Lookup representation of the character, and if found, return copy of the representation. */
+
+	const char * representation = cw_character_to_representation_internal(c);
+	if (!representation) {
 		errno = ENOENT;
 		return NULL;
 	}
-}
 
+	char * r = strdup(representation);
+	if (!r) {
+		errno = ENOMEM;
+		return NULL;
+	}
+
+	return r;
+}
 
 
 
@@ -389,13 +356,14 @@ char *cw_character_to_representation(int c)
 /**
    \brief Return a hash value of a character representation
 
-   Return a hash value, in the range 2-255, for a character's
-   \p representation.  The routine returns 0 if no valid hash could
-   be made from the \p representation string.
+   Return a hash value, in the range
+   CW_DATA_MIN_REPRESENTATION_HASH-CW_DATA_MAX_REPRESENTATION_HASH,
+   for a character's \p representation.  The routine returns 0 if no
+   valid hash could be made from the \p representation string.
 
-   This hash algorithm is designed ONLY for valid CW representations; that is,
-   strings composed of only "." and "-", and in this case, strings no longer
-   than seven characters.
+   This hash algorithm is designed ONLY for valid CW representations;
+   that is, strings composed of only "." and "-". The CW
+   representations can be no longer than seven characters.
 
    TODO: create unit test that verifies that the longest
    representation recognized by libcw is in fact no longer than 7.
@@ -407,29 +375,33 @@ char *cw_character_to_representation(int c)
    a "bitmask", based on pattern of "." and "-" in \p representation.
    The first bit set in the mask indicates the start of data (hence
    the 7-character limit) - it is not the data itself.  This mask is
-   viewable as an integer in the range 2 (".") to 255 ("-------"), and
-   can be used as an index into a fast lookup array.
+   viewable as an integer in the range CW_DATA_MIN_REPRESENTATION_HASH
+   (".") to CW_DATA_MAX_REPRESENTATION_HASH ("-------"), and can be
+   used as an index into a fast lookup array.
 
    testedin::test_cw_representation_to_hash_internal()
 
+   \reviewed on 2017-02-01
+
    \param representation - string representing a character
 
-   \return non-zero value of hash of valid representation (in range 2-255)
+   \return non-zero value of hash of valid representation (in range
+   CW_DATA_MIN_REPRESENTATION_HASH-CW_DATA_MAX_REPRESENTATION_HASH)
    \return zero for invalid representation
 */
-unsigned int cw_representation_to_hash_internal(const char *representation)
+uint8_t cw_representation_to_hash_internal(const char * representation)
 {
 	/* Our algorithm can handle only 7 characters of representation.
 	   And we insist on there being at least one character, too.  */
-	int length = (int) strlen (representation);
-	if (length > CHAR_BIT - 1 || length < 1) {
+	size_t length = strlen(representation);
+	if (length > CW_DATA_MAX_REPRESENTATION_LENGTH || length < 1) {
 		return 0;
 	}
 
 	/* Build up the hash based on the dots and dashes; start at 1,
 	   the sentinel * (start) bit. */
 	unsigned int hash = 1;
-	for (int i = 0; i < length; i++) {
+	for (size_t i = 0; i < length; i++) {
 		/* Left-shift everything so far. */
 		hash <<= 1;
 
@@ -453,7 +425,6 @@ unsigned int cw_representation_to_hash_internal(const char *representation)
 
 
 
-
 /**
    \brief Return character corresponding to given representation
 
@@ -462,6 +433,8 @@ unsigned int cw_representation_to_hash_internal(const char *representation)
 
    testedin::test_cw_representation_to_character_internal()
 
+   \reviewed on 2017-02-01
+
    \param representation - representation of a character to look up
 
    FIXME: function should be able to return zero as non-error value (?).
@@ -469,9 +442,9 @@ unsigned int cw_representation_to_hash_internal(const char *representation)
    \return zero if there is no character for given representation
    \return non-zero character corresponding to given representation otherwise
 */
-int cw_representation_to_character_internal(const char *representation)
+int cw_representation_to_character_internal(const char * representation)
 {
-	static const cw_entry_t *lookup[UCHAR_MAX];   /* Fast lookup table */
+	static const cw_entry_t * lookup[UCHAR_MAX];  /* Fast lookup table */
 	static bool is_complete = true;               /* Set to false if there are any
 							 lookup table entries not in
 							 the fast lookup table */
@@ -481,15 +454,15 @@ int cw_representation_to_character_internal(const char *representation)
 	   access to the CW table for a hashed representation. */
 	if (!is_initialized) {
 		cw_debug_msg (&cw_debug_object, CW_DEBUG_LOOKUPS, CW_DEBUG_INFO,
-			      "libcw: initialize hash lookup table");
+			      "libcw/data: initialize hash lookup table");
 		is_complete = cw_representation_lookup_init_internal(lookup);
 		is_initialized = true;
 	}
 
 	/* Hash the representation to get an index for the fast lookup. */
-	unsigned int hash = cw_representation_to_hash_internal(representation);
+	uint8_t hash = cw_representation_to_hash_internal(representation);
 
-	const cw_entry_t *cw_entry = NULL;
+	const cw_entry_t * cw_entry = NULL;
 	/* If the hashed lookup table is complete, we can simply believe any
 	   hash value that came back.  That is, we just use what is at the index
 	   "hash", since this is either the entry we want, or NULL. */
@@ -507,7 +480,10 @@ int cw_representation_to_character_internal(const char *representation)
 		   hash.
 
 		   Try to find the entry in lookup table anyway, maybe
-		   it exists. */
+		   it exists.
+
+		   TODO: create tests to find situation where lookup
+		   table is incomplete. */
 		if (hash && lookup[hash] && lookup[hash]->representation
 		    && strcmp(lookup[hash]->representation, representation) == 0) {
 			/* Found it in an incomplete table. */
@@ -528,18 +504,17 @@ int cw_representation_to_character_internal(const char *representation)
 
 	if (cw_debug_has_flag((&cw_debug_object), CW_DEBUG_LOOKUPS)) {
 		if (cw_entry) {
-			fprintf(stderr, "libcw: lookup [0x%02x]'%s' returned <'%c':\"%s\">\n",
+			fprintf(stderr, "libcw/data: lookup [0x%02x]'%s' returned <'%c':\"%s\">\n",
 				hash, representation,
 				cw_entry->character, cw_entry->representation);
 		} else {
-			fprintf(stderr, "libcw: lookup [0x%02x]'%s' found nothing\n",
+			fprintf(stderr, "libcw/data: lookup [0x%02x]'%s' found nothing\n",
 				hash, representation);
 		}
 	}
 
 	return cw_entry ? cw_entry->character : 0;
 }
-
 
 
 
@@ -560,9 +535,16 @@ int cw_representation_to_character_internal(const char *representation)
    cw_representation_to_character_internal() (since this direct method
    is simpler and, well, direct) in a unit test function.
 
+   TODO: write unit test that compares result of this function and of
+   cw_representation_to_character_internal(), i.e. that checks that
+   both functions return the same value. The test will be valuable
+   only if lookup table is complete.
+
    The second purpose is to compare time of execution of the two
    functions: direct and with lookup table, and see what are the speed
    advantages of using function with lookup table.
+
+   \reviewed on 2017-02-01
 
    \param representation - representation of a character to look up
 
@@ -571,11 +553,11 @@ int cw_representation_to_character_internal(const char *representation)
    \return zero if there is no character for given representation
    \return non-zero character corresponding to given representation otherwise
 */
-int cw_representation_to_character_direct_internal(const char *representation)
+int cw_representation_to_character_direct_internal(const char * representation)
 {
 	/* Search the table entry by entry, sequentially, from top to
 	   bottom. */
-	const cw_entry_t *cw_entry = NULL;
+	const cw_entry_t * cw_entry = NULL;
 	for (cw_entry = CW_TABLE; cw_entry->character; cw_entry++) {
 		if (strcmp(cw_entry->representation, representation) == 0) {
 			break;
@@ -586,7 +568,6 @@ int cw_representation_to_character_direct_internal(const char *representation)
 
 	return cw_entry ? cw_entry->character : 0;
 }
-
 
 
 
@@ -617,18 +598,21 @@ int cw_representation_to_character_direct_internal(const char *representation)
    than CW_TABLE. For now it's impossible, because there is no way for
    client code to provide its own table of CW characters.
 
+   \reviewed on 2017-02-01
+
    \param lookup - lookup table to be initialized
 
    \return CW_SUCCESS on success
    \return CW_FAILURE otherwise
 */
-int cw_representation_lookup_init_internal(const cw_entry_t *lookup[])
+int cw_representation_lookup_init_internal(const cw_entry_t * lookup[])
 {
-	/* For each main table entry, create a hash entry.  If the hashing
-	   of any entry fails, note that the table is not complete and ignore
-	   that entry for now (for the current lookup table, this should not
-	   happen).  The hashed table speeds up lookups of representations by
-	   a factor of 5-10.
+	/* For each main table entry, create a hash entry.  If the
+	   hashing of any entry fails, note that the table is not
+	   complete and ignore that entry for now (for the current
+	   main table (CW_TABLE) this should not happen).  The hashed
+	   table speeds up lookups of representations by a factor of
+	   5-10.
 
 	   NOTICE: Notice that the lookup table will be marked as
 	   incomplete only if one or more representations in CW_TABLE
@@ -641,13 +625,15 @@ int cw_representation_lookup_init_internal(const cw_entry_t *lookup[])
 	   CW_TABLE than about lookup table.
 
 	   Other possibility to consider is that "is_complete = false"
-	   when length of representation is longer than 7
-	   dots/dashes. There is an assumption that no representation
-	   in input CW_TABLE is longer than 7 dots/dashes. */
+	   when length of representation is longer than
+	   CW_DATA_MAX_REPRESENTATION_LENGTH Dots/Dashes. There is an
+	   assumption that no representation in input CW_TABLE is
+	   longer than CW_DATA_MAX_REPRESENTATION_LENGTH
+	   dots/dashes. */
 
 	bool is_complete = true;
-	for (const cw_entry_t *cw_entry = CW_TABLE; cw_entry->character; cw_entry++) {
-		unsigned int hash = cw_representation_to_hash_internal(cw_entry->representation);
+	for (const cw_entry_t * cw_entry = CW_TABLE; cw_entry->character; cw_entry++) {
+		uint8_t hash = cw_representation_to_hash_internal(cw_entry->representation);
 		if (hash) {
 			lookup[hash] = cw_entry;
 		} else {
@@ -657,38 +643,11 @@ int cw_representation_lookup_init_internal(const cw_entry_t *lookup[])
 
 	if (!is_complete) {
 		cw_debug_msg (&cw_debug_object, CW_DEBUG_LOOKUPS, CW_DEBUG_WARNING,
-			      "libcw: hash lookup table incomplete");
+			      "libcw/data: hash lookup table incomplete");
 	}
 
 	return is_complete ? CW_SUCCESS : CW_FAILURE;
 }
-
-
-
-
-#if 0 /* Disabled on 2015.09.10 because it's no longer used in libcw2. Replaced by cw_representation_is_valid(). */
-/**
-   \brief Check if representation of a character is valid
-
-   This function is depreciated, use cw_representation_is_valid() instead.
-
-   Check that the given string is a valid Morse representation.
-   A valid string is one composed of only "." and "-" characters.
-
-   If representation is invalid, function returns CW_FAILURE and sets
-   errno to EINVAL.
-
-   \param representation - representation of a character to check
-
-   \return CW_SUCCESS on success
-   \return CW_FAILURE on failure
-*/
-int cw_check_representation(const char *representation)
-{
-	bool v = cw_representation_is_valid(representation);
-	return v ? CW_SUCCESS : CW_FAILURE;
-}
-#endif
 
 
 
@@ -702,17 +661,18 @@ int cw_check_representation(const char *representation)
    error-free, and not whether the representation represents
    existing/defined character.
 
-   If representation is invalid, function returns false and sets
-   errno to EINVAL.
+   \errno EINVAL - representation is invalid
 
    testedin::test_validate_representation_internal()
 
+   \reviewed on 2017-02-01
+
    \param representation - representation of a character to check
 
-   \return true on success
-   \return false on failure
+   \return true if representation is valid
+   \return false if representation is invalid
 */
-bool cw_representation_is_valid(const char *representation)
+bool cw_representation_is_valid(const char * representation)
 {
 	/* Check the characters in representation. */
 	for (int i = 0; representation[i]; i++) {
@@ -731,73 +691,27 @@ bool cw_representation_is_valid(const char *representation)
 
 
 
-#if 0 /* Disabled on 2015.09.10 because it's no longer used in libcw2. Replaced by cw_representation_to_character(). */
-/**
-   \brief Get the character represented by a given Morse representation
-
-   This function is depreciated, use cw_representation_to_character() instead.
-
-   Function checks \p representation, and if it is valid and
-   represents a known character, function returns CW_SUCCESS. Additionally,
-   if \p c is non-NULL, function puts the looked up character in \p c.
-
-   \p c should be allocated by caller. Function assumes that \p c being NULL
-   pointer is a valid situation, and can return CW_SUCCESS in such situation.
-
-   On error, function returns CW_FAILURE. errno is set to EINVAL if any
-   character of the representation is invalid, or ENOENT to indicate that
-   the character represented by \p representation could not be found.
-
-   \param representation - representation of a character to look up
-   \param c - location where to put looked up character
-
-   \return CW_SUCCESS on success
-   \return CW_FAILURE on failure
-*/
-int cw_lookup_representation(const char *representation, char *c)
-{
-	/* Check the characters in representation. */
-	if (!cw_representation_is_valid(representation)) {
-		errno = EINVAL;
-		return CW_FAILURE;
-	}
-
-	/* Lookup the representation, and if found, return the character. */
-	char character = cw_representation_to_character_internal(representation);
-	if (character) {
-		if (c) {
-			*c = character;
-		}
-		return CW_SUCCESS;
-	}
-
-	/* Failed to find the requested representation. */
-	errno = ENOENT;
-	return CW_FAILURE;
-}
-#endif
-
-
-
-
 /**
    \brief Return the character represented by a given Morse representation
 
    Function checks \p representation, and if it is valid and represents
    a known character, function returns the character (a non-zero value).
 
-   On error, function returns zero. errno is set to EINVAL if any
-   character of the representation is invalid, or ENOENT to indicate that
-   the character represented by \p representation could not be found.
+   On error, function returns zero.
+
+   \errno EINVAL - \p representation contains invalid symbol (other than Dots and Dashes).
+   \errno ENOENT - a character represented by \p representation could not be found.
 
    testedin::test_character_lookups_internal()
+
+   \reviewed on 2017-02-01
 
    \param representation - representation of a character to look up
 
    \return non-zero character on success
    \return zero on failure
 */
-int cw_representation_to_character(const char *representation)
+int cw_representation_to_character(const char * representation)
 {
 	/* Check the characters in representation. */
 	if (!cw_representation_is_valid(representation)) {
@@ -819,11 +733,9 @@ int cw_representation_to_character(const char *representation)
 
 
 
-
 /* ******************************************************************** */
 /*   Section:Extended Morse code data and lookup (procedural signals)   */
 /* ******************************************************************** */
-
 
 
 
@@ -1213,16 +1125,6 @@ bool cw_character_is_valid(char c)
 
 
 
-#if 0 /* Disabled on 2015.09.10 because it's no longer used in libcw2. Replaced by cw_character_is_valid(). */
-int cw_check_character(char c)
-{
-	return (int) cw_character_is_valid(c);
-}
-#endif
-
-
-
-
 /**
    \brief Validate a string
 
@@ -1257,17 +1159,6 @@ bool cw_string_is_valid(const char *string)
 
 
 
-#if 0 /* Disabled on 2015.09.10 because it's no longer used in libcw2. Replaced by cw_string_is_valid(). */
-int cw_check_string(const char *string)
-{
-	return cw_string_is_valid(string);
-}
-#endif
-
-
-
-
-
 /* Unit tests. */
 
 #ifdef LIBCW_UNIT_TESTS
@@ -1279,10 +1170,9 @@ int cw_check_string(const char *string)
 
 
 
-#define REPRESENTATION_LEN 7
-/* for maximum length of 7, there should be 254 items:
+/* For maximum length of 7, there should be 254 items:
    2^1 + 2^2 + 2^3 + ... + 2^7 */
-#define REPRESENTATION_TABLE_SIZE ((2 << (REPRESENTATION_LEN + 1)) - 1)
+#define REPRESENTATION_TABLE_SIZE ((2 << (CW_DATA_MAX_REPRESENTATION_LENGTH + 1)) - 1)
 
 
 
@@ -1330,12 +1220,12 @@ unsigned int test_cw_representation_to_hash_internal(cw_test_stats_t * stats)
 	  input[252] = ".------"
 	  input[253] = "-------"
 	*/
-	char input[REPRESENTATION_TABLE_SIZE][REPRESENTATION_LEN + 1];
+	char input[REPRESENTATION_TABLE_SIZE][CW_DATA_MAX_REPRESENTATION_LENGTH + 1];
 
 	/* build table of all valid representations ("valid" as in "built
-	   from dash and dot, no longer than REPRESENTATION_LEN"). */
+	   from dash and dot, no longer than CW_DATA_MAX_REPRESENTATION_LENGTH"). */
 	long int rep = 0;
-	for (unsigned int len = 1; len <= REPRESENTATION_LEN; len++) {
+	for (unsigned int len = 1; len <= CW_DATA_MAX_REPRESENTATION_LENGTH; len++) {
 
 		/* Build representations of all lengths, starting from
 		   shortest (single dot or dash) and ending with the
@@ -1365,9 +1255,9 @@ unsigned int test_cw_representation_to_hash_internal(cw_test_stats_t * stats)
 
 	/* Compute hash for every valid representation. */
 	for (int i = 0; i < rep; i++) {
-		unsigned int hash = cw_representation_to_hash_internal(input[i]);
-		/* The function returns values in range 2 - 255. */
-		failure = (hash < 2) || (hash > 255);
+		uint8_t hash = cw_representation_to_hash_internal(input[i]);
+		/* The function returns values in range CW_DATA_MIN_REPRESENTATION_HASH - CW_DATA_MAX_REPRESENTATION_HASH. */
+		failure = (hash < CW_DATA_MIN_REPRESENTATION_HASH) || (hash > CW_DATA_MAX_REPRESENTATION_HASH);
 		if (failure) {
 			fprintf(out_file, "libcw/data: representation to hash: Invalid hash #%d: %u\n", i, hash);
 			break;
