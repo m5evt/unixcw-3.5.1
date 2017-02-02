@@ -27,19 +27,19 @@ enum { CW_DOT_CALIBRATION = 1200000 };
 void cw_rec_reset_parameters_internal(cw_rec_t * rec);
 void cw_rec_sync_parameters_internal(cw_rec_t * rec);
 void cw_rec_get_parameters_internal(cw_rec_t * rec,
-				    int *dot_len_ideal, int *dash_len_ideal,
-				    int *dot_len_min, int *dot_len_max,
-				    int *dash_len_min, int *dash_len_max,
-				    int *eom_len_min,
-				    int *eom_len_max,
-				    int *eom_len_ideal,
-				    int *eoc_len_min,
-				    int *eoc_len_max,
-				    int *eoc_len_ideal,
-				    int *adaptive_threshold);
-void cw_rec_get_statistics_internal(cw_rec_t *rec, double *dot_sd, double *dash_sd,
-				    double *element_end_sd, double *character_end_sd);
-int cw_rec_get_buffer_length_internal(cw_rec_t *rec);
+				    int * dot_len_ideal, int * dash_len_ideal,
+				    int * dot_len_min,   int * dot_len_max,
+				    int * dash_len_min,  int * dash_len_max,
+				    int * eom_len_min,
+				    int * eom_len_max,
+				    int * eom_len_ideal,
+				    int * eoc_len_min,
+				    int * eoc_len_max,
+				    int * eoc_len_ideal,
+				    int * adaptive_threshold);
+void cw_rec_get_statistics_internal(cw_rec_t * rec, double * dot_sd, double * dash_sd,
+				    double * element_end_sd, double * character_end_sd);
+int cw_rec_get_buffer_length_internal(cw_rec_t * rec);
 int cw_rec_get_receive_buffer_capacity_internal(void);
 
 

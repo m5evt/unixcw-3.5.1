@@ -215,11 +215,11 @@ bool cw_rec_poll_is_pending_inter_word_space(cw_rec_t const * rec);
 
 
 
-/* receiver module: getters of receiver's essential parameters. */
-float cw_rec_get_speed(cw_rec_t *rec);
-int   cw_rec_get_tolerance(cw_rec_t *rec);
-int   cw_rec_get_noise_spike_threshold(cw_rec_t *rec);
-bool  cw_rec_get_adaptive_mode(cw_rec_t *rec);
+/* Receiver module: getters of receiver's essential parameters. */
+float cw_rec_get_speed(const cw_rec_t * rec);
+int   cw_rec_get_tolerance(const cw_rec_t * rec);
+int   cw_rec_get_noise_spike_threshold(const cw_rec_t * rec);
+bool  cw_rec_get_adaptive_mode(const cw_rec_t * rec);
 
 
 /* receiver module: setters of receiver's essential parameters. */
