@@ -68,19 +68,31 @@ extern cw_debug_t cw_debug_object_dev;
 
 
 
-static int cw_representation_to_character_direct_internal(const char * representation);
+typedef struct cw_entry_struct {
+	const char character;               /* Character represented. */
+	const char * const representation;  /* Dot-dash pattern of the character. */
+} cw_entry_t;
+
+
+/* Functions handling representation of a character.
+   Representation looks like this: ".-" for "a", "--.." for "z", etc. */
+static int          cw_representation_lookup_init_internal(const cw_entry_t * lookup[]);
+static uint8_t      cw_representation_to_hash_internal(const char * representation);
+static const char * cw_lookup_procedural_character_internal(int c, bool * is_usually_expanded);
+static int          cw_representation_to_character_direct_internal(const char * representation);
 
 
 
 
 /*
   Morse code characters table.  This table allows lookup of the Morse
-  representation (shape) of a given alphanumeric character.
-  Representations (shapes) are held as a string, with "-" representing
-  Dash, and "." representing Dot.  The table ends with a NULL entry.
+  representation of a given alphanumeric character.  Representations
+  are held as a string, with "-" representing Dash, and "."
+  representing Dot.  The table ends with a NULL entry.
 
   Notice that ASCII characters are stored as uppercase characters.
 */
+
 
 static const cw_entry_t CW_TABLE[] = {
 	/* ASCII 7bit letters */
@@ -535,11 +547,6 @@ int cw_representation_to_character_internal(const char * representation)
    cw_representation_to_character_internal() (since this direct method
    is simpler and, well, direct) in a unit test function.
 
-   TODO: write unit test that compares result of this function and of
-   cw_representation_to_character_internal(), i.e. that checks that
-   both functions return the same value. The test will be valuable
-   only if lookup table is complete.
-
    The second purpose is to compare time of execution of the two
    functions: direct and with lookup table, and see what are the speed
    advantages of using function with lookup table.
@@ -745,10 +752,9 @@ int cw_representation_to_character(const char * representation)
    if the character is usually expanded for display. */
 typedef struct {
 	const char character;            /* Character represented */
-	const char *const expansion;     /* Procedural expansion of the character */
+	const char * const expansion;    /* Procedural expansion of the character */
 	const bool is_usually_expanded;  /* If expanded display is usual */
 } cw_prosign_entry_t;
-
 
 
 
@@ -777,11 +783,12 @@ static const cw_prosign_entry_t CW_PROSIGN_TABLE[] = {
 
 
 
-
 /**
    \brief Get number of procedural signals
 
    testedin::test_prosign_lookups_internal()
+
+   \reviewed on 2017-02-02
 
    \return the number of characters represented in the procedural signal expansion lookup table
 */
@@ -791,7 +798,7 @@ int cw_get_procedural_character_count(void)
 
 	if (character_count == 0) {
 
-		for (const cw_prosign_entry_t *e = CW_PROSIGN_TABLE; e->character; e++) {
+		for (const cw_prosign_entry_t * e = CW_PROSIGN_TABLE; e->character; e++) {
 			character_count++;
 		}
 	}
@@ -802,27 +809,29 @@ int cw_get_procedural_character_count(void)
 
 
 
-
 /**
    \brief Get list of characters for which procedural expansion is available
 
-   Function returns into \p list a string containing all of the Morse
-   characters for which procedural expansion is available.  The length
-   of \p list must be at least by one greater than the number of
-   characters represented in the procedural signal expansion lookup
-   table, returned by cw_get_procedural_character_count().
+   Function copies into preallocated buffer \p list a string
+   containing all of the Morse characters for which procedural
+   expansion is available.  The length of \p list must be at least by
+   one greater than the number of characters represented in the
+   procedural signal expansion lookup table, returned by
+   cw_get_procedural_character_count().
 
-   \p list is managed by caller
+   \p list is allocated and managed by caller.
+
+   \reviewed on 2017-02-02
 
    testedin::test_prosign_lookups_internal()
 
    \param list - space for returned characters
 */
-void cw_list_procedural_characters(char *list)
+void cw_list_procedural_characters(char * list)
 {
 	/* Append each table character to the output string. */
 	int i = 0;
-	for (const cw_prosign_entry_t *e = CW_PROSIGN_TABLE; e->character; e++) {
+	for (const cw_prosign_entry_t * e = CW_PROSIGN_TABLE; e->character; e++) {
 		list[i++] = e->character;
 	}
 
@@ -834,12 +843,13 @@ void cw_list_procedural_characters(char *list)
 
 
 
-
 /**
    \brief Get length of the longest procedural expansion
 
    Function returns the string length of the longest expansion
    in the procedural signal expansion table.
+
+   \reviewed on 2017-02-02
 
    testedin::test_prosign_lookups_internal()
 
@@ -847,21 +857,20 @@ void cw_list_procedural_characters(char *list)
 */
 int cw_get_maximum_procedural_expansion_length(void)
 {
-	static size_t maximum_length = 0;
+	static int maximum_length = 0;
 
 	if (maximum_length == 0) {
-		/* Traverse the main lookup table, finding the longest. */
-		for (const cw_prosign_entry_t *e = CW_PROSIGN_TABLE; e->character; e++) {
-			size_t length = strlen(e->expansion);
+		/* Traverse the prosign table, finding the longest expansion. */
+		for (const cw_prosign_entry_t * e = CW_PROSIGN_TABLE; e->character; e++) {
+			int length = (int) strlen(e->expansion);
 			if (length > maximum_length) {
 				maximum_length = length;
 			}
 		}
 	}
 
-	return (int) maximum_length;
+	return maximum_length;
 }
-
 
 
 
@@ -876,15 +885,17 @@ int cw_get_maximum_procedural_expansion_length(void)
    Pointer returned by the function is owned and managed by library.
    \p is_usually_expanded pointer is owned by client code.
 
+   \reviewed on 2017-02-02
+
    \param c - character to look up
    \param is_usually_expanded - output, display hint
 
    \return expansion of input character on success
    \return NULL if there is no table entry for the given character
 */
-const char *cw_lookup_procedural_character_internal(int c, bool *is_usually_expanded)
+const char * cw_lookup_procedural_character_internal(int c, bool * is_usually_expanded)
 {
-	static const cw_prosign_entry_t *lookup[UCHAR_MAX];  /* Fast lookup table */
+	static const cw_prosign_entry_t * lookup[UCHAR_MAX];  /* Fast lookup table. */
 	static bool is_initialized = false;
 
 	/* If this is the first call, set up the fast lookup table to
@@ -892,9 +903,9 @@ const char *cw_lookup_procedural_character_internal(int c, bool *is_usually_expa
 	   a given character. */
 	if (!is_initialized) {
 		cw_debug_msg (&cw_debug_object, CW_DEBUG_LOOKUPS, CW_DEBUG_INFO,
-			      "libcw: initialize prosign fast lookup table");
+			      "libcw/data: initialize prosign fast lookup table");
 
-		for (const cw_prosign_entry_t *e = CW_PROSIGN_TABLE; e->character; e++) {
+		for (const cw_prosign_entry_t * e = CW_PROSIGN_TABLE; e->character; e++) {
 			lookup[(unsigned char) e->character] = e;
 
 			is_initialized = true;
@@ -904,18 +915,17 @@ const char *cw_lookup_procedural_character_internal(int c, bool *is_usually_expa
 	/* Lookup the procedural signal table entry.  Unknown characters
 	   return NULL.  All procedural signals are non-alphabetical, so no
 	   need to use any uppercase coercion here. */
-	const cw_prosign_entry_t *cw_prosign = lookup[(unsigned char) c];
+	const cw_prosign_entry_t * cw_prosign = lookup[(unsigned char) c];
 
 	if (cw_debug_has_flag((&cw_debug_object), CW_DEBUG_LOOKUPS)) {
 		if (cw_prosign) {
-			fprintf(stderr, "libcw: prosign lookup '%c' returned <'%c':\"%s\":%d>\n",
+			fprintf(stderr, "libcw/data: prosign lookup '%c' -> '%c'/'%s'/%d\n",
 				c, cw_prosign->character,
 				cw_prosign->expansion, cw_prosign->is_usually_expanded);
 		} else if (isprint(c)) {
-			fprintf(stderr, "libcw: prosign lookup '%c' found nothing\n", c);
+			fprintf(stderr, "libcw/data: prosign lookup '%c' -> NOTHING\n", c);
 		} else {
-			fprintf(stderr, "libcw: prosign lookup 0x%02x found nothing\n",
-				(unsigned char) c);
+			fprintf(stderr, "libcw/data: prosign lookup '0x%02x' -> NOTHING\n", (unsigned char) c);
 		}
 	}
 
@@ -931,14 +941,13 @@ const char *cw_lookup_procedural_character_internal(int c, bool *is_usually_expa
 
 
 
-
 /**
    \brief Get the string expansion of a given Morse code procedural signal character
 
    On success the function
    - fills \p expansion with the string expansion of a given Morse code
    procedural signal character \p c;
-   - sets is_usuall_expanded to true as a display hint for the caller;
+   - sets \p is_usually_expanded to true as a display hint for the caller;
    - returns CW_SUCCESS.
 
    Both \p expansion and \p is_usually_expanded must be allocated and
@@ -949,16 +958,17 @@ const char *cw_lookup_procedural_character_internal(int c, bool *is_usually_expa
    longest expansion held in the procedural signal character lookup
    table, as returned by cw_get_maximum_procedural_expansion_length().
 
-   If procedural signal character \p c cannot be found, the function sets
-   errno to ENOENT and returns CW_FAILURE.
+   \errno ENOENT - procedural signal character \p c cannot be found
 
    testedin::test_prosign_lookups_internal()
+
+   \reviewed on 2017-02-02
 
    \param c - character to look up
    \param expansion - output, space to fill with expansion of the character
    \param is_usually_expanded - visual hint
 
-   \return CW_FAILURE on failure (errno is set to ENOENT)
+   \return CW_FAILURE on failure (character cannot be found)
    \return CW_SUCCESS on success
 */
 int cw_lookup_procedural_character(char c, char *expansion, int *is_usually_expanded)
@@ -966,7 +976,7 @@ int cw_lookup_procedural_character(char c, char *expansion, int *is_usually_expa
 	bool is_expanded;
 
 	/* Lookup, and if found, return the string and display hint. */
-	const char *retval = cw_lookup_procedural_character_internal(c, &is_expanded);
+	const char * retval = cw_lookup_procedural_character_internal(c, &is_expanded);
 	if (retval) {
 		if (expansion) {
 			strcpy(expansion, retval);
@@ -985,7 +995,6 @@ int cw_lookup_procedural_character(char c, char *expansion, int *is_usually_expa
 
 
 
-
 /* ******************************************************************** */
 /*                     Section:Phonetic alphabet                        */
 /* ******************************************************************** */
@@ -993,10 +1002,9 @@ int cw_lookup_procedural_character(char c, char *expansion, int *is_usually_expa
 
 
 
-
 /* Phonetics table.  Not really CW, but it might be handy to have.
    The table contains ITU/NATO phonetics. */
-static const char *const CW_PHONETICS[27] = {
+static const char * const CW_PHONETICS[] = {
 	"Alfa",
 	"Bravo",
 	"Charlie",
@@ -1029,31 +1037,31 @@ static const char *const CW_PHONETICS[27] = {
 
 
 
-
 /**
    \brief Get maximum length of a phonetic
 
    testedin::test_phonetic_lookups_internal()
 
+   \reviewed on 2017-02-02
+
    \return the string length of the longest phonetic in the phonetics lookup table
 */
 int cw_get_maximum_phonetic_length(void)
 {
-	static size_t maximum_length = 0;
+	static int maximum_length = 0;
 
 	if (maximum_length == 0) {
-		/* Traverse the main lookup table, finding the longest. */
+		/* Traverse the phonetics table, finding the longest phonetic string. */
 		for (int phonetic = 0; CW_PHONETICS[phonetic]; phonetic++) {
-			size_t length = strlen(CW_PHONETICS[phonetic]);
+			int length = (int) strlen(CW_PHONETICS[phonetic]);
 			if (length > maximum_length) {
 				maximum_length = length;
 			}
 		}
 	}
 
-	return (int) maximum_length;
+	return maximum_length;
 }
-
 
 
 
@@ -1064,13 +1072,19 @@ int cw_get_maximum_phonetic_length(void)
    On success the routine fills in the string pointer passed in with the
    phonetic of given character \p c.
 
+   It is considered an error if \p phonetics is NULL (why would you
+   call this function to get the phonetic if you don't provide output
+   buffer?).
+
    The length of phonetic must be at least one greater than the longest
    phonetic held in the phonetic lookup table, as returned by
    cw_get_maximum_phonetic_length().
 
-   If character cannot be found, the function sets errno to ENOENT.
+   \errno ENOENT - character cannot be found
 
    testedin::test_phonetic_lookups_internal()
+
+   \reviewed on 2017-02-02
 
    \param c - character to look up
    \param phonetic - output, space for phonetic of a character
@@ -1078,7 +1092,7 @@ int cw_get_maximum_phonetic_length(void)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_lookup_phonetic(char c, char *phonetic)
+int cw_lookup_phonetic(char c, char * phonetic)
 {
 	/* Coerce to uppercase, and verify the input argument. */
 	c = toupper(c);
@@ -1086,6 +1100,8 @@ int cw_lookup_phonetic(char c, char *phonetic)
 		if (phonetic) {
 			strcpy(phonetic, CW_PHONETICS[c - 'A']);
 			return CW_SUCCESS;
+		} else {
+			/* TODO: set some errno here. */
 		}
 	}
 
@@ -1097,18 +1113,22 @@ int cw_lookup_phonetic(char c, char *phonetic)
 
 
 
-
 /**
-   \brief Checks that the given character is validly sendable in Morse
+   \brief Check if given character can be converted to Morse code symbols
 
-   Function sets errno to ENOENT on failure.
+   Check that a given character is valid and can be sent by libcw as a
+   Morse character.
+
+   Space character (' ') is also considered to be a valid character.
 
    testedin::test_validate_character_and_string_internal()
+
+   \reviewed on 2017-02-02
 
    \param c - character to check
 
    \return CW_SUCCESS if character is valid
-   \return CW_FAILURE if character is invalid
+   \return CW_FAILURE otherwise
 */
 bool cw_character_is_valid(char c)
 {
@@ -1116,31 +1136,32 @@ bool cw_character_is_valid(char c)
 	   lookup table, return success. */
 	if (c == ' ' || cw_character_to_representation_internal(c)) {
 		return CW_SUCCESS;
-	} else {
-		errno = ENOENT;
-		return CW_FAILURE;
 	}
+
+	return CW_FAILURE;
 }
 
 
 
 
 /**
-   \brief Validate a string
+   \brief Check if all characters in given string can be converted to Morse code symbols
 
    Check that each character in the given string is valid and can be
    sent by libcw as a Morse character.
 
-   Function sets errno to EINVAL on failure
+   Space character (' ') is also considered to be a valid character.
 
    testedin::test_validate_character_and_string_internal()
 
+   \reviewed on 2017-02-02
+
    \param string - string to check
 
-   \return CW_SUCCESS on success
-   \return CW_FAILURE on failure
+   \return CW_SUCCESS if all characters in string are valid
+   \return CW_FAILURE otherwise
 */
-bool cw_string_is_valid(const char *string)
+bool cw_string_is_valid(const char * string)
 {
 	/* Check that each character in the string has a Morse
 	   representation, or - as a special case - is a space character. */
@@ -1148,7 +1169,6 @@ bool cw_string_is_valid(const char *string)
 		if (!(string[i] == ' '
 		      || cw_character_to_representation_internal(string[i]))) {
 
-			errno = EINVAL;
 			return CW_FAILURE;
 		}
 	}
