@@ -147,7 +147,7 @@ typedef enum {
 enum {
 	RS_IDLE,          /* Representation buffer is empty and ready to accept data. */
 	RS_MARK,          /* Mark. */
-	RS_SPACE,         /* Space (inter-mark-space). */
+	RS_IMARK_SPACE,   /* Inter-mark space. */
 	RS_EOC_GAP,       /* Gap after a character, without error (EOC = end-of-character). */
 	RS_EOW_GAP,       /* Gap after a word, without error (EOW = end-of-word). */
 	RS_EOC_GAP_ERR,   /* Gap after a character, with error. */
@@ -157,7 +157,7 @@ enum {
 static const char * cw_receiver_states[] = {
 	"RS_IDLE",
 	"RS_MARK",
-	"RS_SPACE",
+	"RS_IMARK_SPACE",
 	"RS_EOC_GAP",
 	"RS_EOW_GAP",
 	"RS_EOC_GAP_ERR",
@@ -931,7 +931,7 @@ void cw_rec_reset_statistics(cw_rec_t * rec)
  *        |              (is noise)|  |  |
  *        |                        |  |  |
  *        v        (begin mark)    |  |  |    (end mark,noise)
- * --> RS_IDLE ------->----------- RS_MARK ------------>----------> RS_SPACE <------------- +
+ * --> RS_IDLE ------->----------- RS_MARK ------------>-------> RS_IMARK_SPACE <---------- +
  *     v  ^                              ^                          v v v ^ |               |
  *     |  |                              |    (begin mark)          | | | | |               |
  *     |  |     (pull() +                +-------------<------------+ | | | +---------------+
@@ -1095,7 +1095,7 @@ int cw_rec_mark_begin(cw_rec_t * rec, const struct timeval * timestamp)
 		cw_rec_reset_state(rec);
 	}
 
-	if (rec->state != RS_IDLE && rec->state != RS_SPACE) {
+	if (rec->state != RS_IDLE && rec->state != RS_IMARK_SPACE) {
 		/* A start of mark can only happen while we are idle,
 		   or in inter-mark-space of a current character. */
 
@@ -1104,7 +1104,7 @@ int cw_rec_mark_begin(cw_rec_t * rec, const struct timeval * timestamp)
 
 		/*
 		  ->state should be RS_IDLE at the beginning of new character;
-		  ->state should be RS_SPACE in the middle of character (between marks).
+		  ->state should be RS_IMARK_SPACE in the middle of character (between marks).
 		*/
 
 		errno = ERANGE;
@@ -1120,7 +1120,7 @@ int cw_rec_mark_begin(cw_rec_t * rec, const struct timeval * timestamp)
 		return CW_FAILURE;
 	}
 
-	if (rec->state == RS_SPACE) {
+	if (rec->state == RS_IMARK_SPACE) {
 		/* Measure inter-mark space (just for statistics).
 
 		   rec->mark_end is timestamp of end of previous
@@ -1210,7 +1210,7 @@ int cw_rec_mark_end(cw_rec_t * rec, const struct timeval * timestamp)
 		   marks are in the buffer) to see in which state the
 		   receiver was *before* mark_begin() function call,
 		   and restore this state. */
-		CW_REC_SET_STATE (rec, (rec->representation_ind == 0 ? RS_IDLE : RS_SPACE), (&cw_debug_object));
+		CW_REC_SET_STATE (rec, (rec->representation_ind == 0 ? RS_IDLE : RS_IMARK_SPACE), (&cw_debug_object));
 
 		/* Put the end-of-mark timestamp back to how it was when we
 		   came in to the routine. */
@@ -1286,7 +1286,7 @@ int cw_rec_mark_end(cw_rec_t * rec, const struct timeval * timestamp)
 
 	/* All is well.  Move to the more normal inter-mark-space
 	   state. */
-	CW_REC_SET_STATE (rec, RS_SPACE, (&cw_debug_object));
+	CW_REC_SET_STATE (rec, RS_IMARK_SPACE, (&cw_debug_object));
 
 	return CW_SUCCESS;
 }
@@ -1511,7 +1511,7 @@ int cw_rec_add_mark(cw_rec_t * rec, const struct timeval * timestamp, char mark)
 {
 	/* The receiver's state is expected to be idle or
 	   inter-mark-space in order to use this routine. */
-	if (rec->state != RS_IDLE && rec->state != RS_SPACE) {
+	if (rec->state != RS_IDLE && rec->state != RS_IMARK_SPACE) {
 		errno = ERANGE;
 		return CW_FAILURE;
 	}
@@ -1556,7 +1556,7 @@ int cw_rec_add_mark(cw_rec_t * rec, const struct timeval * timestamp, char mark)
 
 	/* Since we effectively just saw the end of a mark, move to
 	   the inter-mark-space state. */
-	CW_REC_SET_STATE (rec, RS_SPACE, (&cw_debug_object));
+	CW_REC_SET_STATE (rec, RS_IMARK_SPACE, (&cw_debug_object));
 
 	return CW_SUCCESS;
 }
@@ -1623,7 +1623,7 @@ int cw_rec_poll_representation(cw_rec_t * rec,
 
 	/* Four receiver states were covered above, so we are left
 	   with these three: */
-	cw_assert (rec->state == RS_SPACE
+	cw_assert (rec->state == RS_IMARK_SPACE
 		   || rec->state == RS_EOC_GAP
 		   || rec->state == RS_EOC_GAP_ERR,
 
@@ -1717,7 +1717,7 @@ void cw_rec_poll_representation_eoc_internal(cw_rec_t * rec, int space_len,
 					     /* out */ bool * is_end_of_word,
 					     /* out */ bool * is_error)
 {
-	if (rec->state == RS_SPACE) {
+	if (rec->state == RS_IMARK_SPACE) {
 		/* State of receiver is inter-mark-space, but real
 		   length of current space turned out to be a bit
 		   longer than acceptable inter-mark-space. Update
@@ -1777,7 +1777,7 @@ void cw_rec_poll_representation_eow_internal(cw_rec_t *rec,
 					     /* out */ bool *is_end_of_word,
 					     /* out */ bool *is_error)
 {
-	if (rec->state == RS_EOC_GAP || rec->state == RS_SPACE) {
+	if (rec->state == RS_EOC_GAP || rec->state == RS_IMARK_SPACE) {
 		CW_REC_SET_STATE (rec, RS_EOW_GAP, (&cw_debug_object)); /* Transition of state. */
 
 	} else if (rec->state == RS_EOC_GAP_ERR) {
