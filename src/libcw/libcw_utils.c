@@ -41,8 +41,6 @@
 #include <sys/types.h>
 #include <stdio.h>
 #include <errno.h>
-#include <stdbool.h>
-#include <dlfcn.h> /* dlopen() and related symbols */
 #include <stdlib.h> /* strtol() */
 
 #if defined(HAVE_STRING_H)
@@ -69,7 +67,6 @@
 
 
 
-
 extern cw_debug_t cw_debug_object;
 extern cw_debug_t cw_debug_object_ev;
 extern cw_debug_t cw_debug_object_dev;
@@ -77,10 +74,9 @@ extern cw_debug_t cw_debug_object_dev;
 
 
 
-
 /* Human-readable labels of audio systems.
    Indexed by values of "enum cw_audio_systems". */
-static const char *cw_audio_system_labels[] = {
+static const char * cw_audio_system_labels[] = {
 	"None",
 	"Null",
 	"Console",
@@ -100,9 +96,11 @@ static const char *cw_audio_system_labels[] = {
    revision, \p age. These three properties are described here:
    http://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html
 
+   \reviewed on 2017-02-04
+
    testedin::test_cw_version()
 */
-void cw_version(int *current, int *revision, int *age)
+void cw_version(int * current, int * revision, int * age)
 {
 	char *endptr = NULL;
 
@@ -132,11 +130,12 @@ void cw_version(int *current, int *revision, int *age)
 
 
 
-
 /**
    \brief Print libcw's license text to stdout
 
    testedin::test_cw_license()
+
+   \reviewed on 2017-02-04
 
    Function prints to stdout information about libcw version, followed
    by short text presenting libcw's copyright and license notice.
@@ -155,7 +154,6 @@ void cw_license(void)
 
 
 
-
 /**
    \brief Get a readable label of given audio system
 
@@ -166,15 +164,16 @@ void cw_license(void)
 
    TODO: change the declaration to "const char *const cw_get_audio_system_label(...)"?
 
+   \reviewed on 2017-02-04
+
    \param audio_system - ID of audio system
 
    \return audio system's label
 */
-const char *cw_get_audio_system_label(int audio_system)
+const char * cw_get_audio_system_label(int audio_system)
 {
 	return cw_audio_system_labels[audio_system];
 }
-
 
 
 
@@ -190,23 +189,24 @@ const char *cw_get_audio_system_label(int audio_system)
 
    testedin::test_cw_usecs_to_timespec_internal()
 
+   \reviewed on 2017-02-04
+
    \param t - pointer to existing struct to be filled with data
    \param usecs - value to convert to timespec
 */
-void cw_usecs_to_timespec_internal(struct timespec *t, int usecs)
+void cw_usecs_to_timespec_internal(struct timespec * t, int usecs)
 {
 	assert (usecs >= 0);
 	assert (t);
 
-	int sec = usecs / 1000000;
-	int usec = usecs % 1000000;
+	int sec = usecs / CW_USECS_PER_SEC;
+	int usec = usecs % CW_USECS_PER_SEC;
 
 	t->tv_sec = sec;
 	t->tv_nsec = usec * 1000;
 
 	return;
 }
-
 
 
 
@@ -225,9 +225,11 @@ void cw_usecs_to_timespec_internal(struct timespec *t, int usecs)
    to spend some time handling SIGALRM signal. Other restrictions from
    nanosleep()'s man page also apply.
 
+   \reviewed on 2017-02-04
+
    \param n - period of time to sleep
 */
-void cw_nanosleep_internal(struct timespec *n)
+void cw_nanosleep_internal(const struct timespec * n)
 {
 	struct timespec rem = { .tv_sec = n->tv_sec, .tv_nsec = n->tv_nsec };
 
@@ -248,6 +250,9 @@ void cw_nanosleep_internal(struct timespec *n)
 
 
 #if (defined(LIBCW_WITH_ALSA) || defined(LIBCW_WITH_PULSEAUDIO))
+
+#include <dlfcn.h> /* dlopen() and related symbols */
+
 /**
    \brief Try to dynamically open shared library
 
@@ -258,34 +263,35 @@ void cw_nanosleep_internal(struct timespec *n)
    Name of the library should contain ".so" suffix, e.g.: "libasound.so.2",
    or "libpulse-simple.so".
 
+   \reviewed on 2017-02-04
+
    \param name - name of library to test
    \param handle - output argument, handle to open library
 
    \return true on success
    \return false otherwise
 */
-bool cw_dlopen_internal(const char *name, void **handle)
+bool cw_dlopen_internal(const char * name, void ** handle)
 {
 	assert (name);
 
 	dlerror();
-	void *h = dlopen(name, RTLD_LAZY);
-	char *e = dlerror();
+	void * h = dlopen(name, RTLD_LAZY);
+	char * e = dlerror();
 
 	if (e) {
 		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
-			      "libcw: dlopen() fails for %s with error: %s", name, e);
+			      "libcw/utils: dlopen() fails for %s with error: %s", name, e);
 		return false;
 	} else {
 		*handle = h;
 
 		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_STDLIB, CW_DEBUG_DEBUG,
-			      "libcw: dlopen() succeeds for %s", name);
+			      "libcw/utils: dlopen() succeeds for %s", name);
 		return true;
 	}
 }
 #endif
-
 
 
 
@@ -302,11 +308,14 @@ bool cw_dlopen_internal(const char *name, void **handle)
 
    If \p in_timestamp is not given (NULL), get current time (with
    gettimeofday()), put it in \p out_timestamp and return
-   CW_SUCCESS. If call to gettimeofday() fails, return CW_FAILURE.
+   CW_SUCCESS. If call to gettimeofday() fails, return
+   CW_FAILURE. gettimeofday() sets its own errno.
 
    \p out_timestamp cannot be NULL.
 
    testedin::test_cw_timestamp_validate_internal()
+
+   \reviewed on 2017-02-04
 
    \param out_timestamp - timestamp to be used by client code after the function call
    \param in_timestamp - timestamp to be validated
@@ -314,9 +323,9 @@ bool cw_dlopen_internal(const char *name, void **handle)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_timestamp_validate_internal(struct timeval *out_timestamp, const struct timeval *in_timestamp)
+int cw_timestamp_validate_internal(struct timeval * out_timestamp, const struct timeval * in_timestamp)
 {
-	cw_assert (out_timestamp, "pointer to output timestamp is NULL");
+	cw_assert (out_timestamp, "libcw/utils: validate timestamp: pointer to output timestamp is NULL");
 
 	if (in_timestamp) {
 		if (in_timestamp->tv_sec < 0
@@ -335,7 +344,7 @@ int cw_timestamp_validate_internal(struct timeval *out_timestamp, const struct t
 				// fprintf(stderr, "Negative usecs in %s\n", __func__);
 			}
 
-			perror ("libcw: gettimeofday");
+			perror("libcw/utils: validate timestamp: gettimeofday");
 			return CW_FAILURE;
 		} else {
 			return CW_SUCCESS;
@@ -346,26 +355,25 @@ int cw_timestamp_validate_internal(struct timeval *out_timestamp, const struct t
 
 
 
-
 /**
    \brief Compare two timestamps
 
-   Compare two timestamps, and return the difference between them in
+   Compare two timestamps and return the difference between them in
    microseconds, taking care to clamp values which would overflow an int.
 
    This routine always returns a positive integer in the range 0 to INT_MAX.
 
    testedin::test_cw_timestamp_compare_internal()
 
+   \reviewed on 2017-02-04
+
    \param earlier - timestamp to compare
    \param later - timestamp to compare
 
    \return difference between timestamps (in microseconds)
 */
-int cw_timestamp_compare_internal(const struct timeval *earlier,
-				  const struct timeval *later)
+int cw_timestamp_compare_internal(const struct timeval * earlier, const struct timeval * later)
 {
-
 	/* Compare the timestamps, taking care on overflows.
 
 	   At 4 WPM, the dash length is 3*(1200000/4)=900,000 usecs, and
@@ -408,28 +416,26 @@ int cw_timestamp_compare_internal(const struct timeval *earlier,
 
 
 
-
-/* Morse code controls and timing parameters. */
-
-
-
-
-
 /**
    \brief Get speed limits
 
-   Get (through function's arguments) limits on speed of morse code that
-   can be generated by generator.
+   Get (through function's arguments) limits on speed of Morse code that
+   are supported by libcw.
 
-   See CW_SPEED_MIN and CW_SPEED_MAX in libcw.h for values.
+   See CW_SPEED_MIN and CW_SPEED_MAX in libcw2.h for values.
+
+   Any of functions two arguments can be NULL - function won't update
+   value of that argument.
 
    testedin::test_cw_get_x_limits_internal()
    testedin::test_cw_gen_parameter_getters_setters()
 
+   \reviewed on 2017-02-04
+
    \param min_speed - minimal allowed speed
    \param max_speed - maximal allowed speed
 */
-void cw_get_speed_limits(int *min_speed, int *max_speed)
+void cw_get_speed_limits(int * min_speed, int * max_speed)
 {
 	if (min_speed) {
 		*min_speed = CW_SPEED_MIN;
@@ -444,22 +450,26 @@ void cw_get_speed_limits(int *min_speed, int *max_speed)
 
 
 
-
 /**
    \brief Get frequency limits
 
-   Get (through function's arguments) limits on frequency that can
-   be generated by generator.
+   Get (through function's arguments) limits on frequency that are
+   supported by libcw.
 
-   See CW_FREQUENCY_MIN and CW_FREQUENCY_MAX in libcw.h for values.
+   See CW_FREQUENCY_MIN and CW_FREQUENCY_MAX in libcw2.h for values.
+
+   Any of functions two arguments can be NULL - function won't update
+   value of that argument.
 
    testedin::test_cw_get_x_limits_internal()
    testedin::test_cw_gen_parameter_getters_setters()
 
+   \reviewed on 2017-02-04
+
    \param min_frequency - minimal allowed frequency
    \param max_frequency - maximal allowed frequency
 */
-void cw_get_frequency_limits(int *min_frequency, int *max_frequency)
+void cw_get_frequency_limits(int * min_frequency, int * max_frequency)
 {
 	if (min_frequency) {
 		*min_frequency = CW_FREQUENCY_MIN;
@@ -474,23 +484,27 @@ void cw_get_frequency_limits(int *min_frequency, int *max_frequency)
 
 
 
-
 /**
    \brief Get volume limits
 
    Get (through function's arguments) limits on volume of sound
-   generated by generator.
+   supported by libcw and generated by generator.
 
-   See CW_VOLUME_MIN and CW_VOLUME_MAX in libcw.h for values.
+   See CW_VOLUME_MIN and CW_VOLUME_MAX in libcw2.h for values.
+
+   Any of functions two arguments can be NULL - function won't update
+   value of that argument.
 
    testedin::test_cw_get_x_limits_internal()
    testedin::test_cw_gen_volume_functions()
    testedin::test_cw_gen_parameter_getters_setters()
 
+   \reviewed on 2017-02-04
+
    \param min_volume - minimal allowed volume
    \param max_volume - maximal allowed volume
 */
-void cw_get_volume_limits(int *min_volume, int *max_volume)
+void cw_get_volume_limits(int * min_volume, int * max_volume)
 {
 	if (min_volume) {
 		*min_volume = CW_VOLUME_MIN;
@@ -504,22 +518,26 @@ void cw_get_volume_limits(int *min_volume, int *max_volume)
 
 
 
-
 /**
    \brief Get gap limits
 
    Get (through function's arguments) limits on gap in cw signal
-   generated by generator.
+   supported by libcw.
 
-   See CW_GAP_MIN and CW_GAP_MAX in libcw.h for values.
+   See CW_GAP_MIN and CW_GAP_MAX in libcw2.h for values.
+
+   Any of functions two arguments can be NULL - function won't update
+   value of that argument.
 
    testedin::test_cw_get_x_limits_internal()
    testedin::test_cw_gen_parameter_getters_setters()
 
+   \reviewed on 2017-02-04
+
    \param min_gap - minimal allowed gap
    \param max_gap - maximal allowed gap
 */
-void cw_get_gap_limits(int *min_gap, int *max_gap)
+void cw_get_gap_limits(int * min_gap, int * max_gap)
 {
 	if (min_gap) {
 		*min_gap = CW_GAP_MIN;
@@ -533,21 +551,25 @@ void cw_get_gap_limits(int *min_gap, int *max_gap)
 
 
 
-
 /**
    \brief Get tolerance limits
 
    Get (through function's arguments) limits on "tolerance" parameter
-   of generator.
+   supported by libcw.
 
-   See CW_TOLERANCE_MIN and CW_TOLERANCE_MAX in libcw.h for values.
+   See CW_TOLERANCE_MIN and CW_TOLERANCE_MAX in libcw2.h for values.
+
+   Any of functions two arguments can be NULL - function won't update
+   value of that argument.
 
    testedin::test_cw_get_x_limits_internal()
+
+   \reviewed on 2017-02-04
 
    \param min_tolerance - minimal allowed tolerance
    \param max_tolerance - maximal allowed tolerance
 */
-void cw_get_tolerance_limits(int *min_tolerance, int *max_tolerance)
+void cw_get_tolerance_limits(int * min_tolerance, int * max_tolerance)
 {
 	if (min_tolerance) {
 		*min_tolerance = CW_TOLERANCE_MIN;
@@ -561,22 +583,26 @@ void cw_get_tolerance_limits(int *min_tolerance, int *max_tolerance)
 
 
 
-
 /**
    \brief Get weighting limits
 
    Get (through function's arguments) limits on "weighting" parameter
-   of generator.
+   supported by libcw.
 
-   See CW_WEIGHTING_MIN and CW_WEIGHTING_MAX in libcw.h for values.
+   See CW_WEIGHTING_MIN and CW_WEIGHTING_MAX in libcw2.h for values.
+
+   Any of functions two arguments can be NULL - function won't update
+   value of that argument.
 
    testedin::test_cw_get_x_limits_internal()
    testedin::test_cw_gen_parameter_getters_setters()
 
+   \reviewed on 2017-02-04
+
    \param min_weighting - minimal allowed weighting
    \param max_weighting - maximal allowed weighting
 */
-void cw_get_weighting_limits(int *min_weighting, int *max_weighting)
+void cw_get_weighting_limits(int * min_weighting, int * max_weighting)
 {
 	if (min_weighting) {
 		*min_weighting = CW_WEIGHTING_MIN;
@@ -590,17 +616,12 @@ void cw_get_weighting_limits(int *min_weighting, int *max_weighting)
 
 
 
-
-/* ******************************************************************** */
-/*             Section:Unit tests for internal functions                */
-/* ******************************************************************** */
-
-
-
-
-
 #ifdef LIBCW_UNIT_TESTS
 
+
+
+
+#include <stdbool.h>
 
 
 

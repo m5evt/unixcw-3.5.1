@@ -27,7 +27,6 @@
 
 
 
-
 #include "config.h"
 
 
@@ -83,10 +82,9 @@ extern cw_debug_t cw_debug_object_dev;
    from linux/include/asm-i386/timex.h, included here for portability. */
 static const int KIOCSOUND_CLOCK_TICK_RATE = 1193180;
 
-static void cw_console_close_device_internal(cw_gen_t *gen);
-static int  cw_console_open_device_internal(cw_gen_t *gen);
-static int  cw_console_write_low_level_internal(cw_gen_t *gen, bool state);
-
+static void cw_console_close_device_internal(cw_gen_t * gen);
+static int  cw_console_open_device_internal(cw_gen_t * gen);
+static int  cw_console_write_low_level_internal(cw_gen_t * gen, bool state);
 
 
 
@@ -108,37 +106,38 @@ static int  cw_console_write_low_level_internal(cw_gen_t *gen, bool state);
    as every other function called to perform console operations will
    happily assume that it is allowed to perform such operations.
 
+   \reviewed on 2017-02-04
+
    \param device - name of console device to be used; if NULL then library will use default device.
 
    \return true if opening console output succeeded;
    \return false if opening console output failed;
 */
-bool cw_is_console_possible(const char *device)
+bool cw_is_console_possible(const char * device)
 {
-	/* no need to allocate space for device path, just a
+	/* No need to allocate space for device path, just a
 	   pointer (to a memory allocated somewhere else by
-	   someone else) will be sufficient in local scope */
-	const char *dev = device ? device : CW_DEFAULT_CONSOLE_DEVICE;
+	   someone else) will be sufficient in local scope. */
+	const char * dev = device ? device : CW_DEFAULT_CONSOLE_DEVICE;
 
 	int fd = open(dev, O_WRONLY);
 	if (fd == -1) {
 		cw_debug_msg (&cw_debug_object, CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
-			      "libcw_console: open(%s): %s", dev, strerror(errno));
+			      "libcw/console: open(%s): %s", dev, strerror(errno));
 		return false;
 	}
 
 	int rv = ioctl(fd, KIOCSOUND, 0);
 	close(fd);
 	if (rv == -1) {
-		/* console device can be opened, even with WRONLY perms, but,
+		/* Console device can be opened, even with WRONLY perms, but,
 		   if you aren't root user, you can't call ioctl()s on it,
-		   and - as a result - can't generate sound on the device */
+		   and - as a result - can't generate sound on the device. */
 		return false;
 	} else {
 		return true;
 	}
 }
-
 
 
 
@@ -153,12 +152,14 @@ bool cw_is_console_possible(const char *device)
    You must use cw_gen_set_audio_device_internal() before calling
    this function. Otherwise generator \p gen won't know which device to open.
 
+   \reviewed on 2017-02-04
+
    \param gen - current generator
 
    \return CW_FAILURE on errors
    \return CW_SUCCESS on success
 */
-int cw_console_open_device_internal(cw_gen_t *gen)
+int cw_console_open_device_internal(cw_gen_t * gen)
 {
 	assert (gen->audio_device);
 
@@ -170,11 +171,11 @@ int cw_console_open_device_internal(cw_gen_t *gen)
 	int console = open(gen->audio_device, O_WRONLY);
 	if (console == -1) {
 		cw_debug_msg (&cw_debug_object, CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
-			      "libcw_console: open(%s): \"%s\"", gen->audio_device, strerror(errno));
+			      "libcw/console: open(%s): \"%s\"", gen->audio_device, strerror(errno));
 		return CW_FAILURE;
         } else {
 		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_INFO,
-			      "libcw_console: open successfully, console = %d", console);
+			      "libcw/console: open successfully, console = %d", console);
 	}
 
 	/* It doesn't have any sense for console, but some code may depend
@@ -190,8 +191,14 @@ int cw_console_open_device_internal(cw_gen_t *gen)
 
 
 
+/**
+   \brief Stop generating sound on console using given generator
 
-void cw_console_silence(cw_gen_t *gen)
+   \reviewed on 2017-02-04
+
+   \param gen - generator
+*/
+void cw_console_silence(cw_gen_t * gen)
 {
 	ioctl(gen->audio_sink, KIOCSOUND, 0);
 	return;
@@ -200,9 +207,10 @@ void cw_console_silence(cw_gen_t *gen)
 
 
 
-
 /**
-   \brief Close console device associated with current generator
+   \brief Close console device associated with given generator
+
+   \reviewed on 2017-02-04
 */
 void cw_console_close_device_internal(cw_gen_t *gen)
 {
@@ -211,7 +219,7 @@ void cw_console_close_device_internal(cw_gen_t *gen)
 	gen->audio_device_is_open = false;
 
 	cw_debug_msg (&cw_debug_object, CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_INFO,
-		      "libcw_console: console closed");
+		      "libcw/console: console closed");
 
 	return;
 }
@@ -219,13 +227,12 @@ void cw_console_close_device_internal(cw_gen_t *gen)
 
 
 
-
 /**
-   \brief Pseudo-device for playing sound with console
+   \brief Write to Console audio sink configured and opened for generator
 
    Function behaving like a device, to which one does a blocking write.
    It generates sound with parameters (frequency and duration) specified
-   in \p tone..
+   in \p tone.
    After playing X microseconds of tone it returns. It is intended
    to behave like a blocking write() function.
 
@@ -235,7 +242,7 @@ void cw_console_close_device_internal(cw_gen_t *gen)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_console_write(cw_gen_t *gen, cw_tone_t *tone)
+int cw_console_write(cw_gen_t * gen, cw_tone_t * tone)
 {
 	assert (gen);
 	assert (gen->audio_system == CW_AUDIO_CONSOLE);
@@ -269,7 +276,6 @@ int cw_console_write(cw_gen_t *gen, cw_tone_t *tone)
 
 
 
-
 /**
    \brief Start generating a sound using console PC speaker
 
@@ -279,13 +285,13 @@ int cw_console_write(cw_gen_t *gen, cw_tone_t *tone)
    The function only initializes generation, you have to do another
    function call to change the tone generated.
 
-   \param gen - current generator
-   \param state - flag deciding if a sound should be generated (> 0) or not (== 0)
+   \param gen - generator
+   \param state - flag deciding if a sound should be generated (logical true) or not (logical false)
 
    \return CW_FAILURE on errors
    \return CW_SUCCESS on success
 */
-int cw_console_write_low_level_internal(cw_gen_t *gen, bool state)
+int cw_console_write_low_level_internal(cw_gen_t * gen, bool state)
 {
 	static bool local_state = false;
 	if (local_state == state) {
@@ -306,12 +312,12 @@ int cw_console_write_low_level_internal(cw_gen_t *gen, bool state)
 	}
 
 	cw_debug_msg (&cw_debug_object, CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_INFO,
-		      "libcw_console: KIOCSOUND arg = %d (switch: %d, frequency: %d Hz, volume: %d %%)",
+		      "libcw/console: KIOCSOUND arg = %d (switch: %d, frequency: %d Hz, volume: %d %%)",
 		      argument, local_state, gen->frequency, gen->volume_percent);
 
 	if (ioctl(gen->audio_sink, KIOCSOUND, argument) == -1) {
 		cw_debug_msg (&cw_debug_object, CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
-			      "libcw_console: ioctl KIOCSOUND: \"%s\"", strerror(errno));
+			      "libcw/console: ioctl KIOCSOUND: '%s'", strerror(errno));
 		return CW_FAILURE;
 	} else {
 		return CW_SUCCESS;
@@ -321,8 +327,17 @@ int cw_console_write_low_level_internal(cw_gen_t *gen, bool state)
 
 
 
+/**
+   \brief Configure given generator to work with Console audio sink
 
-int cw_console_configure(cw_gen_t *gen, const char *device)
+   \reviewed on 2017-02-04
+
+   \param gen - generator
+   \param dev - Null device to use
+
+   \return CW_SUCCESS
+*/
+int cw_console_configure(cw_gen_t * gen, const char * device)
 {
 	assert (gen);
 
@@ -331,11 +346,10 @@ int cw_console_configure(cw_gen_t *gen, const char *device)
 
 	gen->open_device  = cw_console_open_device_internal;
 	gen->close_device = cw_console_close_device_internal;
-	// gen->write        = cw_console_write; // The function is called in libcw.c directly/explicitly, not through a pointer. */
+	// gen->write        = cw_console_write; // The function is called in libcw.c directly/explicitly, not through a pointer. TODO: we should call this function by function pointer. */
 
 	return CW_SUCCESS;
 }
-
 
 
 
@@ -345,14 +359,12 @@ int cw_console_configure(cw_gen_t *gen, const char *device)
 
 
 
-
 #include "libcw_console.h"
 
 
 
 
-
-bool cw_is_console_possible(__attribute__((unused)) const char *device)
+bool cw_is_console_possible(__attribute__((unused)) const char * device)
 {
 	return false;
 }
@@ -360,8 +372,7 @@ bool cw_is_console_possible(__attribute__((unused)) const char *device)
 
 
 
-
-int cw_console_configure(__attribute__((unused)) cw_gen_t *gen, __attribute__((unused)) const char *device)
+int cw_console_configure(__attribute__((unused)) cw_gen_t * gen, __attribute__((unused)) const char * device)
 {
 	return CW_FAILURE;
 }
@@ -369,8 +380,7 @@ int cw_console_configure(__attribute__((unused)) cw_gen_t *gen, __attribute__((u
 
 
 
-
-int cw_console_write(__attribute__((unused)) cw_gen_t *gen, __attribute__((unused)) cw_tone_t *tone)
+int cw_console_write(__attribute__((unused)) cw_gen_t * gen, __attribute__((unused)) cw_tone_t * tone)
 {
 	return CW_FAILURE;
 }
@@ -378,11 +388,10 @@ int cw_console_write(__attribute__((unused)) cw_gen_t *gen, __attribute__((unuse
 
 
 
-void cw_console_silence(__attribute__((unused)) cw_gen_t *gen)
+void cw_console_silence(__attribute__((unused)) cw_gen_t * gen)
 {
 	return;
 }
-
 
 
 

@@ -9,13 +9,11 @@
 
 
 
-
 #include "libcw_gen.h"
 #include "libcw_tq.h"
 
-int  cw_null_configure(cw_gen_t *gen, const char *device);
-void cw_null_write(cw_gen_t *gen, cw_tone_t *tone);
-
+int  cw_null_configure(cw_gen_t * gen, const char * device);
+void cw_null_write(cw_gen_t * gen, cw_tone_t * tone);
 
 
 

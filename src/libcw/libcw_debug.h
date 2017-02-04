@@ -9,11 +9,9 @@
 
 
 
-
 #include <stdio.h>
 #include <assert.h>
 #include <stdbool.h>
-
 
 
 
@@ -28,11 +26,10 @@ extern "C"
 
 
 
-
 /* Definitions of debug flags. */
 enum {
 	/* Suppress KIOCSOUND ioctls.
-	   The flag is unused at the moment in libcw.c. */
+	   The flag is unused at the moment in libcw2. */
 	CW_DEBUG_SILENT               = 1 << 0,
 
 	/* Print out keying control data (key open / key closed). */
@@ -48,7 +45,7 @@ enum {
 	/* Print out send and receive timing parameters. */
 	CW_DEBUG_PARAMETERS           = 1 << 4,
 
-	/* Print out changes of 'receive state'. */
+	/* Print out changes of 'receive state' of receiver. */
 	CW_DEBUG_RECEIVE_STATES       = 1 << 5,
 
 	/* Print out iambic keyer information. */
@@ -57,7 +54,7 @@ enum {
 	/* Print out straight key information. */
 	CW_DEBUG_STRAIGHT_KEY_STATES  = 1 << 7,
 
-	/* Print out table lookup results. */
+	/* Print out table lookup results in data module. */
 	CW_DEBUG_LOOKUPS              = 1 << 8,
 
 	/* Print out information related to calls to standard library
@@ -88,7 +85,6 @@ enum {
 
 
 
-
 /* Debug levels of debug messages. */
 enum {
 	CW_DEBUG_DEBUG   = 0,
@@ -97,7 +93,6 @@ enum {
 	CW_DEBUG_ERROR   = 3,
 	CW_DEBUG_NONE    = 4  /* Don't print any debug info. */
 };
-
 
 
 
@@ -115,7 +110,7 @@ typedef struct {
 	int level;
 
 	/* Human-readable labels for debug levels. */
-	const char **level_labels;
+	const char ** level_labels;
 
 	struct {
 		uint32_t event;   /* Event ID. One of values from enum below. */
@@ -127,16 +122,13 @@ typedef struct {
 
 
 
-void     cw_debug_set_flags(cw_debug_t *debug_object, uint32_t flags);
-uint32_t cw_debug_get_flags(cw_debug_t *debug_object);
-void     cw_debug_print_flags(cw_debug_t *debug_object);
-bool     cw_debug_has_flag(cw_debug_t *debug_object, uint32_t flag);
-void     cw_debug_event_internal(cw_debug_t *debug_object, uint32_t flag, uint32_t event, const char *func, int line);
 
+void     cw_debug_set_flags(cw_debug_t * debug_object, uint32_t flags);
+uint32_t cw_debug_get_flags(cw_debug_t * debug_object);
+void     cw_debug_print_flags(cw_debug_t * debug_object);
+bool     cw_debug_has_flag(cw_debug_t * debug_object, uint32_t flag);
+void     cw_debug_event_internal(cw_debug_t * debug_object, uint32_t flag, uint32_t event, const char * func, int line);
 
-
-void     cw_set_debug_flags(uint32_t flags)    __attribute__ ((deprecated));
-uint32_t cw_get_debug_flags(void)              __attribute__ ((deprecated));
 
 
 
@@ -156,12 +148,10 @@ uint32_t cw_get_debug_flags(void)              __attribute__ ((deprecated));
 
 
 
-
 #define cw_debug_ev(debug_object, flag, event)				\
 	{								\
 		cw_debug_event_internal((debug_object), flag, event, __func__, __LINE__); \
 	}
-
 
 
 
@@ -174,7 +164,6 @@ enum {
 	CW_DEBUG_EVENT_TQ_NONEMPTY,           /* A tone from libcw's queue of tones has been dequeued, but the queue is still non-empty. */
 	CW_DEBUG_EVENT_TQ_STILL_EMPTY         /* libcw's queue of tones has been asked for tone, but there were no tones on the queue. */
 };
-
 
 
 
@@ -203,7 +192,6 @@ enum {
 
 
 
-
 /**
   \brief Assert macro with message
 
@@ -211,7 +199,7 @@ enum {
 */
 #ifndef NDEBUG
 #define cw_assert(expr, ...)					\
-	if (! (expr)) {						\
+	if (!(expr)) {						\
 		fprintf(stderr, "\n\nassertion failed in:\n");	\
 		fprintf(stderr, "file %s\n", __FILE__);		\
 		fprintf(stderr, "line %d\n", __LINE__);		\
@@ -228,12 +216,10 @@ enum {
 
 
 
-
 #ifdef LIBCW_WITH_DEV
-int  cw_dev_debug_raw_sink_write_internal(cw_gen_t *gen);
-void cw_dev_debug_print_generator_setup(cw_gen_t *gen);
+int  cw_dev_debug_raw_sink_write_internal(cw_gen_t * gen);
+void cw_dev_debug_print_generator_setup(const cw_gen_t * gen);
 #endif
-
 
 
 
@@ -245,7 +231,6 @@ void cw_dev_debug_print_generator_setup(cw_gen_t *gen);
 
 unsigned int test_cw_debug_flags_internal(cw_test_stats_t * stats);
 #endif /* #ifdef LIBCW_UNIT_TESTS */
-
 
 
 
@@ -262,8 +247,12 @@ unsigned int test_cw_debug_flags_internal(cw_test_stats_t * stats);
 
 
 
+
 #if defined(__cplusplus)
 }
 #endif
+
+
+
 
 #endif  /* H_LIBCW_DEBUG */
