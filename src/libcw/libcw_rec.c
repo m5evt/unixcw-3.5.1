@@ -327,6 +327,7 @@ static int  cw_rec_set_gap(cw_rec_t * rec, int new_value);
 static void cw_rec_set_adaptive_mode_internal(cw_rec_t * rec, bool adaptive);
 static void cw_rec_poll_representation_eoc_internal(cw_rec_t * rec, int space_len, char * representation, bool * is_end_of_word, bool * is_error);
 static void cw_rec_poll_representation_eow_internal(cw_rec_t * rec, char *representation, bool * is_end_of_word, bool * is_error);
+static int cw_rec_get_buffer_length_internal(const cw_rec_t * rec);
 
 
 
@@ -1567,6 +1568,10 @@ int cw_rec_add_mark(cw_rec_t * rec, const struct timeval * timestamp, char mark)
 /**
    \brief Try to poll representation from receiver
 
+   Try to get representation of received character and receiver's
+   state flags. The representation is appended to end of \p
+   representation.
+
    \errno ERANGE - invalid state of receiver was discovered.
    \errno EINVAL - errors while processing or getting \p timestamp
    \errno EAGAIN - function called too early, representation not ready yet
@@ -1700,12 +1705,15 @@ int cw_rec_poll_representation(cw_rec_t * rec,
 /**
    \brief Prepare return values at end-of-character
 
-   Return representation and receiver's state flags after receiver has
-   encountered end-of-character gap.
+   Return representation of received character and receiver's state
+   flags after receiver has encountered end-of-character gap. The
+   representation is appended to end of \p representation.
 
    Update receiver's state (\p rec) so that it matches end-of-character state.
 
    Since this is _eoc_ function, \p is_end_of_word is set to false.
+
+   \reviewed on 2017-02-04
 
    \p rec - receiver
    \p representation - representation of character from receiver's buffer
@@ -1718,36 +1726,39 @@ void cw_rec_poll_representation_eoc_internal(cw_rec_t * rec, int space_len,
 					     /* out */ bool * is_error)
 {
 	if (rec->state == RS_IMARK_SPACE) {
-		/* State of receiver is inter-mark-space, but real
+		/* State of receiver is inter-mark space, but real
 		   length of current space turned out to be a bit
-		   longer than acceptable inter-mark-space. Update
-		   length statistics for space identified as
-		   end-of-character gap. */
+		   longer than acceptable inter-mark space (length of
+		   space indicates that it's inter-character
+		   space). Update length statistics for space
+		   identified as inter-character space. */
 		cw_rec_update_stats_internal(rec, CW_REC_STAT_ICHAR_SPACE, space_len);
 
 		/* Transition of state of receiver. */
 		CW_REC_SET_STATE (rec, RS_EOC_GAP, (&cw_debug_object));
 	} else {
-		/* We are already in RS_EOC_GAP or
-		   RS_EOC_GAP_ERR, so nothing to do. */
-
 		cw_assert (rec->state == RS_EOC_GAP || rec->state == RS_EOC_GAP_ERR,
-			   "unexpected state of receiver: %d / %s",
+			   "libcw/rec: poll eoc: unexpected state of receiver: %d / %s",
 			   rec->state, cw_receiver_states[rec->state]);
+
+		/* We are already in RS_EOC_GAP or RS_EOC_GAP_ERR, so nothing to do. */
 	}
 
-	cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-		      "libcw/rec:poll_eoc: state: %s", cw_receiver_states[rec->state]);
+	cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO, "libcw/rec: poll eoc: state: %s", cw_receiver_states[rec->state]);
 
-	/* Return the representation from receiver's buffer. */
+	/* Return receiver's state. */
 	if (is_end_of_word) {
 		*is_end_of_word = false;
 	}
 	if (is_error) {
 		*is_error = (rec->state == RS_EOC_GAP_ERR);
 	}
-	*representation = '\0'; /* TODO: why do this? */
+
+	/* Append representation from receiver's buffer to caller's buffer. */
+	*representation = '\0';
 	strncat(representation, rec->representation, rec->representation_ind);
+
+	/* Since we are in eoc state, there will be no more Dots or Dashes added to current representation. */
 	rec->representation[rec->representation_ind] = '\0';
 
 	return;
@@ -1756,26 +1767,28 @@ void cw_rec_poll_representation_eoc_internal(cw_rec_t * rec, int space_len,
 
 
 
-
 /**
    \brief Prepare return values at end-of-word
 
-   Return representation and receiver's state flags after receiver has
-   encountered end-of-word gap.
+   Return representation of received character and receiver's state
+   flags after receiver has encountered end-of-word gap. The
+   representation is appended to end of \p representation.
 
    Update receiver's state (\p rec) so that it matches end-of-word state.
 
-   Since this is _eow_function, \p is_end_of_word is set to true.
+   Since this is _eow_ function, \p is_end_of_word is set to true.
 
-   \p rec - receiver
-   \p representation - representation of character from receiver's buffer
-   \p is_end_of_word - end-of-word flag
-   \p is_error - error flag
+   \reviewed on 2017-02-04
+
+   \param rec - receiver
+   \param representation - representation of character from receiver's buffer
+   \param is_end_of_word - end-of-word flag
+   \param is_error - error flag
 */
-void cw_rec_poll_representation_eow_internal(cw_rec_t *rec,
-					     /* out */ char *representation,
-					     /* out */ bool *is_end_of_word,
-					     /* out */ bool *is_error)
+void cw_rec_poll_representation_eow_internal(cw_rec_t * rec,
+					     /* out */ char * representation,
+					     /* out */ bool * is_end_of_word,
+					     /* out */ bool * is_error)
 {
 	if (rec->state == RS_EOC_GAP || rec->state == RS_IMARK_SPACE) {
 		CW_REC_SET_STATE (rec, RS_EOW_GAP, (&cw_debug_object)); /* Transition of state. */
@@ -1787,18 +1800,24 @@ void cw_rec_poll_representation_eow_internal(cw_rec_t *rec,
 		; /* No need to change state. */
 
 	} else {
-		cw_assert (0, "unexpected receiver state %d / %s", rec->state, cw_receiver_states[rec->state]);
+		cw_assert (0, "libcw/rec: poll eow: unexpected receiver state %d / %s", rec->state, cw_receiver_states[rec->state]);
 	}
 
-	/* Return the representation from receiver's buffer. */
+	cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO, "libcw/rec: poll eow: state: %s", cw_receiver_states[rec->state]);
+
+	/* Return receiver's state. */
 	if (is_end_of_word) {
 		*is_end_of_word = true;
 	}
 	if (is_error) {
 		*is_error = (rec->state == RS_EOW_GAP_ERR);
 	}
-	*representation = '\0'; /* TODO: why do this? */
+
+	/* Append representation from receiver's buffer to caller's buffer. */
+	*representation = '\0';
 	strncat(representation, rec->representation, rec->representation_ind);
+
+	/* Since we are in eoc state, there will be no more Dots or Dashes added to current representation. */
 	rec->representation[rec->representation_ind] = '\0';
 
 	return;
@@ -1808,11 +1827,33 @@ void cw_rec_poll_representation_eow_internal(cw_rec_t *rec,
 
 
 
-int cw_rec_poll_character(cw_rec_t *rec,
-			  const struct timeval *timestamp,
-			  /* out */ char *c,
-			  /* out */ bool *is_end_of_word,
-			  /* out */ bool *is_error)
+/**
+   \brief Try to poll character from receiver
+
+   Try to get received character and receiver's state flags. The
+   representation is appended to end of \p representation.
+
+   \errno ERANGE - invalid state of receiver was discovered.
+   \errno EINVAL - errors while processing or getting \p timestamp
+   \errno EAGAIN - function called too early, character not ready yet
+   \errno ENOENT - function can't convert representation retrieved from receiver into a character
+
+   \reviewed on 2017-02-04
+
+   \param rec - receiver
+   \param timestamp
+   \param c - output variable, character received by receiver
+   \param is_end_of_word - output variable,
+   \param is_error - output variable
+
+   \return CW_SUCCESS if a correct representation has been returned through \p representation
+   \return CW_FAILURE otherwise
+*/
+int cw_rec_poll_character(cw_rec_t * rec,
+			  const struct timeval * timestamp,
+			  /* out */ char * c,
+			  /* out */ bool * is_end_of_word,
+			  /* out */ bool * is_error)
 {
 	/* TODO: in theory we don't need these intermediate bool
 	   variables, since is_end_of_word and is_error won't be
@@ -1868,6 +1909,8 @@ int cw_rec_poll_character(cw_rec_t *rec,
 /**
    \brief Reset state of receiver
 
+   \reviewed on 2017-02-04
+
    The function doesn't reset parameters or statistics.
 */
 void cw_rec_reset_state(cw_rec_t * rec)
@@ -1885,13 +1928,14 @@ void cw_rec_reset_state(cw_rec_t * rec)
 
 
 
-
 /**
-   \brief Get the number of elements (dots/dashes) the receiver's buffer can accommodate
+   \brief Get the number of elements (Dots/Dashes) the receiver's buffer can accommodate
 
    The maximum number of elements written out by cw_rec_poll_representation()
    is the capacity + 1, the extra character being used for the terminating
    NUL.
+
+   \reviewed on 2017-02-04
 
    \return number of elements that can be stored in receiver's representation buffer
 */
@@ -1903,8 +1947,14 @@ int cw_rec_get_receive_buffer_capacity_internal(void)
 
 
 
+/**
+   \brief Get number of symbols (Dots and Dashes) in receiver's representation buffer
 
-int cw_rec_get_buffer_length_internal(cw_rec_t *rec)
+   \reviewed on 2017-02-04
+
+   \param rec - receiver
+*/
+int cw_rec_get_buffer_length_internal(const cw_rec_t * rec)
 {
 	return rec->representation_ind;
 }
@@ -1913,11 +1963,15 @@ int cw_rec_get_buffer_length_internal(cw_rec_t *rec)
 
 
 /**
-  \brief Reset essential receive parameters to their initial values
+   \brief Reset essential receive parameters to their initial values
+
+   \reviewed on 2017-02-04
+
+   \param rec - receiver
 */
-void cw_rec_reset_parameters_internal(cw_rec_t *rec)
+void cw_rec_reset_parameters_internal(cw_rec_t * rec)
 {
-	cw_assert (rec, "receiver is NULL");
+	cw_assert (rec, "libcw/rec: reset parameters: receiver is NULL");
 
 	rec->speed = CW_SPEED_INITIAL;
 	rec->tolerance = CW_TOLERANCE_INITIAL;
@@ -1934,10 +1988,16 @@ void cw_rec_reset_parameters_internal(cw_rec_t *rec)
 
 
 
+/**
+   \brief Synchronize receivers' parameters
 
-void cw_rec_sync_parameters_internal(cw_rec_t *rec)
+   \reviewed on 2017-02-04
+
+   \param rec - receiver
+*/
+void cw_rec_sync_parameters_internal(cw_rec_t * rec)
 {
-	cw_assert (rec, "receiver is NULL");
+	cw_assert (rec, "libcw/rec: sync parameters: receiver is NULL");
 
 	/* Do nothing if we are already synchronized. */
 	if (rec->parameters_in_sync) {
@@ -1965,11 +2025,8 @@ void cw_rec_sync_parameters_internal(cw_rec_t *rec)
 
 
 
-	/* Calculate the basic receiver's dot and dash lengths. */
 	rec->dot_len_ideal = unit_len;
 	rec->dash_len_ideal = 3 * unit_len;
-	/* For statistical purposes, calculate the ideal "end of mark"
-	   and "end of character" lengths, too. */
 	rec->eom_len_ideal = unit_len;
 	rec->eoc_len_ideal = 3 * unit_len;
 
@@ -1987,11 +2044,11 @@ void cw_rec_sync_parameters_internal(cw_rec_t *rec)
 		rec->dot_len_min = 0;
 		rec->dot_len_max = 2 * rec->dot_len_ideal;
 
-		/* Any mark longer than dot is a dash in adaptive
+		/* Any mark longer than Dot is a Dash in adaptive
 		   receiving mode. */
 
 		/* FIXME: shouldn't this be '= rec->dot_len_max + 1'?
-		   now the length ranges for dot and dash overlap. */
+		   now the length ranges for Dot and Dash overlap. */
 		rec->dash_len_min = rec->dot_len_max;
 		rec->dash_len_max = INT_MAX;
 
@@ -2000,9 +2057,9 @@ void cw_rec_sync_parameters_internal(cw_rec_t *rec)
 #endif
 
 		/* Make the inter-mark space be anything up to the
-		   adaptive threshold lengths - that is two dots.  And
+		   adaptive threshold lengths - that is two Dots.  And
 		   the end-of-character gap is anything longer than
-		   that, and shorter than five dots. */
+		   that, and shorter than five Dots. */
 		rec->eom_len_min = rec->dot_len_min;
 		rec->eom_len_max = rec->dot_len_max;
 		rec->eoc_len_min = rec->eom_len_max;
@@ -2017,8 +2074,7 @@ void cw_rec_sync_parameters_internal(cw_rec_t *rec)
 	} else {
 		/* Fixed speed receiving mode. */
 
-		/* 'int tolerance' is in [%]. */
-		int tolerance = (rec->dot_len_ideal * rec->tolerance) / 100;
+		int tolerance = (rec->dot_len_ideal * rec->tolerance) / 100; /* [%] */
 		rec->dot_len_min = rec->dot_len_ideal - tolerance;
 		rec->dot_len_max = rec->dot_len_ideal + tolerance;
 		rec->dash_len_min = rec->dash_len_ideal - tolerance;
@@ -2043,7 +2099,7 @@ void cw_rec_sync_parameters_internal(cw_rec_t *rec)
 	}
 
 	cw_debug_msg (&cw_debug_object, CW_DEBUG_PARAMETERS, CW_DEBUG_INFO,
-		      "libcw: receive usec timings <%.2f [wpm]>: dot: %d-%d [ms], dash: %d-%d [ms], %d-%d[%d], %d-%d[%d], thres: %d [us]",
+		      "libcw/rec: sync parameters: receive usec timings <%.2f [wpm]>: dot: %d-%d [ms], dash: %d-%d [ms], %d-%d[%d], %d-%d[%d], thres: %d [us]",
 		      rec->speed,
 		      rec->dot_len_min, rec->dot_len_max,
 		      rec->dash_len_min, rec->dash_len_max,
@@ -2060,6 +2116,11 @@ void cw_rec_sync_parameters_internal(cw_rec_t *rec)
 
 
 
+/**
+   \reviewed on 2017-02-04
+
+   \param rec - receiver
+*/
 bool cw_rec_poll_is_pending_inter_word_space(cw_rec_t const * rec)
 {
 	return rec->is_pending_inter_word_space;
@@ -2070,7 +2131,13 @@ bool cw_rec_poll_is_pending_inter_word_space(cw_rec_t const * rec)
 
 #ifdef WITH_EXPERIMENTAL_RECEIVER
 
-void cw_rec_register_push_callback(cw_rec_t *rec, cw_rec_push_callback_t *callback)
+/**
+   \reviewed on 2017-02-04
+
+   \param rec - receiver
+   \param callback
+*/
+void cw_rec_register_push_callback(cw_rec_t * rec, cw_rec_push_callback_t * callback)
 {
 	rec->push_callback = callback;
 
@@ -2078,14 +2145,6 @@ void cw_rec_register_push_callback(cw_rec_t *rec, cw_rec_push_callback_t *callba
 }
 
 #endif
-
-
-
-
-
-
-
-
 
 
 

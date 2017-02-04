@@ -16,7 +16,7 @@
 
 /* Dot length magic number.
 
-   From PARIS calibration, 1 dot length [us] = 1200000 / speed [wpm].
+   From PARIS calibration, 1 Dot length [us] = 1200000 / speed [wpm].
 
    This variable is used in generator code as well. */
 enum { CW_DOT_CALIBRATION = 1200000 };
@@ -39,7 +39,6 @@ void cw_rec_get_parameters_internal(cw_rec_t * rec,
 				    int * adaptive_threshold);
 void cw_rec_get_statistics_internal(cw_rec_t * rec, double * dot_sd, double * dash_sd,
 				    double * element_end_sd, double * character_end_sd);
-int cw_rec_get_buffer_length_internal(cw_rec_t * rec);
 int cw_rec_get_receive_buffer_capacity_internal(void);
 
 
