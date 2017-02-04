@@ -910,7 +910,6 @@ void cw_rec_reset_statistics(cw_rec_t * rec)
 
 
 
-
 /*
  * The CW receive functions implement the following state graph:
  *
@@ -959,12 +958,11 @@ void cw_rec_reset_statistics(cw_rec_t * rec)
 
 
 
-
 #define CW_REC_SET_STATE(m_rec, m_new_state, m_debug_object)		\
 	{								\
 		cw_debug_msg ((m_debug_object),				\
 			      CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,	\
-			      "libcw:rec:state: %s -> %s @ %s:%d",	\
+			      "libcw/rec: state: %s -> %s @ %s:%d",	\
 			      cw_receiver_states[m_rec->state], cw_receiver_states[m_new_state], __FUNCTION__, __LINE__); \
 		m_rec->state = m_new_state;				\
 	}
@@ -972,11 +970,10 @@ void cw_rec_reset_statistics(cw_rec_t * rec)
 
 
 
-
 /**
    \brief Enable or disable receiver's "adaptive receiving" mode
 
-   Set the mode of a receiver (\p rec) to fixed or adaptive receiving
+   Set the mode of a receiver \p rec to fixed or adaptive receiving
    mode.
 
    In adaptive receiving mode the receiver tracks the speed of the
@@ -984,10 +981,12 @@ void cw_rec_reset_statistics(cw_rec_t * rec)
 
    testedin::test_cw_rec_identify_mark_internal()
 
+   \reviewed on 2017-02-04
+
    \param rec - receiver for which to set the mode
    \param adaptive - value of receiver's "adaptive mode" to be set
 */
-void cw_rec_set_adaptive_mode_internal(cw_rec_t *rec, bool adaptive)
+void cw_rec_set_adaptive_mode_internal(cw_rec_t * rec, bool adaptive)
 {
 	/* Look for change of adaptive receive state. */
 	if (rec->is_adaptive_receive_mode != adaptive) {
@@ -999,7 +998,7 @@ void cw_rec_set_adaptive_mode_internal(cw_rec_t *rec, bool adaptive)
 		cw_rec_sync_parameters_internal(rec);
 
 		/* If we have just switched to adaptive mode, (re-)initialize
-		   the averages array to the current dot/dash lengths, so
+		   the averages array to the current Dot/Dash lengths, so
 		   that initial averages match the current speed. */
 		if (rec->is_adaptive_receive_mode) {
 			cw_rec_reset_average_internal(&rec->dot_averaging, rec->dot_len_ideal);
@@ -1013,8 +1012,17 @@ void cw_rec_set_adaptive_mode_internal(cw_rec_t *rec, bool adaptive)
 
 
 
+/**
+   \brief Enable receiver's "adaptive receiving" mode
 
-void cw_rec_enable_adaptive_mode(cw_rec_t *rec)
+   In adaptive receiving mode the receiver tracks the speed of the
+   received Morse code by adapting to the input stream.
+
+   \reviewed on 2017-02-04
+
+   \param rec - receiver for which to enable the mode
+*/
+void cw_rec_enable_adaptive_mode(cw_rec_t * rec)
 {
 	cw_rec_set_adaptive_mode_internal(rec, true);
 	return;
@@ -1023,8 +1031,14 @@ void cw_rec_enable_adaptive_mode(cw_rec_t *rec)
 
 
 
+/**
+   \brief Disable receiver's "adaptive receiving" mode
 
-void cw_rec_disable_adaptive_mode(cw_rec_t *rec)
+   \reviewed on 2017-02-04
+
+   \param rec - receiver for which to disable the mode
+*/
+void cw_rec_disable_adaptive_mode(cw_rec_t * rec)
 {
 	cw_rec_set_adaptive_mode_internal(rec, false);
 	return;
@@ -1033,12 +1047,13 @@ void cw_rec_disable_adaptive_mode(cw_rec_t *rec)
 
 
 
-
 /**
    \brief Get adaptive receive speed tracking flag
 
    The function returns state of "adaptive receive enabled" flag.
-   See documentation of cw_enable_adaptive_receive() for more information
+   See documentation of cw_enable_adaptive_receive() for more information.
+
+   \reviewed on 2017-02-04
 
    \return true if adaptive speed tracking is enabled
    \return false otherwise
@@ -1051,32 +1066,41 @@ bool cw_rec_get_adaptive_mode(const cw_rec_t * rec)
 
 
 
-int cw_rec_mark_begin(cw_rec_t *rec, const struct timeval *timestamp)
+/**
+   \errno ERANGE - invalid state of receiver was discovered.
+   \errno EINVAL - errors while processing or getting \p timestamp
+
+   \reviewed on 2017-02-04
+
+   \param rec - receiver
+   \param timestamp - timestamp of "beginning of mark" event. May be NULL, then current time will be used.
+
+   \return CW_SUCCESS when no errors occurred
+   \return CW_FAILURE otherwise
+
+*/
+int cw_rec_mark_begin(cw_rec_t * rec, const struct timeval * timestamp)
 {
-	/* If this is a tone start and we're awaiting an inter-word
-	   space, cancel that wait and clear the receive buffer. */
 	if (rec->is_pending_inter_word_space) {
-		/* Tell receiver to prepare (to make space) for
-		   receiving new character. */
 
-		/* The tone start means that we're seeing the next
-		   incoming character within the same word, so no
-		   inter-word space is possible at this point in
-		   time. The space that we were observing/waiting for,
-		   was just inter-character space.
+		/* Beginning of mark in this situation means that
+		   we're seeing the next incoming character within the
+		   same word, so no inter-word space will be received
+		   at this point in time. The space that we were
+		   observing/waiting for, was just inter-character
+		   space.
 
-		   reset_state() will reset state of rec, including
-		   is_pending_inter_word_space flag. */
+		   Reset state of rec and cancel the waiting for
+		   inter-word space. */
 		cw_rec_reset_state(rec);
 	}
 
-
-	/* If the receive state is not idle or inter-mark-space, this is a
-	   state error.  A start of mark can only happen while we are
-	   idle, or in inter-mark-space of a current character. */
 	if (rec->state != RS_IDLE && rec->state != RS_SPACE) {
+		/* A start of mark can only happen while we are idle,
+		   or in inter-mark-space of a current character. */
+
 		cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
-			      "libcw:rec:mark_begin: receive state not idle and not inter-mark-space: %s", cw_receiver_states[rec->state]);
+			      "libcw/rec: mark_begin: receive state not idle and not inter-mark-space: %s", cw_receiver_states[rec->state]);
 
 		/*
 		  ->state should be RS_IDLE at the beginning of new character;
@@ -1087,11 +1111,12 @@ int cw_rec_mark_begin(cw_rec_t *rec, const struct timeval *timestamp)
 		return CW_FAILURE;
 	}
 	cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-		      "libcw:rec:mark_begin: receive state: %s", cw_receiver_states[rec->state]);
+		      "libcw/rec: mark_begin: receive state: %s", cw_receiver_states[rec->state]);
 
 	/* Validate and save the timestamp, or get one and then save
 	   it.  This is a beginning of mark. */
-	if (!cw_timestamp_validate_internal(&(rec->mark_start), timestamp)) {
+	if (!cw_timestamp_validate_internal(&rec->mark_start, timestamp)) {
+		errno = EINVAL;
 		return CW_FAILURE;
 	}
 
@@ -1099,11 +1124,11 @@ int cw_rec_mark_begin(cw_rec_t *rec, const struct timeval *timestamp)
 		/* Measure inter-mark space (just for statistics).
 
 		   rec->mark_end is timestamp of end of previous
-		   mark. It is set at going to the inter-mark-space
-		   state by cw_end_receive tone() or by
-		   cw_rec_add_mark(). */
-		int space_len = cw_timestamp_compare_internal(&(rec->mark_end),
-							      &(rec->mark_start));
+		   mark. It is set when receiver goes into
+		   inter-mark space state by cw_end_receive tone() or
+		   by cw_rec_add_mark(). */
+		int space_len = cw_timestamp_compare_internal(&rec->mark_end,
+							      &rec->mark_start);
 		cw_rec_update_stats_internal(rec, CW_REC_STAT_IMARK_SPACE, space_len);
 
 		/* TODO: this may have been a very long space. Should
@@ -1121,36 +1146,52 @@ int cw_rec_mark_begin(cw_rec_t *rec, const struct timeval *timestamp)
 
 
 
-int cw_rec_mark_end(cw_rec_t *rec, const struct timeval *timestamp)
+/**
+   \errno ERANGE - invalid state of receiver was discovered
+   \errno EINVAL - errors while processing or getting \p timestamp
+   \errno ECANCELED - the mark has been classified as noise spike and rejected
+   \errno EBADMSG - this function can't recognize the mark
+   \errno ENOMEM - space for representation of character has been exhausted
+
+   \reviewed on 2017-02-04
+
+   \param rec - receiver
+   \param timestamp - timestamp of "end of mark" event. May be NULL, then current time will be used.
+
+   \return CW_SUCCESS when no errors occurred
+   \return CW_FAILURE otherwise
+*/
+int cw_rec_mark_end(cw_rec_t * rec, const struct timeval * timestamp)
 {
 	/* The receive state is expected to be inside of a mark. */
 	if (rec->state != RS_MARK) {
 		cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
-			      "libcw:rec:mark_end: receive state not RS_MARK: %s", cw_receiver_states[rec->state]);
+			      "libcw/rec: mark_end: receive state not RS_MARK: %s", cw_receiver_states[rec->state]);
 		errno = ERANGE;
 		return CW_FAILURE;
 	}
 	cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-		      "libcw:rec:mark_end: receive state: %s", cw_receiver_states[rec->state]);
+		      "libcw/rec: mark_end: receive state: %s", cw_receiver_states[rec->state]);
 
 	/* Take a safe copy of the current end timestamp, in case we need
 	   to put it back if we decide this mark is really just noise. */
 	struct timeval saved_end_timestamp = rec->mark_end;
 
 	/* Save the timestamp passed in, or get one. */
-	if (!cw_timestamp_validate_internal(&(rec->mark_end), timestamp)) {
+	if (!cw_timestamp_validate_internal(&rec->mark_end, timestamp)) {
+		errno = EINVAL;
 		return CW_FAILURE;
 	}
 
 	/* Compare the timestamps to determine the length of the mark. */
-	int mark_len = cw_timestamp_compare_internal(&(rec->mark_start),
-						     &(rec->mark_end));
+	int mark_len = cw_timestamp_compare_internal(&rec->mark_start,
+						     &rec->mark_end);
 
 #if 0
 	fprintf(stderr, "------- %d.%d - %d.%d = %d (%d)\n",
 		rec->mark_end.tv_sec, rec->mark_end.tv_usec,
 		rec->mark_start.tv_sec, rec->mark_start.tv_usec,
-		mark_len, cw_timestamp_compare_internal(&(rec->mark_start), &(rec->mark_end)));
+		mark_len, cw_timestamp_compare_internal(&rec->mark_start, &rec->mark_end));
 #endif
 
 	if (rec->noise_spike_threshold > 0
@@ -1176,25 +1217,26 @@ int cw_rec_mark_end(cw_rec_t *rec, const struct timeval *timestamp)
 		rec->mark_end = saved_end_timestamp;
 
 		cw_debug_msg (&cw_debug_object, CW_DEBUG_KEYING, CW_DEBUG_INFO,
-			      "libcw:rec:mark_end: '%d [us]' mark identified as spike noise (threshold = '%d [us]')",
+			      "libcw/rec: mark_end: '%d [us]' mark identified as spike noise (threshold = '%d [us]')",
 			      mark_len, rec->noise_spike_threshold);
 
-		errno = EAGAIN;
+		errno = ECANCELED;
 		return CW_FAILURE;
 	}
 
 
 	/* This was not a noise. At this point, we have to make a
 	   decision about the mark just received.  We'll use a routine
-	   that compares length of a mark against pre-calculated dot
-	   and dash length ranges to tell us what it thinks this mark
-	   is (dot or dash).  If the routing can't decide, it will
+	   that compares length of a mark against pre-calculated Dot
+	   and Dash length ranges to tell us what it thinks this mark
+	   is (Dot or Dash).  If the routine can't decide, it will
 	   hand us back an error which we return to the caller.
-	   Otherwise, it returns a mark (dot or dash), for us to put
+	   Otherwise, it returns a mark (Dot or Dash), for us to put
 	   in representation buffer. */
 	char mark;
 	int status = cw_rec_identify_mark_internal(rec, mark_len, &mark);
 	if (!status) {
+		errno = EBADMSG;
 		return CW_FAILURE;
 	}
 
@@ -1208,7 +1250,7 @@ int cw_rec_mark_end(cw_rec_t *rec, const struct timeval *timestamp)
 		   fixed speed receive. */
 	}
 
-	/* Update dot and dash length statistics.  It may seem odd to do
+	/* Update Dot and Dash length statistics.  It may seem odd to do
 	   this after calling cw_rec_update_averages_internal(),
 	   rather than before, as this function changes the ideal values we're
 	   measuring against.  But if we're on a speed change slope, the
@@ -1224,7 +1266,7 @@ int cw_rec_mark_end(cw_rec_t *rec, const struct timeval *timestamp)
 	/* Add the mark to the receiver's representation buffer. */
 	rec->representation[rec->representation_ind++] = mark;
 	cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-		      "libcw:rec:mark_end: recognized representation is '%s'", rec->representation);
+		      "libcw/rec: mark_end: recognized representation is '%s'", rec->representation);
 
 	/* We just added a mark to the receive buffer.  If it's full,
 	   then we have to do something, even though it's unlikely.
@@ -1236,7 +1278,7 @@ int cw_rec_mark_end(cw_rec_t *rec, const struct timeval *timestamp)
 		CW_REC_SET_STATE (rec, RS_EOC_GAP_ERR, (&cw_debug_object));
 
 		cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
-			      "libcw:rec:mark_end: receiver's representation buffer is full");
+			      "libcw/rec: mark_end: receiver's representation buffer is full");
 
 		errno = ENOMEM;
 		return CW_FAILURE;
@@ -1252,50 +1294,50 @@ int cw_rec_mark_end(cw_rec_t *rec, const struct timeval *timestamp)
 
 
 
-
 /**
-   \brief Analyze a mark and identify it as a dot or dash
+   \brief Analyze a mark and identify it as a Dot or Dash
 
-   Identify a mark (dot/dash) represented by a duration of mark.
-   The duration is provided in \p mark_len.
+   Identify a mark (Dot/Dash) represented by a duration of mark: \p
+   mark_len.
 
    Identification is done using the length ranges provided by the low
    level timing parameters.
 
-   On success function returns CW_SUCCESS and sends back either a dot
-   or a dash through \p mark.
+   On success function returns CW_SUCCESS and sends back either a Dot
+   or a Dash through \p mark.
 
-   On failure it returns CW_FAILURE with errno set to ENOENT if the
-   mark is not recognizable as either a dot or a dash, and sets the
-   receiver state to one of the error states, depending on the length
-   of mark passed in.
+   On failure it returns CW_FAILURE if the mark is not recognizable as
+   either a Dot or a Dash, and sets the receiver state to one of the
+   error states, depending on the length of mark passed in.
 
    Note: for adaptive timing, the mark should _always_ be recognized
-   as a dot or a dash, because the length ranges will have been set to
+   as a Dot or a Dash, because the length ranges will have been set to
    cover 0 to INT_MAX.
 
    testedin::test_cw_rec_identify_mark_internal()
+
+   \reviewed on 2017-02-04
 
    \param rec - receiver
    \param mark_len - length of mark to analyze
    \param mark - variable to store identified mark (output variable)
 
-   \return CW_SUCCESS on success
-   \return CW_FAILURE on failure
+   \return CW_SUCCESS if a mark has been identified as either Dot or Dash
+   \return CW_FAILURE otherwise
 */
-int cw_rec_identify_mark_internal(cw_rec_t *rec, int mark_len, /* out */ char *mark)
+int cw_rec_identify_mark_internal(cw_rec_t * rec, int mark_len, /* out */ char * mark)
 {
-	cw_assert (mark, "Output parameter is NULL");
+	cw_assert (mark, "libcw/rec: output argument is NULL");
 
 	/* Synchronize parameters if required */
 	cw_rec_sync_parameters_internal(rec);
 
-	/* If the length was, within tolerance, a dot, return dot to
+	/* If the length was, within tolerance, a Dot, return Dot to
 	   the caller.  */
 	if (mark_len >= rec->dot_len_min
 	    && mark_len <= rec->dot_len_max) {
 
-		cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO, "libcw:rec:identify: mark '%d [us]' recognized as DOT (limits: %d - %d [us])", mark_len, rec->dot_len_min, rec->dot_len_max);
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO, "libcw/rec: identify: mark '%d [us]' recognized as DOT (limits: %d - %d [us])", mark_len, rec->dot_len_min, rec->dot_len_max);
 
 		*mark = CW_DOT_REPRESENTATION;
 		return CW_SUCCESS;
@@ -1305,31 +1347,31 @@ int cw_rec_identify_mark_internal(cw_rec_t *rec, int mark_len, /* out */ char *m
 	if (mark_len >= rec->dash_len_min
 	    && mark_len <= rec->dash_len_max) {
 
-		cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO, "libcw:rec:identify: mark '%d [us]' recognized as DASH (limits: %d - %d [us])", mark_len, rec->dash_len_min, rec->dash_len_max);
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO, "libcw/rec: identify: mark '%d [us]' recognized as DASH (limits: %d - %d [us])", mark_len, rec->dash_len_min, rec->dash_len_max);
 
 		*mark = CW_DASH_REPRESENTATION;
 		return CW_SUCCESS;
 	}
 
-	/* This mark is not a dot or a dash, so we have an error
+	/* This mark is not a Dot or a Dash, so we have an error
 	   case. */
 	cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
-		      "libcw:rec:identify: unrecognized mark, len = %d [us]", mark_len);
+		      "libcw/rec: identify: unrecognized mark, len = %d [us]", mark_len);
 	cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
-		      "libcw:rec:identify: dot limits: %d - %d [us]", rec->dot_len_min, rec->dot_len_max);
+		      "libcw/rec: identify: dot limits: %d - %d [us]", rec->dot_len_min, rec->dot_len_max);
 	cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
-		      "libcw:rec:identify: dash limits: %d - %d [us]", rec->dash_len_min, rec->dash_len_max);
+		      "libcw/rec: identify: dash limits: %d - %d [us]", rec->dash_len_min, rec->dash_len_max);
 
 	/* We should never reach here when in adaptive timing receive
-	   mode - a mark should be always recognized as dot or dash,
+	   mode - a mark should be always recognized as Dot or Dash,
 	   and function should have returned before reaching this
 	   point. */
 	if (rec->is_adaptive_receive_mode) {
 		cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
-			      "libcw:rec:identify: unrecognized mark in adaptive receive");
+			      "libcw/rec: identify: unrecognized mark in adaptive receive");
 	} else {
 		cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
-			      "libcw:rec:identify: unrecognized mark in non-adaptive receive");
+			      "libcw/rec: identify: unrecognized mark in non-adaptive receive");
 	}
 
 
@@ -1357,12 +1399,8 @@ int cw_rec_identify_mark_internal(cw_rec_t *rec, int mark_len, /* out */ char *m
 	   this is a length of *space*? */
 	CW_REC_SET_STATE (rec, (mark_len > rec->eoc_len_max ? RS_EOW_GAP_ERR : RS_EOC_GAP_ERR), (&cw_debug_object));
 
-
-	/* Return ENOENT to the caller. */
-	errno = ENOENT;
 	return CW_FAILURE;
 }
-
 
 
 
@@ -1371,11 +1409,13 @@ int cw_rec_identify_mark_internal(cw_rec_t *rec, int mark_len, /* out */ char *m
    \brief Update receiver's averaging data structures with most recent data
 
    When in adaptive receiving mode, function updates the averages of
-   dot and dash lengths with given \p mark_len, and recalculates the
+   Dot or Dash lengths with given \p mark_len, and recalculates the
    adaptive threshold for the next receive mark.
 
+   \reviewed on 2017-02-04
+
    \param rec - receiver
-   \param mark_len - length of a mark (dot or dash)
+   \param mark_len - length of a mark (Dot or Dash)
    \param mark - CW_DOT_REPRESENTATION or CW_DASH_REPRESENTATION
 */
 void cw_rec_update_averages_internal(cw_rec_t *rec, int mark_len, char mark)
@@ -1383,7 +1423,7 @@ void cw_rec_update_averages_internal(cw_rec_t *rec, int mark_len, char mark)
 	/* We are not going to tolerate being called in fixed speed mode. */
 	if (!rec->is_adaptive_receive_mode) {
 		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_WARNING,
-			      "Called \"adaptive\" function when receiver is not in adaptive mode\n");
+			      "libcw/rec: called 'adaptive' function when receiver is not in adaptive mode\n");
 		return;
 	}
 
@@ -1394,7 +1434,7 @@ void cw_rec_update_averages_internal(cw_rec_t *rec, int mark_len, char mark)
 		cw_rec_update_average_internal(&rec->dash_averaging, mark_len);
 	} else {
 		cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
-			      "Unknown mark %d\n", mark);
+			      "libcw/rec: unknown mark '%c' / '0x%x'\n", mark, mark);
 		return;
 	}
 
@@ -1440,11 +1480,10 @@ void cw_rec_update_averages_internal(cw_rec_t *rec, int mark_len, char mark)
 
 
 
-
 /**
-   \brief Add dot or dash to receiver's representation buffer
+   \brief Add Dot or Dash to receiver's representation buffer
 
-   Function adds a \p mark (either a dot or a dash) to the
+   Function adds a \p mark (either a Dot or a Dash) to the
    receiver's representation buffer.
 
    Since we can't add a mark to the buffer without any
@@ -1455,14 +1494,20 @@ void cw_rec_update_averages_internal(cw_rec_t *rec, int mark_len, char mark)
    The receiver's state is updated as if we had just received a call
    to cw_rec_mark_end().
 
+   \errno ERANGE - invalid state of receiver was discovered.
+   \errno EINVAL - errors while processing or getting \p timestamp
+   \errno ENOMEM - space for representation of character has been exhausted
+
+   \reviewed on 2017-02-04
+
    \param rec - receiver
-   \param timestamp - timestamp of "end of mark" event
+   \param timestamp - timestamp of "end of mark" event. May be NULL, then current time will be used.
    \param mark - mark to be inserted into receiver's representation buffer
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_rec_add_mark(cw_rec_t *rec, const struct timeval *timestamp, char mark)
+int cw_rec_add_mark(cw_rec_t * rec, const struct timeval * timestamp, char mark)
 {
 	/* The receiver's state is expected to be idle or
 	   inter-mark-space in order to use this routine. */
@@ -1477,7 +1522,7 @@ int cw_rec_add_mark(cw_rec_t *rec, const struct timeval *timestamp, char mark)
 	   It doesn't matter that we don't know timestamp of start of
 	   this mark: start timestamp would be needed only to
 	   determine mark length (and from the mark length to
-	   determine mark type (dot/dash)). But since the mark type
+	   determine mark type (Dot/Dash)). But since the mark type
 	   has been determined by \p mark, we don't need timestamp for
 	   beginning of mark.
 
@@ -1487,21 +1532,23 @@ int cw_rec_add_mark(cw_rec_t *rec, const struct timeval *timestamp, char mark)
 	   to determine whether we are at the end of a word, or just
 	   at the end of a character. */
 	if (!cw_timestamp_validate_internal(&rec->mark_end, timestamp)) {
+		errno = EINVAL;
 		return CW_FAILURE;
 	}
 
 	/* Add the mark to the receiver's representation buffer. */
 	rec->representation[rec->representation_ind++] = mark;
 
-	/* We just added a mark to the receiver's buffer.  As
-	   above, if it's full, then we have to do something, even
-	   though it's unlikely to actually be full. */
+	/* We just added a mark to the receiver's buffer.  As in
+	   cw_rec_mark_end(): if it's full, then we have to do
+	   something, even though it's unlikely to actually be
+	   full. */
 	if (rec->representation_ind == CW_REC_REPRESENTATION_CAPACITY - 1) {
 
 		CW_REC_SET_STATE (rec, RS_EOC_GAP_ERR, (&cw_debug_object));
 
 		cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
-			      "libcw: receiver's representation buffer is full");
+			      "libcw/rec: add_mark: receiver's representation buffer is full");
 
 		errno = ENOMEM;
 		return CW_FAILURE;
@@ -1517,12 +1564,29 @@ int cw_rec_add_mark(cw_rec_t *rec, const struct timeval *timestamp, char mark)
 
 
 
+/**
+   \brief Try to poll representation from receiver
 
-int cw_rec_poll_representation(cw_rec_t *rec,
-			       const struct timeval *timestamp,
-			       /* out */ char *representation,
-			       /* out */ bool *is_end_of_word,
-			       /* out */ bool *is_error)
+   \errno ERANGE - invalid state of receiver was discovered.
+   \errno EINVAL - errors while processing or getting \p timestamp
+   \errno EAGAIN - function called too early, representation not ready yet
+
+   \reviewed on 2017-02-04
+
+   \param rec - receiver
+   \param timestamp
+   \param representation - output variable, representation of character from receiver's buffer
+   \param is_end_of_word - output variable,
+   \param is_error - output variable
+
+   \return CW_SUCCESS if a correct representation has been returned through \p representation
+   \return CW_FAILURE otherwise
+*/
+int cw_rec_poll_representation(cw_rec_t * rec,
+			       const struct timeval * timestamp,
+			       /* out */ char * representation,
+			       /* out */ bool * is_end_of_word,
+			       /* out */ bool * is_error)
 {
 	if (rec->state == RS_EOW_GAP
 	    || rec->state == RS_EOW_GAP_ERR) {
@@ -1531,9 +1595,9 @@ int cw_rec_poll_representation(cw_rec_t *rec,
 		   state won't change, and representation stored by
 		   receiver's buffer won't change.
 
-		   Repeated calls of the cw_receive_representation()
-		   function when receiver is in this state will simply
-		   return the same representation over and over again.
+		   Repeated calls of this function when receiver is in
+		   this state will simply return the same
+		   representation over and over again.
 
 		   Because the state of receiver is settled, \p
 		   timestamp is uninteresting. We don't expect it to
@@ -1563,7 +1627,7 @@ int cw_rec_poll_representation(cw_rec_t *rec,
 		   || rec->state == RS_EOC_GAP
 		   || rec->state == RS_EOC_GAP_ERR,
 
-		   "Unknown receiver state %d", rec->state);
+		   "libcw/rec: poll: unexpected receiver state %d / %s", rec->state, cw_receiver_states[rec->state]);
 
 	/* Stream of data is in one of these states
 	   - inter-mark space, or
@@ -1574,16 +1638,16 @@ int cw_rec_poll_representation(cw_rec_t *rec,
 	   mark. */
 	struct timeval now_timestamp;
 	if (!cw_timestamp_validate_internal(&now_timestamp, timestamp)) {
-
+		errno = EINVAL;
 		return CW_FAILURE;
 	}
 
 	int space_len = cw_timestamp_compare_internal(&rec->mark_end, &now_timestamp);
 	if (space_len == INT_MAX) {
 		cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
-			      "libcw: space len == INT_MAX");
+			      "libcw/rec: poll: space len == INT_MAX");
 
-		errno = EAGAIN;
+		errno = EINVAL;
 		return CW_FAILURE;
 	}
 
@@ -1633,7 +1697,6 @@ int cw_rec_poll_representation(cw_rec_t *rec,
 
 
 
-
 /**
    \brief Prepare return values at end-of-character
 
@@ -1642,17 +1705,17 @@ int cw_rec_poll_representation(cw_rec_t *rec,
 
    Update receiver's state (\p rec) so that it matches end-of-character state.
 
-   Since this is _eoc_function, \p is_end_of_word is set to false.
+   Since this is _eoc_ function, \p is_end_of_word is set to false.
 
    \p rec - receiver
    \p representation - representation of character from receiver's buffer
    \p is_end_of_word - end-of-word flag
    \p is_error - error flag
 */
-void cw_rec_poll_representation_eoc_internal(cw_rec_t *rec, int space_len,
-					     /* out */ char *representation,
-					     /* out */ bool *is_end_of_word,
-					     /* out */ bool *is_error)
+void cw_rec_poll_representation_eoc_internal(cw_rec_t * rec, int space_len,
+					     /* out */ char * representation,
+					     /* out */ bool * is_end_of_word,
+					     /* out */ bool * is_error)
 {
 	if (rec->state == RS_SPACE) {
 		/* State of receiver is inter-mark-space, but real
@@ -1674,7 +1737,7 @@ void cw_rec_poll_representation_eoc_internal(cw_rec_t *rec, int space_len,
 	}
 
 	cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-		      "libcw:rec:poll_eoc: state: %s", cw_receiver_states[rec->state]);
+		      "libcw/rec:poll_eoc: state: %s", cw_receiver_states[rec->state]);
 
 	/* Return the representation from receiver's buffer. */
 	if (is_end_of_word) {
@@ -1826,7 +1889,7 @@ void cw_rec_reset_state(cw_rec_t * rec)
 /**
    \brief Get the number of elements (dots/dashes) the receiver's buffer can accommodate
 
-   The maximum number of elements written out by cw_receive_representation()
+   The maximum number of elements written out by cw_rec_poll_representation()
    is the capacity + 1, the extra character being used for the terminating
    NUL.
 
@@ -2222,7 +2285,7 @@ unsigned int test_cw_rec_test_with_base_constant(cw_test_stats_t * stats)
 		bool failure = test_cw_rec_test_begin_end(rec, data);
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = fprintf(out_file, "libcw:rec: begin/end: base/constant @ %02d [wpm]:", speed);
+		int n = fprintf(out_file, "libcw/rec: begin/end: base/constant @ %02d [wpm]:", speed);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 		test_cw_rec_delete_data(&data);
@@ -2330,7 +2393,7 @@ bool test_cw_rec_test_begin_end(cw_rec_t * rec, struct cw_rec_test_data * data)
 			/* If we exit the loop at this point, the last
 			   'tv' with length of end-of-character space
 			   will be used below in
-			   cw_receive_representation(). */
+			   cw_rec_poll_representation(). */
 		}
 
 		cw_assert (tone, "libcw/rec: begin/end executed zero times\n");
@@ -2578,7 +2641,7 @@ unsigned int test_cw_rec_test_with_random_constant(cw_test_stats_t * stats)
 		bool failure = test_cw_rec_test_begin_end(rec, data);
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = fprintf(out_file, "libcw:rec: begin/end: random/constant @ %02d [wpm]:", speed);
+		int n = fprintf(out_file, "libcw/rec: begin/end: random/constant @ %02d [wpm]:", speed);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
@@ -2625,7 +2688,7 @@ unsigned int test_cw_rec_test_with_random_varying(cw_test_stats_t * stats)
 	bool failure = test_cw_rec_test_begin_end(rec, data);
 
 	failure ? stats->failures++ : stats->successes++;
-	int n = fprintf(out_file, "libcw:rec: begin/end: random/varying:");
+	int n = fprintf(out_file, "libcw/rec: begin/end: random/varying:");
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 	test_cw_rec_delete_data(&data);
@@ -3163,37 +3226,37 @@ unsigned int test_cw_rec_get_parameters(cw_test_stats_t * stats)
 
 	failure = dot_len_max >= dash_len_min;
 	failure ? stats->failures++ : stats->successes++;
-	n = fprintf(out_file, "libcw:rec: get: max dot len < min dash len (%d/%d):", dot_len_max, dash_len_min);
+	n = fprintf(out_file, "libcw/rec: get: max dot len < min dash len (%d/%d):", dot_len_max, dash_len_min);
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 	failure = (dot_len_min >= dot_len_ideal) || (dot_len_ideal >= dot_len_max);
 	failure ? stats->failures++ : stats->successes++;
-	n = fprintf(out_file, "libcw:rec: get: dot len consistency (%d/%d/%d):", dot_len_min, dot_len_ideal, dot_len_max);
+	n = fprintf(out_file, "libcw/rec: get: dot len consistency (%d/%d/%d):", dot_len_min, dot_len_ideal, dot_len_max);
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 	failure = (dash_len_min >= dash_len_ideal) || (dash_len_ideal >= dash_len_max);
 	failure ? stats->failures++ : stats->successes++;
-	n = fprintf(out_file, "libcw:rec: get: dash len consistency (%d/%d/%d):", dash_len_min, dash_len_ideal, dash_len_max);
+	n = fprintf(out_file, "libcw/rec: get: dash len consistency (%d/%d/%d):", dash_len_min, dash_len_ideal, dash_len_max);
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 	failure = (eom_len_max >= eoc_len_min);
 	failure ? stats->failures++ : stats->successes++;
-	n = fprintf(out_file, "libcw:rec: get: max eom len < min eoc len (%d/%d):", eom_len_max, eoc_len_min);
+	n = fprintf(out_file, "libcw/rec: get: max eom len < min eoc len (%d/%d):", eom_len_max, eoc_len_min);
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 	failure = (eom_len_min >= eom_len_ideal) || (eom_len_ideal >= eom_len_max);
 	failure ? stats->failures++ : stats->successes++;
-	n = fprintf(out_file, "libcw:rec: get: eom len consistency (%d/%d/%d)", eom_len_min, eom_len_ideal, eom_len_max);
+	n = fprintf(out_file, "libcw/rec: get: eom len consistency (%d/%d/%d)", eom_len_min, eom_len_ideal, eom_len_max);
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 	failure = (eoc_len_min >= eoc_len_ideal) || (eoc_len_ideal >= eoc_len_max);
 	failure ? stats->failures++ : stats->successes++;
-	n = fprintf(out_file, "libcw:rec: get: eoc len consistency (%d/%d/%d)", eoc_len_min, eoc_len_ideal, eoc_len_max);
+	n = fprintf(out_file, "libcw/rec: get: eoc len consistency (%d/%d/%d)", eoc_len_min, eoc_len_ideal, eoc_len_max);
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
@@ -3319,19 +3382,19 @@ unsigned int test_cw_rec_parameter_getters_setters_1(cw_test_stats_t * stats)
 
 
 	get_failure ? stats->failures++ : stats->successes++;
-	n = fprintf(out_file, "libcw:rec: get/set param 1: get:");
+	n = fprintf(out_file, "libcw/rec: get/set param 1: get:");
 	CW_TEST_PRINT_TEST_RESULT (get_failure, n);
 
 	set_min_failure ? stats->failures++ : stats->successes++;
-	n = fprintf(out_file, "libcw:rec: get/set param 1: set value below min:");
+	n = fprintf(out_file, "libcw/rec: get/set param 1: set value below min:");
 	CW_TEST_PRINT_TEST_RESULT (set_min_failure, n);
 
 	set_max_failure ? stats->failures++ : stats->successes++;
-	n = fprintf(out_file, "libcw:rec: get/set param 1: set value above max:");
+	n = fprintf(out_file, "libcw/rec: get/set param 1: set value above max:");
 	CW_TEST_PRINT_TEST_RESULT (set_max_failure, n);
 
 	set_ok_failure ? stats->failures++ : stats->successes++;
-	n = fprintf(out_file, "libcw:rec: get/set param 1: set value in range:");
+	n = fprintf(out_file, "libcw/rec: get/set param 1: set value in range:");
 	CW_TEST_PRINT_TEST_RESULT (set_ok_failure, n);
 
 	return 0;
@@ -3455,19 +3518,19 @@ unsigned int test_cw_rec_parameter_getters_setters_2(cw_test_stats_t * stats)
 
 
 	get_failure ? stats->failures++ : stats->successes++;
-	n = fprintf(out_file, "libcw:rec: get/set param 2: get:");
+	n = fprintf(out_file, "libcw/rec: get/set param 2: get:");
 	CW_TEST_PRINT_TEST_RESULT (get_failure, n);
 
 	set_min_failure ? stats->failures++ : stats->successes++;
-	n = fprintf(out_file, "libcw:rec: get/set param 2: set value below min:");
+	n = fprintf(out_file, "libcw/rec: get/set param 2: set value below min:");
 	CW_TEST_PRINT_TEST_RESULT (set_min_failure, n);
 
 	set_max_failure ? stats->failures++ : stats->successes++;
-	n = fprintf(out_file, "libcw:rec: get/set param 2: set value above max:");
+	n = fprintf(out_file, "libcw/rec: get/set param 2: set value above max:");
 	CW_TEST_PRINT_TEST_RESULT (set_max_failure, n);
 
 	set_ok_failure ? stats->failures++ : stats->successes++;
-	n = fprintf(out_file, "libcw:rec: get/set param 2: set value in range:");
+	n = fprintf(out_file, "libcw/rec: get/set param 2: set value in range:");
 	CW_TEST_PRINT_TEST_RESULT (set_ok_failure, n);
 
 	return 0;

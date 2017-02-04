@@ -376,18 +376,19 @@ void Receiver::handle_libcw_keying_event(struct timeval *t, int key_state)
 			   class flag, and display the appropriate
 			   message on the next receive poll. */
 			switch (errno) {
-			case EAGAIN:
+			case ECANCELED:
 				/* libcw treated the tone as noise (it
 				   was shorter than noise threshold).
 				   No problem, not an error. */
 				break;
 
+			case ERANGE:
+			case EINVAL:
+			case EBADMSG:
 			case ENOMEM:
-			case ENOENT:
 				libcw_receive_errno = errno;
 				cw_rec_reset_state(this->rec);
 				break;
-
 			default:
 				perror("cw_rec_mark_end");
 				abort();
