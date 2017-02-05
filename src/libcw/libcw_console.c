@@ -154,7 +154,7 @@ bool cw_is_console_possible(const char * device)
 
    \reviewed on 2017-02-04
 
-   \param gen - current generator
+   \param gen - generator
 
    \return CW_FAILURE on errors
    \return CW_SUCCESS on success
@@ -236,7 +236,7 @@ void cw_console_close_device_internal(cw_gen_t *gen)
    After playing X microseconds of tone it returns. It is intended
    to behave like a blocking write() function.
 
-   \param gen - current generator
+   \param gen - generator
    \param tone - tone to play with generator
 
    \return CW_SUCCESS on success
