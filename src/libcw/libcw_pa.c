@@ -79,7 +79,7 @@ static int         cw_pa_write_internal(cw_gen_t * gen);
   How many times the structure is set?
   How many times it's closed?
   Is it closed for all generators when first of these generators is destroyed?
-  Do we need a reference counter for this structre?
+  Do we need a reference counter for this structure?
 */
 
 static struct {
