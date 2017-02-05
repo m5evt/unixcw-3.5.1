@@ -144,15 +144,6 @@ void cw_debug_flush(cw_debug_t * debug)
 
 
 
-void cw_set_debug_flags(uint32_t flags)
-{
-	cw_debug_object.flags = flags;
-	return;
-}
-
-
-
-
 /**
    \brief Set a value of debug flags in given debug variable
 
