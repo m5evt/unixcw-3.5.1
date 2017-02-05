@@ -257,12 +257,12 @@ void cw_key_register_receiver(cw_key_t *key, cw_rec_t *rec);
 
 
 /* General functions: audio systems. */
-extern bool cw_is_null_possible(const char *device);
-extern bool cw_is_console_possible(const char *device);
-extern bool cw_is_oss_possible(const char *device);
-extern bool cw_is_alsa_possible(const char *device);
-extern bool cw_is_pa_possible(const char *device);
-extern const char *cw_get_audio_system_label(int audio_system);
+extern bool cw_is_null_possible(const char * device);
+extern bool cw_is_console_possible(const char * device);
+extern bool cw_is_oss_possible(const char * device);
+extern bool cw_is_alsa_possible(const char * device);
+extern bool cw_is_pa_possible(const char * device);
+extern const char * cw_get_audio_system_label(int audio_system);
 
 
 /* General functions: library metadata. */
