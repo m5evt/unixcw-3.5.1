@@ -1,6 +1,26 @@
 TODO:
 
 
+
+* Review unit tests for library.
+   Now that I'm done with first round of review of
+   main code of library, and that all unit tests are now in one place
+   (in files implementing modules), and that the tests are run by
+   singile driver, it's necessary to review, expand, improve and clean
+   up unit tests code for libcw2.
+   
+   Added on 2017-02-08.
+   
+
+
+* Why do we have two TODO files?
+   There are two TODO files in main directory (TODO and TODO2). Unify
+   them.
+
+   Added on 2017-02-08.
+
+
+
 Add to configure.ac a check for GNU make on build machine. unixcw's
    Makefiles may not work with non-GNU make on non Linux machines.
 
