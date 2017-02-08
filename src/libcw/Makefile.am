@@ -33,7 +33,8 @@ EXTRA_DIST=include.awk libdoc.awk libfuncs.awk libpc.awk libsigs.awk \
 	cw.7 \
 	libcw_gen.h libcw_rec.h \
 	libcw_tq.h libcw_data.h libcw_key.h libcw_utils.h \
-	libcw_null.h libcw_console.h libcw_oss.h libcw_alsa.h libcw_pa.h
+	libcw_null.h libcw_console.h libcw_oss.h libcw_alsa.h libcw_pa.h \
+	libcw_test.h
 
 # These files are used to build two different targets - list them only
 # once. I can't compile these files into an utility library because
