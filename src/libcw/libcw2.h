@@ -25,7 +25,7 @@
 
 
 
-
+#include <stddef.h>    /* size_t */
 #include <sys/time.h>  /* struct timeval */
 #include <stdbool.h>
 

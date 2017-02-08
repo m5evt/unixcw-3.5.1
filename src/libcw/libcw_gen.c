@@ -2990,6 +2990,7 @@ bool cw_gen_is_queue_full(cw_gen_t const * gen)
 #ifdef LIBCW_UNIT_TESTS
 
 
+#include <limits.h> /* UCHAR_MAX */
 #include "libcw_test.h"
 
 
