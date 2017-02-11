@@ -61,12 +61,13 @@ CLEANFILES = moc_application.cc
 
 
 # Qt5 magic
-# Previously the invocation of moc was: "$(AC_QT5_MOC) $< -o $@", but
-# because of failed build on FreeBSD I decided to replace the "$<" and
-# "$@" symbols with file names.
+if HOST_IS_FREEBSD
 moc_application.cc: application.h
-	$(AC_QT5_MOC) application.h -o moc_application.cc
-
+	$(AC_QT5_MOC) application.h -o application.cc
+else
+moc_application.cc: application.h
+	$(AC_QT5_MOC) $< -o $@
+endif
 
 
 
