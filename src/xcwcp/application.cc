@@ -714,10 +714,10 @@ void Application::key_event(QKeyEvent *event)
 
 	if (is_using_libcw) {
 		if (modeset.get_current()->is_keyboard()) {
-			fprintf(stderr, "---------- key event: keyboard mode\n");
+			//fprintf(stderr, "---------- key event: keyboard mode\n");
 			sender->handle_key_event(event);
 		} else if (modeset.get_current()->is_receive()) {
-			fprintf(stderr, "---------- key event: receiver mode mode\n");
+			//fprintf(stderr, "---------- key event: receiver mode mode\n");
 			receiver->handle_key_event(event, reverse_paddles_action->isChecked());
 		} else {
 			;
@@ -749,7 +749,7 @@ void Application::mouse_event(QMouseEvent *event)
 	   isn't interested. */
 	if (is_using_libcw) {
 		if (modeset.get_current()->is_receive()) {
-			fprintf(stderr, "---------- mouse event: receiver mode\n");
+			//fprintf(stderr, "---------- mouse event: receiver mode\n");
 			receiver->handle_mouse_event(event, reverse_paddles_action->isChecked());
 		}
 	}

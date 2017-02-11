@@ -119,7 +119,7 @@ void Receiver::handle_key_event(QKeyEvent *event, bool is_reverse_paddles)
 			/* These keys are obvious candidates for
 			   "straight key" key. */
 
-			fprintf(stderr, "---------- handle key event: sk: %d\n", is_down);
+			//fprintf(stderr, "---------- handle key event: sk: %d\n", is_down);
 			sk_event(is_down);
 			event->accept();
 
@@ -165,7 +165,7 @@ void Receiver::handle_mouse_event(QMouseEvent *event, bool is_reverse_paddles)
 			|| event->type() == QEvent::MouseButtonDblClick;
 
 		if (event->button() == Qt::MidButton) {
-			fprintf(stderr, "---------- handle mouse event: sk: %d\n", is_down);
+			//fprintf(stderr, "---------- handle mouse event: sk: %d\n", is_down);
 			sk_event(is_down);
 			event->accept();
 
