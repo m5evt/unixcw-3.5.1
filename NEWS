@@ -1,3 +1,27 @@
+version 3.5.1 / 2017-02-XX
+
+  libcw:
+
+  - fixing a bug in libcw/generator that may have lead to a key being
+    permanently in "down" state upon silencing a generator.
+
+    If cwdaemon using libcw with NULL or Console output was generating
+    tones from user input, and received ESC-4 escape request ("Abort
+    currently sent message"), it was possible that while the message
+    was interrupted, the key remained in "down" state.
+
+    The fix in libcw makes sure that upon request to stop generating
+    tones, the key always goes up, regardless of audio output type.
+
+    The bug was reported and investigated, and fix was provided by
+    Csahok Zoltan. Many thanks Zoli!
+
+  - Library soname/version changed from 6.5.1 to 6.6.1.
+
+
+----------------------------------------------------------------------------
+
+
 version 3.5.0 / 2015-10-06
 
   libcw:

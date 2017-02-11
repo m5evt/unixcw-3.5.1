@@ -10,7 +10,7 @@
 	was interrupted, the key remained in "down" state.
 
 	The fix in libcw makes sure that upon request to stop generating
-	tones, the key always goes up, regardless of audio output.
+	tones, the key always goes up, regardless of audio output type.
 
 	The bug was reported and investigated, and fix was provided by
 	Csahok Zoltan. Many thanks Zoli!
