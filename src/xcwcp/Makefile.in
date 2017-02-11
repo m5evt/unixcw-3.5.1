@@ -880,11 +880,10 @@ uninstall-man: uninstall-man1
 -include $(top_builddir)/Makefile.inc
 
 # Qt5 magic
-# Previously the invocation of moc was: "$(AC_QT5_MOC) $< -o $@", but
-# because of failed build on FreeBSD I decided to replace the "$<" and
-# "$@" symbols with file names.
-moc_application.cc: application.h
-	$(AC_QT5_MOC) application.h -o moc_application.cc
+@HOST_IS_FREEBSD_TRUE@moc_application.cc: application.h
+@HOST_IS_FREEBSD_TRUE@	$(AC_QT5_MOC) application.h -o application.cc
+@HOST_IS_FREEBSD_FALSE@moc_application.cc: application.h
+@HOST_IS_FREEBSD_FALSE@	$(AC_QT5_MOC) $< -o $@
 
 # Test targets.
 # This test target will be invoked when creating deb package.

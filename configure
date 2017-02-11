@@ -651,6 +651,8 @@ LDCONFIG
 GZIP
 OSS_LIB
 DL_LIB
+HOST_IS_FREEBSD_FALSE
+HOST_IS_FREEBSD_TRUE
 CXXCPP
 am__fastdepCXX_FALSE
 am__fastdepCXX_TRUE
@@ -16198,6 +16200,7 @@ DL_LIB=
 # TODO: consider using AC_CHECK_LIB(ossaudio, _oss_ioctl)
 OSS_LIB=
 
+IS_FREEBSD=false
 
 case $host_os in
     *linux*|*Linux*)
@@ -16209,6 +16212,7 @@ $as_echo "$as_me: Detected Linux: $host_os" >&6;}
     *freebsd*|*FreeBSD*)
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: Detected FreeBSD: $host_os" >&5
 $as_echo "$as_me: Detected FreeBSD: $host_os" >&6;}
+	IS_FREEBSD=true
 	;;
     *openbsd*|*OpenBSD*)
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: Detected OpenBSD: $host_os" >&5
@@ -16230,6 +16234,14 @@ $as_echo "$as_me: Detected other OS: $host_os" >&6;}
 	DL_LIB=\"-ldl\"
 	;;
 esac
+ if test $IS_FREEBSD = true; then
+  HOST_IS_FREEBSD_TRUE=
+  HOST_IS_FREEBSD_FALSE='#'
+else
+  HOST_IS_FREEBSD_TRUE='#'
+  HOST_IS_FREEBSD_FALSE=
+fi
+
 
 
 
@@ -18274,6 +18286,10 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${am__fastdepCXX_TRUE}" && test -z "${am__fastdepCXX_FALSE}"; then
   as_fn_error $? "conditional \"am__fastdepCXX\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${HOST_IS_FREEBSD_TRUE}" && test -z "${HOST_IS_FREEBSD_FALSE}"; then
+  as_fn_error $? "conditional \"HOST_IS_FREEBSD\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${LIBCW_WITH_DEV_TRUE}" && test -z "${LIBCW_WITH_DEV_FALSE}"; then
