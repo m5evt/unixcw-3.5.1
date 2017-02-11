@@ -1,7 +1,7 @@
 #!/bin/bash
 
 PACKAGE="unixcw"
-VERSION="3.5.0"
+VERSION="3.5.1"
 debuild_command='debuild -us -uc'
 
 
