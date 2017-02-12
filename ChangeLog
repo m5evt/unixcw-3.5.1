@@ -1,3 +1,6 @@
+2017-02-11 Kamil Ignacak
+	* xcwcp: fixing problem with compilation of application.cc file.
+
 2016-05-03 Kamil Ignacak
 
 	* libcw/bugfix: fixing a bug in libcw/generator that may have lead
