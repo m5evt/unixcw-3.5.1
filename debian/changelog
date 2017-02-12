@@ -1,6 +1,6 @@
 unixcw (3.5.1-1) unstable; urgency=low
 
-  * New upstream release (small fix in library).
+  * New upstream release (small fix in library and in compilation of xcwcp).
 
  -- Kamil Ignacak <acerion@wp.pl>  Sun, 12 Feb 2017 11:30:00 +0100
 
