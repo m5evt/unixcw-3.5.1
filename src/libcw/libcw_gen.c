@@ -171,7 +171,7 @@ static int   cw_gen_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone)
 static int   cw_gen_write_to_soundcard_internal(cw_gen_t *gen, cw_tone_t *tone, int queue_rv);
 static int   cw_gen_play_valid_character_internal(cw_gen_t *gen, char character, int partial);
 static void  cw_gen_recalculate_slopes_internal(cw_gen_t *gen);
-
+static void  cw_gen_handle_backspace(cw_gen_t *gen);
 
 
 
@@ -1869,7 +1869,7 @@ void cw_gen_get_send_parameters_internal(cw_gen_t *gen,
    \return CW_FAILURE on failure
    \return CW_SUCCESS on success
 */
-int cw_gen_play_mark_internal(cw_gen_t *gen, char mark)
+int cw_gen_play_mark_internal(cw_gen_t *gen, char mark, bool is_first)
 {
 	int status;
 
@@ -1881,10 +1881,12 @@ int cw_gen_play_mark_internal(cw_gen_t *gen, char mark)
 	if (mark == CW_DOT_REPRESENTATION) {
 		cw_tone_t tone;
 		CW_TONE_INIT(&tone, gen->frequency, gen->dot_len, CW_SLOPE_MODE_STANDARD_SLOPES);
+                tone.is_first = is_first;
 		status = cw_tq_enqueue_internal(gen->tq, &tone);
 	} else if (mark == CW_DASH_REPRESENTATION) {
 		cw_tone_t tone;
 		CW_TONE_INIT(&tone, gen->frequency, gen->dash_len, CW_SLOPE_MODE_STANDARD_SLOPES);
+                tone.is_first = is_first;
 		status = cw_tq_enqueue_internal(gen->tq, &tone);
 	} else {
 		errno = EINVAL;
@@ -2101,7 +2103,7 @@ int cw_gen_play_representation_internal(cw_gen_t *gen, const char *representatio
 	/* Play the marks. Every mark is followed by end-of-mark
 	   space. */
 	for (int i = 0; representation[i] != '\0'; i++) {
-		if (!cw_gen_play_mark_internal(gen, representation[i])) {
+		if (!cw_gen_play_mark_internal(gen, representation[i], i == 0)) {
 			return CW_FAILURE;
 		}
 	}
@@ -2116,8 +2118,6 @@ int cw_gen_play_representation_internal(cw_gen_t *gen, const char *representatio
 
 	return CW_SUCCESS;
 }
-
-
 
 
 
@@ -2149,6 +2149,12 @@ int cw_gen_play_valid_character_internal(cw_gen_t *gen, char character, int part
 		return cw_gen_play_eow_space_internal(gen);
 	}
 
+	/* backspace character (0x08) is also a special case. */
+	if (character == '\b') {
+		cw_gen_handle_backspace(gen);
+		return CW_SUCCESS;
+	}
+
 	/* Lookup the character, and play it. */
 	const char *representation = cw_character_to_representation_internal(character);
 	if (!representation) {
@@ -2164,6 +2170,34 @@ int cw_gen_play_valid_character_internal(cw_gen_t *gen, char character, int part
 }
 
 
+void cw_gen_handle_backspace(cw_gen_t *gen) {
+        cw_tone_queue_t *tq = gen->tq;
+
+        pthread_mutex_lock(&tq->mutex);
+
+        int len = tq->len;
+        int idx = tq->tail;
+        bool is_found = false;
+
+        while (len > 0) {
+            --len;
+            --idx;
+            if (idx < 0) {
+                idx = tq->capacity - 1;
+            }
+            if (tq->queue[idx].is_first) {
+                is_found = true;
+                break;
+            }
+        }
+
+        if (is_found) {
+            tq->len = len;
+            tq->tail = idx;
+        }
+
+        pthread_mutex_unlock(&tq->mutex);
+}
 
 
 

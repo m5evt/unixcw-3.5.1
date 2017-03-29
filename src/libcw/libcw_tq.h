@@ -74,6 +74,10 @@ typedef struct {
 	   "forever" tones. */
 	bool forever;
 
+	/* Is this the first tone of a character?
+           Used to backspace in the queue. */
+        bool is_first;
+
 	/* Type of slope. */
 	int slope_mode;
 
@@ -138,6 +142,7 @@ typedef struct {
 		(m_tone)->len                     = m_len;		\
 		(m_tone)->slope_mode              = m_slope_mode;	\
 		(m_tone)->forever                 = false;		\
+		(m_tone)->is_first                = false;		\
 		(m_tone)->n_samples               = 0;			\
 		(m_tone)->sample_iterator         = 0;			\
 		(m_tone)->rising_slope_n_samples  = 0;			\
@@ -153,6 +158,7 @@ typedef struct {
 		(m_dest)->len                     = (m_source)->len;	\
 		(m_dest)->slope_mode              = (m_source)->slope_mode; \
 		(m_dest)->forever                 = (m_source)->forever; \
+		(m_dest)->is_first                = (m_source)->is_first; \
 		(m_dest)->n_samples               = (m_source)->n_samples; \
 		(m_dest)->sample_iterator         = (m_source)->sample_iterator;	\
 		(m_dest)->rising_slope_n_samples  = (m_source)->rising_slope_n_samples; \

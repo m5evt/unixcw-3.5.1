@@ -579,7 +579,7 @@ void cw_get_send_parameters(int *dot_usecs, int *dash_usecs,
 */
 int cw_send_dot(void)
 {
-	return cw_gen_play_mark_internal(cw_generator, CW_DOT_REPRESENTATION);
+	return cw_gen_play_mark_internal(cw_generator, CW_DOT_REPRESENTATION, false);
 }
 
 
@@ -600,7 +600,7 @@ int cw_send_dot(void)
 */
 int cw_send_dash(void)
 {
-	return cw_gen_play_mark_internal(cw_generator, CW_DASH_REPRESENTATION);
+	return cw_gen_play_mark_internal(cw_generator, CW_DASH_REPRESENTATION, false);
 }
 
 

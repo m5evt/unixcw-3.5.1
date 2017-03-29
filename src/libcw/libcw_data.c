@@ -1202,7 +1202,7 @@ bool cw_character_is_valid(char c)
 {
 	/* If the character is the space special-case, or it is in the
 	   lookup table, return success. */
-	if (c == ' ' || cw_character_to_representation_internal(c)) {
+	if (c == ' ' || c == '\b' || cw_character_to_representation_internal(c)) {
 		return CW_SUCCESS;
 	} else {
 		errno = ENOENT;
@@ -1243,9 +1243,7 @@ bool cw_string_is_valid(const char *string)
 	/* Check that each character in the string has a Morse
 	   representation, or - as a special case - is a space character. */
 	for (int i = 0; string[i] != '\0'; i++) {
-		if (!(string[i] == ' '
-		      || cw_character_to_representation_internal(string[i]))) {
-
+		if (!cw_character_is_valid(string[i])) {
 			errno = EINVAL;
 			return CW_FAILURE;
 		}

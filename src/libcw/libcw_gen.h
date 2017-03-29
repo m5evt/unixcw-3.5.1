@@ -367,7 +367,7 @@ void cw_gen_get_send_parameters_internal(cw_gen_t *gen, int *dot_len, int *dash_
 
 
 /* Generator's 'play' primitives. */
-int cw_gen_play_mark_internal(cw_gen_t *gen, char mark);
+int cw_gen_play_mark_internal(cw_gen_t *gen, char mark, bool is_first);
 int cw_gen_play_eoc_space_internal(cw_gen_t *gen);
 int cw_gen_play_eow_space_internal(cw_gen_t *gen);
 
