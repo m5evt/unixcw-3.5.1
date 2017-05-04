@@ -722,7 +722,7 @@ int cw_tq_enqueue_internal(cw_tone_queue_t * tq, cw_tone_t * tone)
 	   Notice that tail is incremented after adding a tone. This
 	   means that for empty tq new tone is inserted at index
 	   tail == head (which should be kind of obvious). */
-	CW_TONE_COPY(&(tq->queue[tq->tail]), tone);
+	tq->queue[tq->tail] = *tone;
 
 	tq->tail = cw_tq_next_index_internal(tq, tq->tail);
 	tq->len++;
@@ -1226,7 +1226,7 @@ unsigned int test_cw_tq_length_internal(__attribute__((unused)) cw_gen_t * unuse
 				   tq->len, tq->capacity);
 
 			/* Enqueue the new tone and set the new tail index. */
-			CW_TONE_COPY(&(tq->queue[tq->tail]), &tone);
+			tq->queue[tq->tail] = tone;
 			tq->tail = cw_tq_next_index_internal(tq, tq->tail);
 			tq->len++;
 
