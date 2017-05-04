@@ -1727,24 +1727,22 @@ unsigned int test_validate_character_and_string_internal(void)
 		cw_list_characters(charlist);
 
 		for (int i = 0; i < UCHAR_MAX; i++) {
-			if (i == ' '
-			    || (i != 0 && strchr(charlist, toupper(i)) != NULL)) {
+			if (i == '\b') {
+				/* I'm handling Backspace in separate branch to have pretty-printing. */
+				cw_assert (cw_character_is_valid(i), "Valid character '<backspace>' / #%d not recognized as valid\n", i);
 
+			} else if (i == ' ' || (i != 0 && strchr(charlist, toupper(i)) != NULL)) {
 				/* Here we have a valid character, that is
 				   recognized/supported as 'sendable' by
 				   libcw.  cw_character_is_valid() should
 				   confirm it. */
-				cw_assert (cw_character_is_valid(i),
-					   "Valid character '%c' / #%d not recognized as valid\n",
-					   (char ) i, i);
+				cw_assert (cw_character_is_valid(i), "Valid character '%c' / #%d not recognized as valid\n", (char) i, i);
 			} else {
 				/* The 'i' character is not
 				   recognized/supported by libcw.
 				   cw_character_is_valid() should return false
 				   to signify that the char is invalid. */
-				cw_assert (!cw_character_is_valid(i),
-					   "Invalid character '%c' / #%d recognized as valid\n",
-					   (char ) i, i);
+				cw_assert (!cw_character_is_valid(i), "Invalid character '%c' / #%d recognized as valid\n", (char) i, i);
 			}
 		}
 

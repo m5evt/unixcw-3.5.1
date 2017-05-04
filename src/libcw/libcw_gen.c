@@ -171,7 +171,6 @@ static int   cw_gen_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone)
 static int   cw_gen_write_to_soundcard_internal(cw_gen_t *gen, cw_tone_t *tone, int queue_rv);
 static int   cw_gen_play_valid_character_internal(cw_gen_t *gen, char character, int partial);
 static void  cw_gen_recalculate_slopes_internal(cw_gen_t *gen);
-static void  cw_gen_handle_backspace(cw_gen_t *gen);
 
 
 
@@ -2151,7 +2150,7 @@ int cw_gen_play_valid_character_internal(cw_gen_t *gen, char character, int part
 
 	/* backspace character (0x08) is also a special case. */
 	if (character == '\b') {
-		cw_gen_handle_backspace(gen);
+		cw_tq_handle_backspace_internal(gen->tq);
 		return CW_SUCCESS;
 	}
 
@@ -2169,35 +2168,6 @@ int cw_gen_play_valid_character_internal(cw_gen_t *gen, char character, int part
 	}
 }
 
-
-void cw_gen_handle_backspace(cw_gen_t *gen) {
-        cw_tone_queue_t *tq = gen->tq;
-
-        pthread_mutex_lock(&tq->mutex);
-
-        int len = tq->len;
-        int idx = tq->tail;
-        bool is_found = false;
-
-        while (len > 0) {
-            --len;
-            --idx;
-            if (idx < 0) {
-                idx = tq->capacity - 1;
-            }
-            if (tq->queue[idx].is_first) {
-                is_found = true;
-                break;
-            }
-        }
-
-        if (is_found) {
-            tq->len = len;
-            tq->tail = idx;
-        }
-
-        pthread_mutex_unlock(&tq->mutex);
-}
 
 
 

@@ -230,6 +230,7 @@ int  cw_tq_wait_for_tone_queue_internal(cw_tone_queue_t *tq);
 void cw_tq_reset_internal(cw_tone_queue_t *tq);
 bool cw_tq_is_full_internal(cw_tone_queue_t *tq);
 
+void cw_tq_handle_backspace_internal(cw_tone_queue_t *tq);
 
 
 
