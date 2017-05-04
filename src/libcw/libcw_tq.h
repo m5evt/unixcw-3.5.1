@@ -227,7 +227,7 @@ int  cw_tq_register_low_level_callback_internal(cw_tone_queue_t *tq, cw_queue_lo
 int  cw_tq_wait_for_tone_internal(cw_tone_queue_t *tq);
 bool cw_tq_is_full_internal(const cw_tone_queue_t * tq);
 
-
+void cw_tq_handle_backspace_internal(cw_tone_queue_t *tq);
 
 
 

@@ -170,7 +170,7 @@ static void  cw_gen_recalculate_slopes_internal(cw_gen_t * gen);
 static int   cw_gen_join_thread_internal(cw_gen_t * gen);
 static void  cw_gen_empty_tone_calculate_samples_size_internal(const cw_gen_t * gen, cw_tone_t * tone);
 static void  cw_gen_tone_calculate_samples_size_internal(const cw_gen_t * gen, cw_tone_t * tone);
-static void cw_gen_handle_backspace(cw_gen_t *gen);
+
 
 
 
@@ -2362,7 +2362,7 @@ int cw_gen_enqueue_valid_character_partial_internal(cw_gen_t * gen, char c)
 
 	/* backspace character (0x08) is also a special case. */
 	if (c == '\b') {
-		cw_gen_handle_backspace(gen);
+		cw_tq_handle_backspace_internal(gen->tq);
 		return CW_SUCCESS;
 	}
 
@@ -2985,38 +2985,6 @@ int cw_gen_wait_for_tone(cw_gen_t * gen)
 bool cw_gen_is_queue_full(cw_gen_t const * gen)
 {
 	return cw_tq_is_full_internal(gen->tq);
-}
-
-
-
-
-void cw_gen_handle_backspace(cw_gen_t *gen) {
-        cw_tone_queue_t *tq = gen->tq;
-
-        pthread_mutex_lock(&tq->mutex);
-
-        int len = tq->len;
-        int idx = tq->tail;
-        bool is_found = false;
-
-        while (len > 0) {
-		--len;
-		--idx;
-		if (idx < 0) {
-			idx = tq->capacity - 1;
-		}
-		if (tq->queue[idx].is_first) {
-			is_found = true;
-			break;
-		}
-        }
-
-        if (is_found) {
-		tq->len = len;
-		tq->tail = idx;
-        }
-
-        pthread_mutex_unlock(&tq->mutex);
 }
 
 

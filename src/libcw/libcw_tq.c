@@ -927,6 +927,43 @@ void cw_tq_flush_internal(cw_tone_queue_t * tq)
 
 
 
+/**
+   \brief Attempt to remove all tones constituting full, single character
+
+   Try to remove all tones until and including first tone with ->is_first tone flag set.
+
+   The function removes character's tones only if all the tones,
+   including the first tone in the character, are still in tone queue.
+
+   \param tq - tone queue
+*/
+void cw_tq_handle_backspace_internal(cw_tone_queue_t *tq)
+{
+        pthread_mutex_lock(&tq->mutex);
+
+        size_t len = tq->len;
+        size_t idx = tq->tail;
+        bool is_found = false;
+
+        while (len > 0) {
+		--len;
+		idx = cw_tq_prev_index_internal(tq, idx);
+		if (tq->queue[idx].is_first) {
+			is_found = true;
+			break;
+		}
+        }
+
+        if (is_found) {
+		tq->len = len;
+		tq->tail = idx;
+        }
+
+        pthread_mutex_unlock(&tq->mutex);
+}
+
+
+
 
 /* *** Unit tests *** */
 

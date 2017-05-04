@@ -1696,8 +1696,17 @@ unsigned int test_validate_character_and_string_internal(cw_test_stats_t * stats
 		cw_list_characters(charlist);
 
 		for (int i = 0; i < UCHAR_MAX; i++) {
-			if (i == ' '
-			    || (i != 0 && strchr(charlist, toupper(i)) != NULL)) {
+			if (i == '\b') {
+				/* Here we have a valid character, that is
+				   not 'sendable' but can be handled by libcw
+				   nevertheless. cw_character_is_valid() should
+				   confirm it. */
+				failure_valid = (false == cw_character_is_valid(i));
+				if (failure_valid) {
+					fprintf(out_file, "libcw/data: validate character: valid character '<backspace>' / #%d not recognized as valid\n", i);
+					break;
+				}
+			} else if (i == ' ' || (i != 0 && strchr(charlist, toupper(i)) != NULL)) {
 
 				/* Here we have a valid character, that is
 				   recognized/supported as 'sendable' by
