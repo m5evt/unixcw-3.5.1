@@ -1,3 +1,7 @@
+2017-05-04 Kamil Ignacak
+	* libcw: integrating "handle backspace" change contributed to
+	"master" branch by zcsahok.
+
 2017-01-15 Kamil Ignacak
 	* libcw/tests: All standard unit tests now are run by the same
 	driver in a single executable (libcw_test). All these unit tests
