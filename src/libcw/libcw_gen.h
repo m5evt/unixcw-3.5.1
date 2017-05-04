@@ -378,7 +378,7 @@ struct cw_gen_struct {
 
 
 /* Generator's enqueue primitives. */
-int cw_gen_enqueue_mark_internal(cw_gen_t * gen, char mark);
+int cw_gen_enqueue_mark_internal(cw_gen_t * gen, char mark, bool is_first);
 int cw_gen_enqueue_eoc_space_internal(cw_gen_t * gen);
 int cw_gen_enqueue_eow_space_internal(cw_gen_t * gen);
 
