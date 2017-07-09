@@ -1,98 +1,56 @@
-unixcw (3.5.1-1) unstable; urgency=low
+unixcw (3.5.1-1) unstable; urgency=medium
 
   * New upstream release (small fix in library and in compilation of xcwcp).
+  * Bump standards version to 3.9.8.
 
- -- Kamil Ignacak <acerion@wp.pl>  Sun, 12 Feb 2017 11:30:00 +0100
+ -- Colin Tuckley <colint@debian.org>  Thu, 06 Jul 2017 10:23:00 +0100
 
-unixcw (3.5.0-1) unstable; urgency=low
+unixcw (3.5.0-1) unstable; urgency=medium
 
   * New upstream release (small fix in library; xcwcp ported to Qt5).
+  * Bump standards version to 3.9.7. 
+  * Add Brazilian Portuguese debconf templates translation
+    from Adriano Rafael Gomes <adrianorg@arg.eti.br> Closes: #816939
 
- -- Kamil Ignacak <acerion@wp.pl>  Tue, 06 Oct 2015 19:57:10 +0100
+ -- Colin Tuckley <colint@debian.org>  Tue, 29 Mar 2016 19:18:40 +0100
 
-unixcw (3.4.2-1) unstable; urgency=low
-
-  * New upstream release (refactoring of libcw).
-
- -- Kamil Ignacak <acerion@wp.pl>  Wed, 17 Jun 2015 22:19:20 +0100
-
-unixcw (3.4.1-1) unstable; urgency=low
-
-  * New upstream release (refactoring of libcw).
-
- -- Kamil Ignacak <acerion@wp.pl>  Fri, 02 Jan 2015 11:45:30 +0100
-
-unixcw (3.4.0-1) unstable; urgency=low
+unixcw (3.4.2-1) unstable; urgency=medium
 
   * New upstream release.
-  * Fixes libcw problem with OSS under FreeBSD and possibly kFreeBSD.
-    Closes: #759126
-  * Fixes cwcp problem with reading CWCP_OPTIONS environment variable.
-    Closes: #758915
+  * Fix manpage escape for hyphen -> minus
 
- -- Kamil Ignacak <acerion@wp.pl>  Tue, 11 Nov 2014 15:21:50 +0100
+ -- Colin Tuckley <colint@debian.org>  Sun, 28 Jun 2015 14:11:40 +0100
 
-unixcw (3.3.1-1) unstable; urgency=low
+unixcw (3.4.1-1) unstable; urgency=medium
 
-  * New upstream release fixes some problems in libcw library
-    (dequeueing from tone queue).
+  * New upstream release.
+  * Bump standards version to 3.9.6.
 
- -- Kamil Ignacak <acerion@wp.pl>  Wed, 23 Apr 2014 20:36:40 +0100
+ -- Colin Tuckley <colint@debian.org>  Mon, 04 May 2015 09:58:00 +0100
 
-unixcw (3.3.0-1) unstable; urgency=low
+unixcw (3.3.1-2) unstable; urgency=medium
 
-  * New upstream release fixes some problems in libcw library
-    (receiver code), in build system, and adds more unit tests.
-  * New italian translation of debian templates. Thanks to
-    Fabio Pirola for contributing! Closes: #701677
-  * New japanese translation of debian templates. Thanks to
-    Hideki Yamane for contributing! Closes: #717703
+  * Fix use of CWCP_OPTIONS environment variable Closes: #758915
+    patch from upstream, Kamil Ignacak <acerion@wp.pl>
+  * Fix OSS open failure on FreeBSD Closes: #759126
+    patch from upstream, Kamil Ignacak <acerion@wp.pl>
 
- -- Kamil Ignacak <acerion@wp.pl>  Wed, 27 Nov 2013 21:44:29 +0100
+ -- Colin Tuckley <colint@debian.org>  Sat, 06 Sep 2014 10:07:30 +0100
 
-unixcw (3.2.0-1) unstable; urgency=low
+unixcw (3.3.1-1) unstable; urgency=medium
 
-  * New upstream release fixes some problems in libcw library.
-    The release also adds new header file: libcw_debug.h
+  [ Kamil Ignacak ]
+  * New upstream release (See Changelog).
+    Closes: #237891, #567394, #567392 
+  * Bump standards version to 3.9.5
 
- -- Kamil Ignacak <acerion@wp.pl>  Fri, 11 Jan 2013 19:40:30 +0100
+  [ Colin Tuckley ]
+  * Add myself as uploader.
+  * Ack it.po, thanks to Fabio Closes: #701677
+  * Ack jt.po update, thanks to Hideki Yamane Closes: #717703
+  * Fix debian/rules clean rule to allow repeated builds.
 
-unixcw (3.1.1-1) unstable; urgency=low
-
-  * New upstream release fixes problem in libcw library: interlocks in
-    thread code.  The problem was visible in cwdaemon. unixcw
-    applications don't seem to be affected.
-
- -- Kamil Ignacak <acerion@wp.pl>  Wed, 04 Jul 2012 19:02:34 +0100
-
-unixcw (3.1.0-2) unstable; urgency=low
-
-  * Fixing entries in debian/changelog and debian/control, as
-    suggested by Kamal Mostafa
-
- -- Kamil Ignacak <acerion@wp.pl>  Sun, 01 Jul 2012 14:14:20 +0100
-
-unixcw (3.1.0-1) unstable; urgency=low
-
-  * Added support for PulseAudio, which should be a good news for users
-    of the package on Ubuntu.
-  * Implemented run-time linking of audio libraries decreases dependency
-    on libasound (and from this release on libpulse) from 'requires' to
-    'recommends'.
-  * Added following flags to configure.ac:
-    --disable-{console|oss|alsa|pulseaudio|cwcp|xcwcp}.
-    "--disable-console" may help to compile unixcw on hurd-i386.
-  * cwcp no longer limits gap to 20, currently the limit (imposed by
-    libcw) is 60. Closes: #237891
-  * It has been tested and confirmed that after applying available patch,
-    and after redesign of OSS code, volume mixer is no longer muted at
-    exit of cw or cwcp. Closes: #567394
-  * It has been tested and confirmed that after applying available patch,
-    and after redesign of OSS code, unixcw applications no longer use
-    SOUND_MIXER_PCM ioctl, and so the problem described in #567392
-    disappeared. Closes: #567392
-
- -- Kamil Ignacak <acerion@wp.pl>  Sat, 30 Jun 2012 20:08:49 +0100
+ -- Colin Tuckley <colint@debian.org>  Wed, 25 Jun 2014 10:39:47 +0100
 
 unixcw (3.0.2-1) unstable; urgency=low
 
