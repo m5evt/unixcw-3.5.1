@@ -1,5 +1,6 @@
 #!/bin/bash
 
+
 executable_name=xcwcp
 executable_fullpath=src/xcwcp/.libs/lt-xcwcp
 
