@@ -42,6 +42,8 @@
 #include <stdio.h>
 #include <errno.h>
 #include <stdlib.h> /* strtol() */
+#include <limits.h> /* INT_MAX, for clang. */
+
 
 #if defined(HAVE_STRING_H)
 # include <string.h>

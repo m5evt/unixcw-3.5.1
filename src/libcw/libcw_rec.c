@@ -64,6 +64,7 @@
 #include <errno.h>
 #include <stdbool.h>
 #include <math.h>  /* sqrt(), cosf() */
+#include <limits.h> /* INT_MAX, for clang. */
 
 
 #if (defined(__unix__) || defined(unix)) && !defined(USG)
