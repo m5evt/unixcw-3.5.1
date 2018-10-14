@@ -44,6 +44,7 @@
 #include <stdbool.h>
 #include <dlfcn.h> /* dlopen() and related symbols */
 #include <stdlib.h> /* strtol() */
+#include <limits.h> /* INT_MAX, for clang. */
 
 #if defined(HAVE_STRING_H)
 # include <string.h>
