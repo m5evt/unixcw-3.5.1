@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2001-2006  Simon Baldwin (simon_baldwin@yahoo.com)
- * Copyright (C) 2011-2017  Kamil Ignacak (acerion@wp.pl)
+ * Copyright (C) 2011-2019  Kamil Ignacak (acerion@wp.pl)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -66,7 +66,7 @@
 #if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ >= 95)
 static void write_to_echo_stream(const char * format, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
 static void write_to_message_stream(const char * format, ...)  __attribute__ ((__format__ (__printf__, 1, 2)));
-static void write_to_cw_sender(const char * format, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
+static int write_to_cw_sender(const char * format, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
 #endif
 
 
@@ -126,16 +126,17 @@ static void write_to_message_stream(const char *format, ...)
 
 
 
-/*
- * write_to_cw_sender()
- *
- * Fprintf-like function that allows us to conveniently print to the cw
- * output 'stream'.
- */
-static void write_to_cw_sender(const char * format, ...)
+/**
+   fprintf-like function that allows us to conveniently print to the cw
+   output 'stream'.
+
+   @return CW_SUCCESS on success
+   @return CW_FAILURE otherwise
+*/
+static int write_to_cw_sender(const char * format, ...)
 {
 	va_list ap;
-	char buffer[128];
+	char buffer[128] = { 0 };
 
 	/*
 	 * Format the CW send buffer using vsnprintf.  Formatted strings longer than
@@ -146,16 +147,17 @@ static void write_to_cw_sender(const char * format, ...)
 	va_end(ap);
 
 	/* Sound the buffer, and wait for the send to complete. */
-	if (!cw_send_string(buffer)) {
+	if (CW_SUCCESS != cw_send_string(buffer)) {
 		perror("cw_send_string");
 		cw_flush_tone_queue();
-		abort();
+		return CW_FAILURE;
 	}
-	if (!cw_wait_for_tone_queue_critical (1)) {
+	if (CW_SUCCESS != cw_wait_for_tone_queue_critical(1)) {
 		perror("cw_wait_for_tone_queue_critical");
 		cw_flush_tone_queue();
-		abort();
+		return CW_FAILURE;
 	}
+	return CW_SUCCESS;
 }
 
 
@@ -165,23 +167,25 @@ static void write_to_cw_sender(const char * format, ...)
 /*  Embedded commands handling                                         */
 /*---------------------------------------------------------------------*/
 
-/*
- * parse_stream_query()
- *
- * Handle a query received in the input stream.  The command escape character
- * and the query character have already been read and recognized.
- */
-static void parse_stream_query(FILE * stream)
-{
-	int c, value;
+/**
+   Handle a query received in the input stream.  The command escape
+   character and the query character have already been read and
+   recognized.
 
-	c = toupper(fgetc (stream));
+   @return CW_SUCCESS on success
+   @return CW_FAILURE otherwise
+*/
+static int parse_stream_query(FILE * stream)
+{
+	int value;
+
+	int c = toupper(fgetc (stream));
 	switch (c) {
 	case EOF:
-		return;
+		return CW_SUCCESS;
 	default:
 		write_to_message_stream("%c%c%c", CW_STATUS_ERR, CW_CMD_QUERY, c);
-		return;
+		return CW_FAILURE;
 	case CW_CMDV_FREQUENCY:
 		value = cw_get_frequency();
 		break;
@@ -216,29 +220,29 @@ static void parse_stream_query(FILE * stream)
 
 	/* Write the value obtained above to the message stream. */
 	write_to_message_stream("%c%c%d", CW_STATUS_OK, c, value);
+	return CW_SUCCESS;
 }
 
 
 
 
-/*
- * parse_stream_cwquery()
- *
- * Handle a cwquery received in the input stream.  The command escape
- * character and the cwquery character have already been read and recognized.
- */
-static void parse_stream_cwquery(FILE * stream)
+/**
+   Handle a cwquery received in the input stream.  The command escape
+   character and the cwquery character have already been read and
+   recognized.
+
+   @return CW_SUCCESS on success
+   @return CW_FAILURE otherwise
+*/
+static int parse_stream_cwquery(FILE * stream)
 {
-	int c, value;
+	int value;
 	const char * format;
 
-	c = toupper(fgetc(stream));
+	const int c = toupper(fgetc(stream));
 	switch (c) {
 	case EOF:
-		return;
-	default:
-		write_to_message_stream("%c%c%c", CW_STATUS_ERR, CW_CMD_CWQUERY, c);
-		return;
+		return CW_SUCCESS;
 	case CW_CMDV_FREQUENCY:
 		value = cw_get_frequency();
 		format = _("%d HZ ");
@@ -279,51 +283,59 @@ static void parse_stream_cwquery(FILE * stream)
 		value = config->do_comments;
 		format = _("COMMENTS %s ");
 		break;
+	default:
+		write_to_message_stream("%c%c%c", CW_STATUS_ERR, CW_CMD_CWQUERY, c);
+		return CW_FAILURE;
 	}
 
+	int cw_ret = CW_FAILURE;
 	switch (c) {
 	case CW_CMDV_FREQUENCY:
 	case CW_CMDV_VOLUME:
 	case CW_CMDV_SPEED:
 	case CW_CMDV_GAP:
 	case CW_CMDV_WEIGHTING:
-		write_to_cw_sender(format, value);
+		cw_ret = write_to_cw_sender(format, value);
 		break;
 	case CW_CMDV_ECHO:
 	case CW_CMDV_ERRORS:
 	case CW_CMDV_COMMANDS:
 	case CW_CMDV_COMBINATIONS:
 	case CW_CMDV_COMMENTS:
-		write_to_cw_sender(format, value ? _("ON") : _("OFF"));
+		cw_ret = write_to_cw_sender(format, value ? _("ON") : _("OFF"));
 		break;
 	}
+
+	return cw_ret;
 }
 
 
-/*
- * parse_stream_parameter()
- *
- * Handle a parameter setting command received in the input stream.  The
- * command type character has already been read from the stream, and is passed
- * in as the first argument.
- */
-static void parse_stream_parameter(int c, FILE * stream)
+
+
+/**
+   Handle a parameter setting command received in the input stream.
+   The command type character has already been read from the stream,
+   and is passed in as the first argument.
+
+   @return CW_SUCCESS on success
+   @return CW_FAILURE otherwise
+*/
+static int parse_stream_parameter(int c, FILE * stream)
 {
 	int value;
 	int (*value_handler)(int);
 
 	/* Parse and check the new parameter value. */
-	if (fscanf(stream, "%d;", &value) != 1) {
+	if (1 != fscanf(stream, "%d;", &value)) {
 		write_to_message_stream("%c%c", CW_STATUS_ERR, c);
-		return;
+		return CW_FAILURE;
 	}
 
 	/* Either assign a handler, or update the local flag, as appropriate. */
 	value_handler = NULL;
 	switch (c) {
 	case EOF:
-	default:
-		return;
+		return CW_SUCCESS;
 	case CW_CMDV_FREQUENCY:
 		value_handler = cw_set_frequency;
 		break;
@@ -354,6 +366,8 @@ static void parse_stream_parameter(int c, FILE * stream)
 	case CW_CMDV_COMMENTS:
 		config->do_comments = value;
 		break;
+	default:
+		return CW_FAILURE; /* TODO: to be verified. We return failure now because I think that in default we have exhausted all enum values. */
 	}
 
 	/*
@@ -361,34 +375,35 @@ static void parse_stream_parameter(int c, FILE * stream)
 	 * the handler assigned above.
 	 */
 	if (value_handler) {
-		if (!(*value_handler) (value)) {
+		if (!(*value_handler)(value)) {
 			write_to_message_stream("%c%c", CW_STATUS_ERR, c);
-			return;
+			return CW_FAILURE;
 		}
 	}
 
 	/* Confirm the new value with a stderr message. */
 	write_to_message_stream("%c%c%d", CW_STATUS_OK, c, value);
+	return CW_SUCCESS;
 }
 
 
-/*
- * parse_stream_command()
- *
- * Handle a command received in the input stream.  The command escape
- * character has already been read and recognized.
- */
-static void parse_stream_command(FILE * stream)
-{
-	int c;
 
-	c = toupper(fgetc (stream));
+
+/**
+   Handle a command received in the input stream.  The command escape
+   character has already been read and recognized.
+
+   @return CW_SUCCESS on success
+   @return CW_FAILURE otherwise
+*/
+static int parse_stream_command(FILE * stream)
+{
+	int cw_ret = CW_FAILURE;
+
+	const int c = toupper(fgetc (stream));
 	switch (c) {
 	case EOF:
-		return;
-	default:
-		write_to_message_stream("%c%c%c", CW_STATUS_ERR, CW_CMD_ESCAPE, c);
-		return;
+		return CW_SUCCESS;
 	case CW_CMDV_FREQUENCY:
 	case CW_CMDV_VOLUME:
 	case CW_CMDV_SPEED:
@@ -399,51 +414,56 @@ static void parse_stream_command(FILE * stream)
 	case CW_CMDV_COMMANDS:
 	case CW_CMDV_COMBINATIONS:
 	case CW_CMDV_COMMENTS:
-		parse_stream_parameter(c, stream);
+		cw_ret = parse_stream_parameter(c, stream);
 		break;
 	case CW_CMD_QUERY:
-		parse_stream_query(stream);
+		cw_ret = parse_stream_query(stream);
 		break;
 	case CW_CMD_CWQUERY:
-		parse_stream_cwquery(stream);
+		cw_ret = parse_stream_cwquery(stream);
 		break;
 	case CW_CMDV_QUIT:
 		cw_flush_tone_queue();
 		write_to_echo_stream("%c", '\n');
 		exit(EXIT_SUCCESS);
+	default:
+		write_to_message_stream("%c%c%c", CW_STATUS_ERR, CW_CMD_ESCAPE, c);
+		cw_ret = CW_FAILURE;
 	}
+
+	return cw_ret;
 }
+
+
 
 
 /*---------------------------------------------------------------------*/
 /*  Input stream handling                                              */
 /*---------------------------------------------------------------------*/
 
-/*
- * send_cw_character()
- *
- * Sends the given character to the CW sender, and waits for it to complete
- * sounding the tones.  The character to send may be a partial or a complete
- * character.
- */
-static void send_cw_character(int c, int is_partial)
-{
-	int character, status;
+/**
+   Sends the given character to the CW sender, and waits for it to
+   complete sounding the tones.  The character to send may be a
+   partial or a complete character.
 
+   @return CW_SUCCESS on success
+   @return CW_FAILURE otherwise
+*/
+static int send_cw_character(int c, int is_partial)
+{
 	/* Convert all whitespace into a single space. */
-	character = isspace (c) ? ' ' : c;
+	const int character = isspace(c) ? ' ' : c;
 
 	/* Send the character to the CW sender. */
-	status = is_partial ? cw_send_character_partial(character)
-		: cw_send_character (character);
-	if (!status) {
+	const int status = is_partial ? cw_send_character_partial(character) : cw_send_character (character);
+	if (CW_SUCCESS != status) {
 		if (errno != ENOENT) {
 			perror("cw_send_character[_partial]");
 			cw_flush_tone_queue();
-			abort();
+			return CW_FAILURE;
 		} else {
 			write_to_message_stream("%c%c", CW_STATUS_ERR, character);
-			return;
+			return CW_FAILURE;
 		}
 	}
 
@@ -451,20 +471,22 @@ static void send_cw_character(int c, int is_partial)
 	write_to_echo_stream("%c", c);
 
 	/* Wait for the character to complete. */
-	if (!cw_wait_for_tone_queue_critical(1)) {
+	if (CW_SUCCESS != cw_wait_for_tone_queue_critical(1)) {
 		perror("cw_wait_for_tone_queue_critical");
 		cw_flush_tone_queue();
-		abort();
+		return CW_FAILURE;
 	}
+
+	return CW_SUCCESS;
 }
 
 
-/*
- * parse_stream()
- *
- * Read characters from a file stream, and either sound them, or interpret
- * controls in them.  Returns on end of file.
- */
+
+
+/**
+   Read characters from a file stream, and either sound them, or
+   interpret controls in them.  Returns on end of file.
+*/
 static void parse_stream(FILE * stream)
 {
 	int c;
@@ -475,7 +497,7 @@ static void parse_stream(FILE * stream)
 	 * nested inside combinations, but not the other way around; that is,
 	 * combination starts and ends are not special within comments.
 	 */
-	for (c = fgetc (stream); !feof (stream); c = fgetc (stream)) {
+	for (c = fgetc (stream); !feof(stream); c = fgetc(stream)) {
 		switch (state) {
 		case NONE:
 			/*
@@ -488,10 +510,11 @@ static void parse_stream(FILE * stream)
 			} else if (config->do_combinations && c == CW_COMBINATION_START) {
 				state = COMBINATION;
 				write_to_echo_stream("%c", c);
-			} else if (config->do_commands && c == CW_CMD_ESCAPE)
+			} else if (config->do_commands && c == CW_CMD_ESCAPE) {
 				parse_stream_command(stream);
-			else
+			} else {
 				send_cw_character(c, false);
+			}
 			break;
 
 		case COMBINATION:
@@ -506,17 +529,15 @@ static void parse_stream(FILE * stream)
 			} else if (c == CW_COMBINATION_END) {
 				state = NONE;
 				write_to_echo_stream("%c", c);
-			} else if (config->do_commands && c == CW_CMD_ESCAPE)
+			} else if (config->do_commands && c == CW_CMD_ESCAPE) {
 				parse_stream_command(stream);
-			else {
+			} else {
 				/*
 				 * If this is the final character in the combination, do not
 				 * suppress the end of character delay.  To do this, look ahead
 				 * the next character, and suppress unless combination end.
 				 */
-				int lookahead;
-
-				lookahead = fgetc(stream);
+				int lookahead = fgetc(stream);
 				ungetc(lookahead, stream);
 				send_cw_character(c, lookahead != CW_COMBINATION_END);
 			}
@@ -529,14 +550,14 @@ static void parse_stream(FILE * stream)
 			 * revert state to reflect in combination only.  If in an unnested
 			 * comment and comment end seen, reset state.
 			 */
-			if (c == CW_COMMENT_END)
+			if (c == CW_COMMENT_END) {
 				state = (state == NESTED_COMMENT) ? COMBINATION : NONE;
+			}
 			write_to_echo_stream("%c", c);
 			break;
 		}
 	}
 }
-
 
 
 
@@ -547,7 +568,7 @@ static void parse_stream(FILE * stream)
    \param argc
    \param argv
 */
-int main (int argc, char *const argv[])
+int main(int argc, char *const argv[])
 {
 	atexit(cw_atexit);
 
@@ -601,7 +622,7 @@ int main (int argc, char *const argv[])
 	/* Set up signal handlers to exit on a range of signals. */
 	static const int SIGNALS[] = { SIGHUP, SIGINT, SIGQUIT, SIGPIPE, SIGTERM, 0 };
 	for (int i = 0; SIGNALS[i]; i++) {
-		if (!cw_register_signal_handler(SIGNALS[i], SIG_DFL)) {
+		if (CW_SUCCESS != cw_register_signal_handler(SIGNALS[i], SIG_DFL)) {
 			fprintf(stderr, _("%s: can't register signal: %s\n"), config->program_name, strerror(errno));
 			return EXIT_FAILURE;
 		}
