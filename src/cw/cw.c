@@ -18,6 +18,9 @@
  */
 #define _BSD_SOURCE
 
+
+
+
 #include "config.h"
 
 
@@ -47,7 +50,6 @@
 #include "i18n.h"
 #include "cmdline.h"
 #include "cw_copyright.h"
-
 
 
 
@@ -99,7 +101,6 @@ static const char *all_options =
 	"p|nocomments,"
 	"h|help,"
 	"V|version";
-
 
 
 
@@ -159,7 +160,6 @@ void write_to_message_stream(const char *format, ...)
 
 
 
-
 /**
    fprintf-like function that allows us to conveniently print to the
    cw output 'stream'.
@@ -167,7 +167,7 @@ void write_to_message_stream(const char *format, ...)
    @return CW_SUCCESS on success
    @return CW_FAILURE otherwise
 */
-int write_to_cw_sender(const char *format, ...)
+int write_to_cw_sender(const char * format, ...)
 {
 	va_list ap;
 	char buffer[128] = { 0 };
@@ -191,7 +191,6 @@ int write_to_cw_sender(const char *format, ...)
 		cw_gen_flush_queue(generator);
 		return CW_FAILURE;
 	}
-
 	return CW_SUCCESS;
 }
 
@@ -211,6 +210,9 @@ int write_to_cw_sender(const char *format, ...)
    Handle a query received in the input stream.  The command escape
    character and the query character have already been read and
    recognized.
+
+   @return CW_SUCCESS on success
+   @return CW_FAILURE otherwise
 */
 int parse_stream_query(FILE *stream)
 {
@@ -264,13 +266,15 @@ int parse_stream_query(FILE *stream)
 
 
 
-
 /**
    Handle a cwquery received in the input stream.  The command escape
    character and the cwquery character have already been read and
    recognized.
+
+   @return CW_SUCCESS on success
+   @return CW_FAILURE otherwise
 */
-int parse_stream_cwquery(FILE *stream)
+int parse_stream_cwquery(FILE * stream)
 {
 	int value;
 	const char * format = NULL;
@@ -348,11 +352,13 @@ int parse_stream_cwquery(FILE *stream)
 
 
 
-
 /**
    Handle a parameter setting command received in the input stream.
    The command type character has already been read from the stream,
    and is passed in as the first argument.
+
+   @return CW_SUCCESS on success
+   @return CW_FAILURE otherwise
 */
 int parse_stream_parameter(int c, FILE *stream)
 {
@@ -422,12 +428,14 @@ int parse_stream_parameter(int c, FILE *stream)
 
 
 
-
 /**
    Handle a command received in the input stream.  The command escape
    character has already been read and recognized.
+
+   @return CW_SUCCESS on success
+   @return CW_FAILURE otherwise
 */
-int parse_stream_command(FILE *stream)
+int parse_stream_command(FILE * stream)
 {
 	int cw_ret = CW_FAILURE;
 
@@ -476,11 +484,13 @@ int parse_stream_command(FILE *stream)
 
 
 
-
 /**
    Sends the given character to the CW sender, and waits for it to
    complete sounding the tones.  The character to send may be a
    partial or a complete character.
+
+   @return CW_SUCCESS on success
+   @return CW_FAILURE otherwise
 */
 int send_cw_character(int c, int is_partial)
 {
@@ -507,7 +517,7 @@ int send_cw_character(int c, int is_partial)
 	write_to_echo_stream("%c", c);
 
 	/* Wait for the character to complete. */
-	if (!cw_gen_wait_for_queue_level(generator, 1)) {
+	if (CW_SUCCESS != cw_gen_wait_for_queue_level(generator, 1)) {
 		perror("cw_gen_wait_for_queue_level");
 		cw_gen_flush_queue(generator);
 		return CW_FAILURE;
@@ -519,12 +529,11 @@ int send_cw_character(int c, int is_partial)
 
 
 
-
 /**
    Read characters from a file stream, and either sound them, or
    interpret controls in them.  Returns on end of file.
 */
-void parse_stream(FILE *stream)
+void parse_stream(FILE * stream)
 {
 	enum { NONE, COMBINATION, COMMENT, NESTED_COMMENT } state = NONE;
 
@@ -535,6 +544,10 @@ void parse_stream(FILE *stream)
 	for (int c = fgetc(stream); !feof(stream); c = fgetc(stream)) {
 		switch (state) {
 		case NONE:
+			/*
+			 * Start a comment or combination, handle a command escape, or send
+			 * the character if none of these checks apply.
+			 */
 			if (c == CW_COMMENT_START && config->do_comments) {
 				state = COMMENT;
 				write_to_echo_stream("%c", c);
@@ -549,6 +562,11 @@ void parse_stream(FILE *stream)
 			break;
 
 		case COMBINATION:
+			/*
+			 * Start a comment nested in a combination, end a combination,
+			 * handle a command escape, or send the character if none of these
+			 * checks apply.
+			 */
 			if (c == CW_COMMENT_START && config->do_comments) {
 				state = NESTED_COMMENT;
 				write_to_echo_stream("%c", c);
@@ -587,7 +605,6 @@ void parse_stream(FILE *stream)
 
 	return;
 }
-
 
 
 

@@ -23,7 +23,6 @@
 
 
 
-
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -31,10 +30,8 @@ extern "C" {
 
 
 
-
 /* General command and query introducers. */
-enum
-{
+enum {
 	CW_CMD_ESCAPE  = '%',  /* Command escape character */
 	CW_CMD_QUERY   = '?',  /* Query subcommand */
 	CW_CMD_CWQUERY = '>',  /* CW report query subcommand */
@@ -44,10 +41,8 @@ enum
 
 
 
-
 /* Specific command value specifiers. */
-enum
-{
+enum {
 	CW_CMDV_FREQUENCY    = 'T',  /* CW tone */
 	CW_CMDV_VOLUME       = 'V',  /* CW volume */
 	CW_CMDV_SPEED        = 'W',  /* CW words-per-minute */
@@ -65,10 +60,8 @@ enum
 
 
 
-
 /* Combination and comment start and end characters. */
-enum
-{
+enum {
 	CW_COMBINATION_START = '[',  /* Begin [..] */
 	CW_COMBINATION_END   = ']',  /* End [..] */
 	CW_COMMENT_START     = '{',  /* Begin {..} */
@@ -78,10 +71,8 @@ enum
 
 
 
-
 /* Status values - first character of stderr messages. */
-enum
-{
+enum {
 	CW_STATUS_OK  = '=',  /* =... command accepted */
 	CW_STATUS_ERR = '?'   /* ?... error in command */
 };
@@ -89,11 +80,9 @@ enum
 
 
 
-
 #if defined(__cplusplus)
 }
 #endif
-
 
 
 
