@@ -38,7 +38,7 @@
 #include "application.h"
 
 #include "libcw.h"
-//#include "libcw_debug.h"
+#include "libcw_debug.h"
 
 #include "i18n.h"
 #include "cmdline.h"
@@ -46,7 +46,7 @@
 #include "dictionary.h"
 
 
-//extern cw_debug_t cw_debug_object;
+extern cw_debug_t cw_debug_object;
 
 void xcwcp_atexit(void);
 
@@ -92,10 +92,6 @@ void signal_handler(int signal_number)
 int main(int argc, char **argv)
 {
 	try {
-
-		//cw_debug_set_flags(&cw_debug_object, CW_DEBUG_KEYING | CW_DEBUG_GENERATOR | CW_DEBUG_TONE_QUEUE | CW_DEBUG_RECEIVE_STATES | CW_DEBUG_KEYER_STATES | CW_DEBUG_INTERNAL| CW_DEBUG_PARAMETERS);
-		//cw_debug_object.level = CW_DEBUG_DEBUG;
-
 		atexit(xcwcp_atexit);
 
 		/* Set locale and message catalogs. */
@@ -124,6 +120,13 @@ int main(int argc, char **argv)
 			fprintf(stderr, _("%s: failed to parse command line args\n"), config->program_name);
 			return EXIT_FAILURE;
 		}
+
+		/* In future we will get debug flags and level from command
+		   line, so this is the right place to configure debug
+		   objects: right after processing command-line arguments. */
+		cw_debug_set_flags(&cw_debug_object, CW_DEBUG_KEYING | CW_DEBUG_GENERATOR | CW_DEBUG_TONE_QUEUE | CW_DEBUG_RECEIVE_STATES | CW_DEBUG_KEYER_STATES | CW_DEBUG_INTERNAL| CW_DEBUG_PARAMETERS | CW_DEBUG_SOUND_SYSTEM);
+		cw_debug_object.level = CW_DEBUG_DEBUG;
+
 		if (!cw_config_is_valid(config)) {
 			fprintf(stderr, _("%s: inconsistent arguments\n"), config->program_name);
 			return EXIT_FAILURE;

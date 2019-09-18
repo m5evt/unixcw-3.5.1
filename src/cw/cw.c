@@ -50,7 +50,7 @@
 #include "i18n.h"
 #include "cmdline.h"
 #include "cw_copyright.h"
-
+#include "libcw_debug.h"
 
 
 
@@ -58,6 +58,9 @@
 /*  Module variables, miscellaneous other stuff                        */
 /*---------------------------------------------------------------------*/
 
+
+
+extern cw_debug_t cw_debug_object;
 
 
 
@@ -619,6 +622,13 @@ int main(int argc, char *const argv[])
 		fprintf(stderr, _("%s: failed to parse command line args\n"), config->program_name);
 		exit(EXIT_FAILURE);
 	}
+
+	/* In future we will get debug flags and level from command
+	   line, so this is the right place to configure debug
+	   objects: right after processing command-line arguments. */
+	cw_debug_set_flags(&cw_debug_object, CW_DEBUG_KEYING | CW_DEBUG_GENERATOR | CW_DEBUG_TONE_QUEUE | CW_DEBUG_RECEIVE_STATES | CW_DEBUG_KEYER_STATES | CW_DEBUG_INTERNAL| CW_DEBUG_PARAMETERS | CW_DEBUG_SOUND_SYSTEM);
+	cw_debug_object.level = CW_DEBUG_DEBUG;
+
 	if (!cw_config_is_valid(config)) {
 		fprintf(stderr, _("%s: inconsistent command line arguments\n"), config->program_name);
 		exit(EXIT_FAILURE);
