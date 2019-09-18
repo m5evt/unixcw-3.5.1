@@ -27,11 +27,26 @@
 
 
 
-
 #include "config.h"
+#include "libcw_debug.h"
+
+
+
+
+#define MSG_PREFIX "libcw/pulse: "
+
+
+
+
+extern cw_debug_t cw_debug_object;
+extern cw_debug_t cw_debug_object_ev;
+extern cw_debug_t cw_debug_object_dev;
+
+
 
 
 #ifdef LIBCW_WITH_PULSEAUDIO
+
 
 
 
@@ -47,19 +62,14 @@
 #include <fcntl.h>
 
 
+
+
 #include "libcw.h"
 #include "libcw_pa.h"
-#include "libcw_debug.h"
 #include "libcw_utils.h"
 #include "libcw_gen.h"
 
 
-
-
-
-extern cw_debug_t cw_debug_object;
-extern cw_debug_t cw_debug_object_ev;
-extern cw_debug_t cw_debug_object_dev;
 
 
 static pa_simple *cw_pa_simple_new_internal(pa_sample_spec *ss, pa_buffer_attr *ba, const char *device, const char *stream_name, int *error);
@@ -400,6 +410,8 @@ void cw_pa_close_device_internal(cw_gen_t *gen)
 
 bool cw_is_pa_possible(__attribute__((unused)) const char *device)
 {
+	cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_INFO,
+		      MSG_PREFIX "This audio system has been disabled during compilation");
 	return false;
 }
 
@@ -409,6 +421,8 @@ bool cw_is_pa_possible(__attribute__((unused)) const char *device)
 
 int cw_pa_configure(__attribute__((unused)) cw_gen_t *gen, __attribute__((unused)) const char *device)
 {
+	cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_INFO,
+		      MSG_PREFIX "This audio system has been disabled during compilation");
 	return CW_FAILURE;
 }
 

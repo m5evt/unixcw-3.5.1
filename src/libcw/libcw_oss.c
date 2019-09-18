@@ -27,8 +27,22 @@
 
 
 
-
 #include "config.h"
+#include "libcw_debug.h"
+
+
+
+
+#define MSG_PREFIX "libcw/oss: "
+
+
+
+
+extern cw_debug_t cw_debug_object;
+extern cw_debug_t cw_debug_object_ev;
+extern cw_debug_t cw_debug_object_dev;
+
+
 
 
 #ifdef LIBCW_WITH_OSS
@@ -38,9 +52,7 @@
 
 #include <stdio.h>
 #include <string.h>
-
 #include <dlfcn.h> /* dlopen() and related symbols */
-
 #include <sys/time.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
@@ -60,7 +72,6 @@
 
 
 #include "libcw_oss.h"
-#include "libcw_debug.h"
 #include "libcw_gen.h"
 
 
@@ -71,11 +82,6 @@
 #else
 #
 #endif
-
-
-extern cw_debug_t cw_debug_object;
-extern cw_debug_t cw_debug_object_ev;
-extern cw_debug_t cw_debug_object_dev;
 
 
 extern const unsigned int cw_supported_sample_rates[];
@@ -510,6 +516,8 @@ int cw_oss_get_version_internal(int fd, int *x, int *y, int *z)
 
 bool cw_is_oss_possible(__attribute__((unused)) const char *device)
 {
+	cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_INFO,
+		      MSG_PREFIX "This audio system has been disabled during compilation");
 	return false;
 }
 
@@ -519,6 +527,8 @@ bool cw_is_oss_possible(__attribute__((unused)) const char *device)
 
 int  cw_oss_configure(__attribute__((unused)) cw_gen_t *gen, __attribute__((unused)) const char *device)
 {
+	cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_INFO,
+		      MSG_PREFIX "This audio system has been disabled during compilation");
 	return CW_FAILURE;
 }
 

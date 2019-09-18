@@ -27,11 +27,26 @@
 
 
 
-
 #include "config.h"
+#include "libcw_debug.h"
+
+
+
+
+#define MSG_PREFIX "libcw/console: "
+
+
+
+
+extern cw_debug_t cw_debug_object;
+extern cw_debug_t cw_debug_object_ev;
+extern cw_debug_t cw_debug_object_dev;
+
+
 
 
 #ifdef LIBCW_WITH_CONSOLE
+
 
 
 
@@ -68,15 +83,8 @@
 
 
 #include "libcw_console.h"
-#include "libcw_debug.h"
 #include "libcw_utils.h"
 #include "libcw_gen.h"
-
-
-extern cw_debug_t cw_debug_object;
-extern cw_debug_t cw_debug_object_ev;
-extern cw_debug_t cw_debug_object_dev;
-
 
 
 /* Clock tick rate used for KIOCSOUND console ioctls.  This value is taken
@@ -354,6 +362,8 @@ int cw_console_configure(cw_gen_t *gen, const char *device)
 
 bool cw_is_console_possible(__attribute__((unused)) const char *device)
 {
+	cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_INFO,
+		      MSG_PREFIX "This audio system has been disabled during compilation");
 	return false;
 }
 
@@ -363,6 +373,8 @@ bool cw_is_console_possible(__attribute__((unused)) const char *device)
 
 int cw_console_configure(__attribute__((unused)) cw_gen_t *gen, __attribute__((unused)) const char *device)
 {
+	cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_INFO,
+		      MSG_PREFIX "This audio system has been disabled during compilation");
 	return CW_FAILURE;
 }
 

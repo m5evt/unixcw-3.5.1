@@ -27,27 +27,13 @@
 
 
 
-
 #include "config.h"
-
-
-#ifdef LIBCW_WITH_ALSA
-
-
-
-#include <dlfcn.h> /* dlopen() and related symbols */
-#include <alsa/asoundlib.h>
-
-
-#include "libcw.h"
-#include "libcw_alsa.h"
 #include "libcw_debug.h"
-#include "libcw_utils.h"
-#include "libcw_gen.h"
 
 
-#define CW_ALSA_HW_BUFFER_CONFIG  0  /* set up hw buffer/period parameters; unnecessary and probably harmful */
 
+
+#define MSG_PREFIX "libcw/alsa: "
 
 
 
@@ -55,6 +41,32 @@
 extern cw_debug_t cw_debug_object;
 extern cw_debug_t cw_debug_object_ev;
 extern cw_debug_t cw_debug_object_dev;
+
+
+
+
+#ifdef LIBCW_WITH_ALSA
+
+
+
+
+#include <dlfcn.h> /* dlopen() and related symbols */
+#include <alsa/asoundlib.h>
+
+
+
+
+#include "libcw.h"
+#include "libcw_alsa.h"
+#include "libcw_utils.h"
+#include "libcw_gen.h"
+
+
+
+
+#define CW_ALSA_HW_BUFFER_CONFIG  0  /* set up hw buffer/period parameters; unnecessary and probably harmful */
+
+
 
 
 extern const unsigned int cw_supported_sample_rates[];
@@ -729,6 +741,8 @@ void cw_alsa_drop(cw_gen_t *gen)
 
 bool cw_is_alsa_possible(__attribute__((unused)) const char *device)
 {
+	cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_INFO,
+		      MSG_PREFIX "This audio system has been disabled during compilation");
 	return false;
 }
 
@@ -738,6 +752,8 @@ bool cw_is_alsa_possible(__attribute__((unused)) const char *device)
 
 int cw_alsa_configure(__attribute__((unused)) cw_gen_t *gen, __attribute__((unused)) const char *device)
 {
+	cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_INFO,
+		      MSG_PREFIX "This audio system has been disabled during compilation");
 	return CW_FAILURE;
 }
 
