@@ -87,6 +87,8 @@ extern cw_debug_t cw_debug_object_dev;
 #include "libcw_gen.h"
 
 
+
+
 /* Clock tick rate used for KIOCSOUND console ioctls.  This value is taken
    from linux/include/asm-i386/timex.h, included here for portability. */
 static const int KIOCSOUND_CLOCK_TICK_RATE = 1193180;
@@ -94,7 +96,6 @@ static const int KIOCSOUND_CLOCK_TICK_RATE = 1193180;
 static void cw_console_close_device_internal(cw_gen_t *gen);
 static int  cw_console_open_device_internal(cw_gen_t *gen);
 static int  cw_console_write_low_level_internal(cw_gen_t *gen, bool state);
-
 
 
 
@@ -131,7 +132,7 @@ bool cw_is_console_possible(const char *device)
 	int fd = open(dev, O_WRONLY);
 	if (fd == -1) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
-			      "libcw_console: open(%s): %s", dev, strerror(errno));
+			      MSG_PREFIX "open(%s): %s", dev, strerror(errno));
 		return false;
 	}
 
@@ -178,11 +179,11 @@ int cw_console_open_device_internal(cw_gen_t *gen)
 	int console = open(gen->audio_device, O_WRONLY);
 	if (console == -1) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
-			      "libcw_console: open(%s): \"%s\"", gen->audio_device, strerror(errno));
+			      MSG_PREFIX "open(%s): \"%s\"", gen->audio_device, strerror(errno));
 		return CW_FAILURE;
         } else {
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_INFO,
-			      "libcw_console: open successfully, console = %d", console);
+			      MSG_PREFIX "open successfully, console = %d", console);
 	}
 
 	/* It doesn't have any sense for console, but some code may depend
@@ -219,7 +220,7 @@ void cw_console_close_device_internal(cw_gen_t *gen)
 	gen->audio_device_is_open = false;
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_INFO,
-		      "libcw_console: console closed");
+		      MSG_PREFIX "console closed");
 
 	return;
 }
@@ -314,12 +315,12 @@ int cw_console_write_low_level_internal(cw_gen_t *gen, bool state)
 	}
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_INFO,
-		      "libcw_console: KIOCSOUND arg = %d (switch: %d, frequency: %d Hz, volume: %d %%)",
+		      MSG_PREFIX "KIOCSOUND arg = %d (switch: %d, frequency: %d Hz, volume: %d %%)",
 		      argument, local_state, gen->frequency, gen->volume_percent);
 
 	if (ioctl(gen->audio_sink, KIOCSOUND, argument) == -1) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
-			      "libcw_console: ioctl KIOCSOUND: \"%s\"", strerror(errno));
+			      MSG_PREFIX "ioctl KIOCSOUND: \"%s\"", strerror(errno));
 		return CW_FAILURE;
 	} else {
 		return CW_SUCCESS;

@@ -25,7 +25,11 @@
 
 
 
+
 #include <errno.h> /* EINVAL on FreeBSD */
+
+
+
 
 #include "libcw.h"
 #include "libcw_gen.h"
@@ -33,6 +37,10 @@
 #include "libcw_key.h"
 #include "libcw_debug.h"
 
+
+
+
+#define MSG_PREFIX "libcw: "
 
 
 
@@ -52,12 +60,10 @@ cw_gen_t *cw_generator = NULL;
 
 
 
-
 /* From libcw_debug.c. */
 extern cw_debug_t cw_debug_object;
 extern cw_debug_t cw_debug_object_ev;
 extern cw_debug_t cw_debug_object_dev;
-
 
 
 
@@ -203,7 +209,7 @@ int cw_generator_new(int audio_system, const char *device)
 	cw_generator = cw_gen_new_internal(audio_system, device);
 	if (!cw_generator) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
-			      "libcw: can't create generator");
+			      MSG_PREFIX "can't create generator");
 		return CW_FAILURE;
 	} else {
 		/* For some (all?) applications a key needs to have
@@ -1107,7 +1113,7 @@ void cw_reset_tone_queue(void)
 	//cw_finalization_schedule_internal();
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_TONE_QUEUE, CW_DEBUG_INFO,
-		      "libcw: tone queue: reset");
+		      MSG_PREFIX "tone queue: reset");
 
 	return;
 }

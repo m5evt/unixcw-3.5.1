@@ -27,12 +27,13 @@
 
 
 
-
 #include <stdbool.h>
 #include <inttypes.h> /* uint32_t */
 #include <errno.h>
 #include <unistd.h>   /* usleep() */
 #include <sys/time.h>
+
+
 
 
 #include "libcw_debug.h"
@@ -45,11 +46,16 @@
 
 
 
+#define MSG_PREFIX_QK "libcw/qk: "
+#define MSG_PREFIX_SK "libcw/sk: "
+#define MSG_PREFIX_IK "libcw/ik: "
+
+
+
 
 extern cw_debug_t cw_debug_object;
 extern cw_debug_t cw_debug_object_ev;
 extern cw_debug_t cw_debug_object_dev;
-
 
 
 
@@ -241,7 +247,7 @@ void cw_key_tk_set_value_internal(volatile cw_key_t *key, int key_value)
 
 	if (key->tk.key_value != key_value) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
-			      "libcw/qk: key value: %d->%d", key->tk.key_value, key_value);
+			      MSG_PREFIX_QK "key value: %d->%d", key->tk.key_value, key_value);
 
 		/* Remember the new key value. */
 		key->tk.key_value = key_value;
@@ -249,7 +255,7 @@ void cw_key_tk_set_value_internal(volatile cw_key_t *key, int key_value)
 		/* Call a registered callback. */
 		if (key->key_callback) {
 			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYING, CW_DEBUG_INFO,
-				      "libcw/qk: ====== about to call callback, key value = %d\n", key->tk.key_value);
+				      MSG_PREFIX_QK "====== about to call callback, key value = %d\n", key->tk.key_value);
 
 			(*(key->key_callback))(key->key_callback_arg, key->tk.key_value);
 		}
@@ -346,7 +352,7 @@ int cw_key_sk_enqueue_symbol_internal(volatile cw_key_t *key, int key_value)
 
 	if (key->sk.key_value != key_value) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
-			      "libcw/sk: key value %d->%d", key->sk.key_value, key_value);
+			      MSG_PREFIX_SK "key value %d->%d", key->sk.key_value, key_value);
 
 		/* Remember the new key value. */
 		key->sk.key_value = key_value;
@@ -354,7 +360,7 @@ int cw_key_sk_enqueue_symbol_internal(volatile cw_key_t *key, int key_value)
 		/* Call a registered callback. */
 		if (key->key_callback) {
 			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYING, CW_DEBUG_INFO,
-				      "libcw/sk: ++++++ about to call callback, key value = %d\n", key_value);
+				      MSG_PREFIX_SK "++++++ about to call callback, key value = %d\n", key_value);
 
 			(*(key->key_callback))(key->key_callback_arg, key->sk.key_value);
 		}
@@ -435,7 +441,7 @@ int cw_key_ik_enqueue_symbol_internal(volatile cw_key_t *key, int key_value, cha
 
 	if (key->ik.key_value != key_value) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
-			      "libcw/ik: key value %d->%d", key->ik.key_value, key_value);
+			      MSG_PREFIX_IK "key value %d->%d", key->ik.key_value, key_value);
 
 		/* Remember the new key value. */
 		key->ik.key_value = key_value;
@@ -443,7 +449,7 @@ int cw_key_ik_enqueue_symbol_internal(volatile cw_key_t *key, int key_value, cha
 		/* Call a registered callback. */
 		if (key->key_callback) {
 			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYING, CW_DEBUG_INFO,
-				      "libcw/ik: ------ about to call callback, key value = %d\n", key_value);
+				      MSG_PREFIX_IK "------ about to call callback, key value = %d\n", key_value);
 
 			(*(key->key_callback))(key->key_callback_arg, key->ik.key_value);
 		}
@@ -557,7 +563,7 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 		   that less functions are called before silently
 		   discovering that key doesn't exist.. */
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_INTERNAL, CW_DEBUG_DEBUG,
-			      "libcw/ik: NULL key, silently accepting");
+			      MSG_PREFIX_IK "NULL key, silently accepting");
 		return CW_SUCCESS;
 	}
 
@@ -569,7 +575,7 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 
 	if (key->ik.lock) {
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_INTERNAL, CW_DEBUG_ERROR,
-			      "libcw/ik: lock in thread %ld", (long) pthread_self());
+			      MSG_PREFIX_IK "lock in thread %ld", (long) pthread_self());
 		return CW_FAILURE;
 	}
 	key->ik.lock = true;
@@ -723,7 +729,7 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 	}
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYER_STATES, CW_DEBUG_INFO,
-		      "libcw/ik: keyer state: %s -> %s",
+		      MSG_PREFIX_IK "keyer state: %s -> %s",
 		      cw_iambic_keyer_states[old_state], cw_iambic_keyer_states[key->ik.graph_state]);
 
 	key->ik.lock = false;
@@ -798,7 +804,7 @@ int cw_key_ik_notify_paddle_event_internal(volatile cw_key_t *key, int dot_paddl
 	}
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYER_STATES, CW_DEBUG_INFO,
-		      "libcw/ik: keyer paddles %d,%d, latches %d,%d, curtis_b %d",
+		      MSG_PREFIX_IK "keyer paddles %d,%d, latches %d,%d, curtis_b %d",
 		      key->ik.dot_paddle, key->ik.dash_paddle,
 		      key->ik.dot_latch, key->ik.dash_latch, key->ik.curtis_b_latch);
 
@@ -848,7 +854,7 @@ int cw_key_ik_update_state_initial_internal(volatile cw_key_t *key)
 		   event. But the function shouldn't have been called
 		   in that situation. */
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYER_STATES, CW_DEBUG_ERROR,
-			      "libcw/ik: called update_state_initial() function when both paddles are up");
+			      MSG_PREFIX_IK "called update_state_initial() function when both paddles are up");
 
 		/* Silently accept.
 		   TODO: maybe it's a good idea, or maybe bad one to
@@ -875,7 +881,7 @@ int cw_key_ik_update_state_initial_internal(volatile cw_key_t *key)
 	}
 
 	cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
-		      "libcw/ik: keyer state (init): %s -> %s",
+		      MSG_PREFIX_IK "keyer state (init): %s -> %s",
 		      cw_iambic_keyer_states[old_state], cw_iambic_keyer_states[key->ik.graph_state]);
 
 
@@ -888,7 +894,7 @@ int cw_key_ik_update_state_initial_internal(volatile cw_key_t *key)
 		rv = cw_key_ik_update_graph_state_internal(key);
 		if (!rv) {
 			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYER_STATES, CW_DEBUG_ERROR,
-				      "libcw/ik: call to update_state_initial() failed");
+				      MSG_PREFIX_IK "call to update_state_initial() failed");
 		}
 	}
 
@@ -1125,7 +1131,7 @@ void cw_key_ik_reset_internal(volatile cw_key_t *key)
 	key->ik.curtis_mode_b = false;
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
-		      "libcw/ik: keyer state %s -> KS_IDLE", cw_iambic_keyer_states[key->ik.graph_state]);
+		      MSG_PREFIX_IK "keyer state %s -> KS_IDLE", cw_iambic_keyer_states[key->ik.graph_state]);
 	key->ik.graph_state = KS_IDLE;
 
 	/* Silence sound and stop any background soundcard tone generation. */
@@ -1133,7 +1139,7 @@ void cw_key_ik_reset_internal(volatile cw_key_t *key)
 	cw_finalization_schedule_internal();
 
 	cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
-		      "libcw/ik: keyer state -> %s (reset)", cw_iambic_keyer_states[key->ik.graph_state]);
+		      MSG_PREFIX_IK "keyer state -> %s (reset)", cw_iambic_keyer_states[key->ik.graph_state]);
 
 	return;
 }
@@ -1161,7 +1167,7 @@ void cw_key_ik_increment_timer_internal(volatile cw_key_t *key, int usecs)
 		   applications a generator exists, but a keyer does
 		   not exist.  Silently accept this situation. */
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_INTERNAL, CW_DEBUG_DEBUG,
-			      "libcw/ik: NULL key, silently accepting");
+			      MSG_PREFIX_IK "NULL key, silently accepting");
 		return;
 	}
 
@@ -1176,7 +1182,7 @@ void cw_key_ik_increment_timer_internal(volatile cw_key_t *key, int usecs)
 		if (key->ik.timer) {
 
 			cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
-				      "libcw/ik: incrementing timer by %d [us]\n", usecs);
+				      MSG_PREFIX_IK "incrementing timer by %d [us]\n", usecs);
 
 			key->ik.timer->tv_usec += usecs % CW_USECS_PER_SEC;
 			key->ik.timer->tv_sec  += usecs / CW_USECS_PER_SEC + key->ik.timer->tv_usec / CW_USECS_PER_SEC;
@@ -1305,7 +1311,7 @@ void cw_key_sk_reset_internal(volatile cw_key_t *key)
 	//cw_finalization_schedule_internal();
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_STRAIGHT_KEY_STATES, CW_DEBUG_INFO,
-		      "libcw/sk: key state ->UP (reset)");
+		      MSG_PREFIX_SK "key state ->UP (reset)");
 
 	return;
 }

@@ -38,13 +38,14 @@
 
 
 
-
 #include <stdio.h>
 #include <limits.h> /* UCHAR_MAX */
 #include <string.h>
 #include <stdbool.h>
 #include <errno.h>
 #include <ctype.h>
+
+
 
 
 #include "libcw.h"
@@ -55,12 +56,14 @@
 
 
 
+#define MSG_PREFIX "libcw/data: "
+
+
+
 
 extern cw_debug_t cw_debug_object;
 extern cw_debug_t cw_debug_object_ev;
 extern cw_debug_t cw_debug_object_dev;
-
-
 
 
 
@@ -260,7 +263,7 @@ const char *cw_character_to_representation_internal(int c)
 	   direct access to the CW table for a given character. */
 	if (!is_initialized) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_LOOKUPS, CW_DEBUG_INFO,
-			      "libcw: initialize fast lookup table");
+			      MSG_PREFIX "initialize fast lookup table");
 
 		for (const cw_entry_t *cw_entry = CW_TABLE; cw_entry->character; cw_entry++) {
 			lookup[(unsigned char) cw_entry->character] = cw_entry;
@@ -284,12 +287,12 @@ const char *cw_character_to_representation_internal(int c)
 
 	if (cw_debug_has_flag((&cw_debug_object), CW_DEBUG_LOOKUPS)) {
 		if (cw_entry) {
-			fprintf(stderr, "libcw: lookup '%c' returned <'%c':\"%s\">\n",
+			fprintf(stderr, MSG_PREFIX "lookup '%c' returned <'%c':\"%s\">\n",
 				c, cw_entry->character, cw_entry->representation);
 		} else if (isprint(c)) {
-			fprintf(stderr, "libcw: lookup '%c' found nothing\n", c);
+			fprintf(stderr, MSG_PREFIX "lookup '%c' found nothing\n", c);
 		} else {
-			fprintf(stderr, "libcw: lookup 0x%02x found nothing\n",
+			fprintf(stderr, MSG_PREFIX "lookup 0x%02x found nothing\n",
 				(unsigned char) c);
 		}
 	}
@@ -481,7 +484,7 @@ int cw_representation_to_character_internal(const char *representation)
 	   access to the CW table for a hashed representation. */
 	if (!is_initialized) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_LOOKUPS, CW_DEBUG_INFO,
-			      "libcw: initialize hash lookup table");
+			      MSG_PREFIX "initialize hash lookup table");
 		is_complete = cw_representation_lookup_init_internal(lookup);
 		is_initialized = true;
 	}
@@ -528,11 +531,11 @@ int cw_representation_to_character_internal(const char *representation)
 
 	if (cw_debug_has_flag((&cw_debug_object), CW_DEBUG_LOOKUPS)) {
 		if (cw_entry) {
-			fprintf(stderr, "libcw: lookup [0x%02x]'%s' returned <'%c':\"%s\">\n",
+			fprintf(stderr, MSG_PREFIX "lookup [0x%02x]'%s' returned <'%c':\"%s\">\n",
 				hash, representation,
 				cw_entry->character, cw_entry->representation);
 		} else {
-			fprintf(stderr, "libcw: lookup [0x%02x]'%s' found nothing\n",
+			fprintf(stderr, MSG_PREFIX "lookup [0x%02x]'%s' found nothing\n",
 				hash, representation);
 		}
 	}
@@ -657,7 +660,7 @@ int cw_representation_lookup_init_internal(const cw_entry_t *lookup[])
 
 	if (!is_complete) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_LOOKUPS, CW_DEBUG_WARNING,
-			      "libcw: hash lookup table incomplete");
+			      MSG_PREFIX "hash lookup table incomplete");
 	}
 
 	return is_complete ? CW_SUCCESS : CW_FAILURE;
@@ -980,7 +983,7 @@ const char *cw_lookup_procedural_character_internal(int c, bool *is_usually_expa
 	   a given character. */
 	if (!is_initialized) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_LOOKUPS, CW_DEBUG_INFO,
-			      "libcw: initialize prosign fast lookup table");
+			      MSG_PREFIX "initialize prosign fast lookup table");
 
 		for (const cw_prosign_entry_t *e = CW_PROSIGN_TABLE; e->character; e++) {
 			lookup[(unsigned char) e->character] = e;
@@ -996,13 +999,13 @@ const char *cw_lookup_procedural_character_internal(int c, bool *is_usually_expa
 
 	if (cw_debug_has_flag((&cw_debug_object), CW_DEBUG_LOOKUPS)) {
 		if (cw_prosign) {
-			fprintf(stderr, "libcw: prosign lookup '%c' returned <'%c':\"%s\":%d>\n",
+			fprintf(stderr, MSG_PREFIX "prosign lookup '%c' returned <'%c':\"%s\":%d>\n",
 				c, cw_prosign->character,
 				cw_prosign->expansion, cw_prosign->is_usually_expanded);
 		} else if (isprint(c)) {
-			fprintf(stderr, "libcw: prosign lookup '%c' found nothing\n", c);
+			fprintf(stderr, MSG_PREFIX "prosign lookup '%c' found nothing\n", c);
 		} else {
-			fprintf(stderr, "libcw: prosign lookup 0x%02x found nothing\n",
+			fprintf(stderr, MSG_PREFIX "prosign lookup 0x%02x found nothing\n",
 				(unsigned char) c);
 		}
 	}
@@ -1303,7 +1306,7 @@ int cw_check_string(const char *string)
 */
 unsigned int test_cw_representation_to_hash_internal(void)
 {
-	int p = fprintf(stdout, "libcw/data: cw_representation_to_hash_internal():");
+	int p = fprintf(stdout, MSG_PREFIX "cw_representation_to_hash_internal():");
 
 
 	/* Intended contents of input[] is something like that:
@@ -1383,7 +1386,7 @@ unsigned int test_cw_representation_to_hash_internal(void)
 */
 unsigned int test_cw_representation_to_character_internal(void)
 {
-	int p = fprintf(stdout, "libcw/data: cw_representation_to_character_internal():");
+	int p = fprintf(stdout, MSG_PREFIX "cw_representation_to_character_internal():");
 
 	/* The test is performed by comparing results of function
 	   using fast lookup table, and function using direct
@@ -1409,7 +1412,7 @@ unsigned int test_cw_representation_to_character_internal(void)
 
 unsigned int test_cw_representation_to_character_internal_speed(void)
 {
-	int p = fprintf(stdout, "libcw/data: cw_representation_to_character() speed gain: ");
+	int p = fprintf(stdout, MSG_PREFIX "cw_representation_to_character() speed gain: ");
 
 
 	/* Testing speed gain between function with direct lookup, and
@@ -1480,7 +1483,7 @@ unsigned int test_character_lookups_internal(void)
 		count = cw_get_character_count();
 		cw_assert (count > 0, "Invalid number of characters: %d\n", count);
 
-		int n = printf("libcw/data: cw_get_character_count(): %d:", count);
+		int n = printf(MSG_PREFIX "cw_get_character_count(): %d:", count);
 		CW_TEST_PRINT_TEST_RESULT (false, n);
 	}
 
@@ -1492,14 +1495,14 @@ unsigned int test_character_lookups_internal(void)
 		   character count discovered above. */
 
 		cw_list_characters(charlist);
-		printf("libcw/data: cw_list_characters():\n"
-		       "libcw/data: %s\n", charlist);
+		printf(MSG_PREFIX "cw_list_characters():\n"
+		       MSG_PREFIX "%s\n", charlist);
 		size_t len = strlen(charlist);
 		cw_assert (count == (int) len,
 			   "Number of characters don't match: %d != %zd\n",
 			   count, len);
 
-		int n = printf("libcw/data: character count is correct (%d == %d)", count, (int) len);
+		int n = printf(MSG_PREFIX "character count is correct (%d == %d)", count, (int) len);
 		CW_TEST_PRINT_TEST_RESULT (false, n);
 	}
 
@@ -1514,7 +1517,7 @@ unsigned int test_character_lookups_internal(void)
 		int rep_len = cw_get_maximum_representation_length();
 		cw_assert (rep_len > 0, "Maximum representation length invalid: %d\n", rep_len);
 
-		int n = printf("libcw/data: cw_get_maximum_representation_length(): %d:", rep_len);
+		int n = printf(MSG_PREFIX "cw_get_maximum_representation_length(): %d:", rep_len);
 		CW_TEST_PRINT_TEST_RESULT (false, n);
 	}
 
@@ -1544,15 +1547,15 @@ unsigned int test_character_lookups_internal(void)
 			representation = NULL;
 		}
 
-		int n = printf("libcw/data: cw_character_to_representation():");
+		int n = printf(MSG_PREFIX "cw_character_to_representation():");
 		CW_TEST_PRINT_TEST_RESULT (false, n);
 
 
-		n = printf("libcw/data: cw_representation_to_character():");
+		n = printf(MSG_PREFIX "cw_representation_to_character():");
 		CW_TEST_PRINT_TEST_RESULT (false, n);
 
 
-		n = printf("libcw/data: two-way lookup for character lookups:");
+		n = printf(MSG_PREFIX "two-way lookup for character lookups:");
 		CW_TEST_PRINT_TEST_RESULT (false, n);
 	}
 
@@ -1583,7 +1586,7 @@ unsigned int test_prosign_lookups_internal(void)
 		count = cw_get_procedural_character_count();
 		cw_assert (count > 0, "Invalid number of procedural characters: %d\n", count);
 
-		int n = printf("libcw/data: cw_get_procedural_character_count(): %d", count);
+		int n = printf(MSG_PREFIX "cw_get_procedural_character_count(): %d", count);
 		CW_TEST_PRINT_TEST_RESULT (false, n);
 	}
 
@@ -1593,14 +1596,14 @@ unsigned int test_prosign_lookups_internal(void)
 	/* Test: get list of characters supported by libcw. */
 	{
 		cw_list_procedural_characters(charlist);
-		printf("libcw/data: cw_list_procedural_characters():\n"
-		       "libcw/data: %s\n", charlist);
+		printf(MSG_PREFIX "cw_list_procedural_characters():\n"
+		       MSG_PREFIX "%s\n", charlist);
 		size_t len = strlen(charlist);
 		cw_assert (count == (int) len,
 			   "Number of characters don't match: %d != %zd\n",
 			   count, len);
 
-		int n = printf("libcw/data: procedural character count is correct (%d == %d)", count, (int) len);
+		int n = printf(MSG_PREFIX "procedural character count is correct (%d == %d)", count, (int) len);
 		CW_TEST_PRINT_TEST_RESULT (false, n);
 	}
 
@@ -1612,7 +1615,7 @@ unsigned int test_prosign_lookups_internal(void)
 		cw_assert (exp_len > 0,
 			   "Expansion length invalid: %d\n", exp_len);
 
-		int n = printf("libcw/data: cw_get_maximum_procedural_expansion_length(): %d", exp_len);
+		int n = printf(MSG_PREFIX "cw_get_maximum_procedural_expansion_length(): %d", exp_len);
 		CW_TEST_PRINT_TEST_RESULT (false, n);
 	}
 
@@ -1642,10 +1645,10 @@ unsigned int test_prosign_lookups_internal(void)
 			}
 		}
 
-		int n = printf("libcw/data: cw_lookup_procedural_character():");
+		int n = printf(MSG_PREFIX "cw_lookup_procedural_character():");
 		CW_TEST_PRINT_TEST_RESULT (false, n);
 
-		n = printf("libcw/data: cw_lookup_procedural_() mapping:");
+		n = printf(MSG_PREFIX "cw_lookup_procedural_() mapping:");
 		CW_TEST_PRINT_TEST_RESULT (false, n);
 
 	}
@@ -1673,7 +1676,7 @@ unsigned int test_phonetic_lookups_internal(void)
 		int len = cw_get_maximum_phonetic_length();
 		cw_assert (len > 0, "Maximum phonetic length invalid: %d\n", len);
 
-		int n = printf("libcw/data: cw_get_maximum_phonetic_length(): %d", len);
+		int n = printf(MSG_PREFIX "cw_get_maximum_phonetic_length(): %d", len);
 		CW_TEST_PRINT_TEST_RESULT (false, n);
 	}
 
@@ -1699,10 +1702,10 @@ unsigned int test_phonetic_lookups_internal(void)
 			}
 		}
 
-		int n = printf("libcw/data: cw_lookup_phonetic():");
+		int n = printf(MSG_PREFIX "cw_lookup_phonetic():");
 		CW_TEST_PRINT_TEST_RESULT (false, n);
 
-		n = printf("libcw/data: reverse lookup for phonetic characters:");
+		n = printf(MSG_PREFIX "reverse lookup for phonetic characters:");
 		CW_TEST_PRINT_TEST_RESULT (false, n);
 	}
 
@@ -1746,10 +1749,10 @@ unsigned int test_validate_character_and_string_internal(void)
 			}
 		}
 
-		int n = printf("libcw/data: cw_character_is_valid(<valid>):");
+		int n = printf(MSG_PREFIX "cw_character_is_valid(<valid>):");
 		CW_TEST_PRINT_TEST_RESULT (false, n);
 
-		n = printf("libcw/data: cw_character_is_valid(<invalid>):");
+		n = printf(MSG_PREFIX "cw_character_is_valid(<invalid>):");
 		CW_TEST_PRINT_TEST_RESULT (false, n);
 	}
 
@@ -1765,14 +1768,14 @@ unsigned int test_validate_character_and_string_internal(void)
 		cw_assert (cw_string_is_valid(charlist),
 			   "String with valid characters not recognized as valid\n");
 
-		int n = printf("libcw/data: cw_string_is_valid(<valid>):");
+		int n = printf(MSG_PREFIX "cw_string_is_valid(<valid>):");
 		CW_TEST_PRINT_TEST_RESULT (false, n);
 
 		/* Test invalid string. */
 		cw_assert (!cw_string_is_valid("%INVALID%"),
 			   "String with invalid characters recognized as valid\n");
 
-		n = printf("libcw/data: cw_string_is_valid(<invalid>):");
+		n = printf(MSG_PREFIX "cw_string_is_valid(<invalid>):");
 		CW_TEST_PRINT_TEST_RESULT (false, n);
 	}
 
@@ -1798,7 +1801,7 @@ unsigned int test_validate_representation_internal(void)
 		cw_assert (cw_representation_is_valid("---"),    "Valid representation #3 not recognized as valid.\n");
 		cw_assert (cw_representation_is_valid("...-"),   "Valid representation #4 not recognized as valid.\n");
 
-		int n = printf("libcw/data: cw_representation_is_valid(<valid>):");
+		int n = printf(MSG_PREFIX "cw_representation_is_valid(<valid>):");
 		CW_TEST_PRINT_TEST_RESULT (false, n);
 	}
 
@@ -1809,7 +1812,7 @@ unsigned int test_validate_representation_internal(void)
 		cw_assert (!cw_representation_is_valid("_._"),     "Invalid representation #2 not recognized as invalid.\n");
 		cw_assert (!cw_representation_is_valid("-_-"),     "Invalid representation #3 not recognized as invalid.\n");
 
-		int n = printf("libcw/data: cw_representation_is_valid(<invalid>):");
+		int n = printf(MSG_PREFIX "cw_representation_is_valid(<invalid>):");
 		CW_TEST_PRINT_TEST_RESULT (false, n);
 	}
 

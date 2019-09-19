@@ -32,13 +32,14 @@
 
 
 
-
 #include "config.h"
 
 
 #include <signal.h>
 #include <errno.h>
 #include <stdlib.h>
+
+
 
 
 #include "libcw.h"
@@ -59,7 +60,6 @@
 
 
 
-
 /* http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=403043 */
 #if defined(NSIG)             /* Debian GNU/Linux: signal.h; Debian kFreeBSD: signal.h (libc0.1-dev_2.13-21_kfreebsd-i386.deb) */
 #define CW_SIG_MAX (NSIG)
@@ -73,6 +73,10 @@
 #error "unknown number of signals"
 #endif
 
+
+
+
+#define MSG_PREFIX "libcw: "
 
 
 
@@ -135,7 +139,7 @@ void cw_sigalrm_handlers_caller_internal(__attribute__((unused)) int signal_numb
 	     handler < CW_SIGALRM_HANDLERS_MAX && cw_sigalrm_handlers[handler]; handler++) {
 
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_INTERNAL, CW_DEBUG_DEBUG,
-			      "libcw: SIGALRM handler #%d", handler);
+			      MSG_PREFIX "SIGALRM handler #%d", handler);
 
 		(cw_sigalrm_handlers[handler])();
 	}
@@ -171,7 +175,7 @@ int cw_timer_run_internal(int usecs)
 	int status = setitimer(ITIMER_REAL, &itimer, NULL);
 	if (status == -1) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
-			      "libcw: setitimer(%d): %s", usecs, strerror(errno));
+			      MSG_PREFIX "setitimer(%d): %s", usecs, strerror(errno));
 		return CW_FAILURE;
 	}
 
@@ -228,7 +232,7 @@ int cw_timer_run_with_handler_internal(int usecs, void (*sigalrm_handler)(void))
 			if (cw_sigalrm_handlers[handler]) {
 				errno = ENOMEM;
 				cw_debug_msg ((&cw_debug_object), CW_DEBUG_INTERNAL, CW_DEBUG_ERROR,
-					      "libcw: overflow cw_sigalrm_handlers");
+					      MSG_PREFIX "overflow cw_sigalrm_handlers");
 				return CW_FAILURE;
 			} else {
 				cw_sigalrm_handlers[handler] = sigalrm_handler;
@@ -248,7 +252,7 @@ int cw_timer_run_with_handler_internal(int usecs, void (*sigalrm_handler)(void))
 		if (pthread_kill(cw_generator->thread.id, SIGALRM) != 0) {
 	        // if (raise(SIGALRM) != 0) {
 			cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
-				      "libcw: raise()");
+				      MSG_PREFIX "raise()");
 			return CW_FAILURE;
 		}
 
@@ -283,7 +287,7 @@ int cw_sigalrm_install_top_level_handler_internal(void)
 		int status = sigaction(SIGALRM, &action, &cw_sigalrm_original_disposition);
 		if (status == -1) {
 			cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
-				      "libcw: sigaction(): %s", strerror(errno));
+				      MSG_PREFIX "sigaction(): %s", strerror(errno));
 			return CW_FAILURE;
 		}
 
@@ -317,7 +321,7 @@ int cw_sigalrm_restore_internal(void)
 		/* Put back the SIGALRM information saved earlier. */
 		int status = sigaction(SIGALRM, &cw_sigalrm_original_disposition, NULL);
 		if (status == -1) {
-			perror ("libcw: sigaction");
+			perror (MSG_PREFIX "sigaction");
 			return CW_FAILURE;
 		}
 
@@ -351,7 +355,7 @@ bool cw_sigalrm_is_blocked_internal(void)
 	int status = sigemptyset(&empty_set);
 	if (status == -1) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
-			      "libcw: sigemptyset(): %s", strerror(errno));
+			      MSG_PREFIX "sigemptyset(): %s", strerror(errno));
 		return true;
 	}
 
@@ -359,7 +363,7 @@ bool cw_sigalrm_is_blocked_internal(void)
 	status = sigprocmask(SIG_BLOCK, &empty_set, &current_set);
 	if (status == -1) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
-			      "libcw: sigprocmask(): %s", strerror(errno));
+			      MSG_PREFIX "sigprocmask(): %s", strerror(errno));
 		return true;
 	}
 
@@ -396,7 +400,7 @@ int cw_sigalrm_block_internal(bool block)
 	int status = sigemptyset(&set);
 	if (status == -1) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
-			      "libcw: sigemptyset(): %s", strerror(errno));
+			      MSG_PREFIX "sigemptyset(): %s", strerror(errno));
 		return CW_FAILURE;
 	}
 
@@ -404,7 +408,7 @@ int cw_sigalrm_block_internal(bool block)
 	status = sigaddset(&set, SIGALRM);
 	if (status == -1) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
-			      "libcw: sigaddset(): %s", strerror(errno));
+			      MSG_PREFIX "sigaddset(): %s", strerror(errno));
 		return CW_FAILURE;
 	}
 
@@ -412,7 +416,7 @@ int cw_sigalrm_block_internal(bool block)
 	status = pthread_sigmask(block ? SIG_BLOCK : SIG_UNBLOCK, &set, NULL);
 	if (status == -1) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
-			      "libcw: pthread_sigmask(): %s", strerror(errno));
+			      MSG_PREFIX "pthread_sigmask(): %s", strerror(errno));
 		return CW_FAILURE;
 	}
 
@@ -463,7 +467,7 @@ int cw_signal_wait_internal(void)
 	int status = sigemptyset(&empty_set);
 	if (status == -1) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
-			      "libcw: sigemptyset(): %s", strerror(errno));
+			      MSG_PREFIX "sigemptyset(): %s", strerror(errno));
 		return CW_FAILURE;
 	}
 
@@ -471,7 +475,7 @@ int cw_signal_wait_internal(void)
 	status = sigprocmask(SIG_BLOCK, &empty_set, &current_set);
 	if (status == -1) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
-			      "libcw: sigprocmask(): %s", strerror(errno));
+			      MSG_PREFIX "sigprocmask(): %s", strerror(errno));
 		return CW_FAILURE;
 	}
 
@@ -479,7 +483,7 @@ int cw_signal_wait_internal(void)
 	status = sigsuspend(&current_set);
 	if (status == -1 && errno != EINTR) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
-			      "libcw: suspend(): %s", strerror(errno));
+			      MSG_PREFIX "suspend(): %s", strerror(errno));
 		return CW_FAILURE;
 	}
 
@@ -518,7 +522,7 @@ static void (*cw_signal_callbacks[CW_SIG_MAX])(int);
 void cw_signal_main_handler_internal(int signal_number)
 {
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_FINALIZATION, CW_DEBUG_INFO,
-		      "libcw: caught signal %d", signal_number);
+		      MSG_PREFIX "caught signal %d", signal_number);
 
 	/* Reset the library and retrieve the signal's handler. */
 	cw_complete_reset();
@@ -593,7 +597,7 @@ int cw_register_signal_handler(int signal_number, void (*callback_func)(int))
 	sigemptyset(&action.sa_mask);
 	int status = sigaction(signal_number, &action, &original_disposition);
 	if (status == -1) {
-		perror("libcw: sigaction");
+		perror(MSG_PREFIX "sigaction");
 		return CW_FAILURE;
 	}
 
@@ -604,7 +608,7 @@ int cw_register_signal_handler(int signal_number, void (*callback_func)(int))
 
 		status = sigaction(signal_number, &original_disposition, NULL);
 		if (status == -1) {
-			perror("libcw: sigaction");
+			perror(MSG_PREFIX "sigaction");
 			return CW_FAILURE;
 		}
 
@@ -648,7 +652,7 @@ int cw_unregister_signal_handler(int signal_number)
 	struct sigaction original_disposition;
 	int status = sigaction(signal_number, NULL, &original_disposition);
 	if (status == -1) {
-		perror("libcw: sigaction");
+		perror(MSG_PREFIX "sigaction");
 		return CW_FAILURE;
 	}
 
@@ -665,7 +669,7 @@ int cw_unregister_signal_handler(int signal_number)
 	sigemptyset(&action.sa_mask);
 	status = sigaction(signal_number, &action, NULL);
 	if (status == -1) {
-		perror("libcw: sigaction");
+		perror(MSG_PREFIX "sigaction");
 		return CW_FAILURE;
 	}
 

@@ -33,7 +33,6 @@
 
 
 
-
 #include "config.h"
 
 
@@ -60,6 +59,8 @@
 #endif
 
 
+
+
 #include "libcw.h"
 #include "libcw_gen.h"
 #include "libcw_test.h"
@@ -71,11 +72,14 @@
 
 
 
+#define MSG_PREFIX "libcw/utils: "
+
+
+
 
 extern cw_debug_t cw_debug_object;
 extern cw_debug_t cw_debug_object_ev;
 extern cw_debug_t cw_debug_object_dev;
-
 
 
 
@@ -274,13 +278,13 @@ bool cw_dlopen_internal(const char *name, void **handle)
 
 	if (e) {
 		cw_debug_msg (((&cw_debug_object_dev)), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
-			      "libcw: dlopen() fails for %s with error: %s", name, e);
+			      MSG_PREFIX "dlopen() fails for %s with error: %s", name, e);
 		return false;
 	} else {
 		*handle = h;
 
 		cw_debug_msg (((&cw_debug_object_dev)), CW_DEBUG_STDLIB, CW_DEBUG_DEBUG,
-			      "libcw: dlopen() succeeds for %s", name);
+			      MSG_PREFIX "dlopen() succeeds for %s", name);
 		return true;
 	}
 }
@@ -335,7 +339,7 @@ int cw_timestamp_validate_internal(struct timeval *out_timestamp, const struct t
 				// fprintf(stderr, "Negative usecs in %s\n", __func__);
 			}
 
-			perror ("libcw: gettimeofday");
+			perror (MSG_PREFIX "gettimeofday");
 			return CW_FAILURE;
 		} else {
 			return CW_SUCCESS;
@@ -622,7 +626,7 @@ void cw_finalization_clock_internal(void)
 		cw_finalization_countdown--;
 		if (cw_finalization_countdown <= 0) {
 			cw_debug_msg ((&cw_debug_object), CW_DEBUG_FINALIZATION, CW_DEBUG_INFO,
-				      "libcw: finalization timeout, closing down");
+				      MSG_PREFIX "finalization timeout, closing down");
 
 			cw_sigalrm_restore_internal();
 			// cw_gen_release_internal(&cw_generator);
@@ -631,7 +635,7 @@ void cw_finalization_clock_internal(void)
 			cw_finalization_countdown = 0;
 		} else {
 			cw_debug_msg ((&cw_debug_object), CW_DEBUG_FINALIZATION, CW_DEBUG_INFO,
-				      "libcw: finalization countdown %d", cw_finalization_countdown);
+				      MSG_PREFIX "finalization countdown %d", cw_finalization_countdown);
 
 			/* Request another timeout.  This results in a call to our
 			   cw_finalization_cancel_internal below; to ensure that it doesn't
@@ -667,7 +671,7 @@ void cw_finalization_schedule_internal(void)
 		cw_finalization_countdown = CW_AUDIO_FINALIZATION_DELAY / CW_USECS_PER_SEC;
 
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_FINALIZATION, CW_DEBUG_INFO,
-			      "libcw: finalization scheduled");
+			      MSG_PREFIX "finalization scheduled");
 	}
 
 	return;
@@ -690,7 +694,7 @@ void cw_finalization_cancel_internal(void)
 		cw_finalization_countdown = 0;
 
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_FINALIZATION, CW_DEBUG_INFO,
-			      "libcw: finalization canceled");
+			      MSG_PREFIX "finalization canceled");
 	}
 
 	return;
@@ -756,7 +760,7 @@ void cw_complete_reset(void)
 */
 unsigned int test_cw_timestamp_compare_internal(void)
 {
-	int p = fprintf(stdout, "libcw/utils: cw_timestamp_compare_internal():");
+	int p = fprintf(stdout, MSG_PREFIX "cw_timestamp_compare_internal():");
 
 	struct timeval earlier_timestamp;
 	struct timeval later_timestamp;
@@ -805,7 +809,7 @@ unsigned int test_cw_timestamp_compare_internal(void)
 */
 unsigned int test_cw_timestamp_validate_internal(void)
 {
-	int p = fprintf(stdout, "libcw/utils: cw_timestamp_validate_internal():");
+	int p = fprintf(stdout, MSG_PREFIX "cw_timestamp_validate_internal():");
 
 	struct timeval out_timestamp;
 	struct timeval in_timestamp;
@@ -896,7 +900,7 @@ unsigned int test_cw_timestamp_validate_internal(void)
 */
 unsigned int test_cw_usecs_to_timespec_internal(void)
 {
-	int p = fprintf(stdout, "libcw/utils: cw_usecs_to_timespec_internal():");
+	int p = fprintf(stdout, MSG_PREFIX "cw_usecs_to_timespec_internal():");
 
 	struct {
 		int input;
@@ -987,7 +991,7 @@ unsigned int test_cw_version_internal(void)
 	cw_assert (major == current, "Incorrect \"current\": %d != %d\n", major, current);
 	cw_assert (minor == revision, "Incorrect \"revision\": %d != %d\n", minor, revision);
 
-	int n = fprintf(stdout, "libcw/utils: get version: %d.%d:", major, minor);
+	int n = fprintf(stdout, MSG_PREFIX "get version: %d.%d:", major, minor);
 	CW_TEST_PRINT_TEST_RESULT (false, n);
 
 	return 0;
@@ -1007,7 +1011,7 @@ unsigned int test_cw_license_internal(void)
 
 	cw_license();
 
-	int n = fprintf(stdout, "libcw/utils: printing license:");
+	int n = fprintf(stdout, MSG_PREFIX "printing license:");
 	CW_TEST_PRINT_TEST_RESULT (false, n);
 
 	return 0;
@@ -1066,7 +1070,7 @@ unsigned int test_cw_get_x_limits_internal(void)
 			   test_data[i].name);
 	}
 
-	int n = fprintf(stdout, "libcw/utils: cw_get_X_limits():");
+	int n = fprintf(stdout, MSG_PREFIX "cw_get_X_limits():");
 	CW_TEST_PRINT_TEST_RESULT (false, n);
 
 	return 0;

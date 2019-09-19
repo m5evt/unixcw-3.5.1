@@ -30,11 +30,12 @@
 
 
 
-
 #include <stdio.h>
 #include <assert.h>
 #include <sys/time.h>
 #include <stdbool.h>
+
+
 
 
 #include "libcw_null.h"
@@ -44,9 +45,9 @@
 
 
 
-
 static int  cw_null_open_device_internal(cw_gen_t *gen);
 static void cw_null_close_device_internal(cw_gen_t *gen);
+
 
 
 

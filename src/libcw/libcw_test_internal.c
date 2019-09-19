@@ -18,6 +18,8 @@
 */
 
 
+
+
 #if defined(HAVE_STRING_H)
 # include <string.h>
 #endif
@@ -29,16 +31,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h> /* gettimeofday() */
+#include <assert.h>
+
+
+
 
 #include "libcw.h"
-
 #include "libcw_gen.h"
 #include "libcw_rec.h"
 #include "libcw_debug.h"
 #include "libcw_data.h"
 #include "libcw_tq.h"
 #include "libcw_utils.h"
-
 #include "libcw_null.h"
 #include "libcw_console.h"
 #include "libcw_oss.h"
@@ -46,10 +50,8 @@
 
 
 
-
 extern cw_debug_t cw_debug_object;
 extern cw_debug_t cw_debug_object_dev;
-
 
 
 
@@ -61,16 +63,10 @@ extern cw_debug_t cw_debug_object_dev;
 
 
 
-
 /* Unit tests for internal functions (and also some public functions)
    defined in libcw.c.
 
    See also libcw_test_public.c and libcw_test_simple_gen.c. */
-
-#include <stdio.h>
-#include <assert.h>
-
-
 
 
 

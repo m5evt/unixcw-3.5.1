@@ -57,7 +57,6 @@
 
 
 
-
 #include "config.h"
 
 
@@ -82,6 +81,8 @@
 #endif
 
 
+
+
 #include "libcw.h"
 #include "libcw_rec.h"
 #include "libcw_data.h"
@@ -89,6 +90,10 @@
 #include "libcw_debug.h"
 #include "libcw_test.h"
 
+
+
+
+#define MSG_PREFIX "libcw/rec: "
 
 
 
@@ -158,7 +163,7 @@ cw_rec_t *cw_rec_new_internal(void)
 	cw_rec_t *rec = (cw_rec_t *) malloc(sizeof (cw_rec_t));
 	if (!rec) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
-			      "libcw: malloc()");
+			      MSG_PREFIX "malloc()");
 		return (cw_rec_t *) NULL;
 	}
 
@@ -790,7 +795,7 @@ void cw_rec_reset_receive_statistics_internal(cw_rec_t *rec)
 	{								\
 		cw_debug_msg ((m_debug_object),				\
 			      CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,	\
-			      "libcw: receive state %s -> %s",		\
+			      MSG_PREFIX "receive state %s -> %s",		\
 			      cw_receiver_states[m_rec->state], cw_receiver_states[m_new_state]); \
 		m_rec->state = m_new_state;				\
 	}
@@ -865,7 +870,7 @@ int cw_rec_mark_begin_internal(cw_rec_t *rec, const struct timeval *timestamp)
 	   idle, or in inter-mark-space of a current character. */
 	if (rec->state != RS_IDLE && rec->state != RS_SPACE) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
-			      "libcw: receive state not idle and not inter-mark-space: %s", cw_receiver_states[rec->state]);
+			      MSG_PREFIX "receive state not idle and not inter-mark-space: %s", cw_receiver_states[rec->state]);
 
 		errno = ERANGE;
 		return CW_FAILURE;
@@ -957,7 +962,7 @@ int cw_rec_mark_end_internal(cw_rec_t *rec, const struct timeval *timestamp)
 		rec->mark_end = saved_end_timestamp;
 
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
-			      "libcw: '%d [us]' mark identified as spike noise (threshold = '%d [us]')",
+			      MSG_PREFIX "'%d [us]' mark identified as spike noise (threshold = '%d [us]')",
 			      mark_len, rec->noise_spike_threshold);
 
 		errno = EAGAIN;
@@ -1015,7 +1020,7 @@ int cw_rec_mark_end_internal(cw_rec_t *rec, const struct timeval *timestamp)
 		CW_REC_SET_STATE (rec, RS_EOC_GAP_ERR, (&cw_debug_object));
 
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
-			      "libcw: receiver's representation buffer is full");
+			      MSG_PREFIX "receiver's representation buffer is full");
 
 		errno = ENOMEM;
 		return CW_FAILURE;
@@ -1075,7 +1080,7 @@ int cw_rec_identify_mark_internal(cw_rec_t *rec, int mark_len, /* out */ char *m
 	    && mark_len <= rec->dot_len_max) {
 
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-			      "libcw: mark '%d [us]' recognized as DOT (limits: %d - %d [us])",
+			      MSG_PREFIX "mark '%d [us]' recognized as DOT (limits: %d - %d [us])",
 			      mark_len, rec->dot_len_min, rec->dot_len_max);
 
 		*mark = CW_DOT_REPRESENTATION;
@@ -1087,7 +1092,7 @@ int cw_rec_identify_mark_internal(cw_rec_t *rec, int mark_len, /* out */ char *m
 	    && mark_len <= rec->dash_len_max) {
 
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-			      "libcw: mark '%d [us]' recognized as DASH (limits: %d - %d [us])",
+			      MSG_PREFIX "mark '%d [us]' recognized as DASH (limits: %d - %d [us])",
 			      mark_len, rec->dash_len_min, rec->dash_len_max);
 
 		*mark = CW_DASH_REPRESENTATION;
@@ -1097,11 +1102,11 @@ int cw_rec_identify_mark_internal(cw_rec_t *rec, int mark_len, /* out */ char *m
 	/* This mark is not a dot or a dash, so we have an error
 	   case. */
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
-		      "libcw: unrecognized mark, len = %d [us]", mark_len);
+		      MSG_PREFIX "unrecognized mark, len = %d [us]", mark_len);
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
-		      "libcw: dot limits: %d - %d [us]", rec->dot_len_min, rec->dot_len_max);
+		      MSG_PREFIX "dot limits: %d - %d [us]", rec->dot_len_min, rec->dot_len_max);
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
-		      "libcw: dash limits: %d - %d [us]", rec->dash_len_min, rec->dash_len_max);
+		      MSG_PREFIX "dash limits: %d - %d [us]", rec->dash_len_min, rec->dash_len_max);
 
 	/* We should never reach here when in adaptive timing receive
 	   mode - a mark should be always recognized as dot or dash,
@@ -1109,7 +1114,7 @@ int cw_rec_identify_mark_internal(cw_rec_t *rec, int mark_len, /* out */ char *m
 	   point. */
 	if (rec->is_adaptive_receive_mode) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
-			      "libcw: unrecognized mark in adaptive receive");
+			      MSG_PREFIX "unrecognized mark in adaptive receive");
 	}
 
 
@@ -1281,7 +1286,7 @@ int cw_rec_add_mark_internal(cw_rec_t *rec, const struct timeval *timestamp, cha
 		CW_REC_SET_STATE (rec, RS_EOC_GAP_ERR, (&cw_debug_object));
 
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
-			      "libcw: receiver's representation buffer is full");
+			      MSG_PREFIX "receiver's representation buffer is full");
 
 		errno = ENOMEM;
 		return CW_FAILURE;
@@ -1361,7 +1366,7 @@ int cw_rec_poll_representation_internal(cw_rec_t *rec,
 	int space_len = cw_timestamp_compare_internal(&rec->mark_end, &now_timestamp);
 	if (space_len == INT_MAX) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_ERROR,
-			      "libcw: space len == INT_MAX");
+			      MSG_PREFIX "space len == INT_MAX");
 
 		errno = EAGAIN;
 		return CW_FAILURE;
@@ -1454,7 +1459,7 @@ void cw_rec_poll_representation_eoc_internal(cw_rec_t *rec, int space_len,
 	}
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-		      "libcw: receive state -> %s", cw_receiver_states[rec->state]);
+		      MSG_PREFIX "receive state -> %s", cw_receiver_states[rec->state]);
 
 	/* Return the representation from receiver's buffer. */
 	if (is_end_of_word) {
@@ -1770,7 +1775,7 @@ void cw_rec_sync_parameters_internal(cw_rec_t *rec)
 	}
 
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_PARAMETERS, CW_DEBUG_INFO,
-		      "libcw: receive usec timings <%.2f [wpm]>: dot: %d-%d [ms], dash: %d-%d [ms], %d-%d[%d], %d-%d[%d], thres: %d [us]",
+		      MSG_PREFIX "receive usec timings <%.2f [wpm]>: dot: %d-%d [ms], dash: %d-%d [ms], %d-%d[%d], %d-%d[%d], thres: %d [us]",
 		      rec->speed,
 		      rec->dot_len_min, rec->dot_len_max,
 		      rec->dash_len_min, rec->dash_len_max,
@@ -1842,7 +1847,7 @@ static float *test_cw_rec_new_speeds_adaptive(int speed_min, int speed_max, size
 */
 unsigned int test_cw_rec_identify_mark_internal(void)
 {
-	int p = fprintf(stdout, "libcw/rec: cw_rec_identify_mark_internal() (non-adaptive):");
+	int p = fprintf(stdout, MSG_PREFIX "cw_rec_identify_mark_internal() (non-adaptive):");
 
 	cw_rec_t *rec = cw_rec_new_internal();
 	cw_assert (rec, "Failed to get new receiver\n");
@@ -1912,7 +1917,7 @@ unsigned int test_cw_rec_identify_mark_internal(void)
    supported by libcw. The test is done with fixed speed. */
 unsigned int test_cw_rec_with_base_data_fixed(void)
 {
-	int p = fprintf(stdout, "libcw/rec: test begin/end functions base data/fixed speed:");
+	int p = fprintf(stdout, MSG_PREFIX "test begin/end functions base data/fixed speed:");
 
 	cw_rec_t *rec = cw_rec_new_internal();
 	cw_assert (rec, "Failed to get new receiver\n");
@@ -2152,13 +2157,13 @@ void test_cw_rec_test_begin_end(cw_rec_t *rec, struct cw_rec_test_data *data)
 
 #ifdef LIBCW_UNIT_TESTS_VERBOSE
 		float speed = cw_rec_get_speed_internal(rec);
-		printf("libcw: received data #%d:   <%c> / <%s> @ %.2f [wpm]\n",
+		printf(MSG_PREFIX "received data #%d:   <%c> / <%s> @ %.2f [wpm]\n",
 		       i, c, representation, speed);
 #endif
 
 #if 0
 		if (adaptive) {
-			printf("libcw: adaptive speed tracking reports %d wpm\n",
+			printf(MSG_PREFIX "adaptive speed tracking reports %d wpm\n",
 			       );
 		}
 #endif
@@ -2216,7 +2221,7 @@ struct cw_rec_test_data *test_cw_rec_new_base_data_fixed(int speed, int fuzz_per
    with fixed speed. */
 unsigned int test_cw_rec_with_random_data_fixed(void)
 {
-	int p = fprintf(stdout, "libcw/rec: test begin/end functions random data/fixed speed:");
+	int p = fprintf(stdout, MSG_PREFIX "test begin/end functions random data/fixed speed:");
 
 	cw_rec_t *rec = cw_rec_new_internal();
 	cw_assert (rec, "Failed to get new receiver\n");
@@ -2259,7 +2264,7 @@ unsigned int test_cw_rec_with_random_data_fixed(void)
    with varying speed. */
 unsigned int test_cw_rec_with_random_data_adaptive(void)
 {
-	int p = fprintf(stdout, "libcw/rec: test begin/end functions random data/adaptive:");
+	int p = fprintf(stdout, MSG_PREFIX "test begin/end functions random data/adaptive:");
 
 	struct cw_rec_test_data *data = test_cw_rec_new_random_data_adaptive(CW_SPEED_MIN, CW_SPEED_MAX, 0);
 	//test_cw_rec_print_data(data);
@@ -2791,11 +2796,11 @@ unsigned int test_cw_get_receive_parameters(void)
 
 	cw_rec_delete_internal(&rec);
 
-	printf("libcw/rec: cw_get_receive_parameters():\n" \
-	       "libcw/rec: dot/dash:  %d, %d, %d, %d, %d, %d\n" \
-	       "libcw/rec: eom:       %d, %d, %d\n" \
-	       "libcw/rec: eoc:       %d, %d, %d\n" \
-	       "libcw/rec: threshold: %d\n",
+	printf(MSG_PREFIX "cw_get_receive_parameters():\n" \
+	       MSG_PREFIX "dot/dash:  %d, %d, %d, %d, %d, %d\n" \
+	       MSG_PREFIX "eom:       %d, %d, %d\n"		\
+	       MSG_PREFIX "eoc:       %d, %d, %d\n"		\
+	       MSG_PREFIX "threshold: %d\n",
 
 	       dot_len_ideal, dash_len_ideal,
 	       dot_len_min, dot_len_max,
@@ -2864,7 +2869,7 @@ unsigned int test_cw_get_receive_parameters(void)
 		   eoc_len_min, eoc_len_ideal, eoc_len_max);
 
 
-	int n = printf("libcw/rec: cw_rec_get_parameters_internal():");
+	int n = printf(MSG_PREFIX "cw_rec_get_parameters_internal():");
 	CW_TEST_PRINT_TEST_RESULT (false, n);
 
 	return 0;

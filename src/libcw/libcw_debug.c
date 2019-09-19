@@ -29,7 +29,6 @@
 
 
 
-
 #include "config.h"
 
 
@@ -46,11 +45,17 @@
 #include <errno.h>
 
 
+
+
 #include "libcw.h"
 #include "libcw_debug.h"
 #include "libcw_gen.h"
 #include "libcw_utils.h"
 
+
+
+
+#define MSG_PREFIX "libcw/debug: "
 
 
 
@@ -67,7 +72,6 @@ struct {
 	{ CW_DEBUG_EVENT_TQ_NONEMPTY,     "CW_DEBUG_EVENT_TQ_NONEMPTY"     },
 	{ CW_DEBUG_EVENT_TQ_STILL_EMPTY,  "CW_DEBUG_EVENT_TQ_STILL_EMPTY"  }
 };
-
 
 
 
@@ -352,7 +356,7 @@ int cw_dev_debug_raw_sink_write_internal(cw_gen_t *gen)
 		int rv = write(gen->dev_raw_sink, gen->buffer, n_bytes);
 		if (rv == -1) {
 			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
-				      "libcw_debug: write error: %s (gen->dev_raw_sink = %ld, gen->buffer = %ld, n_bytes = %d)", strerror(errno), (long) gen->dev_raw_sink, (long) gen->buffer, n_bytes);
+				      MSG_PREFIX "write error: %s (gen->dev_raw_sink = %ld, gen->buffer = %ld, n_bytes = %d)", strerror(errno), (long) gen->dev_raw_sink, (long) gen->buffer, n_bytes);
 			return CW_FAILURE;
 		}
 	}
@@ -438,7 +442,7 @@ unsigned int test_cw_debug_flags_internal(void)
 			   "Failed to get debug flag %"PRIu32"\n", i);
 	}
 
-	int n = printf("libcw/debug: cw_debug_set/get_flags():");
+	int n = printf(MSG_PREFIX "cw_debug_set/get_flags():");
 	CW_TEST_PRINT_TEST_RESULT (false, n);
 
 	/* Restore original flags. */
