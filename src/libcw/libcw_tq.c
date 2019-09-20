@@ -1,6 +1,6 @@
 /*
   Copyright (C) 2001-2006  Simon Baldwin (simon_baldwin@yahoo.com)
-  Copyright (C) 2011-2017  Kamil Ignacak (acerion@wp.pl)
+  Copyright (C) 2011-2019  Kamil Ignacak (acerion@wp.pl)
 
   This program is free software; you can redistribute it and/or
   modify it under the terms of the GNU General Public License
@@ -40,7 +40,7 @@
 
    Adding new, "non-forever" tone to the queue results in permanent
    dequeuing "forever" tone and proceeding to newly added tone.
-   Adding new, "non-forever" tone ends generation of "forever" tone.
+   Adding the new "non-forever" tone ends generation of "forever" tone.
 
    The "forever" tone is useful for generating tones of length unknown
    in advance.
@@ -86,7 +86,7 @@
 
 
 
-#define MSG_PREFIX "libcw/qt: "
+#define MSG_PREFIX "libcw/tq: "
 
 
 
@@ -210,7 +210,7 @@ cw_tone_queue_t *cw_tq_new_internal(void)
 
 void cw_tq_delete_internal(cw_tone_queue_t **tq)
 {
-	cw_assert (tq, "pointer to tq is NULL");
+	cw_assert (tq, MSG_PREFIX "delete: pointer to tq is NULL");
 
 	if (!tq || !*tq) {
 		return;
@@ -258,7 +258,7 @@ void cw_tq_delete_internal(cw_tone_queue_t **tq)
 */
 int cw_tq_set_capacity_internal(cw_tone_queue_t *tq, uint32_t capacity, uint32_t high_water_mark)
 {
-	cw_assert (tq, "tq is NULL");
+	cw_assert (tq, MSG_PREFIX "set capacity: tq is NULL");
 	if (!tq) {
 		return CW_FAILURE;
 	}
@@ -292,7 +292,6 @@ int cw_tq_set_capacity_internal(cw_tone_queue_t *tq, uint32_t capacity, uint32_t
 
 
 
-
 /**
    \brief Return capacity of a queue
 
@@ -304,10 +303,9 @@ int cw_tq_set_capacity_internal(cw_tone_queue_t *tq, uint32_t capacity, uint32_t
 */
 uint32_t cw_tq_get_capacity_internal(cw_tone_queue_t *tq)
 {
-	cw_assert (tq, "tone queue is NULL");
+	cw_assert (tq, MSG_PREFIX "get capacity: tone queue is NULL");
 	return tq->capacity;
 }
-
 
 
 
@@ -319,9 +317,9 @@ uint32_t cw_tq_get_capacity_internal(cw_tone_queue_t *tq)
 
    \return high water mark of tone queue
 */
-uint32_t cw_tq_get_high_water_mark_internal(cw_tone_queue_t *tq)
+uint32_t cw_tq_get_high_water_mark_internal(const cw_tone_queue_t *tq)
 {
-	cw_assert (tq, "tone queue is NULL");
+	cw_assert (tq, MSG_PREFIX "get high water mark: tone queue is NULL");
 
 	return tq->high_water_mark;
 }
@@ -329,15 +327,14 @@ uint32_t cw_tq_get_high_water_mark_internal(cw_tone_queue_t *tq)
 
 
 
-
 /**
-   \brief Return number of items on tone queue
+   \brief Return number of items (tones) on tone queue
 
    testedin::test_cw_tq_length_internal()
 
    \param tq - tone queue
 
-   \return the count of tones currently held in the circular tone buffer.
+   \return the count of tones currently held in the tone queue
 */
 uint32_t cw_tq_length_internal(cw_tone_queue_t *tq)
 {
@@ -347,7 +344,6 @@ uint32_t cw_tq_length_internal(cw_tone_queue_t *tq)
 
 	return len;
 }
-
 
 
 
@@ -374,7 +370,6 @@ uint32_t cw_tq_prev_index_internal(cw_tone_queue_t *tq, uint32_t ind)
 
 
 
-
 /**
    \brief Get next index to queue
 
@@ -384,7 +379,7 @@ uint32_t cw_tq_prev_index_internal(cw_tone_queue_t *tq, uint32_t ind)
 
    testedin::test_cw_tq_next_index_internal()
 
-   \param tq - tone queue for which to calculate index
+   \param tq - tone queue for which to calculate next index
    \param ind - index in relation to which to calculate index of next element in queue
 
    \return index of next element in queue
@@ -393,7 +388,6 @@ uint32_t cw_tq_next_index_internal(cw_tone_queue_t *tq, uint32_t ind)
 {
 	return ind == tq->capacity - 1 ? 0 : ind + 1;
 }
-
 
 
 
@@ -536,7 +530,6 @@ int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 
 
 
-
 /**
    \brief Handle dequeueing of tone from non-empty tone queue
 
@@ -591,11 +584,11 @@ int cw_tq_dequeue_sub_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 	}
 
 
-#if 0 /* Disabled because these debug messages produce lots of output
-	 to console. Enable only when necessary. */
-	cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
+#if 0   /* Disabled because these debug messages produce lots of output
+	   to console. Enable only when necessary. */
+	cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
 		      MSG_PREFIX "dequeue tone %d us, %d Hz", tone->len, tone->frequency);
-	cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
+	cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
 		      MSG_PREFIX "head = %"PRIu32", tail = %"PRIu32", length = %"PRIu32" -> %"PRIu32"",
 		      tq->head, tq->tail, tq_len_before, tq->len);
 #endif
@@ -620,7 +613,6 @@ int cw_tq_dequeue_sub_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 
 	return call_callback;
 }
-
 
 
 
@@ -678,7 +670,7 @@ int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 		   it. While it may happen in higher-level code to
 		   create such tone, but there is no need to spend
 		   time on it here. */
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_INFO,
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_TONE_QUEUE, CW_DEBUG_INFO,
 			      MSG_PREFIX "dropped tone with len == 0");
 		return CW_SUCCESS;
 	}
@@ -735,7 +727,6 @@ int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 	pthread_mutex_unlock(&(tq->mutex));
 	return CW_SUCCESS;
 }
-
 
 
 
@@ -921,7 +912,7 @@ int cw_tq_wait_for_level_internal(cw_tone_queue_t *tq, uint32_t level)
    \return true if tone queue is full
    \return false if tone queue is not full
 */
-bool cw_tq_is_full_internal(cw_tone_queue_t *tq)
+bool cw_tq_is_full_internal(const cw_tone_queue_t *tq)
 {
 	return tq->len == tq->capacity;
 }
@@ -983,27 +974,27 @@ void cw_tq_flush_internal(cw_tone_queue_t *tq)
 */
 void cw_tq_handle_backspace_internal(cw_tone_queue_t *tq)
 {
-        pthread_mutex_lock(&tq->mutex);
+	pthread_mutex_lock(&tq->mutex);
 
-        uint32_t len = tq->len;
-        uint32_t idx = tq->tail;
-        bool is_found = false;
+	uint32_t len = tq->len;
+	uint32_t idx = tq->tail;
+	bool is_found = false;
 
-        while (len > 0) {
-            --len;
-	    idx = cw_tq_prev_index_internal(tq, idx);
-            if (tq->queue[idx].is_first) {
-                is_found = true;
-                break;
-            }
-        }
+	while (len > 0) {
+		--len;
+		idx = cw_tq_prev_index_internal(tq, idx);
+		if (tq->queue[idx].is_first) {
+			is_found = true;
+			break;
+		}
+	}
 
-        if (is_found) {
-            tq->len = len;
-            tq->tail = idx;
-        }
+	if (is_found) {
+		tq->len = len;
+		tq->tail = idx;
+	}
 
-        pthread_mutex_unlock(&tq->mutex);
+	pthread_mutex_unlock(&tq->mutex);
 }
 
 
@@ -1154,7 +1145,7 @@ unsigned int test_cw_tq_next_index_internal(void)
 	int p = fprintf(stdout, MSG_PREFIX "cw_tq_next_index_internal():");
 
 	cw_tone_queue_t *tq = cw_tq_new_internal();
-	cw_assert (tq, "failed to create new tone queue");
+	cw_assert (tq, MSG_PREFIX "failed to create new tone queue");
 
 	struct {
 		int arg;

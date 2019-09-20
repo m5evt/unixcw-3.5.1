@@ -1,6 +1,6 @@
 /*
   Copyright (C) 2001-2006  Simon Baldwin (simon_baldwin@yahoo.com)
-  Copyright (C) 2011-2017  Kamil Ignacak (acerion@wp.pl)
+  Copyright (C) 2011-2019  Kamil Ignacak (acerion@wp.pl)
 
   This program is free software; you can redistribute it and/or
   modify it under the terms of the GNU General Public License
@@ -21,7 +21,7 @@
 /**
    \file libcw_key.c
 
-   \brief Straight key and keyer.
+   \brief Straight key and iambic keyer.
 */
 
 
@@ -86,11 +86,9 @@ extern cw_debug_t cw_debug_object_dev;
 
 
 
-
 /* ******************************************************************** */
 /*                        Section:Iambic keyer                          */
 /* ******************************************************************** */
-
 
 
 
@@ -324,7 +322,6 @@ void cw_key_register_receiver_internal(volatile cw_key_t *key, cw_rec_t *rec)
 
 
 
-
 /**
    \brief Set new key value, generate appropriate tone (Mark/Space)
 
@@ -477,7 +474,6 @@ int cw_key_ik_enqueue_symbol_internal(volatile cw_key_t *key, int key_value, cha
 
 
 
-
 /**
    \brief Enable iambic Curtis mode B
 
@@ -561,7 +557,7 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 
 		   TODO: move this check earlier in call stack, so
 		   that less functions are called before silently
-		   discovering that key doesn't exist.. */
+		   discovering that key doesn't exist. */
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_INTERNAL, CW_DEBUG_DEBUG,
 			      MSG_PREFIX_IK "NULL key, silently accepting");
 		return CW_SUCCESS;
@@ -739,8 +735,6 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 
 
 
-
-
 /**
    \brief Inform iambic keyer logic about changed state of iambic keyer's paddles
 
@@ -831,7 +825,6 @@ int cw_key_ik_notify_paddle_event_internal(volatile cw_key_t *key, int dot_paddl
 
 
 
-
 /**
    \brief Initiate work of iambic keyer state machine
 
@@ -904,9 +897,8 @@ int cw_key_ik_update_state_initial_internal(volatile cw_key_t *key)
 
 
 
-
 /**
-   \brief Change state of dot paddle
+   \brief Change state of Dot paddle
 
    Alter the state of just one of the two iambic keyer paddles.
    The other paddle state of the paddle pair remains unchanged.
@@ -946,8 +938,6 @@ int cw_key_ik_notify_dash_paddle_event_internal(volatile cw_key_t *key, int dash
 
 
 
-
-
 /**
    \brief Get the current saved states of the two paddles
 
@@ -965,8 +955,6 @@ void cw_key_ik_get_paddles_internal(volatile cw_key_t *key, int *dot_paddle_stat
 	}
 	return;
 }
-
-
 
 
 
@@ -993,7 +981,6 @@ void cw_key_ik_get_paddle_latches_internal(volatile cw_key_t *key, int *dot_padd
 	}
 	return;
 }
-
 
 
 
@@ -1069,8 +1056,6 @@ int cw_key_ik_wait_for_element_internal(volatile cw_key_t *key)
 
 
 
-
-
 /**
    \brief Wait for the current keyer cycle to complete
 
@@ -1111,7 +1096,6 @@ int cw_key_ik_wait_for_keyer_internal(volatile cw_key_t *key)
 
 
 
-
 /**
    \brief Reset iambic keyer data
 
@@ -1143,7 +1127,6 @@ void cw_key_ik_reset_internal(volatile cw_key_t *key)
 
 	return;
 }
-
 
 
 
@@ -1196,11 +1179,9 @@ void cw_key_ik_increment_timer_internal(volatile cw_key_t *key, int usecs)
 
 
 
-
 /* ******************************************************************** */
 /*                        Section:Straight key                          */
 /* ******************************************************************** */
-
 
 
 

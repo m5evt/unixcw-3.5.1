@@ -1,11 +1,10 @@
 /*
   This file is a part of unixcw project.
-  unixcw project is covered by GNU General Public License.
+  unixcw project is covered by GNU General Public License, version 2 or later.
 */
 
 #ifndef H_LIBCW_KEY
 #define H_LIBCW_KEY
-
 
 
 

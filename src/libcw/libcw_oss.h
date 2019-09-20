@@ -1,6 +1,6 @@
 /*
   This file is a part of unixcw project.
-  unixcw project is covered by GNU General Public License.
+  unixcw project is covered by GNU General Public License, version 2 or later.
 */
 
 #ifndef H_LIBCW_OSS
@@ -9,11 +9,9 @@
 
 
 
-
 #include "libcw_gen.h"
 
 int cw_oss_configure(cw_gen_t *gen, const char *device);
-
 
 
 

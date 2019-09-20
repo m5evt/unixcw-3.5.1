@@ -1,6 +1,6 @@
 /*
   Copyright (C) 2001-2006  Simon Baldwin (simon_baldwin@yahoo.com)
-  Copyright (C) 2011-2017  Kamil Ignacak (acerion@wp.pl)
+  Copyright (C) 2011-2019  Kamil Ignacak (acerion@wp.pl)
 
   This program is free software; you can redistribute it and/or
   modify it under the terms of the GNU General Public License
@@ -27,7 +27,7 @@
    Functions operating on one of core elements of libcw: a generator.
 
    Generator is an object that has access to audio sink (soundcard,
-   console buzzer, null audio device) and that can play dots and
+   console buzzer, null audio device) and that can generate dots and
    dashes using the audio sink.
 
    You can request generator to produce audio by using *_play_*()
@@ -35,7 +35,7 @@
 
    The inner workings of the generator seem to be quite simple:
    1. dequeue tone from tone queue
-   2. recalculate tone length in usecs into length in samples
+   2. recalculate tone length in microseconds into tone length in samples
    3. for every sample in tone, calculate sine wave sample and
       put it in generator's constant size buffer
    4. if buffer is full of sine wave samples, push it to audio sink
@@ -141,7 +141,6 @@ static const char *default_audio_devices[] = {
 	CW_DEFAULT_ALSA_DEVICE,
 	CW_DEFAULT_PA_DEVICE,
 	(char *) NULL }; /* just in case someone decided to index the table with CW_AUDIO_SOUNDCARD */
-
 
 
 
@@ -264,7 +263,6 @@ int cw_gen_start_internal(cw_gen_t *gen)
 
 
 
-
 /**
    \brief Set audio device name or path
 
@@ -284,7 +282,7 @@ int cw_gen_start_internal(cw_gen_t *gen)
 */
 int cw_gen_set_audio_device_internal(cw_gen_t *gen, const char *device)
 {
-	/* this should be NULL, either because it has been
+	/* This should be NULL, either because it has been
 	   initialized statically as NULL, or set to
 	   NULL by generator destructor */
 	assert (!gen->audio_device);
@@ -292,7 +290,7 @@ int cw_gen_set_audio_device_internal(cw_gen_t *gen, const char *device)
 
 	if (gen->audio_system == CW_AUDIO_NONE) {
 		gen->audio_device = (char *) NULL;
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
 			      MSG_PREFIX "no audio system specified");
 		return CW_FAILURE;
 	}
@@ -304,14 +302,12 @@ int cw_gen_set_audio_device_internal(cw_gen_t *gen, const char *device)
 	}
 
 	if (!gen->audio_device) {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
-			      MSG_PREFIX "malloc()");
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_STDLIB, CW_DEBUG_ERROR, MSG_PREFIX "malloc()");
 		return CW_FAILURE;
 	} else {
 		return CW_SUCCESS;
 	}
 }
-
 
 
 
@@ -338,16 +334,16 @@ int cw_gen_set_audio_device_internal(cw_gen_t *gen, const char *device)
 int cw_gen_silence_internal(cw_gen_t *gen)
 {
 	if (!gen) {
-		/* this may happen because the process of finalizing
-		   usage of libcw is rather complicated; this should
-		   be somehow resolved */
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_WARNING,
+		/* This may happen because the process of finalizing
+		   usage of libcw is rather complicated. This should
+		   be somehow resolved. */
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_WARNING,
 			      MSG_PREFIX "called the function for NULL generator");
 		return CW_SUCCESS;
 	}
 
-	if (!(gen->thread.running)) {
-		/* Silencing a generator means enqueueing and playing
+	if (!gen->thread.running) {
+		/* Silencing a generator means enqueueing and generating
 		   a tone with zero frequency.  We shouldn't do this
 		   when a "dequeue-and-play-a-tone" function is not
 		   running (anymore). This is not an error situation,
@@ -369,10 +365,10 @@ int cw_gen_silence_internal(cw_gen_t *gen)
 	    || gen->audio_system == CW_AUDIO_PA) {
 
 		/* Allow some time for playing the last tone. */
-		usleep(2 * gen->quantum_len);
+		usleep(2 * gen->quantum_len); /* TODO: this should be usleep(2 * tone->len). */
 
 	} else if (gen->audio_system == CW_AUDIO_CONSOLE) {
-		/* sine wave generation should have been stopped
+		/* Sine wave generation should have been stopped
 		   by a code generating dots/dashes, but
 		   just in case...
 
@@ -380,7 +376,7 @@ int cw_gen_silence_internal(cw_gen_t *gen)
 		   quantum of silence above? */
 		cw_console_silence(gen);
 	} else {
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
 			      MSG_PREFIX "called silence() function for generator without audio system specified");
 	}
 
@@ -413,8 +409,7 @@ cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 
 	cw_gen_t *gen = (cw_gen_t *) malloc(sizeof (cw_gen_t));
 	if (!gen) {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
-			      MSG_PREFIX "malloc()");
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_STDLIB, CW_DEBUG_ERROR, MSG_PREFIX "malloc()");
 		return (cw_gen_t *) NULL;
 	}
 
@@ -584,10 +579,10 @@ void cw_gen_delete_internal(cw_gen_t **gen)
 	if ((*gen)->close_device) {
 		(*gen)->close_device(*gen);
 	} else {
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG, MSG_PREFIX "WARNING: NULL function pointer, something went wrong");
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_WARNING, MSG_PREFIX "WARNING: 'close' function pointer is NULL, something went wrong");
 	}
 
-	pthread_attr_destroy(&((*gen)->thread.attr));
+	pthread_attr_destroy(&(*gen)->thread.attr);
 
 	free((*gen)->client.name);
 	(*gen)->client.name = NULL;
@@ -604,7 +599,6 @@ void cw_gen_delete_internal(cw_gen_t **gen)
 
 	return;
 }
-
 
 
 
@@ -630,7 +624,7 @@ void cw_gen_delete_internal(cw_gen_t **gen)
 int cw_gen_stop_internal(cw_gen_t *gen)
 {
 	if (!gen) {
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_WARNING,
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_WARNING,
 			      MSG_PREFIX "called the function for NULL generator");
 		/* Not really a runtime error, so return
 		   CW_SUCCESS. */
@@ -732,16 +726,15 @@ int cw_gen_stop_internal(cw_gen_t *gen)
 
 #if CW_DEBUG_TIMING_JOIN   /* Debug code to measure how long it takes to join threads. */
 	gettimeofday(&after, NULL);
-	cw_debug_msg ((&cw_debug_object), CW_DEBUG_GENERATOR, CW_DEBUG_INFO, MSG_PREFIX "joining thread took %d us", cw_timestamp_compare_internal(&before, &after));
+	cw_debug_msg (&cw_debug_object, CW_DEBUG_GENERATOR, CW_DEBUG_INFO, MSG_PREFIX "joining thread took %d us", cw_timestamp_compare_internal(&before, &after));
 #endif
-
 
 
 	if (rv == 0) {
 		gen->thread.running = false;
 		return CW_SUCCESS;
 	} else {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_GENERATOR, CW_DEBUG_ERROR, MSG_PREFIX "failed to join threads: \"%s\"", strerror(rv));
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_GENERATOR, CW_DEBUG_ERROR, MSG_PREFIX "failed to join threads: '%s'", strerror(rv));
 		return CW_FAILURE;
 	}
 #endif
@@ -827,10 +820,9 @@ int cw_gen_new_open_internal(cw_gen_t *gen, int audio_system, const char *device
 		}
 	}
 
-	/* there is no next audio system type to try */
+	/* There is no next audio system type to try. */
 	return CW_FAILURE;
 }
-
 
 
 
@@ -966,7 +958,6 @@ void *cw_gen_dequeue_and_play_internal(void *arg)
 
 
 
-
 /**
    \brief Calculate a fragment of sine wave
 
@@ -1049,7 +1040,6 @@ int cw_gen_calculate_sine_wave_internal(cw_gen_t *gen, cw_tone_t *tone)
 
 	return t;
 }
-
 
 
 
@@ -1140,7 +1130,7 @@ int cw_gen_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone)
 		assert (amplitude >= 0);
 
 	} else {
-		cw_assert (0, "->sample_iterator out of bounds:\n"
+		cw_assert (0, MSG_PREFIX "->sample_iterator out of bounds:\n"
 			   "tone->sample_iterator: %d\n"
 			   "tone->n_samples: %"PRId64"\n"
 			   "tone->rising_slope_n_samples: %d\n"
@@ -1155,7 +1145,6 @@ int cw_gen_calculate_amplitude_internal(cw_gen_t *gen, cw_tone_t *tone)
 	return amplitude;
 #endif
 }
-
 
 
 
@@ -1229,7 +1218,7 @@ int cw_generator_set_tone_slope(cw_gen_t *gen, int slope_shape, int slope_len)
 	if (slope_shape == CW_TONE_SLOPE_SHAPE_RECTANGULAR
 	    && slope_len > 0) {
 
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
 			      MSG_PREFIX "requested a rectangular slope shape, but also requested slope len > 0");
 
 		return CW_FAILURE;
@@ -1251,7 +1240,7 @@ int cw_generator_set_tone_slope(cw_gen_t *gen, int slope_shape, int slope_len)
 
 
 	int slope_n_samples = ((gen->sample_rate / 100) * gen->tone_slope.len) / 10000;
-	cw_assert (slope_n_samples >= 0, "negative slope_n_samples: %d", slope_n_samples);
+	cw_assert (slope_n_samples >= 0, MSG_PREFIX "negative slope_n_samples: %d", slope_n_samples);
 
 
 	/* Reallocate the table of slope amplitudes only when necessary.
@@ -1275,7 +1264,7 @@ int cw_generator_set_tone_slope(cw_gen_t *gen, int slope_shape, int slope_len)
 		if (slope_n_samples > 0) {
 			gen->tone_slope.amplitudes = realloc(gen->tone_slope.amplitudes, sizeof(float) * slope_n_samples);
 			if (!gen->tone_slope.amplitudes) {
-				cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
+				cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_ERROR,
 					      MSG_PREFIX "failed to realloc() table of slope amplitudes");
 				return CW_FAILURE;
 			}
@@ -1288,7 +1277,6 @@ int cw_generator_set_tone_slope(cw_gen_t *gen, int slope_shape, int slope_len)
 
 	return CW_SUCCESS;
 }
-
 
 
 
@@ -1323,16 +1311,15 @@ void cw_gen_recalculate_slopes_internal(cw_gen_t *gen)
 		} else if (gen->tone_slope.shape == CW_TONE_SLOPE_SHAPE_RECTANGULAR) {
 			/* CW_TONE_SLOPE_SHAPE_RECTANGULAR is covered
 			   before entering this "for" loop. */
-			cw_assert (0, "we shouldn't be here, calculating rectangular slopes");
+			cw_assert (0, MSG_PREFIX "we shouldn't be here, calculating rectangular slopes");
 
 		} else {
-			cw_assert (0, "unsupported slope shape %d", gen->tone_slope.shape);
+			cw_assert (0, MSG_PREFIX "unsupported slope shape %d", gen->tone_slope.shape);
 		}
 	}
 
 	return;
 }
-
 
 
 
@@ -1518,15 +1505,18 @@ int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, cw_tone_t *tone, int queue
 
 		samples_to_write -= buffer_sub_n_samples;
 
-#if 0
+#if 0           /* Debug code. */
+
 		if (samples_to_write < 0) {
-			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG, "samples left = %d", samples_to_write);
+			cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG, MSG_PREFIX "samples left = %d", samples_to_write);
 		}
 #endif
 
 	} /* while (samples_to_write > 0) { */
 
-	//fprintf(stderr, "++++ left loop, %d loops, samples left = %d\n", debug_loop, (int) samples_to_write);
+#if 0   /* Debug code. */
+	fprintf(stderr, MSG_PREFIX "left loop, %d / %.1f loops, samples left = %d\n", n_loops, n_loops_expected, (int) samples_to_write);
+#endif
 
 	return 0;
 }
@@ -1572,7 +1562,6 @@ int cw_gen_set_speed_internal(cw_gen_t *gen, int new_value)
 
 
 
-
 /**
    \brief Set frequency of generator
 
@@ -1601,7 +1590,6 @@ int cw_gen_set_frequency_internal(cw_gen_t *gen, int new_value)
 		return CW_SUCCESS;
 	}
 }
-
 
 
 
@@ -1645,7 +1633,6 @@ int cw_gen_set_volume_internal(cw_gen_t *gen, int new_value)
 
 
 
-
 /**
    \brief Set sending gap of generator
 
@@ -1675,7 +1662,6 @@ int cw_gen_set_gap_internal(cw_gen_t *gen, int new_value)
 
 	return CW_SUCCESS;
 }
-
 
 
 
@@ -1714,7 +1700,6 @@ int cw_gen_set_weighting_internal(cw_gen_t *gen, int new_value)
 
 
 
-
 /**
    \brief Get sending speed from generator
 
@@ -1726,7 +1711,6 @@ int cw_gen_get_speed_internal(cw_gen_t *gen)
 {
 	return gen->send_speed;
 }
-
 
 
 
@@ -1745,7 +1729,6 @@ int cw_gen_get_frequency_internal(cw_gen_t *gen)
 {
 	return gen->frequency;
 }
-
 
 
 
@@ -1787,7 +1770,6 @@ int cw_gen_get_gap_internal(cw_gen_t *gen)
 
 
 
-
 /**
    \brief Get sending weighting from generator
 
@@ -1799,7 +1781,6 @@ int cw_gen_get_weighting_internal(cw_gen_t *gen)
 {
 	return gen->weighting;
 }
-
 
 
 
@@ -1848,7 +1829,6 @@ void cw_gen_get_send_parameters_internal(cw_gen_t *gen,
 
 
 
-
 /**
    \brief Play a mark (Dot or Dash)
 
@@ -1879,12 +1859,12 @@ int cw_gen_play_mark_internal(cw_gen_t *gen, char mark, bool is_first)
 	if (mark == CW_DOT_REPRESENTATION) {
 		cw_tone_t tone;
 		CW_TONE_INIT(&tone, gen->frequency, gen->dot_len, CW_SLOPE_MODE_STANDARD_SLOPES);
-                tone.is_first = is_first;
+		tone.is_first = is_first;
 		status = cw_tq_enqueue_internal(gen->tq, &tone);
 	} else if (mark == CW_DASH_REPRESENTATION) {
 		cw_tone_t tone;
 		CW_TONE_INIT(&tone, gen->frequency, gen->dash_len, CW_SLOPE_MODE_STANDARD_SLOPES);
-                tone.is_first = is_first;
+		tone.is_first = is_first;
 		status = cw_tq_enqueue_internal(gen->tq, &tone);
 	} else {
 		errno = EINVAL;
@@ -2119,6 +2099,7 @@ int cw_gen_play_representation_internal(cw_gen_t *gen, const char *representatio
 
 
 
+
 /**
    \brief Look up and play a given ASCII character as Morse code
 
@@ -2326,7 +2307,7 @@ int cw_gen_play_string_internal(cw_gen_t *gen, const char *string)
 */
 void cw_gen_reset_send_parameters_internal(cw_gen_t *gen)
 {
-	cw_assert (gen, "generator is NULL");
+	cw_assert (gen, MSG_PREFIX "generator is NULL");
 
 	gen->send_speed = CW_SPEED_INITIAL;
 	gen->frequency = CW_FREQUENCY_INITIAL;
@@ -2344,7 +2325,6 @@ void cw_gen_reset_send_parameters_internal(cw_gen_t *gen)
 
 
 
-
 /**
    \brief Synchronize generator's low level timing parameters
 
@@ -2352,7 +2332,7 @@ void cw_gen_reset_send_parameters_internal(cw_gen_t *gen)
 */
 void cw_gen_sync_parameters_internal(cw_gen_t *gen)
 {
-	cw_assert (gen, "generator is NULL");
+	cw_assert (gen, MSG_PREFIX "generator is NULL");
 
 	/* Do nothing if we are already synchronized. */
 	if (gen->parameters_in_sync) {
@@ -2403,7 +2383,7 @@ void cw_gen_sync_parameters_internal(cw_gen_t *gen)
 	   identifying this in earlier versions of libcw. */
 	gen->adjustment_space_len = (7 * gen->additional_space_len) / 3;
 
-	cw_debug_msg ((&cw_debug_object), CW_DEBUG_PARAMETERS, CW_DEBUG_INFO,
+	cw_debug_msg (&cw_debug_object, CW_DEBUG_PARAMETERS, CW_DEBUG_INFO,
 		      MSG_PREFIX "send usec timings <%d [wpm]>: dot: %d, dash: %d, %d, %d, %d, %d, %d",
 		      gen->send_speed, gen->dot_len, gen->dash_len,
 		      gen->eom_space_len, gen->eoc_space_len,
@@ -2414,7 +2394,6 @@ void cw_gen_sync_parameters_internal(cw_gen_t *gen)
 
 	return;
 }
-
 
 
 
@@ -2460,7 +2439,6 @@ int cw_gen_key_begin_mark_internal(cw_gen_t *gen)
 
 	return rv;
 }
-
 
 
 
@@ -2543,7 +2521,7 @@ int cw_gen_key_begin_space_internal(cw_gen_t *gen)
 */
 int cw_gen_key_pure_symbol_internal(cw_gen_t *gen, char symbol)
 {
-	cw_tone_t tone;
+	cw_tone_t tone = { 0 };
 
 	if (symbol == CW_DOT_REPRESENTATION) {
 		CW_TONE_INIT(&tone, gen->frequency, gen->dot_len, CW_SLOPE_MODE_STANDARD_SLOPES);
@@ -2555,7 +2533,7 @@ int cw_gen_key_pure_symbol_internal(cw_gen_t *gen, char symbol)
 		CW_TONE_INIT(&tone, 0, gen->eom_space_len, CW_SLOPE_MODE_NO_SLOPES);
 
 	} else {
-		cw_assert (0, "unknown key symbol '%d'", symbol);
+		cw_assert (0, MSG_PREFIX "unknown key symbol '%d'", symbol);
 	}
 
 	return cw_tq_enqueue_internal(gen->tq, &tone);

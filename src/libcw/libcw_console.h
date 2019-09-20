@@ -1,11 +1,10 @@
 /*
   This file is a part of unixcw project.
-  unixcw project is covered by GNU General Public License.
+  unixcw project is covered by GNU General Public License, version 2 or later.
 */
 
 #ifndef H_LIBCW_CONSOLE
 #define H_LIBCW_CONSOLE
-
 
 
 
@@ -16,7 +15,6 @@
 int  cw_console_configure(cw_gen_t *gen, const char *device);
 int  cw_console_write(cw_gen_t *gen, cw_tone_t *tone);
 void cw_console_silence(cw_gen_t *gen);
-
 
 
 

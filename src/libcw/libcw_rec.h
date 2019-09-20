@@ -1,6 +1,6 @@
 /*
   This file is a part of unixcw project.
-  unixcw project is covered by GNU General Public License.
+  unixcw project is covered by GNU General Public License, version 2 or later.
 */
 
 #ifndef H_LIBCW_REC
@@ -25,7 +25,7 @@
 
 /* Dot length magic number.
 
-   From PARIS calibration, 1 dot length [us] = 1200000 / speed [wpm].
+   From PARIS calibration, 1 Dot length [us] = 1200000 / speed [wpm].
 
    This variable is used in generator code as well. */
 enum { CW_DOT_CALIBRATION = 1200000 };
@@ -252,7 +252,7 @@ void cw_rec_reset_internal(cw_rec_t *rec);
 void cw_rec_sync_parameters_internal(cw_rec_t *rec);
 void cw_rec_get_parameters_internal(cw_rec_t *rec,
 				    int *dot_len_ideal, int *dash_len_ideal,
-				    int *dot_len_min, int *dot_len_max,
+				    int *dot_len_min,  int *dot_len_max,
 				    int *dash_len_min, int *dash_len_max,
 				    int *eom_len_min,
 				    int *eom_len_max,

@@ -1,6 +1,6 @@
 /*
   This file is a part of unixcw project.
-  unixcw project is covered by GNU General Public License.
+  unixcw project is covered by GNU General Public License, version 2 or later.
 */
 
 #ifndef H_LIBCW_PA
@@ -9,9 +9,7 @@
 
 
 
-
 #include "config.h"
-
 
 
 
@@ -22,8 +20,8 @@
 #include <pulse/error.h>
 
 typedef struct cw_pa_data_struct {
-	pa_simple *s;       /* audio handle */
-	pa_sample_spec ss;  /* sample specification */
+	pa_simple *s;       /* Audio handle. */
+	pa_sample_spec ss;  /* Sample specification. */
 	pa_usec_t latency_usecs;
 
 	pa_buffer_attr ba;
@@ -34,11 +32,9 @@ typedef struct cw_pa_data_struct {
 
 
 
-
 #include "libcw_gen.h"
 
 int cw_pa_configure(cw_gen_t *gen, const char *device);
-
 
 
 

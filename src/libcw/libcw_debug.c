@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2001-2006  Simon Baldwin (simon_baldwin@yahoo.com)
- * Copyright (C) 2011-2017  Kamil Ignacak (acerion@wp.pl)
+ * Copyright (C) 2011-2019  Kamil Ignacak (acerion@wp.pl)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -111,8 +111,8 @@ cw_debug_t cw_debug_object_ev = {
 
 
 
-static void cw_debug_flush(cw_debug_t *debug_object);
 
+static void cw_debug_flush(cw_debug_t *debug_object);
 
 
 
@@ -237,7 +237,6 @@ uint32_t cw_debug_get_flags(cw_debug_t *debug_object)
 
 
 
-
 /**
    \brief Check if given debug flag is set
 
@@ -261,14 +260,13 @@ bool cw_debug_has_flag(cw_debug_t *debug_object, uint32_t flag)
 
 
 
-
 #ifdef LIBCW_WITH_DEV
 
 
 
 
 
-void cw_dev_debug_print_generator_setup(cw_gen_t *gen)
+void cw_dev_debug_print_generator_setup(const cw_gen_t *gen)
 {
 	fprintf(stderr, "audio system:         %s\n",     cw_get_audio_system_label(gen->audio_system));
 	if (gen->audio_system == CW_AUDIO_OSS) {
@@ -355,7 +353,7 @@ int cw_dev_debug_raw_sink_write_internal(cw_gen_t *gen)
 
 		int rv = write(gen->dev_raw_sink, gen->buffer, n_bytes);
 		if (rv == -1) {
-			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+			cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
 				      MSG_PREFIX "write error: %s (gen->dev_raw_sink = %ld, gen->buffer = %ld, n_bytes = %d)", strerror(errno), (long) gen->dev_raw_sink, (long) gen->buffer, n_bytes);
 			return CW_FAILURE;
 		}
@@ -398,9 +396,7 @@ void cw_debug_event_internal(cw_debug_t *debug_object, uint32_t flag, uint32_t e
 
 
 
-
 #endif /* #ifdef LIBCW_WITH_DEV */
-
 
 
 
@@ -450,7 +446,6 @@ unsigned int test_cw_debug_flags_internal(void)
 
 	return 0;
 }
-
 
 
 

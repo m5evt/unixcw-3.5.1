@@ -24,11 +24,9 @@
 
 
 
-
 #include <stdio.h>
 #include <assert.h>
 #include <stdbool.h>
-
 
 
 
@@ -104,7 +102,6 @@ uint32_t cw_get_debug_flags(void)              __attribute__ ((deprecated));
 
 
 
-
 enum {
 	CW_DEBUG_EVENT_TONE_LOW  = 0,         /* Tone with non-zero frequency. */
 	CW_DEBUG_EVENT_TONE_MID,              /* A state between LOW and HIGH, probably unused. */
@@ -113,7 +110,6 @@ enum {
 	CW_DEBUG_EVENT_TQ_NONEMPTY,           /* A tone from libcw's queue of tones has been dequeued, but the queue is still non-empty. */
 	CW_DEBUG_EVENT_TQ_STILL_EMPTY         /* libcw's queue of tones has been asked for tone, but there were no tones on the queue. */
 };
-
 
 
 
@@ -142,7 +138,6 @@ enum {
 
 
 
-
 /**
   \brief Assert macro with message
 
@@ -167,12 +162,10 @@ enum {
 
 
 
-
 #ifdef LIBCW_WITH_DEV
-int  cw_dev_debug_raw_sink_write_internal(cw_gen_t *gen);
-void cw_dev_debug_print_generator_setup(cw_gen_t *gen);
+int  cw_dev_debug_raw_sink_write_internal(cw_gen_t * gen);
+void cw_dev_debug_print_generator_setup(const cw_gen_t * gen);
 #endif
-
 
 
 
@@ -188,5 +181,8 @@ unsigned int test_cw_debug_flags_internal(void);
 #if defined(__cplusplus)
 }
 #endif
+
+
+
 
 #endif  /* H_LIBCW_DEBUG */

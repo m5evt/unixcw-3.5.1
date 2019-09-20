@@ -1,6 +1,6 @@
 /*
   Copyright (C) 2001-2006  Simon Baldwin (simon_baldwin@yahoo.com)
-  Copyright (C) 2011-2017  Kamil Ignacak (acerion@wp.pl)
+  Copyright (C) 2011-2019  Kamil Ignacak (acerion@wp.pl)
 
   This program is free software; you can redistribute it and/or
   modify it under the terms of the GNU General Public License
@@ -113,7 +113,6 @@ static const int CW_PA_BUFFER_N_SAMPLES = 1024;
 
 
 
-
 /**
    \brief Check if it is possible to open PulseAudio output
 
@@ -122,8 +121,8 @@ static const int CW_PA_BUFFER_N_SAMPLES = 1024;
 
    \param device - sink device, NULL for default PulseAudio device
 
-   \return true if opening PulseAudio output succeeded;
-   \return false if opening PulseAudio output failed;
+   \return true if opening PulseAudio output succeeded
+   \return false if opening PulseAudio output failed
 */
 bool cw_is_pa_possible(const char *device)
 {
@@ -136,12 +135,13 @@ bool cw_is_pa_possible(const char *device)
 
 	int rv = cw_pa_dlsym_internal(cw_pa.handle);
 	if (rv < 0) {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
-			      MSG_PREFIX "failed to resolve PulseAudio symbol #%d, can't correctly load PulseAudio library", rv);
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
+			      MSG_PREFIX "is possible: failed to resolve PulseAudio symbol #%d, can't correctly load PulseAudio library", rv);
 		dlclose(cw_pa.handle);
 		return false;
 	}
 
+	/* TODO: this piece of code is duplicated in cw_pa_simple_new_internal() */
 	const char *dev = (char *) NULL;
 	if (device && strcmp(device, CW_DEFAULT_PA_DEVICE)) {
 		dev = device;
@@ -154,8 +154,8 @@ bool cw_is_pa_possible(const char *device)
 	pa_simple *s = cw_pa_simple_new_internal(&ss, &ba, dev, "cw_is_pa_possible()", &error);
 
 	if (!s) {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
-			      MSG_PREFIX "can't connect to PulseAudio server: %s", cw_pa.pa_strerror(error));
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
+			      MSG_PREFIX "is possible: can't connect to PulseAudio server: %s", cw_pa.pa_strerror(error));
 		if (cw_pa.handle) {
 			dlclose(cw_pa.handle);
 		}
@@ -211,7 +211,6 @@ int cw_pa_write_internal(cw_gen_t *gen)
 
 
 
-
 /**
    \brief Wrapper for pa_simple_new()
 
@@ -241,7 +240,7 @@ pa_simple *cw_pa_simple_new_internal(pa_sample_spec *ss, pa_buffer_attr *ba, con
 	ss->rate = 44100;
 	ss->channels = 1;
 
-	const char *dev = (char *) NULL; /* NULL - let PulseAudio use default device */
+	const char *dev = (char *) NULL; /* NULL - let PulseAudio use default device. */
 	if (device && strcmp(device, CW_DEFAULT_PA_DEVICE)) {
 		dev = device; /* non-default device */
 	}
@@ -253,19 +252,18 @@ pa_simple *cw_pa_simple_new_internal(pa_sample_spec *ss, pa_buffer_attr *ba, con
 	/* ba->prebuf = ; */ /* ? */
 	/* ba->fragsize = sizeof(uint32_t) -1; */ /* not relevant to playback */
 
-	pa_simple *s = cw_pa.pa_simple_new(NULL,                  /* server name (NULL for default) */
-					   "libcw",               /* descriptive name of client (application name etc.) */
-					   PA_STREAM_PLAYBACK,    /* stream direction */
-					   dev,                   /* device/sink name (NULL for default) */
-					   stream_name,           /* stream name, descriptive name for this client (application name, song title, etc.) */
-					   ss,                    /* sample specification */
-					   NULL,                  /* channel map (NULL for default) */
-					   ba,                    /* buffering attributes (NULL for default) */
-					   error);                /* error buffer (when routine returns NULL) */
+	pa_simple *s = cw_pa.pa_simple_new(NULL,                  /* Server name (NULL for default). */
+					   "libcw",               /* Descriptive name of client (application name etc.). */
+					   PA_STREAM_PLAYBACK,    /* Stream direction. */
+					   dev,                   /* Device/sink name (NULL for default). */
+					   stream_name,           /* Stream name, descriptive name for this client (application name, song title, etc.). */
+					   ss,                    /* Sample specification. */
+					   NULL,                  /* Channel map (NULL for default). */
+					   ba,                    /* Buffering attributes (NULL for default). */
+					   error);                /* Error buffer (when routine returns NULL). */
 
 	return s;
 }
-
 
 
 
@@ -300,11 +298,10 @@ int cw_pa_dlsym_internal(void *handle)
 	*(void **) &(cw_pa.pa_simple_drain)       = dlsym(handle, "pa_simple_drain");
 	if (!cw_pa.pa_simple_drain)       return -6;
 	*(void **) &(cw_pa.pa_usec_to_bytes)      = dlsym(handle, "pa_usec_to_bytes");
-	if (!cw_pa.pa_usec_to_bytes)       return -7;
+	if (!cw_pa.pa_usec_to_bytes)      return -7;
 
 	return 0;
 }
-
 
 
 
@@ -322,9 +319,10 @@ int cw_pa_dlsym_internal(void *handle)
 */
 int cw_pa_open_device_internal(cw_gen_t *gen)
 {
-	const char *dev = (char *) NULL; /* NULL - let PulseAudio use default device */
+	/* TODO: this piece of code is duplicated in cw_pa_simple_new_internal() */
+	const char *dev = (char *) NULL; /* NULL - let PulseAudio use default device. */
 	if (gen->audio_device && strcmp(gen->audio_device, CW_DEFAULT_PA_DEVICE)) {
-		dev = gen->audio_device; /* non-default device */
+		dev = gen->audio_device; /* Non-default device. */
 	}
 
 	int error = 0;
@@ -334,8 +332,8 @@ int cw_pa_open_device_internal(cw_gen_t *gen)
 						   &error);
 
  	if (!gen->pa_data.s) {
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
-			      MSG_PREFIX "can't connect to PulseAudio server: %s", cw_pa.pa_strerror(error));
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
+			      MSG_PREFIX "open device: can't connect to PulseAudio server: %s", cw_pa.pa_strerror(error));
 		return false;
 	}
 
@@ -343,8 +341,8 @@ int cw_pa_open_device_internal(cw_gen_t *gen)
 	gen->sample_rate = gen->pa_data.ss.rate;
 
 	if ((gen->pa_data.latency_usecs = cw_pa.pa_simple_get_latency(gen->pa_data.s, &error)) == (pa_usec_t) -1) {
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
-			      MSG_PREFIX "pa_simple_get_latency() failed: %s", cw_pa.pa_strerror(error));
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
+			      MSG_PREFIX "open device: pa_simple_get_latency() failed: %s", cw_pa.pa_strerror(error));
 	}
 
 #if CW_DEV_RAW_SINK
@@ -358,7 +356,6 @@ int cw_pa_open_device_internal(cw_gen_t *gen)
 
 
 
-
 /**
    \brief Close PulseAudio device associated with current generator
 */
@@ -368,14 +365,14 @@ void cw_pa_close_device_internal(cw_gen_t *gen)
 		/* Make sure that every single sample was played */
 		int error;
 		if (cw_pa.pa_simple_drain(gen->pa_data.s, &error) < 0) {
-			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
-				      MSG_PREFIX "pa_simple_drain() failed: %s", cw_pa.pa_strerror(error));
+			cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
+				      MSG_PREFIX "close device: pa_simple_drain() failed: %s", cw_pa.pa_strerror(error));
 		}
 		cw_pa.pa_simple_free(gen->pa_data.s);
 		gen->pa_data.s = NULL;
 	} else {
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_WARNING,
-			      MSG_PREFIX "called the function for NULL PA sink");
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_WARNING,
+			      MSG_PREFIX "close device: called the function for NULL PA sink");
 	}
 
 	if (cw_pa.handle) {
@@ -394,16 +391,13 @@ void cw_pa_close_device_internal(cw_gen_t *gen)
 
 
 
-
 #else /* #ifdef LIBCW_WITH_PULSEAUDIO */
-
 
 
 
 
 #include <stdbool.h>
 #include "libcw_pa.h"
-
 
 
 
@@ -418,14 +412,12 @@ bool cw_is_pa_possible(__attribute__((unused)) const char *device)
 
 
 
-
 int cw_pa_configure(__attribute__((unused)) cw_gen_t *gen, __attribute__((unused)) const char *device)
 {
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_INFO,
 		      MSG_PREFIX "This audio system has been disabled during compilation");
 	return CW_FAILURE;
 }
-
 
 
 

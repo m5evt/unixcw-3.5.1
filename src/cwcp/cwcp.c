@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2001-2006  Simon Baldwin (simon_baldwin@yahoo.com)
- * Copyright (C) 2011-2017  Kamil Ignacak (acerion@wp.pl)
+ * Copyright (C) 2011-2019  Kamil Ignacak (acerion@wp.pl)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -1790,7 +1790,6 @@ int main(int argc, char **argv)
 
 	return EXIT_SUCCESS;
 }
-
 
 
 

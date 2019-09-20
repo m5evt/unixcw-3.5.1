@@ -1,6 +1,6 @@
 /*
   Copyright (C) 2001-2006  Simon Baldwin (simon_baldwin@yahoo.com)
-  Copyright (C) 2011-2017  Kamil Ignacak (acerion@wp.pl)
+  Copyright (C) 2011-2019  Kamil Ignacak (acerion@wp.pl)
 
   This program is free software; you can redistribute it and/or
   modify it under the terms of the GNU General Public License
@@ -159,7 +159,6 @@ void cw_license(void)
 
 
 
-
 /**
    \brief Get a readable label of given audio system
 
@@ -178,7 +177,6 @@ const char *cw_get_audio_system_label(int audio_system)
 {
 	return cw_audio_system_labels[audio_system];
 }
-
 
 
 
@@ -202,15 +200,14 @@ void cw_usecs_to_timespec_internal(struct timespec *t, int usecs)
 	assert (usecs >= 0);
 	assert (t);
 
-	int sec = usecs / 1000000;
-	int usec = usecs % 1000000;
+	int sec = usecs / CW_USECS_PER_SEC;
+	int usec = usecs % CW_USECS_PER_SEC;
 
 	t->tv_sec = sec;
 	t->tv_nsec = usec * 1000;
 
 	return;
 }
-
 
 
 
@@ -231,7 +228,7 @@ void cw_usecs_to_timespec_internal(struct timespec *t, int usecs)
 
    \param n - period of time to sleep
 */
-void cw_nanosleep_internal(struct timespec *n)
+void cw_nanosleep_internal(const struct timespec *n)
 {
 	struct timespec rem = { .tv_sec = n->tv_sec, .tv_nsec = n->tv_nsec };
 
@@ -277,19 +274,18 @@ bool cw_dlopen_internal(const char *name, void **handle)
 	char *e = dlerror();
 
 	if (e) {
-		cw_debug_msg (((&cw_debug_object_dev)), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
 			      MSG_PREFIX "dlopen() fails for %s with error: %s", name, e);
 		return false;
 	} else {
 		*handle = h;
 
-		cw_debug_msg (((&cw_debug_object_dev)), CW_DEBUG_STDLIB, CW_DEBUG_DEBUG,
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_STDLIB, CW_DEBUG_DEBUG,
 			      MSG_PREFIX "dlopen() succeeds for %s", name);
 		return true;
 	}
 }
 #endif
-
 
 
 
@@ -320,7 +316,7 @@ bool cw_dlopen_internal(const char *name, void **handle)
 */
 int cw_timestamp_validate_internal(struct timeval *out_timestamp, const struct timeval *in_timestamp)
 {
-	cw_assert (out_timestamp, "pointer to output timestamp is NULL");
+	cw_assert (out_timestamp, MSG_PREFIX "validate timestamp: pointer to output timestamp is NULL");
 
 	if (in_timestamp) {
 		if (in_timestamp->tv_sec < 0
@@ -339,7 +335,7 @@ int cw_timestamp_validate_internal(struct timeval *out_timestamp, const struct t
 				// fprintf(stderr, "Negative usecs in %s\n", __func__);
 			}
 
-			perror (MSG_PREFIX "gettimeofday");
+			perror(MSG_PREFIX "validate timestamp: gettimeofday");
 			return CW_FAILURE;
 		} else {
 			return CW_SUCCESS;
@@ -350,11 +346,10 @@ int cw_timestamp_validate_internal(struct timeval *out_timestamp, const struct t
 
 
 
-
 /**
    \brief Compare two timestamps
 
-   Compare two timestamps, and return the difference between them in
+   Compare two timestamps and return the difference between them in
    microseconds, taking care to clamp values which would overflow an int.
 
    This routine always returns a positive integer in the range 0 to INT_MAX.
@@ -366,10 +361,8 @@ int cw_timestamp_validate_internal(struct timeval *out_timestamp, const struct t
 
    \return difference between timestamps (in microseconds)
 */
-int cw_timestamp_compare_internal(const struct timeval *earlier,
-				  const struct timeval *later)
+int cw_timestamp_compare_internal(const struct timeval * earlier, const struct timeval * later)
 {
-
 	/* Compare the timestamps, taking care on overflows.
 
 	   At 4 WPM, the dash length is 3*(1200000/4)=900,000 usecs, and
@@ -476,7 +469,6 @@ void cw_get_frequency_limits(int *min_frequency, int *max_frequency)
 
 
 
-
 /**
    \brief Get volume limits
 
@@ -501,7 +493,6 @@ void cw_get_volume_limits(int *min_volume, int *max_volume)
 	}
 	return;
 }
-
 
 
 
@@ -533,7 +524,6 @@ void cw_get_gap_limits(int *min_gap, int *max_gap)
 
 
 
-
 /**
    \brief Get tolerance limits
 
@@ -557,7 +547,6 @@ void cw_get_tolerance_limits(int *min_tolerance, int *max_tolerance)
 	}
 	return;
 }
-
 
 
 

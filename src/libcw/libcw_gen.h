@@ -1,6 +1,6 @@
 /*
   This file is a part of unixcw project.
-  unixcw project is covered by GNU General Public License.
+  unixcw project is covered by GNU General Public License, version 2 or later.
 */
 
 #ifndef H_LIBCW_GEN
@@ -423,7 +423,6 @@ unsigned int test_cw_gen_forever_internal(void);
 unsigned int test_cw_gen_forever_sub(int seconds, int audio_system, const char *audio_device);
 
 #endif /* #ifdef LIBCW_UNIT_TESTS */
-
 
 
 

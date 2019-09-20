@@ -1,6 +1,6 @@
 /*
   Copyright (C) 2001-2006  Simon Baldwin (simon_baldwin@yahoo.com)
-  Copyright (C) 2011-2017  Kamil Ignacak (acerion@wp.pl)
+  Copyright (C) 2011-2019  Kamil Ignacak (acerion@wp.pl)
 
   This program is free software; you can redistribute it and/or
   modify it under the terms of the GNU General Public License
@@ -132,7 +132,6 @@ static const cw_entry_t CW_TABLE[] = {
 
 
 
-
 /**
    \brief Return the number of characters present in character lookup table
 
@@ -165,7 +164,6 @@ int cw_get_character_count(void)
 
 
 
-
 /**
    \brief Get list of characters present in character lookup table
 
@@ -191,7 +189,7 @@ int cw_get_character_count(void)
 */
 void cw_list_characters(char *list)
 {
-	cw_assert (list, "Output pointer is null");
+	cw_assert (list, MSG_PREFIX "output pointer is NULL");
 
 	/* Append each table character to the output string. */
 	int i = 0;
@@ -203,7 +201,6 @@ void cw_list_characters(char *list)
 
 	return;
 }
-
 
 
 
@@ -225,7 +222,7 @@ int cw_get_maximum_representation_length(void)
 	if (maximum_length == 0) {
 		/* Traverse the main lookup table, finding the longest representation. */
 		for (const cw_entry_t *cw_entry = CW_TABLE; cw_entry->character; cw_entry++) {
-			int length = (int) strlen (cw_entry->representation);
+			int length = (int) strlen(cw_entry->representation);
 			if (length > maximum_length) {
 				maximum_length = length;
 			}
@@ -262,8 +259,8 @@ const char *cw_character_to_representation_internal(int c)
 	/* If this is the first call, set up the fast lookup table to give
 	   direct access to the CW table for a given character. */
 	if (!is_initialized) {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_LOOKUPS, CW_DEBUG_INFO,
-			      MSG_PREFIX "initialize fast lookup table");
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_LOOKUPS, CW_DEBUG_INFO,
+			      MSG_PREFIX "initializing fast lookup table");
 
 		for (const cw_entry_t *cw_entry = CW_TABLE; cw_entry->character; cw_entry++) {
 			lookup[(unsigned char) cw_entry->character] = cw_entry;
@@ -456,7 +453,6 @@ unsigned int cw_representation_to_hash_internal(const char *representation)
 
 
 
-
 /**
    \brief Return character corresponding to given representation
 
@@ -483,7 +479,7 @@ int cw_representation_to_character_internal(const char *representation)
 	/* If this is the first call, set up the fast lookup table to give direct
 	   access to the CW table for a hashed representation. */
 	if (!is_initialized) {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_LOOKUPS, CW_DEBUG_INFO,
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_LOOKUPS, CW_DEBUG_INFO,
 			      MSG_PREFIX "initialize hash lookup table");
 		is_complete = cw_representation_lookup_init_internal(lookup);
 		is_initialized = true;
@@ -546,7 +542,6 @@ int cw_representation_to_character_internal(const char *representation)
 
 
 
-
 /**
    \brief Return character corresponding to given representation
 
@@ -589,7 +584,6 @@ int cw_representation_to_character_direct_internal(const char *representation)
 
 	return cw_entry ? cw_entry->character : 0;
 }
-
 
 
 
@@ -659,7 +653,7 @@ int cw_representation_lookup_init_internal(const cw_entry_t *lookup[])
         }
 
 	if (!is_complete) {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_LOOKUPS, CW_DEBUG_WARNING,
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_LOOKUPS, CW_DEBUG_WARNING,
 			      MSG_PREFIX "hash lookup table incomplete");
 	}
 
@@ -843,7 +837,6 @@ typedef struct {
 
 
 
-
 static const cw_prosign_entry_t CW_PROSIGN_TABLE[] = {
 	/* Standard procedural signals */
 	{'"', "AF",  false},   {'\'', "WG", false},  {'$', "SX",  false},
@@ -868,7 +861,6 @@ static const cw_prosign_entry_t CW_PROSIGN_TABLE[] = {
 
 
 
-
 /**
    \brief Get number of procedural signals
 
@@ -889,7 +881,6 @@ int cw_get_procedural_character_count(void)
 
 	return character_count;
 }
-
 
 
 
@@ -925,7 +916,6 @@ void cw_list_procedural_characters(char *list)
 
 
 
-
 /**
    \brief Get length of the longest procedural expansion
 
@@ -956,7 +946,6 @@ int cw_get_maximum_procedural_expansion_length(void)
 
 
 
-
 /**
    \brief Return information related to a procedural character
 
@@ -982,7 +971,7 @@ const char *cw_lookup_procedural_character_internal(int c, bool *is_usually_expa
 	   give direct access to the procedural expansions table for
 	   a given character. */
 	if (!is_initialized) {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_LOOKUPS, CW_DEBUG_INFO,
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_LOOKUPS, CW_DEBUG_INFO,
 			      MSG_PREFIX "initialize prosign fast lookup table");
 
 		for (const cw_prosign_entry_t *e = CW_PROSIGN_TABLE; e->character; e++) {
@@ -1018,7 +1007,6 @@ const char *cw_lookup_procedural_character_internal(int c, bool *is_usually_expa
 		return NULL;
 	}
 }
-
 
 
 
@@ -1076,11 +1064,9 @@ int cw_lookup_procedural_character(char c, char *expansion, int *is_usually_expa
 
 
 
-
 /* ******************************************************************** */
 /*                     Section:Phonetic alphabet                        */
 /* ******************************************************************** */
-
 
 
 
@@ -1120,7 +1106,6 @@ static const char *const CW_PHONETICS[27] = {
 
 
 
-
 /**
    \brief Get maximum length of a phonetic
 
@@ -1144,7 +1129,6 @@ int cw_get_maximum_phonetic_length(void)
 
 	return (int) maximum_length;
 }
-
 
 
 
@@ -1184,7 +1168,6 @@ int cw_lookup_phonetic(char c, char *phonetic)
 	errno = ENOENT;
 	return CW_FAILURE;
 }
-
 
 
 

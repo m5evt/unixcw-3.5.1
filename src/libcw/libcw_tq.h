@@ -1,10 +1,16 @@
 /*
   This file is a part of unixcw project.
-  unixcw project is covered by GNU General Public License.
+  unixcw project is covered by GNU General Public License, version 2 or later.
 */
 
 #ifndef H_LIBCW_TQ
 #define H_LIBCW_TQ
+
+
+
+
+
+#include "config.h"
 
 
 
@@ -228,7 +234,7 @@ bool cw_tq_is_busy_internal(cw_tone_queue_t *tq);
 int  cw_tq_wait_for_tone_internal(cw_tone_queue_t *tq);
 int  cw_tq_wait_for_tone_queue_internal(cw_tone_queue_t *tq);
 void cw_tq_reset_internal(cw_tone_queue_t *tq);
-bool cw_tq_is_full_internal(cw_tone_queue_t *tq);
+bool cw_tq_is_full_internal(const cw_tone_queue_t *tq);
 
 void cw_tq_handle_backspace_internal(cw_tone_queue_t *tq);
 

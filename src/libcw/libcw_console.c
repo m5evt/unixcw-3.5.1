@@ -1,6 +1,6 @@
 /*
   Copyright (C) 2001-2006  Simon Baldwin (simon_baldwin@yahoo.com)
-  Copyright (C) 2011-2017  Kamil Ignacak (acerion@wp.pl)
+  Copyright (C) 2011-2019  Kamil Ignacak (acerion@wp.pl)
 
   This program is free software; you can redistribute it and/or
   modify it under the terms of the GNU General Public License
@@ -124,14 +124,14 @@ static int  cw_console_write_low_level_internal(cw_gen_t *gen, bool state);
 */
 bool cw_is_console_possible(const char *device)
 {
-	/* no need to allocate space for device path, just a
+	/* No need to allocate space for device path, just a
 	   pointer (to a memory allocated somewhere else by
-	   someone else) will be sufficient in local scope */
+	   someone else) will be sufficient in local scope. */
 	const char *dev = device ? device : CW_DEFAULT_CONSOLE_DEVICE;
 
 	int fd = open(dev, O_WRONLY);
 	if (fd == -1) {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
 			      MSG_PREFIX "open(%s): %s", dev, strerror(errno));
 		return false;
 	}
@@ -139,15 +139,14 @@ bool cw_is_console_possible(const char *device)
 	int rv = ioctl(fd, KIOCSOUND, 0);
 	close(fd);
 	if (rv == -1) {
-		/* console device can be opened, even with WRONLY perms, but,
+		/* Console device can be opened, even with WRONLY perms, but,
 		   if you aren't root user, you can't call ioctl()s on it,
-		   and - as a result - can't generate sound on the device */
+		   and - as a result - can't generate sound on the device. */
 		return false;
 	} else {
 		return true;
 	}
 }
-
 
 
 
@@ -178,11 +177,11 @@ int cw_console_open_device_internal(cw_gen_t *gen)
 
 	int console = open(gen->audio_device, O_WRONLY);
 	if (console == -1) {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
 			      MSG_PREFIX "open(%s): \"%s\"", gen->audio_device, strerror(errno));
 		return CW_FAILURE;
-        } else {
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_INFO,
+	} else {
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_INFO,
 			      MSG_PREFIX "open successfully, console = %d", console);
 	}
 
@@ -219,12 +218,11 @@ void cw_console_close_device_internal(cw_gen_t *gen)
 	gen->audio_sink = -1;
 	gen->audio_device_is_open = false;
 
-	cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_INFO,
+	cw_debug_msg (&cw_debug_object, CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_INFO,
 		      MSG_PREFIX "console closed");
 
 	return;
 }
-
 
 
 
@@ -234,11 +232,11 @@ void cw_console_close_device_internal(cw_gen_t *gen)
 
    Function behaving like a device, to which one does a blocking write.
    It generates sound with parameters (frequency and duration) specified
-   in \p tone..
+   in \p tone.
    After playing X microseconds of tone it returns. It is intended
    to behave like a blocking write() function.
 
-   \param gen - current generator
+   \param gen - generator
    \param tone - tone to play with generator
 
    \return CW_SUCCESS on success
@@ -278,7 +276,6 @@ int cw_console_write(cw_gen_t *gen, cw_tone_t *tone)
 
 
 
-
 /**
    \brief Start generating a sound using console PC speaker
 
@@ -288,7 +285,7 @@ int cw_console_write(cw_gen_t *gen, cw_tone_t *tone)
    The function only initializes generation, you have to do another
    function call to change the tone generated.
 
-   \param gen - current generator
+   \param gen - generator
    \param state - flag deciding if a sound should be generated (> 0) or not (== 0)
 
    \return CW_FAILURE on errors
@@ -314,13 +311,13 @@ int cw_console_write_low_level_internal(cw_gen_t *gen, bool state)
 		argument = KIOCSOUND_CLOCK_TICK_RATE / gen->frequency;
 	}
 
-	cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_INFO,
+	cw_debug_msg (&cw_debug_object, CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_INFO,
 		      MSG_PREFIX "KIOCSOUND arg = %d (switch: %d, frequency: %d Hz, volume: %d %%)",
 		      argument, local_state, gen->frequency, gen->volume_percent);
 
 	if (ioctl(gen->audio_sink, KIOCSOUND, argument) == -1) {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
-			      MSG_PREFIX "ioctl KIOCSOUND: \"%s\"", strerror(errno));
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
+			      MSG_PREFIX "ioctl KIOCSOUND: '%s'", strerror(errno));
 		return CW_FAILURE;
 	} else {
 		return CW_SUCCESS;
@@ -371,14 +368,12 @@ bool cw_is_console_possible(__attribute__((unused)) const char *device)
 
 
 
-
 int cw_console_configure(__attribute__((unused)) cw_gen_t *gen, __attribute__((unused)) const char *device)
 {
 	cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_INFO,
 		      MSG_PREFIX "This audio system has been disabled during compilation");
 	return CW_FAILURE;
 }
-
 
 
 
@@ -395,7 +390,6 @@ void cw_console_silence(__attribute__((unused)) cw_gen_t *gen)
 {
 	return;
 }
-
 
 
 

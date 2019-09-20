@@ -66,9 +66,9 @@ extern cw_debug_t cw_debug_object;
 
 /* Forward declarations for printf-like functions with checkable arguments. */
 #if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ >= 95)
-static void write_to_echo_stream(const char * format, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
-static void write_to_message_stream(const char * format, ...)  __attribute__ ((__format__ (__printf__, 1, 2)));
-static int write_to_cw_sender(const char * format, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
+static void write_to_echo_stream(const char *format, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
+static void write_to_message_stream(const char *format, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
+static int write_to_cw_sender(const char *format, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
 #endif
 
 
@@ -107,7 +107,7 @@ static const char *all_options = "s:|system,d:|device,"
 
    Printing is suppressed if appropriate config flag is not set.
    Writes are synchronously flushed.
- */
+*/
 void write_to_echo_stream(const char * format, ...)
 {
 	if (config->do_echo) {
@@ -189,6 +189,9 @@ int write_to_cw_sender(const char * format, ...)
 /*  Embedded commands handling                                         */
 /*---------------------------------------------------------------------*/
 
+
+
+
 /**
    Handle a query received in the input stream.  The command escape
    character and the query character have already been read and
@@ -201,7 +204,7 @@ int parse_stream_query(FILE * stream)
 {
 	int value;
 
-	const int c = toupper(fgetc (stream));
+	const int c = toupper(fgetc(stream));
 	switch (c) {
 	case EOF:
 		return CW_SUCCESS;
@@ -423,7 +426,7 @@ int parse_stream_command(FILE * stream)
 {
 	int cw_ret = CW_FAILURE;
 
-	const int c = toupper(fgetc (stream));
+	const int c = toupper(fgetc(stream));
 	switch (c) {
 	case EOF:
 		return CW_SUCCESS;
@@ -463,7 +466,6 @@ int parse_stream_command(FILE * stream)
 /*---------------------------------------------------------------------*/
 /*  Input stream handling                                              */
 /*---------------------------------------------------------------------*/
-
 
 
 
