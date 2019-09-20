@@ -153,29 +153,18 @@ void cw_debug_flush(cw_debug_t *debug)
 
 
 
-
 /**
-   \brief Set a value of internal debug flags variable
+   \brief Set a value of debug flags in given debug variable
 
-   Assign specified value to library's internal debug flags variable.
-   Note that this function doesn't *append* given flag to the variable,
-   it erases existing value and assigns new one. Use cw_get_debug_flags()
-   if you want to OR new flag with existing ones.
+   Assign specified value to given debug variable.
 
-   \param new_value - new value to be assigned to the library
-*/
-void cw_set_debug_flags(uint32_t flags)
-{
-	cw_debug_object.flags = flags;
-	return;
-}
+   Note that this function doesn't *append* given flag to the
+   variable, it erases existing value and assigns new one. Use
+   cw_debug_get_flags() if you want to OR new flag with existing ones.
 
 
-
-
-
-/**
-   testedin::test_cw_debug_flags()
+   \param debug_object - debug object for which to set flags
+   \param flags - new value to be assigned to the object
 */
 void cw_debug_set_flags(cw_debug_t *debug_object, uint32_t flags)
 {

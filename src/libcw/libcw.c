@@ -558,11 +558,11 @@ void cw_get_send_parameters(int *dot_usecs, int *dash_usecs,
 			    int *end_of_character_usecs, int *end_of_word_usecs,
 			    int *additional_usecs, int *adjustment_usecs)
 {
-	cw_gen_get_send_parameters_internal(cw_generator,
-					    dot_usecs, dash_usecs,
-					    end_of_element_usecs,
-					    end_of_character_usecs, end_of_word_usecs,
-					    additional_usecs, adjustment_usecs);
+	cw_gen_get_timing_parameters_internal(cw_generator,
+					      dot_usecs, dash_usecs,
+					      end_of_element_usecs,
+					      end_of_character_usecs, end_of_word_usecs,
+					      additional_usecs, adjustment_usecs);
 
 	return;
 }
@@ -585,7 +585,7 @@ void cw_get_send_parameters(int *dot_usecs, int *dash_usecs,
 */
 int cw_send_dot(void)
 {
-	return cw_gen_play_mark_internal(cw_generator, CW_DOT_REPRESENTATION, false);
+	return cw_gen_enqueue_mark_internal(cw_generator, CW_DOT_REPRESENTATION, false);
 }
 
 
@@ -606,7 +606,7 @@ int cw_send_dot(void)
 */
 int cw_send_dash(void)
 {
-	return cw_gen_play_mark_internal(cw_generator, CW_DASH_REPRESENTATION, false);
+	return cw_gen_enqueue_mark_internal(cw_generator, CW_DASH_REPRESENTATION, false);
 }
 
 
@@ -626,7 +626,7 @@ int cw_send_dash(void)
 */
 int cw_send_character_space(void)
 {
-	return cw_gen_play_eoc_space_internal(cw_generator);
+	return cw_gen_enqueue_eoc_space_internal(cw_generator);
 }
 
 
@@ -646,7 +646,7 @@ int cw_send_character_space(void)
 */
 int cw_send_word_space(void)
 {
-	return cw_gen_play_eow_space_internal(cw_generator);
+	return cw_gen_enqueue_eow_space_internal(cw_generator);
 }
 
 
@@ -676,7 +676,7 @@ int cw_send_word_space(void)
 */
 int cw_send_representation(const char *representation)
 {
-	return cw_gen_play_representation_internal(cw_generator, representation, false);
+	return cw_gen_enqueue_representation_partial_internal(cw_generator, representation, false);
 }
 
 
@@ -701,7 +701,7 @@ int cw_send_representation(const char *representation)
 */
 int cw_send_representation_partial(const char *representation)
 {
-	return cw_gen_play_representation_internal(cw_generator, representation, true);
+	return cw_gen_enqueue_representation_partial_internal(cw_generator, representation, true);
 }
 
 
@@ -737,7 +737,7 @@ int cw_send_representation_partial(const char *representation)
 */
 int cw_send_character(char c)
 {
-	return cw_gen_play_character_internal(cw_generator, c);
+	return cw_gen_enqueue_valid_character_internal(cw_generator, c);
 }
 
 
@@ -771,7 +771,7 @@ int cw_send_character(char c)
 */
 int cw_send_character_partial(char c)
 {
-	return cw_gen_play_character_parital_internal(cw_generator, c);
+	return cw_gen_enqueue_character_partial(cw_generator, c);
 }
 
 
@@ -809,7 +809,7 @@ int cw_send_character_partial(char c)
 */
 int cw_send_string(const char *string)
 {
-	return cw_gen_play_string_internal(cw_generator, string);
+	return cw_gen_enqueue_string_internal(cw_generator, string);
 }
 
 
@@ -826,7 +826,7 @@ int cw_send_string(const char *string)
 */
 void cw_reset_send_receive_parameters(void)
 {
-	cw_gen_reset_send_parameters_internal(cw_generator);
+	cw_gen_reset_parameters_internal(cw_generator);
 	cw_rec_reset_receive_parameters_internal(&cw_receiver);
 
 	/* Reset requires resynchronization. */

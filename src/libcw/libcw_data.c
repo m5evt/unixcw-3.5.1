@@ -68,6 +68,13 @@ extern cw_debug_t cw_debug_object_dev;
 
 
 
+#define CW_DATA_MAX_REPRESENTATION_LENGTH 7 /* CHAR_BIT - 1 */
+#define CW_DATA_MIN_REPRESENTATION_HASH 2
+#define CW_DATA_MAX_REPRESENTATION_HASH 255
+
+
+
+
 /*
   Morse code characters table.  This table allows lookup of the Morse
   representation of a given alphanumeric character.  Representations
@@ -374,21 +381,19 @@ char *cw_character_to_representation(int c)
 	/* Lookup representation of the character, and if found, return copy of the representation. */
 
 	const char *representation = cw_character_to_representation_internal(c);
-	if (representation) {
-		char *r = strdup(representation);
-		if (r) {
-			return r;
-		} else {
-			errno = ENOMEM;
-			return NULL;
-		}
-	} else {
-		/* Failed to find the requested character */
+	if (NULL == representation) {
 		errno = ENOENT;
 		return NULL;
 	}
-}
 
+	char * r = strdup(representation);
+	if (NULL == r) {
+		errno = ENOMEM;
+		return NULL;
+	}
+
+	return r;
+}
 
 
 
@@ -396,13 +401,14 @@ char *cw_character_to_representation(int c)
 /**
    \brief Return a hash value of a character representation
 
-   Return a hash value, in the range 2-255, for a character's
-   \p representation.  The routine returns 0 if no valid hash could
-   be made from the \p representation string.
+   Return a hash value, in the range
+   CW_DATA_MIN_REPRESENTATION_HASH-CW_DATA_MAX_REPRESENTATION_HASH,
+   for a character's \p representation.  The routine returns 0 if no
+   valid hash could be made from the \p representation string.
 
-   This hash algorithm is designed ONLY for valid CW representations; that is,
-   strings composed of only "." and "-", and in this case, strings no longer
-   than seven characters.
+   This hash algorithm is designed ONLY for valid CW representations;
+   that is, strings composed of only "." and "-". The CW
+   representations can be no longer than seven characters.
 
    TODO: create unit test that verifies that the longest
    representation recognized by libcw is in fact no longer than 7.
@@ -414,29 +420,31 @@ char *cw_character_to_representation(int c)
    a "bitmask", based on pattern of "." and "-" in \p representation.
    The first bit set in the mask indicates the start of data (hence
    the 7-character limit) - it is not the data itself.  This mask is
-   viewable as an integer in the range 2 (".") to 255 ("-------"), and
-   can be used as an index into a fast lookup array.
+   viewable as an integer in the range CW_DATA_MIN_REPRESENTATION_HASH
+   (".") to CW_DATA_MAX_REPRESENTATION_HASH ("-------"), and can be
+   used as an index into a fast lookup array.
 
    testedin::test_cw_representation_to_hash_internal()
 
    \param representation - string representing a character
 
-   \return non-zero value of hash of valid representation (in range 2-255)
+   \return non-zero value of hash of valid representation (in range
+   CW_DATA_MIN_REPRESENTATION_HASH-CW_DATA_MAX_REPRESENTATION_HASH)
    \return zero for invalid representation
 */
-unsigned int cw_representation_to_hash_internal(const char *representation)
+uint8_t cw_representation_to_hash_internal(const char *representation)
 {
 	/* Our algorithm can handle only 7 characters of representation.
 	   And we insist on there being at least one character, too.  */
-	int length = (int) strlen (representation);
-	if (length > CHAR_BIT - 1 || length < 1) {
+	size_t length = strlen(representation);
+	if (length > CW_DATA_MAX_REPRESENTATION_LENGTH || length < 1) {
 		return 0;
 	}
 
 	/* Build up the hash based on the dots and dashes; start at 1,
 	   the sentinel * (start) bit. */
 	unsigned int hash = 1;
-	for (int i = 0; i < length; i++) {
+	for (size_t i = 0; i < length; i++) {
 		/* Left-shift everything so far. */
 		hash <<= 1;
 
@@ -493,7 +501,7 @@ int cw_representation_to_character_internal(const char *representation)
 	}
 
 	/* Hash the representation to get an index for the fast lookup. */
-	unsigned int hash = cw_representation_to_hash_internal(representation);
+	uint8_t hash = cw_representation_to_hash_internal(representation);
 
 	const cw_entry_t *cw_entry = NULL;
 	/* If the hashed lookup table is complete, we can simply believe any
@@ -633,11 +641,12 @@ int cw_representation_to_character_direct_internal(const char *representation)
 */
 int cw_representation_lookup_init_internal(const cw_entry_t *lookup[])
 {
-	/* For each main table entry, create a hash entry.  If the hashing
-	   of any entry fails, note that the table is not complete and ignore
-	   that entry for now (for the current lookup table, this should not
-	   happen).  The hashed table speeds up lookups of representations by
-	   a factor of 5-10.
+	/* For each main table entry, create a hash entry.  If the
+	   hashing of any entry fails, note that the table is not
+	   complete and ignore that entry for now (for the current
+	   main table (CW_TABLE) this should not happen).  The hashed
+	   table speeds up lookups of representations by a factor of
+	   5-10.
 
 	   NOTICE: Notice that the lookup table will be marked as
 	   incomplete only if one or more representations in CW_TABLE
@@ -650,13 +659,15 @@ int cw_representation_lookup_init_internal(const cw_entry_t *lookup[])
 	   CW_TABLE than about lookup table.
 
 	   Other possibility to consider is that "is_complete = false"
-	   when length of representation is longer than 7
-	   dots/dashes. There is an assumption that no representation
-	   in input CW_TABLE is longer than 7 dots/dashes. */
+	   when length of representation is longer than
+	   CW_DATA_MAX_REPRESENTATION_LENGTH Dots/Dashes. There is an
+	   assumption that no representation in input CW_TABLE is
+	   longer than CW_DATA_MAX_REPRESENTATION_LENGTH
+	   dots/dashes. */
 
 	bool is_complete = true;
 	for (const cw_entry_t *cw_entry = CW_TABLE; cw_entry->character; cw_entry++) {
-		unsigned int hash = cw_representation_to_hash_internal(cw_entry->representation);
+		uint8_t hash = cw_representation_to_hash_internal(cw_entry->representation);
 		if (hash) {
 			lookup[hash] = cw_entry;
 		} else {
@@ -711,15 +722,14 @@ int cw_check_representation(const char *representation)
    error-free, and not whether the representation represents
    existing/defined character.
 
-   If representation is invalid, function returns false and sets
-   errno to EINVAL.
+   \errno EINVAL - representation is invalid
 
    testedin::test_validate_representation_internal()
 
    \param representation - representation of a character to check
 
-   \return true on success
-   \return false on failure
+   \return true if representation is valid
+   \return false if representation is invalid
 */
 bool cw_representation_is_valid(const char *representation)
 {
@@ -795,9 +805,10 @@ int cw_lookup_representation(const char *representation, char *c)
    Function checks \p representation, and if it is valid and represents
    a known character, function returns the character (a non-zero value).
 
-   On error, function returns zero. errno is set to EINVAL if any
-   character of the representation is invalid, or ENOENT to indicate that
-   the character represented by \p representation could not be found.
+   On error, function returns zero.
+
+   \errno EINVAL - \p representation contains invalid symbol (other than Dots and Dashes).
+   \errno ENOENT - a character represented by \p representation could not be found.
 
    testedin::test_character_lookups_internal()
 
@@ -946,7 +957,7 @@ int cw_get_maximum_procedural_expansion_length(void)
 	static size_t maximum_length = 0;
 
 	if (maximum_length == 0) {
-		/* Traverse the main lookup table, finding the longest. */
+		/* Traverse the prosign table, finding the longest expansion. */
 		for (const cw_prosign_entry_t *e = CW_PROSIGN_TABLE; e->character; e++) {
 			size_t length = strlen(e->expansion);
 			if (length > maximum_length) {
@@ -979,7 +990,7 @@ int cw_get_maximum_procedural_expansion_length(void)
 */
 const char *cw_lookup_procedural_character_internal(int c, bool *is_usually_expanded)
 {
-	static const cw_prosign_entry_t *lookup[UCHAR_MAX];  /* Fast lookup table */
+	static const cw_prosign_entry_t *lookup[UCHAR_MAX];  /* Fast lookup table. */
 	static bool is_initialized = false;
 
 	/* If this is the first call, set up the fast lookup table to
@@ -1042,8 +1053,7 @@ const char *cw_lookup_procedural_character_internal(int c, bool *is_usually_expa
    longest expansion held in the procedural signal character lookup
    table, as returned by cw_get_maximum_procedural_expansion_length().
 
-   If procedural signal character \p c cannot be found, the function sets
-   errno to ENOENT and returns CW_FAILURE.
+   \errno ENOENT - procedural signal character \p c cannot be found
 
    testedin::test_prosign_lookups_internal()
 
@@ -1051,7 +1061,7 @@ const char *cw_lookup_procedural_character_internal(int c, bool *is_usually_expa
    \param expansion - output, space to fill with expansion of the character
    \param is_usually_expanded - visual hint
 
-   \return CW_FAILURE on failure (errno is set to ENOENT)
+   \return CW_FAILURE on failure (character cannot be found)
    \return CW_SUCCESS on success
 */
 int cw_lookup_procedural_character(char c, char *expansion, int *is_usually_expanded)
@@ -1087,7 +1097,7 @@ int cw_lookup_procedural_character(char c, char *expansion, int *is_usually_expa
 
 /* Phonetics table.  Not really CW, but it might be handy to have.
    The table contains ITU/NATO phonetics. */
-static const char *const CW_PHONETICS[27] = {
+static const char *const CW_PHONETICS[] = {
 	"Alfa",
 	"Bravo",
 	"Charlie",
@@ -1132,7 +1142,7 @@ int cw_get_maximum_phonetic_length(void)
 	static size_t maximum_length = 0;
 
 	if (maximum_length == 0) {
-		/* Traverse the main lookup table, finding the longest. */
+		/* Traverse the phonetics table, finding the longest phonetic string. */
 		for (int phonetic = 0; CW_PHONETICS[phonetic]; phonetic++) {
 			size_t length = strlen(CW_PHONETICS[phonetic]);
 			if (length > maximum_length) {
@@ -1153,11 +1163,15 @@ int cw_get_maximum_phonetic_length(void)
    On success the routine fills in the string pointer passed in with the
    phonetic of given character \p c.
 
+   It is considered an error if \p phonetics is NULL (why would you
+   call this function to get the phonetic if you don't provide output
+   buffer?).
+
    The length of phonetic must be at least one greater than the longest
    phonetic held in the phonetic lookup table, as returned by
    cw_get_maximum_phonetic_length().
 
-   If character cannot be found, the function sets errno to ENOENT.
+   \errno ENOENT - character cannot be found
 
    testedin::test_phonetic_lookups_internal()
 
@@ -1283,10 +1297,9 @@ int cw_check_string(const char *string)
 
 
 
-#define REPRESENTATION_LEN 7
 /* For maximum length of 7, there should be 254 items:
    2^1 + 2^2 + 2^3 + ... + 2^7 */
-#define REPRESENTATION_TABLE_SIZE ((2 << (REPRESENTATION_LEN + 1)) - 1)
+#define REPRESENTATION_TABLE_SIZE ((2 << (CW_DATA_MAX_REPRESENTATION_LENGTH + 1)) - 1)
 
 
 
@@ -1337,12 +1350,12 @@ unsigned int test_cw_representation_to_hash_internal(void)
 	  input[252] = ".------"
 	  input[253] = "-------"
 	*/
-	char input[REPRESENTATION_TABLE_SIZE][REPRESENTATION_LEN + 1];
+	char input[REPRESENTATION_TABLE_SIZE][CW_DATA_MAX_REPRESENTATION_LENGTH + 1];
 
-	/* build table of all valid representations ("valid" as in "build
-	   from dash and dot, no longer than REPRESENTATION_LEN"). */
+	/* build table of all valid representations ("valid" as in "built
+	   from dash and dot, no longer than CW_DATA_MAX_REPRESENTATION_LENGTH"). */
 	long int rep = 0;
-	for (unsigned int len = 1; len <= REPRESENTATION_LEN; len++) {
+	for (unsigned int len = 1; len <= CW_DATA_MAX_REPRESENTATION_LENGTH; len++) {
 
 		/* Build representations of all lengths, starting from
 		   shortest (single dot or dash) and ending with the
@@ -1368,11 +1381,17 @@ unsigned int test_cw_representation_to_hash_internal(void)
 		}
 	}
 
-	/* compute hash for every valid representation */
+	bool failure = true;
+
+	/* Compute hash for every valid representation. */
 	for (int i = 0; i < rep; i++) {
-		unsigned int hash = cw_representation_to_hash_internal(input[i]);
-		/* The function returns values in range 2 - 255. */
-		cw_assert (hash >= 2 && hash <= 255, "Invalid hash #%d: %u\n", i, hash)
+		uint8_t hash = cw_representation_to_hash_internal(input[i]);
+		/* The function returns values in range CW_DATA_MIN_REPRESENTATION_HASH - CW_DATA_MAX_REPRESENTATION_HASH. */
+		failure = (hash < CW_DATA_MIN_REPRESENTATION_HASH) || (hash > CW_DATA_MAX_REPRESENTATION_HASH);
+		if (failure) {
+			fprintf(stderr, MSG_PREFIX "representation to hash: Invalid hash #%d: %u\n", i, hash);
+			break;
+		}
 	}
 
 	CW_TEST_PRINT_TEST_RESULT(false, p);

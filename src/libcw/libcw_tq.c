@@ -115,7 +115,7 @@
    values is important for the function that calls the dequeue
    function. If you ever intend to limit number of return values of
    dequeue function to two, you will also have to re-think how
-   cw_gen_dequeue_and_play_internal() operates.
+   cw_gen_dequeue_and_generate_internal() operates.
 
    Future libcw API should (completely) hide tone queue from client
    code. The client code should only operate on a generator - enqueue
@@ -559,7 +559,7 @@ int cw_tq_dequeue_sub_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 {
 	CW_TONE_COPY(tone, &(tq->queue[tq->head]));
 
-	if (tone->forever && tq->len == 1) {
+	if (tone->is_forever && tq->len == 1) {
 		/* Don't permanently remove the last tone that is
 		   "forever" tone in queue. Keep it in tq until client
 		   code adds next tone (this means possibly waiting
@@ -601,7 +601,7 @@ int cw_tq_dequeue_sub_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 	/* You can remove this assert in future. It is only temporary,
 	   to check that some changes introduced on 2015.03.01 didn't
 	   break one assumption. */
-	cw_assert (!(tone->forever && tq_len_before == 1), "\"forever\" tone appears!");
+	cw_assert (!(tone->is_forever && tq_len_before == 1), "\"forever\" tone appears!");
 
 
 	bool call_callback = false;
@@ -722,7 +722,7 @@ int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 
 
 	if (tq->state == CW_TQ_IDLE) {
-		/* A loop in cw_gen_dequeue_and_play_internal()
+		/* A loop in cw_gen_dequeue_and_generate_internal()
 		   function may await for the queue to be filled with
 		   new tones to dequeue and play.  It waits for a
 		   notification from tq that there are some new tones

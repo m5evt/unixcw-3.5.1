@@ -235,7 +235,7 @@ struct cw_gen_struct {
 	   function.
 	   Set to false to stop generator and return from
 	   dequeue_and_play thread function. */
-	bool do_dequeue_and_play;
+	bool do_dequeue_and_generate;
 
 	/* Used to calculate sine wave.
 	   Phase offset needs to be stored between consecutive calls to
@@ -361,31 +361,31 @@ int cw_gen_get_weighting_internal(const cw_gen_t *gen);
 
 
 
-void cw_gen_get_send_parameters_internal(cw_gen_t *gen, int *dot_len, int *dash_len, int *eom_space_len, int *eoc_space_len, int *eow_space_len, int *additional_space_len, int *adjustment_space_len);
+void cw_gen_get_timing_parameters_internal(cw_gen_t *gen, int *dot_len, int *dash_len, int *eom_space_len, int *eoc_space_len, int *eow_space_len, int *additional_space_len, int *adjustment_space_len);
 
 
 
 
 
-/* Generator's 'play' primitives. */
-int cw_gen_play_mark_internal(cw_gen_t *gen, char mark, bool is_first);
-int cw_gen_play_eoc_space_internal(cw_gen_t *gen);
-int cw_gen_play_eow_space_internal(cw_gen_t *gen);
+/* Generator's 'enqueue' primitives. */
+int cw_gen_enqueue_mark_internal(cw_gen_t *gen, char mark, bool is_first);
+int cw_gen_enqueue_eoc_space_internal(cw_gen_t *gen);
+int cw_gen_enqueue_eow_space_internal(cw_gen_t *gen);
 
-/* These are also 'play' primitives, but are intended to be used on
+/* These are also 'enqueue' primitives, but are intended to be used on
    hardware key events. 'key' is a verb here. */
-int cw_gen_key_begin_mark_internal(cw_gen_t *gen);
-int cw_gen_key_begin_space_internal(cw_gen_t *gen);
-int cw_gen_key_pure_symbol_internal(cw_gen_t *gen, char symbol);
+int cw_gen_enqueue_begin_mark_internal(cw_gen_t *gen);
+int cw_gen_enqueue_begin_space_internal(cw_gen_t *gen);
+int cw_gen_enqueue_partial_symbol_internal(cw_gen_t *gen, char symbol);
 
 
 
 
 
-int cw_gen_play_representation_internal(cw_gen_t *gen, const char *representation, bool partial);
-int cw_gen_play_character_internal(cw_gen_t *gen, char c);
-int cw_gen_play_character_parital_internal(cw_gen_t *gen, char c);
-int cw_gen_play_string_internal(cw_gen_t *gen, const char *string);
+int cw_gen_enqueue_representation_partial_internal(cw_gen_t *gen, const char *representation, bool partial);
+int cw_gen_enqueue_valid_character_internal(cw_gen_t *gen, char c);
+int cw_gen_enqueue_character_partial(cw_gen_t *gen, char c);
+int cw_gen_enqueue_string_internal(cw_gen_t *gen, const char *string);
 
 
 
@@ -395,7 +395,7 @@ char *cw_gen_get_audio_system_label_internal(cw_gen_t *gen);
 
 void cw_generator_delete_internal(void);
 
-void cw_gen_reset_send_parameters_internal(cw_gen_t *gen);
+void cw_gen_reset_parameters_internal(cw_gen_t *gen);
 void cw_gen_sync_parameters_internal(cw_gen_t *gen);
 
 
