@@ -24,9 +24,11 @@
    \brief Queue of tones to be converted by generator to pcm data and
    sent to audio sink.
 
-   Tone queue - a circular list of tone durations and frequencies pending,
-   and a pair of indexes, tail (enqueue) and head (dequeue) to manage
-   additions and asynchronous sending.
+   Tone queue - a circular list of tone durations and frequencies
+   pending, with a pair of indexes: tail (enqueue) and head (dequeue).
+   The indexes are used to manage addition and removal of tones from
+   queue.
+
 
    The tone queue (the circular list) is implemented using constant
    size table.
@@ -136,9 +138,9 @@ extern cw_debug_t cw_debug_object_dev;
 
 
 static int      cw_tq_set_capacity_internal(cw_tone_queue_t *tq, uint32_t capacity, uint32_t high_water_mark);
-static uint32_t cw_tq_get_high_water_mark_internal(cw_tone_queue_t *tq) __attribute__((unused));
-static uint32_t cw_tq_prev_index_internal(cw_tone_queue_t *tq, uint32_t current) __attribute__((unused));
-static uint32_t cw_tq_next_index_internal(cw_tone_queue_t *tq, uint32_t current);
+static uint32_t cw_tq_get_high_water_mark_internal(const cw_tone_queue_t *tq) __attribute__((unused));
+static uint32_t cw_tq_prev_index_internal(const cw_tone_queue_t *tq, uint32_t current) __attribute__((unused));
+static uint32_t cw_tq_next_index_internal(const cw_tone_queue_t *tq, uint32_t current);
 static int      cw_tq_dequeue_sub_internal(cw_tone_queue_t *tq, cw_tone_t *tone);
 
 
@@ -193,13 +195,12 @@ cw_tone_queue_t *cw_tq_new_internal(void)
 	tq->low_water_callback_arg = NULL;
 	tq->call_callback = false;
 
-	tq->gen = (cw_gen_t *) NULL;
-
+	tq->gen = (cw_gen_t *) NULL; /* This field will be set by generator code. */
 
 	rv = cw_tq_set_capacity_internal(tq, CW_TONE_QUEUE_CAPACITY_MAX, CW_TONE_QUEUE_HIGH_WATER_MARK_MAX);
-	cw_assert (rv, "failed to set initial capacity of tq");
+	cw_assert (rv, MSG_PREFIX "new: failed to set initial capacity of tq");
 
-	pthread_mutex_unlock(&(tq->mutex));
+	pthread_mutex_unlock(&tq->mutex);
 
 	return tq;
 }
@@ -239,7 +240,7 @@ void cw_tq_delete_internal(cw_tone_queue_t **tq)
    by internal call to cw_tq_new_internal().
 
    \p capacity must be no larger than CW_TONE_QUEUE_CAPACITY_MAX.
-   \p high_water_mark must be no larger than  CW_TONE_QUEUE_HIGH_WATER_MARK_MAX.
+   \p high_water_mark must be no larger than CW_TONE_QUEUE_HIGH_WATER_MARK_MAX.
 
    Both values must be larger than zero (this condition is subject to
    changes in future revisions of the library).
@@ -254,7 +255,8 @@ void cw_tq_delete_internal(cw_tone_queue_t **tq)
    \param capacity - new capacity of queue
    \param high_water_mark - high water mark for the queue
 
-   \return CW_SUCCESS on success, CW_FAILURE otherwise
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
 */
 int cw_tq_set_capacity_internal(cw_tone_queue_t *tq, uint32_t capacity, uint32_t high_water_mark)
 {
@@ -313,6 +315,8 @@ uint32_t cw_tq_get_capacity_internal(cw_tone_queue_t *tq)
 /**
    \brief Return high water mark of a queue
 
+   \reviewed on 2017-01-30
+
    \param tq - tone queue, for which you want to get high water mark
 
    \return high water mark of tone queue
@@ -357,12 +361,12 @@ uint32_t cw_tq_length_internal(cw_tone_queue_t *tq)
 
    testedin::test_cw_tq_prev_index_internal()
 
-   \param tq - tone queue for which to calculate index
+   \param tq - tone queue for which to calculate previous index
    \param ind - index in relation to which to calculate index of previous element in queue
 
    \return index of previous element in queue
 */
-uint32_t cw_tq_prev_index_internal(cw_tone_queue_t *tq, uint32_t ind)
+uint32_t cw_tq_prev_index_internal(const cw_tone_queue_t *tq, uint32_t ind)
 {
 	return ind == 0 ? tq->capacity - 1 : ind - 1;
 }
@@ -384,7 +388,7 @@ uint32_t cw_tq_prev_index_internal(cw_tone_queue_t *tq, uint32_t ind)
 
    \return index of next element in queue
 */
-uint32_t cw_tq_next_index_internal(cw_tone_queue_t *tq, uint32_t ind)
+uint32_t cw_tq_next_index_internal(const cw_tone_queue_t *tq, uint32_t ind)
 {
 	return ind == tq->capacity - 1 ? 0 : ind + 1;
 }
@@ -558,13 +562,14 @@ int cw_tq_dequeue_sub_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 	if (tone->forever && tq->len == 1) {
 		/* Don't permanently remove the last tone that is
 		   "forever" tone in queue. Keep it in tq until client
-		   code adds next tone (possibly forever). Queue's
-		   head should not be iterated. "forever" tone should
-		   be played by caller code, this is why we return the
-		   tone through function's argument. */
+		   code adds next tone (this means possibly waiting
+		   forever). Queue's head should not be
+		   iterated. "forever" tone should be played by caller
+		   code, this is why we return the tone through
+		   function's argument. */
 
 		/* Don't call "low watermark" callback for "forever"
-		   tone. As the comment in this function below has
+		   tone. As the function's top-level comment has
 		   stated: avoid endlessly calling the callback if the
 		   only queued tone is "forever" tone.*/
 		return false;
@@ -587,9 +592,9 @@ int cw_tq_dequeue_sub_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 #if 0   /* Disabled because these debug messages produce lots of output
 	   to console. Enable only when necessary. */
 	cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
-		      MSG_PREFIX "dequeue tone %d us, %d Hz", tone->len, tone->frequency);
+		      MSG_PREFIX "dequeue sub: dequeue tone %d us, %d Hz", tone->len, tone->frequency);
 	cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
-		      MSG_PREFIX "head = %"PRIu32", tail = %"PRIu32", length = %"PRIu32" -> %"PRIu32"",
+		      MSG_PREFIX "dequeue sub: head = %zu, tail = %zu, length = %zu -> %zu",
 		      tq->head, tq->tail, tq_len_before, tq->len);
 #endif
 
@@ -650,6 +655,9 @@ int cw_tq_dequeue_sub_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 */
 int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 {
+	cw_assert (tq, MSG_PREFIX "enqueue: tone queue is null");
+	cw_assert (tone, MSG_PREFIX "enqueue: tone is null");
+
 	/* Check the arguments given for realistic values. */
 	if (tone->frequency < CW_FREQUENCY_MIN
 	    || tone->frequency > CW_FREQUENCY_MAX) {
@@ -671,7 +679,7 @@ int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 		   create such tone, but there is no need to spend
 		   time on it here. */
 		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_TONE_QUEUE, CW_DEBUG_INFO,
-			      MSG_PREFIX "dropped tone with len == 0");
+			      MSG_PREFIX "enqueue: ignoring tone with len == 0");
 		return CW_SUCCESS;
 	}
 
@@ -700,7 +708,7 @@ int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 	}
 
 
-	// cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG, MSG_PREFIX "enqueue tone %d us, %d Hz", tone->len, tone->frequency);
+	// cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG, MSG_PREFIX "enqueue: enqueue tone %d us, %d Hz", tone->len, tone->frequency);
 
 	/* Enqueue the new tone.
 
@@ -899,13 +907,15 @@ int cw_tq_wait_for_level_internal(cw_tone_queue_t *tq, uint32_t level)
 
 
 /**
-   \brief Indicate if the tone queue is full
+   \brief See if the tone queue is full
 
    This is a helper subroutine created so that I can pass a test tone
    queue in unit tests. The 'cw_is_tone_queue_full() works only on
    default tone queue object.
 
    testedin::test_cw_tq_is_full_internal()
+
+   \reviewed on 2017-01-30
 
    \param tq - tone queue to check
 

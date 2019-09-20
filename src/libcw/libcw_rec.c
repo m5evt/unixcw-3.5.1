@@ -178,12 +178,10 @@ cw_rec_t *cw_rec_new_internal(void)
 	rec->noise_spike_threshold      = CW_REC_NOISE_THRESHOLD_INITIAL;
 
 	/* TODO: this variable is not set in
-	   cw_rec_reset_receive_parameters_internal(). Why
-	   is it separated from the four main
-	   variables? Is it because it is a
-	   derivative of speed? But speed is a
-	   derivative of this variable in adaptive
-	   speed mode. */
+	   cw_rec_reset_parameters_internal().  Why is it separated
+	   from the four main variables? Is it because it is a
+	   derivative of speed? But speed is a derivative of this
+	   variable in adaptive speed mode. */
 	rec->adaptive_speed_threshold = CW_REC_SPEED_THRESHOLD_INITIAL;
 
 
@@ -249,6 +247,8 @@ cw_rec_t *cw_rec_new_internal(void)
    Deallocate all memory and free all resources associated with given
    receiver.
 
+   \reviewed on 2017-02-02
+
    \param rec - pointer to receiver
 */
 void cw_rec_delete_internal(cw_rec_t **rec)
@@ -284,7 +284,7 @@ void cw_rec_delete_internal(cw_rec_t **rec)
    testedin::test_cw_rec_identify_mark_internal()
 
    \param rec - receiver
-   \param new_value - new value of receive speed to be assigned to receiver
+   \param new_value - new value of receive speed to be set in receiver
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
@@ -317,8 +317,16 @@ int cw_rec_set_speed_internal(cw_rec_t *rec, int new_value)
 
 
 
+/**
+   \brief Get receiver's speed
 
-float cw_rec_get_speed_internal(cw_rec_t *rec)
+   \reviewed on 2017-02-02
+
+   \param rec - receiver
+
+   \return current value of receiver's speed
+*/
+float cw_rec_get_speed_internal(const cw_rec_t *rec)
 {
 	return rec->speed;
 }
@@ -336,7 +344,8 @@ float cw_rec_get_speed_internal(cw_rec_t *rec)
 
    testedin::test_parameter_ranges()
 
-   \param new_value - new value of tolerance to be assigned to receiver
+   \param rec - receiver
+   \param new_value - new value of tolerance to be set in receiver
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
@@ -362,9 +371,10 @@ int cw_rec_set_tolerance_internal(cw_rec_t *rec, int new_value)
 
 
 
-
 /**
-   \brief Get tolerance from receiver
+   \brief Get receiver's tolerance
+
+   \reviewed on 2017-02-02
 
    \param rec - receiver
 
@@ -378,17 +388,18 @@ int cw_rec_get_tolerance_internal(const cw_rec_t *rec)
 
 
 
-
 /**
-   \brief Get timing parameters for receiving, and adaptive threshold
+   \brief Get receiver's timing parameters and adaptive threshold
 
-   Return the low-level timing parameters calculated from the speed, gap,
-   tolerance, and weighting set.  Parameter values are returned in
-   microseconds.
+   Return the low-level timing parameters calculated from the speed,
+   gap, tolerance, and weighting set.  Units of returned parameter
+   values are microseconds.
 
    Use NULL for the pointer argument to any parameter value not required.
 
    TODO: reconsider order of these function arguments.
+
+   \reviewed on 2017-02-02
 
    \param *rec
    \param dot_len_ideal
@@ -447,7 +458,7 @@ void cw_rec_get_parameters_internal(cw_rec_t *rec,
 
 
 /**
-   \brief Set noise spike threshold for receiver
+   \brief Set receiver's noise spike threshold
 
    Set the period shorter than which, on receive, received marks are ignored.
    This allows the "receive mark" functions to apply noise canceling for very
@@ -460,7 +471,8 @@ void cw_rec_get_parameters_internal(cw_rec_t *rec,
 
    errno is set to EINVAL if \p new_value is out of range.
 
-   \param new_value - new value of noise spike threshold to be assigned to receiver
+   \param rec - receiver
+   \param new_value - new value of noise spike threshold to be set in receiver
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
@@ -479,11 +491,12 @@ int cw_rec_set_noise_spike_threshold_internal(cw_rec_t *rec, int new_value)
 
 
 
-
 /**
-   \brief Get noise spike threshold from receiver
+   \brief Get receiver's noise spike threshold
 
    See documentation of cw_set_noise_spike_threshold() for more information
+
+   \reviewed on 2017-02-02
 
    \param rec - receiver
 
@@ -500,6 +513,22 @@ int cw_rec_get_noise_spike_threshold_internal(const cw_rec_t *rec)
 
 /* TODO: this function probably should have its old-style version in
    libcw.h as well. */
+/**
+   \brief Set receiver's gap
+
+   TODO: this function probably should have its old-style version in
+   libcw.h as well.
+
+   \errno EINVAL - \p new_value is out of range.
+
+   \reviewed on 2017-02-02
+
+   \param rec - receiver
+   \param new_value - new value of gap to be set in receiver
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on failure
+*/
 int cw_rec_set_gap_internal(cw_rec_t *rec, int new_value)
 {
 	if (new_value < CW_GAP_MIN || new_value > CW_GAP_MAX) {
@@ -533,6 +562,9 @@ int cw_rec_set_gap_internal(cw_rec_t *rec, int new_value)
    \brief Reset averaging data structure
 
    Reset averaging data structure to initial state.
+   To be used in adaptive receiving mode.
+
+   \reviewed on 2017-02-02
 
    \param avg - averaging data structure (for Dot or for Dash)
    \param initial - initial value to be put in table of averaging data structure
@@ -555,6 +587,8 @@ void cw_rec_reset_average_internal(cw_rec_averaging_t *avg, int initial)
 /**
    \brief Update value of average "length of mark"
 
+   To be used in adaptive receiving mode.
+
    Update table of values used to calculate averaged "length of
    mark". The averaged length of a mark is calculated with moving
    average function.
@@ -562,8 +596,10 @@ void cw_rec_reset_average_internal(cw_rec_averaging_t *avg, int initial)
    The new \p mark_len is added to \p avg, and the oldest is
    discarded. New averaged sum is calculated using updated data.
 
+   \reviewed on 2017-02-02
+
    \param avg - averaging data structure (for Dot or for Dash)
-   \param mark_len - new "length of mark" value to add to averaging data
+   \param mark_len - new "length of mark" value to be added to averaging data \p avg
 */
 void cw_rec_update_average_internal(cw_rec_averaging_t *avg, int mark_len)
 {
@@ -629,7 +665,6 @@ void cw_rec_update_stats_internal(cw_rec_t *rec, stat_type_t type, int len)
 
 
 
-
 /**
    \brief Calculate and return length statistics for given type of mark or space
 
@@ -656,6 +691,8 @@ double cw_rec_get_stats_internal(cw_rec_t *rec, stat_type_t type)
 			count++;
 		} else if (rec->statistics[i].type == CW_REC_STAT_NONE) {
 			break;
+		} else {
+			; /* A type of statistics that we are not interested in. Continue. */
 		}
 	}
 
@@ -670,13 +707,19 @@ double cw_rec_get_stats_internal(cw_rec_t *rec, stat_type_t type)
    \brief Calculate and return receiver's timing statistics
 
    These statistics may be used to obtain a measure of the accuracy of
-   received CW.  The values \p dot_sd and \p dash_sd contain the standard
-   deviation of dot and dash lengths from the ideal values, and
-   \p element_end_sd and \p character_end_sd the deviations for inter
-   element and inter character spacing.  Statistics are held for all
-   timings in a 256 element circular buffer.  If any statistic cannot
-   be calculated, because no records for it exist, the returned value
-   is 0.0.  Use NULL for the pointer argument to any statistic not required.
+   received Morse code.
+
+   The values \p dot_sd and \p dash_sd contain the standard deviation
+   of dot and dash lengths from the ideal values, and \p
+   element_end_sd and \p character_end_sd the deviations for inter
+   element and inter character spacing.
+
+   Statistics are held for all timings in a 256 element circular
+   buffer.  If any statistic cannot be calculated, because no records
+   for it exist, the returned value is 0.0.  Use NULL for the pointer
+   argument to any statistic not required.
+
+   \reviewed on 2017-02-02
 
    \param rec - receiver
    \param dot_sd
@@ -708,8 +751,14 @@ void cw_rec_get_statistics_internal(cw_rec_t *rec, double *dot_sd, double *dash_
 /**
    \brief Clear the receive statistics buffer
 
+   Function handling receiver statistics.
+
    Clear the receive statistics buffer by removing all records from it and
    returning it to its initial default state.
+
+   \reviewed on 2017-02-02
+
+   \param rec - receiver
 */
 void cw_rec_reset_receive_statistics_internal(cw_rec_t *rec)
 {
@@ -780,7 +829,6 @@ void cw_rec_reset_receive_statistics_internal(cw_rec_t *rec)
 
 
 
-
 #define CW_REC_SET_STATE(m_rec, m_new_state, m_debug_object)		\
 	{								\
 		cw_debug_msg ((m_debug_object),				\
@@ -796,13 +844,15 @@ void cw_rec_reset_receive_statistics_internal(cw_rec_t *rec)
 /**
    \brief Enable or disable receiver's "adaptive receiving" mode
 
-   Set the mode of a receiver (\p rec) to fixed or adaptive receiving
+   Set the mode of a receiver \p rec to fixed or adaptive receiving
    mode.
 
    In adaptive receiving mode the receiver tracks the speed of the
    received Morse code by adapting to the input stream.
 
    testedin::test_cw_rec_identify_mark_internal()
+
+   \reviewed on 2017-02-04
 
    \param rec - receiver for which to set the mode
    \param adaptive - value of receiver's "adaptive mode" to be set
@@ -1036,8 +1086,8 @@ int cw_rec_mark_end_internal(cw_rec_t *rec, const struct timeval *timestamp)
 /**
    \brief Analyze a mark and identify it as a Dot or Dash
 
-   Identify a mark (dot/dash) represented by a duration of mark.
-   The duration is provided in \p mark_len.
+   Identify a mark (Dot/Dash) represented by a duration of mark: \p
+   mark_len.
 
    Identification is done using the length ranges provided by the low
    level timing parameters.
@@ -1060,8 +1110,8 @@ int cw_rec_mark_end_internal(cw_rec_t *rec, const struct timeval *timestamp)
    \param mark_len - length of mark to analyze
    \param mark - variable to store identified mark (output variable)
 
-   \return CW_SUCCESS on success
-   \return CW_FAILURE on failure
+   \return CW_SUCCESS if a mark has been identified as either Dot or Dash
+   \return CW_FAILURE otherwise
 */
 int cw_rec_identify_mark_internal(cw_rec_t *rec, int mark_len, /* out */ char *mark)
 {
@@ -1146,13 +1196,14 @@ int cw_rec_identify_mark_internal(cw_rec_t *rec, int mark_len, /* out */ char *m
 
 
 
-
 /**
    \brief Update receiver's averaging data structures with most recent data
 
    When in adaptive receiving mode, function updates the averages of
    Dot or Dash lengths with given \p mark_len, and recalculates the
    adaptive threshold for the next receive mark.
+
+   \reviewed on 2017-02-04
 
    \param rec - receiver
    \param mark_len - length of a mark (Dot or Dash)
@@ -1415,8 +1466,9 @@ int cw_rec_poll_representation_internal(cw_rec_t *rec,
 /**
    \brief Prepare return values at end-of-character
 
-   Return representation and receiver's state flags after receiver has
-   encountered end-of-character gap.
+   Return representation of received character and receiver's state
+   flags after receiver has encountered end-of-character gap. The
+   representation is appended to end of \p representation.
 
    Update receiver's state (\p rec) so that it matches end-of-character state.
 
@@ -1443,18 +1495,16 @@ void cw_rec_poll_representation_eoc_internal(cw_rec_t *rec, int space_len,
 		/* Transition of state of receiver. */
 		CW_REC_SET_STATE (rec, RS_EOC_GAP, (&cw_debug_object));
 	} else {
-		/* We are already in RS_EOC_GAP or
-		   RS_EOC_GAP_ERR, so nothing to do. */
-
 		cw_assert (rec->state == RS_EOC_GAP || rec->state == RS_EOC_GAP_ERR,
-			   "unexpected state of receiver: %d / %s",
+			   MSG_PREFIX "poll eoc: unexpected state of receiver: %d / %s",
 			   rec->state, cw_receiver_states[rec->state]);
+
+		/* We are already in RS_EOC_GAP or RS_EOC_GAP_ERR, so nothing to do. */
 	}
 
-	cw_debug_msg ((&cw_debug_object), CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,
-		      MSG_PREFIX "receive state -> %s", cw_receiver_states[rec->state]);
+	cw_debug_msg (&cw_debug_object, CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO, MSG_PREFIX "poll eoc: state: %s", cw_receiver_states[rec->state]);
 
-	/* Return the representation from receiver's buffer. */
+	/* Return receiver's state. */
 	if (is_end_of_word) {
 		*is_end_of_word = false;
 	}
@@ -1463,6 +1513,8 @@ void cw_rec_poll_representation_eoc_internal(cw_rec_t *rec, int space_len,
 	}
 	*representation = '\0'; /* TODO: why do this? */
 	strncat(representation, rec->representation, rec->representation_ind);
+
+	/* Since we are in eoc state, there will be no more Dots or Dashes added to current representation. */
 	rec->representation[rec->representation_ind] = '\0';
 
 	return;
@@ -1598,12 +1650,17 @@ int cw_rec_get_receive_buffer_capacity_internal(void)
 
 
 
+/**
+   \brief Get number of symbols (Dots and Dashes) in receiver's representation buffer
 
+   \reviewed on 2017-02-04
+
+   \param rec - receiver
+*/
 int cw_rec_get_buffer_length_internal(const cw_rec_t *rec)
 {
 	return rec->representation_ind;
 }
-
 
 
 
@@ -1658,7 +1715,13 @@ void cw_rec_reset_receive_parameters_internal(cw_rec_t *rec)
 
 
 
+/**
+   \brief Synchronize receivers' parameters
 
+   \reviewed on 2017-02-04
+
+   \param rec - receiver
+*/
 void cw_rec_sync_parameters_internal(cw_rec_t *rec)
 {
 	cw_assert (rec, MSG_PREFIX "sync parameters: receiver is NULL");
@@ -1741,8 +1804,7 @@ void cw_rec_sync_parameters_internal(cw_rec_t *rec)
 	} else {
 		/* Fixed speed receiving mode. */
 
-		/* 'int tolerance' is in [%]. */
-		int tolerance = (rec->dot_len_ideal * rec->tolerance) / 100;
+		int tolerance = (rec->dot_len_ideal * rec->tolerance) / 100; /* [%] */
 		rec->dot_len_min = rec->dot_len_ideal - tolerance;
 		rec->dot_len_max = rec->dot_len_ideal + tolerance;
 		rec->dash_len_min = rec->dash_len_ideal - tolerance;

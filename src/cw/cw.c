@@ -355,7 +355,8 @@ int parse_stream_parameter(int c, FILE *stream)
 		return CW_FAILURE;
 	}
 
-	/* Either assign a handler, or update the local flag, as appropriate. */
+	/* Either update config variable directly by assignment, or
+	   select handler that will do it by function call. */
 	int (*value_handler)(int) = NULL;
 
 	switch (c) {
@@ -395,10 +396,8 @@ int parse_stream_parameter(int c, FILE *stream)
 		return CW_FAILURE; /* TODO: to be verified. We return failure now because I think that in default we have exhausted all enum values. */
 	}
 
-	/*
-	 * If not a local flag, apply the new value to a CW library control using
-	 * the handler assigned above.
-	 */
+	/* If a handler has been selected, use it to set libcw
+	   parameter. */
 	if (value_handler) {
 		if (!(*value_handler)(value)) {
 			write_to_message_stream("%c%c", CW_STATUS_ERR, c);

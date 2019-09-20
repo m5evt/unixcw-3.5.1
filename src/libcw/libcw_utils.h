@@ -12,7 +12,6 @@
 #include "config.h"
 
 #include <sys/time.h>
-#include <stdbool.h>
 
 
 
@@ -29,9 +28,11 @@ enum { CW_NSECS_PER_SEC = 1000000000 };
 int cw_timestamp_compare_internal(const struct timeval *earlier, const struct timeval *later);
 int cw_timestamp_validate_internal(struct timeval *out_timestamp, const struct timeval *in_timestamp);
 void cw_usecs_to_timespec_internal(struct timespec *t, int usecs);
-void cw_nanosleep_internal(struct timespec *n);
+void cw_nanosleep_internal(const struct timespec *n);
 
 #if (defined(LIBCW_WITH_ALSA) || defined(LIBCW_WITH_PULSEAUDIO))
+#include <stdbool.h>
+
 bool cw_dlopen_internal(const char *name, void **handle);
 #endif
 

@@ -93,9 +93,9 @@ bool test(int i, int n)
 {
 	bool success = true;
 
-        /* Library initialization. */
-        cw_generator_new(CW_AUDIO_SOUNDCARD, NULL);
-        cw_generator_start();
+	/* Library initialization. */
+	cw_generator_new(CW_AUDIO_SOUNDCARD, NULL);
+	cw_generator_start();
 
 	cw_register_tone_queue_low_callback(cwdaemon_tone_queue_low_callback, NULL, tq_low_watermark);
 
@@ -125,9 +125,9 @@ bool test(int i, int n)
 	}
 
 
-        /* Library cleanup. */
-        cw_generator_stop();
-        cw_generator_delete();
+	/* Library cleanup. */
+	cw_generator_stop();
+	cw_generator_delete();
 
 
 	int n_expected = ((CW_SPEED_MAX - CW_SPEED_MIN) / 2) + 1;

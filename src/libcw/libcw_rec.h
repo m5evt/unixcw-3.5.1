@@ -237,11 +237,11 @@ int  cw_rec_set_noise_spike_threshold_internal(cw_rec_t *rec, int new_value);
 void cw_rec_set_adaptive_mode_internal(cw_rec_t *rec, bool adaptive);
 
 /* Getters of receiver's essential parameters. */
-float cw_rec_get_speed_internal(cw_rec_t *rec);
-int   cw_rec_get_tolerance_internal(cw_rec_t *rec);
+float cw_rec_get_speed_internal(const cw_rec_t *rec);
+int   cw_rec_get_tolerance_internal(const cw_rec_t *rec);
 /* int   cw_rec_get_gap_internal(cw_rec_t *rec); */
-int   cw_rec_get_noise_spike_threshold_internal(cw_rec_t *rec);
-bool  cw_rec_get_adaptive_mode_internal(cw_rec_t *rec);
+int   cw_rec_get_noise_spike_threshold_internal(const cw_rec_t *rec);
+bool  cw_rec_get_adaptive_mode_internal(const cw_rec_t *rec);
 
 /* Receiver's reset functions. */
 void cw_rec_reset_receive_parameters_internal(cw_rec_t *rec);
@@ -252,8 +252,8 @@ void cw_rec_reset_internal(cw_rec_t *rec);
 void cw_rec_sync_parameters_internal(cw_rec_t *rec);
 void cw_rec_get_parameters_internal(cw_rec_t *rec,
 				    int *dot_len_ideal, int *dash_len_ideal,
-				    int *dot_len_min,  int *dot_len_max,
-				    int *dash_len_min, int *dash_len_max,
+				    int *dot_len_min,   int *dot_len_max,
+				    int *dash_len_min,  int *dash_len_max,
 				    int *eom_len_min,
 				    int *eom_len_max,
 				    int *eom_len_ideal,
@@ -263,9 +263,8 @@ void cw_rec_get_parameters_internal(cw_rec_t *rec,
 				    int *adaptive_threshold);
 void cw_rec_get_statistics_internal(cw_rec_t *rec, double *dot_sd, double *dash_sd,
 				    double *element_end_sd, double *character_end_sd);
-int cw_rec_get_buffer_length_internal(cw_rec_t *rec);
+int cw_rec_get_buffer_length_internal(const cw_rec_t *rec);
 int cw_rec_get_receive_buffer_capacity_internal(void);
-
 
 
 
@@ -279,7 +278,6 @@ unsigned int test_cw_rec_with_random_data_adaptive(void);
 unsigned int test_cw_get_receive_parameters(void);
 
 #endif /* #ifdef LIBCW_UNIT_TESTS */
-
 
 
 

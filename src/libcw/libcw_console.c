@@ -117,6 +117,8 @@ static int  cw_console_write_low_level_internal(cw_gen_t *gen, bool state);
    as every other function called to perform console operations will
    happily assume that it is allowed to perform such operations.
 
+   \reviewed on 2017-02-04
+
    \param device - name of console device to be used; if NULL then library will use default device.
 
    \return true if opening console output succeeded;
@@ -161,7 +163,9 @@ bool cw_is_console_possible(const char *device)
    You must use cw_gen_set_audio_device_internal() before calling
    this function. Otherwise generator \p gen won't know which device to open.
 
-   \param gen - current generator
+   \reviewed on 2017-02-04
+
+   \param gen - generator
 
    \return CW_FAILURE on errors
    \return CW_SUCCESS on success
@@ -198,7 +202,13 @@ int cw_console_open_device_internal(cw_gen_t *gen)
 
 
 
+/**
+   \brief Stop generating sound on console using given generator
 
+   \reviewed on 2017-02-04
+
+   \param gen - generator
+*/
 void cw_console_silence(cw_gen_t *gen)
 {
 	ioctl(gen->audio_sink, KIOCSOUND, 0);
@@ -208,9 +218,10 @@ void cw_console_silence(cw_gen_t *gen)
 
 
 
-
 /**
-   \brief Close console device associated with current generator
+   \brief Close console device associated with given generator
+
+   \reviewed on 2017-02-04
 */
 void cw_console_close_device_internal(cw_gen_t *gen)
 {
@@ -228,7 +239,7 @@ void cw_console_close_device_internal(cw_gen_t *gen)
 
 
 /**
-   \brief Pseudo-device for playing sound with console
+   \brief Write to Console audio sink configured and opened for generator
 
    Function behaving like a device, to which one does a blocking write.
    It generates sound with parameters (frequency and duration) specified
@@ -286,7 +297,7 @@ int cw_console_write(cw_gen_t *gen, cw_tone_t *tone)
    function call to change the tone generated.
 
    \param gen - generator
-   \param state - flag deciding if a sound should be generated (> 0) or not (== 0)
+   \param state - flag deciding if a sound should be generated (logical true) or not (logical false)
 
    \return CW_FAILURE on errors
    \return CW_SUCCESS on success
@@ -327,7 +338,16 @@ int cw_console_write_low_level_internal(cw_gen_t *gen, bool state)
 
 
 
+/**
+   \brief Configure given generator to work with Console audio sink
 
+   \reviewed on 2017-02-04
+
+   \param gen - generator
+   \param dev - Null device to use
+
+   \return CW_SUCCESS
+*/
 int cw_console_configure(cw_gen_t *gen, const char *device)
 {
 	assert (gen);
@@ -337,11 +357,10 @@ int cw_console_configure(cw_gen_t *gen, const char *device)
 
 	gen->open_device  = cw_console_open_device_internal;
 	gen->close_device = cw_console_close_device_internal;
-	// gen->write        = cw_console_write; // The function is called in libcw.c directly/explicitly, not through a pointer. */
+	// gen->write        = cw_console_write; // The function is called in libcw.c directly/explicitly, not through a pointer. TODO: we should call this function by function pointer. */
 
 	return CW_SUCCESS;
 }
-
 
 
 
@@ -351,9 +370,7 @@ int cw_console_configure(cw_gen_t *gen, const char *device)
 
 
 
-
 #include "libcw_console.h"
-
 
 
 

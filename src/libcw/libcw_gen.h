@@ -34,10 +34,8 @@
 
 
 
-
 /* Symbolic name for inter-mark space. */
 enum { CW_SYMBOL_SPACE = ' ' };
-
 
 
 
@@ -244,9 +242,12 @@ struct cw_gen_struct {
 	   function calculating consecutive fragments of sine wave. */
 	double phase_offset;
 
+
+	/* pthread */
+
 	/* Properties of generator's thread function is that is used
 	   to generate sine wave and write the wave to audio sink
-	   (cw_gen_dequeue_and_play_internal()). */
+	   (cw_gen_dequeue_and_generate_internal()). */
 	struct {
 		pthread_t      id;
 		pthread_attr_t attr;
@@ -257,12 +258,12 @@ struct cw_gen_struct {
 		   data type is opaque.
 
 		   This flag is a bit different than
-		   cw_gen_t->do_dequeue_and_play.  Setting
-		   ->do_dequeue_and_play signals intent to run a loop
+		   cw_gen_t->do_dequeue_and_generate.  Setting
+		   ->do_dequeue_and_generate signals intent to run a loop
 		   deqeueing tones in
-		   cw_gen_dequeue_and_play_internal().  Setting
+		   cw_gen_dequeue_and_generate_internal().  Setting
 		   ->thread.running means that thread function
-		   cw_gen_dequeue_and_play_internal() was launched
+		   cw_gen_dequeue_and_generate_internal() was launched
 		   successfully. */
 		bool running;
 	} thread;
@@ -350,11 +351,11 @@ int cw_gen_set_weighting_internal(cw_gen_t *gen, int new_value);
 
 
 /* Getters of generator's basic parameters. */
-int cw_gen_get_speed_internal(cw_gen_t *gen);
-int cw_gen_get_frequency_internal(cw_gen_t *gen);
-int cw_gen_get_volume_internal(cw_gen_t *gen);
-int cw_gen_get_gap_internal(cw_gen_t *gen);
-int cw_gen_get_weighting_internal(cw_gen_t *gen);
+int cw_gen_get_speed_internal(const cw_gen_t *gen);
+int cw_gen_get_frequency_internal(const cw_gen_t *gen);
+int cw_gen_get_volume_internal(const cw_gen_t *gen);
+int cw_gen_get_gap_internal(const cw_gen_t *gen);
+int cw_gen_get_weighting_internal(const cw_gen_t *gen);
 
 
 

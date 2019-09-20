@@ -117,10 +117,12 @@ static void cw_oss_close_device_internal(cw_gen_t *gen);
    Function does a test opening and test configuration of OSS output,
    but it closes it before returning.
 
+   \reviewed on 2017-02-05
+
    \param device - name of OSS device to be used; if NULL then library will use default device.
 
-   \return true if opening OSS output succeeded;
-   \return false if opening OSS output failed;
+   \return true if opening OSS output succeeded
+   \return false if opening OSS output failed
 */
 bool cw_is_oss_possible(const char *device)
 {
@@ -178,7 +180,16 @@ bool cw_is_oss_possible(const char *device)
 
 
 
+/**
+   \brief Configure given generator to work with OSS audio sink
 
+   \reviewed on 2017-02-05
+
+   \param gen - generator
+   \param dev - OSS device to use
+
+   \return CW_SUCCESS
+*/
 int cw_oss_configure(cw_gen_t *gen, const char *device)
 {
 	assert (gen);
@@ -196,7 +207,15 @@ int cw_oss_configure(cw_gen_t *gen, const char *device)
 
 
 
+/**
+   \brief Write generated samples to OSS audio sink configured and opened for generator
 
+
+   \param gen - generator
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE otherwise
+*/
 int cw_oss_write_internal(cw_gen_t *gen)
 {
 	assert (gen);
@@ -223,6 +242,8 @@ int cw_oss_write_internal(cw_gen_t *gen)
    You must use cw_gen_set_audio_device_internal() before calling
    this function. Otherwise generator \p gen won't know which device to open.
 
+   \reviewed on 2017-02-05
+
    \param gen - generator
 
    \return CW_FAILURE on errors
@@ -230,14 +251,18 @@ int cw_oss_write_internal(cw_gen_t *gen)
 */
 int cw_oss_open_device_internal(cw_gen_t *gen)
 {
+	/* TODO: there seems to be some redundancy between
+	   cw_oss_open_device_internal() and is_possible() function. */
+
 	/* Open the given soundcard device file, for write only. */
 	int soundcard = open(gen->audio_device, O_WRONLY);
 	if (soundcard == -1) {
 		cw_debug_msg (&cw_debug_object, CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
 			      MSG_PREFIX "open: open(%s): '%s'", gen->audio_device, strerror(errno));
 		return CW_FAILURE;
-        }
+	}
 
+	/* FIXME: do we really need to pass pointer to soundcard fd? */
 	int rv = cw_oss_open_device_ioctls_internal(&soundcard, &gen->sample_rate);
 	if (rv != CW_SUCCESS) {
 		cw_debug_msg (&cw_debug_object, CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
@@ -293,6 +318,8 @@ int cw_oss_open_device_internal(cw_gen_t *gen)
    Wrapper function for ioctl calls that need to be done when configuring
    file descriptor \param fd for OSS playback.
 
+   \reviewed on 2017-02-05
+
    \param fd - file descriptor of open OSS file;
    \param sample_rate - sample rate configured by ioctl calls (output parameter)
 
@@ -306,7 +333,7 @@ int cw_oss_open_device_ioctls_internal(int *fd, int *sample_rate)
 		cw_debug_msg (&cw_debug_object, CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
 			      MSG_PREFIX "ioctls: ioctl(SNDCTL_DSP_SYNC): '%s'", strerror(errno));
 		return CW_FAILURE;
-        }
+	}
 #if 0
 	/*
 	   This ioctl call failed on FreeBSD 10, which resulted in
@@ -327,7 +354,7 @@ int cw_oss_open_device_ioctls_internal(int *fd, int *sample_rate)
 		return CW_FAILURE;
 	}
 #endif
-	/* Set the audio format to 8-bit unsigned. */
+	/* Set the audio format. */
 	parameter = CW_OSS_SAMPLE_FORMAT;
 	if (-1 == ioctl(*fd, (int) SNDCTL_DSP_SETFMT, &parameter)) {
 		cw_debug_msg (&cw_debug_object, CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
@@ -341,7 +368,7 @@ int cw_oss_open_device_ioctls_internal(int *fd, int *sample_rate)
 		return CW_FAILURE;
 	}
 
-	/* Set up mono mode - a single audio channel. */
+	/* Set up mono/stereo mode. */
 	parameter = CW_AUDIO_CHANNELS;
 	if (-1 == ioctl(*fd, (int) SNDCTL_DSP_CHANNELS, &parameter)) {
 		cw_debug_msg (&cw_debug_object, CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
@@ -461,7 +488,11 @@ int cw_oss_open_device_ioctls_internal(int *fd, int *sample_rate)
 
 
 /**
-   \brief Close OSS device associated with current generator
+   \brief Close OSS device associated with given generator
+
+   \reviewed on 2017-02-05
+
+   \param gen - generator
 */
 void cw_oss_close_device_internal(cw_gen_t *gen)
 {
@@ -481,7 +512,19 @@ void cw_oss_close_device_internal(cw_gen_t *gen)
 
 
 
+/**
+   \brief Get version number of OSS library
 
+   \reviewed on 2017-02-05
+
+   \param fd
+   \param x
+   \param y
+   \param z
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE otherwise
+*/
 int cw_oss_get_version_internal(int fd, int *x, int *y, int *z)
 {
 	assert (fd);

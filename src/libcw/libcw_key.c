@@ -49,6 +49,7 @@
 #define MSG_PREFIX_QK "libcw/qk: "
 #define MSG_PREFIX_SK "libcw/sk: "
 #define MSG_PREFIX_IK "libcw/ik: "
+#define MSG_PREFIX "libcw/key: "
 
 
 
@@ -337,7 +338,7 @@ void cw_key_register_receiver_internal(volatile cw_key_t *key, cw_rec_t *rec)
    started or stopped).
 
    \param key - key in use
-   \param key_state - key state to be set
+   \param key_value - key value to be set
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
@@ -433,8 +434,8 @@ int cw_key_sk_enqueue_symbol_internal(volatile cw_key_t *key, int key_value)
 */
 int cw_key_ik_enqueue_symbol_internal(volatile cw_key_t *key, int key_value, char symbol)
 {
-	cw_assert (key, "keyer is NULL");
-	cw_assert (key->gen, "generator is NULL");
+	cw_assert (key, MSG_PREFIX "ik set value: keyer is NULL");
+	cw_assert (key->gen, MSG_PREFIX "ik set value: generator is NULL");
 
 	if (key->ik.key_value != key_value) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
@@ -462,7 +463,6 @@ int cw_key_ik_enqueue_symbol_internal(volatile cw_key_t *key, int key_value, cha
 		return CW_SUCCESS;
 	}
 }
-
 
 
 
@@ -496,7 +496,6 @@ void cw_key_ik_enable_curtis_mode_b_internal(volatile cw_key_t *key)
 
 
 
-
 /**
    See documentation of cw_key_ik_enable_curtis_mode_b() for more information
 
@@ -507,7 +506,6 @@ void cw_key_ik_disable_curtis_mode_b_internal(volatile cw_key_t *key)
 	key->ik.curtis_mode_b = false;
 	return;
 }
-
 
 
 
@@ -528,7 +526,6 @@ bool cw_key_ik_get_curtis_mode_b_state_internal(volatile cw_key_t *key)
 
 
 
-
 /**
    \brief Update state of iambic keyer, queue tone representing state of the iambic keyer
 
@@ -538,7 +535,7 @@ bool cw_key_ik_get_curtis_mode_b_state_internal(volatile cw_key_t *key)
    re-evaluate internal state of iambic keyer.
 
    The function is also called in generator's thread function
-   cw_generator_dequeue_and_play_internal() each time a tone is
+   cw_generator_dequeue_and_generate_internal() each time a tone is
    dequeued and pushed to audio system. I don't know why make the call
    in that place for iambic keyer, but not for straight key.
 
@@ -558,20 +555,20 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 		   TODO: move this check earlier in call stack, so
 		   that less functions are called before silently
 		   discovering that key doesn't exist. */
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_INTERNAL, CW_DEBUG_DEBUG,
-			      MSG_PREFIX_IK "NULL key, silently accepting");
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_INTERNAL, CW_DEBUG_DEBUG,
+			      MSG_PREFIX "ik update: NULL key, silently accepting");
 		return CW_SUCCESS;
 	}
 
 	/* This function is called from generator thread function, so
 	   the generator must exist. Be paranoid and check it, just in
-	   case :) */
-	cw_assert (key->gen, "generator is NULL");
+	   case. */
+	cw_assert (key->gen, MSG_PREFIX "ik update: generator is NULL");
 
 
 	if (key->ik.lock) {
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_INTERNAL, CW_DEBUG_ERROR,
-			      MSG_PREFIX_IK "lock in thread %ld", (long) pthread_self());
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_INTERNAL, CW_DEBUG_ERROR,
+			      MSG_PREFIX "ik update: lock in thread %ld", (long) pthread_self());
 		return CW_FAILURE;
 	}
 	key->ik.lock = true;
@@ -593,10 +590,10 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 	case KS_IN_DOT_A:
 	case KS_IN_DOT_B:
 		/* Verify that key value and keyer graph state are in
-		   sync.  We are *at the end* of Mark, so key should
+		   sync.  We are *at the end* of Mark (Dot), so key should
 		   be (still) closed. */
 		cw_assert (key->ik.key_value == CW_KEY_STATE_CLOSED,
-			   "inconsistency between keyer state (%s) ad key value (%d)",
+			   MSG_PREFIX "ik update: inconsistency between keyer state (%s) ad key value (%d)",
 			   cw_iambic_keyer_states[key->ik.graph_state], key->ik.key_value);
 
 		/* We are ending a dot, so turn off tone and begin the
@@ -612,10 +609,10 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 	case KS_IN_DASH_A:
 	case KS_IN_DASH_B:
 		/* Verify that key value and keyer graph state are in
-		   sync.  We are *at the end* of Mark, so key should
+		   sync.  We are *at the end* of Mark (Dash), so key should
 		   be (still) closed. */
 		cw_assert (key->ik.key_value == CW_KEY_STATE_CLOSED,
-			   "inconsistency between keyer state (%s) ad key value (%d)",
+			   MSG_PREFIX "ik update: inconsistency between keyer state (%s) ad key value (%d)",
 			   cw_iambic_keyer_states[key->ik.graph_state], key->ik.key_value);
 
 		/* We are ending a dash, so turn off tone and begin
@@ -635,10 +632,10 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 		   sync.  We are *at the end* of Space, so key should
 		   be (still) open. */
 		cw_assert (key->ik.key_value == CW_KEY_STATE_OPEN,
-			   "inconsistency between keyer state (%s) ad key value (%d)",
+			   MSG_PREFIX "ik update: inconsistency between keyer state (%s) ad key value (%d)",
 			   cw_iambic_keyer_states[key->ik.graph_state], key->ik.key_value);
 
-		/* If we have just finished a dot or a dash and its
+		/* If we have just finished a Dot or a Dash and its
 		   post-mark delay, then reset the latches as
 		   appropriate.  Next, if in a _B state, go straight
 		   to the opposite element state.  If in an _A state,
@@ -682,7 +679,7 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 		   sync.  We are *at the end* of Space, so key should
 		   be (still) open. */
 		cw_assert (key->ik.key_value == CW_KEY_STATE_OPEN,
-			   "inconsistency between keyer state (%s) ad key value (%d)",
+			   MSG_PREFIX "ik update: inconsistency between keyer state (%s) ad key value (%d)",
 			   cw_iambic_keyer_states[key->ik.graph_state], key->ik.key_value);
 
 		if (!key->ik.dash_paddle) {
@@ -724,8 +721,8 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 		break;
 	}
 
-	cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYER_STATES, CW_DEBUG_INFO,
-		      MSG_PREFIX_IK "keyer state: %s -> %s",
+	cw_debug_msg (&cw_debug_object, CW_DEBUG_KEYER_STATES, CW_DEBUG_INFO,
+		      MSG_PREFIX "ik update: keyer state: %s -> %s",
 		      cw_iambic_keyer_states[old_state], cw_iambic_keyer_states[key->ik.graph_state]);
 
 	key->ik.lock = false;
@@ -764,7 +761,7 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 */
 int cw_key_ik_notify_paddle_event_internal(volatile cw_key_t *key, int dot_paddle_state, int dash_paddle_state)
 {
-#if 0 /* This is disabled, but I'm not sure why. */
+#if 0 /* This is disabled, but I'm not sure why. */  /* This code has been disabled some time before 2017-01-31. */
 	/* If the tone queue or the straight key are busy, this is going to
 	   conflict with our use of the sound card, console sounder, and
 	   keying system.  So return an error status in this case. */
@@ -846,8 +843,8 @@ int cw_key_ik_update_state_initial_internal(volatile cw_key_t *key)
 		   to start any process upon "both paddles open"
 		   event. But the function shouldn't have been called
 		   in that situation. */
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYER_STATES, CW_DEBUG_ERROR,
-			      MSG_PREFIX_IK "called update_state_initial() function when both paddles are up");
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_KEYER_STATES, CW_DEBUG_ERROR,
+			      MSG_PREFIX "ik update initial: called the function when both paddles are open");
 
 		/* Silently accept.
 		   TODO: maybe it's a good idea, or maybe bad one to
@@ -873,8 +870,8 @@ int cw_key_ik_update_state_initial_internal(volatile cw_key_t *key)
 			? KS_AFTER_DOT_B : KS_AFTER_DOT_A;
 	}
 
-	cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
-		      MSG_PREFIX_IK "keyer state (init): %s -> %s",
+	cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
+		      MSG_PREFIX "ik update initial: keyer state: %s -> %s",
 		      cw_iambic_keyer_states[old_state], cw_iambic_keyer_states[key->ik.graph_state]);
 
 
@@ -882,12 +879,14 @@ int cw_key_ik_update_state_initial_internal(volatile cw_key_t *key)
 	   called this function. */
 	int rv = cw_key_ik_update_graph_state_internal(key);
 	if (rv == CW_FAILURE) {
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_KEYER_STATES, CW_DEBUG_ERROR,
+			      MSG_PREFIX "ik update initial: call to update_state_initial() failed first time");
 		/* Just try again, once. */
 		usleep(1000);
 		rv = cw_key_ik_update_graph_state_internal(key);
 		if (!rv) {
-			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYER_STATES, CW_DEBUG_ERROR,
-				      MSG_PREFIX_IK "call to update_state_initial() failed");
+			cw_debug_msg (&cw_debug_object, CW_DEBUG_KEYER_STATES, CW_DEBUG_ERROR,
+				      MSG_PREFIX "ik update initial: call to update_state_initial() failed twice");
 		}
 	}
 
@@ -916,7 +915,6 @@ int cw_key_ik_notify_dot_paddle_event_internal(volatile cw_key_t *key, int dot_p
 {
 	return cw_key_ik_notify_paddle_event_internal(key, dot_paddle_state, key->ik.dash_paddle);
 }
-
 
 
 
@@ -1149,8 +1147,8 @@ void cw_key_ik_increment_timer_internal(volatile cw_key_t *key, int usecs)
 		   is perfectly valid situation that for some
 		   applications a generator exists, but a keyer does
 		   not exist.  Silently accept this situation. */
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_INTERNAL, CW_DEBUG_DEBUG,
-			      MSG_PREFIX_IK "NULL key, silently accepting");
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_INTERNAL, CW_DEBUG_DEBUG,
+			      MSG_PREFIX "ik increment: NULL key, silently accepting");
 		return;
 	}
 

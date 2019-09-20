@@ -224,9 +224,14 @@ uint32_t cw_get_debug_flags(void)
 
 
 
-
 /**
+   \brief Get current debug flags from given debug object
+
+   Function returns value of debug object's debug flags.
+
    testedin::test_cw_debug_flags()
+
+   \return value of debug objects debug flags variable
 */
 uint32_t cw_debug_get_flags(cw_debug_t *debug_object)
 {
@@ -240,9 +245,9 @@ uint32_t cw_debug_get_flags(cw_debug_t *debug_object)
 /**
    \brief Check if given debug flag is set
 
-   Function checks if a specified debug flag is set in internal
-   variable of libcw library.
+   Function checks if a specified debug flag is set in given debug object.
 
+   \param debug object - debug object to be checked
    \param flag - flag to be checked.
 
    \return true if given flag is set
@@ -265,7 +270,11 @@ bool cw_debug_has_flag(cw_debug_t *debug_object, uint32_t flag)
 
 
 
+/**
+   \brief Print configuration of generator
 
+   \param gen - generator
+*/
 void cw_dev_debug_print_generator_setup(const cw_gen_t *gen)
 {
 	fprintf(stderr, "audio system:         %s\n",     cw_get_audio_system_label(gen->audio_system));
@@ -328,7 +337,19 @@ void cw_dev_debug_print_generator_setup(const cw_gen_t *gen)
 
 
 
+/**
+   \brief Write generator's samples to debug file
 
+   This function does any actual writing only for generators
+   configured to use OSS, Alsa and PulseAudio audio sinks. Using the
+   function on generators configured with other audio sinks doesn't
+   produce any output and the function always returns CW_SUCCESS.
+
+   \param gen - generator
+
+   \return CW_SUCCESS on write success
+   \return CW_FAILURE otherwise
+*/
 int cw_dev_debug_raw_sink_write_internal(cw_gen_t *gen)
 {
 	if (gen->audio_system == CW_AUDIO_NONE
@@ -365,7 +386,15 @@ int cw_dev_debug_raw_sink_write_internal(cw_gen_t *gen)
 
 
 
+/**
+   \brief Add debug event to debug object
 
+   \param debug_object - debug object
+   \param flag
+   \param event
+   \param func
+   \param line
+*/
 void cw_debug_event_internal(cw_debug_t *debug_object, uint32_t flag, uint32_t event, const char *func, int line)
 {
 	if (!debug_object) {

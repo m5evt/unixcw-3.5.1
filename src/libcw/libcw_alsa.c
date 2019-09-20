@@ -92,8 +92,14 @@ static int cw_alsa_print_params_internal(snd_pcm_hw_params_t *hw_params);
 
 
 
-
-
+/*
+  FIXME: verify how this data structure is handled when there are
+  many generators.
+  How many times the structure is set?
+  How many times it's closed?
+  Is it closed for all generators when first of these generators is destroyed?
+  Do we need a reference counter for this structure?
+*/
 static struct {
 	void *handle;
 
@@ -149,6 +155,8 @@ static struct {
    Function first tries to load ALSA library, and then does a test
    opening of ALSA output, but it closes it before returning.
 
+   \reviewed on 2017-02-05
+
    \param device - name of ALSA device to be used; if NULL then library will use default device.
 
    \return true if opening ALSA output succeeded;
@@ -191,7 +199,16 @@ bool cw_is_alsa_possible(const char *device)
 
 
 
+/**
+   \brief Configure given generator to work with ALSA audio sink
 
+   \reviewed on 2017-02-05
+
+   \param gen - generator
+   \param dev - ALSA device to use
+
+   \return CW_SUCCESS
+*/
 int cw_alsa_configure(cw_gen_t *gen, const char *device)
 {
 	gen->audio_system = CW_AUDIO_ALSA;
@@ -207,7 +224,16 @@ int cw_alsa_configure(cw_gen_t *gen, const char *device)
 
 
 
+/**
+   \brief Write generated samples to ALSA audio sink configured and opened for generator
 
+   \reviewed on 2017-02-05
+
+   \param gen - generator
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE otherwise
+*/
 int cw_alsa_write_internal(cw_gen_t *gen)
 {
 	assert (gen);
@@ -217,13 +243,12 @@ int cw_alsa_write_internal(cw_gen_t *gen)
 	   Size of correct and current data in the buffer is the same as
 	   ALSA's period, so there should be no underruns */
 	int rv = cw_alsa.snd_pcm_writei(gen->alsa_data.handle, gen->buffer, gen->buffer_n_samples);
-	cw_alsa_debug_evaluate_write_internal(gen, rv);
+	rv = cw_alsa_debug_evaluate_write_internal(gen, rv); /* TODO: fix reusing rv variable. */
 	/*
 	cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_INFO,
 		      MSG_PREFIX "write: written %d/%d samples", rv, gen->buffer_n_samples);
 	*/
-	return CW_SUCCESS;
-
+	return rv;
 }
 
 
@@ -235,7 +260,9 @@ int cw_alsa_write_internal(cw_gen_t *gen)
    You must use cw_gen_set_audio_device_internal() before calling
    this function. Otherwise generator \p gen won't know which device to open.
 
-   \param gen - current generator
+   \reviewed on 2017-02-05
+
+   \param gen - generator
 
    \return CW_FAILURE on errors
    \return CW_SUCCESS on success
@@ -300,7 +327,10 @@ int cw_alsa_open_device_internal(cw_gen_t *gen)
 	}
 
 #if CW_DEV_RAW_SINK
-	gen->dev_raw_sink = open("/tmp/cw_file.alsa.raw", O_WRONLY | O_TRUNC | O_NONBLOCK);
+	gen->dev_raw_sink = open("/tmp/cw_file.alsa.raw", O_WRONLY | O_CREAT | O_TRUNC | O_NONBLOCK);
+	if (gen->dev_raw_sink == -1) {
+		fprintf(stderr, MSG_PREFIX "open: failed to open dev raw sink file: '%s'\n", strerror(errno));
+	}
 #endif
 
 	return CW_SUCCESS;
@@ -309,9 +339,12 @@ int cw_alsa_open_device_internal(cw_gen_t *gen)
 
 
 
-
 /**
-   \brief Close ALSA device associated with current generator
+   \brief Close ALSA device associated with given generator
+
+   \reviewed on 2017-02-05
+
+   \param gen
 */
 void cw_alsa_close_device_internal(cw_gen_t *gen)
 {
@@ -337,7 +370,19 @@ void cw_alsa_close_device_internal(cw_gen_t *gen)
 
 
 
+/**
+   \brief Handle value returned by ALSA's write function (snd_pcm_writei)
 
+   If specific errors occurred during write, audio sink is reset by this function.
+
+   \reviewed on 2017-02-05
+
+   \param gen - generator
+   \param rv - value returned by snd_pcm_writei()
+
+   \return CW_SUCCESS if write was successful
+   \return CW_FAILURE otherwise
+*/
 int cw_alsa_debug_evaluate_write_internal(cw_gen_t *gen, int rv)
 {
 	if (rv == -EPIPE) {
@@ -366,7 +411,9 @@ int cw_alsa_debug_evaluate_write_internal(cw_gen_t *gen, int rv)
 /**
    \brief Set up hardware buffer parameters of ALSA sink
 
-   \param gen - current generator with ALSA handle set up
+   \reviewed on 2017-02-05
+
+   \param gen - generator with ALSA handle set up
    \param params - allocated hw params data structure to be used
 
    \return CW_FAILURE on errors
@@ -603,8 +650,13 @@ int cw_alsa_set_hw_params_internal(cw_gen_t *gen, snd_pcm_hw_params_t *hw_params
 
 
 
+/**
+   \brief Debug function printing ALSA setup
 
-/* debug function */
+   \reviewed on 2017-02-05
+
+   \param hw_params - ALSA configuration; TODO: do we need to pass this argument? Can't it be function's local variable?
+*/
 int cw_alsa_print_params_internal(snd_pcm_hw_params_t *hw_params)
 {
 	unsigned int val = 0;
@@ -660,6 +712,8 @@ int cw_alsa_print_params_internal(snd_pcm_hw_params_t *hw_params)
    symbol that the funciton failed to resolve. Function stops and returns
    on first failure.
 
+   \reviewed on 2017-02-05
+
    \param handle - handle to open ALSA library
 
    \return 0 on success
@@ -711,6 +765,13 @@ static int cw_alsa_dlsym_internal(void *handle)
 
 
 
+/**
+   \brief Call ALSA's snd_pcm_drop() function for given generator
+
+   \reviewed on 2017-02-05
+
+   \param gen - generator
+*/
 void cw_alsa_drop(cw_gen_t *gen)
 {
 	cw_alsa.snd_pcm_drop(gen->alsa_data.handle);

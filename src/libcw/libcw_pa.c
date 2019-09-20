@@ -80,6 +80,15 @@ static int        cw_pa_write_internal(cw_gen_t *gen);
 
 
 
+
+/*
+  FIXME: verify how this data structure is handled when there are
+  many generators.
+  How many times the structure is set?
+  How many times it's closed?
+  Is it closed for all generators when first of these generators is destroyed?
+  Do we need a reference counter for this structure?
+*/
 static struct {
 	void *handle;
 
@@ -126,10 +135,10 @@ static const int CW_PA_BUFFER_N_SAMPLES = 1024;
 */
 bool cw_is_pa_possible(const char *device)
 {
-	const char *library_name = "libpulse-simple.so";
-	if (!cw_dlopen_internal(library_name, &(cw_pa.handle))) {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
-			      MSG_PREFIX "can't access PulseAudio library \"%s\"", library_name);
+	const char * const library_name = "libpulse-simple.so";
+	if (!cw_dlopen_internal(library_name, &cw_pa.handle)) {
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
+			      MSG_PREFIX "is possible: can't access PulseAudio library \"%s\"", library_name);
 		return false;
 	}
 
@@ -170,7 +179,16 @@ bool cw_is_pa_possible(const char *device)
 
 
 
+/**
+   \brief Configure given generator to work with PulseAudio audio sink
 
+   \reviewed on 2017-02-04
+
+   \param gen - generator
+   \param dev - PulseAudio device to use
+
+   \return CW_SUCCESS
+*/
 int cw_pa_configure(cw_gen_t *gen, const char *dev)
 {
 	assert (gen);
@@ -188,7 +206,16 @@ int cw_pa_configure(cw_gen_t *gen, const char *dev)
 
 
 
+/**
+   \brief Write generated samples to PulseAudio audio sink configured and opened for generator
 
+   \reviewed on 2017-02-04
+
+   \param gen - generator
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE otherwise
+*/
 int cw_pa_write_internal(cw_gen_t *gen)
 {
 	assert (gen);
@@ -198,14 +225,13 @@ int cw_pa_write_internal(cw_gen_t *gen)
 	size_t n_bytes = sizeof (gen->buffer[0]) * gen->buffer_n_samples;
 	int rv = cw_pa.pa_simple_write(gen->pa_data.s, gen->buffer, n_bytes, &error);
 	if (rv < 0) {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
-			      MSG_PREFIX "pa_simple_write() failed: %s", cw_pa.pa_strerror(error));
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
+			      MSG_PREFIX "write: pa_simple_write() failed: %s", cw_pa.pa_strerror(error));
+		return CW_FAILURE;
 	} else {
-		//cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_INFO, MSG_PREFIX "written %d samples with PulseAudio", gen->buffer_n_samples);
+		//cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_INFO, MSG_PREFIX "written %d samples with PulseAudio", gen->buffer_n_samples);
+		return CW_SUCCESS;
 	}
-
-	return CW_SUCCESS;
-
 }
 
 
@@ -225,6 +251,8 @@ int cw_pa_write_internal(cw_gen_t *gen)
 
    The function *does not* set size of audio buffer in libcw's generator.
 
+   \reviewed on 2017-02-04
+
    \param ss - sample spec data, non-NULL pointer to variable owned by caller
    \param ba - buffer attributes data, non-NULL pointer to variable owned by caller
    \param device - name of PulseAudio device to be used, or NULL for default device
@@ -242,15 +270,15 @@ pa_simple *cw_pa_simple_new_internal(pa_sample_spec *ss, pa_buffer_attr *ba, con
 
 	const char *dev = (char *) NULL; /* NULL - let PulseAudio use default device. */
 	if (device && strcmp(device, CW_DEFAULT_PA_DEVICE)) {
-		dev = device; /* non-default device */
+		dev = device; /* Non-default device. */
 	}
 
 	// http://www.mail-archive.com/pulseaudio-tickets@mail.0pointer.de/msg03295.html
-	ba->tlength = cw_pa.pa_usec_to_bytes(50*1000, ss);
+	ba->tlength = cw_pa.pa_usec_to_bytes(50 * 1000, ss);
 	ba->minreq = cw_pa.pa_usec_to_bytes(0, ss);
-	ba->maxlength = cw_pa.pa_usec_to_bytes(50*1000, ss);
+	ba->maxlength = cw_pa.pa_usec_to_bytes(50 * 1000, ss);
 	/* ba->prebuf = ; */ /* ? */
-	/* ba->fragsize = sizeof(uint32_t) -1; */ /* not relevant to playback */
+	/* ba->fragsize = sizeof(uint32_t) -1; */ /* Not relevant to playback. */
 
 	pa_simple *s = cw_pa.pa_simple_new(NULL,                  /* Server name (NULL for default). */
 					   "libcw",               /* Descriptive name of client (application name etc.). */
@@ -277,6 +305,8 @@ pa_simple *cw_pa_simple_new_internal(pa_sample_spec *ss, pa_buffer_attr *ba, con
    On failure the function returns negative value, different for every
    symbol that the funciton failed to resolve. Function stops and returns
    on first failure.
+
+   \reviewed on 2017-02-04
 
    \param handle - handle to open PulseAudio library
 
@@ -312,7 +342,9 @@ int cw_pa_dlsym_internal(void *handle)
    You must use cw_gen_set_audio_device_internal() before calling
    this function. Otherwise generator \p gen won't know which device to open.
 
-   \param gen - current generator
+   \reviewed on 2017-02-04
+
+   \param gen - generator
 
    \return CW_FAILURE on errors
    \return CW_SUCCESS on success
@@ -357,7 +389,11 @@ int cw_pa_open_device_internal(cw_gen_t *gen)
 
 
 /**
-   \brief Close PulseAudio device associated with current generator
+   \brief Close PulseAudio device associated with given generator
+
+   \reviewed on 2017-02-04
+
+   \param gen - generator
 */
 void cw_pa_close_device_internal(cw_gen_t *gen)
 {

@@ -63,10 +63,10 @@ typedef struct {
 	 * These fields are used only in cw.
 	 */
 	int do_echo;           /* Echo characters */
-        int do_errors;         /* Print error messages to stderr */
-        int do_commands;       /* Execute embedded commands */
-        int do_combinations;   /* Execute [...] combinations */
-        int do_comments;       /* Allow {...} as comments */
+	int do_errors;         /* Print error messages to stderr */
+	int do_commands;       /* Execute embedded commands */
+	int do_combinations;   /* Execute [...] combinations */
+	int do_comments;       /* Allow {...} as comments */
 } cw_config_t;
 
 

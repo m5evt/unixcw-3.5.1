@@ -51,6 +51,16 @@ static void cw_null_close_device_internal(cw_gen_t *gen);
 
 
 
+/**
+   \brief Configure given generator to work with Null audio sink
+
+   \reviewed on 2017-02-04
+
+   \param gen - generator
+   \param dev - Null device to use
+
+   \return CW_SUCCESS
+*/
 int cw_null_configure(cw_gen_t *gen, const char *device)
 {
 	assert (gen);
@@ -60,7 +70,7 @@ int cw_null_configure(cw_gen_t *gen, const char *device)
 
 	gen->open_device  = cw_null_open_device_internal;
 	gen->close_device = cw_null_close_device_internal;
-	// gen->write        = cw_null_write; /* The function is called in libcw.c explicitly/directly, not by a pointer. */
+	// gen->write        = cw_null_write; /* The function is called in libcw_gen.c explicitly/directly, not by a pointer. TODO: we should call this function by function pointer. */
 
 	gen->sample_rate = 48000; /* Some asserts may check for non-zero
 				     value of sample rate or its derivatives. */
@@ -71,8 +81,15 @@ int cw_null_configure(cw_gen_t *gen, const char *device)
 
 
 
+/**
+   \brief Check if it is possible to open Null audio output
 
+   \reviewed on 2017-02-04
 
+   \param device - sink device, unused
+
+   \return true - it's always possible to write to Null device
+*/
 bool cw_is_null_possible(__attribute__((unused)) const char *device)
 {
 	return true;
@@ -81,7 +98,13 @@ bool cw_is_null_possible(__attribute__((unused)) const char *device)
 
 
 
+/**
+   \brief Open Null audio device associated with given generator
 
+   \param gen - generator
+
+   \return CW_SUCCESS
+*/
 int cw_null_open_device_internal(cw_gen_t *gen)
 {
 	gen->audio_device_is_open = true;
@@ -91,7 +114,13 @@ int cw_null_open_device_internal(cw_gen_t *gen)
 
 
 
+/**
+   \brief Close Null audio device associated with given generator
 
+   \param gen - generator
+
+   \return CW_SUCCESS
+*/
 void cw_null_close_device_internal(cw_gen_t *gen)
 {
 	gen->audio_device_is_open = false;
@@ -101,7 +130,20 @@ void cw_null_close_device_internal(cw_gen_t *gen)
 
 
 
+/**
+   \brief Write to Null audio sink configured and opened for generator
 
+   The function doesn't really write the samples anywhere, it just
+   sleeps for period of time that would be necessary to write the
+   samples to a real audio device and play/sound them.
+
+   \reviewed on 2017-02-04
+
+   \param gen - generator
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE otherwise
+*/
 void cw_null_write(__attribute__((unused)) cw_gen_t *gen, cw_tone_t *tone)
 {
 	assert (gen);

@@ -53,5 +53,4 @@ unsigned int test_validate_representation_internal(void);
 
 
 
-
 #endif /* #ifndef H_LIBCW_DATA */
