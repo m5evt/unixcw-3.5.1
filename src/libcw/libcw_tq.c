@@ -1457,15 +1457,17 @@ unsigned int test_cw_tq_dequeue_internal(cw_tone_queue_t *tq, cw_test_stats_t * 
 	size_t len = cw_tq_length_internal(tq);
 	failure = (len != 0) || (tq->len != 0);
 	failure ? stats->failures++ : stats->successes++;
-	n = fprintf(out_file, MSG_PREFIX "dequeue: length of empty queue == zero (%zd == %zd):", len, tq->len);
+	n = fprintf(out_file, MSG_PREFIX "dequeue: length of empty queue should be zero (%zd == %zd):", len, tq->len);
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
-	/* Try removing a tone from empty queue. */
-	/* This time we should get CW_TQ_NDEQUEUED_IDLE return value. */
-	rv = cw_tq_dequeue_internal(tq, &tone);
-	cw_assert (rv == CW_TQ_NDEQUEUED_IDLE, "unexpected return value from \"dequeue\" on empty tone queue: %d", rv);
 
-	CW_TEST_PRINT_TEST_RESULT(failure, n);
+	/* Try removing a tone from empty queue. Since the queue is
+	   empty, this should fail. */
+	rv = cw_tq_dequeue_internal(tq, &tone);
+	bool expect = (rv == CW_FAILURE);
+	expect ? stats->successes++ : stats->failures++;
+	n = fprintf(out_file, MSG_PREFIX "dequeue: attempt to dequeue from empty queue should fail (got rv = %d):", rv);
+	CW_TEST_PRINT_TEST_RESULT(!expect, n);
 
 	return 0;
 }
