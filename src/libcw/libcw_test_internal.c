@@ -37,15 +37,31 @@
 
 
 #include "libcw.h"
-#include "libcw_gen.h"
-#include "libcw_rec.h"
 #include "libcw_debug.h"
-#include "libcw_data.h"
-#include "libcw_tq.h"
-#include "libcw_utils.h"
 #include "libcw_null.h"
 #include "libcw_console.h"
 #include "libcw_oss.h"
+#include "libcw_key.h"
+#include "libcw_tq.h"
+#include "libcw_gen.h"
+
+
+/* Tested modules. */
+#include "libcw_tq_internal.h"
+#include "libcw_tq_tests.h"
+#include "libcw_gen_internal.h"
+#include "libcw_gen_tests.h"
+#include "libcw_rec_internal.h"
+#include "libcw_rec_tests.h"
+//#include "libcw_data_internal.h"
+#include "libcw_data_tests.h"
+//#include "libcw_debug_internal.h"
+#include "libcw_debug_tests.h"
+//#include "libcw_utils_internal.h"
+#include "libcw_utils_tests.h"
+//#include "libcw_key_internal.h"
+#include "libcw_key_tests.h"
+
 
 
 

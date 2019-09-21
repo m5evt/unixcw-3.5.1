@@ -154,17 +154,6 @@ void cw_dev_debug_print_generator_setup(const cw_gen_t * gen);
 
 
 
-#ifdef LIBCW_UNIT_TESTS
-
-#include "libcw_test.h"
-
-
-unsigned int test_cw_debug_flags_internal(cw_test_stats_t * stats);
-#endif /* #ifdef LIBCW_UNIT_TESTS */
-
-
-
-
 /* FIXME: make it appear only in debug builds. */
 #define libcw_sem_printvalue(m_semaphore, m_tq_len, m_log_prefix) \
 	{								\

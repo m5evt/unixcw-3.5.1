@@ -10,7 +10,14 @@
 
 
 #include <stdbool.h>
+#include <stdint.h>
 
+
+
+
+#define CW_DATA_MAX_REPRESENTATION_LENGTH 7 /* CHAR_BIT - 1 */
+#define CW_DATA_MIN_REPRESENTATION_HASH 2
+#define CW_DATA_MAX_REPRESENTATION_HASH 255
 
 
 
@@ -32,25 +39,6 @@ __attribute__((unused)) int cw_representation_to_character_direct_internal(const
 uint8_t cw_representation_to_hash_internal(const char *representation); /* TODO: uint8_t will be enough for everyone? */
 const char  *cw_character_to_representation_internal(int c);
 const char  *cw_lookup_procedural_character_internal(int c, bool *is_usually_expanded);
-
-
-
-
-
-#ifdef LIBCW_UNIT_TESTS
-
-#include "libcw_test.h"
-
-unsigned int test_cw_representation_to_hash_internal(cw_test_stats_t * stats);
-unsigned int test_cw_representation_to_character_internal(cw_test_stats_t * stats);
-unsigned int test_cw_representation_to_character_internal_speed(cw_test_stats_t * stats);
-unsigned int test_character_lookups_internal(cw_test_stats_t * stats);
-unsigned int test_prosign_lookups_internal(cw_test_stats_t * stats);
-unsigned int test_phonetic_lookups_internal(cw_test_stats_t * stats);
-unsigned int test_validate_character_and_string_internal(cw_test_stats_t * stats);
-unsigned int test_validate_representation_internal(cw_test_stats_t * stats);
-
-#endif /* #ifdef LIBCW_UNIT_TESTS */
 
 
 

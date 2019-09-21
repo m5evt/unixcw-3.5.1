@@ -152,15 +152,5 @@ void cw_key_ik_reset_internal(volatile cw_key_t *key);
 void cw_key_sk_reset_internal(volatile cw_key_t * key);
 
 
-#ifdef LIBCW_UNIT_TESTS
-
-#include "libcw_test.h"
-
-unsigned int test_keyer(cw_key_t * key, cw_test_stats_t * stats);
-unsigned int test_straight_key(cw_key_t * key, cw_test_stats_t * stats);
-
-#endif /* #ifdef LIBCW_UNIT_TESTS */
-
-
 
 #endif // #ifndef H_LIBCW_KEY

@@ -31,6 +31,8 @@
 #define CW_SLOPE_MODE_RISING_SLOPE      22
 #define CW_SLOPE_MODE_FALLING_SLOPE     23
 
+/* Length of a single slope (rising or falling) in standard tone. [us] */
+#define CW_AUDIO_SLOPE_LEN            5000
 
 
 
@@ -393,42 +395,6 @@ void cw_generator_delete_internal(void);
 
 void cw_gen_reset_parameters_internal(cw_gen_t *gen);
 void cw_gen_sync_parameters_internal(cw_gen_t *gen);
-
-
-
-
-
-#ifdef LIBCW_UNIT_TESTS
-
-unsigned int test_cw_gen_set_tone_slope(cw_test_stats_t * stats);
-unsigned int test_cw_gen_tone_slope_shape_enums(cw_test_stats_t * stats);
-unsigned int test_cw_gen_new_delete(cw_test_stats_t * stats);
-unsigned int test_cw_gen_forever_internal(cw_test_stats_t * stats);
-unsigned int test_cw_gen_get_timing_parameters_internal(cw_test_stats_t * stats);
-unsigned int test_cw_gen_parameter_getters_setters(cw_test_stats_t * stats);
-unsigned int test_cw_gen_volume_functions(cw_test_stats_t * stats);
-unsigned int test_cw_gen_enqueue_primitives(cw_test_stats_t * stats);
-unsigned int test_cw_gen_enqueue_representations(cw_test_stats_t * stats);
-unsigned int test_cw_gen_enqueue_character_and_string(cw_test_stats_t * stats);
-
-
-
-
-/* This is helper function (performing the real test), used in
-   libcw_test_public and in libcw_test_internal.
-
-   "forever" feature is not a part of public api, so in theory it
-   shouldn't be tested in libcw_test_public, but the libcw_test_public
-   is able to perform tests with different audio sinks, whereas
-   libcw_test_internal only uses NULL audio sink.
-
-   So libcw_test_internal does basic tests ("does it work at all?"),
-   and libcw_test_public does full test.
-*/
-unsigned int test_cw_gen_forever_sub(cw_test_stats_t * stats, int seconds, int audio_system, const char *audio_device);
-
-#endif /* #ifdef LIBCW_UNIT_TESTS */
-
 
 
 
