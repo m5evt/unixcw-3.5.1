@@ -161,8 +161,6 @@ static volatile cw_key_t cw_key = {
 		.curtis_b_latch = false,
 
 		.lock = false,
-
-		.timer = NULL
 	},
 
 
@@ -990,7 +988,7 @@ int cw_wait_for_tone(void)
 */
 int cw_wait_for_tone_queue(void)
 {
-	return cw_tq_wait_for_tone_queue_internal(cw_generator->tq);
+	return cw_tq_wait_for_level_internal(cw_generator->tq, 0);
 }
 
 
@@ -1106,7 +1104,7 @@ void cw_flush_tone_queue(void)
 */
 void cw_reset_tone_queue(void)
 {
-	cw_tq_reset_internal(cw_generator->tq);
+	cw_tq_flush_internal(cw_generator->tq);
 
 	/* Silence sound and stop any background soundcard tone generation. */
 	cw_gen_silence_internal(cw_generator);
@@ -1795,29 +1793,6 @@ void cw_reset_receive(void)
 void cw_register_keying_callback(void (*callback_func)(void*, int), void *callback_arg)
 {
 	cw_key_register_keying_callback(&cw_key, callback_func, callback_arg);
-	return;
-}
-
-
-
-
-
-/*
-  Most of the time libcw just passes around key_callback_arg,
-  not caring of what type it is, and not attempting to do any
-  operations on it. On one occasion however, it needs to know whether
-  key_callback_arg is of type 'struct timeval', and if so, it
-  must do some operation on it. I could pass struct with ID as
-  key_callback_arg, but that may break some old client
-  code. Instead I've created this function that has only one, very
-  specific purpose: to pass to libcw a pointer to timer.
-
-  The timer is owned by client code, and is used to measure and clock
-  iambic keyer.
-*/
-void cw_iambic_keyer_register_timer(struct timeval *timer)
-{
-	cw_key_ik_register_timer_internal(&cw_key, timer);
 	return;
 }
 

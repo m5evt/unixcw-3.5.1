@@ -166,7 +166,7 @@ static int   cw_gen_new_open_internal(cw_gen_t *gen, int audio_system, const cha
 static void *cw_gen_dequeue_and_generate_internal(void *arg);
 static int   cw_gen_calculate_sine_wave_internal(cw_gen_t *gen, cw_tone_t *tone);
 static int   cw_gen_calculate_amplitude_internal(cw_gen_t *gen, const cw_tone_t *tone);
-static int   cw_gen_write_to_soundcard_internal(cw_gen_t *gen, cw_tone_t *tone, int queue_rv);
+static int   cw_gen_write_to_soundcard_internal(cw_gen_t *gen, cw_tone_t *tone, bool is_empty_tone);
 static int   cw_gen_enqueue_valid_character_partial_internal(cw_gen_t *gen, char character);
 static void  cw_gen_recalculate_slopes_internal(cw_gen_t *gen);
 
@@ -740,17 +740,45 @@ int cw_gen_stop(cw_gen_t *gen)
 	   may be in a state where dequeue() function returned IDLE
 	   state, and the loop is waiting for new tone.
 
-	   This is to wake up cw_signal_wait_internal() function that
-	   may be waiting idle for signal in "while ()" loop in thread
-	   function. */
+	   This is to force the loop to start new cycle, make the loop
+	   notice that gen->do_dequeue_and_generate is false, and to
+	   get the thread function to return (and thus to end the
+	   thread). */
+
+#if 0 /* This was disabled some time before 2017-01-19. */
+	pthread_mutex_lock(&gen->tq->wait_mutex);
+	pthread_cond_broadcast(&gen->tq->wait_var);
+	pthread_mutex_unlock(&gen->tq->wait_mutex);
+#endif
+
+	pthread_mutex_lock(&gen->tq->dequeue_mutex);
+	/* Use pthread_cond_signal() because there is only one listener: loop in generator's thread function. */
+	pthread_cond_signal(&gen->tq->dequeue_var);
+	pthread_mutex_unlock(&gen->tq->dequeue_mutex);
+
+#if 0   /* Original implementation using signals. */  /* This was disabled some time before 2017-01-19. */
 	pthread_kill(gen->thread.id, SIGALRM);
+#endif
 
-	/* This piece of comment was put before code using
-	   pthread_kill(), and may apply only to that version. But it
-	   may turn out that it will be valid for code using
-	   pthread_join() as well, so I'm keeping it for now.
+	return cw_gen_join_thread_internal(gen);
+}
 
-	   "
+
+
+
+/**
+   \brief Wrapper for pthread_join() and debug code
+
+   \reviewed on 2017-01-26
+
+   \param gen
+
+   \return CW_SUCCESS if joining succeeded
+   \return CW_FAILURE otherwise
+*/
+int cw_gen_join_thread_internal(cw_gen_t * gen)
+{
+	/* TODO: this comment may no longer be true and necessary.
 	   Sleep a bit to postpone closing a device.  This way we can
 	   avoid a situation when "do_dequeue_and_generate" is set to false
 	   and device is being closed while a new buffer is being
@@ -765,35 +793,9 @@ int cw_gen_stop(cw_gen_t *gen)
 	   The delay also allows the generator function thread to stop
 	   generating tone (or for tone queue to get out of CW_TQ_IDLE
 	   state) and exit before we resort to killing generator
-	   function thread.
-	   "
-	*/
-
-
-#if 0 /* Old code using pthread_kill() instead of pthread_join().
-	 This code is unused since before 2015-08-30. */
-
+	   function thread. */
 	struct timespec req = { .tv_sec = 1, .tv_nsec = 0 };
 	cw_nanosleep_internal(&req);
-
-	/* Check if generator thread is still there.  Remember that
-	   pthread_kill(id, 0) is unsafe for detached threads: if thread
-	   has finished, the ID may be reused, and may be invalid at
-	   this point. */
-	rv = pthread_kill(gen->thread.id, 0);
-	if (rv == 0) {
-		/* thread function didn't return yet; let's help it a bit */
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_WARNING, MSG_PREFIX "EXIT: forcing exit of thread function");
-		rv = pthread_kill(gen->thread.id, SIGKILL);
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_WARNING, MSG_PREFIX "EXIT: pthread_kill() returns %d/%s", rv, strerror(rv));
-	} else {
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_GENERATOR, CW_DEBUG_INFO, MSG_PREFIX "EXIT: seems that thread function exited voluntarily");
-	}
-
-	gen->thread.running = false;
-	return CW_SUCCESS;
-#else
-
 
 
 #define CW_DEBUG_TIMING_JOIN 1
@@ -804,9 +806,7 @@ int cw_gen_stop(cw_gen_t *gen)
 #endif
 
 
-
-	rv = pthread_join(gen->thread.id, NULL);
-
+	int rv = pthread_join(gen->thread.id, NULL);
 
 
 #if CW_DEBUG_TIMING_JOIN   /* Debug code to measure how long it takes to join threads. */
@@ -822,7 +822,6 @@ int cw_gen_stop(cw_gen_t *gen)
 		cw_debug_msg (&cw_debug_object, CW_DEBUG_GENERATOR, CW_DEBUG_ERROR, MSG_PREFIX "failed to join threads: '%s'", strerror(rv));
 		return CW_FAILURE;
 	}
-#endif
 }
 
 
@@ -940,31 +939,82 @@ void *cw_gen_dequeue_and_generate_internal(void *arg)
 	cw_tone_t tone;
 	CW_TONE_INIT(&tone, 0, 0, CW_SLOPE_MODE_STANDARD_SLOPES);
 
+	int dequeued_prev = CW_FAILURE; /* Status of previous call to dequeue(). */
+	int dequeued_now = CW_FAILURE; /* Status of current call to dequeue(). */
+
 	while (gen->do_dequeue_and_generate) {
-		int tq_rv = cw_tq_dequeue_internal(gen->tq, &tone);
-		if (tq_rv == CW_TQ_NDEQUEUED_IDLE) {
+		dequeued_now = cw_tq_dequeue_internal(gen->tq, &tone);
+		if (!dequeued_now && !dequeued_prev) {
 
-			/* Tone queue has been totally drained with
-			   previous call to dequeue(). No point in
-			   making next iteration of while() and
-			   calling the function again. So don't call
-			   it, wait for signal from enqueue() function
-			   informing that a new tone appeared in tone
-			   queue. */
+			cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_TONE_QUEUE, CW_DEBUG_INFO,
+				      MSG_PREFIX "queue is idle");
 
-			/* A SIGALRM signal may also come from
-			   cw_gen_stop() that gently asks
-			   this function to stop idling and nicely
-			   return. */
+			/* We won't get here while there are some
+			   accumulated tones in queue, because
+			   cw_tq_dequeue_internal() will be handling
+			   them just fine without any need for
+			   synchronization or wait().  Only after the
+			   queue has been completely drained, we will
+			   be forced to wait() here.
 
+			   It's much better to wait only sometimes
+			   after cw_tq_dequeue_internal() than wait
+			   always before cw_tq_dequeue_internal().
+
+			   We are waiting for kick from enqueue()
+			   function informing that a new tone appeared
+			   in tone queue.
+
+			   The kick may also come from cw_gen_stop()
+			   that gently asks this function to stop
+			   idling and nicely return. */
+
+			pthread_mutex_lock(&(gen->tq->dequeue_mutex));
+			pthread_cond_wait(&gen->tq->dequeue_var, &gen->tq->dequeue_mutex);
+			pthread_mutex_unlock(&(gen->tq->dequeue_mutex));
+
+#if 0                   /* Original implementation using signals. */ /* This code has been disabled some time before 2017-01-19. */
 			/* TODO: can we / should we specify on which
 			   signal exactly we are waiting for? */
 			cw_signal_wait_internal();
+#endif
 			continue;
 		}
 
+		bool is_empty_tone = !dequeued_now && dequeued_prev;
 
-		cw_key_ik_increment_timer_internal(gen->key, tone.len);
+		if (gen->key) {
+			int state = CW_KEY_STATE_OPEN;
+
+			if ((dequeued_now && dequeued_prev) || (dequeued_now && !dequeued_prev)) {
+				/* Flag combinations 1 and 2.
+				   A valid tone has been dequeued just now. */
+				state = tone.frequency ? CW_KEY_STATE_CLOSED : CW_KEY_STATE_OPEN;
+
+			} else if (!dequeued_now && dequeued_prev) {
+				/* Flag combination 3.
+				   Tone queue just went empty. No tone == no sound. */
+				state = CW_KEY_STATE_OPEN;
+
+			} else {
+				/* !dequeued_now && !dequeued_prev */
+				/* Flag combination 4.
+				   Tone queue continues to be empty.
+				   This combination was handled right
+				   after cw_tq_dequeue_internal(), we
+				   should be waiting there for kick
+				   from tone queue.  Us being here is
+				   an error. */
+				cw_assert (0, MSG_PREFIX "uncaught combination of flags: dequeued_now = %d, dequeued_prev = %d",
+					   dequeued_now, dequeued_prev);
+			}
+			cw_key_tk_set_value_internal(gen->key, state);
+
+
+			cw_key_ik_increment_timer_internal(gen->key, tone.len);
+		}
+		dequeued_prev = dequeued_now;
+
 
 #ifdef LIBCW_WITH_DEV
 		cw_debug_ev (&cw_debug_object_ev, 0, tone.frequency ? CW_DEBUG_EVENT_TONE_HIGH : CW_DEBUG_EVENT_TONE_LOW);
@@ -975,7 +1025,7 @@ void *cw_gen_dequeue_and_generate_internal(void *arg)
 		} else if (gen->audio_system == CW_AUDIO_CONSOLE) {
 			cw_console_write(gen, &tone);
 		} else {
-			cw_gen_write_to_soundcard_internal(gen, &tone, tq_rv);
+			cw_gen_write_to_soundcard_internal(gen, &tone, is_empty_tone);
 		}
 
 		/*
@@ -986,10 +1036,21 @@ void *cw_gen_dequeue_and_generate_internal(void *arg)
 		     cw_wait_for_tone_queue_critical();
 
 		   - allows client code to observe any dequeue event
-                     by waiting for signal in cw_wait_for_tone() /
-                     cw_tq_wait_for_tone_internal()
-		 */
+                     by waiting for signal in
+                     cw_tq_wait_for_tone_internal();
+		*/
+
+		//fprintf(stderr, MSG_PREFIX "      sending signal on dequeue, target thread id = %ld\n", gen->client.thread_id);
+
+		pthread_mutex_lock(&gen->tq->wait_mutex);
+		/* There may be many listeners, so use broadcast(). */
+		pthread_cond_broadcast(&gen->tq->wait_var);
+		pthread_mutex_unlock(&gen->tq->wait_mutex);
+
+
+#if 0           /* Original implementation using signals. */ /* This code has been disabled some time before 2017-01-19. */
 		pthread_kill(gen->client.thread_id, SIGALRM);
+#endif
 
 		/* Generator may be used by iambic keyer to measure
 		   periods of time (lengths of Mark and Space) - this
@@ -1042,7 +1103,15 @@ void *cw_gen_dequeue_and_generate_internal(void *arg)
 	struct timespec req = { .tv_sec = 0, .tv_nsec = CW_NSECS_PER_SEC / 2 };
 	cw_nanosleep_internal(&req);
 
+	pthread_mutex_lock(&gen->tq->wait_mutex);
+	/* There may be many listeners, so use broadcast(). */
+	pthread_cond_broadcast(&gen->tq->wait_var);
+	pthread_mutex_unlock(&gen->tq->wait_mutex);
+
+#if 0   /* Original implementation using signals. */ /* This code has been disabled some time before 2017-01-19. */
 	pthread_kill(gen->client.thread_id, SIGALRM);
+#endif
+
 	gen->thread.running = false;
 	return NULL;
 }
@@ -1429,100 +1498,26 @@ void cw_gen_recalculate_slopes_internal(cw_gen_t *gen)
 
    \return 0
 */
-int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, cw_tone_t *tone, int queue_rv)
+int cw_gen_write_to_soundcard_internal(cw_gen_t *gen, cw_tone_t *tone, bool is_empty_tone)
 {
-	assert (queue_rv != CW_TQ_NDEQUEUED_IDLE);
+	cw_assert (tone, MSG_PREFIX "'tone' argument should always be non-NULL, even when dequeueing failed");
 
-	if (queue_rv == CW_TQ_NDEQUEUED_EMPTY) {
-		/* All tones have been already dequeued from tone
-		   queue.
-
-		   \p tone does not represent a valid tone to play. At
-		   first sight there is no need to write anything to
-		   soundcard. But...
-
-		   It may happen that during previous call to the
-		   function there were too few samples in a tone to
-		   completely fill a buffer (see #needmoresamples tag
-		   below).
-
-		   We need to fill the buffer until it is full and
-		   ready to be sent to audio sink.
-
-		   Since there are no new tones for which we could
-		   generate samples, we need to generate silence
-		   samples.
-
-		   Padding the buffer with silence seems to be a good
-		   idea (it will work regardless of value (Mark/Space)
-		   of last valid tone). We just need to know how many
-		   samples of the silence to produce.
-
-		   Number of these samples will be stored in
-		   samples_to_write. */
-
-		/* We don't have a valid tone, so let's construct a
-		   fake one for purposes of padding. */
-
-		/* Required length of padding space is from end of
-		   last buffer subarea to end of buffer. */
-		tone->n_samples = gen->buffer_n_samples - (gen->buffer_sub_stop + 1);;
-
-		tone->len = 0;         /* This value matters no more, because now we only deal with samples. */
-		tone->frequency = 0;   /* This fake tone is a piece of silence. */
-
-		/* The silence tone used for padding doesn't require
-		   any slopes. A slope falling to silence has been
-		   already provided by last non-fake and non-silent
-		   tone. */
-		tone->slope_mode = CW_SLOPE_MODE_NO_SLOPES;
-		tone->rising_slope_n_samples = 0;
-		tone->falling_slope_n_samples = 0;
-
-		tone->sample_iterator = 0;
-
-		//fprintf(stderr, "++++ length of padding silence = %d [samples]\n", tone->n_samples);
-
-	} else { /* tq_rv == CW_TQ_DEQUEUED */
-
-		/* Recalculate tone parameters from microseconds into
-		   samples. After this point the samples will be all
-		   that matters. */
-
-		/* 100 * 10000 = 1.000.000 usecs per second. */
-		tone->n_samples = gen->sample_rate / 100;
-		tone->n_samples *= tone->len;
-		tone->n_samples /= 10000;
-
-		//fprintf(stderr, "++++ length of regular tone = %d [samples]\n", tone->n_samples);
-
-		/* Length of a single slope (rising or falling). */
-		int slope_n_samples= gen->sample_rate / 100;
-		slope_n_samples *= gen->tone_slope.len;
-		slope_n_samples /= 10000;
-
-		if (tone->slope_mode == CW_SLOPE_MODE_RISING_SLOPE) {
-			tone->rising_slope_n_samples = slope_n_samples;
-			tone->falling_slope_n_samples = 0;
-
-		} else if (tone->slope_mode == CW_SLOPE_MODE_FALLING_SLOPE) {
-			tone->rising_slope_n_samples = 0;
-			tone->falling_slope_n_samples = slope_n_samples;
-
-		} else if (tone->slope_mode == CW_SLOPE_MODE_STANDARD_SLOPES) {
-			tone->rising_slope_n_samples = slope_n_samples;
-			tone->falling_slope_n_samples = slope_n_samples;
-
-		} else if (tone->slope_mode == CW_SLOPE_MODE_NO_SLOPES) {
-			tone->rising_slope_n_samples = 0;
-			tone->falling_slope_n_samples = 0;
-
-		} else {
-			cw_assert (0, "unknown tone slope mode %d", tone->slope_mode);
-		}
-
-		tone->sample_iterator = 0;
+	if (is_empty_tone) {
+		/* No valid tone dequeued from tone queue. 'tone'
+		   argument doesn't represent a valid tone. We need
+		   samples to complete filling buffer, but they have
+		   to be empty samples. */
+		cw_gen_empty_tone_calculate_samples_size_internal(gen, tone);
+	} else {
+		/* Valid tone dequeued from tone queue. Use it to
+		   calculate samples in buffer. */
+		cw_gen_tone_calculate_samples_size_internal(gen, tone);
 	}
+	/* After the calculations above, we can use 'tone' to generate
+	   samples in the same way, regardless of state of tone queue
+	   (regardless of what the tone queue returned in last call).
+
+	   Simply look at tone's frequency and tone's samples count. */
 
 
 	/* Total number of samples to write in a loop below. */

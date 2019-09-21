@@ -83,11 +83,6 @@ static cw_test_function_t cw_unit_tests[] = {
 	test_cw_rec_with_random_data_adaptive,
 	test_cw_get_receive_parameters,
 
-
-	/* cw_debug module */
-	test_cw_debug_flags_internal,
-
-
 	NULL
 };
 
@@ -131,6 +126,9 @@ static cw_test_function2_t cw_unit_tests2[] = {
 	test_cw_version_internal,
 	test_cw_license_internal,
 	test_cw_get_x_limits_internal,
+
+	/* cw_debug module */
+	test_cw_debug_flags_internal,
 };
 
 

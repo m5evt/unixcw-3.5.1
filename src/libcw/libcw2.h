@@ -10,8 +10,6 @@ void       cw_gen_delete(cw_gen_t ** gen);
 int        cw_gen_stop(cw_gen_t * gen);
 int        cw_gen_start(cw_gen_t * gen);
 
-typedef void (* cw_queue_low_callback_t)(void*);
-
 int cw_gen_set_tone_slope(cw_gen_t * gen, int slope_shape, int slope_len);
 
 /* Setters of generator's basic parameters. */
@@ -37,7 +35,7 @@ int cw_gen_enqueue_string(cw_gen_t * gen, const char * string);
 cw_key_t * cw_key_new(void);
 void cw_key_delete(cw_key_t ** key);
 
-void cw_key_register_keying_callback(volatile cw_key_t * key, void (* callback_func)(void *, int), void * callback_arg);
+void cw_key_register_keying_callback(volatile cw_key_t * key, cw_key_callback_t callback_func, void * callback_arg);
 void cw_key_register_generator(volatile cw_key_t * key, cw_gen_t * gen);
 void cw_key_register_receiver(volatile cw_key_t * key, cw_rec_t * rec);
 

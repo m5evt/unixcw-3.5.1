@@ -22,6 +22,7 @@
 
 
 
+typedef void (* cw_queue_low_callback_t)(void*);
 
 
 /* Right now there is no function that would calculate number of tones
@@ -192,7 +193,7 @@ typedef struct {
 	   from the queue as a first one. */
 	volatile size_t head;
 
-	volatile enum cw_queue_state state;
+	int state; /* CW_TQ_IDLE / CW_TQ_BUSY */
 
 	size_t capacity;
 	size_t high_water_mark;
@@ -210,6 +211,18 @@ typedef struct {
 	   itself may be called outside of the module, e.g. by cw_gen
 	   code. */
 	bool         call_callback;
+
+
+	/* IPC */
+	/* Used to broadcast queue events to waiting functions. */
+	pthread_cond_t wait_var;
+	pthread_mutex_t wait_mutex;
+
+	/* Used to communicate between enqueueing and dequeueing
+	   mechanism. */
+	pthread_cond_t dequeue_var;
+	pthread_mutex_t dequeue_mutex;
+
 
 	pthread_mutex_t mutex;
 
@@ -229,7 +242,7 @@ int    cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone);
 int    cw_tq_dequeue_internal(cw_tone_queue_t *tq, cw_tone_t *tone);
 
 int  cw_tq_wait_for_level_internal(cw_tone_queue_t *tq, size_t level);
-int  cw_tq_register_low_level_callback_internal(cw_tone_queue_t *tq, void (*callback_func)(void*), void *callback_arg, int level);
+int  cw_tq_register_low_level_callback_internal(cw_tone_queue_t * tq, cw_queue_low_callback_t callback_func, void * callback_arg, size_t level);
 bool cw_tq_is_busy_internal(cw_tone_queue_t *tq);
 int  cw_tq_wait_for_tone_internal(cw_tone_queue_t *tq);
 int  cw_tq_wait_for_tone_queue_internal(cw_tone_queue_t *tq);

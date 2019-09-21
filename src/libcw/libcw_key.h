@@ -37,8 +37,7 @@ enum {
 
 
 
-//typedef void (* cw_key_callback_t)(struct timeval *timestamp, int key_state, void* arg);
-typedef void (* cw_key_callback_t)(void*, int);
+typedef void (* cw_key_callback_t)(struct timeval *timestamp, int key_state, void* arg);
 
 struct cw_key_struct {
 	/* Straight key and iambic keyer needs a generator to produce
@@ -118,15 +117,6 @@ struct cw_key_struct {
 		bool curtis_b_latch;   /* Curtis Dot&Dash latch */
 
 		bool lock;             /* FIXME: describe why we need this flag. */
-
-		struct timeval *timer; /* Timer for receiving of iambic keying, owned by client code. */
-
-		/* Generator associated with the keyer. Should never
-		   be NULL as iambic keyer *needs* a generator to
-		   function properly (and to generate audible tones).
-		   Set using
-		   cw_key_register_generator(). */
-		/* No separate generator, use cw_key_t->gen. */
 	} ik;
 
 
@@ -134,6 +124,9 @@ struct cw_key_struct {
 	struct {
 		int key_value;    /* Open/Closed, Space/Mark, NoSound/Sound. */
 	} tk;
+
+	/* Every key event needs to have a timestamp. */
+	struct timeval timer;
 };
 
 
@@ -150,7 +143,6 @@ void cw_key_tk_set_value_internal(volatile cw_key_t *key, int key_state);
 
 int  cw_key_ik_update_graph_state_internal(volatile cw_key_t *keyer);
 void cw_key_ik_increment_timer_internal(volatile cw_key_t *keyer, int usecs);
-void cw_key_ik_register_timer_internal(volatile cw_key_t *key, struct timeval *timer);
 
 
 void cw_key_ik_get_paddle_latches_internal(volatile cw_key_t *key, int *dot_paddle_latch_state, int *dash_paddle_latch_state);

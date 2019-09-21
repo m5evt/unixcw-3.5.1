@@ -165,11 +165,14 @@ static int cw_key_sk_set_value_internal(volatile cw_key_t *key, int key_value);
    state of a \p key changes from "key open" to "key closed", or
    vice-versa.
 
-   The first argument passed to the registered callback function is the
-   supplied \p callback_arg, if any.  The second argument passed to
-   registered callback function is the key state: CW_KEY_STATE_CLOSED
-   (one/true) for "key closed", and CW_KEY_STATE_OPEN (zero/false) for
-   "key open".
+   The first argument passed to the registered callback is key's timer.
+
+   The second argument passed to the registered callback function is
+   the supplied \p callback_arg, if any.
+
+   The third argument passed to registered callback function is the
+   key state: CW_KEY_STATE_CLOSED (one/true) for "key closed", and
+   CW_KEY_STATE_OPEN (zero/false) for "key open".
 
    Calling this routine with a NULL function address disables keying
    callbacks.  Any callback supplied will be called in signal handler
@@ -179,43 +182,13 @@ static int cw_key_sk_set_value_internal(volatile cw_key_t *key, int key_value);
    \param callback_func - callback function to be called on key state changes
    \param callback_arg - first argument to callback_func
 */
-void cw_key_register_keying_callback(volatile cw_key_t * key,
-				     void (* callback_func)(void *, int),
-				     void * callback_arg)
+void cw_key_register_keying_callback(volatile cw_key_t * key, cw_key_callback_t callback_func, void * callback_arg)
 {
 	key->key_callback_func = callback_func;
 	key->key_callback_arg = callback_arg;
 
 	return;
 }
-
-
-
-
-
-/**
-  Most of the time libcw just passes around key_callback_arg,
-  not caring of what type it is, and not attempting to do any
-  operations on it. On one occasion however, it needs to know whether
-  key_callback_arg is of type 'struct timeval', and if so, it
-  must do some operation on it. I could pass struct with ID as
-  key_callback_arg, but that may break some old client
-  code. Instead I've created this function that has only one, very
-  specific purpose: to pass to libcw a pointer to timer.
-
-  The timer is owned by client code, and is used to measure and clock
-  iambic keyer.
-
-  \param key
-  \param timer
-*/
-void cw_key_ik_register_timer_internal(volatile cw_key_t *key, struct timeval *timer)
-{
-	key->ik.timer = timer;
-
-	return;
-}
-
 
 
 
@@ -255,12 +228,29 @@ void cw_key_tk_set_value_internal(volatile cw_key_t *key, int key_value)
 	/* Remember the new key value. */
 	key->tk.key_value = key_value;
 
-	/* Call a registered callback. */
+	/* In theory client code should register either a receiver (so
+	   events from key are passed to receiver directly), or a
+	   callback (so events from key are passed to receiver through
+	   callback).
+
+	   So *in theory* only one of these "if" blocks will be
+	   executed. */
+
+	if (key->rec) {
+		if (key->tk.key_value) {
+			/* Key down. */
+			cw_rec_mark_begin(key->rec, &key->timer);
+		} else {
+			/* Key up. */
+			cw_rec_mark_end(key->rec, &key->timer);
+		}
+	}
+
 	if (key->key_callback_func) {
 		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_KEYING, CW_DEBUG_INFO,
 			      MSG_PREFIX "tk set value: about to call callback, key value = %d\n", key->tk.key_value);
 
-		(*(key->key_callback_func))(key->key_callback_arg, key->tk.key_value);
+		(*(key->key_callback_func))(&key->timer, key->tk.key_value, key->key_callback_arg);
 	}
 	return;
 }
@@ -355,6 +345,8 @@ int cw_key_sk_set_value_internal(volatile cw_key_t *key, int key_value)
 	cw_assert (key, MSG_PREFIX "sk set value: key is NULL");
 	cw_assert (key->gen, MSG_PREFIX "sk set value: generator is NULL");
 
+	gettimeofday(&key->timer, NULL);
+
 	if (key->sk.key_value == key_value) {
 		/* This may happen when dequeueing 'forever' tone
 		   multiple times in a row. */
@@ -372,7 +364,7 @@ int cw_key_sk_set_value_internal(volatile cw_key_t *key, int key_value)
 		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_KEYING, CW_DEBUG_INFO,
 			      MSG_PREFIX "sk set value: about to call callback, key value = %d\n", key->sk.key_value);
 
-		(*(key->key_callback_func))(key->key_callback_arg, key->sk.key_value);
+		(*(key->key_callback_func))(&key->timer, key->sk.key_value, key->key_callback_arg);
 	}
 
 	int rv;
@@ -462,7 +454,7 @@ int cw_key_ik_set_value_internal(volatile cw_key_t *key, int key_value, char sym
 		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_KEYING, CW_DEBUG_INFO,
 			      MSG_PREFIX "ik set value: about to call callback, key value = %d\n", key->ik.key_value);
 
-		(*(key->key_callback_func))(key->key_callback_arg, key->ik.key_value);
+		(*(key->key_callback_func))(&key->timer, key->ik.key_value, key->key_callback_arg);
 	}
 
 	/* 'Partial' means without any end-of-mark spaces. */
@@ -824,6 +816,8 @@ int cw_key_ik_notify_paddle_event(volatile cw_key_t *key, int dot_paddle_state, 
 
 
 	if (key->ik.graph_state == KS_IDLE) {
+		gettimeofday(&key->timer, NULL);
+
 		/* If the current state is idle, give the state
 		   process an initial impulse. */
 		return cw_key_ik_update_state_initial_internal(key);
@@ -1036,48 +1030,46 @@ bool cw_key_ik_is_busy_internal(const volatile cw_key_t *key)
 
    Waits until the end of the current element, Dot or Dash, from the keyer.
 
-   On error the function returns CW_FAILURE, with errno set to
-   EDEADLK if SIGALRM is blocked.
+   The function always returns CW_SUCCESS.
 
    testedin::test_keyer()
 
    \param key
 
-   \return CW_SUCCESS on success
-   \return CW_FAILURE on failure
+   \return CW_SUCCESS
 */
 int cw_key_ik_wait_for_element(const volatile cw_key_t * key)
 {
-	if (cw_sigalrm_is_blocked_internal()) {
-		/* no point in waiting for event, when signal
-		   controlling the event is blocked */
-		errno = EDEADLK;
-		return CW_FAILURE;
-	}
-
 	/* First wait for the state to move to idle (or just do nothing
 	   if it's not), or to one of the after- states. */
+	pthread_mutex_lock(&key->gen->tq->wait_mutex);
 	while (key->ik.graph_state != KS_IDLE
 	       && key->ik.graph_state != KS_AFTER_DOT_A
 	       && key->ik.graph_state != KS_AFTER_DOT_B
 	       && key->ik.graph_state != KS_AFTER_DASH_A
 	       && key->ik.graph_state != KS_AFTER_DASH_B) {
 
-		cw_signal_wait_internal();
+		pthread_cond_wait(&key->gen->tq->wait_var, &key->gen->tq->wait_mutex);
+		/* cw_signal_wait_internal(); */ /* Old implementation was using signals. */ /* This code has been disabled some time before 2017-01-31. */
 	}
+	pthread_mutex_unlock(&key->gen->tq->wait_mutex);
+
 
 	/* Now wait for the state to move to idle (unless it is, or was,
 	   already), or one of the in- states, at which point we know
 	   we're actually at the end of the element we were in when we
 	   entered this routine. */
+	pthread_mutex_lock(&key->gen->tq->wait_mutex);
 	while (key->ik.graph_state != KS_IDLE
 	       && key->ik.graph_state != KS_IN_DOT_A
 	       && key->ik.graph_state != KS_IN_DOT_B
 	       && key->ik.graph_state != KS_IN_DASH_A
 	       && key->ik.graph_state != KS_IN_DASH_B) {
 
-		cw_signal_wait_internal();
+		pthread_cond_wait(&key->gen->tq->wait_var, &key->gen->tq->wait_mutex);
+		/* cw_signal_wait_internal(); */ /* Old implementation was using signals. */ /* This code has been disabled some time before 2017-01-31. */
 	}
+	pthread_mutex_unlock(&key->gen->tq->wait_mutex);
 
 	return CW_SUCCESS;
 }
@@ -1088,9 +1080,10 @@ int cw_key_ik_wait_for_element(const volatile cw_key_t * key)
 /**
    \brief Wait for the current keyer cycle to complete
 
-   The routine returns CW_SUCCESS on success.  On error, it returns
-   CW_FAILURE, with errno set to EDEADLK if SIGALRM is blocked or if
-   either paddle state is true.
+   The routine returns CW_SUCCESS on success.
+
+   It returns CW_FAILURE (with errno set to EDEADLK) if either paddle
+   state is CLOSED.
 
    \param key
 
@@ -1099,13 +1092,6 @@ int cw_key_ik_wait_for_element(const volatile cw_key_t * key)
 */
 int cw_key_ik_wait_for_keyer(volatile cw_key_t * key)
 {
-	if (cw_sigalrm_is_blocked_internal()) {
-		/* no point in waiting for event, when signal
-		   controlling the event is blocked */
-		errno = EDEADLK;
-		return CW_FAILURE;
-	}
-
 	/* Check that neither paddle is CLOSED; if either is, then the
 	   signal cycle is going to continue forever, and we'll never
 	   return from this routine. TODO: verify this comment. */
@@ -1115,9 +1101,12 @@ int cw_key_ik_wait_for_keyer(volatile cw_key_t * key)
 	}
 
 	/* Wait for the keyer state to go idle. */
+	pthread_mutex_lock(&key->gen->tq->wait_mutex);
 	while (key->ik.graph_state != KS_IDLE) {
-		cw_signal_wait_internal();
+		pthread_cond_wait(&key->gen->tq->wait_var, &key->gen->tq->wait_mutex);
+		/* cw_signal_wait_internal(); */ /* Old implementation was using signals. */ /* This code has been disabled some time before 2017-01-31. */
 	}
+	pthread_mutex_unlock(&key->gen->tq->wait_mutex);
 
 	return CW_SUCCESS;
 }
@@ -1193,15 +1182,12 @@ void cw_key_ik_increment_timer_internal(volatile cw_key_t *key, int usecs)
 		   in use will cause problems, so don't clock
 		   a straight key with this. */
 
-		if (key->ik.timer) {
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_KEYING, CW_DEBUG_INFO,
+			      MSG_PREFIX "ik increment: incrementing timer by %d [us]\n", usecs);
 
-			cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
-				      MSG_PREFIX_IK "incrementing timer by %d [us]\n", usecs);
-
-			key->ik.timer->tv_usec += usecs % CW_USECS_PER_SEC;
-			key->ik.timer->tv_sec  += usecs / CW_USECS_PER_SEC + key->ik.timer->tv_usec / CW_USECS_PER_SEC;
-			key->ik.timer->tv_usec %= CW_USECS_PER_SEC;
-		}
+		key->timer.tv_usec += usecs % CW_USECS_PER_SEC;
+		key->timer.tv_sec  += usecs / CW_USECS_PER_SEC + key->timer.tv_usec / CW_USECS_PER_SEC;
+		key->timer.tv_usec %= CW_USECS_PER_SEC;
 	}
 
 	return;
@@ -1354,10 +1340,10 @@ cw_key_t * cw_key_new(void)
 	key->ik.lock = false;
 
 	key->tk.key_value = CW_KEY_STATE_OPEN;
-#if 0
+
 	key->timer.tv_sec = 0;
 	key->timer.tv_usec = 0;
-#endif
+
 	return key;
 }
 

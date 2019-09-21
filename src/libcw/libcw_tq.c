@@ -148,7 +148,7 @@ static int    cw_tq_set_capacity_internal(cw_tone_queue_t *tq, size_t capacity, 
 static size_t cw_tq_get_high_water_mark_internal(const cw_tone_queue_t *tq) __attribute__((unused));
 static size_t cw_tq_prev_index_internal(const cw_tone_queue_t *tq, size_t current) __attribute__((unused));
 static size_t cw_tq_next_index_internal(const cw_tone_queue_t *tq, size_t current);
-static int    cw_tq_dequeue_sub_internal(cw_tone_queue_t *tq, cw_tone_t *tone);
+static bool   cw_tq_dequeue_sub_internal(cw_tone_queue_t *tq, cw_tone_t *tone);
 
 
 
@@ -192,6 +192,12 @@ cw_tone_queue_t *cw_tq_new_internal(void)
 
 	pthread_mutex_lock(&tq->mutex);
 
+	pthread_cond_init(&tq->wait_var, NULL);
+	pthread_mutex_init(&tq->wait_mutex, NULL);
+
+	pthread_cond_init(&tq->dequeue_var, NULL);
+	pthread_mutex_init(&tq->dequeue_mutex, NULL);
+
 	/* This function operates on cw_tq_t::wait_var and
 	   cdw_tq_t::wait_mutex. Therefore it needs to be called
 	   after pthread_X_init(). */
@@ -215,7 +221,18 @@ cw_tone_queue_t *cw_tq_new_internal(void)
 
 
 
+/**
+   \brief Delete tone queue
 
+   Function deallocates all resources held by \p tq, deallocates the \p tq
+   itself, and sets the pointer to NULL.
+
+   testedin::test_cw_tq_new_delete_internal()
+
+   \reviewed on 2017-01-30
+
+   \param tq - tone queue to delete
+*/
 void cw_tq_delete_internal(cw_tone_queue_t **tq)
 {
 	cw_assert (tq, MSG_PREFIX "delete: pointer to tq is NULL");
@@ -223,6 +240,37 @@ void cw_tq_delete_internal(cw_tone_queue_t **tq)
 	if (!tq || !*tq) {
 		return;
 	}
+
+
+	/* Don't call pthread_cond_destroy().
+
+	   When pthread_cond_wait() is waiting for signal, and a
+	   SIGINT signal arrives, the _wait() function will be
+	   interrupted, application's signal handler will call
+	   cw_gen_delete(), which will call cw_tq_delete_internal(),
+	   which will call pthread_cond_destroy().
+
+	   pthread_cond_destroy() called from (effectively) signal
+	   handler will signal all waiters to release condition
+	   variable before destroying conditional variable, but since
+	   our _wait() is interrupted by signal, it won't release the
+	   condition variable.
+
+	   So we have a deadlock: _destroy() telling _wait() to stop
+	   waiting, but _wait() being interrupted by signal, handled
+	   by function called _destroy().
+
+	   So don't call _destroy(). */
+
+	//pthread_cond_destroy(&(*tq)->wait_var);
+	pthread_mutex_destroy(&(*tq)->wait_mutex);
+
+	//pthread_cond_destroy(&(*tq)->dequeue_var);
+	pthread_mutex_destroy(&(*tq)->dequeue_mutex);
+
+
+	pthread_mutex_destroy(&(*tq)->mutex);
+
 
 	free(*tq);
 	*tq = (cw_tone_queue_t *) NULL;
@@ -241,23 +289,19 @@ void cw_tq_delete_internal(cw_tone_queue_t **tq)
 */
 void cw_tq_make_empty_internal(cw_tone_queue_t * tq)
 {
-#if 0
 	int rv = pthread_mutex_trylock(&tq->mutex);
 	cw_assert (rv == EBUSY, MSG_PREFIX "make empty: resetting tq state outside of mutex!");
 
 	pthread_mutex_lock(&tq->wait_mutex);
-#endif
 
 	tq->head = 0;
 	tq->tail = 0;
 	tq->len = 0;
 	tq->state = CW_TQ_IDLE;
 
-#if 0
 	//fprintf(stderr, MSG_PREFIX "make empty: broadcast on tq->len = 0\n");
 	pthread_cond_broadcast(&tq->wait_var);
 	pthread_mutex_unlock(&tq->wait_mutex);
-#endif
 
 	return;
 }
@@ -440,61 +484,34 @@ size_t cw_tq_next_index_internal(const cw_tone_queue_t *tq, size_t ind)
 /**
    \brief Dequeue a tone from tone queue
 
-   Dequeue a tone from tone queue.
+   If there are any tones in queue (i.e. queue's state is not
+   CW_TQ_IDLE), function copies tone from \p tq queue into \p tone
+   supplied by caller, removes the tone from \p tq queue (with
+   exception for "forever" tone) and returns CW_SUCCESS (i.e. "dequeued
+   (successfully)").
 
-   The queue returns three distinct values. This may seem overly
-   complicated for a tone queue, but it actually works. The way the
-   generator interacts with the tone queue, and the way the enqueueing
-   works, depend on the dequeue function to return three values. If
-   you ever try to make the dequeue function return two values, you
-   would also have to redesign parts of generator and of enqueueing
-   code.
+   If there are no tones in \p tq queue (i.e. queue's state is
+   CW_TQ_IDLE), function does nothing with \p tone, and returns CW_FAILURE
+   (i.e. "not dequeued").
 
-   Look in cw_gen_write_to_soundcard_internal(). The function makes
-   decision based on two distinct tone queue states (described by
-   CW_TQ_DEQUEUED or CW_TQ_NDEQUEUED_EMPTY). So the _write() function
-   must be executed by generator for both return values. But we also
-   need a third return value that will tell the generator not to
-   execute _write() *at all*, but just wait for signal. This third
-   value is CW_TQ_NDEQUEUED_IDLE.
+   Notice that returned value does not describe current internal state
+   of tone queue, only whether contents of \p tone has been updated
+   with dequeued tone or not.
 
-   These three return values are:
+   dequeue() is not a totally dumb function. It understands how
+   "forever" tone works and how it should be handled.  If the last
+   tone in queue has "forever" flag set, the function won't
+   permanently dequeue it. Instead, it will keep returning (through \p
+   tone) the tone on every call, until a new tone is added to the
+   queue after the "forever" tone. Since "forever" tone is successfully
+   copied into \p tone, function returns true on "forever" tone.
 
-   \li CW_TQ_DEQUEUED - dequeue() function successfully dequeues and
-       returns through \p tone a valid tone. dequeue() understands how
-       "forever" tone should be handled: if such tone is the last tone
-       on the queue, the function actually both returns the "forever"
-       tone, and keeps it in queue (until next tone is enqueued).
+   \p tq must be a valid queue.
+   \p tone must be allocated by caller.
 
-   \li CW_TQ_NDEQUEUED_EMPTY - dequeue() function can't dequeue a tone
-       from tone queue, because the queue has been just emptied, i.e.
-       previous call to dequeue() was successful and returned
-       CW_TQ_DEQUEUED, but that was the last tone on queue. This
-       return value is a way of telling client code "I've had tones,
-       but no more, you should probably stop playing any sounds and
-       become silent". If no new tones are enqueued, the next call to
-       dequeue() will return CW_TQ_NDEQUEUED_IDLE.
-
-   \li CW_TQ_NDEQUEUED_IDLE - dequeue() function can't dequeue a tone
-       from tone queue, because the queue is empty, and the tone queue
-       has no memory of being non-empty before. This is the value that
-       dequeue() would return for brand new tone queue. This is also
-       value returned by dequeue() when its previous return value was
-       CW_TQ_NDEQUEUED_EMPTY, and no new tones were enqueued since
-       then.
-
-   Notice that returned value does not describe internal state of tone
-   queue.
-
-   Successfully dequeued tone is returned through function's argument
-   \p tone. The function does not modify the arguments if there are no
-   tones to dequeue (CW_TQ_NDEQUEUED_EMPTY, CW_TQ_NDEQUEUED_IDLE).
-
-   As mentioned above, dequeue() understands how "forever" tone works.
-   If the last tone in queue has "forever" flag set, the function
-   won't permanently dequeue it. Instead, it will keep returning
-   (through \p tone) the tone on every call, until a new tone is added
-   to the queue after the "forever" tone.
+   If queue \p tq has registered low water callback function, and
+   condition to call the function is met after dequeue has occurred,
+   the function calls the callback.
 
    testedin::test_cw_tq_dequeue_internal()
    testedin::test_cw_tq_test_capacity_2()
@@ -502,74 +519,45 @@ size_t cw_tq_next_index_internal(const cw_tone_queue_t *tq, size_t ind)
    \param tq - tone queue
    \param tone - dequeued tone
 
-   \return CW_TQ_DEQUEUED (see information above)
-   \return CW_TQ_NDEQUEUED_EMPTY (see information above)
-   \return CW_TQ_NDEQUEUED_IDLE (see information above)
+   \return CW_SUCCESS if a tone has been dequeued
+   \return CW_FAILURE if no tone has been dequeued
 */
 int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 {
-	pthread_mutex_lock(&(tq->mutex));
+	pthread_mutex_lock(&tq->mutex);
+	pthread_mutex_lock(&tq->wait_mutex);
 
-	/* Decide what to do based on the current state. */
-	switch (tq->state) {
+	cw_assert (tq->state == CW_TQ_IDLE || tq->state == CW_TQ_BUSY,
+		   MSG_PREFIX "dequeue: unexpected value of tq->state = %d", tq->state);
 
-	case CW_TQ_IDLE:
-		pthread_mutex_unlock(&(tq->mutex));
+	if (tq->state == CW_TQ_IDLE) {
 		/* Ignore calls if our state is idle. */
-		return CW_TQ_NDEQUEUED_IDLE;
+		pthread_mutex_unlock(&tq->wait_mutex);
+		pthread_mutex_unlock(&tq->mutex);
+		return CW_FAILURE;
 
-	case CW_TQ_BUSY:
-		/* If there are some tones in queue, dequeue the next
-		   tone. If there are no more tones, go to the idle state. */
-		if (tq->len) {
-			bool call_callback = cw_tq_dequeue_sub_internal(tq, tone);
+	} else { /* tq->state == CW_TQ_BUSY */
+		cw_assert (tq->len, MSG_PREFIX "dequeue: tone queue is CW_TQ_BUSY, but tq->len = %zu\n", tq->len);
 
-			/* Notify the key control function about current tone. */
-			if (tq->gen && tq->gen->key) {
-				cw_key_tk_set_value_internal(tq->gen->key, tone->frequency ? CW_KEY_STATE_CLOSED : CW_KEY_STATE_OPEN);
-			}
+		bool call_callback = cw_tq_dequeue_sub_internal(tq, tone);
 
-			pthread_mutex_unlock(&(tq->mutex));
-
-			/* Since client's callback can use functions
-			   that call libcw's pthread_mutex_lock(), we
-			   should put the callback *after* we release
-			   pthread_mutex_unlock() in this function. */
-
-			if (call_callback) {
-				(*(tq->low_water_callback))(tq->low_water_callback_arg);
-			}
-
-			return CW_TQ_DEQUEUED;
-		} else { /* tq->len == 0 */
-			/* State of tone queue is still "busy", but
-			   there are no tones left on the queue.
-
-			   Time to bring tq->state in sync with
-			   tq->len. Set state to idle, indicating that
-			   dequeuing has finished for the moment. */
+		if (!tq->len) {
 			tq->state = CW_TQ_IDLE;
-
-			/* There is no tone to dequeue, so don't
-			   modify function's arguments. Client code
-			   will learn about "no valid tone returned
-			   through function argument" state through
-			   return value. */
-
-			/* Notify the key control function about current tone. */
-			if (tq->gen && tq->gen->key) {
-				cw_key_tk_set_value_internal(tq->gen->key, CW_KEY_STATE_OPEN);
-			}
-
-			pthread_mutex_unlock(&(tq->mutex));
-			return CW_TQ_NDEQUEUED_EMPTY;
 		}
-	}
 
-	pthread_mutex_unlock(&(tq->mutex));
-	/* will never get here as "queue state" enum has only two values */
-	cw_assert(0, "reached unreachable place");
-	return CW_TQ_NDEQUEUED_IDLE;
+		pthread_mutex_unlock(&tq->wait_mutex);
+		pthread_mutex_unlock(&tq->mutex);
+
+		/* Since client's callback can use libcw functions
+		   that call pthread_mutex_lock(&tq->...), we should
+		   call the callback *after* we unlock queue's mutexes
+		   in this function. */
+		if (call_callback) {
+			(*(tq->low_water_callback))(tq->low_water_callback_arg);
+		}
+
+		return CW_SUCCESS;
+	}
 }
 
 
@@ -598,7 +586,7 @@ int cw_tq_dequeue_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
    \return true if a condition for calling "low watermark" callback is true
    \return false otherwise
 */
-int cw_tq_dequeue_sub_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
+bool cw_tq_dequeue_sub_internal(cw_tone_queue_t * tq, /* out */ cw_tone_t * tone)
 {
 	CW_TONE_COPY(tone, &(tq->queue[tq->head]));
 
@@ -624,6 +612,8 @@ int cw_tq_dequeue_sub_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 	/* Dequeue. We already have the tone, now update tq's state. */
 	tq->head = cw_tq_next_index_internal(tq, tq->head);
 	tq->len--;
+	//fprintf(stderr, MSG_PREFIX "dequeue sub: broadcast on tq->len--\n");
+	pthread_cond_broadcast(&tq->wait_var);
 
 
 	if (tq->len == 0) {
@@ -668,14 +658,9 @@ int cw_tq_dequeue_sub_internal(cw_tone_queue_t *tq, /* out */ cw_tone_t *tone)
 /**
    \brief Add tone to tone queue
 
-   Enqueue a tone for specified frequency and number of microseconds.
-   This routine adds the new tone to the queue, and if necessary sends
-   signal to generator, so that the generator can dequeue the tone.
-
-   The routine returns CW_SUCCESS on success. If the tone queue is
-   full, the routine returns CW_FAILURE, with errno set to EAGAIN.  If
-   the iambic keyer or straight key are currently busy, the routine
-   returns CW_FAILURE, with errno set to EBUSY.
+   This routine adds the new tone to the queue, and - if necessary -
+   sends a signal to generator, so that the generator can dequeue the
+   tone.
 
    The function does not accept tones with frequency outside of
    CW_FREQUENCY_MIN-CW_FREQUENCY_MAX range.
@@ -729,18 +714,9 @@ int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 		return CW_SUCCESS;
 	}
 
-#if 0 /* This part is no longer in use. It seems that it's not necessary. 2015.02.22. */
-	/* If the keyer or straight key are busy, return an error.
-	   This is because they use the sound card/console tones and key
-	   control, and will interfere with us if we try to use them at
-	   the same time. */
-	if (cw_key_ik_is_busy_internal(tq->gen->key) || cw_key_sk_is_busy(tq->gen->key)) {
-		errno = EBUSY;
-		return CW_FAILURE;
-	}
-#endif
 
 	pthread_mutex_lock(&tq->mutex);
+	pthread_mutex_lock(&tq->wait_mutex);
 
 	if (tq->len == tq->capacity) {
 		/* Tone queue is full. */
@@ -748,6 +724,7 @@ int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 		errno = EAGAIN;
 		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_TONE_QUEUE, CW_DEBUG_ERROR,
 			      MSG_PREFIX "enqueue: can't enqueue tone, tq is full");
+		pthread_mutex_unlock(&tq->wait_mutex);
 		pthread_mutex_unlock(&tq->mutex);
 
 		return CW_FAILURE;
@@ -761,24 +738,30 @@ int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 	   Notice that tail is incremented after adding a tone. This
 	   means that for empty tq new tone is inserted at index
 	   tail == head (which should be kind of obvious). */
-	CW_TONE_COPY(&(tq->queue[tq->tail]), tone);
+	tq->queue[tq->tail] = *tone;
 
 	tq->tail = cw_tq_next_index_internal(tq, tq->tail);
 	tq->len++;
+	// fprintf(stderr, MSG_PREFIX "enqueue: broadcast on tq->len++\n");
+	pthread_cond_broadcast(&tq->wait_var);
 
 
 	if (tq->state == CW_TQ_IDLE) {
-		/* A loop in cw_gen_dequeue_and_generate_internal()
+		tq->state = CW_TQ_BUSY;
+
+		/* A loop in cw_gen_dequeue_and_play_internal()
 		   function may await for the queue to be filled with
 		   new tones to dequeue and play.  It waits for a
 		   notification from tq that there are some new tones
 		   in tone queue. This is a right place and time to
 		   send such notification. */
-		tq->state = CW_TQ_BUSY;
-		pthread_kill(tq->gen->thread.id, SIGALRM);
+		pthread_mutex_lock(&tq->dequeue_mutex);
+		pthread_cond_signal(&tq->dequeue_var); /* Use pthread_cond_signal() because there is only one listener. */
+		pthread_mutex_unlock(&tq->dequeue_mutex);
 	}
 
-	pthread_mutex_unlock(&(tq->mutex));
+	pthread_mutex_unlock(&tq->wait_mutex);
+	pthread_mutex_unlock(&tq->mutex);
 	return CW_SUCCESS;
 }
 
@@ -809,9 +792,9 @@ int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
    \return CW_SUCCESS on successful registration
    \return CW_FAILURE on failure
 */
-int cw_tq_register_low_level_callback_internal(cw_tone_queue_t *tq, void (*callback_func)(void*), void *callback_arg, int level)
+int cw_tq_register_low_level_callback_internal(cw_tone_queue_t * tq, cw_queue_low_callback_t callback_func, void * callback_arg, size_t level)
 {
-	if (level < 0 || (size_t) level >= tq->capacity) {
+	if (level < 0 || (uint32_t) level >= tq->capacity) {
 		errno = EINVAL;
 		return CW_FAILURE;
 	}
@@ -828,87 +811,32 @@ int cw_tq_register_low_level_callback_internal(cw_tone_queue_t *tq, void (*callb
 
 
 /**
-   \brief Check if tone sender is busy
-
-   Indicate if the tone sender is busy.
-
-   \param tq - tone queue
-
-   \return true if there are still entries in the tone queue
-   \return false if the queue is empty
-*/
-bool cw_tq_is_busy_internal(cw_tone_queue_t *tq)
-{
-	return tq->state != CW_TQ_IDLE;
-}
-
-
-
-
-
-/**
    \brief Wait for the current tone to complete
 
-   The routine returns CW_SUCCESS on success.  If called with SIGALRM
-   blocked, the routine returns CW_FAILURE, with errno set to EDEADLK,
-   to avoid indefinite waits.
+   The routine always returns CW_SUCCESS.
+
+   TODO: add unit test for this function.
 
    \param tq - tone queue
 
-   \return CW_SUCCESS on success
-   \return CW_FAILURE on failure
+   \return CW_SUCCESS
 */
 int cw_tq_wait_for_tone_internal(cw_tone_queue_t *tq)
 {
-	if (cw_sigalrm_is_blocked_internal()) {
-		/* no point in waiting for event, when signal
-		   controlling the event is blocked */
-		errno = EDEADLK;
-		return CW_FAILURE;
-	}
+	pthread_mutex_lock(&tq->wait_mutex);
+	pthread_cond_wait(&tq->wait_var, &tq->wait_mutex);
+	pthread_mutex_unlock(&tq->wait_mutex);
 
+
+#if 0   /* Original implementation using signals. */ /* This code has been disabled some time before 2017-01-30. */
 	/* Wait for the head index to change or the dequeue to go idle. */
 	size_t check_tq_head = tq->head;
 	while (tq->head == check_tq_head && tq->state != CW_TQ_IDLE) {
 		cw_signal_wait_internal();
 	}
-
+#endif
 	return CW_SUCCESS;
 }
-
-
-
-
-
-/**
-   \brief Wait for the tone queue to drain
-
-   The routine returns CW_SUCCESS on success. If called with SIGALRM
-   blocked, the routine returns false, with errno set to EDEADLK,
-   to avoid indefinite waits.
-
-   \param tq - tone queue
-
-   \return CW_SUCCESS on success
-   \return CW_FAILURE on failure
-*/
-int cw_tq_wait_for_tone_queue_internal(cw_tone_queue_t *tq)
-{
-	if (cw_sigalrm_is_blocked_internal()) {
-		/* no point in waiting for event, when signal
-		   controlling the event is blocked */
-		errno = EDEADLK;
-		return CW_FAILURE;
-	}
-
-	/* Wait until the dequeue indicates it has hit the end of the queue. */
-	while (tq->state != CW_TQ_IDLE) {
-		cw_signal_wait_internal();
-	}
-
-	return CW_SUCCESS;
-}
-
 
 
 
@@ -932,23 +860,24 @@ int cw_tq_wait_for_tone_queue_internal(cw_tone_queue_t *tq)
    \param tq - tone queue
    \param level - low level in queue, at which to return
 
-   \return CW_SUCCESS on success
-   \return CW_FAILURE on failure
+   \return CW_SUCCESS
 */
 int cw_tq_wait_for_level_internal(cw_tone_queue_t *tq, size_t level)
 {
-	if (cw_sigalrm_is_blocked_internal()) {
-		/* no point in waiting for event, when signal
-		   controlling the event is blocked */
-		errno = EDEADLK;
-		return CW_FAILURE;
+	/* Wait until the queue length is at or below given level. */
+	pthread_mutex_lock(&tq->wait_mutex);
+	while (tq->len > level) {
+		pthread_cond_wait(&tq->wait_var, &tq->wait_mutex);
 	}
+	pthread_mutex_unlock(&tq->wait_mutex);
 
+
+#if 0   /* Original implementation using signals. */  /* This code has been disabled some time before 2017-01-30. */
 	/* Wait until the queue length is at or below critical level. */
 	while (cw_tq_length_internal(tq) > level) {
 		cw_signal_wait_internal();
 	}
-
+#endif
 	return CW_SUCCESS;
 }
 
@@ -981,17 +910,32 @@ bool cw_tq_is_full_internal(const cw_tone_queue_t *tq)
 
 
 
-void cw_tq_reset_internal(cw_tone_queue_t *tq)
-{
-	/* Empty and reset the queue, and force state to idle. */
-	tq->len = 0;
-	tq->head = tq->tail;
-	tq->state = CW_TQ_IDLE;
+/**
+   \brief Force emptying tone queue. Wait until it's really empty.
 
-	/* Reset low water mark details to their initial values. */
-	tq->low_water_mark = 0;
-	tq->low_water_callback = NULL;
-	tq->low_water_callback_arg = NULL;
+   \reviewed on 2017-01-30
+
+   \param tq
+*/
+void cw_tq_flush_internal(cw_tone_queue_t *tq)
+{
+	pthread_mutex_lock(&tq->mutex);
+	/* Force zero length state. */
+	cw_tq_make_empty_internal(tq);
+	pthread_mutex_unlock(&tq->mutex);
+
+
+	/* TODO: is this necessary? We have already reset queue
+	   state. */
+	cw_tq_wait_for_level_internal(tq, 0);
+
+
+#if 0   /* Original implementation using signals. */ /* This code has been disabled some time before 2017-01-30. */
+	/* If we can, wait until the dequeue goes idle. */
+	if (!cw_sigalrm_is_blocked_internal()) {
+		cw_tq_wait_for_level_internal(tq, 0);
+	}
+#endif
 
 	return;
 }
@@ -999,24 +943,9 @@ void cw_tq_reset_internal(cw_tone_queue_t *tq)
 
 
 
-
-void cw_tq_flush_internal(cw_tone_queue_t *tq)
+bool cw_tq_is_busy_internal(cw_tone_queue_t *tq)
 {
-	pthread_mutex_lock(&(tq->mutex));
-
-	/* Empty and reset the queue. */
-	tq->len = 0;
-	tq->head = tq->tail;
-	tq->state = CW_TQ_IDLE;
-
-	pthread_mutex_unlock(&(tq->mutex));
-
-	/* If we can, wait until the dequeue goes idle. */
-	if (!cw_sigalrm_is_blocked_internal()) {
-		cw_tq_wait_for_tone_queue_internal(tq);
-	}
-
-	return;
+	return CW_TQ_BUSY == tq->state;
 }
 
 
@@ -1839,15 +1768,20 @@ unsigned int test_cw_tq_test_capacity_2(cw_test_stats_t * stats)
 		size_t i = 0;
 		cw_tone_t tone; /* For output only, so no need to initialize. */
 
-		int rv = 0;
-		while ((rv = cw_tq_dequeue_internal(tq, &tone))
-		       && rv == CW_TQ_DEQUEUED) {
+		while (CW_SUCCESS == cw_tq_dequeue_internal(tq, &tone)) {
 
-			size_t shifted = (i + head_shifts[s]) % (tq->capacity);
+			/* When shift of head == 0, tone with
+			   frequency 'i' is at index 'i'. But with
+			   non-zero shift of head, tone with frequency
+			   'i' is at index 'shifted_i'. */
 
-			cw_assert (tq->queue[shifted].frequency == (int) i,
-				   "position %zd: checking tone %zd, expected %zd, got %d\n",
-				   shifted, i, i, tq->queue[shifted].frequency);
+			size_t shifted_i = (i + head_shifts[s]) % (tq->capacity);
+
+			dequeue_failure = (tq->queue[shifted_i].frequency != (int) i);
+			if (dequeue_failure) {
+				fprintf(out_file, MSG_PREFIX "capacity2: position %zu: checking tone %zu, expected %zu, got %d\n", shifted_i, i, i, tq->queue[shifted_i].frequency);
+				break;
+			}
 
 			i++;
 		}

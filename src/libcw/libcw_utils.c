@@ -145,7 +145,7 @@ int cw_version(void)
 
    testedin::test_cw_version()
 */
-void cw_version(int * current, int * revision, int * age)
+void cw_get_version(int * current, int * revision, int * age)
 {
 	char *endptr = NULL;
 
@@ -186,7 +186,7 @@ void cw_version(int * current, int * revision, int * age)
 void cw_license(void)
 {
 	int current, revision, age;
-	cw_version(&current, &revision, &age);
+	cw_get_version(&current, &revision, &age);
 
 	printf("libcw version %d.%d.%d\n", current, revision, age);
 	printf("%s\n", CW_COPYRIGHT);
@@ -1064,7 +1064,7 @@ unsigned int test_cw_usecs_to_timespec_internal(cw_test_stats_t * stats)
 unsigned int test_cw_version_internal(cw_test_stats_t * stats)
 {
 	int current = 77, revision = 88, age = 99; /* Dummy values. */
-	cw_version(&current, &revision, &age);
+	cw_get_version(&current, &revision, &age);
 
 	/* Library's version is defined in LIBCW_VERSION. cw_version()
 	   uses three calls to strtol() to get three parts of the
