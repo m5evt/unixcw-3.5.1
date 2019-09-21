@@ -16,16 +16,16 @@
 
 
 typedef struct cw_entry_struct{
-	const char character;              /* Character represented */
-	const char *const representation;  /* Dot-dash shape of the character */
+	const char character;              /* Character represented. */
+	const char *const representation;  /* Dot-dash pattern of the character. */
 } cw_entry_t;
 
 
 
 
 
-/* functions handling representation of a character;
-   representation looks like this: ".-" for "a", "--.." for "z", etc. */
+/* Functions handling representation of a character.
+   Representation looks like this: ".-" for "a", "--.." for "z", etc. */
 int          cw_representation_lookup_init_internal(const cw_entry_t *lookup[]);
 int          cw_representation_to_character_internal(const char *representation);
 __attribute__((unused)) int cw_representation_to_character_direct_internal(const char *representation);

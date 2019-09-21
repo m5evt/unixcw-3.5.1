@@ -673,7 +673,7 @@ int cw_representation_lookup_init_internal(const cw_entry_t *lookup[])
 		} else {
 			is_complete = false;
 		}
-        }
+	}
 
 	if (!is_complete) {
 		cw_debug_msg (&cw_debug_object, CW_DEBUG_LOOKUPS, CW_DEBUG_WARNING,

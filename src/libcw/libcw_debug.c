@@ -182,6 +182,7 @@ void cw_debug_set_flags(cw_debug_t *debug_object, uint32_t flags)
    Function returns value of library's internal debug variable.
 
    \return value of library's debug flags variable
+   TODO: there is some initialization code using LIBCW_DEBUG env. Perhaps we should include it somehow in libcw2 code.
 */
 uint32_t cw_get_debug_flags(void)
 {

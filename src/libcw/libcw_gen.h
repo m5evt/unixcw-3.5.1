@@ -52,12 +52,9 @@ enum { CW_SYMBOL_SPACE = ' ' };
 
 
 
-
 struct cw_gen_struct {
 
-	int  (* open_device)(cw_gen_t *gen);
-	void (* close_device)(cw_gen_t *gen);
-	int  (* write)(cw_gen_t *gen);
+	/* Tone queue. */
 
 	/* Generator can only generate tones that were first put into
 	   queue, and then dequeued. Here is a tone queue associated
@@ -72,6 +69,72 @@ struct cw_gen_struct {
 
 
 
+
+	/* Parameters. */
+
+	/* Generator's basic parameters. */
+	int send_speed;     /* [wpm] */
+	int frequency;      /* The frequency of generated sound. [Hz] */
+	int volume_percent; /* Level of sound in percents of maximum allowable level. */
+	int volume_abs;     /* Level of sound in absolute terms; height of PCM samples. */
+	int gap;            /* Inter-mark gap. [number of dot lengths]. */
+	int weighting;      /* Dot/dash weighting. */
+
+
+
+
+	/* Generator's timing parameters. */
+	/* These are basic timing parameters which should be
+	   recalculated each time client code demands changing some
+	   higher-level parameter of generator (e.g. changing of
+	   sending speed). */
+	/* Watch out for "additional" key word.
+	   WARNING: notice how the eoc and eow spaces are
+	   calculated. They aren't full 3 units and 7 units. They are
+	   2 units (which takes into account preceding eom space
+	   length), and 5 units (which takes into account preceding
+	   eom *and* eoc space length). So these two lengths are
+	   *additional* ones, i.e. in addition to (already existing)
+	   eom and/or eoc space.  Whether this is good or bad idea to
+	   calculate them like this is a separate topic. Just be aware
+	   of this fact.
+
+	   Search the word "*additional*" in libcw_gen.c for
+	   implementation */
+	int dot_len;              /* Length of a dot Mark. [us] */
+	int dash_len;             /* Length of a dash Mark. [us] */
+	int eom_space_len;        /* Length of inter-mark space (i.e. the Space). [us] */
+	int eoc_space_len;        /* Length of *additional* inter-character space. [us] */
+	int eow_space_len;        /* Length of *additional* inter-word space. [us] */
+
+	int additional_space_len; /* Length of additional space at the end of a character. [us] */
+	int adjustment_space_len; /* Length of adjustment space at the end of a word. [us] */
+
+
+
+
+	/* Generator's misc parameters. */
+	/* Shortest length of tone. Right now it's initialized in
+	   constructor and never changed afterwards, but in future it
+	   may change - the value may be dynamically modified for
+	   performance reasons. The longer the quantum length, the
+	   less often some functions need to be called. */
+	int quantum_len;
+
+
+
+
+	/* After changing sending speed, gap or weighting, some
+	   generator's internal parameters need to be recalculated.
+	   This is a flag that shows when this needs to be done. */
+	bool parameters_in_sync;
+
+
+
+
+	/* Misc fields. */
+
+	/* Audio buffer and related items. */
 	/* Buffer storing sine wave that is calculated in "calculate sine
 	   wave" cycles and sent to audio system (OSS, ALSA, PulseAudio).
 
@@ -137,7 +200,17 @@ struct cw_gen_struct {
 	int buffer_sub_start;
 	int buffer_sub_stop;
 
+	int sample_rate; /* set to the same value of sample rate as
+			    you have used when configuring sound card */
 
+	/* Used to calculate sine wave.
+	   Phase offset needs to be stored between consecutive calls to
+	   function calculating consecutive fragments of sine wave. */
+	double phase_offset;
+
+
+
+	/* Tone parameters. */
 	/* Some parameters of tones (and of tones' slopes) are common
 	   for all tones generated in given time by a generator.
 	   Therefore the generator should contain this struct.
@@ -177,70 +250,28 @@ struct cw_gen_struct {
 	} tone_slope;
 
 
-	/* none/null/console/OSS/ALSA/PulseAudio */
-	int audio_system;
 
-	bool audio_device_is_open;
-
-	/* Path to console file, or path to OSS soundcard file,
-	   or ALSA sound device name, or PulseAudio device name
-	   (it may be unused for PulseAudio) */
-	char *audio_device;
-
-	/* Output file descriptor for audio data (console, OSS). */
-	int audio_sink;
-
-#ifdef LIBCW_WITH_ALSA
-	/* Data used by ALSA. */
-	cw_alsa_data_t alsa_data;
-#endif
-
-#ifdef LIBCW_WITH_PULSEAUDIO
-	/* Data used by PulseAudio. */
-	cw_pa_data_t pa_data;
-#endif
-
+	/* Library's client. */
 	struct {
-		int x;
-		int y;
-		int z;
-	} oss_version;
-
-	/* Output file descriptor for debug data (console, OSS, ALSA, PulseAudio). */
-	int dev_raw_sink;
-
-
-	/* Essential sending parameters. */
-	int send_speed;     /* [wpm] */
-	int frequency;      /* The frequency of generated sound. [Hz] */
-	int volume_percent; /* Level of sound in percents of maximum allowable level. */
-	int volume_abs;     /* Level of sound in absolute terms; height of PCM samples. */
-	int gap;            /* Inter-mark gap. [number of dot lengths]. */
-	int weighting;      /* Dot/dash weighting. */
+		/* Main thread, existing from beginning to end of main process run.
+		   The variable is used to send signals to main app thread. */
+		pthread_t thread_id;
+		char *name;
+	} client;
 
 
 
-	/* After changing sending speed, gap or weighting, some
-	   generator's internal parameters need to be
-	   re-calculated. This is a flag that shows when this needs to
-	   be done. */
-	bool parameters_in_sync;
+	/* cw key associated with this generator. */
+	/* Key that has a generator associated with it.
+
+	   Standalone generator will have this set to NULL. But
+	   generator that is used by a key will have this set to
+	   non-NULL value with
+	   cw_key_register_generator_internal(). Remember that the key
+	   needs to have a generator, not the other way around. */
+	volatile struct cw_key_struct *key;
 
 
-	int sample_rate; /* set to the same value of sample rate as
-			    you have used when configuring sound card */
-
-	/* start/stop flag.
-	   Set to true before running dequeue_and_play thread
-	   function.
-	   Set to false to stop generator and return from
-	   dequeue_and_play thread function. */
-	bool do_dequeue_and_generate;
-
-	/* Used to calculate sine wave.
-	   Phase offset needs to be stored between consecutive calls to
-	   function calculating consecutive fragments of sine wave. */
-	double phase_offset;
 
 
 	/* pthread */
@@ -268,63 +299,58 @@ struct cw_gen_struct {
 		bool running;
 	} thread;
 
+	/* start/stop flag.
+	   Set to true before running dequeue_and_play thread
+	   function.
+	   Set to false to stop generator and return from
+	   dequeue_and_generate thread function. */
+	bool do_dequeue_and_generate;
+
+
+
+
+	/* Audio system. */
+
+	/* Path to console file, or path to OSS soundcard file,
+	   or ALSA sound device name, or PulseAudio device name
+	   (it may be unused for PulseAudio) */
+	char *audio_device;
+
+	/* Output file descriptor for debug data (console, OSS, ALSA,
+	   PulseAudio). */
+	int audio_sink;
+
+	/* none/null/console/OSS/ALSA/PulseAudio */
+	int audio_system;
+
+	bool audio_device_is_open;
+
+	/* Output file descriptor for debug data (console, OSS, ALSA,
+	   PulseAudio). */
+	int dev_raw_sink;
+
+	int  (* open_device)(cw_gen_t *gen);
+	void (* close_device)(cw_gen_t *gen);
+	int  (* write)(cw_gen_t *gen);
+
+
+	/* Audio system - OSS. */
 	struct {
-		/* Main thread, existing from beginning to end of main process run.
-		   The variable is used to send signals to main app thread. */
-		pthread_t thread_id;
-		char *name;
-	} client;
+		int x;
+		int y;
+		int z;
+	} oss_version;
 
+#ifdef LIBCW_WITH_ALSA
+	/* Data used by ALSA. */
+	cw_alsa_data_t alsa_data;
+#endif
 
+#ifdef LIBCW_WITH_PULSEAUDIO
+	/* Data used by PulseAudio. */
+	cw_pa_data_t pa_data;
+#endif
 
-	/* These are basic timing parameters which should be
-	   recalculated each time client code demands changing some
-	   higher-level parameter of generator (e.g. changing of
-	   sending speed). */
-
-	/* Watch out for "additional" key word.
-
-	   WARNING: notice how the eoc and eow spaces are
-	   calculated. They aren't full 3 units and 7 units. They are
-	   2 units (which takes into account preceding eom space
-	   length), and 5 units (which takes into account preceding
-	   eom *and* eoc space length). So these two lengths are
-	   *additional* ones, i.e. in addition to (already existing)
-	   eom and/or eoc space.  Whether this is good or bad idea to
-	   calculate them like this is a separate topic. Just be aware
-	   of this fact.
-
-	   Search the word "*additional*" in libcw_gen.c for
-	   implementation */
-	int dot_len;              /* Length of a dot. [us] */
-	int dash_len;             /* Length of a dash. [us] */
-	int eom_space_len;        /* Length of end-of-mark space (i.e. inter-mark space). [us] */
-	int eoc_space_len;        /* Length of *additional* end-of-character space. [us] */
-	int eow_space_len;        /* Length of *additional* end-of-word space. [us] */
-	int additional_space_len; /* Length of additional space at the end of a character. [us] */
-	int adjustment_space_len; /* Length of adjustment space at the end of a word. [us] */
-
-
-	/* Shortest length of tone. Right now it's initialized in
-	   constructor and never changed afterwards, but in future it
-	   may change - the value may be dynamically modified for
-	   performance reasons. The longer the quantum length, the
-	   less often some functions need to be called.
-
-	   TODO: do we need a separate cw_gen_t->forever_len field?
-	   Are there cases where "length of forever tone" != "quantum
-	   length"? */
-	int quantum_len;
-
-
-	/* Key that has a generator associated with it.
-
-	   Standalone generator will have this set to NULL. But
-	   generator that is used by a key will have this set to
-	   non-NULL value with
-	   cw_key_register_generator_internal(). Remember that the key
-	   needs to have a generator, not the other way around. */
-	volatile struct cw_key_struct *key;
 };
 
 

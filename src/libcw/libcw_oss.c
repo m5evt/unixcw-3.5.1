@@ -226,7 +226,7 @@ int cw_oss_write_internal(cw_gen_t *gen)
 	if (rv != n_bytes) {
 		cw_debug_msg (&cw_debug_object, CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
 			      MSG_PREFIX "write: audio write: %s", strerror(errno));
-		//return NULL;
+		return CW_FAILURE;
 	}
 	// cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_INFO, MSG_PREFIX "written %d samples", gen->buffer_n_samples);
 

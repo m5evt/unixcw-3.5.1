@@ -32,6 +32,7 @@
 #include <errno.h>
 #include <unistd.h>   /* usleep() */
 #include <sys/time.h>
+#include <stdlib.h>
 
 
 
@@ -171,7 +172,7 @@ static int cw_key_sk_set_value_internal(volatile cw_key_t *key, int key_value);
 
    Calling this routine with a NULL function address disables keying
    callbacks.  Any callback supplied will be called in signal handler
-   context (??).
+   context (TODO ??).
 
    \param key
    \param callback_func - callback function to be called on key state changes
@@ -1240,20 +1241,7 @@ int cw_key_sk_notify_event_internal(volatile cw_key_t *key, int key_value)
 
 	/* Do tones and keying, and set up timeouts and soundcard
 	   activities to match the new key state. */
-	int rv = cw_key_sk_set_value_internal(key, key_value);
-
-#if 0 /* Disabled since we don't do finalization anymore. */
-	if (key->sk.key_value == CW_KEY_STATE_OPEN) {
-		/* Indicate that we have finished with timeouts, and
-		   also with the soundcard too.  There's no way of
-		   knowing when straight keying is completed, so the
-		   only thing we can do here is to schedule release on
-		   each key up event.  */
-		cw_finalization_schedule_internal();
-	}
-#endif
-
-	return rv;
+	return cw_key_sk_set_value_internal(key, key_value);
 }
 
 
@@ -1319,6 +1307,86 @@ void cw_key_sk_reset_internal(volatile cw_key_t *key)
 
 	cw_debug_msg (&cw_debug_object, CW_DEBUG_STRAIGHT_KEY_STATES, CW_DEBUG_INFO,
 		      MSG_PREFIX "sk: key state ->OPEN (reset)");
+
+	return;
+}
+
+
+
+
+/**
+   \brief Create new key
+
+   \reviewed on 2017-01-31
+
+   \return pointer to new key on success
+   \return NULL on failure
+*/
+cw_key_t * cw_key_new(void)
+{
+	cw_key_t * key = (cw_key_t *) malloc(sizeof (cw_key_t));
+	if (!key) {
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+			      MSG_PREFIX "new: malloc()");
+		return (cw_key_t *) NULL;
+	}
+
+	key->gen = (cw_gen_t *) NULL;
+	key->rec = (cw_rec_t *) NULL;
+
+	key->key_callback_func = NULL;
+	key->key_callback_arg = NULL;
+
+	key->sk.key_value = CW_KEY_STATE_OPEN;
+
+	key->ik.graph_state = KS_IDLE;
+	key->ik.key_value = CW_KEY_STATE_OPEN;
+
+	key->ik.dot_paddle = CW_KEY_STATE_OPEN;
+	key->ik.dash_paddle = CW_KEY_STATE_OPEN;
+	key->ik.dot_latch = false;
+	key->ik.dash_latch = false;
+
+	key->ik.curtis_mode_b = false;
+	key->ik.curtis_b_latch = false;
+
+	key->ik.lock = false;
+
+	key->tk.key_value = CW_KEY_STATE_OPEN;
+#if 0
+	key->timer.tv_sec = 0;
+	key->timer.tv_usec = 0;
+#endif
+	return key;
+}
+
+
+
+
+/**
+   \brief Delete key
+
+   \p key is deallocated. Pointer to \p key is set to NULL.
+
+   \reviewed on 2017-01-31
+
+   \param key - pointer to key
+*/
+void cw_key_delete(cw_key_t ** key)
+{
+	cw_assert (key, MSG_PREFIX "delete: key is NULL");
+
+	if (!*key) {
+		return;
+	}
+
+	if ((*key)->gen) {
+		/* Unregister. */
+		(*key)->gen->key = NULL;
+	}
+
+	free(*key);
+	*key = (cw_key_t *) NULL;
 
 	return;
 }

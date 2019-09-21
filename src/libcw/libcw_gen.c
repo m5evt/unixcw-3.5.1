@@ -161,7 +161,6 @@ static const int CW_AUDIO_QUANTUM_LEN_INITIAL = 100;  /* [us] */
 
 
 
-
 static int   cw_gen_new_open_internal(cw_gen_t *gen, int audio_system, const char *device);
 static void *cw_gen_dequeue_and_generate_internal(void *arg);
 static int   cw_gen_calculate_sine_wave_internal(cw_gen_t *gen, cw_tone_t *tone);
@@ -206,9 +205,13 @@ char *cw_gen_get_audio_system_label_internal(cw_gen_t *gen)
 
 
 
-
 /**
    \brief Start a generator
+
+   Start given \p generator. As soon as there are tones enqueued in generator, the generator will start playing them.
+
+   \return CW_SUCCESS on success
+   \return CW_FAILURE on errors
 */
 int cw_gen_start_internal(cw_gen_t *gen)
 {
@@ -219,44 +222,48 @@ int cw_gen_start_internal(cw_gen_t *gen)
 	   function run only when the flag is set. */
 	gen->do_dequeue_and_generate = true;
 
+	/* This generator exists in client's application thread.
+	   Generator's 'dequeue and generate' function will be a separate thread. */
 	gen->client.thread_id = pthread_self();
 
-	if (gen->audio_system == CW_AUDIO_NULL
-	    || gen->audio_system == CW_AUDIO_CONSOLE
-	    || gen->audio_system == CW_AUDIO_OSS
-	    || gen->audio_system == CW_AUDIO_ALSA
-	    || gen->audio_system == CW_AUDIO_PA) {
+	if (gen->audio_system != CW_AUDIO_NULL
+	    && gen->audio_system != CW_AUDIO_CONSOLE
+	    && gen->audio_system != CW_AUDIO_OSS
+	    && gen->audio_system != CW_AUDIO_ALSA
+	    && gen->audio_system != CW_AUDIO_PA) {
 
-		/* cw_gen_dequeue_and_generate_internal() is THE
-		   function that does the main job of generating
-		   tones. */
-		int rv = pthread_create(&gen->thread.id, &gen->thread.attr,
-					cw_gen_dequeue_and_generate_internal,
-					(void *) gen);
-		if (rv != 0) {
-			gen->do_dequeue_and_generate = false;
-
-			cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
-				      MSG_PREFIX "failed to create %s generator thread", cw_get_audio_system_label(gen->audio_system));
-			return CW_FAILURE;
-		} else {
-			gen->thread.running = true;
-
-			/* For some yet unknown reason you have to put
-			   usleep() here, otherwise a generator may
-			   work incorrectly */
-			usleep(100000);
-#ifdef LIBCW_WITH_DEV
-			cw_dev_debug_print_generator_setup(gen);
-#endif
-			return CW_SUCCESS;
-		}
-	} else {
 		gen->do_dequeue_and_generate = false;
 
-		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
 			      MSG_PREFIX "unsupported audio system %d", gen->audio_system);
 		return CW_FAILURE;
+	}
+
+
+	/* cw_gen_dequeue_and_generate_internal() is THE
+	   function that does the main job of generating
+	   tones. */
+	int rv = pthread_create(&gen->thread.id, &gen->thread.attr,
+				cw_gen_dequeue_and_generate_internal,
+				(void *) gen);
+	if (rv != 0) {
+		gen->do_dequeue_and_generate = false;
+
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
+			      MSG_PREFIX "failed to create %s generator thread", cw_get_audio_system_label(gen->audio_system));
+		return CW_FAILURE;
+	} else {
+		/* TODO: shouldn't we be doing it in generator's thread function? */
+		gen->thread.running = true;
+
+		/* FIXME: For some yet unknown reason we have to put
+		   usleep() here, otherwise a generator may
+		   work incorrectly */
+		usleep(100000);
+#ifdef LIBCW_WITH_DEV
+		cw_dev_debug_print_generator_setup(gen);
+#endif
+		return CW_SUCCESS;
 	}
 }
 
@@ -428,10 +435,6 @@ cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 		}
 	}
 
-	gen->audio_device = NULL;
-	//gen->audio_system = audio_system;
-	gen->audio_device_is_open = false;
-	gen->dev_raw_sink = -1;
 
 
 	/* Parameters. */
@@ -510,6 +513,10 @@ cw_gen_t *cw_gen_new_internal(int audio_system, const char *device)
 
 	/* Audio system. */
 	{
+		gen->audio_device = NULL;
+		//gen->audio_system = audio_system;
+		gen->audio_device_is_open = false;
+		gen->dev_raw_sink = -1;
 
 		gen->open_device = NULL;
 		gen->close_device = NULL;
@@ -645,9 +652,10 @@ void cw_gen_delete_internal(cw_gen_t **gen)
    You have to use cw_gen_start_internal() if you want to enqueue and
    generate tones with the same generator again.
 
-   It seems that only silencing of generator's audio sink may fail,
-   and this is when this function may return CW_FAILURE. Otherwise
-   function returns CW_SUCCESS.
+   The function may return CW_FAILURE only when silencing of
+   generator's audio sink fails.
+   Otherwise function returns CW_SUCCESS.
+
 
    \param gen - generator to stop
 
@@ -900,6 +908,8 @@ int cw_gen_new_open_internal(cw_gen_t *gen, int audio_system, const char *device
 /**
    \brief Dequeue tones and push them to audio output
 
+   This is a thread function.
+
    Function dequeues tones from tone queue associated with generator
    and then sends them to preconfigured audio output (soundcard, NULL
    or console).
@@ -908,8 +918,8 @@ int cw_gen_new_open_internal(cw_gen_t *gen, int audio_system, const char *device
    pushes them to audio output as long as
    generator->do_dequeue_and_generate is true.
 
-   The generator must be fully configured before calling this
-   function.
+   The generator must be fully configured before creating thread with
+   this function.
 
    \param arg - generator (casted to (void *)) to be used for generating tones
 
@@ -976,19 +986,21 @@ void *cw_gen_dequeue_and_generate_internal(void *arg)
 		/* Generator may be used by iambic keyer to measure
 		   periods of time (lengths of Mark and Space) - this
 		   is achieved by enqueueing Marks and Spaces by keyer
-		   in generator.
+		   in generator. A soundcard playing samples is
+		   surprisingly good at measuring time intervals.
 
 		   At this point the generator has finished generating
 		   a tone of specified length. A duration of Mark or
 		   Space has elapsed. Inform iambic keyer that the
-		   tone it has enqueued has elapsed.
+		   tone it has enqueued has elapsed. The keyer may
+		   want to change its state.
 
 		   (Whether iambic keyer has enqueued any tones or
 		   not, and whether it is waiting for the
 		   notification, is a different story. We will let the
 		   iambic keyer function called below to decide what
 		   to do with the notification. If keyer is in idle
-		   graph state, it will ignore the notification.)
+		   state, it will ignore the notification.)
 
 		   Notice that this mechanism is needed only for
 		   iambic keyer. Inner workings of straight key are
@@ -1986,9 +1998,9 @@ int cw_gen_enqueue_mark_internal(cw_gen_t *gen, char mark, bool is_first)
    The function enqueues space of length 2 Units. The function is
    intended to be used after inter-mark space has already been enqueued.
 
-   In such situation standard inter-mark space (one Unit) and
-   end-of-character space (two Units) form a full standard
-   end-of-character space (three Units).
+   In such situation standard inter-mark space (one Unit) and two
+   Units enqueued by this function form a full standard
+   inter-character space (three Units).
 
    Inter-character adjustment space is added at the end.
 
@@ -2002,8 +2014,7 @@ int cw_gen_enqueue_eoc_space_internal(cw_gen_t *gen)
 	/* Synchronize low-level timing parameters. */
 	cw_gen_sync_parameters_internal(gen);
 
-	/* Delay for the standard end of character period, plus any
-	   additional inter-character gap */
+	/* Enqueue standard inter-character space, plus any additional inter-character gap. */
 	cw_tone_t tone;
 	CW_TONE_INIT(&tone, 0, gen->eoc_space_len + gen->additional_space_len, CW_SLOPE_MODE_NO_SLOPES);
 	return cw_tq_enqueue_internal(gen->tq, &tone);
@@ -2013,17 +2024,17 @@ int cw_gen_enqueue_eoc_space_internal(cw_gen_t *gen)
 
 
 /**
-   \brief Play end-of-word space
+   \brief Enqueue space character (' ') in generator, to be sent using Morse code
 
-   The function should be used to play a regular ' ' character.
+   The function should be used to enqueue a regular ' ' character.
 
-   The function plays space of length 5 Units. The function is
-   intended to be used after inter-mark space and end-of-character
-   space have already been played.
+   The function enqueues space of length 5 Units. The function is
+   intended to be used after inter-mark space and inter-character
+   space have already been enqueued.
 
    In such situation standard inter-mark space (one Unit) and
-   end-of-character space (two Units) and end-of-word space (five
-   units) form a full standard end-of-word space (seven Units).
+   inter-character space (two Units) and regular space (five units)
+   form a full standard inter-word space (seven Units).
 
    Inter-word adjustment space is added at the end.
 
@@ -2067,7 +2078,7 @@ int cw_gen_enqueue_eow_space_internal(cw_gen_t *gen)
 	   second one is enqueued, and we can't recognize 2->1 event.
 
 	   So, to be super-sure that there is a recognizable event of
-	   passing tone queue level from 2 to 1, we split the eow
+	   passing tone queue level from 2 to 1, we split the inter-word
 	   space into N parts and enqueue them. This way we have N + 1
 	   tones per space, and client applications that rely on low
 	   level threshold == 1 can correctly work when enqueueing
@@ -2092,25 +2103,19 @@ int cw_gen_enqueue_eow_space_internal(cw_gen_t *gen)
 #endif
 	CW_TONE_INIT(&tone, 0, gen->eow_space_len / n, CW_SLOPE_MODE_NO_SLOPES);
 	for (int i = 0; i < n; i++) {
-		int rv = cw_tq_enqueue_internal(gen->tq, &tone);
-		if (rv) {
-			enqueued++;
-		} else {
+		if (CW_SUCCESS != cw_tq_enqueue_internal(gen->tq, &tone)) {
 			return CW_FAILURE;
 		}
+		enqueued++;
 	}
 
 	CW_TONE_INIT(&tone, 0, gen->adjustment_space_len, CW_SLOPE_MODE_NO_SLOPES);
-	int rv = cw_tq_enqueue_internal(gen->tq, &tone);
-	if (rv) {
-		enqueued++;
-	} else {
+	if (CW_SUCCESS != cw_tq_enqueue_internal(gen->tq, &tone)) {
 		return CW_FAILURE;
 	}
+	enqueued++;
 
-	cw_debug_msg (&cw_debug_object, CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG,
-		      MSG_PREFIX "enqueued %d tones per eow space, tq len = %d",
-		      enqueued, cw_tq_length_internal(gen->tq));
+	cw_debug_msg (&cw_debug_object, CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG, MSG_PREFIX "enqueued %d tones per iw space, tq len = %zu", enqueued, cw_tq_length_internal(gen->tq));
 
 	return CW_SUCCESS;
 }
@@ -2167,7 +2172,7 @@ int cw_gen_enqueue_representation_partial_internal(cw_gen_t *gen, const char *re
 		return CW_FAILURE;
 	}
 
-	/* Enqueue the marks. Every mark is followed by end-of-mark
+	/* Enqueue the marks. Every mark is followed by inter-mark
 	   space. */
 	for (int i = 0; representation[i] != '\0'; i++) {
 		if (!cw_gen_enqueue_mark_internal(gen, representation[i], i == 0)) {
@@ -2212,7 +2217,7 @@ int cw_gen_enqueue_valid_character_partial_internal(cw_gen_t *gen, char characte
 		return CW_FAILURE;
 	}
 
-	/* ' ' character (i.e. end-of-word space) is a special case. */
+	/* ' ' character (i.e. regular space) is a special case. */
 	if (character == ' ') {
 		return cw_gen_enqueue_eow_space_internal(gen);
 	}
@@ -2345,24 +2350,28 @@ int cw_gen_enqueue_character_partial(cw_gen_t *gen, char c)
 /**
    \brief Enqueue a given ASCII string in generator, to be sent using Morse code
 
-   errno is set to ENOENT if any character in the string is not a
-   valid Morse character.
-
-   errno is set to EBUSY if audio sink or keying system is busy.
-
-   errno is set to EAGAIN if the tone queue is full or if the tone
-   queue runs out of space part way through queueing the string.
-   However, an indeterminate number of the characters from the string
-   will have already been queued.
-
    For safety, clients can ensure the tone queue is empty before
-   queueing a string, or use cw_gen_enqueue_valid_character_internal() if they
+   queueing a string, or use cw_gen_enqueue_character() if they
    need finer control.
 
-   This routine queues its arguments for background processing, the
-   actual sending happens in background processing. See
-   cw_wait_for_tone() and cw_wait_for_tone_queue() for ways to check
-   the progress of sending.
+   This routine returns as soon as the string has been successfully
+   queued for sending/playing by the generator, without waiting for
+   generator to even start playing the string. The actual
+   playing/sending happens in background. See cw_gen_wait_for_tone()
+   and cw_gen_wait_for_queue() for ways to check the progress of
+   sending.
+
+
+   \errno ENOENT - \p string argument is invalid (one or more
+   characters in the string is not a valid Morse character). No tones
+   from such string are going to be enqueued.
+
+   \errno EBUSY  - generator's audio sink or keying system is busy
+
+   \errno EAGAIN - generator's tone queue is full or the tone queue
+   is likely to run out of space part way through queueing the string.
+   However, an indeterminate number of the characters from the string
+   will have already been queued.
 
    \param gen - generator to use
    \param string - string to enqueue
@@ -2380,8 +2389,10 @@ int cw_gen_enqueue_string_internal(cw_gen_t *gen, const char *string)
 
 	/* Send every character in the string. */
 	for (int i = 0; string[i] != '\0'; i++) {
-		if (!cw_gen_enqueue_valid_character_partial_internal(gen, string[i], false))
+		/* This function adds eoc space at the end of character. */
+		if (!cw_gen_enqueue_valid_character_partial_internal(gen, string[i], false)) {
 			return CW_FAILURE;
+		}
 	}
 
 	return CW_SUCCESS;
@@ -2392,6 +2403,8 @@ int cw_gen_enqueue_string_internal(cw_gen_t *gen, const char *string)
 
 /**
    \brief Reset generator's essential parameters to their initial values
+
+   You need to call cw_gen_sync_parameters_internal() after call to this function.
 
   \param gen
 */

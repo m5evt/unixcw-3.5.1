@@ -170,6 +170,7 @@ bool cw_is_pa_possible(const char *device)
 		}
 		return false;
 	} else {
+		/* TODO: verify this comment: We do dlclose(cw_pa.handle) in cw_pa_close_device_internal(). */
 		cw_pa.pa_simple_free(s);
 		s = NULL;
 		return true;

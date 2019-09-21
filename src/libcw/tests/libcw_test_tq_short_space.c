@@ -23,7 +23,7 @@
    treating the bug as related to tone queue.
 */
 
-void cwdaemon_tone_queue_low_callback(__attribute__((unused)) void *arg);
+void tone_queue_low_callback(__attribute__((unused)) void *arg);
 
 
 /* Callback to be called when tone queue level passes this mark. */
@@ -97,7 +97,7 @@ bool test(int i, int n)
 	cw_generator_new(CW_AUDIO_SOUNDCARD, NULL);
 	cw_generator_start();
 
-	cw_register_tone_queue_low_callback(cwdaemon_tone_queue_low_callback, NULL, tq_low_watermark);
+	cw_register_tone_queue_low_callback(tone_queue_low_callback, NULL, tq_low_watermark);
 
 
 
@@ -148,7 +148,7 @@ bool test(int i, int n)
 
 
 
-void cwdaemon_tone_queue_low_callback(__attribute__((unused)) void *arg)
+void tone_queue_low_callback(__attribute__((unused)) void *arg)
 {
 	fprintf(stdout, "speed = %d, callback called\n", speed);
 	fflush(stdout);
