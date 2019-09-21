@@ -1,3 +1,13 @@
+2019-09-21 Kamil Ignacak
+	* libcw: beginning to create libcw2.h in master branch with
+	declarations of functions similar to those existing in
+	libcw.h. Those new functions will not operate on library's global
+	generator, key or receiver values, but on values passed as
+	arguments. This will allow client code to use multiple generators,
+	keys or receivers at the same time. These functions were already
+	existing in code, but were used internally only. Now they will
+	become public.
+
 2017-03-29  zcsahok
 	* libcw: User zcsahok contributes "handle backspace" solution to
 	libcw. Thank you! The change has been merged to experimental
