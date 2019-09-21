@@ -149,6 +149,7 @@ static size_t cw_tq_get_high_water_mark_internal(const cw_tone_queue_t *tq) __at
 static size_t cw_tq_prev_index_internal(const cw_tone_queue_t *tq, size_t current) __attribute__((unused));
 static size_t cw_tq_next_index_internal(const cw_tone_queue_t *tq, size_t current);
 static bool   cw_tq_dequeue_sub_internal(cw_tone_queue_t *tq, cw_tone_t *tone);
+static void   cw_tq_make_empty_internal(cw_tone_queue_t * tq);
 
 
 
@@ -794,7 +795,7 @@ int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 */
 int cw_tq_register_low_level_callback_internal(cw_tone_queue_t * tq, cw_queue_low_callback_t callback_func, void * callback_arg, size_t level)
 {
-	if (level < 0 || (uint32_t) level >= tq->capacity) {
+	if (level >= tq->capacity) {
 		errno = EINVAL;
 		return CW_FAILURE;
 	}

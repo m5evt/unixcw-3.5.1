@@ -250,7 +250,7 @@ void cw_key_tk_set_value_internal(volatile cw_key_t *key, int key_value)
 		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_KEYING, CW_DEBUG_INFO,
 			      MSG_PREFIX "tk set value: about to call callback, key value = %d\n", key->tk.key_value);
 
-		(*(key->key_callback_func))(&key->timer, key->tk.key_value, key->key_callback_arg);
+		(*key->key_callback_func)(&key->timer, key->tk.key_value, key->key_callback_arg);
 	}
 	return;
 }
@@ -345,7 +345,10 @@ int cw_key_sk_set_value_internal(volatile cw_key_t *key, int key_value)
 	cw_assert (key, MSG_PREFIX "sk set value: key is NULL");
 	cw_assert (key->gen, MSG_PREFIX "sk set value: generator is NULL");
 
-	gettimeofday(&key->timer, NULL);
+	struct timeval t;
+	gettimeofday(&t, NULL);
+	key->timer.tv_sec = t.tv_sec;
+	key->timer.tv_usec = t.tv_usec;
 
 	if (key->sk.key_value == key_value) {
 		/* This may happen when dequeueing 'forever' tone
@@ -364,7 +367,7 @@ int cw_key_sk_set_value_internal(volatile cw_key_t *key, int key_value)
 		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_KEYING, CW_DEBUG_INFO,
 			      MSG_PREFIX "sk set value: about to call callback, key value = %d\n", key->sk.key_value);
 
-		(*(key->key_callback_func))(&key->timer, key->sk.key_value, key->key_callback_arg);
+		(*key->key_callback_func)(&key->timer, key->sk.key_value, key->key_callback_arg);
 	}
 
 	int rv;
@@ -454,7 +457,7 @@ int cw_key_ik_set_value_internal(volatile cw_key_t *key, int key_value, char sym
 		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_KEYING, CW_DEBUG_INFO,
 			      MSG_PREFIX "ik set value: about to call callback, key value = %d\n", key->ik.key_value);
 
-		(*(key->key_callback_func))(&key->timer, key->ik.key_value, key->key_callback_arg);
+		(*key->key_callback_func)(&key->timer, key->ik.key_value, key->key_callback_arg);
 	}
 
 	/* 'Partial' means without any end-of-mark spaces. */
@@ -816,7 +819,10 @@ int cw_key_ik_notify_paddle_event(volatile cw_key_t *key, int dot_paddle_state, 
 
 
 	if (key->ik.graph_state == KS_IDLE) {
-		gettimeofday(&key->timer, NULL);
+		struct timeval t;
+		gettimeofday(&t, NULL);
+		key->timer.tv_sec = t.tv_sec;
+		key->timer.tv_usec = t.tv_usec;
 
 		/* If the current state is idle, give the state
 		   process an initial impulse. */

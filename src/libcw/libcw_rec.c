@@ -950,7 +950,7 @@ bool cw_rec_get_adaptive_mode(const cw_rec_t * rec)
    \return CW_FAILURE otherwise
 
 */
-int cw_rec_mark_begin(cw_rec_t * rec, const struct timeval * timestamp)
+int cw_rec_mark_begin(cw_rec_t * rec, const volatile struct timeval * timestamp)
 {
 	if (rec->is_pending_inter_word_space) {
 
@@ -1032,7 +1032,7 @@ int cw_rec_mark_begin(cw_rec_t * rec, const struct timeval * timestamp)
    \return CW_SUCCESS when no errors occurred
    \return CW_FAILURE otherwise
 */
-int cw_rec_mark_end(cw_rec_t * rec, const struct timeval * timestamp)
+int cw_rec_mark_end(cw_rec_t * rec, const volatile struct timeval * timestamp)
 {
 	/* The receive state is expected to be inside of a mark. */
 	if (rec->state != RS_MARK) {
@@ -1374,7 +1374,7 @@ void cw_rec_update_averages_internal(cw_rec_t *rec, int mark_len, char mark)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_rec_add_mark(cw_rec_t * rec, const struct timeval * timestamp, char mark)
+int cw_rec_add_mark(cw_rec_t * rec, const volatile struct timeval * timestamp, char mark)
 {
 	/* The receiver's state is expected to be idle or
 	   inter-mark-space in order to use this routine. */

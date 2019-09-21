@@ -169,6 +169,9 @@ static int   cw_gen_calculate_amplitude_internal(cw_gen_t *gen, const cw_tone_t 
 static int   cw_gen_write_to_soundcard_internal(cw_gen_t *gen, cw_tone_t *tone, bool is_empty_tone);
 static int   cw_gen_enqueue_valid_character_partial_internal(cw_gen_t *gen, char character);
 static void  cw_gen_recalculate_slopes_internal(cw_gen_t *gen);
+static int   cw_gen_join_thread_internal(cw_gen_t * gen);
+static void  cw_gen_empty_tone_calculate_samples_size_internal(cw_gen_t const * gen, cw_tone_t * tone);
+static void  cw_gen_tone_calculate_samples_size_internal(cw_gen_t const * gen, cw_tone_t * tone);
 
 
 

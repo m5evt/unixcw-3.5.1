@@ -68,6 +68,7 @@
 #include "libcw_utils.h"
 #include "libcw_signal.h"
 #include "cw_copyright.h"
+#include "libcw2.h"
 
 
 
@@ -142,10 +143,9 @@ int cw_version(void)
    revision, \p age. These three properties are described here:
    http://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html
 
-
    testedin::test_cw_version()
 */
-void cw_get_version(int * current, int * revision, int * age)
+cw_ret cw_get_lib_version(int * current, int * revision, int * age)
 {
 	char *endptr = NULL;
 
@@ -169,7 +169,16 @@ void cw_get_version(int * current, int * revision, int * age)
 	cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_INTERNAL, CW_DEBUG_INFO,
 		      MSG_PREFIX "current:revision:age: %ld:%ld:%ld\n", c, r, a);
 
-	return;
+	return CW_SUCCESS;
+}
+
+
+
+
+cw_ret cw_get_package_version(__attribute__((unused)) int * major, __attribute__((unused)) int * minor, __attribute__((unused)) int * maintenance)
+{
+	/* TODO: implement. */
+	return CW_FAILURE;
 }
 
 
@@ -186,7 +195,7 @@ void cw_get_version(int * current, int * revision, int * age)
 void cw_license(void)
 {
 	int current, revision, age;
-	cw_get_version(&current, &revision, &age);
+	cw_get_lib_version(&current, &revision, &age);
 
 	printf("libcw version %d.%d.%d\n", current, revision, age);
 	printf("%s\n", CW_COPYRIGHT);
@@ -363,7 +372,7 @@ bool cw_dlopen_internal(const char *name, void **handle)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_timestamp_validate_internal(struct timeval *out_timestamp, const struct timeval *in_timestamp)
+int cw_timestamp_validate_internal(struct timeval *out_timestamp, const volatile struct timeval *in_timestamp)
 {
 	cw_assert (out_timestamp, MSG_PREFIX "validate timestamp: pointer to output timestamp is NULL");
 
@@ -1064,7 +1073,7 @@ unsigned int test_cw_usecs_to_timespec_internal(cw_test_stats_t * stats)
 unsigned int test_cw_version_internal(cw_test_stats_t * stats)
 {
 	int current = 77, revision = 88, age = 99; /* Dummy values. */
-	cw_get_version(&current, &revision, &age);
+	cw_get_lib_version(&current, &revision, &age);
 
 	/* Library's version is defined in LIBCW_VERSION. cw_version()
 	   uses three calls to strtol() to get three parts of the

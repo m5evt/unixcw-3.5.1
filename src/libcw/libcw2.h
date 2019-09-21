@@ -4,6 +4,27 @@
 
 
 
+typedef int cw_ret;
+
+
+
+
+/**
+   @brief Get version of libcw shared library
+*/
+cw_ret cw_get_lib_version(int * current, int * revision, int * age);
+
+
+
+
+/**
+   @brief Get version of unixcw package
+*/
+cw_ret cw_get_package_version(int * major, int * minor, int * maintenance);
+
+
+
+
 /* Basic generator functions. */
 cw_gen_t * cw_gen_new(int audio_system, const char * device);
 void       cw_gen_delete(cw_gen_t ** gen);
@@ -27,7 +48,17 @@ int cw_gen_get_volume(const cw_gen_t * gen);
 int cw_gen_get_gap(const cw_gen_t * gen);
 int cw_gen_get_weighting(const cw_gen_t * gen);
 
+int cw_gen_enqueue_character(cw_gen_t * gen, char c);
 int cw_gen_enqueue_string(cw_gen_t * gen, const char * string);
+int cw_gen_wait_for_queue_level(cw_gen_t * gen, size_t level);
+
+void cw_gen_flush_queue(cw_gen_t * gen);
+const char *cw_gen_get_audio_device(cw_gen_t const * gen);
+int cw_gen_get_audio_system(cw_gen_t const * gen);
+size_t cw_gen_get_queue_length(cw_gen_t const * gen);
+int cw_gen_register_low_level_callback(cw_gen_t * gen, cw_queue_low_callback_t callback_func, void * callback_arg, size_t level);
+int cw_gen_wait_for_tone(cw_gen_t * gen);
+bool cw_gen_is_queue_full(cw_gen_t const * gen);
 
 
 
@@ -82,13 +113,18 @@ bool  cw_rec_get_adaptive_mode(const cw_rec_t * rec);
 void cw_rec_reset_statistics(cw_rec_t * rec);
 
 /* Main receive functions. */
-int cw_rec_mark_begin(cw_rec_t * rec, const struct timeval * timestamp);
-int cw_rec_mark_end(cw_rec_t * rec, const struct timeval * timestamp);
-int cw_rec_add_mark(cw_rec_t * rec, const struct timeval * timestamp, char mark);
+int cw_rec_mark_begin(cw_rec_t * rec, const volatile struct timeval * timestamp);
+int cw_rec_mark_end(cw_rec_t * rec, const volatile struct timeval * timestamp);
+int cw_rec_add_mark(cw_rec_t * rec, const volatile struct timeval * timestamp, char mark);
 
 
 /* Helper receive functions. */
 int  cw_rec_poll_representation(cw_rec_t * rec, const struct timeval * timestamp, char * representation, bool * is_end_of_word, bool * is_error);
+
+void cw_rec_enable_adaptive_mode(cw_rec_t * rec);
+void cw_rec_disable_adaptive_mode(cw_rec_t * rec);
+bool cw_rec_poll_is_pending_inter_word_space(cw_rec_t const * rec);
+
 
 
 

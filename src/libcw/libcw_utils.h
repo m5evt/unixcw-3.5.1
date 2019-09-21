@@ -26,7 +26,7 @@ enum { CW_NSECS_PER_SEC = 1000000000 };
 
 
 int cw_timestamp_compare_internal(const struct timeval *earlier, const struct timeval *later);
-int cw_timestamp_validate_internal(struct timeval *out_timestamp, const struct timeval *in_timestamp);
+int cw_timestamp_validate_internal(struct timeval *out_timestamp, const volatile struct timeval *in_timestamp);
 void cw_usecs_to_timespec_internal(struct timespec *t, int usecs);
 void cw_nanosleep_internal(const struct timespec *n);
 

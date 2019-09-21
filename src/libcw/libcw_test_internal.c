@@ -77,11 +77,12 @@ static cw_test_function_t cw_unit_tests[] = {
 
 
 	/* cw_rec module */
+#if 0
 	test_cw_rec_identify_mark_internal,
 	test_cw_rec_test_with_base_constant,
 	test_cw_rec_test_with_random_constant,
 	test_cw_rec_test_with_random_varying,
-#if 0
+
 	test_cw_get_receive_parameters,
 #endif
 

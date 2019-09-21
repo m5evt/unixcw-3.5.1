@@ -37,7 +37,7 @@ enum {
 
 
 
-typedef void (* cw_key_callback_t)(struct timeval *timestamp, int key_state, void* arg);
+typedef void (* cw_key_callback_t)(volatile struct timeval * timestamp, int key_state, void * arg);
 
 struct cw_key_struct {
 	/* Straight key and iambic keyer needs a generator to produce
