@@ -582,7 +582,7 @@ cw_gen_t * cw_gen_new(int audio_system, const char * device)
 		}
 	}
 
-	cw_sigalrm_install_top_level_handler_internal();
+	cw_sigalrm_install_top_level_handler_internal(); /* TODO: still needed? */
 	return gen;
 }
 
@@ -1033,7 +1033,7 @@ void *cw_gen_dequeue_and_generate_internal(void *arg)
 		   - allows client code to observe moment when state of tone
 		     queue is "low/critical"; client code then can add more
 		     characters to the queue; the observation is done using
-		     cw_wait_for_tone_queue_critical();
+		     cw_tq_wait_for_level_internal();
 
 		   - allows client code to observe any dequeue event
                      by waiting for signal in
@@ -2330,7 +2330,6 @@ int cw_gen_enqueue_representation_partial_internal(cw_gen_t *gen, const char *re
 
    \param gen - generator to be used to enqueue character
    \param character - character to enqueue
-   \param partial
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
@@ -3415,6 +3414,8 @@ unsigned int test_cw_gen_set_tone_slope(cw_test_stats_t * stats)
 		failure ? stats->failures++ : stats->successes++;
 		n = fprintf(out_file, MSG_PREFIX "set slope: RAISED_COSINE 0: length (%d):", gen->tone_slope.len);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
+
+
 
 		failure = (CW_SUCCESS != cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_SINE, 0));
 		failure ? stats->failures++ : stats->successes++;

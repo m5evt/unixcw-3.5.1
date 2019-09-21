@@ -760,7 +760,7 @@ void cw_rec_get_statistics_internal(cw_rec_t *rec, double *dot_sd, double *dash_
 
    \param rec - receiver
 */
-void cw_rec_reset_receive_statistics(cw_rec_t * rec)
+void cw_rec_reset_statistics(cw_rec_t * rec)
 {
 	for (int i = 0; i < CW_REC_STATISTICS_CAPACITY; i++) {
 		rec->statistics[i].type = CW_REC_STAT_NONE;
@@ -1777,32 +1777,6 @@ void cw_rec_reset_state(cw_rec_t * rec)
 	rec->is_pending_inter_word_space = false;
 
 	CW_REC_SET_STATE (rec, RS_IDLE, (&cw_debug_object));
-
-	return;
-}
-
-
-
-
-/**
-   \brief Clear the receive statistics buffer
-
-   Function handling receiver statistics.
-
-   Clear the receive statistics buffer by removing all records from it and
-   returning it to its initial default state.
-
-   \reviewed on 2017-02-02
-
-   \param rec - receiver
-*/
-void cw_rec_reset_statistics(cw_rec_t * rec)
-{
-	for (int i = 0; i < CW_REC_STATISTICS_CAPACITY; i++) {
-		rec->statistics[i].type = CW_REC_STAT_NONE;
-		rec->statistics[i].delta = 0;
-	}
-	rec->statistics_ind = 0;
 
 	return;
 }

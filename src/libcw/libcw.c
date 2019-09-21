@@ -1388,7 +1388,7 @@ void cw_get_receive_statistics(double *dot_sd, double *dash_sd,
 */
 void cw_reset_receive_statistics(void)
 {
-	cw_rec_reset_receive_statistics(&cw_receiver);
+	cw_rec_reset_statistics(&cw_receiver);
 
 	return;
 }

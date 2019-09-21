@@ -79,7 +79,7 @@ int   cw_rec_get_tolerance(const cw_rec_t * rec);
 int   cw_rec_get_noise_spike_threshold(const cw_rec_t * rec);
 bool  cw_rec_get_adaptive_mode(const cw_rec_t * rec);
 
-void cw_rec_reset_receive_statistics(cw_rec_t * rec);
+void cw_rec_reset_statistics(cw_rec_t * rec);
 
 /* Main receive functions. */
 int cw_rec_mark_begin(cw_rec_t * rec, const struct timeval * timestamp);

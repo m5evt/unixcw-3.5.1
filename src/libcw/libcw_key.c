@@ -1140,7 +1140,7 @@ void cw_key_ik_reset_internal(volatile cw_key_t *key)
 
 	/* Silence sound and stop any background soundcard tone generation. */
 	cw_gen_silence_internal(key->gen);
-	cw_finalization_schedule_internal();
+	cw_finalization_schedule_internal(); /* TODO: do we still need this? */
 
 	cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
 		      MSG_PREFIX "ik reset: keyer state -> %s (reset)", cw_iambic_keyer_states[key->ik.graph_state]);
