@@ -35,7 +35,7 @@ enum { CW_DOT_CALIBRATION = 1200000 };
 enum {
 	RS_IDLE,          /* Representation buffer is empty and ready to accept data. */
 	RS_MARK,          /* Mark. */
-	RS_SPACE,         /* Space (inter-mark-space). */
+	RS_IMARK_SPACE,   /* Inter-mark space. */
 	RS_EOC_GAP,       /* Gap after a character, without error (EOC = end-of-character). */
 	RS_EOW_GAP,       /* Gap after a word, without error (EOW = end-of-word). */
 	RS_EOC_GAP_ERR,   /* Gap after a character, with error. */
@@ -206,6 +206,16 @@ struct cw_rec_struct {
 	   of receiver's speed (tracking of speed of incoming data). */
 	cw_rec_averaging_t dot_averaging;
 	cw_rec_averaging_t dash_averaging;
+
+#ifdef WITH_EXPERIMENTAL_RECEIVER
+	cw_rec_push_callback_t * push_callback;
+#endif
+
+	/* Flag indicating if receive polling has received a
+	   character, and may need to augment it with a word
+	   space on a later poll. */
+	bool is_pending_inter_word_space;
+
 };
 
 
@@ -214,13 +224,8 @@ typedef struct cw_rec_struct cw_rec_t;
 
 
 
-
-
-/* Receiver's reset functions. */
-void cw_rec_reset_parameters_internal(cw_rec_t * rec);
-void cw_rec_reset_internal(cw_rec_t * rec);
-
 /* Other helper functions. */
+void cw_rec_reset_parameters_internal(cw_rec_t *rec);
 void cw_rec_sync_parameters_internal(cw_rec_t *rec);
 void cw_rec_get_parameters_internal(cw_rec_t *rec,
 				    int *dot_len_ideal, int *dash_len_ideal,
@@ -243,11 +248,22 @@ int cw_rec_get_receive_buffer_capacity_internal(void);
 
 #ifdef LIBCW_UNIT_TESTS
 
-unsigned int test_cw_rec_identify_mark_internal(void);
 unsigned int test_cw_rec_with_base_data_fixed(void);
 unsigned int test_cw_rec_with_random_data_fixed(void);
 unsigned int test_cw_rec_with_random_data_adaptive(void);
 unsigned int test_cw_get_receive_parameters(void);
+
+
+#include "libcw_test.h"
+
+unsigned int test_cw_rec_identify_mark_internal(cw_test_stats_t * stats);
+unsigned int test_cw_rec_test_with_base_constant(cw_test_stats_t * stats);
+unsigned int test_cw_rec_test_with_random_constant(cw_test_stats_t * stats);
+unsigned int test_cw_rec_test_with_random_varying(cw_test_stats_t * stats);
+unsigned int test_cw_rec_get_parameters(cw_test_stats_t * stats);
+unsigned int test_cw_rec_parameter_getters_setters_1(cw_test_stats_t * stats);
+unsigned int test_cw_rec_parameter_getters_setters_2(cw_test_stats_t * stats);
+
 
 #endif /* #ifdef LIBCW_UNIT_TESTS */
 

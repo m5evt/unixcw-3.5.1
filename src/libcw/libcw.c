@@ -1754,7 +1754,7 @@ int cw_get_receive_buffer_length(void)
 */
 void cw_reset_receive(void)
 {
-	cw_rec_reset_internal(&cw_receiver);
+	cw_rec_reset_state(&cw_receiver);
 
 	return;
 }
