@@ -138,7 +138,7 @@ static volatile cw_key_t cw_key = {
 	.rec = &cw_receiver,
 
 
-	.key_callback = NULL,
+	.key_callback_func = NULL,
 	.key_callback_arg = NULL,
 
 

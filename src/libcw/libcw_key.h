@@ -37,7 +37,8 @@ enum {
 
 
 
-
+//typedef void (* cw_key_callback_t)(struct timeval *timestamp, int key_state, void* arg);
+typedef void (* cw_key_callback_t)(void*, int);
 
 struct cw_key_struct {
 	/* Straight key and iambic keyer needs a generator to produce
@@ -45,7 +46,12 @@ struct cw_key_struct {
 	   sound, but sometimes we do want to have it.
 
 	   Additionally iambic keyer needs a generator for timing
-	   purposes.
+	   purposes. Even if we came up with a different mechanism for
+	   timing the key, we still would need to use generator to
+	   produce a sound - then we would have a kind of
+	   duplication. So let's always use a generator. Sometimes for
+	   timing iambic keyer, sometimes for generating sound, but
+	   always the same generator.
 
 	   In any case - a key needs to have access to a generator
 	   (but a generator doesn't need a key). This is why the key
@@ -57,13 +63,19 @@ struct cw_key_struct {
 	/* There should be a binding between key and a receiver.
 
 	   The receiver can get it's properly formed input data (key
-	   down/key up events) from any source, so it's independent
-	   from key. On the other hand the key without receiver is
-	   rather useless. Therefore I think that the key should
-	   contain reference to a receiver, not the other way
-	   around. */
-	cw_rec_t *rec;
+	   down/key up events) from any source (any code that can call
+	   receiver's 'mark_begin()' and 'mark_end()' functions), so
+	   receiver is independent from key. On the other hand the key
+	   without receiver is rather useless. Therefore I think that
+	   the key should contain reference to a receiver, not the
+	   other way around.
 
+	   There may be one purpose of having a key without libcw
+	   receiver: iambic keyer mechanism may be used to ensure a
+	   functioning iambic keyer, but there may be a
+	   different/external/3-rd party receiver that is
+	   controlled/fed by cw_key_t->key_callback_func function. */
+	cw_rec_t * rec;
 
 	/* External "on key state change" callback function and its
 	   argument.
@@ -73,7 +85,7 @@ struct cw_key_struct {
 	   transmitter.  Here is where we keep the address of a
 	   function that is passed to us for this purpose, and a void*
 	   argument for it. */
-	void (*key_callback)(void*, int);
+	cw_key_callback_t key_callback_func;
 	void *key_callback_arg;
 
 
@@ -87,13 +99,13 @@ struct cw_key_struct {
 	   known state of the paddles, and latch false-to-true
 	   transitions while busy, to form the iambic effect.  For
 	   Curtis mode B, the keyer also latches any point where both
-	   paddle states are true at the same time. */
+	   paddle values are CLOSED at the same time. */
 	struct {
 		int graph_state;       /* State of iambic keyer state machine. */
-		int key_value;         /* Open/Closed, Space/Mark, NoSound/Sound. */
+		int key_value;         /* CW_KEY_STATE_OPEN or CW_KEY_STATE_CLOSED (Space/Mark, NoSound/Sound). */
 
-		bool dot_paddle;       /* Dot paddle state */
-		bool dash_paddle;      /* Dash paddle state */
+		bool dot_paddle;       /* Dot paddle value. CW_KEY_STATE_OPEN or CW_KEY_STATE_CLOSED. */
+		bool dash_paddle;      /* Dash paddle value. CW_KEY_STATE_OPEN or CW_KEY_STATE_CLOSED. */
 
 		bool dot_latch;        /* Dot false->true latch */
 		bool dash_latch;       /* Dash false->true latch */
@@ -151,7 +163,7 @@ int  cw_key_ik_notify_dash_paddle_event_internal(volatile cw_key_t *key, int das
 int  cw_key_ik_notify_dot_paddle_event_internal(volatile cw_key_t *key, int dot_paddle_state);
 void cw_key_ik_get_paddles_internal(volatile cw_key_t *key, int *dot_paddle_state, int *dash_paddle_state);
 void cw_key_ik_get_paddle_latches_internal(volatile cw_key_t *key, int *dot_paddle_latch_state, int *dash_paddle_latch_state);
-bool cw_key_ik_is_busy_internal(volatile cw_key_t *key);
+bool cw_key_ik_is_busy_internal(const volatile cw_key_t *key);
 int  cw_key_ik_wait_for_element_internal(volatile cw_key_t *key);
 int  cw_key_ik_wait_for_keyer_internal(volatile cw_key_t *key);
 void cw_key_ik_reset_internal(volatile cw_key_t *key);

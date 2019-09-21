@@ -142,12 +142,9 @@ static const char *cw_iambic_keyer_states[] = {
 
 
 
-
 static int cw_key_ik_update_state_initial_internal(volatile cw_key_t *key);
-
-static int cw_key_ik_enqueue_symbol_internal(volatile cw_key_t *key, int key_value, char symbol);
-static int cw_key_sk_enqueue_symbol_internal(volatile cw_key_t *key, int key_value);
-
+static int cw_key_ik_set_value_internal(volatile cw_key_t *key, int key_value, char symbol);
+static int cw_key_sk_set_value_internal(volatile cw_key_t *key, int key_value);
 
 
 
@@ -155,7 +152,6 @@ static int cw_key_sk_enqueue_symbol_internal(volatile cw_key_t *key, int key_val
 /* ******************************************************************** */
 /*                       Section:Keying control                         */
 /* ******************************************************************** */
-
 
 
 
@@ -185,7 +181,7 @@ void cw_key_register_keying_callback_internal(volatile cw_key_t *key,
 					      void (*callback_func)(void*, int),
 					      void *callback_arg)
 {
-	key->key_callback = callback_func;
+	key->key_callback_func = callback_func;
 	key->key_callback_arg = callback_arg;
 
 	return;
@@ -227,7 +223,7 @@ void cw_key_ik_register_timer_internal(volatile cw_key_t *key, struct timeval *t
 
    Set new value of a key. Filter successive key-down or key-up
    actions into a single action (successive calls with the same value
-   of \p key_state don't change internally registered value of key).
+   of \p key_value don't change internally registered value of key).
 
    If and only if the function registers change of key value, an
    external callback function for keying (if configured) is called.
@@ -242,50 +238,49 @@ void cw_key_ik_register_timer_internal(volatile cw_key_t *key, struct timeval *t
 */
 void cw_key_tk_set_value_internal(volatile cw_key_t *key, int key_value)
 {
-	cw_assert (key, "key is NULL");
+	cw_assert (key, MSG_PREFIX "tk set value: key is NULL");
 
-	if (key->tk.key_value != key_value) {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
-			      MSG_PREFIX_QK "key value: %d->%d", key->tk.key_value, key_value);
-
-		/* Remember the new key value. */
-		key->tk.key_value = key_value;
-
-		/* Call a registered callback. */
-		if (key->key_callback) {
-			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYING, CW_DEBUG_INFO,
-				      MSG_PREFIX_QK "====== about to call callback, key value = %d\n", key->tk.key_value);
-
-			(*(key->key_callback))(key->key_callback_arg, key->tk.key_value);
-		}
-		return;
-	} else {
+	if (key->tk.key_value == key_value) {
 		/* This is not an error. This may happen when
 		   dequeueing 'forever' tone multiple times in a
 		   row. */
 		return;
 	}
+
+	cw_debug_msg (&cw_debug_object, CW_DEBUG_KEYING, CW_DEBUG_INFO,
+		      MSG_PREFIX "tk set value: %d->%d", key->tk.key_value, key_value);
+
+	/* Remember the new key value. */
+	key->tk.key_value = key_value;
+
+	/* Call a registered callback. */
+	if (key->key_callback_func) {
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_KEYING, CW_DEBUG_INFO,
+			      MSG_PREFIX "tk set value: about to call callback, key value = %d\n", key->tk.key_value);
+
+		(*(key->key_callback_func))(key->key_callback_arg, key->tk.key_value);
+	}
+	return;
 }
 
 
 
 
+/**
+   Comment for key used as iambic keyer:
+   Iambic keyer cannot function without an associated generator. A
+   keyer has to have some generator to function correctly. Generator
+   doesn't care if it has any key registered or not. Thus a function
+   binding a keyer and generator belongs to "iambic keyer" module.
 
-/*
-  Comment for key used as iambic keyer:
-  Iambic keyer cannot function without an associated generator. A
-  keyer has to have some generator to function correctly. Generator
-  doesn't care if it has any key registered or not. Thus a function
-  binding a keyer and generator belongs to "iambic keyer" module.
+   Remember that a generator can exist without a keyer. In applications
+   that do nothing related to keying with iambic keyer, having just a
+   generator is a valid situation.
 
-  Remember that a generator can exist without a keyer. In applications
-  that do nothing related to keying with iambic keyer, having just a
-  generator is a valid situation.
+   \reviewed on 2017-01-31
 
-
-
-  \param key - key that needs to have a generator associated with it
-  \param gen - generator to be used with given keyer
+   \param key - key that needs to have a generator associated with it
+   \param gen - generator to be used with given keyer
 */
 void cw_key_register_generator_internal(volatile cw_key_t *key, cw_gen_t *gen)
 {
@@ -299,10 +294,18 @@ void cw_key_register_generator_internal(volatile cw_key_t *key, cw_gen_t *gen)
 
 
 
-
 /**
+   Receiver should somehow receive key events from physical or logical
+   key. This can be done in one of two ways:
 
-   There should be a binding between key and a receiver.
+   1. key events -> key variable -> cw_key_tk_set_value_internal() ->
+      -> registered receiver -> cw_rec_mark_{begin|end}(key->rec, ...)
+   2. key events -> key variable -> cw_key_tk_set_value_internal() ->
+      -> registered callback function-> key->key_callback_function()
+      -> cw_rec_mark_{begin|end}(rec, ...)
+
+   When using the first way, there should be a binding between key and
+   a receiver.
 
    The receiver can get it's properly formed input data (key down/key
    up events) from any source, so it's independent from key. On the
@@ -310,8 +313,10 @@ void cw_key_register_generator_internal(volatile cw_key_t *key, cw_gen_t *gen)
    think that the key should contain reference to a receiver, not the
    other way around.
 
-  \param key - key that needs to have a receiver associated with it
-  \param rec - receiver to be used with given key
+   \reviewed on 2017-01-31
+
+   \param key - key that needs to have a receiver associated with it
+   \param rec - receiver to be used with given key
 */
 void cw_key_register_receiver_internal(volatile cw_key_t *key, cw_rec_t *rec)
 {
@@ -343,48 +348,48 @@ void cw_key_register_receiver_internal(volatile cw_key_t *key, cw_rec_t *rec)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_key_sk_enqueue_symbol_internal(volatile cw_key_t *key, int key_value)
+int cw_key_sk_set_value_internal(volatile cw_key_t *key, int key_value)
 {
-	cw_assert (key, "key is NULL");
-	cw_assert (key->gen, "generator is NULL");
+	cw_assert (key, MSG_PREFIX "sk set value: key is NULL");
+	cw_assert (key->gen, MSG_PREFIX "sk set value: generator is NULL");
 
-	if (key->sk.key_value != key_value) {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
-			      MSG_PREFIX_SK "key value %d->%d", key->sk.key_value, key_value);
-
-		/* Remember the new key value. */
-		key->sk.key_value = key_value;
-
-		/* Call a registered callback. */
-		if (key->key_callback) {
-			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYING, CW_DEBUG_INFO,
-				      MSG_PREFIX_SK "++++++ about to call callback, key value = %d\n", key_value);
-
-			(*(key->key_callback))(key->key_callback_arg, key->sk.key_value);
-		}
-
-		int rv;
-		if (key->sk.key_value == CW_KEY_STATE_CLOSED) {
-			/* In case of straight key we don't know at
-			   all how long the tone should be (we don't
-			   know for how long the key will be closed.
-
-			   Let's enqueue a beginning of mark. A
-			   constant tone will be played until function
-			   receives CW_KEY_STATE_OPEN key state. */
-			rv = cw_gen_enqueue_begin_mark_internal(key->gen);
-		} else {
-			/* CW_KEY_STATE_OPEN, time to go from Mark
-			   (audible tone) to Space (silence). */
-			rv = cw_gen_enqueue_begin_space_internal(key->gen);
-		}
-		cw_assert (rv, "failed to key key value %d", key->sk.key_value);
-		return rv;
-	} else {
+	if (key->sk.key_value == key_value) {
 		/* This may happen when dequeueing 'forever' tone
 		   multiple times in a row. */
 		return CW_SUCCESS;
 	}
+
+	cw_debug_msg (&cw_debug_object, CW_DEBUG_KEYING, CW_DEBUG_INFO,
+		      MSG_PREFIX "sk set value %d->%d", key->sk.key_value, key_value);
+
+	/* Remember the new key value. */
+	key->sk.key_value = key_value;
+
+	/* Call a registered callback. */
+	if (key->key_callback_func) {
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_KEYING, CW_DEBUG_INFO,
+			      MSG_PREFIX "sk set value: about to call callback, key value = %d\n", key->sk.key_value);
+
+		(*(key->key_callback_func))(key->key_callback_arg, key->sk.key_value);
+	}
+
+	int rv;
+	if (key->sk.key_value == CW_KEY_STATE_CLOSED) {
+		/* In case of straight key we don't know at
+		   all how long the tone should be (we don't
+		   know for how long the key will be closed).
+
+		   Let's enqueue a beginning of mark. A
+		   constant tone will be generated until function
+		   receives CW_KEY_STATE_OPEN key state. */
+		rv = cw_gen_enqueue_begin_mark_internal(key->gen);
+	} else {
+		/* CW_KEY_STATE_OPEN, time to go from Mark
+		   (audible tone) to Space (silence). */
+		rv = cw_gen_enqueue_begin_space_internal(key->gen);
+	}
+	cw_assert (CW_SUCCESS == rv, MSG_PREFIX "sk set value: failed to enqueue key value %d", key->sk.key_value);
+	return rv;
 }
 
 
@@ -417,51 +422,51 @@ int cw_key_sk_enqueue_symbol_internal(volatile cw_key_t *key, int key_value)
 
    Function also calls external callback function for keying on every
    change of key's value (if the callback has been registered by
-   client code). Key's value (Open/Closed) is passed to the callback
-   as argument. Callback is called by this function only when there is
-   a change of key value - this function filters successive key-down
-   or key-up actions into a single action.
+   client code). Key's value (CW_KEY_STATE_OPEN/CW_KEY_STATE_CLOSED)
+   is passed to the callback as argument. Callback is called by this
+   function only when there is a change of key value - this function
+   filters successive key-down or key-up actions into a single action.
 
    TODO: explain difference and relation between key's value and
    keyer's graph state.
 
    \param key - current key
-   \param key_value - key value to be set (Mark/Space)
+   \param key_value - key value to be set (CW_KEY_STATE_OPEN/CW_KEY_STATE_CLOSED)
    \param symbol - symbol to enqueue (Space, Dot, Dash)
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_key_ik_enqueue_symbol_internal(volatile cw_key_t *key, int key_value, char symbol)
+int cw_key_ik_set_value_internal(volatile cw_key_t *key, int key_value, char symbol)
 {
 	cw_assert (key, MSG_PREFIX "ik set value: keyer is NULL");
 	cw_assert (key->gen, MSG_PREFIX "ik set value: generator is NULL");
 
-	if (key->ik.key_value != key_value) {
-		cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYING, CW_DEBUG_INFO,
-			      MSG_PREFIX_IK "key value %d->%d", key->ik.key_value, key_value);
-
-		/* Remember the new key value. */
-		key->ik.key_value = key_value;
-
-		/* Call a registered callback. */
-		if (key->key_callback) {
-			cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYING, CW_DEBUG_INFO,
-				      MSG_PREFIX_IK "------ about to call callback, key value = %d\n", key_value);
-
-			(*(key->key_callback))(key->key_callback_arg, key->ik.key_value);
-		}
-
-		/* 'Pure' means without any end-of-mark spaces. */
-		int rv = cw_gen_enqueue_partial_symbol_internal(key->gen, symbol);
-		cw_assert (rv, "failed to key symbol '%c'", symbol);
-		return rv;
-	} else {
+	if (key->ik.key_value == key_value) {
 		/* This is not an error. This may happen when
 		   dequeueing 'forever' tone multiple times in a
 		   row. */
 		return CW_SUCCESS;
 	}
+
+	cw_debug_msg (&cw_debug_object, CW_DEBUG_KEYING, CW_DEBUG_INFO,
+		      MSG_PREFIX "ik set value %d->%d", key->ik.key_value, key_value);
+
+	/* Remember the new key value. */
+	key->ik.key_value = key_value;
+
+	/* Call a registered callback. */
+	if (key->key_callback_func) {
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_KEYING, CW_DEBUG_INFO,
+			      MSG_PREFIX "ik set value: about to call callback, key value = %d\n", key->ik.key_value);
+
+		(*(key->key_callback_func))(key->key_callback_arg, key->ik.key_value);
+	}
+
+	/* 'Partial' means without any end-of-mark spaces. */
+	int rv = cw_gen_enqueue_partial_symbol_internal(key->gen, symbol);
+	cw_assert (CW_SUCCESS == rv, MSG_PREFIX "ik set value: failed to key symbol '%c'", symbol);
+	return rv;
 }
 
 
@@ -485,6 +490,8 @@ int cw_key_ik_enqueue_symbol_internal(volatile cw_key_t *key, int key_value, cha
    element is also sent. Some operators prefer mode B, but timing is
    more critical in this mode. The default mode is Curtis mode A.
 
+   \reviewed on 2017-01-31
+
    \param key
 */
 void cw_key_ik_enable_curtis_mode_b_internal(volatile cw_key_t *key)
@@ -498,6 +505,8 @@ void cw_key_ik_enable_curtis_mode_b_internal(volatile cw_key_t *key)
 
 /**
    See documentation of cw_key_ik_enable_curtis_mode_b() for more information
+
+   \reviewed on 2017-01-31
 
    \param key
 */
@@ -513,6 +522,8 @@ void cw_key_ik_disable_curtis_mode_b_internal(volatile cw_key_t *key)
 /**
    See documentation of cw_enable_iambic_curtis_mode_b() for more information
 
+   \reviewed on 2017-01-31
+
    \param key
 
    \return true if Curtis mode is enabled for the key
@@ -527,7 +538,7 @@ bool cw_key_ik_get_curtis_mode_b_state_internal(volatile cw_key_t *key)
 
 
 /**
-   \brief Update state of iambic keyer, queue tone representing state of the iambic keyer
+   \brief Update state of iambic keyer, enqueue tone representing state of the iambic keyer
 
    It seems that the function is called when a client code informs
    about change of state of one of paddles. So I think what the
@@ -574,8 +585,12 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 	key->ik.lock = true;
 
 	/* Synchronize low level timing parameters if required. */
-	cw_gen_sync_parameters_internal(key->gen);
-	cw_rec_sync_parameters_internal(key->rec);
+	if (key->gen) {
+		cw_gen_sync_parameters_internal(key->gen);
+	}
+	if (key->rec) {
+		cw_rec_sync_parameters_internal(key->rec);
+	}
 
 	int old_state = key->ik.graph_state;
 
@@ -596,14 +611,11 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 			   MSG_PREFIX "ik update: inconsistency between keyer state (%s) ad key value (%d)",
 			   cw_iambic_keyer_states[key->ik.graph_state], key->ik.key_value);
 
-		/* We are ending a dot, so turn off tone and begin the
-		   after-dot delay.
-		   No routine status checks are made since we are in a
-		   signal handler, and can't readily return error
-		   codes to the client. */
-		cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_OPEN, CW_SYMBOL_SPACE);
-		key->ik.graph_state = key->ik.graph_state == KS_IN_DOT_A
-			? KS_AFTER_DOT_A : KS_AFTER_DOT_B;
+		/* We are ending a Dot, so turn off tone and begin the
+		   after-dot Space.
+		   No routine status checks are made! (TODO) */
+		cw_key_ik_set_value_internal(key, CW_KEY_STATE_OPEN, CW_SYMBOL_SPACE);
+		key->ik.graph_state = key->ik.graph_state == KS_IN_DOT_A ? KS_AFTER_DOT_A : KS_AFTER_DOT_B;
 		break;
 
 	case KS_IN_DASH_A:
@@ -615,15 +627,11 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 			   MSG_PREFIX "ik update: inconsistency between keyer state (%s) ad key value (%d)",
 			   cw_iambic_keyer_states[key->ik.graph_state], key->ik.key_value);
 
-		/* We are ending a dash, so turn off tone and begin
-		   the after-dash delay.
-		   No routine status checks are made since we are in a
-		   signal handler, and can't readily return error
-		   codes to the client. */
-		cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_OPEN, CW_SYMBOL_SPACE);
-		key->ik.graph_state = key->ik.graph_state == KS_IN_DASH_A
-			? KS_AFTER_DASH_A : KS_AFTER_DASH_B;
-
+		/* We are ending a Dash, so turn off tone and begin
+		   the after-dash Space.
+		   No routine status checks are made! (TODO) */
+		cw_key_ik_set_value_internal(key, CW_KEY_STATE_OPEN, CW_SYMBOL_SPACE);
+		key->ik.graph_state = key->ik.graph_state == KS_IN_DASH_A ? KS_AFTER_DASH_A : KS_AFTER_DASH_B;
 		break;
 
 	case KS_AFTER_DOT_A:
@@ -653,18 +661,19 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 		}
 
 		if (key->ik.graph_state == KS_AFTER_DOT_B) {
-			cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_CLOSED, CW_DASH_REPRESENTATION);
+			cw_key_ik_set_value_internal(key, CW_KEY_STATE_CLOSED, CW_DASH_REPRESENTATION);
 			key->ik.graph_state = KS_IN_DASH_A;
+
 		} else if (key->ik.dash_latch) {
-			cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_CLOSED, CW_DASH_REPRESENTATION);
-			if (key->ik.curtis_b_latch){
+			cw_key_ik_set_value_internal(key, CW_KEY_STATE_CLOSED, CW_DASH_REPRESENTATION);
+			if (key->ik.curtis_b_latch) {
 				key->ik.curtis_b_latch = false;
 				key->ik.graph_state = KS_IN_DASH_B;
 			} else {
 				key->ik.graph_state = KS_IN_DASH_A;
 			}
 		} else if (key->ik.dot_latch) {
-			cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_CLOSED, CW_DOT_REPRESENTATION);
+			cw_key_ik_set_value_internal(key, CW_KEY_STATE_CLOSED, CW_DOT_REPRESENTATION);
 			key->ik.graph_state = KS_IN_DOT_A;
 		} else {
 			key->ik.graph_state = KS_IDLE;
@@ -700,10 +709,11 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 		   idling. */
 
 		if (key->ik.graph_state == KS_AFTER_DASH_B) {
-			cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_CLOSED, CW_DOT_REPRESENTATION);
+			cw_key_ik_set_value_internal(key, CW_KEY_STATE_CLOSED, CW_DOT_REPRESENTATION);
 			key->ik.graph_state = KS_IN_DOT_A;
+
 		} else if (key->ik.dot_latch) {
-			cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_CLOSED, CW_DOT_REPRESENTATION);
+			cw_key_ik_set_value_internal(key, CW_KEY_STATE_CLOSED, CW_DOT_REPRESENTATION);
 			if (key->ik.curtis_b_latch) {
 				key->ik.curtis_b_latch = false;
 				key->ik.graph_state = KS_IN_DOT_B;
@@ -711,7 +721,7 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 				key->ik.graph_state = KS_IN_DOT_A;
 			}
 		} else if (key->ik.dash_latch) {
-			cw_key_ik_enqueue_symbol_internal(key, CW_KEY_STATE_CLOSED, CW_DASH_REPRESENTATION);
+			cw_key_ik_set_value_internal(key, CW_KEY_STATE_CLOSED, CW_DASH_REPRESENTATION);
 			key->ik.graph_state = KS_IN_DASH_A;
 		} else {
 			key->ik.graph_state = KS_IDLE;
@@ -737,8 +747,8 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 
    Function informs the library that the iambic keyer paddles have
    changed state.  The new paddle states are recorded, and if either
-   transition from false to true, paddle latches (for iambic
-   functions) are also set.
+   transition from CW_KEY_STATE_OPEN to CW_KEY_STATE_CLOSED, paddle
+   latches (for iambic functions) are also set.
 
    On success, the routine returns CW_SUCCESS.
    On failure, it returns CW_FAILURE, with errno set to EBUSY if the
@@ -753,8 +763,8 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 
 
    \param key
-   \param dot_paddle_state
-   \param dash_paddle_state
+   \param dot_paddle_state: CW_KEY_STATE_CLOSED or CW_KEY_STATE_OPEN
+   \param dash_paddle_state: CW_KEY_STATE_CLOSED or CW_KEY_STATE_OPEN
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
@@ -772,30 +782,41 @@ int cw_key_ik_notify_paddle_event_internal(volatile cw_key_t *key, int dot_paddl
 #endif
 
 	/* Clean up and save the paddle states passed in. */
+#if 0    /* This code has been disabled on 2017-01-31. */
 	key->ik.dot_paddle = (dot_paddle_state != 0);
 	key->ik.dash_paddle = (dash_paddle_state != 0);
+#else
+	key->ik.dot_paddle = dot_paddle_state;
+	key->ik.dash_paddle = dash_paddle_state;
+#endif
 
-	/* Update the paddle latches if either paddle goes true.
-	   The latches are checked in the signal handler, so if the paddles
-	   go back to false during this element, the item still gets
-	   actioned.  The signal handler is also responsible for clearing
-	   down the latches. */
-	if (key->ik.dot_paddle) {
+	/* Update the paddle latches if either paddle goes CLOSED.
+	   The latches are checked in the signal handler, so if the
+	   paddles go back to OPEN during this element, the item still
+	   gets actioned.  The signal handler is also responsible for
+	   clearing down the latches. TODO: verify the comment. */
+	if (key->ik.dot_paddle == CW_KEY_STATE_CLOSED) {
 		key->ik.dot_latch = true;
 	}
-	if (key->ik.dash_paddle) {
+	if (key->ik.dash_paddle == CW_KEY_STATE_CLOSED) {
 		key->ik.dash_latch = true;
 	}
 
-	/* If in Curtis mode B, make a special check for both paddles true
-	   at the same time.  This flag is checked by the signal handler,
-	   to determine whether to add mode B trailing timing elements. */
-	if (key->ik.curtis_mode_b && key->ik.dot_paddle && key->ik.dash_paddle) {
+
+	if (key->ik.curtis_mode_b
+	    && key->ik.dot_paddle == CW_KEY_STATE_CLOSED
+	    && key->ik.dash_paddle == CW_KEY_STATE_CLOSED) {
+
+		/* Both paddles closed at the same time in Curtis mode B.
+
+		   This flag is checked by the signal handler, to
+		   determine whether to add mode B trailing timing
+		   elements. TODO: verify this comment. */
 		key->ik.curtis_b_latch = true;
 	}
 
-	cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYER_STATES, CW_DEBUG_INFO,
-		      MSG_PREFIX_IK "keyer paddles %d,%d, latches %d,%d, curtis_b %d",
+	cw_debug_msg (&cw_debug_object, CW_DEBUG_KEYER_STATES, CW_DEBUG_INFO,
+		      MSG_PREFIX "ik notify: paddles %d,%d, latches %d,%d, curtis_b %d",
 		      key->ik.dot_paddle, key->ik.dash_paddle,
 		      key->ik.dot_latch, key->ik.dash_latch, key->ik.curtis_b_latch);
 
@@ -835,10 +856,10 @@ int cw_key_ik_notify_paddle_event_internal(volatile cw_key_t *key, int dot_paddl
 */
 int cw_key_ik_update_state_initial_internal(volatile cw_key_t *key)
 {
-	cw_assert (key, "keyer is NULL");
-	cw_assert (key->gen, "generator is NULL");
+	cw_assert (key, MSG_PREFIX "ik update initial: keyer is NULL");
+	cw_assert (key->gen, MSG_PREFIX "ik update initial: generator is NULL");
 
-	if (!key->ik.dot_paddle && !key->ik.dash_paddle) {
+	if (key->ik.dot_paddle == CW_KEY_STATE_OPEN && key->ik.dash_paddle == CW_KEY_STATE_OPEN) {
 		/* Both paddles are open/up. We certainly don't want
 		   to start any process upon "both paddles open"
 		   event. But the function shouldn't have been called
@@ -854,14 +875,14 @@ int cw_key_ik_update_state_initial_internal(volatile cw_key_t *key)
 
 	int old_state = key->ik.graph_state;
 
-	if (key->ik.dot_paddle) {
+	if (key->ik.dot_paddle == CW_KEY_STATE_CLOSED) {
 		/* "Dot" paddle pressed. Pretend that we are in "after
 		   dash" space, so that keyer will have to transit
 		   into "dot" mark state. */
 		key->ik.graph_state = key->ik.curtis_b_latch
 			? KS_AFTER_DASH_B : KS_AFTER_DASH_A;
 
-	} else { /* key->ik.dash_paddle */
+	} else { /* key->ik.dash_paddle == CW_KEY_STATE_CLOSED */
 		/* "Dash" paddle pressed. Pretend that we are in
 		   "after dot" space, so that keyer will have to
 		   transit into "dash" mark state. */
@@ -876,7 +897,8 @@ int cw_key_ik_update_state_initial_internal(volatile cw_key_t *key)
 
 
 	/* Here comes the "real" initial transition - this is why we
-	   called this function. */
+	   called this function. We will transition from state set
+	   above into "real" state, reflecting state of paddles. */
 	int rv = cw_key_ik_update_graph_state_internal(key);
 	if (rv == CW_FAILURE) {
 		cw_debug_msg (&cw_debug_object, CW_DEBUG_KEYER_STATES, CW_DEBUG_ERROR,
@@ -884,7 +906,7 @@ int cw_key_ik_update_state_initial_internal(volatile cw_key_t *key)
 		/* Just try again, once. */
 		usleep(1000);
 		rv = cw_key_ik_update_graph_state_internal(key);
-		if (!rv) {
+		if (rv == CW_FAILURE) {
 			cw_debug_msg (&cw_debug_object, CW_DEBUG_KEYER_STATES, CW_DEBUG_ERROR,
 				      MSG_PREFIX "ik update initial: call to update_state_initial() failed twice");
 		}
@@ -899,14 +921,13 @@ int cw_key_ik_update_state_initial_internal(volatile cw_key_t *key)
 /**
    \brief Change state of Dot paddle
 
-   Alter the state of just one of the two iambic keyer paddles.
-   The other paddle state of the paddle pair remains unchanged.
+   Alter the state of Dot paddle. State of Dash paddle remains unchanged.
 
    See cw_key_ik_notify_paddle_event_internal() for details of iambic
    keyer background processing, and how to check its status.
 
    \param key
-   \param dot_paddle_state
+   \param dot_paddle_state: CW_KEY_STATE_CLOSED or CW_KEY_STATE_OPEN
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
@@ -920,10 +941,14 @@ int cw_key_ik_notify_dot_paddle_event_internal(volatile cw_key_t *key, int dot_p
 
 
 /**
+   \brief Change state of Dash paddle
+
+   Alter the state of Dash paddle. State of Dot paddle remains unchanged.
+
    See documentation of cw_notify_keyer_dot_paddle_event() for more information
 
    \param key
-   \param dash_paddle_state
+   \param dash_paddle_state: CW_KEY_STATE_CLOSED or CW_KEY_STATE_OPEN
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
@@ -939,9 +964,11 @@ int cw_key_ik_notify_dash_paddle_event_internal(volatile cw_key_t *key, int dash
 /**
    \brief Get the current saved states of the two paddles
 
+   Either of the last two arguments can be NULL - it won't be updated then.
+
    \param key
-   \param dot_paddle_state
-   \param dash_paddle_state
+   \param dot_paddle_state: will be updated with CW_KEY_STATE_CLOSED or CW_KEY_STATE_OPEN value
+   \param dash_paddle_state: will be updated with CW_KEY_STATE_CLOSED or CW_KEY_STATE_OPEN value
 */
 void cw_key_ik_get_paddles_internal(volatile cw_key_t *key, int *dot_paddle_state, int *dash_paddle_state)
 {
@@ -961,15 +988,17 @@ void cw_key_ik_get_paddles_internal(volatile cw_key_t *key, int *dot_paddle_stat
    \brief Get the current states of paddle latches
 
    Function returns the current saved states of the two paddle latches.
-   A paddle latches is set to true when the paddle state becomes true,
-   and is cleared if the paddle state is false when the element finishes
+   A paddle latch is set to true when the paddle state becomes CLOSED,
+   and is cleared if the paddle state is OPEN when the element finishes
    sending.
 
+   Either of the last two arguments can be NULL - it won't be updated then.
+
    \param key
-   \param dot_paddle_latch_state
-   \param dash_paddle_latch_state
+   \param dot_paddle_latch_state: will be updated with true or false: TODO: true/false or OPEN/CLOSED?
+   \param dash_paddle_latch_state: will be updated with true or false
 */
-void cw_key_ik_get_paddle_latches_internal(volatile cw_key_t *key, int *dot_paddle_latch_state, int *dash_paddle_latch_state)
+void cw_key_ik_get_paddle_latches_internal(volatile cw_key_t * key, /* out */ int * dot_paddle_latch_state, /* out */ int * dash_paddle_latch_state)
 {
 	if (dot_paddle_latch_state) {
 		*dot_paddle_latch_state = key->ik.dot_latch;
@@ -988,10 +1017,10 @@ void cw_key_ik_get_paddle_latches_internal(volatile cw_key_t *key, int *dot_padd
 
    \param key
 
-   \return true if keyer is busy
-   \return false if keyer is not busy
+   \return true if keyer is busy (keyer's state is other than IDLE)
+   \return false if keyer is not busy (keyer's state is IDLE)
 */
-bool cw_key_ik_is_busy_internal(volatile cw_key_t *key)
+bool cw_key_ik_is_busy_internal(const volatile cw_key_t *key)
 {
 	return key->ik.graph_state != KS_IDLE;
 }
@@ -1003,7 +1032,7 @@ bool cw_key_ik_is_busy_internal(volatile cw_key_t *key)
 /**
    \brief Wait for end of element from the keyer
 
-   Waits until the end of the current element, dot or dash, from the keyer.
+   Waits until the end of the current element, Dot or Dash, from the keyer.
 
    On error the function returns CW_FAILURE, with errno set to
    EDEADLK if SIGALRM is blocked.
@@ -1075,10 +1104,10 @@ int cw_key_ik_wait_for_keyer_internal(volatile cw_key_t *key)
 		return CW_FAILURE;
 	}
 
-	/* Check that neither paddle is true; if either is, then the signal
-	   cycle is going to continue forever, and we'll never return from
-	   this routine. */
-	if (key->ik.dot_paddle || key->ik.dash_paddle) {
+	/* Check that neither paddle is CLOSED; if either is, then the
+	   signal cycle is going to continue forever, and we'll never
+	   return from this routine. TODO: verify this comment. */
+	if (key->ik.dot_paddle == CW_KEY_STATE_CLOSED || key->ik.dash_paddle == CW_KEY_STATE_CLOSED) {
 		errno = EDEADLK;
 		return CW_FAILURE;
 	}
@@ -1105,23 +1134,25 @@ int cw_key_ik_wait_for_keyer_internal(volatile cw_key_t *key)
 */
 void cw_key_ik_reset_internal(volatile cw_key_t *key)
 {
-	key->ik.dot_paddle = false;
-	key->ik.dash_paddle = false;
+	cw_debug_msg (&cw_debug_object, CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
+		      MSG_PREFIX "ik reset: keyer state %s -> KS_IDLE", cw_iambic_keyer_states[key->ik.graph_state]);
+	key->ik.graph_state = KS_IDLE;
+
+	key->ik.key_value = CW_KEY_STATE_OPEN;
+
+	key->ik.dot_paddle = CW_KEY_STATE_OPEN;
+	key->ik.dash_paddle = CW_KEY_STATE_OPEN;
 	key->ik.dot_latch = false;
 	key->ik.dash_latch = false;
-	key->ik.curtis_b_latch = false;
 	key->ik.curtis_mode_b = false;
-
-	cw_debug_msg ((&cw_debug_object), CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
-		      MSG_PREFIX_IK "keyer state %s -> KS_IDLE", cw_iambic_keyer_states[key->ik.graph_state]);
-	key->ik.graph_state = KS_IDLE;
+	key->ik.curtis_b_latch = false;
 
 	/* Silence sound and stop any background soundcard tone generation. */
 	cw_gen_silence_internal(key->gen);
 	cw_finalization_schedule_internal();
 
-	cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
-		      MSG_PREFIX_IK "keyer state -> %s (reset)", cw_iambic_keyer_states[key->ik.graph_state]);
+	cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_KEYER_STATES, CW_DEBUG_DEBUG,
+		      MSG_PREFIX "ik reset: keyer state -> %s (reset)", cw_iambic_keyer_states[key->ik.graph_state]);
 
 	return;
 }
@@ -1185,24 +1216,20 @@ void cw_key_ik_increment_timer_internal(volatile cw_key_t *key, int usecs)
 
 
 /**
-   \brief Inform the library that the straight key has changed state
+   \brief Set new value of straight key
 
-   This routine returns CW_SUCCESS on success.  On error, it returns CW_FAILURE,
-   with errno set to EBUSY if the tone queue or iambic keyer are using
-   the sound card, console speaker, or keying control system.  If
-   \p key_state indicates no change of state, the call is ignored.
+   If \p key_value indicates no change of state, the call is ignored.
 
-   \p key_state may be either CW_KEY_STATE_OPEN (false) or CW_KEY_STATE_CLOSED (true).
 
-   \param key
-   \param key_state - state of straight key
+   \param key - straight key to update
+   \param key_value - new value of straight key (CW_KEY_STATE_OPEN / CW_KEY_STATE_CLOSED)
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_key_sk_notify_event_internal(volatile cw_key_t *key, int key_state)
+int cw_key_sk_notify_event_internal(volatile cw_key_t *key, int key_value)
 {
-#if 0 /* This is disabled, but I'm not sure why. */
+#if 0 /* This is disabled, but I'm not sure why. */  /* This code has been disabled some time before 2017-01-31. */
 	/* If the tone queue or the keyer are busy, we can't use the
 	   sound card, console sounder, or the key control system. */
 	if (cw_tq_is_busy_internal(key->gen->tq) || cw_key_ik_is_busy_internal(key)) {
@@ -1213,7 +1240,7 @@ int cw_key_sk_notify_event_internal(volatile cw_key_t *key, int key_state)
 
 	/* Do tones and keying, and set up timeouts and soundcard
 	   activities to match the new key state. */
-	int rv = cw_key_sk_enqueue_symbol_internal(key, key_state);
+	int rv = cw_key_sk_set_value_internal(key, key_value);
 
 #if 0 /* Disabled since we don't do finalization anymore. */
 	if (key->sk.key_value == CW_KEY_STATE_OPEN) {
@@ -1232,22 +1259,22 @@ int cw_key_sk_notify_event_internal(volatile cw_key_t *key, int key_state)
 
 
 
-
 /**
-   \brief Get saved state of straight key
+   \brief Get current value of straight key
 
-   Returns the current saved state of the straight key.
+   Returns the current value of the straight key.
+
+   \reviewed on 2017-01-31
 
    \param key
 
-   \return CW_KEY_STATE_CLOSED (true) if the key is down
-   \return CW_KEY_STATE_OPEN (false) if the key up
+   \return CW_KEY_STATE_CLOSED if the key is down
+   \return CW_KEY_STATE_OPEN if the key up
 */
 int cw_key_sk_get_state_internal(volatile cw_key_t *key)
 {
 	return key->sk.key_value;
 }
-
 
 
 
@@ -1260,6 +1287,8 @@ int cw_key_sk_get_state_internal(volatile cw_key_t *key)
    API naming conventions. TODO: verify if this function is needed in
    new API.
 
+   \reviewed on 2017-01-31
+
    \param key
 
    \return true if the straight key is busy
@@ -1269,7 +1298,6 @@ bool cw_key_sk_is_busy_internal(volatile cw_key_t *key)
 {
 	return key->sk.key_value;
 }
-
 
 
 
@@ -1289,8 +1317,8 @@ void cw_key_sk_reset_internal(volatile cw_key_t *key)
 	cw_gen_silence_internal(key->gen);
 	//cw_finalization_schedule_internal();
 
-	cw_debug_msg ((&cw_debug_object), CW_DEBUG_STRAIGHT_KEY_STATES, CW_DEBUG_INFO,
-		      MSG_PREFIX_SK "key state ->UP (reset)");
+	cw_debug_msg (&cw_debug_object, CW_DEBUG_STRAIGHT_KEY_STATES, CW_DEBUG_INFO,
+		      MSG_PREFIX "sk: key state ->OPEN (reset)");
 
 	return;
 }
