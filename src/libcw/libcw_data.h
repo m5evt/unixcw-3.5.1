@@ -15,9 +15,9 @@
 
 
 
-typedef struct cw_entry_struct{
-	const char character;              /* Character represented. */
-	const char *const representation;  /* Dot-dash pattern of the character. */
+typedef struct cw_entry_struct {
+	const char character;               /* Character represented. */
+	const char *const representation;   /* Dot-dash pattern of the character. */
 } cw_entry_t;
 
 

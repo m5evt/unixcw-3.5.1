@@ -155,9 +155,25 @@ void cw_dev_debug_print_generator_setup(const cw_gen_t * gen);
 
 
 #ifdef LIBCW_UNIT_TESTS
-unsigned int test_cw_debug_flags_internal(void);
+
+#include "libcw_test.h"
+
+
+unsigned int test_cw_debug_flags_internal(cw_test_stats_t * stats);
 #endif /* #ifdef LIBCW_UNIT_TESTS */
 
+
+
+
+/* FIXME: make it appear only in debug builds. */
+#define libcw_sem_printvalue(m_semaphore, m_tq_len, m_log_prefix) \
+	{								\
+		int m_val = 0;						\
+		int m_ret = sem_getvalue((m_semaphore), &m_val);	\
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_TONE_QUEUE, CW_DEBUG_INFO, \
+			      "%s; semaphore = %d, len = %d, ret = %d",	\
+			      m_log_prefix, m_val, m_tq_len, m_ret);	\
+	}
 
 
 

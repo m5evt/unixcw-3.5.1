@@ -241,27 +241,13 @@ void cw_tq_handle_backspace_internal(cw_tone_queue_t *tq);
 
 
 
-
 #ifdef LIBCW_UNIT_TESTS
 
 #include "libcw_test.h"
 
-////unsigned int test_cw_tq_new_delete_internal(void);
+
 unsigned int test_cw_tq_init_internal(void);
-////unsigned int test_cw_tq_get_capacity_internal(void);
-////unsigned int test_cw_tq_prev_index_internal(void);
-////unsigned int test_cw_tq_next_index_internal(void);
-////unsigned int test_cw_tq_length_internal(void);
-////unsigned int test_cw_tq_enqueue_dequeue_internal(void);
 unsigned int test_cw_tq_enqueue_internal_2(void);
-////unsigned int test_cw_tq_is_full_internal(void);
-////unsigned int test_cw_tq_test_capacity_1(void);
-////unsigned int test_cw_tq_test_capacity_2(void);
-// unsigned int test_cw_queue_tone(void); /* No such function. */
-////unsigned int test_cw_tq_wait_for_level_internal(void);
-
-
-
 unsigned int test_cw_tq_test_capacity_1(cw_test_stats_t * stats);
 unsigned int test_cw_tq_test_capacity_2(cw_test_stats_t * stats);
 unsigned int test_cw_tq_wait_for_level_internal(cw_test_stats_t * stats);

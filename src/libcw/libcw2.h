@@ -10,6 +10,9 @@ void       cw_gen_delete(cw_gen_t ** gen);
 int        cw_gen_stop(cw_gen_t * gen);
 int        cw_gen_start(cw_gen_t * gen);
 
+typedef void (* cw_queue_low_callback_t)(void*);
+
+int cw_gen_set_tone_slope(cw_gen_t * gen, int slope_shape, int slope_len);
 
 /* Setters of generator's basic parameters. */
 int cw_gen_set_speed(cw_gen_t * gen, int new_value);

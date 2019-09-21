@@ -676,7 +676,7 @@ int cw_send_word_space(void)
 */
 int cw_send_representation(const char *representation)
 {
-	return cw_gen_enqueue_representation_partial_internal(cw_generator, representation, false);
+	return cw_gen_enqueue_representation_partial_internal(cw_generator, representation);
 }
 
 
@@ -701,7 +701,7 @@ int cw_send_representation(const char *representation)
 */
 int cw_send_representation_partial(const char *representation)
 {
-	return cw_gen_enqueue_representation_partial_internal(cw_generator, representation, true);
+	return cw_gen_enqueue_representation_partial_internal(cw_generator, representation);
 }
 
 

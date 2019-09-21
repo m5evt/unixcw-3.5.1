@@ -442,23 +442,37 @@ void cw_debug_event_internal(cw_debug_t *debug_object, uint32_t flag, uint32_t e
    tests::cw_debug_set_flags()
    tests::cw_debug_get_flags()
 */
-unsigned int test_cw_debug_flags_internal(void)
+unsigned int test_cw_debug_flags_internal(cw_test_stats_t * stats)
 {
 	/* Store current flags for period of tests. */
 	uint32_t flags_backup = cw_debug_get_flags(&cw_debug_object);
+	bool set_failure = true;
+	bool get_failure = true;
+	int n = 0;
 
 	for (uint32_t i = 1; i <= CW_DEBUG_MASK; i++) {
 		cw_debug_set_flags(&cw_debug_object, i);
 
-		cw_assert ((&cw_debug_object)->flags & i,
-			   "Failed to set debug flag %"PRIu32"\n", i);
+		set_failure = !((&cw_debug_object)->flags & i);
+		if (set_failure) {
+			fprintf(out_file, MSG_PREFIX "failed to set debug flag %"PRIu32"\n", i);
+			break;
+		}
 
-		cw_assert (cw_debug_get_flags(&cw_debug_object) == i,
-			   "Failed to get debug flag %"PRIu32"\n", i);
+		get_failure = (cw_debug_get_flags(&cw_debug_object) != i);
+		if (get_failure) {
+			fprintf(out_file, MSG_PREFIX "failed to get debug flag %"PRIu32"\n", i);
+			break;
+		}
 	}
 
-	int n = printf(MSG_PREFIX "cw_debug_set/get_flags():");
-	CW_TEST_PRINT_TEST_RESULT (false, n);
+	set_failure ? stats->failures++ : stats->successes++;
+	n = fprintf(out_file, MSG_PREFIX "set:");
+	CW_TEST_PRINT_TEST_RESULT (set_failure, n);
+
+	get_failure ? stats->failures++ : stats->successes++;
+	n = fprintf(out_file, MSG_PREFIX "get:");
+	CW_TEST_PRINT_TEST_RESULT (get_failure, n);
 
 	/* Restore original flags. */
 	cw_debug_set_flags(&cw_debug_object, flags_backup);

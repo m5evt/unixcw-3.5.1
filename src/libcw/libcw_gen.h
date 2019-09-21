@@ -378,9 +378,9 @@ int cw_gen_enqueue_partial_symbol_internal(cw_gen_t *gen, char symbol);
 
 
 
-int cw_gen_enqueue_representation_partial_internal(cw_gen_t *gen, const char *representation, bool partial);
-int cw_gen_enqueue_valid_character_internal(cw_gen_t *gen, char c);
-int cw_gen_enqueue_character_partial(cw_gen_t *gen, char c);
+int cw_gen_enqueue_representation_partial_internal(cw_gen_t * gen, const char * representation);
+int cw_gen_enqueue_valid_character_internal(cw_gen_t * gen, char c);
+int cw_gen_enqueue_character_partial(cw_gen_t * gen, char c);
 
 
 
@@ -400,10 +400,18 @@ void cw_gen_sync_parameters_internal(cw_gen_t *gen);
 
 #ifdef LIBCW_UNIT_TESTS
 
-unsigned int test_cw_generator_set_tone_slope(void);
-unsigned int test_cw_gen_tone_slope_shape_enums(void);
-unsigned int test_cw_gen_new_delete_internal(void);
-unsigned int test_cw_gen_forever_internal(void);
+unsigned int test_cw_gen_set_tone_slope(cw_test_stats_t * stats);
+unsigned int test_cw_gen_tone_slope_shape_enums(cw_test_stats_t * stats);
+unsigned int test_cw_gen_new_delete(cw_test_stats_t * stats);
+unsigned int test_cw_gen_forever_internal(cw_test_stats_t * stats);
+unsigned int test_cw_gen_get_timing_parameters_internal(cw_test_stats_t * stats);
+unsigned int test_cw_gen_parameter_getters_setters(cw_test_stats_t * stats);
+unsigned int test_cw_gen_volume_functions(cw_test_stats_t * stats);
+unsigned int test_cw_gen_enqueue_primitives(cw_test_stats_t * stats);
+unsigned int test_cw_gen_enqueue_representations(cw_test_stats_t * stats);
+unsigned int test_cw_gen_enqueue_character_and_string(cw_test_stats_t * stats);
+
+
 
 
 /* This is helper function (performing the real test), used in
@@ -417,7 +425,7 @@ unsigned int test_cw_gen_forever_internal(void);
    So libcw_test_internal does basic tests ("does it work at all?"),
    and libcw_test_public does full test.
 */
-unsigned int test_cw_gen_forever_sub(int seconds, int audio_system, const char *audio_device);
+unsigned int test_cw_gen_forever_sub(cw_test_stats_t * stats, int seconds, int audio_system, const char *audio_device);
 
 #endif /* #ifdef LIBCW_UNIT_TESTS */
 

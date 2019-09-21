@@ -75,11 +75,6 @@ typedef unsigned int (*cw_test_function2_t)(cw_test_stats_t * stats);
 
 static cw_test_function_t cw_unit_tests[] = {
 
-	/* cw_gen module */
-	test_cw_generator_set_tone_slope,
-	test_cw_gen_tone_slope_shape_enums,
-	test_cw_gen_new_delete_internal,
-	test_cw_gen_forever_internal,
 
 	/* cw_rec module */
 	test_cw_rec_identify_mark_internal,
@@ -121,6 +116,12 @@ static cw_test_function2_t cw_unit_tests2[] = {
 	test_cw_tq_test_capacity_1,
 	test_cw_tq_test_capacity_2,
 	test_cw_tq_wait_for_level_internal,
+
+	/* cw_gen module */
+	test_cw_gen_set_tone_slope,
+	test_cw_gen_tone_slope_shape_enums,
+	test_cw_gen_new_delete,
+	test_cw_gen_forever_internal,
 
 
 	/* cw_utils module */
