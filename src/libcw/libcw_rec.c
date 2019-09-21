@@ -470,7 +470,7 @@ void cw_rec_get_parameters_internal(cw_rec_t *rec,
 
    The default noise spike threshold is 10000 microseconds.
 
-   errno is set to EINVAL if \p new_value is out of range.
+   \errno EINVAL - \p new_value is out of range.
 
    \param rec - receiver
    \param new_value - new value of noise spike threshold to be set in receiver
@@ -669,10 +669,8 @@ void cw_rec_update_stats_internal(cw_rec_t *rec, stat_type_t type, int len)
 /**
    \brief Calculate and return length statistics for given type of mark or space
 
-   \p type may be: CW_REC_STAT_DOT or CW_REC_STAT_DASH or CW_REC_STAT_IMARK_SPACE or CW_REC_STAT_ICHAR_SPACE
-
    \param rec - receiver
-   \param type - type of mark or space for which to return statistics
+   \param type - type of statistics: CW_REC_STAT_DOT or CW_REC_STAT_DASH or CW_REC_STAT_IMARK_SPACE or CW_REC_STAT_ICHAR_SPACE
 
    \return 0.0 if no record of given type were found
    \return statistics of length otherwise

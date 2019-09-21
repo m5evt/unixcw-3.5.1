@@ -2009,7 +2009,11 @@ unsigned int test_cw_tq_enqueue_internal_2(void)
 
 
 
-/*
+/**
+   This function creates a generator that internally uses a tone
+   queue. The generator is needed to perform automatic dequeueing
+   operations, so that cw_tq_wait_for_level_internal() can detect
+   expected level.
 
   tests::cw_tq_wait_for_level_internal()
 */
