@@ -43,6 +43,7 @@
 #include "libcw_rec.h"
 #include "libcw_signal.h"
 #include "libcw_utils.h"
+#include "libcw2.h"
 
 
 
@@ -178,9 +179,9 @@ static int cw_key_sk_set_value_internal(volatile cw_key_t *key, int key_value);
    \param callback_func - callback function to be called on key state changes
    \param callback_arg - first argument to callback_func
 */
-void cw_key_register_keying_callback_internal(volatile cw_key_t *key,
-					      void (*callback_func)(void*, int),
-					      void *callback_arg)
+void cw_key_register_keying_callback(volatile cw_key_t * key,
+				     void (* callback_func)(void *, int),
+				     void * callback_arg)
 {
 	key->key_callback_func = callback_func;
 	key->key_callback_arg = callback_arg;
@@ -283,7 +284,7 @@ void cw_key_tk_set_value_internal(volatile cw_key_t *key, int key_value)
    \param key - key that needs to have a generator associated with it
    \param gen - generator to be used with given keyer
 */
-void cw_key_register_generator_internal(volatile cw_key_t *key, cw_gen_t *gen)
+void cw_key_register_generator(volatile cw_key_t * key, cw_gen_t * gen)
 {
 	/* General key. */
 	key->gen = gen;
@@ -319,7 +320,7 @@ void cw_key_register_generator_internal(volatile cw_key_t *key, cw_gen_t *gen)
    \param key - key that needs to have a receiver associated with it
    \param rec - receiver to be used with given key
 */
-void cw_key_register_receiver_internal(volatile cw_key_t *key, cw_rec_t *rec)
+void cw_key_register_receiver(volatile cw_key_t * key, cw_rec_t * rec)
 {
 	key->rec = rec;
 
@@ -495,7 +496,7 @@ int cw_key_ik_set_value_internal(volatile cw_key_t *key, int key_value, char sym
 
    \param key
 */
-void cw_key_ik_enable_curtis_mode_b_internal(volatile cw_key_t *key)
+void cw_key_ik_enable_curtis_mode_b(volatile cw_key_t *key)
 {
 	key->ik.curtis_mode_b = true;
 	return;
@@ -511,7 +512,7 @@ void cw_key_ik_enable_curtis_mode_b_internal(volatile cw_key_t *key)
 
    \param key
 */
-void cw_key_ik_disable_curtis_mode_b_internal(volatile cw_key_t *key)
+void cw_key_ik_disable_curtis_mode_b(volatile cw_key_t * key)
 {
 	key->ik.curtis_mode_b = false;
 	return;
@@ -530,7 +531,7 @@ void cw_key_ik_disable_curtis_mode_b_internal(volatile cw_key_t *key)
    \return true if Curtis mode is enabled for the key
    \return false otherwise
 */
-bool cw_key_ik_get_curtis_mode_b_state_internal(volatile cw_key_t *key)
+bool cw_key_ik_get_curtis_mode_b(const volatile cw_key_t *key)
 {
 	return key->ik.curtis_mode_b;
 }
@@ -770,13 +771,13 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_key_ik_notify_paddle_event_internal(volatile cw_key_t *key, int dot_paddle_state, int dash_paddle_state)
+int cw_key_ik_notify_paddle_event(volatile cw_key_t *key, int dot_paddle_state, int dash_paddle_state)
 {
 #if 0 /* This is disabled, but I'm not sure why. */  /* This code has been disabled some time before 2017-01-31. */
 	/* If the tone queue or the straight key are busy, this is going to
 	   conflict with our use of the sound card, console sounder, and
 	   keying system.  So return an error status in this case. */
-	if (cw_tq_is_busy_internal(key->gen->tq) || cw_key_sk_is_busy_internal(key)) {
+	if (cw_tq_is_busy_internal(key->gen->tq) || cw_key_sk_is_busy(key)) {
 		errno = EBUSY;
 		return CW_FAILURE;
 	}
@@ -924,7 +925,7 @@ int cw_key_ik_update_state_initial_internal(volatile cw_key_t *key)
 
    Alter the state of Dot paddle. State of Dash paddle remains unchanged.
 
-   See cw_key_ik_notify_paddle_event_internal() for details of iambic
+   See cw_key_ik_notify_paddle_event() for details of iambic
    keyer background processing, and how to check its status.
 
    \param key
@@ -933,9 +934,9 @@ int cw_key_ik_update_state_initial_internal(volatile cw_key_t *key)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_key_ik_notify_dot_paddle_event_internal(volatile cw_key_t *key, int dot_paddle_state)
+int cw_key_ik_notify_dot_paddle_event(volatile cw_key_t * key, int dot_paddle_state)
 {
-	return cw_key_ik_notify_paddle_event_internal(key, dot_paddle_state, key->ik.dash_paddle);
+	return cw_key_ik_notify_paddle_event(key, dot_paddle_state, key->ik.dash_paddle);
 }
 
 
@@ -954,9 +955,9 @@ int cw_key_ik_notify_dot_paddle_event_internal(volatile cw_key_t *key, int dot_p
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_key_ik_notify_dash_paddle_event_internal(volatile cw_key_t *key, int dash_paddle_state)
+int cw_key_ik_notify_dash_paddle_event(volatile cw_key_t * key, int dash_paddle_state)
 {
-	return cw_key_ik_notify_paddle_event_internal(key, key->ik.dot_paddle, dash_paddle_state);
+	return cw_key_ik_notify_paddle_event(key, key->ik.dot_paddle, dash_paddle_state);
 }
 
 
@@ -971,7 +972,7 @@ int cw_key_ik_notify_dash_paddle_event_internal(volatile cw_key_t *key, int dash
    \param dot_paddle_state: will be updated with CW_KEY_STATE_CLOSED or CW_KEY_STATE_OPEN value
    \param dash_paddle_state: will be updated with CW_KEY_STATE_CLOSED or CW_KEY_STATE_OPEN value
 */
-void cw_key_ik_get_paddles_internal(volatile cw_key_t *key, int *dot_paddle_state, int *dash_paddle_state)
+void cw_key_ik_get_paddles(const volatile cw_key_t * key, int * dot_paddle_state, int * dash_paddle_state)
 {
 	if (dot_paddle_state) {
 		*dot_paddle_state = key->ik.dot_paddle;
@@ -1045,7 +1046,7 @@ bool cw_key_ik_is_busy_internal(const volatile cw_key_t *key)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_key_ik_wait_for_element_internal(volatile cw_key_t *key)
+int cw_key_ik_wait_for_element(const volatile cw_key_t * key)
 {
 	if (cw_sigalrm_is_blocked_internal()) {
 		/* no point in waiting for event, when signal
@@ -1096,7 +1097,7 @@ int cw_key_ik_wait_for_element_internal(volatile cw_key_t *key)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_key_ik_wait_for_keyer_internal(volatile cw_key_t *key)
+int cw_key_ik_wait_for_keyer(volatile cw_key_t * key)
 {
 	if (cw_sigalrm_is_blocked_internal()) {
 		/* no point in waiting for event, when signal
@@ -1228,7 +1229,7 @@ void cw_key_ik_increment_timer_internal(volatile cw_key_t *key, int usecs)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_key_sk_notify_event_internal(volatile cw_key_t *key, int key_value)
+int cw_key_sk_notify_event(volatile cw_key_t * key, int key_value)
 {
 #if 0 /* This is disabled, but I'm not sure why. */  /* This code has been disabled some time before 2017-01-31. */
 	/* If the tone queue or the keyer are busy, we can't use the
@@ -1259,7 +1260,7 @@ int cw_key_sk_notify_event_internal(volatile cw_key_t *key, int key_value)
    \return CW_KEY_STATE_CLOSED if the key is down
    \return CW_KEY_STATE_OPEN if the key up
 */
-int cw_key_sk_get_state_internal(volatile cw_key_t *key)
+int cw_key_sk_get_value(const volatile cw_key_t * key)
 {
 	return key->sk.key_value;
 }
@@ -1271,7 +1272,7 @@ int cw_key_sk_get_state_internal(volatile cw_key_t *key)
    \brief Check if the straight key is busy
 
    This routine is just a pseudonym for
-   cw_key_sk_get_state_internal(), and exists to fill a hole in the
+   cw_key_sk_get_value(), and exists to fill a hole in the
    API naming conventions. TODO: verify if this function is needed in
    new API.
 
@@ -1282,7 +1283,7 @@ int cw_key_sk_get_state_internal(volatile cw_key_t *key)
    \return true if the straight key is busy
    \return false if the straight key is not busy
 */
-bool cw_key_sk_is_busy_internal(volatile cw_key_t *key)
+bool cw_key_sk_is_busy(volatile cw_key_t * key)
 {
 	return key->sk.key_value;
 }

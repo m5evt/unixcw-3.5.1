@@ -36,7 +36,7 @@
 #include "libcw_rec.h"
 #include "libcw_key.h"
 #include "libcw_debug.h"
-
+#include "libcw2.h"
 
 
 
@@ -81,7 +81,7 @@ static cw_rec_t cw_receiver = {
 
 
 	/* TODO: this variable is not set in
-	   cw_rec_reset_receive_parameters_internal(). Why is it
+	   cw_rec_reset_parameters_internal(). Why is it
 	   separated from the four main variables? Is it because it is
 	   a derivative of speed? But speed is a derivative of this
 	   variable in adaptive speed mode. */
@@ -206,7 +206,7 @@ static volatile cw_key_t cw_key = {
 */
 int cw_generator_new(int audio_system, const char *device)
 {
-	cw_generator = cw_gen_new_internal(audio_system, device);
+	cw_generator = cw_gen_new(audio_system, device);
 	if (!cw_generator) {
 		cw_debug_msg ((&cw_debug_object), CW_DEBUG_STDLIB, CW_DEBUG_ERROR,
 			      MSG_PREFIX "can't create generator");
@@ -214,7 +214,7 @@ int cw_generator_new(int audio_system, const char *device)
 	} else {
 		/* For some (all?) applications a key needs to have
 		   some generator associated with it. */
-		cw_key_register_generator_internal(&cw_key, cw_generator);
+		cw_key_register_generator(&cw_key, cw_generator);
 
 		return CW_SUCCESS;
 	}
@@ -233,7 +233,7 @@ int cw_generator_new(int audio_system, const char *device)
 */
 void cw_generator_delete(void)
 {
-	cw_gen_delete_internal(&cw_generator);
+	cw_gen_delete(&cw_generator);
 
 	return;
 }
@@ -255,7 +255,7 @@ void cw_generator_delete(void)
 */
 int cw_generator_start(void)
 {
-	return cw_gen_start_internal(cw_generator);
+	return cw_gen_start(cw_generator);
 }
 
 
@@ -275,7 +275,7 @@ int cw_generator_start(void)
 */
 void cw_generator_stop(void)
 {
-	cw_gen_stop_internal(cw_generator);
+	cw_gen_stop(cw_generator);
 
 	return;
 }
@@ -290,7 +290,7 @@ void cw_generator_stop(void)
 void cw_generator_delete_internal(void)
 {
 	if (cw_generator) {
-		cw_gen_delete_internal(&cw_generator);
+		cw_gen_delete(&cw_generator);
 	}
 
 	return;
@@ -321,7 +321,7 @@ void cw_generator_delete_internal(void)
 */
 int cw_set_send_speed(int new_value)
 {
-	int rv = cw_gen_set_speed_internal(cw_generator, new_value);
+	int rv = cw_gen_set_speed(cw_generator, new_value);
 	return rv;
 }
 
@@ -348,7 +348,7 @@ int cw_set_send_speed(int new_value)
 */
 int cw_set_frequency(int new_value)
 {
-	int rv = cw_gen_set_frequency_internal(cw_generator, new_value);
+	int rv = cw_gen_set_frequency(cw_generator, new_value);
 	return rv;
 }
 
@@ -381,7 +381,7 @@ int cw_set_frequency(int new_value)
 */
 int cw_set_volume(int new_value)
 {
-	int rv = cw_gen_set_volume_internal(cw_generator, new_value);
+	int rv = cw_gen_set_volume(cw_generator, new_value);
 	return rv;
 }
 
@@ -408,7 +408,7 @@ int cw_set_volume(int new_value)
 */
 int cw_set_gap(int new_value)
 {
-	int rv = cw_gen_set_gap_internal(cw_generator, new_value);
+	int rv = cw_gen_set_gap(cw_generator, new_value);
 	if (rv != CW_FAILURE) {
 		/* Ideally generator and receiver should have their
 		   own, separate cw_set_gap() functions. Unfortunately
@@ -416,7 +416,7 @@ int cw_set_gap(int new_value)
 		   here for receiver as well.
 
 		   TODO: add cw_set_gap() function for receiver. */
-		rv = cw_rec_set_gap_internal(&cw_receiver, new_value);
+		rv = cw_rec_set_gap(&cw_receiver, new_value);
 	}
 	return rv;
 }
@@ -441,7 +441,7 @@ int cw_set_gap(int new_value)
 */
 int cw_set_weighting(int new_value)
 {
-	int rv = cw_gen_set_weighting_internal(cw_generator, new_value);
+	int rv = cw_gen_set_weighting(cw_generator, new_value);
 	return rv;
 }
 
@@ -458,7 +458,7 @@ int cw_set_weighting(int new_value)
 */
 int cw_get_send_speed(void)
 {
-	return cw_gen_get_speed_internal(cw_generator);
+	return cw_gen_get_speed(cw_generator);
 }
 
 
@@ -477,7 +477,7 @@ int cw_get_send_speed(void)
 */
 int cw_get_frequency(void)
 {
-	return cw_gen_get_frequency_internal(cw_generator);
+	return cw_gen_get_frequency(cw_generator);
 }
 
 
@@ -497,7 +497,7 @@ int cw_get_frequency(void)
 */
 int cw_get_volume(void)
 {
-	return cw_gen_get_volume_internal(cw_generator);
+	return cw_gen_get_volume(cw_generator);
 }
 
 
@@ -513,7 +513,7 @@ int cw_get_volume(void)
 */
 int cw_get_gap(void)
 {
-	return cw_gen_get_gap_internal(cw_generator);
+	return cw_gen_get_gap(cw_generator);
 }
 
 
@@ -529,7 +529,7 @@ int cw_get_gap(void)
 */
 int cw_get_weighting(void)
 {
-	return cw_gen_get_weighting_internal(cw_generator);
+	return cw_gen_get_weighting(cw_generator);
 }
 
 
@@ -809,7 +809,7 @@ int cw_send_character_partial(char c)
 */
 int cw_send_string(const char *string)
 {
-	return cw_gen_enqueue_string_internal(cw_generator, string);
+	return cw_gen_enqueue_string(cw_generator, string);
 }
 
 
@@ -827,7 +827,7 @@ int cw_send_string(const char *string)
 void cw_reset_send_receive_parameters(void)
 {
 	cw_gen_reset_parameters_internal(cw_generator);
-	cw_rec_reset_receive_parameters_internal(&cw_receiver);
+	cw_rec_reset_parameters_internal(&cw_receiver);
 
 	/* Reset requires resynchronization. */
 	cw_gen_sync_parameters_internal(cw_generator);
@@ -1193,7 +1193,7 @@ int cw_queue_tone(int usecs, int frequency)
 */
 int cw_set_receive_speed(int new_value)
 {
-	return cw_rec_set_speed_internal(&cw_receiver, new_value);
+	return cw_rec_set_speed(&cw_receiver, new_value);
 }
 
 
@@ -1209,7 +1209,7 @@ int cw_set_receive_speed(int new_value)
 */
 int cw_get_receive_speed(void)
 {
-	return (int) cw_rec_get_speed_internal(&cw_receiver);
+	return (int) cw_rec_get_speed(&cw_receiver);
 }
 
 
@@ -1232,7 +1232,7 @@ int cw_get_receive_speed(void)
 */
 int cw_set_tolerance(int new_value)
 {
-	return cw_rec_set_tolerance_internal(&cw_receiver, new_value);
+	return cw_rec_set_tolerance(&cw_receiver, new_value);
 }
 
 
@@ -1248,7 +1248,7 @@ int cw_set_tolerance(int new_value)
 */
 int cw_get_tolerance(void)
 {
-	return cw_rec_get_tolerance_internal(&cw_receiver);
+	return cw_rec_get_tolerance(&cw_receiver);
 }
 
 
@@ -1329,7 +1329,7 @@ void cw_get_receive_parameters(int *dot_usecs, int *dash_usecs,
 */
 int cw_set_noise_spike_threshold(int new_value)
 {
-	return cw_rec_set_noise_spike_threshold_internal(&cw_receiver, new_value);
+	return cw_rec_set_noise_spike_threshold(&cw_receiver, new_value);
 }
 
 
@@ -1345,7 +1345,7 @@ int cw_set_noise_spike_threshold(int new_value)
 */
 int cw_get_noise_spike_threshold(void)
 {
-	return cw_rec_get_noise_spike_threshold_internal(&cw_receiver);
+	return cw_rec_get_noise_spike_threshold(&cw_receiver);
 }
 
 
@@ -1390,7 +1390,7 @@ void cw_get_receive_statistics(double *dot_sd, double *dash_sd,
 */
 void cw_reset_receive_statistics(void)
 {
-	cw_rec_reset_receive_statistics_internal(&cw_receiver);
+	cw_rec_reset_receive_statistics(&cw_receiver);
 
 	return;
 }
@@ -1448,7 +1448,7 @@ void cw_disable_adaptive_receive(void)
 */
 bool cw_get_adaptive_receive_state(void)
 {
-	return cw_rec_get_adaptive_mode_internal(&cw_receiver);
+	return cw_rec_get_adaptive_mode(&cw_receiver);
 }
 
 
@@ -1477,7 +1477,7 @@ bool cw_get_adaptive_receive_state(void)
 */
 int cw_start_receive_tone(const struct timeval *timestamp)
 {
-	return cw_rec_mark_begin_internal(&cw_receiver, timestamp);
+	return cw_rec_mark_begin(&cw_receiver, timestamp);
 }
 
 
@@ -1512,7 +1512,7 @@ int cw_start_receive_tone(const struct timeval *timestamp)
 */
 int cw_end_receive_tone(const struct timeval *timestamp)
 {
-	return cw_rec_mark_end_internal(&cw_receiver, timestamp);
+	return cw_rec_mark_end(&cw_receiver, timestamp);
 }
 
 
@@ -1549,7 +1549,7 @@ int cw_end_receive_tone(const struct timeval *timestamp)
 */
 int cw_receive_buffer_dot(const struct timeval *timestamp)
 {
-	return cw_rec_add_mark_internal(&cw_receiver, timestamp, CW_DOT_REPRESENTATION);
+	return cw_rec_add_mark(&cw_receiver, timestamp, CW_DOT_REPRESENTATION);
 }
 
 
@@ -1568,7 +1568,7 @@ int cw_receive_buffer_dot(const struct timeval *timestamp)
 */
 int cw_receive_buffer_dash(const struct timeval *timestamp)
 {
-	return cw_rec_add_mark_internal(&cw_receiver, timestamp, CW_DASH_REPRESENTATION);
+	return cw_rec_add_mark(&cw_receiver, timestamp, CW_DASH_REPRESENTATION);
 }
 
 
@@ -1626,11 +1626,11 @@ int cw_receive_representation(const struct timeval *timestamp,
 			      /* out */ bool *is_end_of_word,
 			      /* out */ bool *is_error)
 {
-	int rv = cw_rec_poll_representation_internal(&cw_receiver,
-						     timestamp,
-						     representation,
-						     is_end_of_word,
-						     is_error);
+	int rv = cw_rec_poll_representation(&cw_receiver,
+					    timestamp,
+					    representation,
+					    is_end_of_word,
+					    is_error);
 
 	return rv;
 }
@@ -1683,7 +1683,7 @@ int cw_receive_character(const struct timeval *timestamp,
 			 /* out */ bool *is_end_of_word,
 			 /* out */ bool *is_error)
 {
-	int rv = cw_rec_poll_character_internal(&cw_receiver, timestamp, c, is_end_of_word, is_error);
+	int rv = cw_rec_poll_character(&cw_receiver, timestamp, c, is_end_of_word, is_error);
 	return rv;
 }
 
@@ -1704,7 +1704,7 @@ int cw_receive_character(const struct timeval *timestamp,
 */
 void cw_clear_receive_buffer(void)
 {
-	cw_rec_clear_buffer_internal(&cw_receiver);
+	cw_rec_reset_state(&cw_receiver);
 
 	return;
 }
@@ -1794,7 +1794,7 @@ void cw_reset_receive(void)
 */
 void cw_register_keying_callback(void (*callback_func)(void*, int), void *callback_arg)
 {
-	cw_key_register_keying_callback_internal(&cw_key, callback_func, callback_arg);
+	cw_key_register_keying_callback(&cw_key, callback_func, callback_arg);
 	return;
 }
 
@@ -1838,7 +1838,7 @@ void cw_iambic_keyer_register_timer(struct timeval *timer)
 */
 void cw_enable_iambic_curtis_mode_b(void)
 {
-	cw_key_ik_enable_curtis_mode_b_internal(&cw_key);
+	cw_key_ik_enable_curtis_mode_b(&cw_key);
 	return;
 }
 
@@ -1851,7 +1851,7 @@ void cw_enable_iambic_curtis_mode_b(void)
 */
 void cw_disable_iambic_curtis_mode_b(void)
 {
-	cw_key_ik_disable_curtis_mode_b_internal(&cw_key);
+	cw_key_ik_disable_curtis_mode_b(&cw_key);
 	return;
 }
 
@@ -1864,7 +1864,7 @@ void cw_disable_iambic_curtis_mode_b(void)
 */
 int cw_get_iambic_curtis_mode_b_state(void)
 {
-	return (int) cw_key_ik_get_curtis_mode_b_state_internal(&cw_key);
+	return (int) cw_key_ik_get_curtis_mode_b(&cw_key);
 }
 
 
@@ -1900,7 +1900,7 @@ int cw_get_iambic_curtis_mode_b_state(void)
 */
 int cw_notify_keyer_paddle_event(int dot_paddle_state, int dash_paddle_state)
 {
-	return cw_key_ik_notify_paddle_event_internal(&cw_key, dot_paddle_state, dash_paddle_state);
+	return cw_key_ik_notify_paddle_event(&cw_key, dot_paddle_state, dash_paddle_state);
 }
 
 
@@ -1949,7 +1949,7 @@ int cw_notify_keyer_dash_paddle_event(int dash_paddle_state)
 */
 void cw_get_keyer_paddles(int *dot_paddle_state, int *dash_paddle_state)
 {
-	cw_key_ik_get_paddles_internal(&cw_key, dot_paddle_state, dash_paddle_state);
+	cw_key_ik_get_paddles(&cw_key, dot_paddle_state, dash_paddle_state);
 	return;
 }
 
@@ -2008,7 +2008,7 @@ bool cw_is_keyer_busy(void)
 */
 int cw_wait_for_keyer_element(void)
 {
-	return cw_key_ik_wait_for_element_internal(&cw_key);
+	return cw_key_ik_wait_for_element(&cw_key);
 }
 
 
@@ -2027,7 +2027,7 @@ int cw_wait_for_keyer_element(void)
 */
 int cw_wait_for_keyer(void)
 {
-	return cw_key_ik_wait_for_keyer_internal(&cw_key);
+	return cw_key_ik_wait_for_keyer(&cw_key);
 }
 
 
@@ -2103,7 +2103,7 @@ void cw_straight_key_clock_internal(void)
 */
 int cw_notify_straight_key_event(int key_state)
 {
-	return cw_key_sk_notify_event_internal(&cw_key, key_state);
+	return cw_key_sk_notify_event(&cw_key, key_state);
 }
 
 
@@ -2122,7 +2122,7 @@ int cw_notify_straight_key_event(int key_state)
 */
 int cw_get_straight_key_state(void)
 {
-	return cw_key_sk_get_state_internal(&cw_key);
+	return cw_key_sk_get_value(&cw_key);
 }
 
 
@@ -2142,7 +2142,7 @@ int cw_get_straight_key_state(void)
 */
 bool cw_is_straight_key_busy(void)
 {
-	return cw_key_sk_is_busy_internal(&cw_key);
+	return cw_key_sk_is_busy(&cw_key);
 }
 
 

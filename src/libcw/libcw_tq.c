@@ -74,6 +74,8 @@
 #include "libcw_gen.h"
 #include "libcw_debug.h"
 #include "libcw_signal.h"
+#include "libcw2.h"
+
 
 
 
@@ -688,7 +690,7 @@ int cw_tq_enqueue_internal(cw_tone_queue_t *tq, cw_tone_t *tone)
 	   This is because they use the sound card/console tones and key
 	   control, and will interfere with us if we try to use them at
 	   the same time. */
-	if (cw_key_ik_is_busy_internal(tq->gen->key) || cw_key_sk_is_busy_internal(tq->gen->key)) {
+	if (cw_key_ik_is_busy_internal(tq->gen->key) || cw_key_sk_is_busy(tq->gen->key)) {
 		errno = EBUSY;
 		return CW_FAILURE;
 	}
@@ -1774,9 +1776,9 @@ unsigned int test_cw_tq_wait_for_level_internal(void)
 	CW_TONE_INIT(&tone, 20, 10000, CW_SLOPE_MODE_STANDARD_SLOPES);
 
 	for (int i = 0; i < 10; i++) {
-		cw_gen_t *gen = cw_gen_new_internal(CW_AUDIO_NULL, CW_DEFAULT_NULL_DEVICE);
+		cw_gen_t * gen = cw_gen_new(CW_AUDIO_NULL, CW_DEFAULT_NULL_DEVICE);
 		cw_assert (gen, "failed to create a tone queue\n");
-		cw_gen_start_internal(gen);
+		cw_gen_start(gen);
 
 		/* Test the function for very small values,
 		   but for a bit larger as well. */
@@ -1805,8 +1807,8 @@ unsigned int test_cw_tq_wait_for_level_internal(void)
 
 		fprintf(stderr, "          level = %d, len = %zd, diff = %d\n", level, len, diff);
 
-		cw_gen_stop_internal(gen);
-		cw_gen_delete_internal(&gen);
+		cw_gen_stop(gen);
+		cw_gen_delete(&gen);
 	}
 
 	CW_TEST_PRINT_TEST_RESULT (false, p);

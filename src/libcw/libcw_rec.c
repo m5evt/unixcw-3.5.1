@@ -85,10 +85,12 @@
 
 #include "libcw.h"
 #include "libcw_rec.h"
+#include "libcw_key.h"
 #include "libcw_data.h"
 #include "libcw_utils.h"
 #include "libcw_debug.h"
 #include "libcw_test.h"
+#include "libcw2.h"
 
 
 
@@ -158,7 +160,7 @@ static void cw_rec_poll_representation_eow_internal(cw_rec_t *rec, char *represe
    \return freshly allocated, initialized and synchronized receiver on success
    \return NULL pointer on failure
 */
-cw_rec_t *cw_rec_new_internal(void)
+cw_rec_t * cw_rec_new(void)
 {
 	cw_rec_t *rec = (cw_rec_t *) malloc(sizeof (cw_rec_t));
 	if (!rec) {
@@ -251,7 +253,7 @@ cw_rec_t *cw_rec_new_internal(void)
 
    \param rec - pointer to receiver
 */
-void cw_rec_delete_internal(cw_rec_t **rec)
+void cw_rec_delete(cw_rec_t ** rec)
 {
 	cw_assert (rec, MSG_PREFIX "delete: 'rec' argument can't be NULL\n");
 
@@ -289,7 +291,7 @@ void cw_rec_delete_internal(cw_rec_t **rec)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_rec_set_speed_internal(cw_rec_t *rec, int new_value)
+int cw_rec_set_speed(cw_rec_t * rec, int new_value)
 {
 	if (rec->is_adaptive_receive_mode) {
 		errno = EPERM;
@@ -326,11 +328,10 @@ int cw_rec_set_speed_internal(cw_rec_t *rec, int new_value)
 
    \return current value of receiver's speed
 */
-float cw_rec_get_speed_internal(const cw_rec_t *rec)
+float cw_rec_get_speed(const cw_rec_t * rec)
 {
 	return rec->speed;
 }
-
 
 
 
@@ -350,7 +351,7 @@ float cw_rec_get_speed_internal(const cw_rec_t *rec)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_rec_set_tolerance_internal(cw_rec_t *rec, int new_value)
+int cw_rec_set_tolerance(cw_rec_t * rec, int new_value)
 {
 	if (new_value < CW_TOLERANCE_MIN || new_value > CW_TOLERANCE_MAX) {
 		errno = EINVAL;
@@ -380,7 +381,7 @@ int cw_rec_set_tolerance_internal(cw_rec_t *rec, int new_value)
 
    \return current value of receiver's tolerance
 */
-int cw_rec_get_tolerance_internal(const cw_rec_t *rec)
+int cw_rec_get_tolerance(const cw_rec_t * rec)
 {
 	return rec->tolerance;
 }
@@ -477,7 +478,7 @@ void cw_rec_get_parameters_internal(cw_rec_t *rec,
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_rec_set_noise_spike_threshold_internal(cw_rec_t *rec, int new_value)
+int cw_rec_set_noise_spike_threshold(cw_rec_t * rec, int new_value)
 {
 	if (new_value < 0) {
 		errno = EINVAL;
@@ -502,7 +503,7 @@ int cw_rec_set_noise_spike_threshold_internal(cw_rec_t *rec, int new_value)
 
    \return current value of receiver's threshold
 */
-int cw_rec_get_noise_spike_threshold_internal(const cw_rec_t *rec)
+int cw_rec_get_noise_spike_threshold(const cw_rec_t * rec)
 {
 	return rec->noise_spike_threshold;
 }
@@ -529,7 +530,7 @@ int cw_rec_get_noise_spike_threshold_internal(const cw_rec_t *rec)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_rec_set_gap_internal(cw_rec_t *rec, int new_value)
+int cw_rec_set_gap(cw_rec_t * rec, int new_value)
 {
 	if (new_value < CW_GAP_MIN || new_value > CW_GAP_MAX) {
 		errno = EINVAL;
@@ -760,7 +761,7 @@ void cw_rec_get_statistics_internal(cw_rec_t *rec, double *dot_sd, double *dash_
 
    \param rec - receiver
 */
-void cw_rec_reset_receive_statistics_internal(cw_rec_t *rec)
+void cw_rec_reset_receive_statistics(cw_rec_t * rec)
 {
 	for (int i = 0; i < CW_REC_STATISTICS_CAPACITY; i++) {
 		rec->statistics[i].type = CW_REC_STAT_NONE;
@@ -892,7 +893,7 @@ void cw_rec_set_adaptive_mode_internal(cw_rec_t *rec, bool adaptive)
    \return true if adaptive speed tracking is enabled
    \return false otherwise
 */
-bool cw_rec_get_adaptive_mode_internal(const cw_rec_t *rec)
+bool cw_rec_get_adaptive_mode(const cw_rec_t * rec)
 {
 	return rec->is_adaptive_receive_mode;
 }
@@ -902,7 +903,7 @@ bool cw_rec_get_adaptive_mode_internal(const cw_rec_t *rec)
 
 
 /* For top-level comment see cw_start_receive_tone(). */
-int cw_rec_mark_begin_internal(cw_rec_t *rec, const struct timeval *timestamp)
+int cw_rec_mark_begin(cw_rec_t * rec, const struct timeval * timestamp)
 {
 	/* If the receive state is not idle or inter-mark-space, this is a
 	   state error.  A start of mark can only happen while we are
@@ -929,7 +930,7 @@ int cw_rec_mark_begin_internal(cw_rec_t *rec, const struct timeval *timestamp)
 		   rec->mark_end is timestamp of end of previous
 		   mark. It is set at going to the inter-mark-space
 		   state by cw_end_receive tone() or by
-		   cw_rec_add_mark_internal(). */
+		   cw_rec_add_mark(). */
 		int space_len = cw_timestamp_compare_internal(&(rec->mark_end),
 							      &(rec->mark_start));
 		cw_rec_update_stats_internal(rec, CW_REC_STAT_IMARK_SPACE, space_len);
@@ -952,7 +953,7 @@ int cw_rec_mark_begin_internal(cw_rec_t *rec, const struct timeval *timestamp)
 
 
 /* For top-level comment see cw_end_receive_tone(). */
-int cw_rec_mark_end_internal(cw_rec_t *rec, const struct timeval *timestamp)
+int cw_rec_mark_end(cw_rec_t * rec, const struct timeval * timestamp)
 {
 	/* The receive state is expected to be inside of a mark. */
 	if (rec->state != RS_MARK) {
@@ -991,7 +992,7 @@ int cw_rec_mark_end_internal(cw_rec_t *rec, const struct timeval *timestamp)
 		   ignore it.
 
 		   Revert to state of receiver as it was before
-		   complementary cw_rec_mark_begin_internal(). After
+		   complementary cw_rec_mark_begin(). After
 		   call to mark_begin() the state was changed to
 		   mark, but what state it was before call to
 		   start()?
@@ -1292,7 +1293,7 @@ void cw_rec_update_averages_internal(cw_rec_t *rec, int mark_len, char mark)
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_rec_add_mark_internal(cw_rec_t *rec, const struct timeval *timestamp, char mark)
+int cw_rec_add_mark(cw_rec_t * rec, const struct timeval * timestamp, char mark)
 {
 	/* The receiver's state is expected to be idle or
 	   inter-mark-space in order to use this routine. */
@@ -1348,11 +1349,11 @@ int cw_rec_add_mark_internal(cw_rec_t *rec, const struct timeval *timestamp, cha
 
 
 
-int cw_rec_poll_representation_internal(cw_rec_t *rec,
-					const struct timeval *timestamp,
-					/* out */ char *representation,
-					/* out */ bool *is_end_of_word,
-					/* out */ bool *is_error)
+int cw_rec_poll_representation(cw_rec_t * rec,
+			       const struct timeval * timestamp,
+			       /* out */ char * representation,
+			       /* out */ bool * is_end_of_word,
+			       /* out */ bool * is_error)
 {
 	if (rec->state == RS_EOW_GAP
 	    || rec->state == RS_EOW_GAP_ERR) {
@@ -1574,11 +1575,11 @@ void cw_rec_poll_representation_eow_internal(cw_rec_t *rec,
 
 
 
-int cw_rec_poll_character_internal(cw_rec_t *rec,
-				   const struct timeval *timestamp,
-				   /* out */ char *c,
-				   /* out */ bool *is_end_of_word,
-				   /* out */ bool *is_error)
+int cw_rec_poll_character(cw_rec_t * rec,
+			  const struct timeval * timestamp,
+			  /* out */ char * c,
+			  /* out */ bool * is_end_of_word,
+			  /* out */ bool * is_error)
 {
 	/* TODO: in theory we don't need these intermediate bool
 	   variables, since is_end_of_word and is_error won't be
@@ -1588,9 +1589,9 @@ int cw_rec_poll_character_internal(cw_rec_t *rec,
 	char representation[CW_REC_REPRESENTATION_CAPACITY + 1];
 
 	/* See if we can obtain a representation from receiver. */
-	int status = cw_rec_poll_representation_internal(rec, timestamp,
-							 representation,
-							 &end_of_word, &error);
+	int status = cw_rec_poll_representation(rec, timestamp,
+						representation,
+						&end_of_word, &error);
 	if (!status) {
 		return CW_FAILURE;
 	}
@@ -1619,7 +1620,7 @@ int cw_rec_poll_character_internal(cw_rec_t *rec,
 
 
 
-void cw_rec_clear_buffer_internal(cw_rec_t *rec)
+void cw_rec_reset_state(cw_rec_t * rec)
 {
 	memset(rec->representation, 0, sizeof (rec->representation));
 	rec->representation_ind = 0;
@@ -1684,7 +1685,7 @@ void cw_rec_reset_internal(cw_rec_t *rec)
 
 	CW_REC_SET_STATE ((rec), RS_IDLE, (&cw_debug_object));
 
-	cw_rec_reset_receive_statistics_internal(rec);
+	cw_rec_reset_receive_statistics(rec);
 
 	return;
 }
@@ -1696,7 +1697,7 @@ void cw_rec_reset_internal(cw_rec_t *rec)
 /**
   \brief Reset essential receive parameters to their initial values
 */
-void cw_rec_reset_receive_parameters_internal(cw_rec_t *rec)
+void cw_rec_reset_parameters_internal(cw_rec_t * rec)
 {
 	cw_assert (rec, "receiver is NULL");
 
@@ -1903,14 +1904,14 @@ unsigned int test_cw_rec_identify_mark_internal(void)
 {
 	int p = fprintf(stdout, MSG_PREFIX "cw_rec_identify_mark_internal() (non-adaptive):");
 
-	cw_rec_t *rec = cw_rec_new_internal();
+	cw_rec_t * rec = cw_rec_new();
 	cw_assert (rec, "Failed to get new receiver\n");
 	cw_rec_set_adaptive_mode_internal(rec, false);
 
 	int speed_step = (CW_SPEED_MAX - CW_SPEED_MIN) / 10;
 
 	for (int i = CW_SPEED_MIN; i < CW_SPEED_MAX; i += speed_step) {
-		int rv = cw_rec_set_speed_internal(rec, i);
+		int rv = cw_rec_set_speed(rec, i);
 		cw_assert (rv, "Failed to set receive speed = %d [wpm]\n", i);
 
 
@@ -1954,7 +1955,7 @@ unsigned int test_cw_rec_identify_mark_internal(void)
 		cw_assert (!rv, "incorrectly identified long mark as a dash for speed = %d [wpm]", i);
 	}
 
-	cw_rec_delete_internal(&rec);
+	cw_rec_delete(&rec);
 
 
 
@@ -1973,7 +1974,7 @@ unsigned int test_cw_rec_with_base_data_fixed(void)
 {
 	int p = fprintf(stdout, MSG_PREFIX "test begin/end functions base data/fixed speed:");
 
-	cw_rec_t *rec = cw_rec_new_internal();
+	cw_rec_t * rec = cw_rec_new();
 	cw_assert (rec, "Failed to get new receiver\n");
 
 
@@ -1983,14 +1984,14 @@ unsigned int test_cw_rec_with_base_data_fixed(void)
 
 		/* Reset. */
 		cw_rec_reset_internal(rec);
-		cw_rec_clear_buffer_internal(rec);
+		cw_rec_reset_state(rec);
 
-		cw_rec_set_speed_internal(rec, speed);
+		cw_rec_set_speed(rec, speed);
 		cw_rec_set_adaptive_mode_internal(rec, false);
 
-		float diff = cw_rec_get_speed_internal(rec) - speed;
+		float diff = cw_rec_get_speed(rec) - speed;
 		cw_assert (diff < 0.1, "incorrect receive speed: %f != %d",
-			   cw_rec_get_speed_internal(rec), speed);
+			   cw_rec_get_speed(rec), speed);
 
 		/* Actual tests of receiver functions are here. */
 		test_cw_rec_test_begin_end(rec, data);
@@ -1999,7 +2000,7 @@ unsigned int test_cw_rec_with_base_data_fixed(void)
 		test_cw_rec_delete_data(&data);
 	}
 
-	cw_rec_delete_internal(&rec);
+	cw_rec_delete(&rec);
 
 	CW_TEST_PRINT_TEST_RESULT(false, p);
 
@@ -2016,7 +2017,7 @@ unsigned int test_cw_rec_with_base_data_fixed(void)
    As mentioned in file's top-level comment, there are two main
    methods to add data to receiver. This function tests first method:
    using cw_start_receive_tone() and cw_end_receive_tone() functions
-   (or cw_rec_mark_begin_internal() and cw_rec_mark_end_internal()
+   (or cw_rec_mark_begin() and cw_rec_mark_end()
    functions that are used to implement them).
 
    Other helper functions are used/tested here as well, because adding
@@ -2055,8 +2056,8 @@ void test_cw_rec_test_begin_end(cw_rec_t *rec, struct cw_rec_test_data *data)
 		   in specific moments, and in specific time
 		   intervals.
 
-		   key down -> call to cw_rec_mark_begin_internal()
-		   key up -> call to cw_rec_mark_end_internal().
+		   key down -> call to cw_rec_mark_begin()
+		   key up -> call to cw_rec_mark_end().
 
 		   First "key down" event is at 0 seconds 0
 		   microseconds. Time of every following event is
@@ -2069,11 +2070,11 @@ void test_cw_rec_test_begin_end(cw_rec_t *rec, struct cw_rec_test_data *data)
 			   cw_rec_mark_bein{start|end}_receive_tone() functions just
 			   work. No checking of return values. */
 			if (tone % 2) {
-				int rv = cw_rec_mark_end_internal(rec, &tv);
-				cw_assert (rv, "cw_rec_mark_end_internal(): %d.%d", (int) tv.tv_sec, (int) tv.tv_usec);
+				int rv = cw_rec_mark_end(rec, &tv);
+				cw_assert (rv, "cw_rec_mark_end(): %d.%d", (int) tv.tv_sec, (int) tv.tv_usec);
 			} else {
-				int rv = cw_rec_mark_begin_internal(rec, &tv);
-				cw_assert (rv, "cw_rec_mark_begin_internal(): %d.%d", (int) tv.tv_sec, (int) tv.tv_usec);
+				int rv = cw_rec_mark_begin(rec, &tv);
+				cw_assert (rv, "cw_rec_mark_begin(): %d.%d", (int) tv.tv_sec, (int) tv.tv_usec);
 			}
 
 			tv.tv_usec += data[i].d[tone];
@@ -2130,15 +2131,15 @@ void test_cw_rec_test_begin_end(cw_rec_t *rec, struct cw_rec_test_data *data)
 			   + jitter). In libcw maximum recognizable
 			   length of "end of character" space is 5 x
 			   dot. */
-			cw_assert (cw_rec_poll_representation_internal(rec, &tv, representation, &is_word, &is_error),
-				   "cw_rec_poll_representation_internal() returns false");
+			cw_assert (cw_rec_poll_representation(rec, &tv, representation, &is_word, &is_error),
+				   "cw_rec_poll_representation() returns false");
 
 			cw_assert (strcmp(representation, data[i].r) == 0,
-				   "cw_rec_poll_representation_internal(): polled representation does not match test representation:" \
+				   "cw_rec_poll_representation(): polled representation does not match test representation:" \
 				   "\"%s\"   !=   \"%s\"", representation, data[i].r);
 
 			cw_assert (!is_error,
-				   "cw_rec_poll_representation_internal() sets is_error to true");
+				   "cw_rec_poll_representation() sets is_error to true");
 
 			/* If the last space in character's data is
 			   end-of-word space (which is indicated by
@@ -2177,11 +2178,11 @@ void test_cw_rec_test_begin_end(cw_rec_t *rec, struct cw_rec_test_data *data)
 			/* The representation is still held in
 			   receiver. Ask receiver for converting the
 			   representation to character. */
-			cw_assert (cw_rec_poll_character_internal(rec, &tv, &c, &is_word, &is_error),
-				   "cw_rec_poll_character_internal() returns false");
+			cw_assert (cw_rec_poll_character(rec, &tv, &c, &is_word, &is_error),
+				   "cw_rec_poll_character() returns false");
 
 			cw_assert (c == data[i].c,
-				   "cw_rec_poll_character_internal(): polled character does not match test character:" \
+				   "cw_rec_poll_character(): polled character does not match test character:" \
 				   "'%c' != '%c':", c, data[i].c);
 		}
 
@@ -2201,7 +2202,7 @@ void test_cw_rec_test_begin_end(cw_rec_t *rec, struct cw_rec_test_data *data)
 			   correctly, the call to clear() is necessary
 			   to prepare the receiver for receiving next
 			   character. */
-			cw_rec_clear_buffer_internal(rec);
+			cw_rec_reset_state(rec);
 			int length = cw_rec_get_buffer_length_internal(rec);
 			cw_assert (length == 0,
 				   "cw_rec_get_buffer_length_internal(): length of cleared buffer is non zero (is %d)",
@@ -2210,7 +2211,7 @@ void test_cw_rec_test_begin_end(cw_rec_t *rec, struct cw_rec_test_data *data)
 
 
 #ifdef LIBCW_UNIT_TESTS_VERBOSE
-		float speed = cw_rec_get_speed_internal(rec);
+		float speed = cw_rec_get_speed(rec);
 		printf(MSG_PREFIX "received data #%d:   <%c> / <%s> @ %.2f [wpm]\n",
 		       i, c, representation, speed);
 #endif
@@ -2277,7 +2278,7 @@ unsigned int test_cw_rec_with_random_data_fixed(void)
 {
 	int p = fprintf(stdout, MSG_PREFIX "test begin/end functions random data/fixed speed:");
 
-	cw_rec_t *rec = cw_rec_new_internal();
+	cw_rec_t * rec = cw_rec_new();
 	cw_assert (rec, "Failed to get new receiver\n");
 
 
@@ -2287,14 +2288,14 @@ unsigned int test_cw_rec_with_random_data_fixed(void)
 
 		/* Reset. */
 		cw_rec_reset_internal(rec);
-		cw_rec_clear_buffer_internal(rec);
+		cw_rec_reset_state(rec);
 
-		cw_rec_set_speed_internal(rec, speed);
+		cw_rec_set_speed(rec, speed);
 		cw_rec_set_adaptive_mode_internal(rec, false);
 
-		float diff = cw_rec_get_speed_internal(rec) - speed;
+		float diff = cw_rec_get_speed(rec) - speed;
 		cw_assert (diff < 0.1, "incorrect receive speed: %f != %d",
-			   cw_rec_get_speed_internal(rec), speed);
+			   cw_rec_get_speed(rec), speed);
 
 		/* Actual tests of receiver functions are here. */
 		test_cw_rec_test_begin_end(rec, data);
@@ -2303,7 +2304,7 @@ unsigned int test_cw_rec_with_random_data_fixed(void)
 		test_cw_rec_delete_data(&data);
 	}
 
-	cw_rec_delete_internal(&rec);
+	cw_rec_delete(&rec);
 
 	CW_TEST_PRINT_TEST_RESULT(false, p);
 
@@ -2323,19 +2324,19 @@ unsigned int test_cw_rec_with_random_data_adaptive(void)
 	struct cw_rec_test_data *data = test_cw_rec_new_random_data_adaptive(CW_SPEED_MIN, CW_SPEED_MAX, 0);
 	//test_cw_rec_print_data(data);
 
-	cw_rec_t *rec = cw_rec_new_internal();
+	cw_rec_t * rec = cw_rec_new();
 	cw_assert (rec, "Failed to get new receiver\n");
 
 	/* Reset. */
 	cw_rec_reset_internal(rec);
-	cw_rec_clear_buffer_internal(rec);
+	cw_rec_reset_state(rec);
 
-	cw_rec_set_speed_internal(rec, CW_SPEED_MAX);
+	cw_rec_set_speed(rec, CW_SPEED_MAX);
 	cw_rec_set_adaptive_mode_internal(rec, true);
 
-	float diff = cw_rec_get_speed_internal(rec) - CW_SPEED_MAX;
+	float diff = cw_rec_get_speed(rec) - CW_SPEED_MAX;
 	cw_assert (diff < 0.1, "incorrect receive speed: %f != %d",
-		   cw_rec_get_speed_internal(rec), CW_SPEED_MAX);
+		   cw_rec_get_speed(rec), CW_SPEED_MAX);
 
 	/* Actual tests of receiver functions are here. */
 	test_cw_rec_test_begin_end(rec, data);
@@ -2343,7 +2344,7 @@ unsigned int test_cw_rec_with_random_data_adaptive(void)
 
 	test_cw_rec_delete_data(&data);
 
-	cw_rec_delete_internal(&rec);
+	cw_rec_delete(&rec);
 
 	CW_TEST_PRINT_TEST_RESULT(false, p);
 
@@ -2808,10 +2809,10 @@ void test_cw_rec_print_data(struct cw_rec_test_data *data)
 
 unsigned int test_cw_get_receive_parameters(void)
 {
-	cw_rec_t *rec = cw_rec_new_internal();
+	cw_rec_t * rec = cw_rec_new();
 	cw_assert (rec, "Failed to get new receiver\n");
 
-	cw_rec_reset_receive_parameters_internal(rec);
+	cw_rec_reset_parameters_internal(rec);
 	cw_rec_sync_parameters_internal(rec);
 
 	int dot_len_ideal = 0,
@@ -2848,7 +2849,7 @@ unsigned int test_cw_get_receive_parameters(void)
 
 				       &adaptive_speed_threshold);
 
-	cw_rec_delete_internal(&rec);
+	cw_rec_delete(&rec);
 
 	printf(MSG_PREFIX "cw_get_receive_parameters():\n" \
 	       MSG_PREFIX "dot/dash:  %d, %d, %d, %d, %d, %d\n" \

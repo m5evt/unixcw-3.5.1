@@ -215,38 +215,10 @@ typedef struct cw_rec_struct cw_rec_t;
 
 
 
-/* Creator and destructor. */
-cw_rec_t *cw_rec_new_internal(void);
-void      cw_rec_delete_internal(cw_rec_t **rec);
-
-/* Main receive functions. */
-int cw_rec_mark_begin_internal(cw_rec_t *rec, const struct timeval *timestamp);
-int cw_rec_mark_end_internal(cw_rec_t *rec, const struct timeval *timestamp);
-int cw_rec_add_mark_internal(cw_rec_t *rec, const struct timeval *timestamp, char mark);
-
-/* Helper receive functions. */
-int  cw_rec_poll_representation_internal(cw_rec_t *rec, const struct timeval *timestamp, char *representation, bool *is_end_of_word, bool *is_error);
-int  cw_rec_poll_character_internal(cw_rec_t *rec, const struct timeval *timestamp, char *c, bool *is_end_of_word, bool *is_error);
-void cw_rec_clear_buffer_internal(cw_rec_t *rec);
-
-/* Setters of receiver's essential parameters. */
-int  cw_rec_set_speed_internal(cw_rec_t *rec, int new_value);
-int  cw_rec_set_tolerance_internal(cw_rec_t *rec, int new_value);
-int  cw_rec_set_gap_internal(cw_rec_t *rec, int new_value);
-int  cw_rec_set_noise_spike_threshold_internal(cw_rec_t *rec, int new_value);
-void cw_rec_set_adaptive_mode_internal(cw_rec_t *rec, bool adaptive);
-
-/* Getters of receiver's essential parameters. */
-float cw_rec_get_speed_internal(const cw_rec_t *rec);
-int   cw_rec_get_tolerance_internal(const cw_rec_t *rec);
-/* int   cw_rec_get_gap_internal(cw_rec_t *rec); */
-int   cw_rec_get_noise_spike_threshold_internal(const cw_rec_t *rec);
-bool  cw_rec_get_adaptive_mode_internal(const cw_rec_t *rec);
 
 /* Receiver's reset functions. */
-void cw_rec_reset_receive_parameters_internal(cw_rec_t *rec);
-void cw_rec_reset_receive_statistics_internal(cw_rec_t *rec);
-void cw_rec_reset_internal(cw_rec_t *rec);
+void cw_rec_reset_parameters_internal(cw_rec_t * rec);
+void cw_rec_reset_internal(cw_rec_t * rec);
 
 /* Other helper functions. */
 void cw_rec_sync_parameters_internal(cw_rec_t *rec);
