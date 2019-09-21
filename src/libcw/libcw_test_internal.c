@@ -71,19 +71,9 @@ extern cw_debug_t cw_debug_object_dev;
 
 
 typedef unsigned int (*cw_test_function_t)(void);
+typedef unsigned int (*cw_test_function2_t)(cw_test_stats_t * stats);
 
 static cw_test_function_t cw_unit_tests[] = {
-
-	/* cw_data module */
-	test_cw_representation_to_hash_internal,
-	test_cw_representation_to_character_internal,
-	test_cw_representation_to_character_internal_speed,
-	test_character_lookups_internal,
-	test_prosign_lookups_internal,
-	test_phonetic_lookups_internal,
-	test_validate_character_and_string_internal,
-	test_validate_representation_internal,
-
 
 	/* cw_tq module */
 	test_cw_tq_new_delete_internal,
@@ -105,16 +95,6 @@ static cw_test_function_t cw_unit_tests[] = {
 	test_cw_gen_new_delete_internal,
 	test_cw_gen_forever_internal,
 
-
-	/* cw_utils module */
-	test_cw_timestamp_compare_internal,
-	test_cw_timestamp_validate_internal,
-	test_cw_usecs_to_timespec_internal,
-	test_cw_version_internal,
-	test_cw_license_internal,
-	test_cw_get_x_limits_internal,
-
-
 	/* cw_rec module */
 	test_cw_rec_identify_mark_internal,
 	test_cw_rec_with_base_data_fixed,
@@ -128,6 +108,29 @@ static cw_test_function_t cw_unit_tests[] = {
 
 
 	NULL
+};
+
+
+
+static cw_test_function2_t cw_unit_tests2[] = {
+	/* cw_data module */
+	test_cw_representation_to_hash_internal,
+	test_cw_representation_to_character_internal,
+	test_cw_representation_to_character_internal_speed,
+	test_character_lookups_internal,
+	test_prosign_lookups_internal,
+	test_phonetic_lookups_internal,
+	test_validate_character_and_string_internal,
+	test_validate_representation_internal,
+
+
+	/* cw_utils module */
+	test_cw_timestamp_compare_internal,
+	test_cw_timestamp_validate_internal,
+	test_cw_usecs_to_timespec_internal,
+	test_cw_version_internal,
+	test_cw_license_internal,
+	test_cw_get_x_limits_internal,
 };
 
 
@@ -153,6 +156,15 @@ int main(void)
 		cw_unit_tests[i]();
 		i++;
 	}
+
+	cw_test_stats_t stats = { 0 };
+	i = 0;
+	while (cw_unit_tests2[i]) {
+		cw_unit_tests2[i](&stats);
+		i++;
+	}
+	fprintf(stderr, "successes: %d, failures: %d\n", stats.successes, stats.failures);
+
 
 	/* "make check" facility requires this message to be
 	   printed on stdout; don't localize it */

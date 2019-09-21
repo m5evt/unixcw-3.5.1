@@ -2116,7 +2116,7 @@ int cw_gen_enqueue_eow_space_internal(cw_gen_t *gen)
 	}
 	enqueued++;
 
-	cw_debug_msg (&cw_debug_object, CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG, MSG_PREFIX "enqueued %d tones per iw space, tq len = %u", enqueued, cw_tq_length_internal(gen->tq));
+	cw_debug_msg (&cw_debug_object, CW_DEBUG_GENERATOR, CW_DEBUG_DEBUG, MSG_PREFIX "enqueued %d tones per iw space, tq len = %zd", enqueued, cw_tq_length_internal(gen->tq));
 
 	return CW_SUCCESS;
 }
@@ -2538,7 +2538,7 @@ int cw_gen_enqueue_begin_mark_internal(cw_gen_t *gen)
 		rv = cw_tq_enqueue_internal(gen->tq, &tone);
 
 		cw_debug_msg ((&cw_debug_object_dev), CW_DEBUG_TONE_QUEUE, CW_DEBUG_DEBUG,
-			      MSG_PREFIX "tone queue: len = %"PRIu32"", cw_tq_length_internal(gen->tq));
+			      MSG_PREFIX "tone queue: len = %zd", cw_tq_length_internal(gen->tq));
 	}
 
 	return rv;

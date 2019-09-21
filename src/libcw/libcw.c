@@ -1016,7 +1016,7 @@ int cw_wait_for_tone_queue(void)
 */
 int cw_wait_for_tone_queue_critical(int level)
 {
-	return cw_tq_wait_for_level_internal(cw_generator->tq, (uint32_t) level);
+	return cw_tq_wait_for_level_internal(cw_generator->tq, (size_t) level);
 }
 
 
