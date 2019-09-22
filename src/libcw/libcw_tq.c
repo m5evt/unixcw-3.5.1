@@ -165,8 +165,6 @@ extern cw_debug_t cw_debug_object_dev;
 
    Allocate and initialize new tone queue structure.
 
-   testedin::test_cw_tone_queue_init_internal()
-
    \return pointer to new tone queue on success
    \return NULL pointer on failure
 */
@@ -218,8 +216,6 @@ cw_tone_queue_t *cw_tq_new_internal(void)
 
    Function deallocates all resources held by \p tq, deallocates the \p tq
    itself, and sets the pointer to NULL.
-
-   testedin::test_cw_tq_new_delete_internal()
 
    \reviewed on 2017-01-30
 
@@ -324,8 +320,6 @@ void cw_tq_make_empty_internal(cw_tone_queue_t * tq)
 
    \errno EINVAL - any of the two parameters (\p capacity or \p high_water_mark) is invalid.
 
-   testedin::test_cw_tq_capacity_test_init()
-
    \param tq - tone queue to configure
    \param capacity - new capacity of queue
    \param high_water_mark - high water mark for the queue
@@ -374,8 +368,6 @@ int cw_tq_set_capacity_internal(cw_tone_queue_t *tq, size_t capacity, size_t hig
 /**
    \brief Return capacity of a queue
 
-   testedin::test_cw_tq_get_capacity_internal()
-
    \param tq - tone queue, for which you want to get capacity
 
    \return capacity of tone queue
@@ -411,8 +403,6 @@ size_t cw_tq_get_high_water_mark_internal(const cw_tone_queue_t *tq)
 /**
    \brief Return number of items (tones) on tone queue
 
-   testedin::test_cw_tq_length_internal()
-
    \param tq - tone queue
 
    \return the count of tones currently held in the tone queue
@@ -436,8 +426,6 @@ size_t cw_tq_length_internal(cw_tone_queue_t *tq)
    The function calculates the index taking circular wrapping into
    consideration.
 
-   testedin::test_cw_tq_prev_index_internal()
-
    \param tq - tone queue for which to calculate previous index
    \param ind - index in relation to which to calculate index of previous element in queue
 
@@ -457,8 +445,6 @@ size_t cw_tq_prev_index_internal(const cw_tone_queue_t *tq, size_t ind)
    Calculate index of next element in queue, relative to given \p ind.
    The function calculates the index taking circular wrapping into
    consideration.
-
-   testedin::test_cw_tq_next_index_internal()
 
    \param tq - tone queue for which to calculate next index
    \param ind - index in relation to which to calculate index of next element in queue
@@ -504,9 +490,6 @@ size_t cw_tq_next_index_internal(const cw_tone_queue_t *tq, size_t ind)
    If queue \p tq has registered low water callback function, and
    condition to call the function is met after dequeue has occurred,
    the function calls the callback.
-
-   testedin::test_cw_tq_dequeue_internal()
-   testedin::test_cw_tq_test_capacity_2()
 
    \param tq - tone queue
    \param tone - dequeued tone
@@ -661,11 +644,6 @@ bool cw_tq_dequeue_sub_internal(cw_tone_queue_t * tq, /* out */ cw_tone_t * tone
    add it to tone queue and returns CW_SUCCESS.
 
    The function does not accept tones with negative values of len.
-
-   testedin::test_cw_tq_enqueue_internal_1()
-   testedin::test_cw_tq_enqueue_internal_2()
-   testedin::test_cw_tq_test_capacity_1()
-   testedin::test_cw_tq_test_capacity_2()
 
    \errno EINVAL - invalid values of \p tone
    \errno EAGAIN - tone not enqueued because tone queue is full
@@ -844,9 +822,6 @@ int cw_tq_wait_for_tone_internal(cw_tone_queue_t *tq)
    level.  If at the time of function call the level of queue is
    already equal or lower than \p level, function returns immediately.
 
-   testedin::test_cw_tq_wait_for_level_internal()
-   testedin::test_cw_tq_operations_2()
-
    \reviewed on 2017-01-30
 
    \param tq - tone queue
@@ -883,8 +858,6 @@ int cw_tq_wait_for_level_internal(cw_tone_queue_t *tq, size_t level)
    This is a helper subroutine created so that I can pass a test tone
    queue in unit tests. The 'cw_is_tone_queue_full() works only on
    default tone queue object.
-
-   testedin::test_cw_tq_is_full_internal()
 
    \reviewed on 2017-01-30
 

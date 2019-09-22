@@ -63,8 +63,8 @@
 
 
 
-static bool cw_test_expect_eq_int(struct cw_test_t * self, int expected_value, int received_value, const char * fmt, ...);
-static bool cw_test_expect_eq_int_errors_only(struct cw_test_t * self, int expected_value, int received_value, const char * fmt, ...);
+static bool cw_test_expect_eq_int(struct cw_test_t * self, int expected_value, int received_value, const char * fmt, ...) __attribute__ ((format (printf, 4, 5)));
+static bool cw_test_expect_eq_int_errors_only(struct cw_test_t * self, int expected_value, int received_value, const char * fmt, ...) __attribute__ ((format (printf, 4, 5)));
 static void cw_test_print_test_header(cw_test_t * self, const char * text);
 static void cw_test_print_test_footer(cw_test_t * self, const char * text);
 static void cw_test_append_status_string(cw_test_t * self, char * msg_buf, int n, const char * status_string);
@@ -205,8 +205,6 @@ bool cw_test_expect_eq_int(struct cw_test_t * self, int expected_value, int rece
 		self->stats->failures++;
 
 		cw_test_append_status_string(self, msg_buf, message_len, "[FAIL]");
-		fprintf(self->stderr, "%s\n", msg_buf);
-
 		fprintf(self->stderr, "%s\n", msg_buf);
 		fprintf(self->stderr, "   ***   expected %d, got %d   ***\n", expected_value, received_value);
 

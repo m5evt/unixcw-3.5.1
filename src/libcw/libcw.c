@@ -715,6 +715,8 @@ int cw_send_representation_partial(const char *representation)
    happens in background processing.  See cw_wait_for_tone() and
    cw_wait_for_tone_queue() for ways to check the progress of sending.
 
+   testedin::test_send_character_and_string()
+
    \param c - character to send
 
    \return CW_SUCCESS on success
@@ -784,6 +786,8 @@ int cw_send_character_partial(char c)
    actual sending happens in background processing. See
    cw_wait_for_tone() and cw_wait_for_tone_queue() for ways to check
    the progress of sending.
+
+   testedin::test_send_character_and_string()
 
    \param string - string to send
 
@@ -962,6 +966,7 @@ int cw_wait_for_tone(void)
    to avoid indefinite waits.
 
    testedin::test_cw_wait_for_tone_queue()
+   testedin::test_full_tone_queue()
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
@@ -1019,6 +1024,8 @@ bool cw_is_tone_queue_full(void)
 /**
    \brief Return the number of entries the tone queue can accommodate
 
+   testedin::test_empty_tone_queue()
+   testedin::test_full_tone_queue()
 */
 int cw_get_tone_queue_capacity(void)
 {
@@ -1034,6 +1041,8 @@ int cw_get_tone_queue_capacity(void)
 
    testedin::test_cw_wait_for_tone_queue()
    testedin::test_cw_wait_for_tone()
+   testedin::test_empty_tone_queue()
+   testedin::test_full_tone_queue()
 */
 int cw_get_tone_queue_length(void)
 {
@@ -1054,6 +1063,8 @@ int cw_get_tone_queue_length(void)
    will empty the queue as best it can, then return without waiting for
    the final tone to complete.  In this case, it may not be possible to
    guarantee silence after the call.
+
+   testedin::test_full_tone_queue()
 */
 void cw_flush_tone_queue(void)
 {
@@ -1108,6 +1119,7 @@ void cw_reset_tone_queue(void)
    testedin::test_cw_wait_for_tone_queue()
    testedin::test_cw_wait_for_tone()
    testedin::test_cw_queue_tone()
+   testedin::test_full_tone_queue()
 
    \param usecs - duration of queued tone, in microseconds
    \param frequency - frequency of queued tone

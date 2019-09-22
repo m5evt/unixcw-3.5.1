@@ -33,8 +33,8 @@ typedef struct cw_test_t {
 	/* Limit of characters that can be printed to console in one row. */
 	int console_n_cols;
 
-	bool (* expect_eq_int)(struct cw_test_t * self, int expected_value, int received_value, const char * fmt, ...);
-	bool (* expect_eq_int_errors_only)(struct cw_test_t * self, int expected_value, int received_value, const char * fmt, ...);
+	bool (* expect_eq_int)(struct cw_test_t * self, int expected_value, int received_value, const char * fmt, ...) __attribute__ ((format (printf, 4, 5)));
+	bool (* expect_eq_int_errors_only)(struct cw_test_t * self, int expected_value, int received_value, const char * fmt, ...) __attribute__ ((format (printf, 4, 5)));
 	void (* print_test_header)(struct cw_test_t * self, const char * text);
 	void (* print_test_footer)(struct cw_test_t * self, const char * text);
 } cw_test_t;

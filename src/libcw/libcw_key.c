@@ -1038,8 +1038,6 @@ bool cw_key_ik_is_busy_internal(const volatile cw_key_t *key)
 
    The function always returns CW_SUCCESS.
 
-   testedin::test_keyer()
-
    \param key
 
    \return CW_SUCCESS

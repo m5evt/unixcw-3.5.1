@@ -139,8 +139,6 @@ static void cw_rec_reset_average_internal(cw_rec_averaging_t * avg, int initial)
 
    Function may return NULL on malloc() failure.
 
-   testedin::test_cw_rec_identify_mark_internal()
-
    \return freshly allocated, initialized and synchronized receiver on success
    \return NULL pointer on failure
 */
@@ -269,8 +267,6 @@ void cw_rec_delete(cw_rec_t ** rec)
    \errno EPERM - adaptive receive speed tracking is enabled.
 
    Notice that internally the speed is saved as float.
-
-   testedin::test_cw_rec_identify_mark_internal()
 
    \param rec - receiver
    \param new_value - new value of receive speed to be set in receiver
@@ -834,8 +830,6 @@ void cw_rec_reset_statistics(cw_rec_t * rec)
    In adaptive receiving mode the receiver tracks the speed of the
    received Morse code by adapting to the input stream.
 
-   testedin::test_cw_rec_identify_mark_internal()
-
    \reviewed on 2017-02-04
 
    \param rec - receiver for which to set the mode
@@ -1168,8 +1162,6 @@ int cw_rec_mark_end(cw_rec_t * rec, const volatile struct timeval * timestamp)
    Note: for adaptive timing, the mark should _always_ be recognized
    as a Dot or a Dash, because the length ranges will have been set to
    cover 0 to INT_MAX.
-
-   testedin::test_cw_rec_identify_mark_internal()
 
    \param rec - receiver
    \param mark_len - length of mark to analyze

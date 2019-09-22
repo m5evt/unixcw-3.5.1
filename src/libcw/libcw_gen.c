@@ -395,7 +395,6 @@ int cw_gen_silence_internal(cw_gen_t *gen)
 /**
    \brief Create new generator
 
-   testedin::test_cw_gen_new_delete()
 */
 cw_gen_t * cw_gen_new(int audio_system, const char * device)
 {
@@ -581,7 +580,6 @@ cw_gen_t * cw_gen_new(int audio_system, const char * device)
 /**
    \brief Delete a generator
 
-   testedin::test_cw_gen_new_delete()
 */
 void cw_gen_delete(cw_gen_t **gen)
 {
@@ -1740,8 +1738,6 @@ void cw_gen_tone_calculate_samples_size_internal(cw_gen_t const * gen, cw_tone_t
 
    \reviewed on 2017-01-21
 
-   testedin::test_parameter_ranges()
-
    \param gen - generator for which to set the speed
    \param new_value - new value of send speed to be assigned to generator
 
@@ -2263,8 +2259,6 @@ int cw_gen_enqueue_eow_space_internal(cw_gen_t *gen)
    \errno EAGAIN - there is not enough space in tone queue to enqueue
    \p representation.
 
-   testedin::test_cw_gen_enqueue_representations()
-
    \reviewed on 2017-01-21
 
    \param gen - generator used to enqueue the representation
@@ -2423,8 +2417,6 @@ int cw_gen_enqueue_valid_character_internal(cw_gen_t *gen, char c)
    happens in background processing. See cw_gen_wait_for_tone() and
    cw_gen_wait_for_queue_level() for ways to check the progress of
    sending.
-
-   testedin::test_cw_gen_enqueue_character_and_string()
 
    \reviewed on 2017-01-20
 

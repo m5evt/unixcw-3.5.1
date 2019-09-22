@@ -144,8 +144,6 @@ const cw_entry_t CW_TABLE[] = { /* TODO: make it accessible through function onl
    \li ISO 8859-2 accented characters,
    \li non-standard procedural signal extensions to standard CW characters.
 
-   testedin::test_character_lookups_internal()
-
    \reviewed on 2017-02-01
 
    \return number of characters known to libcw
@@ -185,7 +183,7 @@ int cw_get_character_count(void)
    of characters represented in the character lookup table, returned
    by cw_get_character_count().
 
-   testedin::test_character_lookups_internal()
+   testedin::test_send_character_and_string()
 
    \reviewed on 2017-02-01
 
@@ -214,8 +212,6 @@ void cw_list_characters(char *list)
 
    Function returns the string length of the longest representation in the
    character lookup table.
-
-   testedin::test_character_lookups_internal()
 
    \reviewed on 2017-02-01
 
@@ -362,8 +358,6 @@ int cw_lookup_character(char c, char *representation)
    \errno ENOMEM - character has been found, but function failed
    to strdup() representation.
 
-   testedin::test_character_lookups_internal()
-
    \param c - character to look up
 
    \return pointer to freshly allocated representation on success
@@ -417,8 +411,6 @@ char *cw_character_to_representation(int c)
    (".") to CW_DATA_MAX_REPRESENTATION_HASH ("-------"), and can be
    used as an index into a fast lookup array.
 
-   testedin::test_cw_representation_to_hash_internal()
-
    \param representation - string representing a character
 
    \return non-zero value of hash of valid representation (in range
@@ -466,8 +458,6 @@ uint8_t cw_representation_to_hash_internal(const char *representation)
 
    Look up the given \p representation, and return the character that it
    represents.
-
-   testedin::test_cw_representation_to_character_internal()
 
    \param representation - representation of a character to look up
 
@@ -717,8 +707,6 @@ int cw_check_representation(const char *representation)
 
    \errno EINVAL - representation is invalid
 
-   testedin::test_validate_representation_internal()
-
    \param representation - representation of a character to check
 
    \return true if representation is valid
@@ -803,8 +791,6 @@ int cw_lookup_representation(const char *representation, char *c)
    \errno EINVAL - \p representation contains invalid symbol (other than Dots and Dashes).
    \errno ENOENT - a character represented by \p representation could not be found.
 
-   testedin::test_character_lookups_internal()
-
    \param representation - representation of a character to look up
 
    \return non-zero character on success
@@ -878,8 +864,6 @@ static const cw_prosign_entry_t CW_PROSIGN_TABLE[] = {
 /**
    \brief Get number of procedural signals
 
-   testedin::test_prosign_lookups_internal()
-
    \reviewed on 2017-02-02
 
    \return the number of characters represented in the procedural signal expansion lookup table
@@ -915,8 +899,6 @@ int cw_get_procedural_character_count(void)
 
    \reviewed on 2017-02-02
 
-   testedin::test_prosign_lookups_internal()
-
    \param list - space for returned characters
 */
 void cw_list_procedural_characters(char *list)
@@ -940,8 +922,6 @@ void cw_list_procedural_characters(char *list)
 
    Function returns the string length of the longest expansion
    in the procedural signal expansion table.
-
-   testedin::test_prosign_lookups_internal()
 
    \return length
 */
@@ -1048,8 +1028,6 @@ const char *cw_lookup_procedural_character_internal(int c, bool *is_usually_expa
 
    \errno ENOENT - procedural signal character \p c cannot be found
 
-   testedin::test_prosign_lookups_internal()
-
    \param c - character to look up
    \param expansion - output, space to fill with expansion of the character
    \param is_usually_expanded - visual hint
@@ -1126,8 +1104,6 @@ static const char *const CW_PHONETICS[] = {
 /**
    \brief Get maximum length of a phonetic
 
-   testedin::test_phonetic_lookups_internal()
-
    \return the string length of the longest phonetic in the phonetics lookup table
 */
 int cw_get_maximum_phonetic_length(void)
@@ -1166,8 +1142,6 @@ int cw_get_maximum_phonetic_length(void)
 
    \errno ENOENT - character cannot be found
 
-   testedin::test_phonetic_lookups_internal()
-
    \param c - character to look up
    \param phonetic - output, space for phonetic of a character
 
@@ -1202,8 +1176,6 @@ int cw_lookup_phonetic(char c, char *phonetic)
    Morse character.
 
    Space character (' ') is also considered to be a valid character.
-
-   testedin::test_validate_character_and_string_internal()
 
    \param c - character to check
 
@@ -1243,8 +1215,6 @@ int cw_check_character(char c)
    Space character (' ') is also considered to be a valid character.
 
    Function sets errno to EINVAL on failure
-
-   testedin::test_validate_character_and_string_internal()
 
    \param string - string to check
 

@@ -219,8 +219,6 @@ uint32_t cw_get_debug_flags(void)
 
    Function returns value of debug object's debug flags.
 
-   testedin::test_cw_debug_flags()
-
    \return value of debug objects debug flags variable
 */
 uint32_t cw_debug_get_flags(cw_debug_t *debug_object)

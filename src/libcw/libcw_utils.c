@@ -114,8 +114,6 @@ static void cw_finalization_clock_internal(void);
    Version numbers (major and minor) are returned as an int,
    composed of major_version << 16 | minor_version.
 
-   testedin::test_cw_version()
-
    \return library's major and minor version number encoded as single int
 */
 int cw_version(void)
@@ -142,8 +140,6 @@ int cw_version(void)
    Return version number of the library, split into \p current, \p
    revision, \p age. These three properties are described here:
    http://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html
-
-   testedin::test_cw_version()
 */
 cw_ret cw_get_lib_version(int * current, int * revision, int * age)
 {
@@ -186,8 +182,6 @@ cw_ret cw_get_package_version(__attribute__((unused)) int * major, __attribute__
 
 /**
    \brief Print libcw's license text to stdout
-
-   testedin::test_cw_license()
 
    Function prints to stdout information about libcw version, followed
    by short text presenting libcw's copyright and license notice.
@@ -238,8 +232,6 @@ const char *cw_get_audio_system_label(int audio_system)
    \p usecs should be non-negative.
 
    This function is just a simple wrapper for few lines of code.
-
-   testedin::test_cw_usecs_to_timespec_internal()
 
    \reviewed on 2017-02-04
 
@@ -362,8 +354,6 @@ bool cw_dlopen_internal(const char *name, void **handle)
 
    \p out_timestamp cannot be NULL.
 
-   testedin::test_cw_timestamp_validate_internal()
-
    \reviewed on 2017-02-04
 
    \param out_timestamp - timestamp to be used by client code after the function call
@@ -411,8 +401,6 @@ int cw_timestamp_validate_internal(struct timeval *out_timestamp, const volatile
    microseconds, taking care to clamp values which would overflow an int.
 
    This routine always returns a positive integer in the range 0 to INT_MAX.
-
-   testedin::test_cw_timestamp_compare_internal()
 
    \reviewed on 2017-02-04
 
@@ -483,8 +471,6 @@ int cw_timestamp_compare_internal(const struct timeval * earlier, const struct t
    Any of functions two arguments can be NULL - function won't update
    value of that argument.
 
-   testedin::test_cw_get_x_limits()
-
    \reviewed on 2017-02-04
 
    \param min_speed - minimal allowed speed
@@ -515,8 +501,6 @@ void cw_get_speed_limits(int *min_speed, int *max_speed)
 
    Any of functions two arguments can be NULL - function won't update
    value of that argument.
-
-   testedin::test_cw_get_x_limits()
 
    \reviewed on 2017-02-04
 
@@ -549,7 +533,6 @@ void cw_get_frequency_limits(int *min_frequency, int *max_frequency)
    Any of functions two arguments can be NULL - function won't update
    value of that argument.
 
-   testedin::test_cw_get_x_limits()
    testedin::test_volume_functions()
 
    \reviewed on 2017-02-04
@@ -582,8 +565,6 @@ void cw_get_volume_limits(int *min_volume, int *max_volume)
    Any of functions two arguments can be NULL - function won't update
    value of that argument.
 
-   testedin::test_cw_get_x_limits()
-
    \reviewed on 2017-02-04
 
    \param min_gap - minimal allowed gap
@@ -614,8 +595,6 @@ void cw_get_gap_limits(int *min_gap, int *max_gap)
    Any of functions two arguments can be NULL - function won't update
    value of that argument.
 
-   testedin::test_cw_get_x_limits()
-
    \reviewed on 2017-02-04
 
    \param min_tolerance - minimal allowed tolerance
@@ -645,8 +624,6 @@ void cw_get_tolerance_limits(int *min_tolerance, int *max_tolerance)
 
    Any of functions two arguments can be NULL - function won't update
    value of that argument.
-
-   testedin::test_cw_get_x_limits()
 
    \reviewed on 2017-02-04
 

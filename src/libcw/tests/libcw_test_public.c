@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2001-2006  Simon Baldwin (simon_baldwin@yahoo.com)
- * Copyright (C) 2011-2017  Kamil Ignacak (acerion@wp.pl)
+ * Copyright (C) 2011-2019  Kamil Ignacak (acerion@wp.pl)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -77,7 +77,7 @@ static cw_test_stats_t cw_stats_pa      = { .successes = 0, .failures = 0 };
 
 static void cw_test_setup(void);
 static int  cw_test_modules_with_sound_systems(const char * modules, const char * sound_systems);
-static int  cw_test_modules_with_one_sound_system(const char * modules, int audio_system, cw_test_t * test_set);
+static int  cw_test_modules_with_one_sound_system(const char * modules, int audio_system, cw_test_t * tests);
 static void cw_test_print_stats(void);
 
 
@@ -100,27 +100,28 @@ static int test_audio_system = CW_AUDIO_NONE;
 
 
 /* Tone queue module. */
-static void test_cw_wait_for_tone(cw_test_t * test_set);
-static void test_cw_wait_for_tone_queue(cw_test_t * test_set);
-static void test_cw_queue_tone(cw_test_t * test_set);
+static void test_cw_wait_for_tone(cw_test_t * tests);
+static void test_cw_wait_for_tone_queue(cw_test_t * tests);
+static void test_cw_queue_tone(cw_test_t * tests);
 
+static void test_empty_tone_queue(cw_test_t * tests);
+static void test_full_tone_queue(cw_test_t * tests);
 
-static void test_tone_queue_3(cw_test_t * test_set);
-static void test_tone_queue_callback(cw_test_t * test_set);
+static void test_tone_queue_callback(cw_test_t * tests);
 
 /* Generator module. */
-static void test_volume_functions(cw_test_t * test_set);
-static void test_send_primitives(cw_test_t * test_set);
-static void test_send_character_and_string(cw_test_t * test_set);
-static void test_representations(cw_test_t * test_set);
+static void test_volume_functions(cw_test_t * tests);
+static void test_send_primitives(cw_test_t * tests);
+static void test_send_character_and_string(cw_test_t * tests);
+static void test_representations(cw_test_t * tests);
 /* Morse key module. */
-static void test_keyer(cw_test_t * test_set);
-static void test_straight_key(cw_test_t * test_set);
+static void test_keyer(cw_test_t * tests);
+static void test_straight_key(cw_test_t * tests);
 /* Other functions. */
-static void test_parameter_ranges(cw_test_t * test_set);
-//static void test_cw_gen_forever_public(cw_test_t * test_set);
+static void test_parameter_ranges(cw_test_t * tests);
+//static void test_cw_gen_forever_public(cw_test_t * tests);
 
-// static void cw_test_delayed_release(cw_test_t * test_set);
+// static void cw_test_delayed_release(cw_test_t * tests);
 
 
 
@@ -469,6 +470,10 @@ void test_cw_queue_tone(cw_test_t * tests)
 
 	for (int freq = freq_min; freq < freq_max; freq += freq_delta) {
 		while (true == cw_is_tone_queue_full()) {
+
+			/* TODO: we may never get to test
+			   cw_wait_for_tone() function because the
+			   queue will never be full in this test. */
 			int cwret = cw_wait_for_tone();
 			if (!tests->expect_eq_int_errors_only(tests, CW_SUCCESS, cwret, "cw_wait_for_tone(#1, %d)", freq)) {
 				wait_success = false;
@@ -485,6 +490,10 @@ void test_cw_queue_tone(cw_test_t * tests)
 
 	for (int freq = freq_max; freq > freq_min; freq -= freq_delta) {
 		while (true == cw_is_tone_queue_full()) {
+
+			/* TODO: we may never get to test
+			   cw_wait_for_tone() function because the
+			   queue will never be full in this test. */
 			int cwret = cw_wait_for_tone();
 			if (!tests->expect_eq_int_errors_only(tests, CW_SUCCESS, cwret, "cw_wait_for_tone(#2, %d)", freq)) {
 				wait_success = false;
@@ -500,8 +509,8 @@ void test_cw_queue_tone(cw_test_t * tests)
 	}
 
 	/* Final expect for 'queue' and 'wait' calls in the loop above. */
-	tests->expect_eq_int(tests, true, queue_success, "cw_queue_tone()");
-	tests->expect_eq_int(tests, true, wait_success, "cw_queue_tone()");
+	tests->expect_eq_int(tests, true, queue_success, "cw_queue_tone() - enqueueing");
+	tests->expect_eq_int(tests, true, wait_success, "cw_queue_tone() - waiting");
 
 
 	/* We have been adding tones to the queue, so we can test
@@ -520,144 +529,130 @@ void test_cw_queue_tone(cw_test_t * tests)
 
 
 /**
-   Test the tone queue manipulations, ensuring that we can fill the
-   queue, that it looks full when it is, and that we can flush it all
-   again afterwards, and recover.
-
+   tests::cw_get_tone_queue_capacity()
+   tests::cw_get_tone_queue_length()
 */
-void test_tone_queue_3(cw_test_t * test_set)
+void test_empty_tone_queue(cw_test_t * tests)
 {
-#if 0
 	tests->print_test_header(tests, __func__);
 
-	/* Small setup. */
-	cw_set_volume(70);
-
-
-
-	/* Test: properties (capacity and length) of empty tq. */
+	/* Test setup. */
 	{
-		fprintf(stderr, MSG_PREFIX " --  initial test on empty tq:\n");
+		cw_set_volume(70);
 
-		/* Empty tone queue and make sure that it is really
+		/* Clear tone queue and make sure that it is really
 		   empty (wait for info from libcw). */
 		cw_flush_tone_queue();
 		cw_wait_for_tone_queue();
-
-		int capacity = cw_get_tone_queue_capacity();
-		tests->expect_eq_int(tests, );
-		bool failure = capacity != CW_TONE_QUEUE_CAPACITY_MAX;
-
-		failure ? stats->failures++ : stats->successes++;
-		int n = printf(MSG_PREFIX "cw_get_tone_queue_capacity(): %d %s %d:",
-			       capacity, failure ? "!=" : "==", CW_TONE_QUEUE_CAPACITY_MAX);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-
-
-
-		int len_empty = cw_get_tone_queue_length();
-		tests->expect_eq_int(tests, );
-		failure = len_empty > 0;
-
-		failure ? stats->failures++ : stats->successes++;
-		n = printf(MSG_PREFIX "cw_get_tone_queue_length() when tq empty: %d %s 0:", len_empty, failure ? "!=" : "==");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
-
-
-	/* Test: properties (capacity and length) of full tq. */
-
-	/* FIXME: we call cw_queue_tone() until tq is full, and then
-	   expect the tq to be full while we perform tests. Doesn't
-	   the tq start dequeuing tones right away? Can we expect the
-	   tq to be full for some time after adding last tone?
-	   Hint: check when a length of tq is decreased. Probably
-	   after playing first tone on tq, which - in this test - is
-	   pretty long. Or perhaps not. */
+	/* Test. */
 	{
-		fprintf(stderr, MSG_PREFIX " --  test on full tq:\n");
+		const int capacity = cw_get_tone_queue_capacity();
+		tests->expect_eq_int(tests, CW_TONE_QUEUE_CAPACITY_MAX, capacity, "cw_get_tone_queue_capacity()");
 
+		const int len_empty = cw_get_tone_queue_length();
+		tests->expect_eq_int(tests, 0, len_empty, "cw_get_tone_queue_length() when tq is empty");
+	}
+
+	/* Test tear-down. */
+	{
+	}
+
+	tests->print_test_footer(tests, __func__);
+}
+
+
+
+
+/**
+   tests::cw_get_tone_queue_capacity()
+   tests::cw_get_tone_queue_length()
+   tests::cw_queue_tone()
+   tests::cw_flush_tone_queue()
+   tests::cw_wait_for_tone_queue()
+*/
+void test_full_tone_queue(cw_test_t * tests)
+{
+	tests->print_test_header(tests, __func__);
+
+	/* Test setup. */
+	{
+		cw_set_volume(70);
+
+		/* FIXME: we call cw_queue_tone() until tq is full,
+		   and then expect the tq to be full while we perform
+		   tests. Doesn't the tq start dequeuing tones right
+		   away? Can we expect the tq to be full for some time
+		   after adding last tone?  Hint: check when a length
+		   of tq is decreased. Probably after playing first
+		   tone on tq, which - in this test - is pretty
+		   long. Or perhaps not. */
+
+		const int duration = 1000000;
 		int i = 0;
+
 		/* FIXME: cw_is_tone_queue_full() is not tested */
 		while (!cw_is_tone_queue_full()) {
-			cw_queue_tone(1000000, 100 + (i++ & 1) * 100);
+			const int freq = 100 + (i++ & 1) * 100;
+			cw_queue_tone(duration, freq);
 		}
-
-		int capacity = cw_get_tone_queue_capacity();
-		tests->expect_eq_int(tests, );
-		bool failure = capacity != CW_TONE_QUEUE_CAPACITY_MAX;
-
-		failure ? stats->failures++ : stats->successes++;
-		int n = printf(MSG_PREFIX "cw_get_tone_queue_capacity(): %d %s %d:",
-			       capacity, failure ? "!=" : "==", CW_TONE_QUEUE_CAPACITY_MAX);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-
-
-
-		int len_full = cw_get_tone_queue_length();
-		tests->expect_eq_int(tests, );
-		failure = len_full != CW_TONE_QUEUE_CAPACITY_MAX;
-
-		failure ? stats->failures++ : stats->successes++;
-		n = printf(MSG_PREFIX "cw_get_tone_queue_length() when tq full: %d %s %d:",
-			   len_full, failure ? "!=" : "==", CW_TONE_QUEUE_CAPACITY_MAX);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
+	/*
+	  Test 1
+	  Test properties (capacity and length) of full tq.
+	*/
+	{
+		const int capacity = cw_get_tone_queue_capacity();
+		tests->expect_eq_int(tests, CW_TONE_QUEUE_CAPACITY_MAX, capacity, "cw_get_tone_queue_capacity()");
 
+		const int len_full = cw_get_tone_queue_length();
+		tests->expect_eq_int(tests, CW_TONE_QUEUE_CAPACITY_MAX, len_full, "cw_get_tone_queue_length() when tq is full");
+	}
 
-	/* Test: attempt to add tone to full queue. */
+	/*
+	  Test 2
+	  Attempt to add tone to full queue.
+	*/
 	{
 		errno = 0;
-		int status = cw_queue_tone(1000000, 100);
-		tests->expect_eq_int(tests, );
-		bool failure = status || errno != EAGAIN;
-
-		failure ? stats->failures++ : stats->successes++;
-		int n = printf(MSG_PREFIX "cw_queue_tone() for full tq:");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		int cwret = cw_queue_tone(1000000, 100);
+		tests->expect_eq_int(tests, EAGAIN, errno, "cw_queue_tone() for full tq (errno)");
+		tests->expect_eq_int(tests, CW_FAILURE, cwret, "cw_queue_tone() for full tq (cwret)");
 	}
 
+	/*
+	  Test 3
 
-
-	/* Test: check again properties (capacity and length) of empty
-	   tq after it has been in use.
-
-	   Empty the tq, ensure that it is empty, and do the test. */
+	  Check again properties (capacity and length) of empty tq
+	  after it has been in use.
+	*/
 	{
-		fprintf(stderr, MSG_PREFIX " --  final test on empty tq:\n");
+		int cwret;
 
 		/* Empty tone queue and make sure that it is really
 		   empty (wait for info from libcw). */
 		cw_flush_tone_queue();
-		cw_wait_for_tone_queue();
 
-		int capacity = cw_get_tone_queue_capacity();
-		tests->expect_eq_int(tests, );
-		bool failure = capacity != CW_TONE_QUEUE_CAPACITY_MAX;
+		cwret = cw_wait_for_tone_queue();
+		tests->expect_eq_int(tests, CW_SUCCESS, cwret, "cw_wait_for_tone_queue() after flushing");
 
-		failure ? stats->failures++ : stats->successes++;
-		int n = printf(MSG_PREFIX "cw_get_tone_queue_capacity(): %d %s %d:",
-			       capacity, failure ? "!=" : "==", CW_TONE_QUEUE_CAPACITY_MAX);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-
-
+		const int capacity = cw_get_tone_queue_capacity();
+		tests->expect_eq_int(tests, CW_TONE_QUEUE_CAPACITY_MAX, capacity, "cw_get_tone_queue_capacity() after flushing");
 
 		/* Test that the tq is really empty after
 		   cw_wait_for_tone_queue() has returned. */
-		int len_empty = cw_get_tone_queue_length();
-		tests->expect_eq_int(tests, );
-		failure = len_empty > 0;
-
-		failure ? stats->failures++ : stats->successes++;
-		n = printf(MSG_PREFIX "cw_get_tone_queue_length() when tq empty: %d %s 0:", len_empty, failure ? "!=" : "==");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		const int len_empty = cw_get_tone_queue_length();
+		tests->expect_eq_int(tests, 0, len_empty, "cw_get_tone_queue_length() after flushing");
 	}
 
+	/* Test tear-down. */
+	{
+	}
 
 	tests->print_test_footer(tests, __func__);
-#endif
+
 	return;
 }
 
@@ -669,13 +664,11 @@ static int cw_test_tone_queue_callback_data = 999999;
 static int cw_test_helper_tq_callback_capture = false;
 
 
-/**
-*/
-void test_tone_queue_callback(cw_test_t * test_set)
-{
-#if 0
-	tests->print_test_header(tests, __func__);
 
+void test_tone_queue_callback(cw_test_t * tests)
+{
+	tests->print_test_header(tests, __func__);
+#if 0
 	for (int i = 1; i < 10; i++) {
 		/* Test the callback mechanism for very small values,
 		   but for a bit larger as well. */
@@ -731,9 +724,9 @@ void test_tone_queue_callback(cw_test_t * test_set)
 		cw_reset_tone_queue();
 	}
 
-
-	tests->print_test_footer(tests, __func__);
 #endif
+	tests->print_test_footer(tests, __func__);
+
 	return;
 }
 
@@ -763,114 +756,118 @@ static void cw_test_helper_tq_callback(void *data)
    Fill tone queue with short tones, then check that we can move the
    volume through its entire range.  Flush the queue when complete.
 
+   tests::cw_get_volume_limits()
 */
-void test_volume_functions(cw_test_t * test_set)
+void test_volume_functions(cw_test_t * tests)
 {
-#if 0
 	tests->print_test_header(tests, __func__);
 
-	int cw_min = -1, cw_max = -1;
+	int vol_min = -1;
+	int vol_max = -1;
 
 	/* Test: get range of allowed volumes. */
 	{
-		cw_get_volume_limits(&cw_min, &cw_max);
+		cw_get_volume_limits(&vol_min, &vol_max);
 
-		tests->expect_eq_int(tests, );
-		tests->expect_eq_int(tests, );
-		bool failure = cw_min != CW_VOLUME_MIN
-			|| cw_max != CW_VOLUME_MAX;
-
-		failure ? stats->failures++ : stats->successes++;
-		int n = fprintf(stderr, MSG_PREFIX "cw_get_volume_limits(): %d, %d", cw_min, cw_max);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		tests->expect_eq_int(tests, CW_VOLUME_MIN, vol_min, "cw_get_volume_limits() - min = %d%%", vol_min);
+		tests->expect_eq_int(tests, CW_VOLUME_MAX, vol_max, "cw_get_volume_limits() - max = %d%%", vol_max);
 	}
 
 
-	/* Test: decrease volume from max to low. */
+	/*
+	  Test setup.
+	  Fill the tone queue with valid tones.
+	*/
 	{
-		/* Fill the tone queue with valid tones. */
 		while (!cw_is_tone_queue_full()) {
 			cw_queue_tone(100000, 440);
 		}
+	}
 
-		tests->expect_eq_int(tests, );
+	/* Test: decrease volume from max to min. */
+	{
 		bool set_failure = false;
 		bool get_failure = false;
 
-		/* TODO: why call the cw_wait_for_tone() at the
-		   beginning and end of loop's body? */
-		for (int i = cw_max; i >= cw_min; i -= 10) {
+		for (int volume = vol_max; volume >= vol_min; volume -= 10) {
+
+			/* We wait here for next tone so that changes
+			   in volume happen once per tone - not more
+			   often and not less. */
 			cw_wait_for_tone();
-			if (!cw_set_volume(i)) {
-				tests->expect_eq_int(tests, );
+
+			const int cwret = cw_set_volume(volume);
+			if (!tests->expect_eq_int_errors_only(tests, CW_SUCCESS, cwret, "cw_set_volume(%d) (down)", volume)) {
 				set_failure = true;
 				break;
 			}
 
-			if (cw_get_volume() != i) {
-				tests->expect_eq_int(tests, );
+			const int readback = cw_get_volume();
+			if (!tests->expect_eq_int_errors_only(tests, volume, readback, "cw_get_volume() (down) -> %d", readback)) {
 				get_failure = true;
 				break;
 			}
-
-			cw_wait_for_tone();
 		}
 
-		set_failure ? stats->failures++ : stats->successes++;
-		int n = fprintf(stderr, MSG_PREFIX "cw_set_volume() (down):");
-		CW_TEST_PRINT_TEST_RESULT (set_failure, n);
+		tests->expect_eq_int(tests, false, set_failure, "cw_set_volume() (down)");
+		tests->expect_eq_int(tests, false, get_failure, "cw_get_volume() (down)");
+	}
 
-		get_failure ? stats->failures++ : stats->successes++;
-		n = fprintf(stderr, MSG_PREFIX "cw_get_volume() (down):");
-		CW_TEST_PRINT_TEST_RESULT (get_failure, n);
+	/* Test tear-down. */
+	{
+		cw_flush_tone_queue();
 	}
 
 
+	/* ---------------- */
 
 
-	/* Test: increase volume from zero to high. */
+	/*
+	  Test setup.
+	  Fill the tone queue with valid tones.
+	*/
 	{
-		/* Fill tone queue with valid tones. */
 		while (!cw_is_tone_queue_full()) {
 			cw_queue_tone(100000, 440);
 		}
+	}
 
+	/* Test: increase volume from min to max. */
+	{
 		bool set_failure = false;
 		bool get_failure = false;
 
-		/* TODO: why call the cw_wait_for_tone() at the
-		   beginning and end of loop's body? */
-		for (int i = cw_min; i <= cw_max; i += 10) {
+		for (int volume = vol_min; volume <= vol_max; volume += 10) {
+
+			/* We wait here for next tone so that changes
+			   in volume happen once per tone - not more
+			   often and not less. */
 			cw_wait_for_tone();
-			if (!cw_set_volume(i)) {
-				tests->expect_eq_int(tests, );
+
+			const int cwret = cw_set_volume(volume);
+			if (!tests->expect_eq_int_errors_only(tests, CW_SUCCESS, cwret, "cw_set_volume(%d) (up)", volume)) {
 				set_failure = true;
 				break;
 			}
 
-			if (cw_get_volume() != i) {
-				tests->expect_eq_int(tests, );
+			const int readback = cw_get_volume();
+			if (!tests->expect_eq_int_errors_only(tests, volume, readback, "cw_get_volume() (up) -> %d", readback)) {
 				get_failure = true;
 				break;
 			}
-			cw_wait_for_tone();
 		}
 
-		set_failure ? stats->failures++ : stats->successes++;
-		int n = fprintf(stderr, MSG_PREFIX "cw_set_volume() (up):");
-		CW_TEST_PRINT_TEST_RESULT (set_failure, n);
-
-		get_failure ? stats->failures++ : stats->successes++;
-		n = fprintf(stderr, MSG_PREFIX "cw_get_volume() (up):");
-		CW_TEST_PRINT_TEST_RESULT (get_failure, n);
+		tests->expect_eq_int(tests, false, set_failure, "cw_set_volume() (up)");
+		tests->expect_eq_int(tests, false, get_failure, "cw_get_volume() (up)");
 	}
 
-	cw_wait_for_tone();
-	cw_flush_tone_queue();
-
+	/* Test tear-down. */
+	{
+		cw_flush_tone_queue();
+	}
 
 	tests->print_test_footer(tests, __func__);
-#endif
+
 	return;
 }
 
@@ -883,11 +880,10 @@ void test_volume_functions(cw_test_t * test_set)
    \brief Test enqueueing and playing most basic elements of Morse code
 
 */
-void test_send_primitives(cw_test_t * test_set)
+void test_send_primitives(cw_test_t * tests)
 {
-#if 0
 	tests->print_test_header(tests, __func__);
-
+#if 0
 	int N = 20;
 
 	/* Test: sending dot. */
@@ -963,9 +959,10 @@ void test_send_primitives(cw_test_t * test_set)
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
+#endif
 
 	tests->print_test_footer(tests, __func__);
-#endif
+
 	return;
 }
 
@@ -977,11 +974,10 @@ void test_send_primitives(cw_test_t * test_set)
    \brief Playing representations of characters
 
 */
-void test_representations(cw_test_t * test_set)
+void test_representations(cw_test_t * tests)
 {
-#if 0
 	tests->print_test_header(tests, __func__);
-
+#if 0
 
 	/* Test: sending valid representations. */
 	{
@@ -1025,12 +1021,12 @@ void test_representations(cw_test_t * test_set)
 
 	cw_wait_for_tone_queue();
 
+#endif
 
 	tests->print_test_footer(tests, __func__);
-#endif
+
 	return;
 }
-
 
 
 
@@ -1038,87 +1034,84 @@ void test_representations(cw_test_t * test_set)
 /**
    Send all supported characters: first as individual characters, and then as a string.
 
+   tests::cw_list_characters()
+   tests::cw_send_character()
+   tests::cw_send_string()
 */
-void test_send_character_and_string(cw_test_t * test_set)
+void test_send_character_and_string(cw_test_t * tests)
 {
-#if 0
 	tests->print_test_header(tests, __func__);
 
 	/* Test: sending all supported characters as individual characters. */
 	{
-		char charlist[UCHAR_MAX + 1];
+		char charlist[UCHAR_MAX + 1]; /* TODO: get size of this buffer through cw_get_character_count(). */
+		cw_list_characters(charlist);
+
 		bool failure = false;
 
 		/* Send all the characters from the charlist individually. */
-		cw_list_characters(charlist);
-		printf(MSG_PREFIX "cw_send_character(<valid>):\n"
-		       MSG_PREFIX "    ");
+
+		fprintf(tests->stdout,
+			MSG_PREFIX "cw_send_character(<valid>):\n"
+			MSG_PREFIX "    ");
+
 		for (int i = 0; charlist[i] != '\0'; i++) {
-			putchar(charlist[i]);
-			fflush(stdout);
-			if (!cw_send_character(charlist[i])) {
-				tests->expect_eq_int(tests, );
+
+			const char character = charlist[i];
+			fprintf(tests->stdout, "%c", character);
+			fflush(tests->stdout);
+
+			const int cwret = cw_send_character(character);
+			if (!tests->expect_eq_int_errors_only(tests, CW_SUCCESS, cwret, "cw_send_character(%c)", character)) {
 				failure = true;
 				break;
 			}
 			cw_wait_for_tone_queue();
 		}
 
-		putchar('\n');
+		fprintf(tests->stdout, "\n");
+		fflush(tests->stdout);
 
-		failure ? stats->failures++ : stats->successes++;
-		int n = printf(MSG_PREFIX "cw_send_character(<valid>):");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		tests->expect_eq_int(tests, false, failure, "cw_send_character(<valid>)");
 	}
-
-
 
 	/* Test: sending invalid character. */
 	{
-		tests->expect_eq_int(tests, );
-		bool failure = cw_send_character(0);
-		int n = printf(MSG_PREFIX "cw_send_character(<invalid>):");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		const int cwret = cw_send_character(0);
+		tests->expect_eq_int(tests, CW_FAILURE, cwret, "cw_send_character(<invalid>)");
 	}
-
-
 
 	/* Test: sending all supported characters as single string. */
 	{
-		char charlist[UCHAR_MAX + 1];
+		char charlist[UCHAR_MAX + 1]; /* TODO: get size of this buffer through cw_get_character_count(). */
 		cw_list_characters(charlist);
 
 		/* Send the complete charlist as a single string. */
-		printf(MSG_PREFIX "cw_send_string(<valid>):\n"
+		fprintf(tests->stdout, MSG_PREFIX "cw_send_string(<valid>):\n"
 		       MSG_PREFIX "    %s\n", charlist);
-		tests->expect_eq_int(tests, );
-		bool failure = !cw_send_string(charlist);
+
+		const int cwret = cw_send_string(charlist);
+		tests->expect_eq_int(tests, CW_SUCCESS, cwret, "cw_send_string(<valid>)");
+
 
 		while (cw_get_tone_queue_length() > 0) {
-			printf(MSG_PREFIX "tone queue length %-6d\r", cw_get_tone_queue_length());
-			fflush(stdout);
+			fprintf(tests->stdout, MSG_PREFIX "tone queue length %-6d\r", cw_get_tone_queue_length());
+			fflush(tests->stdout);
 			cw_wait_for_tone();
 		}
-		printf(MSG_PREFIX "tone queue length %-6d\n", cw_get_tone_queue_length());
-		cw_wait_for_tone_queue();
-
-		failure ? stats->failures++ : stats->successes++;
-		int n = printf(MSG_PREFIX "cw_send_string(<valid>):");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		fprintf(tests->stdout, MSG_PREFIX "tone queue length %-6d\n", cw_get_tone_queue_length());
 	}
 
 
 	/* Test: sending invalid string. */
 	{
-		tests->expect_eq_int(tests, );
-		bool failure = cw_send_string("%INVALID%");
-		int n = printf(MSG_PREFIX "cw_send_string(<invalid>):");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		const int cwret = cw_send_string("%INVALID%");
+		tests->expect_eq_int(tests, CW_FAILURE, cwret, "cw_send_string(<invalid>)");
 	}
 
 
 	tests->print_test_footer(tests, __func__);
-#endif
+
 	return;
 }
 
@@ -1128,10 +1121,11 @@ void test_send_character_and_string(cw_test_t * test_set)
 
 /**
 */
-void test_keyer(cw_test_t * test_set)
+void test_keyer(cw_test_t * tests)
 {
-#if 0
 	tests->print_test_header(tests, __func__);
+
+#if 0
 
 	/* Perform some tests on the iambic keyer.  The latch finer
 	   timing points are not tested here, just the basics - dots,
@@ -1288,9 +1282,10 @@ void test_keyer(cw_test_t * test_set)
 
 	cw_wait_for_keyer();
 
+#endif
 
 	tests->print_test_footer(tests, __func__);
-#endif
+
 	return;
 }
 
@@ -1300,10 +1295,11 @@ void test_keyer(cw_test_t * test_set)
 
 /**
 */
-void test_straight_key(cw_test_t * test_set)
+void test_straight_key(cw_test_t * tests)
 {
-#if 0
 	printf(MSG_PREFIX "%s():  ", __func__);
+
+#if 0
 
 	{
 		bool event_failure = false;
@@ -1396,9 +1392,10 @@ void test_straight_key(cw_test_t * test_set)
 
 	sleep(1);
 
+#endif
 
 	tests->print_test_footer(tests, __func__);
-#endif
+
 	return;
 }
 
@@ -1410,7 +1407,7 @@ void test_straight_key(cw_test_t * test_set)
 /*
  * cw_test_delayed_release()
  */
-void cw_test_delayed_release(cw_test_t * test_set)
+void cw_test_delayed_release(cw_test_t * tests)
 {
 	tests->print_test_header(tests, __func__);
 
@@ -1495,7 +1492,7 @@ void cw_test_signal_handling_callback(int signal_number)
 
 
 
-void cw_test_signal_handling(cw_test_t * test_set)
+void cw_test_signal_handling(cw_test_t * tests)
 {
 	int failures = 0;
 	struct sigaction action, disposition;
@@ -1581,7 +1578,7 @@ void cw_test_signal_handling(cw_test_t * test_set)
   Because the function calls cw_generator_delete(), it should be
   executed as last test in test suite (unless you want to call
   cw_generator_new/start() again). */
-void test_cw_gen_forever_public(cw_test_t * test_set)
+void test_cw_gen_forever_public(cw_test_t * tests)
 {
 	/* Make sure that an audio sink is closed. If we try to open
 	   an OSS sink that is already open, we may end up with
@@ -1643,7 +1640,9 @@ static void (*const CW_TEST_FUNCTIONS_DEP_TQ[])(cw_test_t *) = {
 	test_cw_wait_for_tone_queue,
 	test_cw_queue_tone,
 
-	test_tone_queue_3,
+	test_empty_tone_queue,
+	test_full_tone_queue,
+
 	test_tone_queue_callback,
 
 	NULL
@@ -1654,7 +1653,7 @@ static void (*const CW_TEST_FUNCTIONS_DEP_TQ[])(cw_test_t *) = {
 
 /* Tests that are dependent on a sound system being configured.
    Generator module functions. */
-static void (*const CW_TEST_FUNCTIONS_DEP_G[])(cw_test_stats_t *) = {
+static void (*const CW_TEST_FUNCTIONS_DEP_GEN[])(cw_test_t *) = {
 	test_volume_functions,
 	test_send_primitives,
 	test_send_character_and_string,
@@ -1666,7 +1665,7 @@ static void (*const CW_TEST_FUNCTIONS_DEP_G[])(cw_test_stats_t *) = {
 
 /* Tests that are dependent on a sound system being configured.
    Morse key module functions */
-static void (*const CW_TEST_FUNCTIONS_DEP_K[])(cw_test_stats_t *) = {
+static void (*const CW_TEST_FUNCTIONS_DEP_K[])(cw_test_t *) = {
 	test_keyer,
 	test_straight_key,
 
@@ -1705,7 +1704,7 @@ static void (*const CW_TEST_FUNCTIONS_DEP_O[])(cw_test_t *) = {
    \return 0 if tests were run, and no errors occurred
    \return 1 if tests were run, and some errors occurred
 */
-int cw_test_modules_with_one_sound_system(const char * modules, int audio_system, cw_test_t * test_set)
+int cw_test_modules_with_one_sound_system(const char * modules, int audio_system, cw_test_t * tests)
 {
 	test_audio_system = audio_system;
 
@@ -1725,15 +1724,15 @@ int cw_test_modules_with_one_sound_system(const char * modules, int audio_system
 	if (strstr(modules, "t")) {
 		for (int test = 0; CW_TEST_FUNCTIONS_DEP_TQ[test]; test++) {
 			cw_test_setup();
-			(*CW_TEST_FUNCTIONS_DEP_TQ[test])(test_set);
+			(*CW_TEST_FUNCTIONS_DEP_TQ[test])(tests);
 		}
 	}
 
 
 	if (strstr(modules, "g")) {
-		for (int test = 0; CW_TEST_FUNCTIONS_DEP_G[test]; test++) {
+		for (int test = 0; CW_TEST_FUNCTIONS_DEP_GEN[test]; test++) {
 			cw_test_setup();
-			(*CW_TEST_FUNCTIONS_DEP_G[test])(test_set);
+			(*CW_TEST_FUNCTIONS_DEP_GEN[test])(tests);
 		}
 	}
 
@@ -1741,7 +1740,7 @@ int cw_test_modules_with_one_sound_system(const char * modules, int audio_system
 	if (strstr(modules, "k")) {
 		for (int test = 0; CW_TEST_FUNCTIONS_DEP_K[test]; test++) {
 			cw_test_setup();
-			(*CW_TEST_FUNCTIONS_DEP_K[test])(test_set);
+			(*CW_TEST_FUNCTIONS_DEP_K[test])(tests);
 		}
 	}
 
@@ -1749,7 +1748,7 @@ int cw_test_modules_with_one_sound_system(const char * modules, int audio_system
 	if (strstr(modules, "o")) {
 		for (int test = 0; CW_TEST_FUNCTIONS_DEP_O[test]; test++) {
 			cw_test_setup();
-			(*CW_TEST_FUNCTIONS_DEP_O[test])(test_set);
+			(*CW_TEST_FUNCTIONS_DEP_O[test])(tests);
 		}
 	}
 
@@ -1761,7 +1760,7 @@ int cw_test_modules_with_one_sound_system(const char * modules, int audio_system
 
 	/* All tests done; return success if no failures,
 	   otherwise return an error status code. */
-	return test_set->stats->failures ? 1 : 0;
+	return tests->stats->failures ? 1 : 0;
 }
 
 
