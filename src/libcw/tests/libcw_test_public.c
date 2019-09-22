@@ -23,13 +23,6 @@
 
 
 
-
-
-
-
-
-
-
 #define _XOPEN_SOURCE 600 /* signaction() + SA_RESTART */
 
 
@@ -43,6 +36,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <assert.h>
+
 
 
 #if defined(HAVE_STRING_H)
@@ -63,11 +57,8 @@
 
 
 
+#define MSG_PREFIX "libcw/legacy: "
 
-typedef struct {
-	int successes;
-	int failures;
-} cw_test_stats_t;
 
 
 extern cw_debug_t cw_debug_object;
@@ -85,8 +76,8 @@ static cw_test_stats_t cw_stats_pa      = { .successes = 0, .failures = 0 };
 
 
 static void cw_test_setup(void);
-static int  cw_test_dependent(const char *audio_systems, const char *modules);
-static int  cw_test_dependent_with(int audio_system, const char *modules, cw_test_stats_t *stats);
+static int  cw_test_modules_with_sound_systems(const char * modules, const char * sound_systems);
+static int  cw_test_modules_with_one_sound_system(const char * modules, int audio_system, cw_test_t * test_set);
 static void cw_test_print_stats(void);
 
 
@@ -109,23 +100,27 @@ static int test_audio_system = CW_AUDIO_NONE;
 
 
 /* Tone queue module. */
-static void test_tone_queue_1(cw_test_stats_t *stats);
-static void test_tone_queue_2(cw_test_stats_t *stats);
-static void test_tone_queue_3(cw_test_stats_t *stats);
-static void test_tone_queue_callback(cw_test_stats_t *stats);
-/* Generator module. */
-static void test_volume_functions(cw_test_stats_t *stats);
-static void test_send_primitives(cw_test_stats_t *stats);
-static void test_send_character_and_string(cw_test_stats_t *stats);
-static void test_representations(cw_test_stats_t *stats);
-/* Morse key module. */
-static void test_keyer(cw_test_stats_t *stats);
-static void test_straight_key(cw_test_stats_t *stats);
-/* Other functions. */
-static void test_parameter_ranges(cw_test_stats_t *stats);
-//static void test_cw_gen_forever_public(cw_test_stats_t *stats);
+static void test_cw_wait_for_tone(cw_test_t * test_set);
+static void test_cw_wait_for_tone_queue(cw_test_t * test_set);
+static void test_cw_queue_tone(cw_test_t * test_set);
 
-// static void cw_test_delayed_release(cw_test_stats_t *stats);
+
+static void test_tone_queue_3(cw_test_t * test_set);
+static void test_tone_queue_callback(cw_test_t * test_set);
+
+/* Generator module. */
+static void test_volume_functions(cw_test_t * test_set);
+static void test_send_primitives(cw_test_t * test_set);
+static void test_send_character_and_string(cw_test_t * test_set);
+static void test_representations(cw_test_t * test_set);
+/* Morse key module. */
+static void test_keyer(cw_test_t * test_set);
+static void test_straight_key(cw_test_t * test_set);
+/* Other functions. */
+static void test_parameter_ranges(cw_test_t * test_set);
+//static void test_cw_gen_forever_public(cw_test_t * test_set);
+
+// static void cw_test_delayed_release(cw_test_t * test_set);
 
 
 
@@ -157,9 +152,9 @@ static void test_parameter_ranges(cw_test_stats_t *stats);
    tests::cw_set_weighting()
    tests::cw_get_weighting()
 */
-void test_parameter_ranges(cw_test_stats_t *stats)
+void test_parameter_ranges(cw_test_t * tests)
 {
-	printf("libcw: %s():\n", __func__);
+	tests->print_test_header(tests, __func__);
 
 	int txdot_usecs, txdash_usecs, end_of_element_usecs, end_of_character_usecs,
 		end_of_word_usecs, additional_usecs, adjustment_usecs;
@@ -170,8 +165,8 @@ void test_parameter_ranges(cw_test_stats_t *stats)
 			       &end_of_element_usecs, &end_of_character_usecs,
 			       &end_of_word_usecs, &additional_usecs,
 			       &adjustment_usecs);
-	printf("libcw: cw_get_send_parameters():\n"
-	       "libcw:     %d, %d, %d, %d, %d, %d, %d\n",
+	printf(MSG_PREFIX "cw_get_send_parameters():\n"
+	       MSG_PREFIX "    %d, %d, %d, %d, %d, %d, %d\n",
 	       txdot_usecs, txdash_usecs, end_of_element_usecs,
 	       end_of_character_usecs,end_of_word_usecs, additional_usecs,
 	       adjustment_usecs);
@@ -206,9 +201,7 @@ void test_parameter_ranges(cw_test_stats_t *stats)
 
 
 	for (int i = 0; test_data[i].get_limits; i++) {
-
-		int status;
-		bool failure;
+		int cwret;
 
 		/* Get limits of values to be tested. */
 		/* Notice that getters of parameter limits are tested
@@ -216,49 +209,40 @@ void test_parameter_ranges(cw_test_stats_t *stats)
 		test_data[i].get_limits(&test_data[i].min, &test_data[i].max);
 
 
-
 		/* Test out-of-range value lower than minimum. */
 		errno = 0;
-		status = test_data[i].set_new_value(test_data[i].min - 1);
-		failure = status || errno != EINVAL;
-
-		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_set_%s(min - 1):", test_data[i].name);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-
+		cwret = test_data[i].set_new_value(test_data[i].min - 1);
+		tests->expect_eq_int(tests, EINVAL, errno, "cw_set_%s(min - 1):", test_data[i].name);
+		tests->expect_eq_int(tests, CW_FAILURE, cwret, "cw_set_%s(min - 1):", test_data[i].name);
 
 
 		/* Test out-of-range value higher than maximum. */
 		errno = 0;
-		status = test_data[i].set_new_value(test_data[i].max + 1);
-		failure = status || errno != EINVAL;
-
-		failure ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_set_%s(max + 1):", test_data[i].name);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		cwret = test_data[i].set_new_value(test_data[i].max + 1);
+		tests->expect_eq_int(tests, EINVAL, errno, "cw_set_%s(max + 1):", test_data[i].name);
+		tests->expect_eq_int(tests, CW_FAILURE, cwret, "cw_set_%s(max + 1):", test_data[i].name);
 
 
-
-		/* Test in-range values. */
-		failure = false;
+		/*
+		  Test setting and reading back of in-range values.
+		  There will be many, many iterations, so use ::expect_eq_int_errors_only().
+		*/
+		bool success = false;
 		for (int j = test_data[i].min; j <= test_data[i].max; j++) {
-			test_data[i].set_new_value(j);
-			if (test_data[i].get_value() != j) {
-				failure = true;
+			const int value_set = j;
+			test_data[i].set_new_value(value_set);
+			const int value_readback = test_data[i].get_value();
+
+			success = tests->expect_eq_int_errors_only(tests, value_set, value_readback, "cw_get/set_%s(%d):", test_data[i].name, value_set);
+			if (!success) {
 				break;
 			}
 		}
-
-		failure ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_get/set_%s():", test_data[i].name);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-
-
-		failure = false;
+		tests->expect_eq_int(tests, true, success, "cw_get/set_%s():", test_data[i].name);
 	}
 
 
-	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
+	tests->print_test_footer(tests, __func__);
 
 	return;
 }
@@ -268,176 +252,188 @@ void test_parameter_ranges(cw_test_stats_t *stats)
 
 
 /**
-   \brief Simple tests of queueing and dequeueing of tones
-
-   Ensure we can generate a few simple tones, and wait for them to end.
+   Fill a queue and then wait for each tone separately - repeat until
+   all tones are dequeued.
 
    tests::cw_queue_tone()
    tests::cw_get_tone_queue_length()
    tests::cw_wait_for_tone()
-   tests::cw_wait_for_tone_queue()
 */
-void test_tone_queue_1(cw_test_stats_t *stats)
+void test_cw_wait_for_tone(cw_test_t * tests)
 {
-	printf("libcw: %s():\n", __func__);
+	tests->print_test_header(tests, __func__);
 
-	int l = 0;         /* Measured length of tone queue. */
-	int expected = 0;  /* Expected length of tone queue. */
+	int cwret;
 
-	int cw_min, cw_max;
+	const int n_tones_to_add = 6;     /* This is a simple test, so only a handful of tones. */
+	const int tone_duration = 100000;
 
-	cw_set_volume(70);
-	cw_get_frequency_limits(&cw_min, &cw_max);
+	/* Test setup. */
+	{
+		cw_set_volume(70);
 
-	int N = 6;              /* Number of test tones put in queue. */
-	int duration = 100000;  /* Duration of tone. */
-	int delta_f = ((cw_max - cw_min) / (N - 1));      /* Delta of frequency in loops. */
+		int freq_min, freq_max;
+		cw_get_frequency_limits(&freq_min, &freq_max);
+		const int delta_freq = ((freq_max - freq_min) / (n_tones_to_add - 1));      /* Delta of frequency in loops. */
 
+		/* Test 1: enqueue n_tones_to_add tones, and wait for each of
+		   them separately. Control length of tone queue in the
+		   process. */
 
-	/* Test 1: enqueue N tones, and wait for each of them
-	   separately. Control length of tone queue in the process. */
+		/* Enqueue first tone. Don't check queue length yet.
 
-	/* Enqueue first tone. Don't check queue length yet.
+		   The first tone is being dequeued right after enqueueing, so
+		   checking the queue length would yield incorrect result.
+		   Instead, enqueue the first tone, and during the process of
+		   dequeueing it, enqueue rest of the tones in the loop,
+		   together with checking length of the tone queue. */
+		int freq = freq_min;
 
-	   The first tone is being dequeued right after enqueueing, so
-	   checking the queue length would yield incorrect result.
-	   Instead, enqueue the first tone, and during the process of
-	   dequeueing it, enqueue rest of the tones in the loop,
-	   together with checking length of the tone queue. */
-	int f = cw_min;
-	bool failure = !cw_queue_tone(duration, f);
-	failure ? stats->failures++ : stats->successes++;
-	int n = printf("libcw: cw_queue_tone():");
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
-
-
-	/* This is to make sure that rest of tones is enqueued when
-	   the first tone is being dequeued. */
-	usleep(duration / 4);
-
-	/* Enqueue rest of N tones. It is now safe to check length of
-	   tone queue before and after queueing each tone: length of
-	   the tone queue should increase (there won't be any decrease
-	   due to dequeueing of first tone). */
-	printf("libcw: enqueueing (1): \n");
-	for (int i = 1; i < N; i++) {
-
-		/* Monitor length of a queue as it is filled - before
-		   adding a new tone. */
-		l = cw_get_tone_queue_length();
-		expected = (i - 1);
-		failure = l != expected;
-
-		failure ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_get_tone_queue_length(): pre (#%02d):", i);
-		// n = printf("libcw: cw_get_tone_queue_length(): pre-queue: expected %d != result %d:", expected, l);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		cwret = cw_queue_tone(tone_duration, freq);
+		tests->expect_eq_int(tests, CW_SUCCESS, cwret, "setup: cw_queue_tone()");
 
 
-		/* Add a tone to queue. All frequencies should be
-		   within allowed range, so there should be no
-		   error. */
-		f = cw_min + i * delta_f;
-		failure = !cw_queue_tone(duration, f);
+		/* This is to make sure that rest of tones is enqueued when
+		   the first tone is in process of being dequeued (because we
+		   wait only a fraction of duration). */
+		usleep(tone_duration / 4);
 
-		failure ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_queue_tone():");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		/* Enqueue rest of n_tones_to_add tones. It is now safe to check length of
+		   tone queue before and after queueing each tone: length of
+		   the tone queue should increase (there won't be any decrease
+		   due to dequeueing of first tone). */
+		for (int i = 1; i < n_tones_to_add; i++) {
 
+			int got_tq_len = 0;       /* Measured length of tone queue. */
+			int expected_tq_len = 0;  /* Expected length of tone queue. */
 
-
-		/* Monitor length of a queue as it is filled - after
-		   adding a new tone. */
-		l = cw_get_tone_queue_length();
-		expected = (i - 1) + 1;
-		failure = l != expected;
-
-		failure ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_get_tone_queue_length(): post (#%02d):", i);
-		// n = printf("libcw: cw_get_tone_queue_length(): post-queue: expected %d != result %d:", expected, l);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-	}
+			/* Monitor length of a queue as it is filled - before
+			   adding a new tone. */
+			got_tq_len = cw_get_tone_queue_length();
+			expected_tq_len = (i - 1);
+			tests->expect_eq_int(tests, expected_tq_len, got_tq_len, "setup: cw_get_tone_queue_length(): before adding tone (#%02d):", i);
 
 
-
-	/* Above we have queued N tones. libcw starts dequeueing first
-	   of them before the last one is enqueued. This is why below
-	   we should only check for N-1 of them. Additionally, let's
-	   wait a moment till dequeueing of the first tone is without
-	   a question in progress. */
-
-	usleep(duration / 4);
-
-	/* And this is the proper test - waiting for dequeueing tones. */
-	printf("libcw: dequeueing (1):\n");
-	for (int i = 1; i < N; i++) {
-
-		/* Monitor length of a queue as it is emptied - before dequeueing. */
-		l = cw_get_tone_queue_length();
-		expected = N - i;
-		//printf("libcw: cw_get_tone_queue_length(): pre:  l = %d\n", l);
-		failure = l != expected;
-
-		failure ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_get_tone_queue_length(): pre (#%02d):", i);
-		// n = printf("libcw: cw_get_tone_queue_length(): pre-dequeue:  expected %d != result %d: failure\n", expected, l);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+			/* Add a tone to queue. All frequencies should be
+			   within allowed range, so there should be no
+			   error. */
+			freq = freq_min + i * delta_freq;
+			cwret = cw_queue_tone(tone_duration, freq);
+			tests->expect_eq_int(tests, CW_SUCCESS, cwret, "setup: cw_queue_tone() #%02d", i);
 
 
-
-		/* Wait for each of N tones to be dequeued. */
-		failure = !cw_wait_for_tone();
-
-		failure ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_wait_for_tone():");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-
-
-
-		/* Monitor length of a queue as it is emptied - after dequeueing. */
-		l = cw_get_tone_queue_length();
-		expected = N - i - 1;
-		//printf("libcw: cw_get_tone_queue_length(): post: l = %d\n", l);
-		failure = l != expected;
-
-		failure ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_get_tone_queue_length(): post (#%02d):", i);
-		// n = printf("libcw: cw_get_tone_queue_length(): post-dequeue: expected %d != result %d: failure\n", expected, l);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-	}
-
-
-
-	/* Test 2: fill a queue, but this time don't wait for each
-	   tone separately, but wait for a whole queue to become
-	   empty. */
-	failure = false;
-	printf("libcw: enqueueing (2):\n");
-	f = 0;
-	for (int i = 0; i < N; i++) {
-		f = cw_min + i * delta_f;
-		if (!cw_queue_tone(duration, f)) {
-			failure = true;
-			break;
+			/* Monitor length of a queue as it is filled - after
+			   adding a new tone. */
+			got_tq_len = cw_get_tone_queue_length();
+			expected_tq_len = (i - 1) + 1;
+			tests->expect_eq_int(tests, expected_tq_len, got_tq_len, "setup: cw_get_tone_queue_length(): after adding tone (#%02d):", i);
 		}
 	}
 
-	failure ? stats->failures++ : stats->successes++;
-	n = printf("libcw: cw_queue_tone(%08d, %04d):", duration, f);
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
+	/* Test. */
+	{
+		/* Above we have queued n_tones_to_add tones. libcw
+		   starts dequeueing first of them before the last one
+		   is enqueued. This is why below we should only check
+		   for n_tones_to_add-1 of them. Additionally, let's
+		   wait a moment till dequeueing of the first tone is
+		   without a question in progress. */
+
+		usleep(tone_duration / 4);
+
+		/* And this is the proper test - waiting for dequeueing tones. */
+		for (int i = 1; i < n_tones_to_add; i++) {
+
+			int got_tq_len = 0;       /* Measured length of tone queue. */
+			int expected_tq_len = 0;  /* Expected length of tone queue. */
+
+			/* Monitor length of a queue as it is emptied - before dequeueing. */
+			got_tq_len = cw_get_tone_queue_length();
+			expected_tq_len = n_tones_to_add - i;
+			tests->expect_eq_int(tests, expected_tq_len, got_tq_len, "test: cw_get_tone_queue_length(): before dequeueing (#%02d):", i);
+
+			/* Wait for each of n_tones_to_add tones to be dequeued. */
+			cwret = cw_wait_for_tone();
+			tests->expect_eq_int(tests, CW_SUCCESS, cwret, "test: cw_wait_for_tone():");
+
+			/* Monitor length of a queue as it is emptied - after dequeueing single tone. */
+			got_tq_len = cw_get_tone_queue_length();
+			expected_tq_len = n_tones_to_add - i - 1;
+			tests->expect_eq_int(tests, expected_tq_len, got_tq_len, "test: cw_get_tone_queue_length(): after dequeueing (#%02d):", i);
+		}
+	}
+
+	/* Test tear-down. */
+	{
+	}
+
+	tests->print_test_footer(tests, __func__);
+
+	return;
+}
 
 
 
-	printf("libcw: dequeueing (2):\n");
+/**
+   Fill a queue, don't wait for each tone separately, but wait for a
+   whole queue to become empty.
 
-	failure = !cw_wait_for_tone_queue();
+   tests::cw_queue_tone()
+   tests::cw_get_tone_queue_length()
+   tests::cw_wait_for_tone_queue()
+*/
+void test_cw_wait_for_tone_queue(cw_test_t * tests)
+{
+	tests->print_test_header(tests, __func__);
 
-	failure ? stats->failures++ : stats->successes++;
-	n = printf("libcw: cw_wait_for_tone_queue():");
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
+	const int n_tones_to_add = 6;     /* This is a simple test, so only a handful of tones. */
 
+	/*
+	  Test setup:
+	  Add tones to tone queue.
+	*/
+	{
+		cw_set_volume(70);
 
-	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
+		int freq_min, freq_max;
+		cw_get_frequency_limits(&freq_min, &freq_max);
+		const int delta_freq = ((freq_max - freq_min) / (n_tones_to_add - 1));
+
+		const int tone_duration = 100000;
+
+		for (int i = 0; i < n_tones_to_add; i++) {
+			const int freq = freq_min + i * delta_freq;
+			int cwret = cw_queue_tone(tone_duration, freq);
+			const bool success = tests->expect_eq_int(tests, CW_SUCCESS, cwret, "setup: cw_queue_tone(%d, %d):", tone_duration, freq);
+			if (!success) {
+				break;
+			}
+		}
+	}
+
+	/*
+	  Test 1 (supplementary):
+	  Queue with enqueued tones should have some specific length.
+	*/
+	{
+		const int len = cw_get_tone_queue_length();
+		tests->expect_eq_int(tests, n_tones_to_add, len, "test: cw_get_tone_queue_length()");
+	}
+
+	/*
+	  Test 2 (main):
+	  We should be able to wait for emptying of non-empty queue.
+	*/
+	{
+		int cwret = cw_wait_for_tone_queue();
+		tests->expect_eq_int(tests, CW_SUCCESS, cwret, "test: cw_wait_for_tone_queue()");
+	}
+
+	/* Test tear-down. */
+	{
+	}
+
+	tests->print_test_footer(tests, __func__);
 
 	return;
 }
@@ -447,78 +443,74 @@ void test_tone_queue_1(cw_test_stats_t *stats)
 
 
 /**
-   Run the complete range of tone generation, at 100Hz intervals,
-   first up the octaves, and then down.  If the queue fills, though it
+   Run the complete range of tone generation, at X Hz intervals, first
+   up the octaves, and then down.  If the queue fills, though it
    shouldn't with this amount of data, then pause until it isn't so
    full.
 
-   tests::cw_wait_for_tone()
+   TODO: this test doesn't really test anything well. It just ensures
+   that in some conditions cw_queue_tone() works correctly.
+
    tests::cw_queue_tone()
-   tests::cw_wait_for_tone_queue()
 */
-void test_tone_queue_2(cw_test_stats_t *stats)
+void test_cw_queue_tone(cw_test_t * tests)
 {
-	printf("libcw: %s():\n", __func__);
+	tests->print_test_header(tests, __func__);
 
 	cw_set_volume(70);
 	int duration = 40000;
 
-	int cw_min, cw_max;
-	cw_get_frequency_limits(&cw_min, &cw_max);
+	int freq_min, freq_max;
+	cw_get_frequency_limits(&freq_min, &freq_max);
+	const int freq_delta = 100;
 
-	bool wait_failure = false;
-	bool queue_failure = false;
+	bool wait_success = true;
+	bool queue_success = true;
 
-	for (int i = cw_min; i < cw_max; i += 100) {
-		while (cw_is_tone_queue_full()) {
-			if (!cw_wait_for_tone()) {
-				wait_failure = true;
+	for (int freq = freq_min; freq < freq_max; freq += freq_delta) {
+		while (true == cw_is_tone_queue_full()) {
+			int cwret = cw_wait_for_tone();
+			if (!tests->expect_eq_int_errors_only(tests, CW_SUCCESS, cwret, "cw_wait_for_tone(#1, %d)", freq)) {
+				wait_success = false;
 				break;
 			}
 		}
 
-		if (!cw_queue_tone(duration, i)) {
-			queue_failure = true;
+		int cwret = cw_queue_tone(duration, freq);
+		if (!tests->expect_eq_int_errors_only(tests, CW_SUCCESS, cwret, "cw_queue_tone(#1, %d)", freq)) {
+			queue_success = false;
 			break;
 		}
 	}
 
-	for (int i = cw_max; i > cw_min; i -= 100) {
-		while (cw_is_tone_queue_full()) {
-			if (!cw_wait_for_tone()) {
-				wait_failure = true;
+	for (int freq = freq_max; freq > freq_min; freq -= freq_delta) {
+		while (true == cw_is_tone_queue_full()) {
+			int cwret = cw_wait_for_tone();
+			if (!tests->expect_eq_int_errors_only(tests, CW_SUCCESS, cwret, "cw_wait_for_tone(#2, %d)", freq)) {
+				wait_success = false;
 				break;
 			}
 		}
-		if (!cw_queue_tone(duration, i)) {
-			queue_failure = true;
+
+		int cwret = cw_queue_tone(duration, freq);
+		if (!tests->expect_eq_int_errors_only(tests, CW_SUCCESS, cwret, "cw_queue_tone(#2, %d)", freq)) {
+			queue_success = false;
 			break;
 		}
 	}
 
-
-	queue_failure ? stats->failures++ : stats->successes++;
-	int n = printf("libcw: cw_queue_tone():");
-	CW_TEST_PRINT_TEST_RESULT (queue_failure, n);
-
-
-	wait_failure ? stats->failures++ : stats->successes++;
-	n = printf("libcw: cw_wait_for_tone():");
-	CW_TEST_PRINT_TEST_RESULT (wait_failure, n);
+	/* Final expect for 'queue' and 'wait' calls in the loop above. */
+	tests->expect_eq_int(tests, true, queue_success, "cw_queue_tone()");
+	tests->expect_eq_int(tests, true, wait_success, "cw_queue_tone()");
 
 
-	n = printf("libcw: cw_wait_for_tone_queue():");
-	fflush(stdout);
-	bool wait_tq_failure = !cw_wait_for_tone_queue();
-	wait_tq_failure ? stats->failures++ : stats->successes++;
-	CW_TEST_PRINT_TEST_RESULT (wait_tq_failure, n);
+	/* We have been adding tones to the queue, so we can test
+	   waiting for the queue to be emptied. */
+	int cwret = cw_wait_for_tone_queue();
+	tests->expect_eq_int(tests, CW_SUCCESS, cwret, "cw_wait_for_tone_queue()");
 
 
-	cw_queue_tone(0, 0);
-	cw_wait_for_tone_queue();
-
-
-	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
+	tests->print_test_footer(tests, __func__);
 
 	return;
 }
@@ -532,14 +524,11 @@ void test_tone_queue_2(cw_test_stats_t *stats)
    queue, that it looks full when it is, and that we can flush it all
    again afterwards, and recover.
 
-   tests::cw_get_tone_queue_capacity()
-   tests::cw_get_tone_queue_length()
-   tests::cw_queue_tone()
-   tests::cw_wait_for_tone_queue()
 */
-void test_tone_queue_3(cw_test_stats_t *stats)
+void test_tone_queue_3(cw_test_t * test_set)
 {
-	printf("libcw: %s():\n", __func__);
+#if 0
+	tests->print_test_header(tests, __func__);
 
 	/* Small setup. */
 	cw_set_volume(70);
@@ -548,7 +537,7 @@ void test_tone_queue_3(cw_test_stats_t *stats)
 
 	/* Test: properties (capacity and length) of empty tq. */
 	{
-		fprintf(stderr, "libcw:  --  initial test on empty tq:\n");
+		fprintf(stderr, MSG_PREFIX " --  initial test on empty tq:\n");
 
 		/* Empty tone queue and make sure that it is really
 		   empty (wait for info from libcw). */
@@ -556,20 +545,22 @@ void test_tone_queue_3(cw_test_stats_t *stats)
 		cw_wait_for_tone_queue();
 
 		int capacity = cw_get_tone_queue_capacity();
+		tests->expect_eq_int(tests, );
 		bool failure = capacity != CW_TONE_QUEUE_CAPACITY_MAX;
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_get_tone_queue_capacity(): %d %s %d:",
+		int n = printf(MSG_PREFIX "cw_get_tone_queue_capacity(): %d %s %d:",
 			       capacity, failure ? "!=" : "==", CW_TONE_QUEUE_CAPACITY_MAX);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 
 		int len_empty = cw_get_tone_queue_length();
+		tests->expect_eq_int(tests, );
 		failure = len_empty > 0;
 
 		failure ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_get_tone_queue_length() when tq empty: %d %s 0:", len_empty, failure ? "!=" : "==");
+		n = printf(MSG_PREFIX "cw_get_tone_queue_length() when tq empty: %d %s 0:", len_empty, failure ? "!=" : "==");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -585,7 +576,7 @@ void test_tone_queue_3(cw_test_stats_t *stats)
 	   after playing first tone on tq, which - in this test - is
 	   pretty long. Or perhaps not. */
 	{
-		fprintf(stderr, "libcw:  --  test on full tq:\n");
+		fprintf(stderr, MSG_PREFIX " --  test on full tq:\n");
 
 		int i = 0;
 		/* FIXME: cw_is_tone_queue_full() is not tested */
@@ -594,20 +585,22 @@ void test_tone_queue_3(cw_test_stats_t *stats)
 		}
 
 		int capacity = cw_get_tone_queue_capacity();
+		tests->expect_eq_int(tests, );
 		bool failure = capacity != CW_TONE_QUEUE_CAPACITY_MAX;
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_get_tone_queue_capacity(): %d %s %d:",
+		int n = printf(MSG_PREFIX "cw_get_tone_queue_capacity(): %d %s %d:",
 			       capacity, failure ? "!=" : "==", CW_TONE_QUEUE_CAPACITY_MAX);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 
 		int len_full = cw_get_tone_queue_length();
+		tests->expect_eq_int(tests, );
 		failure = len_full != CW_TONE_QUEUE_CAPACITY_MAX;
 
 		failure ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_get_tone_queue_length() when tq full: %d %s %d:",
+		n = printf(MSG_PREFIX "cw_get_tone_queue_length() when tq full: %d %s %d:",
 			   len_full, failure ? "!=" : "==", CW_TONE_QUEUE_CAPACITY_MAX);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
@@ -618,10 +611,11 @@ void test_tone_queue_3(cw_test_stats_t *stats)
 	{
 		errno = 0;
 		int status = cw_queue_tone(1000000, 100);
+		tests->expect_eq_int(tests, );
 		bool failure = status || errno != EAGAIN;
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_queue_tone() for full tq:");
+		int n = printf(MSG_PREFIX "cw_queue_tone() for full tq:");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -632,7 +626,7 @@ void test_tone_queue_3(cw_test_stats_t *stats)
 
 	   Empty the tq, ensure that it is empty, and do the test. */
 	{
-		fprintf(stderr, "libcw:  --  final test on empty tq:\n");
+		fprintf(stderr, MSG_PREFIX " --  final test on empty tq:\n");
 
 		/* Empty tone queue and make sure that it is really
 		   empty (wait for info from libcw). */
@@ -640,10 +634,11 @@ void test_tone_queue_3(cw_test_stats_t *stats)
 		cw_wait_for_tone_queue();
 
 		int capacity = cw_get_tone_queue_capacity();
+		tests->expect_eq_int(tests, );
 		bool failure = capacity != CW_TONE_QUEUE_CAPACITY_MAX;
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_get_tone_queue_capacity(): %d %s %d:",
+		int n = printf(MSG_PREFIX "cw_get_tone_queue_capacity(): %d %s %d:",
 			       capacity, failure ? "!=" : "==", CW_TONE_QUEUE_CAPACITY_MAX);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
@@ -652,16 +647,17 @@ void test_tone_queue_3(cw_test_stats_t *stats)
 		/* Test that the tq is really empty after
 		   cw_wait_for_tone_queue() has returned. */
 		int len_empty = cw_get_tone_queue_length();
+		tests->expect_eq_int(tests, );
 		failure = len_empty > 0;
 
 		failure ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_get_tone_queue_length() when tq empty: %d %s 0:", len_empty, failure ? "!=" : "==");
+		n = printf(MSG_PREFIX "cw_get_tone_queue_length() when tq empty: %d %s 0:", len_empty, failure ? "!=" : "==");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
 
-	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
-
+	tests->print_test_footer(tests, __func__);
+#endif
 	return;
 }
 
@@ -674,11 +670,11 @@ static int cw_test_helper_tq_callback_capture = false;
 
 
 /**
-   tests::cw_register_tone_queue_low_callback()
 */
-void test_tone_queue_callback(cw_test_stats_t *stats)
+void test_tone_queue_callback(cw_test_t * test_set)
 {
-	printf("libcw: %s():\n", __func__);
+#if 0
+	tests->print_test_header(tests, __func__);
 
 	for (int i = 1; i < 10; i++) {
 		/* Test the callback mechanism for very small values,
@@ -686,11 +682,12 @@ void test_tone_queue_callback(cw_test_stats_t *stats)
 		int level = i <= 5 ? i : 10 * i;
 
 		int rv = cw_register_tone_queue_low_callback(cw_test_helper_tq_callback, (void *) &cw_test_tone_queue_callback_data, level);
+		tests->expect_eq_int(tests, );
 		bool failure = rv == CW_FAILURE;
 		sleep(1);
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_register_tone_queue_low_callback(): threshold = %d:", level);
+		int n = printf(MSG_PREFIX "cw_register_tone_queue_low_callback(): threshold = %d:", level);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
@@ -724,18 +721,19 @@ void test_tone_queue_callback(cw_test_stats_t *stats)
 		   that there may be a difference of 1 between these
 		   two values. */
 		int diff = level - cw_test_tone_queue_callback_data;
+		tests->expect_eq_int(tests, );
 		failure = diff > 1;
 
 		failure ? stats->failures++ : stats->successes++;
-		n = printf("libcw: tone queue callback:           level at callback = %d:", cw_test_tone_queue_callback_data);
+		n = printf(MSG_PREFIX "tone queue callback:           level at callback = %d:", cw_test_tone_queue_callback_data);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 		cw_reset_tone_queue();
 	}
 
 
-	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
-
+	tests->print_test_footer(tests, __func__);
+#endif
 	return;
 }
 
@@ -765,13 +763,11 @@ static void cw_test_helper_tq_callback(void *data)
    Fill tone queue with short tones, then check that we can move the
    volume through its entire range.  Flush the queue when complete.
 
-   tests::cw_get_volume_limits()
-   tests::cw_set_volume()
-   tests::cw_get_volume()
 */
-void test_volume_functions(cw_test_stats_t *stats)
+void test_volume_functions(cw_test_t * test_set)
 {
-	printf("libcw: %s():\n", __func__);
+#if 0
+	tests->print_test_header(tests, __func__);
 
 	int cw_min = -1, cw_max = -1;
 
@@ -779,11 +775,13 @@ void test_volume_functions(cw_test_stats_t *stats)
 	{
 		cw_get_volume_limits(&cw_min, &cw_max);
 
+		tests->expect_eq_int(tests, );
+		tests->expect_eq_int(tests, );
 		bool failure = cw_min != CW_VOLUME_MIN
 			|| cw_max != CW_VOLUME_MAX;
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = fprintf(stderr, "libcw: cw_get_volume_limits(): %d, %d", cw_min, cw_max);
+		int n = fprintf(stderr, MSG_PREFIX "cw_get_volume_limits(): %d, %d", cw_min, cw_max);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -795,6 +793,7 @@ void test_volume_functions(cw_test_stats_t *stats)
 			cw_queue_tone(100000, 440);
 		}
 
+		tests->expect_eq_int(tests, );
 		bool set_failure = false;
 		bool get_failure = false;
 
@@ -803,11 +802,13 @@ void test_volume_functions(cw_test_stats_t *stats)
 		for (int i = cw_max; i >= cw_min; i -= 10) {
 			cw_wait_for_tone();
 			if (!cw_set_volume(i)) {
+				tests->expect_eq_int(tests, );
 				set_failure = true;
 				break;
 			}
 
 			if (cw_get_volume() != i) {
+				tests->expect_eq_int(tests, );
 				get_failure = true;
 				break;
 			}
@@ -816,11 +817,11 @@ void test_volume_functions(cw_test_stats_t *stats)
 		}
 
 		set_failure ? stats->failures++ : stats->successes++;
-		int n = fprintf(stderr, "libcw: cw_set_volume() (down):");
+		int n = fprintf(stderr, MSG_PREFIX "cw_set_volume() (down):");
 		CW_TEST_PRINT_TEST_RESULT (set_failure, n);
 
 		get_failure ? stats->failures++ : stats->successes++;
-		n = fprintf(stderr, "libcw: cw_get_volume() (down):");
+		n = fprintf(stderr, MSG_PREFIX "cw_get_volume() (down):");
 		CW_TEST_PRINT_TEST_RESULT (get_failure, n);
 	}
 
@@ -842,11 +843,13 @@ void test_volume_functions(cw_test_stats_t *stats)
 		for (int i = cw_min; i <= cw_max; i += 10) {
 			cw_wait_for_tone();
 			if (!cw_set_volume(i)) {
+				tests->expect_eq_int(tests, );
 				set_failure = true;
 				break;
 			}
 
 			if (cw_get_volume() != i) {
+				tests->expect_eq_int(tests, );
 				get_failure = true;
 				break;
 			}
@@ -854,11 +857,11 @@ void test_volume_functions(cw_test_stats_t *stats)
 		}
 
 		set_failure ? stats->failures++ : stats->successes++;
-		int n = fprintf(stderr, "libcw: cw_set_volume() (up):");
+		int n = fprintf(stderr, MSG_PREFIX "cw_set_volume() (up):");
 		CW_TEST_PRINT_TEST_RESULT (set_failure, n);
 
 		get_failure ? stats->failures++ : stats->successes++;
-		n = fprintf(stderr, "libcw: cw_get_volume() (up):");
+		n = fprintf(stderr, MSG_PREFIX "cw_get_volume() (up):");
 		CW_TEST_PRINT_TEST_RESULT (get_failure, n);
 	}
 
@@ -866,8 +869,8 @@ void test_volume_functions(cw_test_stats_t *stats)
 	cw_flush_tone_queue();
 
 
-	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
-
+	tests->print_test_footer(tests, __func__);
+#endif
 	return;
 }
 
@@ -879,14 +882,11 @@ void test_volume_functions(cw_test_stats_t *stats)
 /**
    \brief Test enqueueing and playing most basic elements of Morse code
 
-   tests::cw_send_dot()
-   tests::cw_send_dash()
-   tests::cw_send_character_space()
-   tests::cw_send_word_space()
 */
-void test_send_primitives(cw_test_stats_t *stats)
+void test_send_primitives(cw_test_t * test_set)
 {
-	printf("libcw: %s():\n", __func__);
+#if 0
+	tests->print_test_header(tests, __func__);
 
 	int N = 20;
 
@@ -895,6 +895,7 @@ void test_send_primitives(cw_test_stats_t *stats)
 		bool failure = false;
 		for (int i = 0; i < N; i++) {
 			if (!cw_send_dot()) {
+				tests->expect_eq_int(tests, );
 				failure = true;
 				break;
 			}
@@ -902,7 +903,7 @@ void test_send_primitives(cw_test_stats_t *stats)
 		cw_wait_for_tone_queue();
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_send_dot():");
+		int n = printf(MSG_PREFIX "cw_send_dot():");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -913,6 +914,7 @@ void test_send_primitives(cw_test_stats_t *stats)
 		bool failure = false;
 		for (int i = 0; i < N; i++) {
 			if (!cw_send_dash()) {
+				tests->expect_eq_int(tests, );
 				failure = true;
 				break;
 			}
@@ -920,7 +922,7 @@ void test_send_primitives(cw_test_stats_t *stats)
 		cw_wait_for_tone_queue();
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_send_dash():");
+		int n = printf(MSG_PREFIX "cw_send_dash():");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -930,6 +932,7 @@ void test_send_primitives(cw_test_stats_t *stats)
 		bool failure = false;
 		for (int i = 0; i < N; i++) {
 			if (!cw_send_character_space()) {
+				tests->expect_eq_int(tests, );
 				failure = true;
 				break;
 			}
@@ -937,7 +940,7 @@ void test_send_primitives(cw_test_stats_t *stats)
 		cw_wait_for_tone_queue();
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_send_character_space():");
+		int n = printf(MSG_PREFIX "cw_send_character_space():");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -948,6 +951,7 @@ void test_send_primitives(cw_test_stats_t *stats)
 		bool failure = false;
 		for (int i = 0; i < N; i++) {
 			if (!cw_send_word_space()) {
+				tests->expect_eq_int(tests, );
 				failure = true;
 				break;
 			}
@@ -955,13 +959,13 @@ void test_send_primitives(cw_test_stats_t *stats)
 		cw_wait_for_tone_queue();
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_send_word_space():");
+		int n = printf(MSG_PREFIX "cw_send_word_space():");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
 
-	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
-
+	tests->print_test_footer(tests, __func__);
+#endif
 	return;
 }
 
@@ -972,23 +976,23 @@ void test_send_primitives(cw_test_stats_t *stats)
 /**
    \brief Playing representations of characters
 
-   tests::cw_send_representation()
-   tests::cw_send_representation_partial()
 */
-void test_representations(cw_test_stats_t *stats)
+void test_representations(cw_test_t * test_set)
 {
-	printf("libcw: %s():\n", __func__);
+#if 0
+	tests->print_test_header(tests, __func__);
 
 
 	/* Test: sending valid representations. */
 	{
+		tests->expect_eq_int(tests, );
 		bool failure = !cw_send_representation(".-.-.-")
 			|| !cw_send_representation(".-")
 			|| !cw_send_representation("---")
 			|| !cw_send_representation("...-");
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_send_representation(<valid>):");
+		int n = printf(MSG_PREFIX "cw_send_representation(<valid>):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -996,12 +1000,13 @@ void test_representations(cw_test_stats_t *stats)
 
 	/* Test: sending invalid representations. */
 	{
+		tests->expect_eq_int(tests, );
 		bool failure = cw_send_representation("INVALID")
 			|| cw_send_representation("_._")
 			|| cw_send_representation("-_-");
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_send_representation(<invalid>):");
+		int n = printf(MSG_PREFIX "cw_send_representation(<invalid>):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -1009,10 +1014,11 @@ void test_representations(cw_test_stats_t *stats)
 
 	/* Test: sending partial representation of a valid string. */
 	{
+		tests->expect_eq_int(tests, );
 		bool failure = !cw_send_representation_partial(".-.-.-");
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_send_representation_partial():");
+		int n = printf(MSG_PREFIX "cw_send_representation_partial():");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -1020,8 +1026,8 @@ void test_representations(cw_test_stats_t *stats)
 	cw_wait_for_tone_queue();
 
 
-	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
-
+	tests->print_test_footer(tests, __func__);
+#endif
 	return;
 }
 
@@ -1032,12 +1038,11 @@ void test_representations(cw_test_stats_t *stats)
 /**
    Send all supported characters: first as individual characters, and then as a string.
 
-   tests::cw_send_character()
-   tests::cw_send_string()
 */
-void test_send_character_and_string(cw_test_stats_t *stats)
+void test_send_character_and_string(cw_test_t * test_set)
 {
-	printf("libcw: %s():\n", __func__);
+#if 0
+	tests->print_test_header(tests, __func__);
 
 	/* Test: sending all supported characters as individual characters. */
 	{
@@ -1046,12 +1051,13 @@ void test_send_character_and_string(cw_test_stats_t *stats)
 
 		/* Send all the characters from the charlist individually. */
 		cw_list_characters(charlist);
-		printf("libcw: cw_send_character(<valid>):\n"
-		       "libcw:     ");
+		printf(MSG_PREFIX "cw_send_character(<valid>):\n"
+		       MSG_PREFIX "    ");
 		for (int i = 0; charlist[i] != '\0'; i++) {
 			putchar(charlist[i]);
 			fflush(stdout);
 			if (!cw_send_character(charlist[i])) {
+				tests->expect_eq_int(tests, );
 				failure = true;
 				break;
 			}
@@ -1061,7 +1067,7 @@ void test_send_character_and_string(cw_test_stats_t *stats)
 		putchar('\n');
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_send_character(<valid>):");
+		int n = printf(MSG_PREFIX "cw_send_character(<valid>):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -1069,8 +1075,9 @@ void test_send_character_and_string(cw_test_stats_t *stats)
 
 	/* Test: sending invalid character. */
 	{
+		tests->expect_eq_int(tests, );
 		bool failure = cw_send_character(0);
-		int n = printf("libcw: cw_send_character(<invalid>):");
+		int n = printf(MSG_PREFIX "cw_send_character(<invalid>):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -1082,34 +1089,36 @@ void test_send_character_and_string(cw_test_stats_t *stats)
 		cw_list_characters(charlist);
 
 		/* Send the complete charlist as a single string. */
-		printf("libcw: cw_send_string(<valid>):\n"
-		       "libcw:     %s\n", charlist);
+		printf(MSG_PREFIX "cw_send_string(<valid>):\n"
+		       MSG_PREFIX "    %s\n", charlist);
+		tests->expect_eq_int(tests, );
 		bool failure = !cw_send_string(charlist);
 
 		while (cw_get_tone_queue_length() > 0) {
-			printf("libcw: tone queue length %-6d\r", cw_get_tone_queue_length());
+			printf(MSG_PREFIX "tone queue length %-6d\r", cw_get_tone_queue_length());
 			fflush(stdout);
 			cw_wait_for_tone();
 		}
-		printf("libcw: tone queue length %-6d\n", cw_get_tone_queue_length());
+		printf(MSG_PREFIX "tone queue length %-6d\n", cw_get_tone_queue_length());
 		cw_wait_for_tone_queue();
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_send_string(<valid>):");
+		int n = printf(MSG_PREFIX "cw_send_string(<valid>):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
 
 	/* Test: sending invalid string. */
 	{
+		tests->expect_eq_int(tests, );
 		bool failure = cw_send_string("%INVALID%");
-		int n = printf("libcw: cw_send_string(<invalid>):");
+		int n = printf(MSG_PREFIX "cw_send_string(<invalid>):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
 
-	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
-
+	tests->print_test_footer(tests, __func__);
+#endif
 	return;
 }
 
@@ -1118,13 +1127,11 @@ void test_send_character_and_string(cw_test_stats_t *stats)
 
 
 /**
-   tests::cw_notify_keyer_paddle_event()
-   tests::cw_wait_for_keyer_element()
-   tests::cw_get_keyer_paddles()
 */
-void test_keyer(cw_test_stats_t *stats)
+void test_keyer(cw_test_t * test_set)
 {
-	printf("libcw: %s():\n", __func__);
+#if 0
+	tests->print_test_header(tests, __func__);
 
 	/* Perform some tests on the iambic keyer.  The latch finer
 	   timing points are not tested here, just the basics - dots,
@@ -1137,10 +1144,11 @@ void test_keyer(cw_test_stats_t *stats)
 		/* Seems like this function calls means "keyer pressed
 		   until further notice". First argument is true, so
 		   this is a dot. */
+		tests->expect_eq_int(tests, );
 		bool failure = !cw_notify_keyer_paddle_event(true, false);
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_notify_keyer_paddle_event(true, false):");
+		int n = printf(MSG_PREFIX "cw_notify_keyer_paddle_event(true, false):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
@@ -1148,7 +1156,7 @@ void test_keyer(cw_test_stats_t *stats)
 		bool success = true;
 		/* Since a "dot" paddle is pressed, get 30 "dot"
 		   events from the keyer. */
-		printf("libcw: testing iambic keyer dots   ");
+		printf(MSG_PREFIX "testing iambic keyer dots   ");
 		fflush(stdout);
 		for (int i = 0; i < 30; i++) {
 			success = success && cw_wait_for_keyer_element();
@@ -1158,7 +1166,7 @@ void test_keyer(cw_test_stats_t *stats)
 		putchar('\n');
 
 		!success ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_wait_for_keyer_element():");
+		n = printf(MSG_PREFIX "cw_wait_for_keyer_element():");
 		CW_TEST_PRINT_TEST_RESULT (!success, n);
 	}
 
@@ -1167,10 +1175,11 @@ void test_keyer(cw_test_stats_t *stats)
 	/* Test: preserving of paddle states. */
 	{
 		cw_get_keyer_paddles(&dot_paddle, &dash_paddle);
+		tests->expect_eq_int(tests, );
 		bool failure = !dot_paddle || dash_paddle;
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_keyer_get_keyer_paddles():");
+		int n = printf(MSG_PREFIX "cw_keyer_get_keyer_paddles():");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -1182,10 +1191,11 @@ void test_keyer(cw_test_stats_t *stats)
 		   "keyer pressed until further notice". Second
 		   argument is true, so this is a dash. */
 
+		tests->expect_eq_int(tests, );
 		bool failure = !cw_notify_keyer_paddle_event(false, true);
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_notify_keyer_paddle_event(false, true):");
+		int n = printf(MSG_PREFIX "cw_notify_keyer_paddle_event(false, true):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
@@ -1193,7 +1203,7 @@ void test_keyer(cw_test_stats_t *stats)
 		bool success = true;
 		/* Since a "dash" paddle is pressed, get 30 "dash"
 		   events from the keyer. */
-		printf("libcw: testing iambic keyer dashes ");
+		printf(MSG_PREFIX "testing iambic keyer dashes ");
 		fflush(stdout);
 		for (int i = 0; i < 30; i++) {
 			success = success && cw_wait_for_keyer_element();
@@ -1203,7 +1213,7 @@ void test_keyer(cw_test_stats_t *stats)
 		putchar('\n');
 
 		!success ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_wait_for_keyer_element():");
+		n = printf(MSG_PREFIX "cw_wait_for_keyer_element():");
 		CW_TEST_PRINT_TEST_RESULT (!success, n);
 	}
 
@@ -1212,10 +1222,11 @@ void test_keyer(cw_test_stats_t *stats)
 	/* Test: preserving of paddle states. */
 	{
 		cw_get_keyer_paddles(&dot_paddle, &dash_paddle);
+		tests->expect_eq_int(tests, );
 		bool failure = dot_paddle || !dash_paddle;
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_get_keyer_paddles():");
+		int n = printf(MSG_PREFIX "cw_get_keyer_paddles():");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -1227,15 +1238,16 @@ void test_keyer(cw_test_stats_t *stats)
 		   "keyer pressed until further notice". Both
 		   arguments are true, so both paddles are pressed at
 		   the same time.*/
+		tests->expect_eq_int(tests, );
 		bool failure = !cw_notify_keyer_paddle_event(true, true);
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_notify_keyer_paddle_event(true, true):");
+		int n = printf(MSG_PREFIX "cw_notify_keyer_paddle_event(true, true):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 		bool success = true;
-		printf("libcw: testing iambic alternating  ");
+		printf(MSG_PREFIX "testing iambic alternating  ");
 		fflush(stdout);
 		for (int i = 0; i < 30; i++) {
 			success = success && cw_wait_for_keyer_element();
@@ -1245,7 +1257,7 @@ void test_keyer(cw_test_stats_t *stats)
 		putchar('\n');
 
 		!success ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_wait_for_keyer_element:");
+		n = printf(MSG_PREFIX "cw_wait_for_keyer_element:");
 		CW_TEST_PRINT_TEST_RESULT (!success, n);
 	}
 
@@ -1254,10 +1266,11 @@ void test_keyer(cw_test_stats_t *stats)
 	/* Test: preserving of paddle states. */
 	{
 		cw_get_keyer_paddles(&dot_paddle, &dash_paddle);
+		tests->expect_eq_int(tests, );
 		bool failure = !dot_paddle || !dash_paddle;
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_get_keyer_paddles():");
+		int n = printf(MSG_PREFIX "cw_get_keyer_paddles():");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -1265,18 +1278,19 @@ void test_keyer(cw_test_stats_t *stats)
 
 	/* Test: set new state of paddles: no paddle pressed. */
 	{
+		tests->expect_eq_int(tests, );
 		bool failure = !cw_notify_keyer_paddle_event(false, false);
 
 		failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_notify_keyer_paddle_event(false, false):");
+		int n = printf(MSG_PREFIX "cw_notify_keyer_paddle_event(false, false):");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
 	cw_wait_for_keyer();
 
 
-	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
-
+	tests->print_test_footer(tests, __func__);
+#endif
 	return;
 }
 
@@ -1285,13 +1299,11 @@ void test_keyer(cw_test_stats_t *stats)
 
 
 /**
-   tests::cw_notify_straight_key_event()
-   tests::cw_get_straight_key_state()
-   tests::cw_is_straight_key_busy()
 */
-void test_straight_key(cw_test_stats_t *stats)
+void test_straight_key(cw_test_t * test_set)
 {
-	printf("libcw: %s():  ", __func__);
+#if 0
+	printf(MSG_PREFIX "%s():  ", __func__);
 
 	{
 		bool event_failure = false;
@@ -1306,16 +1318,19 @@ void test_straight_key(cw_test_stats_t *stats)
 		/* Alternate between open and closed. */
 		for (int i = 0; i < 5; i++) {
 			if (CW_SUCCESS != cw_notify_straight_key_event(CW_KEY_STATE_OPEN)) {
+				tests->expect_eq_int(tests, );
 				event_failure = true;
 				break;
 			}
 
 			if (CW_KEY_STATE_OPEN != cw_get_straight_key_state()) {
+				tests->expect_eq_int(tests, );
 				state_failure = true;
 				break;
 			}
 
 			if (cw_is_straight_key_busy()) {
+				tests->expect_eq_int(tests, );
 				busy_failure = true;
 				break;
 			}
@@ -1331,16 +1346,19 @@ void test_straight_key(cw_test_stats_t *stats)
 #endif
 
 			if (CW_SUCCESS != cw_notify_straight_key_event(CW_KEY_STATE_CLOSED)) {
+				tests->expect_eq_int(tests, );
 				event_failure = true;
 				break;
 			}
 
 			if (CW_KEY_STATE_CLOSED != cw_get_straight_key_state()) {
+				tests->expect_eq_int(tests, );
 				state_failure = true;
 				break;
 			}
 
 			if (!cw_is_straight_key_busy()) {
+				tests->expect_eq_int(tests, );
 				busy_failure = true;
 				break;
 			}
@@ -1363,15 +1381,15 @@ void test_straight_key(cw_test_stats_t *stats)
 		fflush(stdout);
 
 		event_failure ? stats->failures++ : stats->successes++;
-		int n = printf("libcw: cw_notify_straight_key_event(<key open/closed>):");
+		int n = printf(MSG_PREFIX "cw_notify_straight_key_event(<key open/closed>):");
 		CW_TEST_PRINT_TEST_RESULT (event_failure, n);
 
 		state_failure ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_get_straight_key_state():");
+		n = printf(MSG_PREFIX "cw_get_straight_key_state():");
 		CW_TEST_PRINT_TEST_RESULT (state_failure, n);
 
 		busy_failure ? stats->failures++ : stats->successes++;
-		n = printf("libcw: cw_straight_key_busy():");
+		n = printf(MSG_PREFIX "cw_straight_key_busy():");
 		CW_TEST_PRINT_TEST_RESULT (busy_failure, n);
 	}
 
@@ -1379,8 +1397,8 @@ void test_straight_key(cw_test_stats_t *stats)
 	sleep(1);
 
 
-	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
-
+	tests->print_test_footer(tests, __func__);
+#endif
 	return;
 }
 
@@ -1392,9 +1410,11 @@ void test_straight_key(cw_test_stats_t *stats)
 /*
  * cw_test_delayed_release()
  */
-void cw_test_delayed_release(cw_test_stats_t *stats)
+void cw_test_delayed_release(cw_test_t * test_set)
 {
-	printf("libcw: %s():\n", __func__);
+	tests->print_test_header(tests, __func__);
+
+
 	int failures = 0;
 	struct timeval start, finish;
 	int is_released, delay;
@@ -1402,28 +1422,28 @@ void cw_test_delayed_release(cw_test_stats_t *stats)
 	/* This is slightly tricky to detect, but circumstantial
 	   evidence is provided by SIGALRM disposition returning to SIG_DFL. */
 	if (!cw_send_character_space()) {
-		printf("libcw: ERROR: cw_send_character_space()\n");
+		printf(MSG_PREFIX "ERROR: cw_send_character_space()\n");
 		failures++;
 	}
 
 	if (gettimeofday(&start, NULL) != 0) {
-		printf("libcw: WARNING: gettimeofday failed, test incomplete\n");
+		printf(MSG_PREFIX "WARNING: gettimeofday failed, test incomplete\n");
 		return;
 	}
-	printf("libcw: waiting for cw_finalization delayed release");
+	printf(MSG_PREFIX "waiting for cw_finalization delayed release");
 	fflush(stdout);
 	do {
 		struct sigaction disposition;
 
 		sleep(1);
 		if (sigaction(SIGALRM, NULL, &disposition) != 0) {
-			printf("libcw: WARNING: sigaction failed, test incomplete\n");
+			printf(MSG_PREFIX "WARNING: sigaction failed, test incomplete\n");
 			return;
 		}
 		is_released = disposition.sa_handler == SIG_DFL;
 
 		if (gettimeofday(&finish, NULL) != 0) {
-			printf("libcw: WARNING: gettimeofday failed, test incomplete\n");
+			printf(MSG_PREFIX "WARNING: gettimeofday failed, test incomplete\n");
 			return;
 		}
 
@@ -1440,18 +1460,18 @@ void cw_test_delayed_release(cw_test_stats_t *stats)
 	   it by a bit; we'll be ecstatic with more than five
 	   seconds. */
 	if (is_released) {
-		printf("libcw: cw_finalization delayed release after %d usecs\n", delay);
+		printf(MSG_PREFIX "cw_finalization delayed release after %d usecs\n", delay);
 		if (delay < 5000000) {
-			printf("libcw: ERROR: cw_finalization release too quick\n");
+			printf(MSG_PREFIX "ERROR: cw_finalization release too quick\n");
 			failures++;
 		}
 	} else {
-		printf("libcw: ERROR: cw_finalization release wait timed out\n");
+		printf(MSG_PREFIX "ERROR: cw_finalization release wait timed out\n");
 		failures++;
 	}
 
 
-	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
+	tests->print_test_footer(tests, __func__);
 
 	return;
 }
@@ -1475,7 +1495,7 @@ void cw_test_signal_handling_callback(int signal_number)
 
 
 
-void cw_test_signal_handling(cw_test_stats_t *stats)
+void cw_test_signal_handling(cw_test_t * test_set)
 {
 	int failures = 0;
 	struct sigaction action, disposition;
@@ -1484,13 +1504,13 @@ void cw_test_signal_handling(cw_test_stats_t *stats)
 	   SIG_IGN and handlers are tested, but not SIG_DFL, because
 	   that stops the process. */
 	if (cw_unregister_signal_handler(SIGUSR1)) {
-		printf("libcw: ERROR: cw_unregister_signal_handler invalid\n");
+		printf(MSG_PREFIX "ERROR: cw_unregister_signal_handler invalid\n");
 		failures++;
 	}
 
 	if (!cw_register_signal_handler(SIGUSR1,
                                    cw_test_signal_handling_callback)) {
-		printf("libcw: ERROR: cw_register_signal_handler failed\n");
+		printf(MSG_PREFIX "ERROR: cw_register_signal_handler failed\n");
 		failures++;
 	}
 
@@ -1498,12 +1518,12 @@ void cw_test_signal_handling(cw_test_stats_t *stats)
 	raise(SIGUSR1);
 	sleep(1);
 	if (!cw_test_signal_handling_callback_called) {
-		printf("libcw: ERROR: cw_test_signal_handling_callback missed\n");
+		printf(MSG_PREFIX "ERROR: cw_test_signal_handling_callback missed\n");
 		failures++;
 	}
 
 	if (!cw_register_signal_handler(SIGUSR1, SIG_IGN)) {
-		printf("libcw: ERROR: cw_register_signal_handler (overwrite) failed\n");
+		printf(MSG_PREFIX "ERROR: cw_register_signal_handler (overwrite) failed\n");
 		failures++;
 	}
 
@@ -1511,17 +1531,17 @@ void cw_test_signal_handling(cw_test_stats_t *stats)
 	raise(SIGUSR1);
 	sleep(1);
 	if (cw_test_signal_handling_callback_called) {
-		printf("libcw: ERROR: cw_test_signal_handling_callback called\n");
+		printf(MSG_PREFIX "ERROR: cw_test_signal_handling_callback called\n");
 		failures++;
 	}
 
 	if (!cw_unregister_signal_handler(SIGUSR1)) {
-		printf("libcw: ERROR: cw_unregister_signal_handler failed\n");
+		printf(MSG_PREFIX "ERROR: cw_unregister_signal_handler failed\n");
 		failures++;
 	}
 
 	if (cw_unregister_signal_handler(SIGUSR1)) {
-		printf("libcw: ERROR: cw_unregister_signal_handler invalid\n");
+		printf(MSG_PREFIX "ERROR: cw_unregister_signal_handler invalid\n");
 		failures++;
 	}
 
@@ -1529,19 +1549,19 @@ void cw_test_signal_handling(cw_test_stats_t *stats)
 	action.sa_flags = SA_RESTART;
 	sigemptyset(&action.sa_mask);
 	if (sigaction(SIGUSR1, &action, &disposition) != 0) {
-		printf("libcw: WARNING: sigaction failed, test incomplete\n");
+		printf(MSG_PREFIX "WARNING: sigaction failed, test incomplete\n");
 		return failures;
 	}
 	if (cw_register_signal_handler(SIGUSR1, SIG_IGN)) {
-		printf("libcw: ERROR: cw_register_signal_handler clobbered\n");
+		printf(MSG_PREFIX "ERROR: cw_register_signal_handler clobbered\n");
 		failures++;
 	}
 	if (sigaction(SIGUSR1, &disposition, NULL) != 0) {
-		printf("libcw: WARNING: sigaction failed, test incomplete\n");
+		printf(MSG_PREFIX "WARNING: sigaction failed, test incomplete\n");
 		return failures;
 	}
 
-	printf("libcw: cw_[un]register_signal_handler tests complete\n");
+	printf(MSG_PREFIX "cw_[un]register_signal_handler tests complete\n");
 	return;
 }
 #endif
@@ -1561,7 +1581,7 @@ void cw_test_signal_handling(cw_test_stats_t *stats)
   Because the function calls cw_generator_delete(), it should be
   executed as last test in test suite (unless you want to call
   cw_generator_new/start() again). */
-void test_cw_gen_forever_public(cw_test_stats_t *stats)
+void test_cw_gen_forever_public(cw_test_t * test_set)
 {
 	/* Make sure that an audio sink is closed. If we try to open
 	   an OSS sink that is already open, we may end up with
@@ -1573,12 +1593,12 @@ void test_cw_gen_forever_public(cw_test_stats_t *stats)
 	cw_generator_delete();
 
 	int seconds = 5;
-	printf("libcw: %s() (%d seconds):\n", __func__, seconds);
+	printf(MSG_PREFIX "%s() (%d seconds):\n", __func__, seconds);
 
 	unsigned int rv = test_cw_gen_forever_sub(seconds, test_audio_system, NULL);
 	rv == 0 ? stats->successes++ : stats->failures++;
 
-	CW_TEST_PRINT_FUNCTION_COMPLETED (__func__);
+	tests->print_test_footer(tests, __func__);
 
 	return;
 }
@@ -1616,17 +1636,20 @@ void cw_test_setup(void)
 
 
 
-
 /* Tests that are dependent on a sound system being configured.
    Tone queue module functions */
-static void (*const CW_TEST_FUNCTIONS_DEP_T[])(cw_test_stats_t *) = {
-	test_tone_queue_1,
-	test_tone_queue_2,
+static void (*const CW_TEST_FUNCTIONS_DEP_TQ[])(cw_test_t *) = {
+	test_cw_wait_for_tone,
+	test_cw_wait_for_tone_queue,
+	test_cw_queue_tone,
+
 	test_tone_queue_3,
 	test_tone_queue_callback,
 
 	NULL
 };
+
+
 
 
 /* Tests that are dependent on a sound system being configured.
@@ -1653,7 +1676,7 @@ static void (*const CW_TEST_FUNCTIONS_DEP_K[])(cw_test_stats_t *) = {
 
 /* Tests that are dependent on a sound system being configured.
    Other modules' functions. */
-static void (*const CW_TEST_FUNCTIONS_DEP_O[])(cw_test_stats_t *) = {
+static void (*const CW_TEST_FUNCTIONS_DEP_O[])(cw_test_t *) = {
 	test_parameter_ranges,
 	//test_cw_gen_forever_public,
 
@@ -1682,27 +1705,27 @@ static void (*const CW_TEST_FUNCTIONS_DEP_O[])(cw_test_stats_t *) = {
    \return 0 if tests were run, and no errors occurred
    \return 1 if tests were run, and some errors occurred
 */
-int cw_test_dependent_with(int audio_system, const char *modules, cw_test_stats_t *stats)
+int cw_test_modules_with_one_sound_system(const char * modules, int audio_system, cw_test_t * test_set)
 {
 	test_audio_system = audio_system;
 
 	int rv = cw_generator_new(audio_system, NULL);
 	if (rv != 1) {
-		fprintf(stderr, "libcw: can't create generator, stopping the test\n");
+		fprintf(stderr, MSG_PREFIX "can't create generator, stopping the test\n");
 		return -1;
 	}
 	rv = cw_generator_start();
 	if (rv != 1) {
-		fprintf(stderr, "libcw: can't start generator, stopping the test\n");
+		fprintf(stderr, MSG_PREFIX "can't start generator, stopping the test\n");
 		cw_generator_delete();
 		return -1;
 	}
 
 
 	if (strstr(modules, "t")) {
-		for (int test = 0; CW_TEST_FUNCTIONS_DEP_T[test]; test++) {
+		for (int test = 0; CW_TEST_FUNCTIONS_DEP_TQ[test]; test++) {
 			cw_test_setup();
-			(*CW_TEST_FUNCTIONS_DEP_T[test])(stats);
+			(*CW_TEST_FUNCTIONS_DEP_TQ[test])(test_set);
 		}
 	}
 
@@ -1710,7 +1733,7 @@ int cw_test_dependent_with(int audio_system, const char *modules, cw_test_stats_
 	if (strstr(modules, "g")) {
 		for (int test = 0; CW_TEST_FUNCTIONS_DEP_G[test]; test++) {
 			cw_test_setup();
-			(*CW_TEST_FUNCTIONS_DEP_G[test])(stats);
+			(*CW_TEST_FUNCTIONS_DEP_G[test])(test_set);
 		}
 	}
 
@@ -1718,7 +1741,7 @@ int cw_test_dependent_with(int audio_system, const char *modules, cw_test_stats_
 	if (strstr(modules, "k")) {
 		for (int test = 0; CW_TEST_FUNCTIONS_DEP_K[test]; test++) {
 			cw_test_setup();
-			(*CW_TEST_FUNCTIONS_DEP_K[test])(stats);
+			(*CW_TEST_FUNCTIONS_DEP_K[test])(test_set);
 		}
 	}
 
@@ -1726,7 +1749,7 @@ int cw_test_dependent_with(int audio_system, const char *modules, cw_test_stats_
 	if (strstr(modules, "o")) {
 		for (int test = 0; CW_TEST_FUNCTIONS_DEP_O[test]; test++) {
 			cw_test_setup();
-			(*CW_TEST_FUNCTIONS_DEP_O[test])(stats);
+			(*CW_TEST_FUNCTIONS_DEP_O[test])(test_set);
 		}
 	}
 
@@ -1738,7 +1761,7 @@ int cw_test_dependent_with(int audio_system, const char *modules, cw_test_stats_
 
 	/* All tests done; return success if no failures,
 	   otherwise return an error status code. */
-	return stats->failures ? 1 : 0;
+	return test_set->stats->failures ? 1 : 0;
 }
 
 
@@ -1749,68 +1772,77 @@ int cw_test_dependent_with(int audio_system, const char *modules, cw_test_stats_
    \brief Run a series of tests for specified audio systems
 
    Function attempts to run a set of testcases for every audio system
-   specified in \p audio_systems. These testcases require some kind
-   of audio system configured. The function calls cw_test_dependent_with()
-   to do the configuration and run the tests.
+   specified in \p sound_systems. These testcases require some kind of
+   audio system configured. The function calls
+   cw_test_modules_with_one_sound_system() to do the configuration and
+   run the tests.
 
-   \p audio_systems is a list of audio systems to be tested: "ncoap".
+   \p sound_systems is a list of audio systems to be tested: "ncoap".
    Pass NULL pointer to attempt to test all of audio systems supported
    by libcw.
 
-   \param audio_systems - list of audio systems to be tested
+   \param sound_systems - list of audio systems to be tested
 */
-int cw_test_dependent(const char *audio_systems, const char *modules)
+int cw_test_modules_with_sound_systems(const char * modules, const char * sound_systems)
 {
 	int n = 0, c = 0, o = 0, a = 0, p = 0;
 
+	cw_test_t test_set;
+	cw_test_init(&test_set, stdout, stderr, MSG_PREFIX);
 
-	if (!audio_systems || strstr(audio_systems, "n")) {
+
+	if (!sound_systems || strstr(sound_systems, "n")) {
 		if (cw_is_null_possible(NULL)) {
 			fprintf(stderr, "========================================\n");
-			fprintf(stderr, "libcw: testing with null output\n");
-			n = cw_test_dependent_with(CW_AUDIO_NULL, modules, &cw_stats_null);
+			fprintf(stderr, MSG_PREFIX "testing with null output\n");
+			test_set.stats = &cw_stats_null;
+			n = cw_test_modules_with_one_sound_system(modules, CW_AUDIO_NULL, &test_set);
 		} else {
-			fprintf(stderr, "libcw: null output not available\n");
+			fprintf(stderr, MSG_PREFIX "null output not available\n");
 		}
 	}
 
-	if (!audio_systems || strstr(audio_systems, "c")) {
+	if (!sound_systems || strstr(sound_systems, "c")) {
 		if (cw_is_console_possible(NULL)) {
 			fprintf(stderr, "========================================\n");
-			fprintf(stderr, "libcw: testing with console output\n");
-			c = cw_test_dependent_with(CW_AUDIO_CONSOLE, modules, &cw_stats_console);
+			fprintf(stderr, MSG_PREFIX "testing with console output\n");
+			test_set.stats = &cw_stats_console;
+			c = cw_test_modules_with_one_sound_system(modules, CW_AUDIO_CONSOLE, &test_set);
 		} else {
-			fprintf(stderr, "libcw: console output not available\n");
+			fprintf(stderr, MSG_PREFIX "console output not available\n");
 		}
 	}
 
-	if (!audio_systems || strstr(audio_systems, "o")) {
+	if (!sound_systems || strstr(sound_systems, "o")) {
 		if (cw_is_oss_possible(NULL)) {
 			fprintf(stderr, "========================================\n");
-			fprintf(stderr, "libcw: testing with OSS output\n");
-			o = cw_test_dependent_with(CW_AUDIO_OSS, modules, &cw_stats_oss);
+			fprintf(stderr, MSG_PREFIX "testing with OSS output\n");
+			test_set.stats = &cw_stats_oss;
+			o = cw_test_modules_with_one_sound_system(modules, CW_AUDIO_OSS, &test_set);
 		} else {
-			fprintf(stderr, "libcw: OSS output not available\n");
+			fprintf(stderr, MSG_PREFIX "OSS output not available\n");
 		}
 	}
 
-	if (!audio_systems || strstr(audio_systems, "a")) {
+	if (!sound_systems || strstr(sound_systems, "a")) {
 		if (cw_is_alsa_possible(NULL)) {
 			fprintf(stderr, "========================================\n");
-			fprintf(stderr, "libcw: testing with ALSA output\n");
-			a = cw_test_dependent_with(CW_AUDIO_ALSA, modules, &cw_stats_alsa);
+			fprintf(stderr, MSG_PREFIX "testing with ALSA output\n");
+			test_set.stats = &cw_stats_alsa;
+			a = cw_test_modules_with_one_sound_system(modules, CW_AUDIO_ALSA, &test_set);
 		} else {
-			fprintf(stderr, "libcw: Alsa output not available\n");
+			fprintf(stderr, MSG_PREFIX "Alsa output not available\n");
 		}
 	}
 
-	if (!audio_systems || strstr(audio_systems, "p")) {
+	if (!sound_systems || strstr(sound_systems, "p")) {
 		if (cw_is_pa_possible(NULL)) {
 			fprintf(stderr, "========================================\n");
-			fprintf(stderr, "libcw: testing with PulseAudio output\n");
-			p = cw_test_dependent_with(CW_AUDIO_PA, modules, &cw_stats_pa);
+			fprintf(stderr, MSG_PREFIX "testing with PulseAudio output\n");
+			test_set.stats = &cw_stats_pa;
+			p = cw_test_modules_with_one_sound_system(modules, CW_AUDIO_PA, &test_set);
 		} else {
-			fprintf(stderr, "libcw: PulseAudio output not available\n");
+			fprintf(stderr, MSG_PREFIX "PulseAudio output not available\n");
 		}
 	}
 
@@ -1827,9 +1859,9 @@ int cw_test_dependent(const char *audio_systems, const char *modules)
 
 void cw_test_print_stats(void)
 {
-	printf("\n\nlibcw: Statistics of tests:\n\n");
+	printf("\n\n"MSG_PREFIX "Statistics of tests:\n\n");
 
-	printf("libcw: Tests not requiring any audio system:            ");
+	printf(MSG_PREFIX "Tests not requiring any audio system:            ");
 	if (cw_stats_indep.failures + cw_stats_indep.successes) {
 		printf("errors: %03d, total: %03d\n",
 		       cw_stats_indep.failures, cw_stats_indep.failures + cw_stats_indep.successes);
@@ -1837,7 +1869,7 @@ void cw_test_print_stats(void)
 		printf("no tests were performed\n");
 	}
 
-	printf("libcw: Tests performed with NULL audio system:          ");
+	printf(MSG_PREFIX "Tests performed with NULL audio system:          ");
 	if (cw_stats_null.failures + cw_stats_null.successes) {
 		printf("errors: %03d, total: %03d\n",
 		       cw_stats_null.failures, cw_stats_null.failures + cw_stats_null.successes);
@@ -1845,7 +1877,7 @@ void cw_test_print_stats(void)
 		printf("no tests were performed\n");
 	}
 
-	printf("libcw: Tests performed with console audio system:       ");
+	printf(MSG_PREFIX "Tests performed with console audio system:       ");
 	if (cw_stats_console.failures + cw_stats_console.successes) {
 		printf("errors: %03d, total: %03d\n",
 		       cw_stats_console.failures, cw_stats_console.failures + cw_stats_console.successes);
@@ -1853,7 +1885,7 @@ void cw_test_print_stats(void)
 		printf("no tests were performed\n");
 	}
 
-	printf("libcw: Tests performed with OSS audio system:           ");
+	printf(MSG_PREFIX "Tests performed with OSS audio system:           ");
 	if (cw_stats_oss.failures + cw_stats_oss.successes) {
 		printf("errors: %03d, total: %03d\n",
 		       cw_stats_oss.failures, cw_stats_oss.failures + cw_stats_oss.successes);
@@ -1861,7 +1893,7 @@ void cw_test_print_stats(void)
 		printf("no tests were performed\n");
 	}
 
-	printf("libcw: Tests performed with ALSA audio system:          ");
+	printf(MSG_PREFIX "Tests performed with ALSA audio system:          ");
 	if (cw_stats_alsa.failures + cw_stats_alsa.successes) {
 		printf("errors: %03d, total: %03d\n",
 		       cw_stats_alsa.failures, cw_stats_alsa.failures + cw_stats_alsa.successes);
@@ -1869,7 +1901,7 @@ void cw_test_print_stats(void)
 		printf("no tests were performed\n");
 	}
 
-	printf("libcw: Tests performed with PulseAudio audio system:    ");
+	printf(MSG_PREFIX "Tests performed with PulseAudio audio system:    ");
 	if (cw_stats_pa.failures + cw_stats_pa.successes) {
 		printf("errors: %03d, total: %03d\n",
 		       cw_stats_pa.failures, cw_stats_pa.failures + cw_stats_pa.successes);
@@ -1933,12 +1965,12 @@ int main(int argc, char *const argv[])
 	/* Arrange for the test to exit on a range of signals. */
 	for (int i = 0; SIGNALS[i] != 0; i++) {
 		if (!cw_register_signal_handler(SIGNALS[i], SIG_DFL)) {
-			fprintf(stderr, "libcw: ERROR: cw_register_signal_handler\n");
+			fprintf(stderr, MSG_PREFIX "ERROR: cw_register_signal_handler\n");
 			exit(EXIT_FAILURE);
 		}
 	}
 
-	rv = cw_test_dependent(sound_systems, modules);
+	rv = cw_test_modules_with_sound_systems(modules, sound_systems);
 
 	return rv == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }

@@ -45,6 +45,7 @@
 #include <stdlib.h>
 #include <getopt.h>
 #include <assert.h>
+#include <stdarg.h>
 
 #if defined(HAVE_STRING_H)
 # include <string.h>
@@ -59,6 +60,14 @@
 #include "libcw_debug.h"
 #include "libcw_test.h"
 
+
+
+
+static bool cw_test_expect_eq_int(struct cw_test_t * self, int expected_value, int received_value, const char * fmt, ...);
+static bool cw_test_expect_eq_int_errors_only(struct cw_test_t * self, int expected_value, int received_value, const char * fmt, ...);
+static void cw_test_print_test_header(cw_test_t * self, const char * text);
+static void cw_test_print_test_footer(cw_test_t * self, const char * text);
+static void cw_test_append_status_string(cw_test_t * self, char * msg_buf, int n, const char * status_string);
 
 
 
@@ -164,4 +173,122 @@ void cw_test_print_help(const char *progname)
 	fprintf(stderr, "       If no argument is provided, the program will attempt to test all audio systems and all modules\n");
 
 	return;
+}
+
+
+
+
+bool cw_test_expect_eq_int(struct cw_test_t * self, int expected_value, int received_value, const char * fmt, ...)
+{
+	bool as_expected = false;
+	char va_buf[128] = { 0 };
+
+	va_list ap;
+	va_start(ap, fmt);
+	vsnprintf(va_buf, sizeof (va_buf), fmt, ap);
+	va_end(ap);
+
+	char msg_buf[1024] = { 0 };
+	int n = snprintf(msg_buf, sizeof (msg_buf), "%s", self->msg_prefix);
+	const int message_len = n + snprintf(msg_buf + n, sizeof (msg_buf) - n, "%s", va_buf);
+	n += snprintf(msg_buf + n, sizeof (msg_buf) - n, "%-*s", (int) (self->console_n_cols - n), va_buf);
+
+
+	if (expected_value == received_value) {
+		self->stats->successes++;
+
+		cw_test_append_status_string(self, msg_buf, message_len, "[ OK ]");
+		fprintf(self->stderr, "%s\n", msg_buf);
+
+		as_expected = true;
+	} else {
+		self->stats->failures++;
+
+		cw_test_append_status_string(self, msg_buf, message_len, "[FAIL]");
+		fprintf(self->stderr, "%s\n", msg_buf);
+
+		fprintf(self->stderr, "%s\n", msg_buf);
+		fprintf(self->stderr, "   ***   expected %d, got %d   ***\n", expected_value, received_value);
+
+		as_expected = false;
+	}
+
+
+	return as_expected;
+}
+
+
+
+
+/* Append given status string at the end of buffer, but within cw_test::console_n_cols limit. */
+void cw_test_append_status_string(cw_test_t * self, char * msg_buf, int n, const char * status_string)
+{
+	const char * separator = " "; /* Separator between test message and test status string, for better visibility of status string. */
+	const size_t space_left = self->console_n_cols - n;
+
+	if (space_left > strlen(separator) + strlen(status_string)) {
+		sprintf(msg_buf + self->console_n_cols - strlen(separator) - strlen(status_string), "%s%s", separator, status_string);
+	} else {
+		sprintf(msg_buf + self->console_n_cols - strlen("...") - strlen(separator) - strlen(status_string), "...%s%s", separator, status_string);
+	}
+}
+
+
+
+
+bool cw_test_expect_eq_int_errors_only(struct cw_test_t * self, int expected_value, int received_value, const char * fmt, ...)
+{
+	bool as_expected = true;
+	char buf[128] = { 0 };
+
+	va_list ap;
+	va_start(ap, fmt);
+	vsnprintf(buf, sizeof (buf), fmt, ap);
+	va_end(ap);
+
+	if (expected_value == received_value) {
+		as_expected = true;
+	} else {
+		const int n = fprintf(self->stderr, "%s%s", self->msg_prefix, buf);
+		self->stats->failures++;
+		fprintf(self->stderr, "%*s", self->console_n_cols - n, "failure: ");
+		fprintf(self->stderr, "expected %d, got %d\n", expected_value, received_value);
+		as_expected = false;
+	}
+
+	return as_expected;
+}
+
+
+
+
+void cw_test_print_test_header(cw_test_t * self, const char * text)
+{
+	fprintf(self->stderr, "\n%sbeginning of test: %s:\n", self->msg_prefix, text);
+}
+
+
+
+
+void cw_test_print_test_footer(cw_test_t * self, const char * text)
+{
+	const int n = fprintf(self->stderr, "%send of test: %s: ", self->msg_prefix, text);
+	fprintf(self->stderr, "%*s\n\n", self->console_n_cols - n, "completed\n");
+}
+
+
+
+
+void cw_test_init(cw_test_t * self, FILE * stdout, FILE * stderr, const char * msg_prefix)
+{
+	self->stdout = stdout;
+	self->stderr = stderr;
+	self->expect_eq_int = cw_test_expect_eq_int;
+	self->expect_eq_int_errors_only = cw_test_expect_eq_int_errors_only;
+	self->print_test_header = cw_test_print_test_header;
+	self->print_test_footer = cw_test_print_test_footer;
+
+	self->console_n_cols = default_cw_test_print_n_chars;
+
+	snprintf(self->msg_prefix, sizeof (self->msg_prefix), "%s", msg_prefix);
 }
