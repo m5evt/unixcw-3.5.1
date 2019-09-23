@@ -576,6 +576,8 @@ void cw_get_send_parameters(int *dot_usecs, int *dash_usecs,
    function appends to a tone queue a normal inter-mark gap after the
    dot mark.
 
+   testedin::test_send_primitives()
+
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
@@ -595,6 +597,8 @@ int cw_send_dot(void)
    The function appends to a tone queue a normal inter-mark gap after
    the dash mark.
 
+   testedin::test_send_primitives()
+
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
@@ -608,10 +612,11 @@ int cw_send_dash(void)
 
 
 /**
-
    The function plays space timed to exclude the expected prior
    dot/dash inter-mark gap.
    FIXME: fix this description.
+
+   testedin::test_send_primitives()
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
@@ -626,10 +631,11 @@ int cw_send_character_space(void)
 
 
 /**
-
    The function sends space timed to exclude both the expected prior
    dot/dash inter-mark gap and the prior end of character space.
    FIXME: fix this description.
+
+   testedin::test_send_primitives()
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
@@ -656,6 +662,8 @@ int cw_send_word_space(void)
    console speaker, or keying system is busy, or EAGAIN if the tone
    queue is full, or if there is insufficient space to queue the tones
    or the representation.
+
+   testedin::test_representations()
 
    \param representation - representation to send
 
@@ -685,6 +693,7 @@ int cw_send_representation(const char *representation)
    is full, or if there is insufficient space to queue the tones for
    the representation.
 
+   testedin::test_representations()
 */
 int cw_send_representation_partial(const char *representation)
 {

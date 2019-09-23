@@ -271,7 +271,7 @@ void cw_test_print_test_header(cw_test_t * self, const char * text)
 void cw_test_print_test_footer(cw_test_t * self, const char * text)
 {
 	const int n = fprintf(self->stderr, "%send of test: %s: ", self->msg_prefix, text);
-	fprintf(self->stderr, "%*s\n\n", self->console_n_cols - n, "completed\n");
+	fprintf(self->stderr, "%*s\n", self->console_n_cols - n, "completed\n");
 }
 
 

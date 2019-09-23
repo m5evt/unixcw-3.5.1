@@ -874,92 +874,75 @@ void test_volume_functions(cw_test_t * tests)
 
 
 
-
-
 /**
-   \brief Test enqueueing and playing most basic elements of Morse code
+   \brief Test enqueueing most basic elements of Morse code
 
+   tests::cw_send_dot()
+   tests::cw_send_dash()
+   tests::cw_send_character_space()
+   tests::cw_send_word_space()
 */
 void test_send_primitives(cw_test_t * tests)
 {
 	tests->print_test_header(tests, __func__);
-#if 0
+
 	int N = 20;
 
 	/* Test: sending dot. */
 	{
 		bool failure = false;
 		for (int i = 0; i < N; i++) {
-			if (!cw_send_dot()) {
-				tests->expect_eq_int(tests, );
+			const int cwret = cw_send_dot();
+			if (!tests->expect_eq_int_errors_only(tests, CW_SUCCESS, cwret, "cw_send_dot() #%d", i)) {
 				failure = true;
 				break;
 			}
 		}
 		cw_wait_for_tone_queue();
-
-		failure ? stats->failures++ : stats->successes++;
-		int n = printf(MSG_PREFIX "cw_send_dot():");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		tests->expect_eq_int(tests, false, failure, "cw_send_dot()");
 	}
-
-
 
 	/* Test: sending dash. */
 	{
 		bool failure = false;
 		for (int i = 0; i < N; i++) {
-			if (!cw_send_dash()) {
-				tests->expect_eq_int(tests, );
+			const int cwret = cw_send_dash();
+			if (!tests->expect_eq_int_errors_only(tests, CW_SUCCESS, cwret, "cw_send_dash() #%d", i)) {
 				failure = true;
 				break;
 			}
 		}
 		cw_wait_for_tone_queue();
-
-		failure ? stats->failures++ : stats->successes++;
-		int n = printf(MSG_PREFIX "cw_send_dash():");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		tests->expect_eq_int(tests, false, failure, "cw_send_dash()");
 	}
-
 
 	/* Test: sending character space. */
 	{
 		bool failure = false;
 		for (int i = 0; i < N; i++) {
-			if (!cw_send_character_space()) {
-				tests->expect_eq_int(tests, );
+			const int cwret = cw_send_character_space();
+			if (!tests->expect_eq_int_errors_only(tests, CW_SUCCESS, cwret, "cw_send_character_space() #%d", i)) {
 				failure = true;
 				break;
 			}
 		}
 		cw_wait_for_tone_queue();
-
-		failure ? stats->failures++ : stats->successes++;
-		int n = printf(MSG_PREFIX "cw_send_character_space():");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		tests->expect_eq_int(tests, false, failure, "cw_send_character_space()");
 	}
-
-
 
 	/* Test: sending word space. */
 	{
 		bool failure = false;
 		for (int i = 0; i < N; i++) {
-			if (!cw_send_word_space()) {
-				tests->expect_eq_int(tests, );
+			const int cwret = cw_send_word_space();
+			if (!tests->expect_eq_int_errors_only(tests, CW_SUCCESS, cwret, "cw_send_word_space() #%d", i)) {
 				failure = true;
 				break;
 			}
 		}
 		cw_wait_for_tone_queue();
-
-		failure ? stats->failures++ : stats->successes++;
-		int n = printf(MSG_PREFIX "cw_send_word_space():");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		tests->expect_eq_int(tests, false, failure, "cw_send_word_space()");
 	}
-
-#endif
 
 	tests->print_test_footer(tests, __func__);
 
@@ -971,57 +954,97 @@ void test_send_primitives(cw_test_t * tests)
 
 
 /**
-   \brief Playing representations of characters
+   \brief Enqueueing representations of characters
 
+   tests::cw_send_representation()
+   tests::cw_send_representation_partial()
 */
 void test_representations(cw_test_t * tests)
 {
 	tests->print_test_header(tests, __func__);
-#if 0
+
+	const char * valid_representations[] = {
+		".-.-.-",
+		".-",
+		"---",
+		"...-",
+
+		NULL,      /* Guard. */
+	};
+
+	const char * invalid_representations[] = {
+		"INVALID", /* Not a representation at all (no dots/dashes). */
+		"_._",     /* There is no character that would be represented like this. */
+		"-_-",     /* There is no character that would be represented like this. */
+
+		NULL,      /* Guard. */
+	};
 
 	/* Test: sending valid representations. */
 	{
-		tests->expect_eq_int(tests, );
-		bool failure = !cw_send_representation(".-.-.-")
-			|| !cw_send_representation(".-")
-			|| !cw_send_representation("---")
-			|| !cw_send_representation("...-");
-
-		failure ? stats->failures++ : stats->successes++;
-		int n = printf(MSG_PREFIX "cw_send_representation(<valid>):");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		bool failure = false;
+		int i = 0;
+		while (NULL != valid_representations[i]) {
+			const int cwret = cw_send_representation(valid_representations[i]);
+			if (!tests->expect_eq_int_errors_only(tests, CW_SUCCESS, cwret, "cw_send_representation(valid #%d)", i)) {
+				failure = true;
+				break;
+			}
+			i++;
+		}
+		tests->expect_eq_int(tests, false, failure, "cw_send_representation(valid)");
+		cw_wait_for_tone_queue();
 	}
-
-
 
 	/* Test: sending invalid representations. */
 	{
-		tests->expect_eq_int(tests, );
-		bool failure = cw_send_representation("INVALID")
-			|| cw_send_representation("_._")
-			|| cw_send_representation("-_-");
-
-		failure ? stats->failures++ : stats->successes++;
-		int n = printf(MSG_PREFIX "cw_send_representation(<invalid>):");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		bool failure = false;
+		int i = 0;
+		while (NULL != invalid_representations[i]) {
+			const int cwret = cw_send_representation(invalid_representations[i]);
+			if (!tests->expect_eq_int_errors_only(tests, CW_FAILURE, cwret, "cw_send_representation(invalid #%d)", i)) {
+				failure = true;
+				break;
+			}
+			i++;
+		}
+		tests->expect_eq_int(tests, false, failure, "cw_send_representation(invalid)");
+		cw_wait_for_tone_queue();
 	}
-
-
 
 	/* Test: sending partial representation of a valid string. */
 	{
-		tests->expect_eq_int(tests, );
-		bool failure = !cw_send_representation_partial(".-.-.-");
-
-		failure ? stats->failures++ : stats->successes++;
-		int n = printf(MSG_PREFIX "cw_send_representation_partial():");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		bool failure = false;
+		int i = 0;
+		while (NULL != valid_representations[i]) {
+			const int cwret = cw_send_representation_partial(valid_representations[i]);
+			if (!tests->expect_eq_int_errors_only(tests, CW_SUCCESS, cwret, "cw_send_representation_partial(valid #%d)", i)) {
+				failure = true;
+				break;
+			}
+			i++;
+		}
+		tests->expect_eq_int(tests, false, failure, "cw_send_representation_partial(valid)");
+		cw_wait_for_tone_queue();
 	}
 
+	/* Test: sending partial representation of a invalid string. */
+	{
+		bool failure = false;
+		int i = 0;
+		while (NULL != invalid_representations[i]) {
+			const int cwret = cw_send_representation_partial(invalid_representations[i]);
+			if (!tests->expect_eq_int_errors_only(tests, CW_FAILURE, cwret, "cw_send_representation_partial(invalid #%d)", i)) {
+				failure = true;
+				break;
+			}
+			i++;
+		}
+		tests->expect_eq_int(tests, false, failure, "cw_send_representation_partial(invalid)");
+		cw_wait_for_tone_queue();
+	}
 
 	cw_wait_for_tone_queue();
-
-#endif
 
 	tests->print_test_footer(tests, __func__);
 
