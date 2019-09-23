@@ -114,8 +114,15 @@ static void test_volume_functions(cw_test_t * tests);
 static void test_send_primitives(cw_test_t * tests);
 static void test_send_character_and_string(cw_test_t * tests);
 static void test_representations(cw_test_t * tests);
+
 /* Morse key module. */
-static void test_keyer(cw_test_t * tests);
+static void test_iambic_key_dot(cw_test_t * tests);
+static void test_iambic_key_dash(cw_test_t * tests);
+static void test_iambic_key_alternating(cw_test_t * tests);
+static void test_iambic_key_none(cw_test_t * tests);
+/* Helper function for iambic key tests. */
+static void test_iambic_key_paddles_common(cw_test_t * tests, const int intended_dot_paddle, const int intended_dash_paddle, char character, int n_elements);
+
 static void test_straight_key(cw_test_t * tests);
 /* Other functions. */
 static void test_parameter_ranges(cw_test_t * tests);
@@ -1141,177 +1148,200 @@ void test_send_character_and_string(cw_test_t * tests)
 
 
 
-
-/**
-*/
-void test_keyer(cw_test_t * tests)
+/* Wrapper for common code used by three test functions. */
+void test_iambic_key_paddles_common(cw_test_t * tests, const int intended_dot_paddle, const int intended_dash_paddle, char character, int n_elements)
 {
-	tests->print_test_header(tests, __func__);
-
-#if 0
-
-	/* Perform some tests on the iambic keyer.  The latch finer
-	   timing points are not tested here, just the basics - dots,
-	   dashes, and alternating dots and dashes. */
-
-	int dot_paddle, dash_paddle;
-
-	/* Test: keying dot. */
-	{
-		/* Seems like this function calls means "keyer pressed
-		   until further notice". First argument is true, so
-		   this is a dot. */
-		tests->expect_eq_int(tests, );
-		bool failure = !cw_notify_keyer_paddle_event(true, false);
-
-		failure ? stats->failures++ : stats->successes++;
-		int n = printf(MSG_PREFIX "cw_notify_keyer_paddle_event(true, false):");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-
-
-
-		bool success = true;
-		/* Since a "dot" paddle is pressed, get 30 "dot"
-		   events from the keyer. */
-		printf(MSG_PREFIX "testing iambic keyer dots   ");
-		fflush(stdout);
-		for (int i = 0; i < 30; i++) {
-			success = success && cw_wait_for_keyer_element();
-			putchar('.');
-			fflush(stdout);
-		}
-		putchar('\n');
-
-		!success ? stats->failures++ : stats->successes++;
-		n = printf(MSG_PREFIX "cw_wait_for_keyer_element():");
-		CW_TEST_PRINT_TEST_RESULT (!success, n);
-	}
-
-
-
-	/* Test: preserving of paddle states. */
-	{
-		cw_get_keyer_paddles(&dot_paddle, &dash_paddle);
-		tests->expect_eq_int(tests, );
-		bool failure = !dot_paddle || dash_paddle;
-
-		failure ? stats->failures++ : stats->successes++;
-		int n = printf(MSG_PREFIX "cw_keyer_get_keyer_paddles():");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-	}
-
-
-
-	/* Test: keying dash. */
-	{
-		/* As above, it seems like this function calls means
-		   "keyer pressed until further notice". Second
-		   argument is true, so this is a dash. */
-
-		tests->expect_eq_int(tests, );
-		bool failure = !cw_notify_keyer_paddle_event(false, true);
-
-		failure ? stats->failures++ : stats->successes++;
-		int n = printf(MSG_PREFIX "cw_notify_keyer_paddle_event(false, true):");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-
-
-
-		bool success = true;
-		/* Since a "dash" paddle is pressed, get 30 "dash"
-		   events from the keyer. */
-		printf(MSG_PREFIX "testing iambic keyer dashes ");
-		fflush(stdout);
-		for (int i = 0; i < 30; i++) {
-			success = success && cw_wait_for_keyer_element();
-			putchar('-');
-			fflush(stdout);
-		}
-		putchar('\n');
-
-		!success ? stats->failures++ : stats->successes++;
-		n = printf(MSG_PREFIX "cw_wait_for_keyer_element():");
-		CW_TEST_PRINT_TEST_RESULT (!success, n);
-	}
-
-
-
-	/* Test: preserving of paddle states. */
-	{
-		cw_get_keyer_paddles(&dot_paddle, &dash_paddle);
-		tests->expect_eq_int(tests, );
-		bool failure = dot_paddle || !dash_paddle;
-
-		failure ? stats->failures++ : stats->successes++;
-		int n = printf(MSG_PREFIX "cw_get_keyer_paddles():");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-	}
-
-
-
 	/* Test: keying alternate dit/dash. */
 	{
 		/* As above, it seems like this function calls means
 		   "keyer pressed until further notice". Both
 		   arguments are true, so both paddles are pressed at
 		   the same time.*/
-		tests->expect_eq_int(tests, );
-		bool failure = !cw_notify_keyer_paddle_event(true, true);
-
-		failure ? stats->failures++ : stats->successes++;
-		int n = printf(MSG_PREFIX "cw_notify_keyer_paddle_event(true, true):");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-
+		const int cwret = cw_notify_keyer_paddle_event(intended_dot_paddle, intended_dash_paddle);
+		tests->expect_eq_int(tests, CW_SUCCESS, cwret, "cw_notify_keyer_paddle_event(%d, %d)", intended_dot_paddle, intended_dash_paddle);
 
 		bool success = true;
-		printf(MSG_PREFIX "testing iambic alternating  ");
-		fflush(stdout);
-		for (int i = 0; i < 30; i++) {
+		fflush(tests->stdout);
+		for (int i = 0; i < n_elements; i++) {
 			success = success && cw_wait_for_keyer_element();
-			putchar('#');
-			fflush(stdout);
+			fprintf(tests->stdout, "%c", character);
+			fflush(tests->stdout);
 		}
-		putchar('\n');
+		fprintf(tests->stdout, "\n");
 
-		!success ? stats->failures++ : stats->successes++;
-		n = printf(MSG_PREFIX "cw_wait_for_keyer_element:");
-		CW_TEST_PRINT_TEST_RESULT (!success, n);
+		tests->expect_eq_int(tests, true, success, "cw_wait_for_keyer_element() (%c)", character);
 	}
-
-
 
 	/* Test: preserving of paddle states. */
 	{
-		cw_get_keyer_paddles(&dot_paddle, &dash_paddle);
-		tests->expect_eq_int(tests, );
-		bool failure = !dot_paddle || !dash_paddle;
-
-		failure ? stats->failures++ : stats->successes++;
-		int n = printf(MSG_PREFIX "cw_get_keyer_paddles():");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		/* State of paddles should be the same as after call
+		   to cw_notify_keyer_paddle_event() above. */
+		int read_back_dot_paddle;
+		int read_back_dash_paddle;
+		cw_get_keyer_paddles(&read_back_dot_paddle, &read_back_dash_paddle);
+		tests->expect_eq_int(tests, intended_dot_paddle, read_back_dot_paddle, "cw_get_keyer_paddles(): dot paddle");
+		tests->expect_eq_int(tests, intended_dash_paddle, read_back_dash_paddle, "cw_get_keyer_paddles(): dash paddle");
 	}
 
-
-
-	/* Test: set new state of paddles: no paddle pressed. */
-	{
-		tests->expect_eq_int(tests, );
-		bool failure = !cw_notify_keyer_paddle_event(false, false);
-
-		failure ? stats->failures++ : stats->successes++;
-		int n = printf(MSG_PREFIX "cw_notify_keyer_paddle_event(false, false):");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-	}
+	fflush(tests->stdout);
 
 	cw_wait_for_keyer();
 
-#endif
+	return;
+}
+
+
+
+
+/**
+   Perform some tests on the iambic keyer.  The latch finer timing
+   points are not tested here, just the basics - dots, dashes, and
+   alternating dots and dashes.
+
+   tests::cw_notify_keyer_paddle_event()
+   tests::cw_wait_for_keyer_element()
+   tests::cw_get_keyer_paddles()
+*/
+void test_iambic_key_dot(cw_test_t * tests)
+{
+	tests->print_test_header(tests, __func__);
+
+	/*
+	  Test: keying dot.
+	  Since a "dot" paddle is pressed, get N "dot" events from
+	  the keyer.
+
+	  This is test of legacy API, so use true/false instead of
+	  CW_KEY_STATE_CLOSED (true)/CW_KEY_STATE_OPEN (false).
+	*/
+	const int intended_dot_paddle = true;
+	const int intended_dash_paddle = false;
+	const char character = '.';
+	const int n_elements = 30;
+	test_iambic_key_paddles_common(tests, intended_dot_paddle, intended_dash_paddle, character, n_elements);
 
 	tests->print_test_footer(tests, __func__);
 
 	return;
 }
 
+
+
+
+/**
+   Perform some tests on the iambic keyer.  The latch finer timing
+   points are not tested here, just the basics - dots, dashes, and
+   alternating dots and dashes.
+
+   tests::cw_notify_keyer_paddle_event()
+   tests::cw_wait_for_keyer_element()
+   tests::cw_get_keyer_paddles()
+*/
+void test_iambic_key_dash(cw_test_t * tests)
+{
+	tests->print_test_header(tests, __func__);
+
+	/*
+	  Test: keying dash.
+	  Since a "dash" paddle is pressed, get N "dash" events from
+	  the keyer.
+
+	  This is test of legacy API, so use true/false instead of
+	  CW_KEY_STATE_CLOSED (true)/CW_KEY_STATE_OPEN (false).
+	*/
+	const int intended_dot_paddle = false;
+	const int intended_dash_paddle = true;
+	const char character = '-';
+	const int n_elements = 30;
+	test_iambic_key_paddles_common(tests, intended_dot_paddle, intended_dash_paddle, character, n_elements);
+
+	tests->print_test_footer(tests, __func__);
+
+	return;
+}
+
+
+
+
+/**
+   Perform some tests on the iambic keyer.  The latch finer timing
+   points are not tested here, just the basics - dots, dashes, and
+   alternating dots and dashes.
+
+   tests::cw_notify_keyer_paddle_event()
+   tests::cw_wait_for_keyer_element()
+   tests::cw_get_keyer_paddles()
+*/
+void test_iambic_key_alternating(cw_test_t * tests)
+{
+	tests->print_test_header(tests, __func__);
+
+	/*
+	  Test: keying alternate dit/dash.
+	  Both arguments are true, so both paddles are pressed at the
+	  same time.
+
+	  This is test of legacy API, so use true/false instead of
+	  CW_KEY_STATE_CLOSED (true)/CW_KEY_STATE_OPEN (false).
+	*/
+	const int intended_dot_paddle = true;
+	const int intended_dash_paddle = true;
+	const char character = '#';
+	const int n_elements = 30;
+	test_iambic_key_paddles_common(tests, intended_dot_paddle, intended_dash_paddle, character, n_elements);
+
+	tests->print_test_footer(tests, __func__);
+
+	return;
+}
+
+
+
+
+/**
+   Perform some tests on the iambic keyer.  The latch finer timing
+   points are not tested here, just the basics - dots, dashes, and
+   alternating dots and dashes.
+
+   tests::cw_notify_keyer_paddle_event()
+   tests::cw_wait_for_keyer_element()
+   tests::cw_get_keyer_paddles()
+*/
+void test_iambic_key_none(cw_test_t * tests)
+{
+	tests->print_test_header(tests, __func__);
+
+	/*
+	  Test: set new state of paddles: no paddle pressed.
+
+	  This is test of legacy API, so use true/false instead of
+	  CW_KEY_STATE_CLOSED (true)/CW_KEY_STATE_OPEN (false).
+	*/
+	const int intended_dot_paddle = false;
+	const int intended_dash_paddle = false;
+
+	/* Test: depress paddles. */
+	{
+		const int cwret = cw_notify_keyer_paddle_event(intended_dot_paddle, intended_dot_paddle);
+		tests->expect_eq_int(tests, CW_SUCCESS, cwret, "cw_notify_keyer_paddle_event(%d, %d)", intended_dot_paddle, intended_dash_paddle);
+	}
+
+	/* Test: preserving of paddle states. */
+	{
+		/* State of paddles should be the same as after call
+		   to cw_notify_keyer_paddle_event() above. */
+		int read_back_dot_paddle;
+		int read_back_dash_paddle;
+		cw_get_keyer_paddles(&read_back_dot_paddle, &read_back_dash_paddle);
+		tests->expect_eq_int(tests, intended_dot_paddle, read_back_dot_paddle, "cw_get_keyer_paddles(): dot paddle");
+		tests->expect_eq_int(tests, intended_dash_paddle, read_back_dash_paddle, "cw_get_keyer_paddles(): dash paddle");
+	}
+	cw_wait_for_keyer();
+
+	tests->print_test_footer(tests, __func__);
+
+	return;
+}
 
 
 
@@ -1688,8 +1718,12 @@ static void (*const CW_TEST_FUNCTIONS_DEP_GEN[])(cw_test_t *) = {
 
 /* Tests that are dependent on a sound system being configured.
    Morse key module functions */
-static void (*const CW_TEST_FUNCTIONS_DEP_K[])(cw_test_t *) = {
-	test_keyer,
+static void (*const CW_TEST_FUNCTIONS_DEP_KEY[])(cw_test_t *) = {
+	test_iambic_key_dot,
+	test_iambic_key_dash,
+	test_iambic_key_alternating,
+	test_iambic_key_none,
+
 	test_straight_key,
 
 	NULL
@@ -1761,9 +1795,9 @@ int cw_test_modules_with_one_sound_system(const char * modules, int audio_system
 
 
 	if (strstr(modules, "k")) {
-		for (int test = 0; CW_TEST_FUNCTIONS_DEP_K[test]; test++) {
+		for (int test = 0; CW_TEST_FUNCTIONS_DEP_KEY[test]; test++) {
 			cw_test_setup();
-			(*CW_TEST_FUNCTIONS_DEP_K[test])(tests);
+			(*CW_TEST_FUNCTIONS_DEP_KEY[test])(tests);
 		}
 	}
 

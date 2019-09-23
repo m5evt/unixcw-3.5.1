@@ -1854,6 +1854,11 @@ int cw_get_iambic_curtis_mode_b_state(void)
    and cw_keyer_wait() for details about how to check the current status of
    iambic keyer background processing.
 
+   testedin::test_iambic_key_dot()
+   testedin::test_iambic_key_dash()
+   testedin::test_iambic_key_alternating()
+   testedin::test_iambic_key_none()
+
    \param dot_paddle_state
    \param dash_paddle_state
 
@@ -1903,6 +1908,11 @@ int cw_notify_keyer_dash_paddle_event(int dash_paddle_state)
 
 /**
    \brief Get the current saved states of the two paddles
+
+   testedin::test_iambic_key_dot()
+   testedin::test_iambic_key_dash()
+   testedin::test_iambic_key_alternating()
+   testedin::test_iambic_key_none()
 
    \param dot_paddle_state
    \param dash_paddle_state
@@ -1960,6 +1970,10 @@ bool cw_is_keyer_busy(void)
 
    On error the function returns CW_FAILURE, with errno set to
    EDEADLK if SIGALRM is blocked.
+
+   testedin::test_iambic_key_dot()
+   testedin::test_iambic_key_dash()
+   testedin::test_iambic_key_alternating()
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
