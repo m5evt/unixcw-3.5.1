@@ -52,7 +52,7 @@
 #include "libcw_console.h"
 #include "libcw_oss.h"
 
-#include "libcw_test.h"
+#include "tests/libcw_test_utils.h"
 
 
 

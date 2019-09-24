@@ -8,12 +8,10 @@
 
 
 
+#include "tests/libcw_test_utils.h"
 #include "libcw_tq.h"
 #include "libcw_tq_internal.h"
 #include "libcw_tq_tests.h"
-
-
-#include "libcw_test.h"
 #include "libcw_debug.h"
 #include "libcw_utils.h"
 #include "libcw.h"
