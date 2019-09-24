@@ -20,7 +20,7 @@
 
 
 
-#include "libcw_legacy_tests.h"
+#include "libcw_test_legacy_api_tests.h"
 
 
 
