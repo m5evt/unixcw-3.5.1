@@ -11,6 +11,7 @@
 
 #include <stddef.h> /* size_t */
 #include <stdio.h>
+#include <stdbool.h>
 
 
 
