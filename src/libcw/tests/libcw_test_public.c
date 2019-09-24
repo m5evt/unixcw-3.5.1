@@ -122,11 +122,12 @@ static void test_iambic_key_alternating(cw_test_t * tests);
 static void test_iambic_key_none(cw_test_t * tests);
 /* Helper function for iambic key tests. */
 static void test_iambic_key_paddles_common(cw_test_t * tests, const int intended_dot_paddle, const int intended_dash_paddle, char character, int n_elements);
-
 static void test_straight_key(cw_test_t * tests);
+
+
 /* Other functions. */
 static void test_parameter_ranges(cw_test_t * tests);
-//static void test_cw_gen_forever_public(cw_test_t * tests);
+static void test_cw_gen_forever_public(cw_test_t * tests);
 
 // static void cw_test_delayed_release(cw_test_t * tests);
 
@@ -1347,12 +1348,13 @@ void test_iambic_key_none(cw_test_t * tests)
 
 
 /**
+   tests::cw_notify_straight_key_event()
+   tests::cw_get_straight_key_state()
+   tests::cw_is_straight_key_busy()
 */
 void test_straight_key(cw_test_t * tests)
 {
-	printf(MSG_PREFIX "%s():  ", __func__);
-
-#if 0
+	tests->print_test_header(tests, __func__);
 
 	{
 		bool event_failure = false;
@@ -1363,57 +1365,37 @@ void test_straight_key(cw_test_t * tests)
 		int usecs = CW_USECS_PER_SEC;
 		cw_usecs_to_timespec_internal(&t, usecs);
 
+		const int key_states[] = { CW_KEY_STATE_OPEN, CW_KEY_STATE_CLOSED };
+		const int first = rand() % 5;
+		const int last = first + 10 + (rand() % 30);
+		fprintf(tests->stdout, "Randomized key indices range: from %d to %d\n", first, last);
 
 		/* Alternate between open and closed. */
-		for (int i = 0; i < 5; i++) {
-			if (CW_SUCCESS != cw_notify_straight_key_event(CW_KEY_STATE_OPEN)) {
-				tests->expect_eq_int(tests, );
+		for (int i = first; i <= last; i++) {
+
+			const int intended_key_state = key_states[i % 2]; /* Notice that depending on rand(), we may start with key open or key closed. */
+
+			const int cwret = cw_notify_straight_key_event(intended_key_state);
+			if (!tests->expect_eq_int_errors_only(tests, CW_SUCCESS, cwret, "cw_notify_straight_key_event(%d)", intended_key_state)) {
 				event_failure = true;
 				break;
 			}
 
-			if (CW_KEY_STATE_OPEN != cw_get_straight_key_state()) {
-				tests->expect_eq_int(tests, );
+			const int readback_key_state = cw_get_straight_key_state();
+			if (!tests->expect_eq_int_errors_only(tests, intended_key_state, readback_key_state, "cw_get_straight_key_state() (%d)", intended_key_state)) {
 				state_failure = true;
 				break;
 			}
 
-			if (cw_is_straight_key_busy()) {
-				tests->expect_eq_int(tests, );
+			/* "busy" is misleading. This function just asks if key is down. */
+			const bool is_busy = cw_is_straight_key_busy();
+			if (!tests->expect_eq_int_errors_only(tests, (bool) intended_key_state, is_busy, "cw_is_straight_key_busy() (%d)", intended_key_state)) {
 				busy_failure = true;
 				break;
 			}
 
-			printf("0");
-			fflush(stdout);
-#ifdef __FreeBSD__
-			/* There is a problem with nanosleep() and
-			   signals on FreeBSD. */
-			sleep(1);
-#else
-			cw_nanosleep_internal(&t);
-#endif
-
-			if (CW_SUCCESS != cw_notify_straight_key_event(CW_KEY_STATE_CLOSED)) {
-				tests->expect_eq_int(tests, );
-				event_failure = true;
-				break;
-			}
-
-			if (CW_KEY_STATE_CLOSED != cw_get_straight_key_state()) {
-				tests->expect_eq_int(tests, );
-				state_failure = true;
-				break;
-			}
-
-			if (!cw_is_straight_key_busy()) {
-				tests->expect_eq_int(tests, );
-				busy_failure = true;
-				break;
-			}
-
-			printf("1");
-			fflush(stdout);
+			fprintf(tests->stdout, "%d", intended_key_state);
+			fflush(tests->stdout);
 #ifdef __FreeBSD__
 			/* There is a problem with nanosleep() and
 			   signals on FreeBSD. */
@@ -1426,26 +1408,15 @@ void test_straight_key(cw_test_t * tests)
 		/* Whatever happens during tests, keep the key open after the tests. */
 		cw_notify_straight_key_event(CW_KEY_STATE_OPEN);
 
-		printf("\n");
-		fflush(stdout);
+		fprintf(tests->stdout, "\n");
+		fflush(tests->stdout);
 
-		event_failure ? stats->failures++ : stats->successes++;
-		int n = printf(MSG_PREFIX "cw_notify_straight_key_event(<key open/closed>):");
-		CW_TEST_PRINT_TEST_RESULT (event_failure, n);
-
-		state_failure ? stats->failures++ : stats->successes++;
-		n = printf(MSG_PREFIX "cw_get_straight_key_state():");
-		CW_TEST_PRINT_TEST_RESULT (state_failure, n);
-
-		busy_failure ? stats->failures++ : stats->successes++;
-		n = printf(MSG_PREFIX "cw_straight_key_busy():");
-		CW_TEST_PRINT_TEST_RESULT (busy_failure, n);
+		tests->expect_eq_int(tests, false, event_failure, "cw_notify_straight_key_event(<key open/closed>)");
+		tests->expect_eq_int(tests, false, state_failure, "cw_get_straight_key_state()");
+		tests->expect_eq_int(tests, false, busy_failure, "cw_is_straight_key_busy()");
 	}
 
-
 	sleep(1);
-
-#endif
 
 	tests->print_test_footer(tests, __func__);
 
@@ -1619,7 +1590,7 @@ void cw_test_signal_handling(cw_test_t * tests)
 
 
 
-#if 0
+
 /* "Forever" functionality is not exactly part of public
    interface. The functionality will be tested only as part of
    internal test. */
@@ -1633,6 +1604,9 @@ void cw_test_signal_handling(cw_test_t * tests)
   cw_generator_new/start() again). */
 void test_cw_gen_forever_public(cw_test_t * tests)
 {
+#if 0
+	tests->print_test_header(tests, __func__);
+
 	/* Make sure that an audio sink is closed. If we try to open
 	   an OSS sink that is already open, we may end up with
 	   "resource busy" error in libcw_oss.c module (that's what
@@ -1649,10 +1623,10 @@ void test_cw_gen_forever_public(cw_test_t * tests)
 	rv == 0 ? stats->successes++ : stats->failures++;
 
 	tests->print_test_footer(tests, __func__);
-
+#endif
 	return;
 }
-#endif
+
 
 
 
@@ -1723,7 +1697,6 @@ static void (*const CW_TEST_FUNCTIONS_DEP_KEY[])(cw_test_t *) = {
 	test_iambic_key_dash,
 	test_iambic_key_alternating,
 	test_iambic_key_none,
-
 	test_straight_key,
 
 	NULL
@@ -1732,9 +1705,9 @@ static void (*const CW_TEST_FUNCTIONS_DEP_KEY[])(cw_test_t *) = {
 
 /* Tests that are dependent on a sound system being configured.
    Other modules' functions. */
-static void (*const CW_TEST_FUNCTIONS_DEP_O[])(cw_test_t *) = {
+static void (*const CW_TEST_FUNCTIONS_DEP_OTHER[])(cw_test_t *) = {
 	test_parameter_ranges,
-	//test_cw_gen_forever_public,
+	test_cw_gen_forever_public,
 
 	//cw_test_delayed_release,
 	//cw_test_signal_handling, /* FIXME - not sure why this test fails :( */
@@ -1803,9 +1776,9 @@ int cw_test_modules_with_one_sound_system(const char * modules, int audio_system
 
 
 	if (strstr(modules, "o")) {
-		for (int test = 0; CW_TEST_FUNCTIONS_DEP_O[test]; test++) {
+		for (int test = 0; CW_TEST_FUNCTIONS_DEP_OTHER[test]; test++) {
 			cw_test_setup();
-			(*CW_TEST_FUNCTIONS_DEP_O[test])(tests);
+			(*CW_TEST_FUNCTIONS_DEP_OTHER[test])(tests);
 		}
 	}
 

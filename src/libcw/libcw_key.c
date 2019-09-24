@@ -1266,6 +1266,9 @@ int cw_key_sk_get_value(const volatile cw_key_t * key)
    API naming conventions. TODO: verify if this function is needed in
    new API.
 
+   TODO: "busy" is a misleading term. Either remove the function, or
+   rename it.
+
    \reviewed on 2017-01-31
 
    \param key

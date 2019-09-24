@@ -2067,6 +2067,8 @@ void cw_straight_key_clock_internal(void)
    the sound card, console speaker, or keying control system.  If
    \p key_state indicates no change of state, the call is ignored.
 
+   testedin::test_straight_key()
+
    \p key_state may be either CW_KEY_STATE_OPEN (false) or CW_KEY_STATE_CLOSED (true).
 
    \param key_state - state of straight key
@@ -2085,6 +2087,8 @@ int cw_notify_straight_key_event(int key_state)
 
    Returns the current saved state of the straight key.
 
+   testedin::test_straight_key()
+
    \return CW_KEY_STATE_CLOSED (true) if the key is down
    \return CW_KEY_STATE_OPEN (false) if the key up
 */
@@ -2102,6 +2106,8 @@ int cw_get_straight_key_state(void)
 
    This routine is just a pseudonym for cw_get_straight_key_state(),
    and exists to fill a hole in the API naming conventions.
+
+   testedin::test_straight_key()
 
    \return true if the straight key is busy
    \return false if the straight key is not busy

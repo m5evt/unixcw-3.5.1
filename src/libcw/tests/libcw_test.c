@@ -145,8 +145,8 @@ int cw_test_args(int argc, char *const argv[],
 		}
 	}
 
-	fprintf(stderr, "sound systems = \"%s\"\n", sound_systems);
-	fprintf(stderr, "modules = \"%s\"\n", modules);
+	fprintf(stderr, "Sound systems = \"%s\"\n", sound_systems);
+	fprintf(stderr, "Modules = \"%s\"\n", modules);
 	return CW_SUCCESS;
 }
 
@@ -289,4 +289,8 @@ void cw_test_init(cw_test_t * self, FILE * stdout, FILE * stderr, const char * m
 	self->console_n_cols = default_cw_test_print_n_chars;
 
 	snprintf(self->msg_prefix, sizeof (self->msg_prefix), "%s", msg_prefix);
+
+	const time_t seed = time(0);
+	srand(seed);
+	fprintf(self->stdout, "Random seed = %ld\n", seed);
 }
