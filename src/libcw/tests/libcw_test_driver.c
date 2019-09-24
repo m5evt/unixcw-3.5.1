@@ -169,7 +169,7 @@ int cw_test_modules_with_one_sound_system(const char * modules, int audio_system
 
 
 	if (strstr(modules, "k")) {
-		for (int test = 0; libcw_test_set_gen_with_audio[test]; test++) {
+		for (int test = 0; libcw_test_set_key_with_audio[test]; test++) {
 			cw_test_setup();
 			(*libcw_test_set_key_with_audio[test])(tests);
 		}
