@@ -38,6 +38,12 @@
 
 
 
+#define LIBCW_TEST_ALL_MODULES          "gtkro"   /* generator, tone queue, key, receiver, other. */
+#define LIBCW_TEST_ALL_SOUND_SYSTEMS    "ncoap"   /* null, console, oss, alsa, pulseaudio. */
+
+
+
+
 typedef struct {
 	int successes;
 	int failures;
@@ -49,24 +55,42 @@ typedef struct {
 struct cw_test_t;
 typedef struct cw_test_t {
 	char msg_prefix[32];
-	cw_test_stats_t * stats;
 	FILE * stdout;
 	FILE * stderr;
 
+	int current_sound_system;
+
 	/* Limit of characters that can be printed to console in one row. */
 	int console_n_cols;
+
+	cw_test_stats_t stats_indep;
+	cw_test_stats_t stats_null;
+	cw_test_stats_t stats_console;
+	cw_test_stats_t stats_oss;
+	cw_test_stats_t stats_alsa;
+	cw_test_stats_t stats_pa;
+	cw_test_stats_t * stats; /* Pointer to current stats. */
+
+	char tested_sound_systems[sizeof (LIBCW_TEST_ALL_SOUND_SYSTEMS)];
+	char tested_modules[sizeof (LIBCW_TEST_ALL_MODULES)];
 
 	bool (* expect_eq_int)(struct cw_test_t * self, int expected_value, int received_value, const char * fmt, ...) __attribute__ ((format (printf, 4, 5)));
 	bool (* expect_eq_int_errors_only)(struct cw_test_t * self, int expected_value, int received_value, const char * fmt, ...) __attribute__ ((format (printf, 4, 5)));
 	void (* print_test_header)(struct cw_test_t * self, const char * text);
 	void (* print_test_footer)(struct cw_test_t * self, const char * text);
+	int (* process_args)(struct cw_test_t * self, int argc, char * const argv[]);
+
+	const char * (* get_current_sound_system_label)(struct cw_test_t * self);
+	void (* set_current_sound_system)(struct cw_test_t * self, int sound_system);
+
+	bool (* should_test_module)(struct cw_test_t * self, const char * module);
+	bool (* should_test_sound_system)(struct cw_test_t * self, const char * sound_system);
 } cw_test_t;
+
+
+
 void cw_test_init(cw_test_t * self, FILE * stdout, FILE * stderr, const char * msg_prefix);
 
-
-
-
-int cw_test_args(int argc, char *const argv[], char *sound_systems, size_t systems_max, char *modules, size_t modules_max);
 void cw_test_print_help(const char *progname);
 
 

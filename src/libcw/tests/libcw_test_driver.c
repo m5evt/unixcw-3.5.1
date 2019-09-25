@@ -57,7 +57,7 @@
 
 
 
-#define MSG_PREFIX "libcw/legacy: "
+#define MSG_PREFIX "libcw/legacy"
 
 
 
@@ -75,18 +75,11 @@ extern void (*const libcw_test_set_other_with_audio[])(cw_test_t *);
 
 
 
-static cw_test_stats_t cw_stats_indep   = { .successes = 0, .failures = 0 };
-static cw_test_stats_t cw_stats_null    = { .successes = 0, .failures = 0 };
-static cw_test_stats_t cw_stats_console = { .successes = 0, .failures = 0 };
-static cw_test_stats_t cw_stats_oss     = { .successes = 0, .failures = 0 };
-static cw_test_stats_t cw_stats_alsa    = { .successes = 0, .failures = 0 };
-static cw_test_stats_t cw_stats_pa      = { .successes = 0, .failures = 0 };
-
-
 static void cw_test_setup(void);
-static int  cw_test_modules_with_sound_systems(const char * modules, const char * sound_systems);
-static int  cw_test_modules_with_one_sound_system(const char * modules, int audio_system, cw_test_t * tests);
-static void cw_test_print_stats(void);
+static int  cw_test_modules_with_sound_systems(cw_test_t * tests);
+static int  cw_test_modules_with_current_sound_system(cw_test_t * tests);
+static void cw_test_print_stats_wrapper(void);
+static void cw_test_print_stats(cw_test_t * tests);
 
 
 
@@ -98,6 +91,8 @@ static void cw_test_print_stats(void);
 int test_audio_system = CW_AUDIO_NONE;
 
 
+
+static cw_test_t g_tests;
 
 
 /**
@@ -128,31 +123,31 @@ void cw_test_setup(void)
    with \p testset.
 
    \param audio_system - audio system to use for tests
-   \param modules - libcw modules to be tested
    \param stats - test statistics
 
    \return -1 on failure to set up tests
    \return 0 if tests were run, and no errors occurred
    \return 1 if tests were run, and some errors occurred
 */
-int cw_test_modules_with_one_sound_system(const char * modules, int audio_system, cw_test_t * tests)
+int cw_test_modules_with_current_sound_system(cw_test_t * tests)
 {
-	test_audio_system = audio_system;
+	test_audio_system = tests->current_sound_system;
 
-	int rv = cw_generator_new(audio_system, NULL);
+	fprintf(tests->stderr, "%sTesting with %s sound system\n", tests->msg_prefix, tests->get_current_sound_system_label(tests));
+
+	int rv = cw_generator_new(tests->current_sound_system, NULL);
 	if (rv != 1) {
-		fprintf(stderr, MSG_PREFIX "can't create generator, stopping the test\n");
+		fprintf(tests->stderr, "%scan't create generator, stopping the test\n", tests->msg_prefix);
 		return -1;
 	}
 	rv = cw_generator_start();
 	if (rv != 1) {
-		fprintf(stderr, MSG_PREFIX "can't start generator, stopping the test\n");
+		fprintf(tests->stderr, "%scan't start generator, stopping the test\n", tests->msg_prefix);
 		cw_generator_delete();
 		return -1;
 	}
 
-
-	if (strstr(modules, "t")) {
+	if (tests->should_test_module(tests, "t")) {
 		for (int test = 0; libcw_test_set_tq_with_audio[test]; test++) {
 			cw_test_setup();
 			(*libcw_test_set_tq_with_audio[test])(tests);
@@ -160,7 +155,7 @@ int cw_test_modules_with_one_sound_system(const char * modules, int audio_system
 	}
 
 
-	if (strstr(modules, "g")) {
+	if (tests->should_test_module(tests, "g")) {
 		for (int test = 0; libcw_test_set_gen_with_audio[test]; test++) {
 			cw_test_setup();
 			(*libcw_test_set_gen_with_audio[test])(tests);
@@ -168,7 +163,7 @@ int cw_test_modules_with_one_sound_system(const char * modules, int audio_system
 	}
 
 
-	if (strstr(modules, "k")) {
+	if (tests->should_test_module(tests, "k")) {
 		for (int test = 0; libcw_test_set_key_with_audio[test]; test++) {
 			cw_test_setup();
 			(*libcw_test_set_key_with_audio[test])(tests);
@@ -176,7 +171,7 @@ int cw_test_modules_with_one_sound_system(const char * modules, int audio_system
 	}
 
 
-	if (strstr(modules, "o")) {
+	if (tests->should_test_module(tests, "o")) {
 		for (int test = 0; libcw_test_set_other_with_audio[test]; test++) {
 			cw_test_setup();
 			(*libcw_test_set_other_with_audio[test])(tests);
@@ -204,7 +199,7 @@ int cw_test_modules_with_one_sound_system(const char * modules, int audio_system
    Function attempts to run a set of testcases for every audio system
    specified in \p sound_systems. These testcases require some kind of
    audio system configured. The function calls
-   cw_test_modules_with_one_sound_system() to do the configuration and
+   cw_test_modules_with_current_sound_system() to do the configuration and
    run the tests.
 
    \p sound_systems is a list of audio systems to be tested: "ncoap".
@@ -213,66 +208,56 @@ int cw_test_modules_with_one_sound_system(const char * modules, int audio_system
 
    \param sound_systems - list of audio systems to be tested
 */
-int cw_test_modules_with_sound_systems(const char * modules, const char * sound_systems)
+int cw_test_modules_with_sound_systems(cw_test_t * tests)
 {
 	int n = 0, c = 0, o = 0, a = 0, p = 0;
 
-	cw_test_t test_set;
-	cw_test_init(&test_set, stdout, stderr, MSG_PREFIX);
-
-
-	if (!sound_systems || strstr(sound_systems, "n")) {
+	if (tests->should_test_sound_system(tests, "n")) {
 		if (cw_is_null_possible(NULL)) {
-			fprintf(stderr, "========================================\n");
-			fprintf(stderr, MSG_PREFIX "testing with null output\n");
-			test_set.stats = &cw_stats_null;
-			n = cw_test_modules_with_one_sound_system(modules, CW_AUDIO_NULL, &test_set);
+			fprintf(tests->stderr, "========================================\n");
+			tests->set_current_sound_system(tests, CW_AUDIO_NULL);
+			n = cw_test_modules_with_current_sound_system(tests);
 		} else {
-			fprintf(stderr, MSG_PREFIX "null output not available\n");
+			fprintf(tests->stderr, "%snull output not available\n", tests->msg_prefix);
 		}
 	}
 
-	if (!sound_systems || strstr(sound_systems, "c")) {
+	if (tests->should_test_sound_system(tests, "c")) {
 		if (cw_is_console_possible(NULL)) {
-			fprintf(stderr, "========================================\n");
-			fprintf(stderr, MSG_PREFIX "testing with console output\n");
-			test_set.stats = &cw_stats_console;
-			c = cw_test_modules_with_one_sound_system(modules, CW_AUDIO_CONSOLE, &test_set);
+			fprintf(tests->stderr, "========================================\n");
+			tests->set_current_sound_system(tests, CW_AUDIO_CONSOLE);
+			c = cw_test_modules_with_current_sound_system(tests);
 		} else {
-			fprintf(stderr, MSG_PREFIX "console output not available\n");
+			fprintf(tests->stderr, "%sconsole output not available\n", tests->msg_prefix);
 		}
 	}
 
-	if (!sound_systems || strstr(sound_systems, "o")) {
+	if (tests->should_test_sound_system(tests, "o")) {
 		if (cw_is_oss_possible(NULL)) {
-			fprintf(stderr, "========================================\n");
-			fprintf(stderr, MSG_PREFIX "testing with OSS output\n");
-			test_set.stats = &cw_stats_oss;
-			o = cw_test_modules_with_one_sound_system(modules, CW_AUDIO_OSS, &test_set);
+			fprintf(tests->stderr, "========================================\n");
+			tests->set_current_sound_system(tests, CW_AUDIO_OSS);
+			o = cw_test_modules_with_current_sound_system(tests);
 		} else {
-			fprintf(stderr, MSG_PREFIX "OSS output not available\n");
+			fprintf(tests->stderr, "%sOSS output not available\n", tests->msg_prefix);
 		}
 	}
 
-	if (!sound_systems || strstr(sound_systems, "a")) {
+	if (tests->should_test_sound_system(tests, "a")) {
 		if (cw_is_alsa_possible(NULL)) {
-			fprintf(stderr, "========================================\n");
-			fprintf(stderr, MSG_PREFIX "testing with ALSA output\n");
-			test_set.stats = &cw_stats_alsa;
-			a = cw_test_modules_with_one_sound_system(modules, CW_AUDIO_ALSA, &test_set);
+			fprintf(tests->stderr, "========================================\n");
+			a = cw_test_modules_with_current_sound_system(tests);
 		} else {
-			fprintf(stderr, MSG_PREFIX "Alsa output not available\n");
+			fprintf(tests->stderr, "%sAlsa output not available\n", tests->msg_prefix);
 		}
 	}
 
-	if (!sound_systems || strstr(sound_systems, "p")) {
+	if (tests->should_test_sound_system(tests, "p")) {
 		if (cw_is_pa_possible(NULL)) {
-			fprintf(stderr, "========================================\n");
-			fprintf(stderr, MSG_PREFIX "testing with PulseAudio output\n");
-			test_set.stats = &cw_stats_pa;
-			p = cw_test_modules_with_one_sound_system(modules, CW_AUDIO_PA, &test_set);
+			fprintf(tests->stderr, "========================================\n");
+			tests->set_current_sound_system(tests, CW_AUDIO_PA);
+			p = cw_test_modules_with_current_sound_system(tests);
 		} else {
-			fprintf(stderr, MSG_PREFIX "PulseAudio output not available\n");
+			fprintf(tests->stderr, "%sPulseAudio output not available\n", tests->msg_prefix);
 		}
 	}
 
@@ -286,56 +271,64 @@ int cw_test_modules_with_sound_systems(const char * modules, const char * sound_
 
 
 
-void cw_test_print_stats(void)
+void cw_test_print_stats_wrapper(void)
 {
-	printf("\n\n"MSG_PREFIX "Statistics of tests:\n\n");
+	cw_test_print_stats(&g_tests);
+}
 
-	printf(MSG_PREFIX "Tests not requiring any audio system:            ");
-	if (cw_stats_indep.failures + cw_stats_indep.successes) {
-		printf("errors: %03d, total: %03d\n",
-		       cw_stats_indep.failures, cw_stats_indep.failures + cw_stats_indep.successes);
+
+
+
+void cw_test_print_stats(cw_test_t * tests)
+{
+	fprintf(tests->stderr, "\n\n%sStatistics of tests:\n\n", tests->msg_prefix);
+
+	fprintf(tests->stderr, "%sTests not requiring any audio system:            ", tests->msg_prefix);
+	if (tests->stats_indep.failures + tests->stats_indep.successes) {
+		fprintf(tests->stderr, "errors: %03d, total: %03d\n",
+		       tests->stats_indep.failures, tests->stats_indep.failures + tests->stats_indep.successes);
 	} else {
-		printf("no tests were performed\n");
+		fprintf(tests->stderr, "no tests were performed\n");
 	}
 
-	printf(MSG_PREFIX "Tests performed with NULL audio system:          ");
-	if (cw_stats_null.failures + cw_stats_null.successes) {
-		printf("errors: %03d, total: %03d\n",
-		       cw_stats_null.failures, cw_stats_null.failures + cw_stats_null.successes);
+	fprintf(tests->stderr, "%sTests performed with NULL audio system:          ", tests->msg_prefix);
+	if (tests->stats_null.failures + tests->stats_null.successes) {
+		fprintf(tests->stderr, "errors: %03d, total: %03d\n",
+		       tests->stats_null.failures, tests->stats_null.failures + tests->stats_null.successes);
 	} else {
-		printf("no tests were performed\n");
+		fprintf(tests->stderr, "no tests were performed\n");
 	}
 
-	printf(MSG_PREFIX "Tests performed with console audio system:       ");
-	if (cw_stats_console.failures + cw_stats_console.successes) {
-		printf("errors: %03d, total: %03d\n",
-		       cw_stats_console.failures, cw_stats_console.failures + cw_stats_console.successes);
+	fprintf(tests->stderr, "%sTests performed with console audio system:       ", tests->msg_prefix);
+	if (tests->stats_console.failures + tests->stats_console.successes) {
+		fprintf(tests->stderr, "errors: %03d, total: %03d\n",
+		       tests->stats_console.failures, tests->stats_console.failures + tests->stats_console.successes);
 	} else {
-		printf("no tests were performed\n");
+		fprintf(tests->stderr, "no tests were performed\n");
 	}
 
-	printf(MSG_PREFIX "Tests performed with OSS audio system:           ");
-	if (cw_stats_oss.failures + cw_stats_oss.successes) {
-		printf("errors: %03d, total: %03d\n",
-		       cw_stats_oss.failures, cw_stats_oss.failures + cw_stats_oss.successes);
+	fprintf(tests->stderr, "%sTests performed with OSS audio system:           ", tests->msg_prefix);
+	if (tests->stats_oss.failures + tests->stats_oss.successes) {
+		fprintf(tests->stderr, "errors: %03d, total: %03d\n",
+			tests->stats_oss.failures, tests->stats_oss.failures + tests->stats_oss.successes);
 	} else {
-		printf("no tests were performed\n");
+		fprintf(tests->stderr, "no tests were performed\n");
 	}
 
-	printf(MSG_PREFIX "Tests performed with ALSA audio system:          ");
-	if (cw_stats_alsa.failures + cw_stats_alsa.successes) {
-		printf("errors: %03d, total: %03d\n",
-		       cw_stats_alsa.failures, cw_stats_alsa.failures + cw_stats_alsa.successes);
+	fprintf(tests->stderr, "%sTests performed with ALSA audio system:          ", tests->msg_prefix);
+	if (tests->stats_alsa.failures + tests->stats_alsa.successes) {
+		fprintf(tests->stderr, "errors: %03d, total: %03d\n",
+		       tests->stats_alsa.failures, tests->stats_alsa.failures + tests->stats_alsa.successes);
 	} else {
-		printf("no tests were performed\n");
+		fprintf(tests->stderr, "no tests were performed\n");
 	}
 
-	printf(MSG_PREFIX "Tests performed with PulseAudio audio system:    ");
-	if (cw_stats_pa.failures + cw_stats_pa.successes) {
-		printf("errors: %03d, total: %03d\n",
-		       cw_stats_pa.failures, cw_stats_pa.failures + cw_stats_pa.successes);
+	fprintf(tests->stderr, "%sTests performed with PulseAudio audio system:    ", tests->msg_prefix);
+	if (tests->stats_pa.failures + tests->stats_pa.successes) {
+		fprintf(tests->stderr, "errors: %03d, total: %03d\n",
+		       tests->stats_pa.failures, tests->stats_pa.failures + tests->stats_pa.successes);
 	} else {
-		printf("no tests were performed\n");
+		fprintf(tests->stderr, "no tests were performed\n");
 	}
 
 	return;
@@ -358,48 +351,24 @@ int main(int argc, char *const argv[])
 	//cw_debug_set_flags(&cw_debug_object_dev, CW_DEBUG_RECEIVE_STATES | CW_DEBUG_TONE_QUEUE | CW_DEBUG_GENERATOR | CW_DEBUG_KEYING);
 	//cw_debug_object_dev.level = CW_DEBUG_DEBUG;
 
-	unsigned int testset = 0;
+	cw_test_init(&g_tests, stdout, stderr, MSG_PREFIX);
 
-	struct timeval seed;
-	gettimeofday(&seed, NULL);
-	// fprintf(stderr, "seed: %d\n", (int) seed.tv_usec);
-	srand(seed.tv_usec);
-
-	/* Obtain a bitmask of the tests to run from the command line
-	   arguments. If none, then default to ~0, which effectively
-	   requests all tests. */
-	if (argc > 1) {
-		testset = 0;
-		for (int arg = 1; arg < argc; arg++) {
-			unsigned int test = strtoul(argv[arg], NULL, 0);
-			testset |= 1 << test;
-		}
-	} else {
-		testset = ~0;
-	}
-
-#define CW_SYSTEMS_MAX 5
-	char sound_systems[CW_SYSTEMS_MAX + 1];
-#define CW_MODULES_MAX 4  /* g, t, k, o */
-	char modules[CW_MODULES_MAX + 1];
-	modules[0] = '\0';
-
-	if (!cw_test_args(argc, argv, sound_systems, CW_SYSTEMS_MAX, modules, CW_MODULES_MAX)) {
+	if (!g_tests.process_args(&g_tests, argc, argv)) {
 		cw_test_print_help(argv[0]);
 		exit(EXIT_FAILURE);
 	}
 
-	atexit(cw_test_print_stats);
+	atexit(cw_test_print_stats_wrapper);
 
 	/* Arrange for the test to exit on a range of signals. */
 	for (int i = 0; SIGNALS[i] != 0; i++) {
 		if (!cw_register_signal_handler(SIGNALS[i], SIG_DFL)) {
-			fprintf(stderr, MSG_PREFIX "ERROR: cw_register_signal_handler\n");
+			fprintf(stderr, MSG_PREFIX ": ERROR: cw_register_signal_handler\n");
 			exit(EXIT_FAILURE);
 		}
 	}
 
-	rv = cw_test_modules_with_sound_systems(modules, sound_systems);
+	rv = cw_test_modules_with_sound_systems(&g_tests);
 
 	return rv == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }

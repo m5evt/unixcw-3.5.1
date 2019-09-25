@@ -87,8 +87,6 @@ enum {
 static cw_test_stats_t unit_test_statistics[CW_AUDIO_SOUNDCARD][CW_MODULE_MAX];
 
 static void cw_test_print_stats(void);
-static void cw_test_print_help(char const * progname);
-static int cw_test_args(int argc, char * const argv[], char * sound_systems, size_t systems_max, char * modules, size_t modules_max);
 
 static int cw_test_run(char const * audio_systems, char const * modules);
 static int cw_test_run_with_audio(int audio_system, char const * modules);
@@ -258,13 +256,10 @@ int main(int argc, char *const argv[])
 	}
 
 
-#define CW_SYSTEMS_MAX (sizeof ("ncoap"))
-	char sound_systems[CW_SYSTEMS_MAX + 1];
-#define CW_MODULES_MAX (sizeof ("gtkro"))
-	char modules[CW_MODULES_MAX + 1];
-	modules[0] = '\0';
+	cw_test_t tests;
+	cw_test_init(&tests, stdout, stderr, "libcw modern API");
 
-	if (!cw_test_args(argc, argv, sound_systems, CW_SYSTEMS_MAX, modules, CW_MODULES_MAX)) {
+	if (!tests.process_args(&tests, argc, argv)) {
 		cw_test_print_help(argv[0]);
 		exit(EXIT_FAILURE);
 	}
@@ -273,7 +268,7 @@ int main(int argc, char *const argv[])
 	atexit(cw_test_print_stats);
 	register_signal_handler();
 
-	int rv = cw_test_run(sound_systems, modules);
+	int rv = cw_test_run(tests.tested_sound_systems, tests.tested_modules);
 
 	/* "make check" facility requires this message to be
 	   printed on stdout; don't localize it */
@@ -567,112 +562,6 @@ void cw_test_print_stats(void)
 			unit_test_statistics[i][CW_MODULE_REC].failures   + unit_test_statistics[i][CW_MODULE_REC].successes,   unit_test_statistics[i][CW_MODULE_REC].failures,
 			unit_test_statistics[i][CW_MODULE_OTHER].failures + unit_test_statistics[i][CW_MODULE_OTHER].successes, unit_test_statistics[i][CW_MODULE_OTHER].failures);
 	}
-
-	return;
-}
-
-
-
-
-int cw_test_args(int argc, char * const argv[], char * sound_systems, size_t systems_max, char * modules, size_t modules_max)
-{
-	strncpy(sound_systems, "ncoap", systems_max);
-	sound_systems[systems_max] = '\0';
-
-	strncpy(modules, "gtkro", modules_max);
-	modules[modules_max] = '\0';
-
-	if (argc == 1) {
-		fprintf(stderr, "%s: sound systems = \"%s\"\n", prefix, sound_systems);
-		fprintf(stderr, "%s: modules = \"%s\"\n", prefix, modules);
-		return CW_SUCCESS;
-	}
-
-	int opt;
-	while ((opt = getopt(argc, argv, "m:s:")) != -1) {
-		switch (opt) {
-		case 's':
-			{
-				size_t len = strlen(optarg);
-				if (!len || len > systems_max) {
-					return CW_FAILURE;
-				}
-
-				int j = 0;
-				for (size_t i = 0; i < len; i++) {
-					if (optarg[i] != 'n'
-					    && optarg[i] != 'c'
-					    && optarg[i] != 'o'
-					    && optarg[i] != 'a'
-					    && optarg[i] != 'p') {
-
-						return CW_FAILURE;
-					} else {
-						sound_systems[j] = optarg[i];
-						j++;
-					}
-				}
-				sound_systems[j] = '\0';
-			}
-			break;
-		case 'm':
-			{
-				size_t len = strlen(optarg);
-				if (!len || len > modules_max) {
-					return CW_FAILURE;
-				}
-
-				int j = 0;
-				for (size_t i = 0; i < len; i++) {
-					if (optarg[i] != 'g'       /* Generator. */
-					    && optarg[i] != 't'    /* Tone queue. */
-					    && optarg[i] != 'k'    /* Morse key. */
-					    && optarg[i] != 'r'    /* Receiver. */
-					    && optarg[i] != 'o') { /* Other. */
-
-						return CW_FAILURE;
-					} else {
-						modules[j] = optarg[i];
-						j++;
-					}
-				}
-				modules[j] = '\0';
-
-			}
-
-			break;
-		default: /* '?' */
-			return CW_FAILURE;
-		}
-	}
-
-	fprintf(stderr, "%s: sound systems = \"%s\"\n", prefix, sound_systems);
-	fprintf(stderr, "%s: modules = \"%s\"\n", prefix, modules);
-	return CW_SUCCESS;
-}
-
-
-
-
-
-void cw_test_print_help(char const * progname)
-{
-	fprintf(stderr, "Usage: %s [-s <sound systems>] [-m <modules>]\n\n", progname);
-	fprintf(stderr, "       <sound system> is one or more of those:\n");
-	fprintf(stderr, "       n - null\n");
-	fprintf(stderr, "       c - console\n");
-	fprintf(stderr, "       o - OSS\n");
-	fprintf(stderr, "       a - ALSA\n");
-	fprintf(stderr, "       p - PulseAudio\n");
-	fprintf(stderr, "\n");
-	fprintf(stderr, "       <modules> is one or more of those:\n");
-	fprintf(stderr, "       g - generator\n");
-	fprintf(stderr, "       t - tone queue\n");
-	fprintf(stderr, "       k - Morse key\n");
-	fprintf(stderr, "       r - receiver\n");
-	fprintf(stderr, "       o - other\n");
-	fprintf(stderr, "\n");
-	fprintf(stderr, "       If no argument is provided, the program will attempt to test all audio systems and all modules\n");
 
 	return;
 }
