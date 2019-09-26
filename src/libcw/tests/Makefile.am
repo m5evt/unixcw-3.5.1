@@ -143,7 +143,6 @@ libcw_test_all_LDADD = -lm -lpthread $(DL_LIB) -L../.libs -lcw
 
 # source code files used to build libcw_test_internal program
 # libcw_test_internal_SOURCES = $(LIBCW_BASE_C_FILES) \
-	libcw_test_internal.c \
 	libcw_utils_tests.c \
 	libcw_debug_tests.c \
 	libcw_data_tests.c \
