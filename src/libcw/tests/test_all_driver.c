@@ -112,7 +112,7 @@ int main(int argc, char *const argv[])
 
 	/* "make check" facility requires this message to be
 	   printed on stdout; don't localize it */
-	fprintf(stdout, "\n%s: test result: success\n\n", g_tests_executor.msg_prefix);
+	g_tests_executor.log_info(&g_tests_executor, "Test result: success\n\n");
 
 	return rv == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }
@@ -142,7 +142,7 @@ void register_signal_handler(void)
 		action.sa_flags = 0;
 		int rv = sigaction(SIGNALS[i], &action, (struct sigaction *) NULL);
 		if (rv == -1) {
-			fprintf(stderr, "%s: can't register signal: %s\n", MSG_PREFIX, strerror(errno));
+			g_tests_executor.log_err(&g_tests_executor, "Can't register signal %d: '%s'\n", SIGNALS[i], strerror(errno));
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -197,26 +197,26 @@ int cw_test_modules_with_current_sound_system(cw_test_executor_t * executor)
 	cw_gen_t * gen = NULL;
 	cw_key_t * key = NULL;
 
-	fprintf(executor->stderr, "%sTesting with %s sound system\n", executor->msg_prefix, executor->get_current_sound_system_label(executor));
+	executor->log_info(executor, "Testing with %s sound system\n", executor->get_current_sound_system_label(executor));
 
 	if (strstr(executor->tested_modules, "k") || strstr(executor->tested_modules, "g") || strstr(executor->tested_modules, "t")) {
 		gen = cw_gen_new(executor->current_sound_system, NULL);
 		if (!gen) {
-			fprintf(stderr, "%s: can't create generator, stopping the test\n", executor->msg_prefix);
+			executor->log_err(executor, "Can't create generator, stopping the test\n");
 			return -1;
 		}
 
 		if (strstr(executor->tested_modules, "k")) {
 			key = cw_key_new();
 			if (!key) {
-				fprintf(stderr, "%s: can't create key, stopping the test\n", executor->msg_prefix);
+				executor->log_err(executor, "Can't create key, stopping the test\n");
 				return -1;
 			}
 			cw_key_register_generator(key, gen);
 		}
 
 		if (CW_SUCCESS != cw_gen_start(gen)) {
-			fprintf(stderr, "%s: can't start generator, stopping the test\n", executor->msg_prefix);
+			executor->log_err(executor, "Can't start generator, stopping the test\n");
 			cw_gen_delete(&gen);
 			if (key) {
 				cw_key_delete(&key);
@@ -234,7 +234,7 @@ int cw_test_modules_with_current_sound_system(cw_test_executor_t * executor)
 			(*cw_unit_tests_tq[i])(gen, &executor->stats2[executor->current_sound_system][LIBCW_MODULE_TQ]);
 			i++;
 		}
-		fprintf(executor->stderr, "\n");
+		executor->log_info_cont(executor, "\n");
 	}
 
 	if (executor->should_test_module(executor, "g")) {
@@ -244,7 +244,7 @@ int cw_test_modules_with_current_sound_system(cw_test_executor_t * executor)
 			(*cw_unit_tests_gen[i])(gen, &executor->stats2[executor->current_sound_system][LIBCW_MODULE_GEN]);
 			i++;
 		}
-		fprintf(executor->stderr, "\n");
+		executor->log_info_cont(executor, "\n");
 	}
 
 	if (executor->should_test_module(executor, "k")) {
@@ -254,7 +254,7 @@ int cw_test_modules_with_current_sound_system(cw_test_executor_t * executor)
 	                (*cw_unit_tests_key[i])(key, &executor->stats2[executor->current_sound_system][LIBCW_MODULE_KEY]);
 			i++;
 		}
-		fprintf(executor->stderr, "\n");
+		executor->log_info_cont(executor, "\n");
 	}
 
 	if (executor->should_test_module(executor, "r")) {
@@ -263,7 +263,7 @@ int cw_test_modules_with_current_sound_system(cw_test_executor_t * executor)
 	                (*cw_unit_tests_rec1[i])(&executor->stats2[executor->current_sound_system][LIBCW_MODULE_REC]);
 			i++;
 		}
-		fprintf(executor->stderr, "\n");
+		executor->log_info_cont(executor, "\n");
 	}
 
 	if (executor->should_test_module(executor, "o")) {
@@ -272,7 +272,7 @@ int cw_test_modules_with_current_sound_system(cw_test_executor_t * executor)
 	                (*cw_unit_tests_other_s[i])(&executor->stats2[executor->current_sound_system][LIBCW_MODULE_OTHER]);
 			i++;
 		}
-		fprintf(executor->stderr, "\n");
+		executor->log_info_cont(executor, "\n");
 	}
 
 

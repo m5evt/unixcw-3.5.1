@@ -133,16 +133,16 @@ int cw_test_modules_with_current_sound_system(cw_test_executor_t * executor)
 {
 	test_audio_system = executor->current_sound_system;
 
-	fprintf(executor->stderr, "%sTesting with %s sound system\n", executor->msg_prefix, executor->get_current_sound_system_label(executor));
+	executor->log_info(executor, "Testing with %s sound system\n", executor->get_current_sound_system_label(executor));
 
 	int rv = cw_generator_new(executor->current_sound_system, NULL);
 	if (rv != 1) {
-		fprintf(executor->stderr, "%scan't create generator, stopping the test\n", executor->msg_prefix);
+		executor->log_err(executor, "Can't create generator, stopping the test\n");
 		return -1;
 	}
 	rv = cw_generator_start();
 	if (rv != 1) {
-		fprintf(executor->stderr, "%scan't start generator, stopping the test\n", executor->msg_prefix);
+		executor->log_err(executor, "Can't start generator, stopping the test\n");
 		cw_generator_delete();
 		return -1;
 	}
@@ -207,54 +207,55 @@ void cw_test_print_stats_wrapper(void)
 
 void cw_test_print_stats(cw_test_executor_t * executor)
 {
-	fprintf(executor->stderr, "\n\n%sStatistics of tests:\n\n", executor->msg_prefix);
+	executor->log_info_cont(executor, "\n\n");
+	executor->log_info(executor, "Statistics of tests:\n");
 
-	fprintf(executor->stderr, "%sTests not requiring any audio system:            ", executor->msg_prefix);
+	executor->log_info(executor, "Tests not requiring any audio system:            ");
 	if (executor->stats_indep.failures + executor->stats_indep.successes) {
-		fprintf(executor->stderr, "errors: %03d, total: %03d\n",
-		       executor->stats_indep.failures, executor->stats_indep.failures + executor->stats_indep.successes);
+		executor->log_info_cont(executor, "errors: %03d, total: %03d\n",
+					executor->stats_indep.failures, executor->stats_indep.failures + executor->stats_indep.successes);
 	} else {
-		fprintf(executor->stderr, "no tests were performed\n");
+		executor->log_info_cont(executor, "no tests were performed\n");
 	}
 
-	fprintf(executor->stderr, "%sTests performed with NULL audio system:          ", executor->msg_prefix);
+	executor->log_info(executor, "Tests performed with NULL audio system:          ");
 	if (executor->stats_null.failures + executor->stats_null.successes) {
-		fprintf(executor->stderr, "errors: %03d, total: %03d\n",
-		       executor->stats_null.failures, executor->stats_null.failures + executor->stats_null.successes);
+		executor->log_info_cont(executor, "errors: %03d, total: %03d\n",
+					executor->stats_null.failures, executor->stats_null.failures + executor->stats_null.successes);
 	} else {
-		fprintf(executor->stderr, "no tests were performed\n");
+		executor->log_info_cont(executor, "no tests were performed\n");
 	}
 
-	fprintf(executor->stderr, "%sTests performed with console audio system:       ", executor->msg_prefix);
+	executor->log_info(executor, "Tests performed with console audio system:       ");
 	if (executor->stats_console.failures + executor->stats_console.successes) {
-		fprintf(executor->stderr, "errors: %03d, total: %03d\n",
-		       executor->stats_console.failures, executor->stats_console.failures + executor->stats_console.successes);
+		executor->log_info_cont(executor, "errors: %03d, total: %03d\n",
+					executor->stats_console.failures, executor->stats_console.failures + executor->stats_console.successes);
 	} else {
-		fprintf(executor->stderr, "no tests were performed\n");
+		executor->log_info_cont(executor, "no tests were performed\n");
 	}
 
-	fprintf(executor->stderr, "%sTests performed with OSS audio system:           ", executor->msg_prefix);
+	executor->log_info(executor, "Tests performed with OSS audio system:           ");
 	if (executor->stats_oss.failures + executor->stats_oss.successes) {
-		fprintf(executor->stderr, "errors: %03d, total: %03d\n",
-			executor->stats_oss.failures, executor->stats_oss.failures + executor->stats_oss.successes);
+		executor->log_info_cont(executor, "errors: %03d, total: %03d\n",
+					executor->stats_oss.failures, executor->stats_oss.failures + executor->stats_oss.successes);
 	} else {
-		fprintf(executor->stderr, "no tests were performed\n");
+		executor->log_info_cont(executor, "no tests were performed\n");
 	}
 
-	fprintf(executor->stderr, "%sTests performed with ALSA audio system:          ", executor->msg_prefix);
+	executor->log_info(executor, "Tests performed with ALSA audio system:          ");
 	if (executor->stats_alsa.failures + executor->stats_alsa.successes) {
-		fprintf(executor->stderr, "errors: %03d, total: %03d\n",
+		executor->log_info_cont(executor, "errors: %03d, total: %03d\n",
 		       executor->stats_alsa.failures, executor->stats_alsa.failures + executor->stats_alsa.successes);
 	} else {
-		fprintf(executor->stderr, "no tests were performed\n");
+		executor->log_info_cont(executor, "no tests were performed\n");
 	}
 
-	fprintf(executor->stderr, "%sTests performed with PulseAudio audio system:    ", executor->msg_prefix);
+	executor->log_info(executor, "Tests performed with PulseAudio audio system:    ");
 	if (executor->stats_pa.failures + executor->stats_pa.successes) {
-		fprintf(executor->stderr, "errors: %03d, total: %03d\n",
+		executor->log_info_cont(executor, "errors: %03d, total: %03d\n",
 		       executor->stats_pa.failures, executor->stats_pa.failures + executor->stats_pa.successes);
 	} else {
-		fprintf(executor->stderr, "no executor were performed\n");
+		executor->log_info_cont(executor, "no executor were performed\n");
 	}
 
 	return;
@@ -289,7 +290,7 @@ int main(int argc, char *const argv[])
 	/* Arrange for the test to exit on a range of signals. */
 	for (int i = 0; SIGNALS[i] != 0; i++) {
 		if (!cw_register_signal_handler(SIGNALS[i], SIG_DFL)) {
-			fprintf(stderr, MSG_PREFIX ": ERROR: cw_register_signal_handler\n");
+			g_tests_executor.log_err(&g_tests_executor, "Failed to register signal handler for signal %d\n", SIGNALS[i]);
 			exit(EXIT_FAILURE);
 		}
 	}

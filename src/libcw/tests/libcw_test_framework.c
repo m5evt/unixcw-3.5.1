@@ -75,6 +75,10 @@ static void cw_test_set_current_sound_system(cw_test_executor_t * self, int soun
 static const char * cw_test_get_current_sound_system_label(cw_test_executor_t * self);
 static void cw_test_print_test_stats(cw_test_executor_t * self);
 
+static void cw_test_log_info(struct cw_test_executor_t * self, const char * fmt, ...) __attribute__ ((format (printf, 2, 3)));
+static void cw_test_log_info_cont(struct cw_test_executor_t * self, const char * fmt, ...) __attribute__ ((format (printf, 2, 3)));
+static void cw_test_log_err(struct cw_test_executor_t * self, const char * fmt, ...) __attribute__ ((format (printf, 2, 3)));
+
 
 
 
@@ -379,6 +383,10 @@ void cw_test_init(cw_test_executor_t * self, FILE * stdout, FILE * stderr, const
 	self->set_current_sound_system = cw_test_set_current_sound_system;
 	self->print_test_stats = cw_test_print_test_stats;
 
+	self->log_info = cw_test_log_info;
+	self->log_info_cont = cw_test_log_info_cont;
+	self->log_err = cw_test_log_err;
+
 	self->console_n_cols = default_cw_test_print_n_chars;
 
 	self->current_sound_system = CW_AUDIO_NONE;
@@ -468,4 +476,67 @@ int cw_test_modules_with_sound_systems(cw_test_executor_t * self, tester_fn test
 	} else {
 		return -1;
 	}
+}
+
+
+
+
+void cw_test_log_info(struct cw_test_executor_t * self, const char * fmt, ...)
+{
+	if (NULL == self->stdout) {
+		return;
+	}
+
+	char va_buf[256] = { 0 };
+
+	va_list ap;
+	va_start(ap, fmt);
+	vsnprintf(va_buf, sizeof (va_buf), fmt, ap);
+	va_end(ap);
+
+	fprintf(self->stdout, "[II] %s: %s", self->msg_prefix, va_buf);
+
+	return;
+}
+
+
+
+
+void cw_test_log_info_cont(struct cw_test_executor_t * self, const char * fmt, ...)
+{
+	if (NULL == self->stdout) {
+		return;
+	}
+
+	char va_buf[256] = { 0 };
+
+	va_list ap;
+	va_start(ap, fmt);
+	vsnprintf(va_buf, sizeof (va_buf), fmt, ap);
+	va_end(ap);
+
+	fprintf(self->stdout, "%s", va_buf);
+
+	return;
+}
+
+
+
+
+void cw_test_log_err(struct cw_test_executor_t * self, const char * fmt, ...)
+{
+	if (NULL == self->stdout) {
+		return;
+	}
+
+	char va_buf[256] = { 0 };
+
+	va_list ap;
+	va_start(ap, fmt);
+	vsnprintf(va_buf, sizeof (va_buf), fmt, ap);
+	va_end(ap);
+
+	fprintf(self->stdout, "[EE] %s: %s", self->msg_prefix, va_buf);
+
+	return;
 }

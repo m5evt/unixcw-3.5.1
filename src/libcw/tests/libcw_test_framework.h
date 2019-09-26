@@ -103,6 +103,28 @@ typedef struct cw_test_executor_t {
 	const char * (* get_current_sound_system_label)(struct cw_test_executor_t * self);
 	void (* set_current_sound_system)(struct cw_test_executor_t * self, int sound_system);
 
+	/**
+	   Log information to cw_test_executor_t::stdout file (if it is set).
+	   Add "[II]" mark at the beginning.
+	   Add message prefix at the beginning.
+	   Don't add newline character at the end.
+	*/
+	void (* log_info)(struct cw_test_executor_t * self, const char * fmt, ...) __attribute__ ((format (printf, 2, 3)));
+	/**
+	   Log information to cw_test_executor_t::stdout file (if it is set).
+	   Don't add "[II]" mark at the beginning.
+	   Don't add message prefix at the beginning.
+	   Don't add newline character at the end.
+	*/
+	void (* log_info_cont)(struct cw_test_executor_t * self, const char * fmt, ...) __attribute__ ((format (printf, 2, 3)));
+	/**
+	   Log error to cw_test_executor_t::stdout file (if it is set).
+	   Add "[EE]" mark at the beginning.
+	   Add message prefix at the beginning.
+	   Don't add newline character at the end.
+	*/
+	void (* log_err)(struct cw_test_executor_t * self, const char * fmt, ...) __attribute__ ((format (printf, 2, 3)));
+
 	bool (* should_test_module)(struct cw_test_executor_t * self, const char * module);
 	bool (* should_test_sound_system)(struct cw_test_executor_t * self, const char * sound_system);
 } cw_test_executor_t;
