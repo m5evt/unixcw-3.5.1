@@ -70,8 +70,8 @@ typedef struct {
 
 
 
-struct cw_test_t;
-typedef struct cw_test_t {
+struct cw_test_executor_t;
+typedef struct cw_test_executor_t {
 	char msg_prefix[32];
 	FILE * stdout;
 	FILE * stderr;
@@ -93,30 +93,30 @@ typedef struct cw_test_t {
 	char tested_sound_systems[sizeof (LIBCW_TEST_ALL_SOUND_SYSTEMS)];
 	char tested_modules[sizeof (LIBCW_TEST_ALL_MODULES)];
 
-	bool (* expect_eq_int)(struct cw_test_t * self, int expected_value, int received_value, const char * fmt, ...) __attribute__ ((format (printf, 4, 5)));
-	bool (* expect_eq_int_errors_only)(struct cw_test_t * self, int expected_value, int received_value, const char * fmt, ...) __attribute__ ((format (printf, 4, 5)));
-	void (* print_test_header)(struct cw_test_t * self, const char * text);
-	void (* print_test_footer)(struct cw_test_t * self, const char * text);
-	int (* process_args)(struct cw_test_t * self, int argc, char * const argv[]);
-	void (* print_test_stats)(struct cw_test_t * self);
+	bool (* expect_eq_int)(struct cw_test_executor_t * self, int expected_value, int received_value, const char * fmt, ...) __attribute__ ((format (printf, 4, 5)));
+	bool (* expect_eq_int_errors_only)(struct cw_test_executor_t * self, int expected_value, int received_value, const char * fmt, ...) __attribute__ ((format (printf, 4, 5)));
+	void (* print_test_header)(struct cw_test_executor_t * self, const char * text);
+	void (* print_test_footer)(struct cw_test_executor_t * self, const char * text);
+	int (* process_args)(struct cw_test_executor_t * self, int argc, char * const argv[]);
+	void (* print_test_stats)(struct cw_test_executor_t * self);
 
-	const char * (* get_current_sound_system_label)(struct cw_test_t * self);
-	void (* set_current_sound_system)(struct cw_test_t * self, int sound_system);
+	const char * (* get_current_sound_system_label)(struct cw_test_executor_t * self);
+	void (* set_current_sound_system)(struct cw_test_executor_t * self, int sound_system);
 
-	bool (* should_test_module)(struct cw_test_t * self, const char * module);
-	bool (* should_test_sound_system)(struct cw_test_t * self, const char * sound_system);
-} cw_test_t;
+	bool (* should_test_module)(struct cw_test_executor_t * self, const char * module);
+	bool (* should_test_sound_system)(struct cw_test_executor_t * self, const char * sound_system);
+} cw_test_executor_t;
 
 
 
-void cw_test_init(cw_test_t * self, FILE * stdout, FILE * stderr, const char * msg_prefix);
+void cw_test_init(cw_test_executor_t * self, FILE * stdout, FILE * stderr, const char * msg_prefix);
 
 void cw_test_print_help(const char *progname);
 
 
-typedef int (* tester_fn)(cw_test_t * tests);
+typedef int (* tester_fn)(cw_test_executor_t * executor);
 
-int cw_test_modules_with_sound_systems(cw_test_t * tests, tester_fn test_modules_with_current_sound_system);
+int cw_test_modules_with_sound_systems(cw_test_executor_t * executor, tester_fn test_modules_with_current_sound_system);
 
 
 

@@ -29,7 +29,7 @@
   Tests for tone queue (tq) which need a sound system to be
   configured.
 */
-void (* const libcw_test_set_tq_with_audio[])(cw_test_t *) = {
+void (* const libcw_test_set_tq_with_audio[])(cw_test_executor_t *) = {
 	test_cw_wait_for_tone,
 	test_cw_wait_for_tone_queue,
 	test_cw_queue_tone,
@@ -45,7 +45,7 @@ void (* const libcw_test_set_tq_with_audio[])(cw_test_t *) = {
 
 /* Tests that are dependent on a sound system being configured.
    Generator module functions. */
-void (*const libcw_test_set_gen_with_audio[])(cw_test_t *) = {
+void (*const libcw_test_set_gen_with_audio[])(cw_test_executor_t *) = {
 	test_volume_functions,
 	test_send_primitives,
 	test_send_character_and_string,
@@ -59,7 +59,7 @@ void (*const libcw_test_set_gen_with_audio[])(cw_test_t *) = {
 
 /* Tests that are dependent on a sound system being configured.
    Morse key module functions */
-void (*const libcw_test_set_key_with_audio[])(cw_test_t *) = {
+void (*const libcw_test_set_key_with_audio[])(cw_test_executor_t *) = {
 	test_iambic_key_dot,
 	test_iambic_key_dash,
 	test_iambic_key_alternating,
@@ -74,7 +74,7 @@ void (*const libcw_test_set_key_with_audio[])(cw_test_t *) = {
 
 /* Tests that are dependent on a sound system being configured.
    Other modules' functions. */
-void (*const libcw_test_set_other_with_audio[])(cw_test_t *) = {
+void (*const libcw_test_set_other_with_audio[])(cw_test_executor_t *) = {
 	test_parameter_ranges,
 	test_cw_gen_forever_public,
 

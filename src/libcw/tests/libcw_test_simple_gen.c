@@ -71,7 +71,7 @@ int main(int argc, char *const argv[])
 #define CW_MODULES_MAX 5
 	char modules[CW_MODULES_MAX + 1];
 
-	cw_test_t tests;
+	cw_test_executor_t tests;
 	cw_test_init(&tests, stdout, stderr, "simple gen test");
 
 	if (!tests.process_args(&tests, argc, argv)) {
