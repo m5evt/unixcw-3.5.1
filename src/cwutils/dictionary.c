@@ -846,7 +846,7 @@ const char *get_dictionary_random_word(const dictionary *dict)
 #ifdef CW_DICTIONARY_UNIT_TESTS
 
 
-#include "libcw_test.h"
+#include "tests/libcw_test_framework.h"
 
 
 static unsigned int test_cw_dictionary_check_line(void);
