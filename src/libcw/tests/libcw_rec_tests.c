@@ -9,7 +9,7 @@
 
 
 
-#include "tests/libcw_test_utils.h"
+#include "tests/libcw_test_framework.h"
 #include "libcw_rec.h"
 #include "libcw_rec_tests.h"
 #include "libcw_rec_internal.h"
