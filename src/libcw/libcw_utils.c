@@ -63,7 +63,6 @@
 
 #include "libcw.h"
 #include "libcw_gen.h"
-#include "tests/libcw_test_utils.h"
 #include "libcw_debug.h"
 #include "libcw_utils.h"
 #include "libcw_signal.h"
