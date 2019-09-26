@@ -549,9 +549,7 @@ unsigned int test_cw_gen_tone_slope_shape_enums(cw_test_stats_t * stats)
 
 
 
-/* Version of test_cw_gen_forever() to be used in libcw_test_internal
-   test executable.
-
+/*
    It's not a test of a "forever" function, but of "forever"
    functionality.
 */

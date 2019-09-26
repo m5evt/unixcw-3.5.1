@@ -1530,8 +1530,7 @@ void cw_test_signal_handling(cw_test_t * tests)
    internal test. */
 
 /*
-  Version of test_cw_gen_forever() to be used in libcw_test_internal
-  test executable.
+  TODO: there is a similar function in libcw_gen_tests.c: test_cw_gen_forever_internal()
 
   Because the function calls cw_generator_delete(), it should be
   executed as last test in test suite (unless you want to call

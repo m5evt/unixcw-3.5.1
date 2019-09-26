@@ -73,6 +73,7 @@ static bool cw_test_should_test_module(cw_test_t * self, const char * module);
 static bool cw_test_should_test_sound_system(cw_test_t * self, const char * sound_system);
 static void cw_test_set_current_sound_system(cw_test_t * self, int sound_system);
 static const char * cw_test_get_current_sound_system_label(cw_test_t * self);
+static void cw_test_print_test_stats(cw_test_t * tests);
 
 
 
@@ -333,6 +334,34 @@ void cw_test_set_current_sound_system(cw_test_t * self, int sound_system)
 
 
 
+void cw_test_print_test_stats(cw_test_t * tests)
+{
+	fprintf(tests->stderr, "\n\n%s: Statistics of tests: (total/failures)\n\n", tests->msg_prefix);
+
+        //                     123 12345678901234 12345678901234 12345678901234 12345678901234 12345678901234
+	fprintf(tests->stderr,       "   | tone queue   | generator    | key          | receiver     | other        |\n");
+	fprintf(tests->stderr,       " -----------------------------------------------------------------------------|\n");
+	#define LINE_FORMAT   " %c |% 10d/% 3d|% 10d/% 3d|% 10d/% 3d|% 10d/% 3d|% 10d/% 3d|\n"
+
+
+	char audio_systems[] = " NCOAP";
+
+	for (int i = CW_AUDIO_NULL; i <= CW_AUDIO_PA; i++) {
+		fprintf(tests->stderr, LINE_FORMAT,
+			audio_systems[i], /* TODO: global variable. */
+			tests->stats2[i][LIBCW_MODULE_TQ].failures    + tests->stats2[i][LIBCW_MODULE_TQ].successes,    tests->stats2[i][LIBCW_MODULE_TQ].failures,
+			tests->stats2[i][LIBCW_MODULE_GEN].failures   + tests->stats2[i][LIBCW_MODULE_GEN].successes,   tests->stats2[i][LIBCW_MODULE_GEN].failures,
+			tests->stats2[i][LIBCW_MODULE_KEY].failures   + tests->stats2[i][LIBCW_MODULE_KEY].successes,   tests->stats2[i][LIBCW_MODULE_KEY].failures,
+			tests->stats2[i][LIBCW_MODULE_REC].failures   + tests->stats2[i][LIBCW_MODULE_REC].successes,   tests->stats2[i][LIBCW_MODULE_REC].failures,
+			tests->stats2[i][LIBCW_MODULE_OTHER].failures + tests->stats2[i][LIBCW_MODULE_OTHER].successes, tests->stats2[i][LIBCW_MODULE_OTHER].failures);
+	}
+
+	return;
+}
+
+
+
+
 void cw_test_init(cw_test_t * self, FILE * stdout, FILE * stderr, const char * msg_prefix)
 {
 	memset(self, 0, sizeof (cw_test_t));
@@ -348,6 +377,7 @@ void cw_test_init(cw_test_t * self, FILE * stdout, FILE * stderr, const char * m
 	self->should_test_sound_system = cw_test_should_test_sound_system;
 	self->get_current_sound_system_label = cw_test_get_current_sound_system_label;
 	self->set_current_sound_system = cw_test_set_current_sound_system;
+	self->print_test_stats = cw_test_print_test_stats;
 
 	self->console_n_cols = default_cw_test_print_n_chars;
 
@@ -360,4 +390,82 @@ void cw_test_init(cw_test_t * self, FILE * stdout, FILE * stderr, const char * m
 	const suseconds_t seed = tv.tv_usec;
 	fprintf(self->stdout, "%sRandom seed = %lu\n", self->msg_prefix, seed);
 	srand(seed);
+}
+
+
+
+
+/**
+   \brief Run a series of tests for specified audio systems
+
+   Function attempts to run a set of testcases for every audio system
+   specified in \p sound_systems. These testcases require some kind of
+   audio system configured. The function calls
+   cw_test_modules_with_current_sound_system() to do the configuration and
+   run the tests.
+
+   \p sound_systems is a list of audio systems to be tested: "ncoap".
+   Pass NULL pointer to attempt to test all of audio systems supported
+   by libcw.
+
+   \param sound_systems - list of audio systems to be tested
+*/
+int cw_test_modules_with_sound_systems(cw_test_t * tests, tester_fn test_modules_with_current_sound_system)
+{
+	int n = 0, c = 0, o = 0, a = 0, p = 0;
+
+	if (tests->should_test_sound_system(tests, "n")) {
+		if (cw_is_null_possible(NULL)) {
+			fprintf(tests->stderr, "========================================\n");
+			tests->set_current_sound_system(tests, CW_AUDIO_NULL);
+			n = (*test_modules_with_current_sound_system)(tests);
+		} else {
+			fprintf(tests->stderr, "%snull output not available\n", tests->msg_prefix);
+		}
+	}
+
+	if (tests->should_test_sound_system(tests, "c")) {
+		if (cw_is_console_possible(NULL)) {
+			fprintf(tests->stderr, "========================================\n");
+			tests->set_current_sound_system(tests, CW_AUDIO_CONSOLE);
+			c = (*test_modules_with_current_sound_system)(tests);
+		} else {
+			fprintf(tests->stderr, "%sconsole output not available\n", tests->msg_prefix);
+		}
+	}
+
+	if (tests->should_test_sound_system(tests, "o")) {
+		if (cw_is_oss_possible(NULL)) {
+			fprintf(tests->stderr, "========================================\n");
+			tests->set_current_sound_system(tests, CW_AUDIO_OSS);
+			o = (*test_modules_with_current_sound_system)(tests);
+		} else {
+			fprintf(tests->stderr, "%sOSS output not available\n", tests->msg_prefix);
+		}
+	}
+
+	if (tests->should_test_sound_system(tests, "a")) {
+		if (cw_is_alsa_possible(NULL)) {
+			fprintf(tests->stderr, "========================================\n");
+			a = (*test_modules_with_current_sound_system)(tests);
+		} else {
+			fprintf(tests->stderr, "%sAlsa output not available\n", tests->msg_prefix);
+		}
+	}
+
+	if (tests->should_test_sound_system(tests, "p")) {
+		if (cw_is_pa_possible(NULL)) {
+			fprintf(tests->stderr, "========================================\n");
+			tests->set_current_sound_system(tests, CW_AUDIO_PA);
+			p = (*test_modules_with_current_sound_system)(tests);
+		} else {
+			fprintf(tests->stderr, "%sPulseAudio output not available\n", tests->msg_prefix);
+		}
+	}
+
+	if (!n && !c && !o && !a && !p) {
+		return 0;
+	} else {
+		return -1;
+	}
 }

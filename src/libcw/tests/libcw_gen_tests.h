@@ -23,8 +23,7 @@ unsigned int test_cw_gen_enqueue_character_and_string(cw_test_stats_t * stats);
 
 
 
-/* This is helper function (performing the real test), used in
-   libcw_test_public and in libcw_test_internal.
+/*
 
    "forever" feature is not a part of public api, so in theory it
    shouldn't be tested in libcw_test_public, but the libcw_test_public

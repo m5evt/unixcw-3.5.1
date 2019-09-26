@@ -14,6 +14,7 @@
 #include <stdbool.h>
 
 
+#include <libcw.h>
 
 
 #define out_file stdout
@@ -44,6 +45,23 @@
 
 
 
+enum {
+	/* Explicitly stated values in this enum shall never
+	   change. */
+	LIBCW_MODULE_TQ      = 0,
+	LIBCW_MODULE_GEN     = 1,
+	LIBCW_MODULE_KEY     = 2,
+	LIBCW_MODULE_REC     = 3,
+	LIBCW_MODULE_DATA    = 4,
+
+	LIBCW_MODULE_OTHER,
+
+	LIBCW_MODULE_MAX
+};
+
+
+
+
 typedef struct {
 	int successes;
 	int failures;
@@ -70,6 +88,7 @@ typedef struct cw_test_t {
 	cw_test_stats_t stats_alsa;
 	cw_test_stats_t stats_pa;
 	cw_test_stats_t * stats; /* Pointer to current stats. */
+	cw_test_stats_t stats2[CW_AUDIO_SOUNDCARD][LIBCW_MODULE_MAX];
 
 	char tested_sound_systems[sizeof (LIBCW_TEST_ALL_SOUND_SYSTEMS)];
 	char tested_modules[sizeof (LIBCW_TEST_ALL_MODULES)];
@@ -79,6 +98,7 @@ typedef struct cw_test_t {
 	void (* print_test_header)(struct cw_test_t * self, const char * text);
 	void (* print_test_footer)(struct cw_test_t * self, const char * text);
 	int (* process_args)(struct cw_test_t * self, int argc, char * const argv[]);
+	void (* print_test_stats)(struct cw_test_t * self);
 
 	const char * (* get_current_sound_system_label)(struct cw_test_t * self);
 	void (* set_current_sound_system)(struct cw_test_t * self, int sound_system);
@@ -93,6 +113,10 @@ void cw_test_init(cw_test_t * self, FILE * stdout, FILE * stderr, const char * m
 
 void cw_test_print_help(const char *progname);
 
+
+typedef int (* tester_fn)(cw_test_t * tests);
+
+int cw_test_modules_with_sound_systems(cw_test_t * tests, tester_fn test_modules_with_current_sound_system);
 
 
 

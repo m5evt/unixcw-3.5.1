@@ -1,6 +1,6 @@
 /*
   Copyright (C) 2001-2006  Simon Baldwin (simon_baldwin@yahoo.com)
-  Copyright (C) 2011-2015  Kamil Ignacak (acerion@wp.pl)
+  Copyright (C) 2011-2019  Kamil Ignacak (acerion@wp.pl)
 
   This program is free software; you can redistribute it and/or
   modify it under the terms of the GNU General Public License
@@ -17,7 +17,11 @@
   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
+#define _XOPEN_SOURCE 600 /* signaction() + SA_RESTART */
 #include "config.h"
+
+
+
 
 #if defined(HAVE_STRING_H)
 # include <string.h>
@@ -29,64 +33,31 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/time.h> /* gettimeofday() */
 #include <signal.h>
-#include <ctype.h>
-#include <limits.h>
 #include <unistd.h>
 #include <errno.h>
 #include <getopt.h>
-#include <assert.h>
+
 
 
 
 #include "libcw_gen.h"
-#include "libcw_rec.h"
 #include "libcw_debug.h"
-#include "libcw_data.h"
-#include "libcw_tq.h"
-#include "libcw_utils.h"
-#include "libcw_key.h"
-
-
 #include "libcw2.h"
-
-#include "libcw_null.h"
-#include "libcw_console.h"
-#include "libcw_oss.h"
 
 #include "libcw_test_utils.h"
 #include "test_all_sets.h"
 
 
 
-#define _XOPEN_SOURCE 600 /* signaction() + SA_RESTART */
+
+#define MSG_PREFIX  "libcw modern API"
 
 
 
 
 extern cw_debug_t cw_debug_object;
 extern cw_debug_t cw_debug_object_dev;
-
-
-#define MSG_PREFIX  "libcw modern API"
-
-
-static cw_test_t g_tests;
-
-
-enum {
-	CW_MODULE_TQ,
-	CW_MODULE_GEN,
-	CW_MODULE_KEY,
-	CW_MODULE_REC,
-	CW_MODULE_OTHER,
-
-	CW_MODULE_MAX
-};
-
-
-
 
 extern cw_test_function_stats_t cw_unit_tests_other_s[];
 extern cw_test_function_stats_tq_t cw_unit_tests_tq[];
@@ -97,35 +68,16 @@ extern cw_test_function_stats_t cw_unit_tests_rec1[];
 
 
 
-static cw_test_stats_t unit_test_statistics[CW_AUDIO_SOUNDCARD][CW_MODULE_MAX];
+static cw_test_t g_tests;
 
-static void cw_test_print_stats(void);
 
-static int cw_test_modules_with_sound_systems(cw_test_t * tests);
+
+
+static void cw_test_print_stats_wrapper(void);
 static int cw_test_modules_with_current_sound_system(cw_test_t * tests);
 static void cw_test_setup(cw_gen_t *gen);
 static void signal_handler(int signal_number);
 static void register_signal_handler(void);
-
-
-
-/* ******************************************************************** */
-/*                 Unit tests for internal functions                    */
-/* ******************************************************************** */
-
-
-
-
-
-/* Unit tests for internal functions (and also some public functions)
-   defined in libcw.c.
-
-   See also libcw_test_public.c and libcw_test_simple_gen.c. */
-
-#include <stdio.h>
-#include <assert.h>
-
-
 
 
 
@@ -153,10 +105,10 @@ int main(int argc, char *const argv[])
 	}
 
 
-	atexit(cw_test_print_stats);
+	atexit(cw_test_print_stats_wrapper);
 	register_signal_handler();
 
-	int rv = cw_test_modules_with_sound_systems(&g_tests);
+	int rv = cw_test_modules_with_sound_systems(&g_tests, cw_test_modules_with_current_sound_system);
 
 	/* "make check" facility requires this message to be
 	   printed on stdout; don't localize it */
@@ -167,13 +119,13 @@ int main(int argc, char *const argv[])
 
 
 
+
 /* Show the signal caught, and exit. */
 void signal_handler(int signal_number)
 {
 	fprintf(stderr, "\n%s: caught signal %d, exiting...\n", MSG_PREFIX, signal_number);
 	exit(EXIT_SUCCESS);
 }
-
 
 
 
@@ -275,52 +227,52 @@ int cw_test_modules_with_current_sound_system(cw_test_t * tests)
 
 
 
-	if (strstr(tests->tested_modules, "t")) {
+	if (tests->should_test_module(tests, "t")) {
 		int i = 0;
 		while (cw_unit_tests_tq[i]) {
 			cw_test_setup(gen);
-			(*cw_unit_tests_tq[i])(gen, &unit_test_statistics[tests->current_sound_system][CW_MODULE_TQ]);
+			(*cw_unit_tests_tq[i])(gen, &tests->stats2[tests->current_sound_system][LIBCW_MODULE_TQ]);
 			i++;
 		}
-		fprintf(out_file, "\n");
+		fprintf(tests->stderr, "\n");
 	}
 
-	if (strstr(tests->tested_modules, "g")) {
+	if (tests->should_test_module(tests, "g")) {
 		int i = 0;
 		while (cw_unit_tests_gen[i]) {
 			cw_test_setup(gen);
-			(*cw_unit_tests_gen[i])(gen, &unit_test_statistics[tests->current_sound_system][CW_MODULE_GEN]);
+			(*cw_unit_tests_gen[i])(gen, &tests->stats2[tests->current_sound_system][LIBCW_MODULE_GEN]);
 			i++;
 		}
-		fprintf(out_file, "\n");
+		fprintf(tests->stderr, "\n");
 	}
 
-	if (strstr(tests->tested_modules, "k")) {
+	if (tests->should_test_module(tests, "k")) {
 		int i = 0;
 		while (cw_unit_tests_key[i]) {
 			cw_test_setup(gen);
-	                (*cw_unit_tests_key[i])(key, &unit_test_statistics[tests->current_sound_system][CW_MODULE_KEY]);
+	                (*cw_unit_tests_key[i])(key, &tests->stats2[tests->current_sound_system][LIBCW_MODULE_KEY]);
 			i++;
 		}
-		fprintf(out_file, "\n");
+		fprintf(tests->stderr, "\n");
 	}
 
-	if (strstr(tests->tested_modules, "r")) {
+	if (tests->should_test_module(tests, "r")) {
 		int i = 0;
 		while (cw_unit_tests_rec1[i]) {
-	                (*cw_unit_tests_rec1[i])(&unit_test_statistics[tests->current_sound_system][CW_MODULE_REC]);
+	                (*cw_unit_tests_rec1[i])(&tests->stats2[tests->current_sound_system][LIBCW_MODULE_REC]);
 			i++;
 		}
-		fprintf(out_file, "\n");
+		fprintf(tests->stderr, "\n");
 	}
 
-	if (strstr(tests->tested_modules, "o")) {
+	if (tests->should_test_module(tests, "o")) {
 		int i = 0;
 		while (cw_unit_tests_other_s[i]) {
-	                (*cw_unit_tests_other_s[i])(&unit_test_statistics[tests->current_sound_system][CW_MODULE_OTHER]);
+	                (*cw_unit_tests_other_s[i])(&tests->stats2[tests->current_sound_system][LIBCW_MODULE_OTHER]);
 			i++;
 		}
-		fprintf(out_file, "\n");
+		fprintf(tests->stderr, "\n");
 	}
 
 
@@ -345,7 +297,6 @@ int cw_test_modules_with_current_sound_system(cw_test_t * tests)
 
 
 
-
 /**
    \brief Run a series of tests for specified audio systems and modules
 
@@ -365,92 +316,7 @@ int cw_test_modules_with_current_sound_system(cw_test_t * tests)
    \param audio_systems - list of audio systems to be tested
    \param modules - list of modules systems to be tested
 */
-int cw_test_modules_with_sound_systems(cw_test_t * tests)
+void cw_test_print_stats_wrapper(void)
 {
-	int n = 0, c = 0, o = 0, a = 0, p = 0;
-
-	if (tests->should_test_sound_system(tests, "n")) {
-		if (cw_is_null_possible(NULL)) {
-			fprintf(stderr, "========================================\n");
-			tests->set_current_sound_system(tests, CW_AUDIO_NULL);
-			n = cw_test_modules_with_current_sound_system(tests);
-		} else {
-			fprintf(tests->stderr, "%s: null output not available\n", tests->msg_prefix);
-		}
-	}
-
-	if (tests->should_test_sound_system(tests, "c")) {
-		if (cw_is_console_possible(NULL)) {
-			fprintf(stderr, "========================================\n");
-			tests->set_current_sound_system(tests, CW_AUDIO_CONSOLE);
-			c = cw_test_modules_with_current_sound_system(tests);
-		} else {
-			fprintf(tests->stderr, "%s: console output not available\n", tests->msg_prefix);
-		}
-	}
-
-	if (tests->should_test_sound_system(tests, "o")) {
-		if (cw_is_oss_possible(NULL)) {
-			fprintf(stderr, "========================================\n");
-			tests->set_current_sound_system(tests, CW_AUDIO_OSS);
-			o = cw_test_modules_with_current_sound_system(tests);
-		} else {
-			fprintf(tests->stderr, "%s: OSS output not available\n", tests->msg_prefix);
-		}
-	}
-
-	if (tests->should_test_sound_system(tests, "a")) {
-		if (cw_is_alsa_possible(NULL)) {
-			fprintf(stderr, "========================================\n");
-			tests->set_current_sound_system(tests, CW_AUDIO_ALSA);
-			a = cw_test_modules_with_current_sound_system(tests);
-		} else {
-			fprintf(tests->stderr, "%s: Alsa output not available\n", tests->msg_prefix);
-		}
-	}
-
-	if (tests->should_test_sound_system(tests, "p")) {
-		if (cw_is_pa_possible(NULL)) {
-			fprintf(stderr, "========================================\n");
-			tests->set_current_sound_system(tests, CW_AUDIO_PA);
-			p = cw_test_modules_with_current_sound_system(tests);
-		} else {
-			fprintf(tests->stderr, "%s: PulseAudio output not available\n", tests->msg_prefix);
-		}
-	}
-
-	if (!n && !c && !o && !a && !p) {
-		return 0;
-	} else {
-		return -1;
-	}
-}
-
-
-
-
-
-void cw_test_print_stats(void)
-{
-	fprintf(stderr, "\n\nlibcw: Statistics of tests: (total/failures)\n\n");
-
-        //                     123 12345678901234 12345678901234 12345678901234 12345678901234 12345678901234
-	fprintf(stderr,       "   | tone queue   | generator    | key          | receiver     | other        |\n");
-	fprintf(stderr,       " -----------------------------------------------------------------------------|\n");
-	#define LINE_FORMAT   " %c |% 10d/% 3d|% 10d/% 3d|% 10d/% 3d|% 10d/% 3d|% 10d/% 3d|\n"
-
-
-	char audio_systems[] = " NCOAP";
-
-	for (int i = CW_AUDIO_NULL; i <= CW_AUDIO_PA; i++) {
-		fprintf(stderr, LINE_FORMAT,
-			audio_systems[i],
-			unit_test_statistics[i][CW_MODULE_TQ].failures    + unit_test_statistics[i][CW_MODULE_TQ].successes,    unit_test_statistics[i][CW_MODULE_TQ].failures,
-			unit_test_statistics[i][CW_MODULE_GEN].failures   + unit_test_statistics[i][CW_MODULE_GEN].successes,   unit_test_statistics[i][CW_MODULE_GEN].failures,
-			unit_test_statistics[i][CW_MODULE_KEY].failures   + unit_test_statistics[i][CW_MODULE_KEY].successes,   unit_test_statistics[i][CW_MODULE_KEY].failures,
-			unit_test_statistics[i][CW_MODULE_REC].failures   + unit_test_statistics[i][CW_MODULE_REC].successes,   unit_test_statistics[i][CW_MODULE_REC].failures,
-			unit_test_statistics[i][CW_MODULE_OTHER].failures + unit_test_statistics[i][CW_MODULE_OTHER].successes, unit_test_statistics[i][CW_MODULE_OTHER].failures);
-	}
-
-	return;
+	g_tests.print_test_stats(&g_tests);
 }
