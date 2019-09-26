@@ -74,6 +74,7 @@ static float * test_cw_rec_generate_speeds_varying(int speed_min, int speed_max,
 */
 unsigned int test_cw_rec_identify_mark_internal(cw_test_stats_t * stats)
 {
+#if 0
 	cw_rec_t * rec = cw_rec_new();
 	cw_assert (rec, MSG_PREFIX "identify mark: failed to create new receiver\n");
 	cw_rec_disable_adaptive_mode(rec);
@@ -114,7 +115,7 @@ unsigned int test_cw_rec_identify_mark_internal(cw_test_stats_t * stats)
 
 
 
-
+#if 0
 		/* Test mark shorter than minimal length of dot. */
 		rv = cw_rec_identify_mark_internal(rec, rec->dot_len_min - 1, &representation);
 		failure = (rv != CW_FAILURE);
@@ -123,14 +124,13 @@ unsigned int test_cw_rec_identify_mark_internal(cw_test_stats_t * stats)
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
-
-
 		/* Test mark longer than maximal length of dot (but shorter than minimal length of dash). */
 		rv = cw_rec_identify_mark_internal(rec, rec->dot_len_max + 1, &representation);
 		failure = (rv != CW_FAILURE);
 		failure ? stats->failures++ : stats->successes++;
 		n = fprintf(out_file, MSG_PREFIX "identify mark @ %02d [wpm]: mark longer than max dot:", speed);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
+
 
 
 
@@ -175,10 +175,11 @@ unsigned int test_cw_rec_identify_mark_internal(cw_test_stats_t * stats)
 		failure ? stats->failures++ : stats->successes++;
 		n = fprintf(out_file, MSG_PREFIX "identify mark @ %02d [wpm]: mark longer than max dash:", speed);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
+#endif
 	}
 
 	cw_rec_delete(&rec);
-
+#endif
 	return 0;
 }
 

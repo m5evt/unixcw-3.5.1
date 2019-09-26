@@ -38,7 +38,7 @@
 #include <getopt.h>
 #include <assert.h>
 
-#include "libcw2.h"
+
 
 #include "libcw_gen.h"
 #include "libcw_rec.h"
@@ -48,11 +48,21 @@
 #include "libcw_utils.h"
 #include "libcw_key.h"
 
+#include "libcw_utils_tests.h"
+#include "libcw_data_tests.h"
+#include "libcw_debug_tests.h"
+#include "libcw_tq_tests.h"
+#include "libcw_gen_tests.h"
+#include "libcw_key_tests.h"
+#include "libcw_rec_tests.h"
+
+#include "libcw2.h"
+
 #include "libcw_null.h"
 #include "libcw_console.h"
 #include "libcw_oss.h"
 
-#include "tests/libcw_test_utils.h"
+#include "libcw_test_utils.h"
 
 
 
@@ -162,7 +172,9 @@ static cw_test_function_stats_tq_t cw_unit_tests_tq[] = {
 	test_cw_tq_wait_for_level_internal,
 	test_cw_tq_is_full_internal,
 	test_cw_tq_enqueue_dequeue_internal,
+#if 0
 	test_cw_tq_enqueue_args_internal,
+#endif
 	test_cw_tq_new_delete_internal,
 	test_cw_tq_get_capacity_internal,
 	test_cw_tq_length_internal,
@@ -228,7 +240,7 @@ static cw_test_function_stats_t cw_unit_tests_rec1[] = {
 */
 int main(int argc, char *const argv[])
 {
-	fprintf(stderr, "%s\n\n", prefix);
+	fprintf(stderr, "%s\n\n", MSG_PREFIX);
 
 	//cw_debug_set_flags(&cw_debug_object, CW_DEBUG_RECEIVE_STATES | CW_DEBUG_TONE_QUEUE | CW_DEBUG_GENERATOR | CW_DEBUG_KEYING);
 	//cw_debug_object.level = CW_DEBUG_ERROR;
@@ -237,9 +249,9 @@ int main(int argc, char *const argv[])
 	//cw_debug_object_dev.level = CW_DEBUG_DEBUG;
 
 
-	cw_test_init(&tests, stdout, stderr, MSG_PREFIX);
+	cw_test_init(&g_tests, stdout, stderr, MSG_PREFIX);
 
-	if (!tests.process_args(&tests, argc, argv)) {
+	if (!g_tests.process_args(&g_tests, argc, argv)) {
 		cw_test_print_help(argv[0]);
 		exit(EXIT_FAILURE);
 	}
@@ -252,7 +264,7 @@ int main(int argc, char *const argv[])
 
 	/* "make check" facility requires this message to be
 	   printed on stdout; don't localize it */
-	fprintf(stdout, "\n%s: test result: success\n\n", prefix);
+	fprintf(stdout, "\n%s: test result: success\n\n", g_tests.msg_prefix);
 
 	return rv == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }
@@ -262,7 +274,7 @@ int main(int argc, char *const argv[])
 /* Show the signal caught, and exit. */
 void signal_handler(int signal_number)
 {
-	fprintf(stderr, "\n%s: caught signal %d, exiting...\n", prefix, signal_number);
+	fprintf(stderr, "\n%s: caught signal %d, exiting...\n", MSG_PREFIX, signal_number);
 	exit(EXIT_SUCCESS);
 }
 
@@ -282,7 +294,7 @@ void register_signal_handler(void)
 		action.sa_flags = 0;
 		int rv = sigaction(SIGNALS[i], &action, (struct sigaction *) NULL);
 		if (rv == -1) {
-			fprintf(stderr, "%s: can't register signal: %s\n", prefix, strerror(errno));
+			fprintf(stderr, "%s: can't register signal: %s\n", MSG_PREFIX, strerror(errno));
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -342,21 +354,21 @@ int cw_test_modules_with_current_sound_system(cw_test_t * tests)
 	if (strstr(tests->tested_modules, "k") || strstr(tests->tested_modules, "g") || strstr(tests->tested_modules, "t")) {
 		gen = cw_gen_new(tests->current_sound_system, NULL);
 		if (!gen) {
-			fprintf(stderr, "%s: can't create generator, stopping the test\n", prefix);
+			fprintf(stderr, "%s: can't create generator, stopping the test\n", tests->msg_prefix);
 			return -1;
 		}
 
 		if (strstr(tests->tested_modules, "k")) {
 			key = cw_key_new();
 			if (!key) {
-				fprintf(stderr, "%s: can't create key, stopping the test\n", prefix);
+				fprintf(stderr, "%s: can't create key, stopping the test\n", tests->msg_prefix);
 				return -1;
 			}
 			cw_key_register_generator(key, gen);
 		}
 
 		if (CW_SUCCESS != cw_gen_start(gen)) {
-			fprintf(stderr, "%s: can't start generator, stopping the test\n", prefix);
+			fprintf(stderr, "%s: can't start generator, stopping the test\n", tests->msg_prefix);
 			cw_gen_delete(&gen);
 			if (key) {
 				cw_key_delete(&key);
@@ -507,7 +519,7 @@ int cw_test_modules_with_sound_systems(cw_test_t * tests)
 			tests->set_current_sound_system(tests, CW_AUDIO_PA);
 			p = cw_test_modules_with_current_sound_system(tests);
 		} else {
-			fprintf(tests->stderr, "%s: PulseAudio output not available\n", msg_prefix);
+			fprintf(tests->stderr, "%s: PulseAudio output not available\n", tests->msg_prefix);
 		}
 	}
 

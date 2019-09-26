@@ -19,7 +19,7 @@
 -include $(top_builddir)/Makefile.inc
 
 # targets to be built in this directory
-check_PROGRAMS = libcw_test_legacy_api
+check_PROGRAMS = libcw_test_legacy_api libcw_test_all
 #	libcw_test_simple_gen
 #	libcw_test_tq_short_space
 
@@ -28,7 +28,8 @@ check_PROGRAMS = libcw_test_legacy_api
 test_infrastructure_files = \
 	libcw_test_utils.c \
 	libcw_test_utils.h \
-	libcw_test_driver.c
+	libcw_test_driver.c \
+	libcw_test_all_driver.c
 
 legacy_api_test_files = \
 	libcw_test_legacy_api_tests.c \
@@ -92,6 +93,24 @@ libcw_test_legacy_api_CPPFLAGS = $(AM_CPPFLAGS)
 # executable with the library through "-lcw".
 libcw_test_legacy_api_LDADD = -lm -lpthread $(DL_LIB) -L../.libs -lcw
 
+
+
+
+libcw_test_all_SOURCES = \
+	test_driver_all.c \
+	libcw_test_utils.c \
+	libcw_utils_tests.c \
+	libcw_data_tests.c \
+	libcw_debug_tests.c \
+	libcw_tq_tests.c \
+	libcw_gen_tests.c \
+	libcw_key_tests.c \
+	libcw_rec_tests.c
+
+
+libcw_test_all_CPPFLAGS = $(AM_CPPFLAGS)
+
+libcw_test_all_LDADD = -lm -lpthread $(DL_LIB) -L../.libs -lcw
 
 
 

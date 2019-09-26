@@ -127,6 +127,7 @@ unsigned int test_cw_tq_get_capacity_internal(cw_test_stats_t * stats)
 */
 unsigned int test_cw_tq_prev_index_internal(cw_test_stats_t * stats)
 {
+#if 0
 	cw_tone_queue_t * tq = cw_tq_new_internal();
 	cw_assert (tq, MSG_PREFIX "failed to create new tone queue");
 
@@ -173,7 +174,7 @@ unsigned int test_cw_tq_prev_index_internal(cw_test_stats_t * stats)
 	failure ? stats->failures++ : stats->successes++;
 	int n = fprintf(out_file, MSG_PREFIX "prev index:");
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
-
+#endif
 	return 0;
 }
 
@@ -186,6 +187,7 @@ unsigned int test_cw_tq_prev_index_internal(cw_test_stats_t * stats)
 */
 unsigned int test_cw_tq_next_index_internal(cw_test_stats_t * stats)
 {
+#if 0
 	cw_tone_queue_t *tq = cw_tq_new_internal();
 	cw_assert (tq, MSG_PREFIX "failed to create new tone queue");
 
@@ -225,7 +227,7 @@ unsigned int test_cw_tq_next_index_internal(cw_test_stats_t * stats)
 	failure ? stats->failures++ : stats->successes++;
 	int n = fprintf(out_file, MSG_PREFIX "next index:");
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
-
+#endif
 	return 0;
 }
 
@@ -242,6 +244,7 @@ unsigned int test_cw_tq_next_index_internal(cw_test_stats_t * stats)
 */
 unsigned int test_cw_tq_length_internal(cw_test_stats_t * stats)
 {
+#if 0
 	/* This is just some code copied from implementation of
 	   'enqueue' function. I don't use 'enqueue' function itself
 	   because it's not tested yet. I get rid of all the other
@@ -301,7 +304,7 @@ unsigned int test_cw_tq_length_internal(cw_test_stats_t * stats)
 	failure ? stats->failures++ : stats->successes++;
 	int n = fprintf(out_file, MSG_PREFIX "length:");
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
-
+#endif
 	return 0;
 }
 
@@ -614,6 +617,7 @@ unsigned int test_cw_tq_is_full_internal(cw_test_stats_t * stats)
 */
 unsigned int test_cw_tq_test_capacity_1(cw_test_stats_t * stats)
 {
+#if 0
 	/* We don't need to check tq with capacity ==
 	   CW_TONE_QUEUE_CAPACITY_MAX (yet). Let's test a smaller
 	   queue. 30 tones will be enough (for now), and 30-4 is a
@@ -705,7 +709,7 @@ unsigned int test_cw_tq_test_capacity_1(cw_test_stats_t * stats)
 
 		s++;
 	}
-
+#endif
 	return 0;
 }
 
@@ -733,6 +737,7 @@ unsigned int test_cw_tq_test_capacity_1(cw_test_stats_t * stats)
 */
 unsigned int test_cw_tq_test_capacity_2(cw_test_stats_t * stats)
 {
+#if 0
 	/* We don't need to check tq with capacity ==
 	   CW_TONE_QUEUE_CAPACITY_MAX (yet). Let's test a smaller
 	   queue. 30 tones will be enough (for now), and 30-4 is a
@@ -839,14 +844,14 @@ unsigned int test_cw_tq_test_capacity_2(cw_test_stats_t * stats)
 
 		s++;
 	}
-
+#endif
 	return 0;
 }
 
 
 
 
-
+#if 0
 /**
    \brief Create and initialize tone queue for tests of capacity
 
@@ -910,7 +915,7 @@ cw_tone_queue_t *test_cw_tq_capacity_test_init(size_t capacity, size_t high_wate
 
 	return tq;
 }
-
+#endif
 
 
 
