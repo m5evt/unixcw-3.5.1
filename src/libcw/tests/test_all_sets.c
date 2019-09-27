@@ -11,7 +11,7 @@
 
 
 
-cw_test_function_stats_t cw_unit_tests_other_s[] = {
+cw_test_function_t cw_unit_tests_other_s[] = {
 
 	/* cw_utils module */
 	test_cw_timestamp_compare_internal,
@@ -41,7 +41,7 @@ cw_test_function_stats_t cw_unit_tests_other_s[] = {
 
 /* Tests that are dependent on a sound system being configured.
    Tone queue module functions */
-cw_test_function_stats_tq_t cw_unit_tests_tq[] = {
+cw_test_function_t cw_unit_tests_tq[] = {
 	test_cw_tq_test_capacity_1,
 	test_cw_tq_test_capacity_2,
 	test_cw_tq_wait_for_level_internal,
@@ -70,8 +70,7 @@ cw_test_function_stats_tq_t cw_unit_tests_tq[] = {
 
 /* Tests that are dependent on a sound system being configured.
    Generator module functions. */
-cw_test_function_stats_gen_t cw_unit_tests_gen[] = {
-
+cw_test_function_t cw_unit_tests_gen[] = {
 	test_cw_gen_set_tone_slope,
 	test_cw_gen_tone_slope_shape_enums,
 	test_cw_gen_new_delete,
@@ -90,7 +89,7 @@ cw_test_function_stats_gen_t cw_unit_tests_gen[] = {
 
 
 /* 'key' module. */
-cw_test_function_stats_key_t cw_unit_tests_key[] = {
+cw_test_function_t cw_unit_tests_key[] = {
 	test_keyer,
 	test_straight_key,
 
@@ -100,7 +99,7 @@ cw_test_function_stats_key_t cw_unit_tests_key[] = {
 
 
 
-cw_test_function_stats_t cw_unit_tests_rec1[] = {
+cw_test_function_t cw_unit_tests_rec1[] = {
 	test_cw_rec_get_parameters,
 	test_cw_rec_parameter_getters_setters_1,
 	test_cw_rec_parameter_getters_setters_2,

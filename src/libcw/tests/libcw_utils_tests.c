@@ -28,7 +28,7 @@
 /**
    tests::cw_timestamp_compare_internal()
 */
-unsigned int test_cw_timestamp_compare_internal(cw_test_stats_t * stats)
+int test_cw_timestamp_compare_internal(cw_test_executor_t * cte)
 {
 	struct timeval earlier_timestamp;
 	struct timeval later_timestamp;
@@ -69,7 +69,7 @@ unsigned int test_cw_timestamp_compare_internal(cw_test_stats_t * stats)
 		i++;
 	}
 
-	failure ? stats->failures++ : stats->successes++;
+	failure ? cte->stats->failures++ : cte->stats->successes++;
 	int n = fprintf(out_file, "libcw:utils:compare timestamp:");
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
@@ -84,7 +84,7 @@ unsigned int test_cw_timestamp_compare_internal(cw_test_stats_t * stats)
 /**
    tests::cw_timestamp_validate_internal()
 */
-unsigned int test_cw_timestamp_validate_internal(cw_test_stats_t * stats)
+int test_cw_timestamp_validate_internal(cw_test_executor_t * cte)
 {
 	struct timeval out_timestamp;
 	struct timeval in_timestamp;
@@ -105,7 +105,7 @@ unsigned int test_cw_timestamp_validate_internal(cw_test_stats_t * stats)
 
 	rv = cw_timestamp_validate_internal(&out_timestamp, NULL);
 	failure = (CW_SUCCESS != rv);
-	failure ? stats->failures++ : stats->successes++;
+	failure ? cte->stats->failures++ : cte->stats->successes++;
 	n = fprintf(out_file, "libcw:utils:validate timestamp:current timestamp:");
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
@@ -137,7 +137,7 @@ unsigned int test_cw_timestamp_validate_internal(cw_test_stats_t * stats)
 			(int) out_timestamp.tv_sec, (int) in_timestamp.tv_sec,
 			(int) out_timestamp.tv_usec, (int) in_timestamp.tv_usec);
 	}
-	failure ? stats->failures++ : stats->successes++;
+	failure ? cte->stats->failures++ : cte->stats->successes++;
 	n = fprintf(out_file, "libcw:utils:validate timestamp:validate and copy:");
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
@@ -155,7 +155,7 @@ unsigned int test_cw_timestamp_validate_internal(cw_test_stats_t * stats)
 	if (failure) {
 		fprintf(out_file, "libcw:utils:validate timestamp:invalid seconds: rv==CW_FAILURE = %d, errno==EINVAL = %d\n", rv == CW_FAILURE, errno == EINVAL);
 	}
-	failure ? stats->failures++ : stats->successes++;
+	failure ? cte->stats->failures++ : cte->stats->successes++;
 	n = fprintf(out_file, "libcw:utils:validate timestamp:invalid seconds:");
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
@@ -174,7 +174,7 @@ unsigned int test_cw_timestamp_validate_internal(cw_test_stats_t * stats)
 	if (failure) {
 		fprintf(out_file, "libcw:utils:validate timestamp:invalid milliseconds: rv==CW_FAILURE = %d, errno==EINVAL = %d\n", rv == CW_FAILURE, errno == EINVAL);
 	}
-	failure ? stats->failures++ : stats->successes++;
+	failure ? cte->stats->failures++ : cte->stats->successes++;
 	n = fprintf(out_file, "libcw:utils:validate timestamp:invalid milliseconds:");
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
@@ -192,7 +192,7 @@ unsigned int test_cw_timestamp_validate_internal(cw_test_stats_t * stats)
 	if (failure) {
 		fprintf(out_file, "libcw:utils:validate timestamp:negative milliseconds: rv==CW_FAILURE = %d, errno==EINVAL = %d\n", rv == CW_FAILURE, errno == EINVAL);
 	}
-	failure ? stats->failures++ : stats->successes++;
+	failure ? cte->stats->failures++ : cte->stats->successes++;
 	n = fprintf(out_file, "libcw:utils:validate timestamp:negative milliseconds:");
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
@@ -207,7 +207,7 @@ unsigned int test_cw_timestamp_validate_internal(cw_test_stats_t * stats)
 /**
    tests::cw_usecs_to_timespec_internal()
 */
-unsigned int test_cw_usecs_to_timespec_internal(cw_test_stats_t * stats)
+int test_cw_usecs_to_timespec_internal(cw_test_executor_t * cte)
 {
 	struct {
 		int input;
@@ -247,7 +247,7 @@ unsigned int test_cw_usecs_to_timespec_internal(cw_test_stats_t * stats)
 		i++;
 	}
 
-	failure ? stats->failures++ : stats->successes++;
+	failure ? cte->stats->failures++ : cte->stats->successes++;
 	int n = fprintf(out_file, "libcw:utils:usecs to timespec:");
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
@@ -262,7 +262,7 @@ unsigned int test_cw_usecs_to_timespec_internal(cw_test_stats_t * stats)
 /**
    tests::cw_version()
 */
-unsigned int test_cw_version_internal(cw_test_stats_t * stats)
+int test_cw_version_internal(cw_test_executor_t * cte)
 {
 	int current = 77, revision = 88, age = 99; /* Dummy values. */
 	cw_get_lib_version(&current, &revision, &age);
@@ -316,7 +316,7 @@ unsigned int test_cw_version_internal(cw_test_stats_t * stats)
 		fprintf(out_file, "libcw:utils:version: current: %d / %d; revision: %d / %d; age: %d / %d\n", current, c, revision, r, age, a);
 	}
 
-	failure ? stats->failures++ : stats->successes++;
+	failure ? cte->stats->failures++ : cte->stats->successes++;
 	int n = fprintf(out_file, "libcw:utils:version: %d:%d:%d:", c, r, a);
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
@@ -330,14 +330,14 @@ unsigned int test_cw_version_internal(cw_test_stats_t * stats)
 /**
    tests::cw_license()
 */
-unsigned int test_cw_license_internal(cw_test_stats_t * stats)
+int test_cw_license_internal(cw_test_executor_t * cte)
 {
 	/* Well, there isn't much to test here. The function just
 	   prints the license to stdout, and that's it. */
 
 	cw_license();
 
-	false ? stats->failures++ : stats->successes++;
+	false ? cte->stats->failures++ : cte->stats->successes++;
 	int n = fprintf(out_file, "libcw:utils:license:");
 	CW_TEST_PRINT_TEST_RESULT (false, n);
 
@@ -359,7 +359,7 @@ unsigned int test_cw_license_internal(cw_test_stats_t * stats)
    tests::cw_get_tolerance_limits()
    tests::cw_get_weighting_limits()
 */
-unsigned int test_cw_get_x_limits_internal(cw_test_stats_t * stats)
+int test_cw_get_x_limits_internal(cw_test_executor_t * cte)
 {
 	struct {
 		void (* getter)(int *min, int *max);
@@ -403,11 +403,11 @@ unsigned int test_cw_get_x_limits_internal(cw_test_stats_t * stats)
 			fprintf(out_file, "libcw:utils:limits: failed to get correct maximum of %s\n", test_data[i].name);
 		}
 
-		min_failure ? stats->failures++ : stats->successes++;
+		min_failure ? cte->stats->failures++ : cte->stats->successes++;
 		n = fprintf(out_file, "libcw:utils:get min %s:", test_data[i].name);
 		CW_TEST_PRINT_TEST_RESULT (min_failure, n);
 
-		max_failure ? stats->failures++ : stats->successes++;
+		max_failure ? cte->stats->failures++ : cte->stats->successes++;
 		n = fprintf(out_file, "libcw:utils:get max %s:", test_data[i].name);
 		CW_TEST_PRINT_TEST_RESULT (max_failure, n);
 	}

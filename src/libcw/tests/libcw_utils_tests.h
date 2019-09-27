@@ -9,12 +9,12 @@
 
 
 
-unsigned int test_cw_timestamp_compare_internal(cw_test_stats_t * stats);
-unsigned int test_cw_timestamp_validate_internal(cw_test_stats_t * stats);
-unsigned int test_cw_usecs_to_timespec_internal(cw_test_stats_t * stats);
-unsigned int test_cw_version_internal(cw_test_stats_t * stats);
-unsigned int test_cw_license_internal(cw_test_stats_t * stats);
-unsigned int test_cw_get_x_limits_internal(cw_test_stats_t * stats);
+int test_cw_timestamp_compare_internal(cw_test_executor_t * cte);
+int test_cw_timestamp_validate_internal(cw_test_executor_t * cte);
+int test_cw_usecs_to_timespec_internal(cw_test_executor_t * cte);
+int test_cw_version_internal(cw_test_executor_t * cte);
+int test_cw_license_internal(cw_test_executor_t * cte);
+int test_cw_get_x_limits_internal(cw_test_executor_t * cte);
 
 
 

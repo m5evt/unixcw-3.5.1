@@ -136,6 +136,8 @@ void cw_test_init(cw_test_executor_t * self, FILE * stdout, FILE * stderr, const
 void cw_test_print_help(const char *progname);
 
 
+typedef int (* cw_test_function_t)(cw_test_executor_t * cte);
+
 typedef int (* tester_fn)(cw_test_executor_t * executor);
 
 int cw_test_modules_with_sound_systems(cw_test_executor_t * executor, tester_fn test_modules_with_current_sound_system);

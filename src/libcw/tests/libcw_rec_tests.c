@@ -72,7 +72,7 @@ static float * test_cw_rec_generate_speeds_varying(int speed_min, int speed_max,
 
    Currently the function only works for non-adaptive receiving.
 */
-unsigned int test_cw_rec_identify_mark_internal(cw_test_stats_t * stats)
+int test_cw_rec_identify_mark_internal(cw_test_executor_t * cte)
 {
 #if 0
 	cw_rec_t * rec = cw_rec_new();
@@ -194,7 +194,7 @@ unsigned int test_cw_rec_identify_mark_internal(cw_test_stats_t * stats)
 
   This function is used to test receiver with test data set guaranteed to contain all characters supported by libcw.
 */
-unsigned int test_cw_rec_test_with_base_constant(cw_test_stats_t * stats)
+int test_cw_rec_test_with_base_constant(cw_test_executor_t * cte)
 {
 	cw_rec_t * rec = cw_rec_new();
 	cw_assert (rec, MSG_PREFIX "begin/end: base/constant: failed to create new receiver\n");
@@ -218,7 +218,7 @@ unsigned int test_cw_rec_test_with_base_constant(cw_test_stats_t * stats)
 		/* Actual tests of receiver functions are here. */
 		bool failure = test_cw_rec_test_begin_end(rec, data);
 
-		failure ? stats->failures++ : stats->successes++;
+		failure ? cte->stats->failures++ : cte->stats->successes++;
 		int n = fprintf(out_file, MSG_PREFIX "begin/end: base/constant @ %02d [wpm]:", speed);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
@@ -550,7 +550,7 @@ struct cw_rec_test_data * test_cw_rec_generate_base_data_constant(int speed, int
 
   This function is used to test receiver with very large test data set.
 */
-unsigned int test_cw_rec_test_with_random_constant(cw_test_stats_t * stats)
+int test_cw_rec_test_with_random_constant(cw_test_executor_t * cte)
 {
 	cw_rec_t * rec = cw_rec_new();
 	cw_assert (rec, MSG_PREFIX "begin/end: random/constant: failed to create new receiver\n");
@@ -574,7 +574,7 @@ unsigned int test_cw_rec_test_with_random_constant(cw_test_stats_t * stats)
 		/* Actual tests of receiver functions are here. */
 		bool failure = test_cw_rec_test_begin_end(rec, data);
 
-		failure ? stats->failures++ : stats->successes++;
+		failure ? cte->stats->failures++ : cte->stats->successes++;
 		int n = fprintf(out_file, MSG_PREFIX "begin/end: random/constant @ %02d [wpm]:", speed);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
@@ -599,7 +599,7 @@ unsigned int test_cw_rec_test_with_random_constant(cw_test_stats_t * stats)
 
   This function is used to test receiver with very large test data set.
 */
-unsigned int test_cw_rec_test_with_random_varying(cw_test_stats_t * stats)
+int test_cw_rec_test_with_random_varying(cw_test_executor_t * cte)
 {
 	struct cw_rec_test_data * data = test_cw_rec_generate_data_random_varying(CW_SPEED_MIN, CW_SPEED_MAX, 0);
 	//test_cw_rec_print_data(data);
@@ -621,7 +621,7 @@ unsigned int test_cw_rec_test_with_random_varying(cw_test_stats_t * stats)
 	/* Actual tests of receiver functions are here. */
 	bool failure = test_cw_rec_test_begin_end(rec, data);
 
-	failure ? stats->failures++ : stats->successes++;
+	failure ? cte->stats->failures++ : cte->stats->successes++;
 	int n = fprintf(out_file, MSG_PREFIX "begin/end: random/varying:");
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
@@ -1090,7 +1090,7 @@ void test_cw_rec_print_data(struct cw_rec_test_data * data)
 
 
 
-unsigned int test_cw_rec_get_parameters(cw_test_stats_t * stats)
+int test_cw_rec_get_parameters(cw_test_executor_t * cte)
 {
 	bool failure = true;
 	int n = 0;
@@ -1159,37 +1159,37 @@ unsigned int test_cw_rec_get_parameters(cw_test_stats_t * stats)
 
 
 	failure = dot_len_max >= dash_len_min;
-	failure ? stats->failures++ : stats->successes++;
+	failure ? cte->stats->failures++ : cte->stats->successes++;
 	n = fprintf(out_file, MSG_PREFIX "get: max dot len < min dash len (%d/%d):", dot_len_max, dash_len_min);
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 	failure = (dot_len_min >= dot_len_ideal) || (dot_len_ideal >= dot_len_max);
-	failure ? stats->failures++ : stats->successes++;
+	failure ? cte->stats->failures++ : cte->stats->successes++;
 	n = fprintf(out_file, MSG_PREFIX "get: dot len consistency (%d/%d/%d):", dot_len_min, dot_len_ideal, dot_len_max);
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 	failure = (dash_len_min >= dash_len_ideal) || (dash_len_ideal >= dash_len_max);
-	failure ? stats->failures++ : stats->successes++;
+	failure ? cte->stats->failures++ : cte->stats->successes++;
 	n = fprintf(out_file, MSG_PREFIX "get: dash len consistency (%d/%d/%d):", dash_len_min, dash_len_ideal, dash_len_max);
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 	failure = (eom_len_max >= eoc_len_min);
-	failure ? stats->failures++ : stats->successes++;
+	failure ? cte->stats->failures++ : cte->stats->successes++;
 	n = fprintf(out_file, MSG_PREFIX "get: max eom len < min eoc len (%d/%d):", eom_len_max, eoc_len_min);
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 	failure = (eom_len_min >= eom_len_ideal) || (eom_len_ideal >= eom_len_max);
-	failure ? stats->failures++ : stats->successes++;
+	failure ? cte->stats->failures++ : cte->stats->successes++;
 	n = fprintf(out_file, MSG_PREFIX "get: eom len consistency (%d/%d/%d)", eom_len_min, eom_len_ideal, eom_len_max);
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 	failure = (eoc_len_min >= eoc_len_ideal) || (eoc_len_ideal >= eoc_len_max);
-	failure ? stats->failures++ : stats->successes++;
+	failure ? cte->stats->failures++ : cte->stats->successes++;
 	n = fprintf(out_file, MSG_PREFIX "get: eoc len consistency (%d/%d/%d)", eoc_len_min, eoc_len_ideal, eoc_len_max);
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
@@ -1204,7 +1204,7 @@ unsigned int test_cw_rec_get_parameters(cw_test_stats_t * stats)
 /* Parameter getters and setters are independent of audio system, so
    they can be tested just with CW_AUDIO_NULL.  This is even more true
    for limit getters, which don't require a receiver at all. */
-unsigned int test_cw_rec_parameter_getters_setters_1(cw_test_stats_t * stats)
+int test_cw_rec_parameter_getters_setters_1(cw_test_executor_t * cte)
 {
 	cw_rec_t * rec = cw_rec_new();
 	cw_assert (rec, MSG_PREFIX "get/set param 1: failed to create new receiver\n");
@@ -1315,19 +1315,19 @@ unsigned int test_cw_rec_parameter_getters_setters_1(cw_test_stats_t * stats)
 	cw_rec_delete(&rec);
 
 
-	get_failure ? stats->failures++ : stats->successes++;
+	get_failure ? cte->stats->failures++ : cte->stats->successes++;
 	n = fprintf(out_file, MSG_PREFIX "get/set param 1: get:");
 	CW_TEST_PRINT_TEST_RESULT (get_failure, n);
 
-	set_min_failure ? stats->failures++ : stats->successes++;
+	set_min_failure ? cte->stats->failures++ : cte->stats->successes++;
 	n = fprintf(out_file, MSG_PREFIX "get/set param 1: set value below min:");
 	CW_TEST_PRINT_TEST_RESULT (set_min_failure, n);
 
-	set_max_failure ? stats->failures++ : stats->successes++;
+	set_max_failure ? cte->stats->failures++ : cte->stats->successes++;
 	n = fprintf(out_file, MSG_PREFIX "get/set param 1: set value above max:");
 	CW_TEST_PRINT_TEST_RESULT (set_max_failure, n);
 
-	set_ok_failure ? stats->failures++ : stats->successes++;
+	set_ok_failure ? cte->stats->failures++ : cte->stats->successes++;
 	n = fprintf(out_file, MSG_PREFIX "get/set param 1: set value in range:");
 	CW_TEST_PRINT_TEST_RESULT (set_ok_failure, n);
 
@@ -1340,7 +1340,7 @@ unsigned int test_cw_rec_parameter_getters_setters_1(cw_test_stats_t * stats)
 /* Parameter getters and setters are independent of audio system, so
    they can be tested just with CW_AUDIO_NULL.  This is even more true
    for limit getters, which don't require a receiver at all. */
-unsigned int test_cw_rec_parameter_getters_setters_2(cw_test_stats_t * stats)
+int test_cw_rec_parameter_getters_setters_2(cw_test_executor_t * cte)
 {
 	cw_rec_t * rec = cw_rec_new();
 	cw_assert (rec, MSG_PREFIX "get/set param 2: failed to create new receiver\n");
@@ -1451,19 +1451,19 @@ unsigned int test_cw_rec_parameter_getters_setters_2(cw_test_stats_t * stats)
 	cw_rec_delete(&rec);
 
 
-	get_failure ? stats->failures++ : stats->successes++;
+	get_failure ? cte->stats->failures++ : cte->stats->successes++;
 	n = fprintf(out_file, MSG_PREFIX "get/set param 2: get:");
 	CW_TEST_PRINT_TEST_RESULT (get_failure, n);
 
-	set_min_failure ? stats->failures++ : stats->successes++;
+	set_min_failure ? cte->stats->failures++ : cte->stats->successes++;
 	n = fprintf(out_file, MSG_PREFIX "get/set param 2: set value below min:");
 	CW_TEST_PRINT_TEST_RESULT (set_min_failure, n);
 
-	set_max_failure ? stats->failures++ : stats->successes++;
+	set_max_failure ? cte->stats->failures++ : cte->stats->successes++;
 	n = fprintf(out_file, MSG_PREFIX "get/set param 2: set value above max:");
 	CW_TEST_PRINT_TEST_RESULT (set_max_failure, n);
 
-	set_ok_failure ? stats->failures++ : stats->successes++;
+	set_ok_failure ? cte->stats->failures++ : cte->stats->successes++;
 	n = fprintf(out_file, MSG_PREFIX "get/set param 2: set value in range:");
 	CW_TEST_PRINT_TEST_RESULT (set_ok_failure, n);
 

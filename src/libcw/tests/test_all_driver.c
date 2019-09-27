@@ -59,11 +59,11 @@
 extern cw_debug_t cw_debug_object;
 extern cw_debug_t cw_debug_object_dev;
 
-extern cw_test_function_stats_t cw_unit_tests_other_s[];
-extern cw_test_function_stats_tq_t cw_unit_tests_tq[];
-extern cw_test_function_stats_gen_t cw_unit_tests_gen[];
-extern cw_test_function_stats_key_t cw_unit_tests_key[];
-extern cw_test_function_stats_t cw_unit_tests_rec1[];
+extern cw_test_function_t cw_unit_tests_other_s[];
+extern cw_test_function_t cw_unit_tests_tq[];
+extern cw_test_function_t cw_unit_tests_gen[];
+extern cw_test_function_t cw_unit_tests_key[];
+extern cw_test_function_t cw_unit_tests_rec1[];
 
 
 
@@ -75,7 +75,6 @@ static cw_test_executor_t g_tests_executor;
 
 static void cw_test_print_stats_wrapper(void);
 static int cw_test_modules_with_current_sound_system(cw_test_executor_t * executor);
-static void cw_test_setup(cw_gen_t *gen);
 static void signal_handler(int signal_number);
 static void register_signal_handler(void);
 
@@ -153,33 +152,6 @@ void register_signal_handler(void)
 
 
 
-
-/**
-   \brief Set up common test conditions
-
-   Run before each individual test, to handle setup of common test conditions.
-*/
-void cw_test_setup(cw_gen_t *gen)
-{
-	cw_gen_reset_parameters_internal(gen);
-	//cw_rec_reset_receive_parameters_internal(&cw_receiver);
-	/* Reset requires resynchronization. */
-	cw_gen_sync_parameters_internal(gen);
-	//cw_rec_sync_parameters_internal(&cw_receiver);
-
-	cw_gen_set_speed(gen, 30);
-	// cw_rec_set_speed(rec, 30);
-	// cw_rec_disable_adaptive_mode(rec);
-	// cw_rec_reset_statistics(rec);
-	errno = 0;
-
-	return;
-}
-
-
-
-
-
 /**
    \brief Run tests for given audio system.
 
@@ -194,44 +166,15 @@ void cw_test_setup(cw_gen_t *gen)
 */
 int cw_test_modules_with_current_sound_system(cw_test_executor_t * executor)
 {
-	cw_gen_t * gen = NULL;
-	cw_key_t * key = NULL;
-
 	executor->log_info(executor, "Testing with %s sound system\n", executor->get_current_sound_system_label(executor));
-
-	if (strstr(executor->tested_modules, "k") || strstr(executor->tested_modules, "g") || strstr(executor->tested_modules, "t")) {
-		gen = cw_gen_new(executor->current_sound_system, NULL);
-		if (!gen) {
-			executor->log_err(executor, "Can't create generator, stopping the test\n");
-			return -1;
-		}
-
-		if (strstr(executor->tested_modules, "k")) {
-			key = cw_key_new();
-			if (!key) {
-				executor->log_err(executor, "Can't create key, stopping the test\n");
-				return -1;
-			}
-			cw_key_register_generator(key, gen);
-		}
-
-		if (CW_SUCCESS != cw_gen_start(gen)) {
-			executor->log_err(executor, "Can't start generator, stopping the test\n");
-			cw_gen_delete(&gen);
-			if (key) {
-				cw_key_delete(&key);
-			}
-			return -1;
-		}
-	}
 
 
 
 	if (executor->should_test_module(executor, "t")) {
 		int i = 0;
 		while (cw_unit_tests_tq[i]) {
-			cw_test_setup(gen);
-			(*cw_unit_tests_tq[i])(gen, &executor->stats2[executor->current_sound_system][LIBCW_MODULE_TQ]);
+			executor->stats = &executor->stats2[executor->current_sound_system][LIBCW_MODULE_TQ];
+			(*cw_unit_tests_tq[i])(executor);
 			i++;
 		}
 		executor->log_info_cont(executor, "\n");
@@ -240,8 +183,8 @@ int cw_test_modules_with_current_sound_system(cw_test_executor_t * executor)
 	if (executor->should_test_module(executor, "g")) {
 		int i = 0;
 		while (cw_unit_tests_gen[i]) {
-			cw_test_setup(gen);
-			(*cw_unit_tests_gen[i])(gen, &executor->stats2[executor->current_sound_system][LIBCW_MODULE_GEN]);
+			executor->stats = &executor->stats2[executor->current_sound_system][LIBCW_MODULE_GEN];
+			(*cw_unit_tests_gen[i])(executor);
 			i++;
 		}
 		executor->log_info_cont(executor, "\n");
@@ -250,8 +193,8 @@ int cw_test_modules_with_current_sound_system(cw_test_executor_t * executor)
 	if (executor->should_test_module(executor, "k")) {
 		int i = 0;
 		while (cw_unit_tests_key[i]) {
-			cw_test_setup(gen);
-	                (*cw_unit_tests_key[i])(key, &executor->stats2[executor->current_sound_system][LIBCW_MODULE_KEY]);
+			executor->stats = &executor->stats2[executor->current_sound_system][LIBCW_MODULE_KEY];
+	                (*cw_unit_tests_key[i])(executor);
 			i++;
 		}
 		executor->log_info_cont(executor, "\n");
@@ -260,7 +203,8 @@ int cw_test_modules_with_current_sound_system(cw_test_executor_t * executor)
 	if (executor->should_test_module(executor, "r")) {
 		int i = 0;
 		while (cw_unit_tests_rec1[i]) {
-	                (*cw_unit_tests_rec1[i])(&executor->stats2[executor->current_sound_system][LIBCW_MODULE_REC]);
+			executor->stats = &executor->stats2[executor->current_sound_system][LIBCW_MODULE_REC];
+	                (*cw_unit_tests_rec1[i])(executor);
 			i++;
 		}
 		executor->log_info_cont(executor, "\n");
@@ -269,7 +213,8 @@ int cw_test_modules_with_current_sound_system(cw_test_executor_t * executor)
 	if (executor->should_test_module(executor, "o")) {
 		int i = 0;
 		while (cw_unit_tests_other_s[i]) {
-	                (*cw_unit_tests_other_s[i])(&executor->stats2[executor->current_sound_system][LIBCW_MODULE_OTHER]);
+			executor->stats = &executor->stats2[executor->current_sound_system][LIBCW_MODULE_OTHER];
+	                (*cw_unit_tests_other_s[i])(executor);
 			i++;
 		}
 		executor->log_info_cont(executor, "\n");
@@ -277,17 +222,6 @@ int cw_test_modules_with_current_sound_system(cw_test_executor_t * executor)
 
 
 
-	if (key) {
-		sleep(1);
-		cw_key_delete(&key);
-	}
-
-	if (gen) {
-		sleep(1);
-		cw_gen_stop(gen);
-		sleep(1);
-		cw_gen_delete(&gen);
-	}
 
 	/* All tests done; return success if no failures,
 	   otherwise return an error status code. */

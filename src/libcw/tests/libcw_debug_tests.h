@@ -9,7 +9,7 @@
 
 
 
-unsigned int test_cw_debug_flags_internal(cw_test_stats_t * stats);
+int test_cw_debug_flags_internal(cw_test_executor_t * cte);
 
 
 

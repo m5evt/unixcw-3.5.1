@@ -55,7 +55,7 @@ extern const cw_entry_t CW_TABLE[];
 
    TODO: test calling the function with invalid representation.
 */
-unsigned int test_cw_representation_to_hash_internal(cw_test_stats_t * stats)
+int test_cw_representation_to_hash_internal(cw_test_executor_t * cte)
 {
 	/* Intended contents of input[] is something like that:
 	  input[0]  = "."
@@ -126,7 +126,7 @@ unsigned int test_cw_representation_to_hash_internal(cw_test_stats_t * stats)
 		}
 	}
 
-	failure ? stats->failures++ : stats->successes++;
+	failure ? cte->stats->failures++ : cte->stats->successes++;
 	int n = fprintf(out_file, MSG_PREFIX "representation to hash:");
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
@@ -140,7 +140,7 @@ unsigned int test_cw_representation_to_hash_internal(cw_test_stats_t * stats)
 /**
    tests::cw_representation_to_character_internal()
 */
-unsigned int test_cw_representation_to_character_internal(cw_test_stats_t * stats)
+int test_cw_representation_to_character_internal(cw_test_executor_t * cte)
 {
 	bool failure = true;
 
@@ -160,7 +160,7 @@ unsigned int test_cw_representation_to_character_internal(cw_test_stats_t * stat
 		}
 	}
 
-	failure ? stats->failures++ : stats->successes++;
+	failure ? cte->stats->failures++ : cte->stats->successes++;
 	int n = fprintf(out_file, MSG_PREFIX "representation to character:");
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
@@ -172,7 +172,7 @@ unsigned int test_cw_representation_to_character_internal(cw_test_stats_t * stat
 
 
 
-unsigned int test_cw_representation_to_character_internal_speed(cw_test_stats_t * stats)
+int test_cw_representation_to_character_internal_speed(cw_test_executor_t * cte)
 {
 	/* Testing speed gain between function with direct lookup, and
 	   function with fast lookup table.  Test is preformed by
@@ -211,7 +211,7 @@ unsigned int test_cw_representation_to_character_internal_speed(cw_test_stats_t 
 	float gain = 1.0 * direct / lookup;
 	bool failure = gain < 1.1;
 
-	failure ? stats->failures++ : stats->successes++;
+	failure ? cte->stats->failures++ : cte->stats->successes++;
 	int n = fprintf(out_file, MSG_PREFIX "lookup speed gain: %.2f", gain);
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
@@ -231,7 +231,7 @@ unsigned int test_cw_representation_to_character_internal_speed(cw_test_stats_t 
    tests::cw_character_to_representation()
    tests::cw_representation_to_character()
 */
-unsigned int test_character_lookups_internal(cw_test_stats_t * stats)
+int test_character_lookups_internal(cw_test_executor_t * cte)
 {
 	int count = 0; /* Number of characters. */
 	bool failure = true;
@@ -248,7 +248,7 @@ unsigned int test_character_lookups_internal(cw_test_stats_t * stats)
 
 		failure = (count <= 0);
 
-		failure ? stats->failures++ : stats->successes++;
+		failure ? cte->stats->failures++ : cte->stats->successes++;
 		n = fprintf(out_file, MSG_PREFIX "character count (%d):", count);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
@@ -265,7 +265,7 @@ unsigned int test_character_lookups_internal(cw_test_stats_t * stats)
 		size_t len = strlen(charlist);
 		failure = (count != (int) len);
 
-		failure ? stats->failures++ : stats->successes++;
+		failure ? cte->stats->failures++ : cte->stats->successes++;
 		n = printf(MSG_PREFIX "character list length (%d / %d):", count, (int) len);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
@@ -281,7 +281,7 @@ unsigned int test_character_lookups_internal(cw_test_stats_t * stats)
 		int rep_len = cw_get_maximum_representation_length();
 		failure = (rep_len <= 0);
 
-		failure ? stats->failures++ : stats->successes++;
+		failure ? cte->stats->failures++ : cte->stats->successes++;
 		n = printf(MSG_PREFIX "maximum representation length (%d):", rep_len);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
@@ -329,15 +329,15 @@ unsigned int test_character_lookups_internal(cw_test_stats_t * stats)
 			representation = NULL;
 		}
 
-		c2r_failure ? stats->failures++ : stats->successes++;
+		c2r_failure ? cte->stats->failures++ : cte->stats->successes++;
 		n = printf(MSG_PREFIX "character lookup: char to representation:");
 		CW_TEST_PRINT_TEST_RESULT (c2r_failure, n);
 
-		r2c_failure ? stats->failures++ : stats->successes++;
+		r2c_failure ? cte->stats->failures++ : cte->stats->successes++;
 		n = printf(MSG_PREFIX "character lookup: representation to char:");
 		CW_TEST_PRINT_TEST_RESULT (r2c_failure, n);
 
-		two_way_failure ? stats->failures++ : stats->successes++;
+		two_way_failure ? cte->stats->failures++ : cte->stats->successes++;
 		n = printf(MSG_PREFIX "character lookup: two-way lookup:");
 		CW_TEST_PRINT_TEST_RESULT (two_way_failure, n);
 	}
@@ -357,7 +357,7 @@ unsigned int test_character_lookups_internal(cw_test_stats_t * stats)
    tests::cw_get_maximum_procedural_expansion_length()
    tests::cw_lookup_procedural_character()
 */
-unsigned int test_prosign_lookups_internal(cw_test_stats_t * stats)
+int test_prosign_lookups_internal(cw_test_executor_t * cte)
 {
 	/* Collect and print out a list of characters in the
 	   procedural signals expansion table. */
@@ -371,7 +371,7 @@ unsigned int test_prosign_lookups_internal(cw_test_stats_t * stats)
 		count = cw_get_procedural_character_count();
 		failure = (count <= 0);
 
-		failure ? stats->failures++ : stats->successes++;
+		failure ? cte->stats->failures++ : cte->stats->successes++;
 		n = fprintf(out_file, MSG_PREFIX "procedural character count (%d):", count);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
@@ -386,7 +386,7 @@ unsigned int test_prosign_lookups_internal(cw_test_stats_t * stats)
 		size_t len = strlen(charlist);
 		failure = (count != (int) len);
 
-		failure ? stats->failures++ : stats->successes++;
+		failure ? cte->stats->failures++ : cte->stats->successes++;
 		n = fprintf(out_file, MSG_PREFIX "procedural character list length (%d / %d):", count, (int) len);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
@@ -398,7 +398,7 @@ unsigned int test_prosign_lookups_internal(cw_test_stats_t * stats)
 		int exp_len = cw_get_maximum_procedural_expansion_length();
 		failure = (exp_len <= 0);
 
-		failure ? stats->failures++ : stats->successes++;
+		failure ? cte->stats->failures++ : cte->stats->successes++;
 		n = fprintf(out_file, MSG_PREFIX "maximum procedural expansion length (%d):", (int) exp_len);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
@@ -437,11 +437,11 @@ unsigned int test_prosign_lookups_internal(cw_test_stats_t * stats)
 			}
 		}
 
-		lookup_failure ? stats->failures++ : stats->successes++;
+		lookup_failure ? cte->stats->failures++ : cte->stats->successes++;
 		n = printf(MSG_PREFIX "procedural character lookup: lookup:");
 		CW_TEST_PRINT_TEST_RESULT (lookup_failure, n);
 
-		check_failure ? stats->failures++ : stats->successes++;
+		check_failure ? cte->stats->failures++ : cte->stats->successes++;
 		n = printf(MSG_PREFIX "procedural character lookup: lookup check:");
 		CW_TEST_PRINT_TEST_RESULT (check_failure, n);
 	}
@@ -457,7 +457,7 @@ unsigned int test_prosign_lookups_internal(cw_test_stats_t * stats)
    tests::cw_get_maximum_phonetic_length()
    tests::cw_lookup_phonetic()
 */
-unsigned int test_phonetic_lookups_internal(cw_test_stats_t * stats)
+int test_phonetic_lookups_internal(cw_test_executor_t * cte)
 {
 	/* For each ASCII character, look up its phonetic and check
 	   for a string that start with this character, if alphabetic,
@@ -469,7 +469,7 @@ unsigned int test_phonetic_lookups_internal(cw_test_stats_t * stats)
 		int len = cw_get_maximum_phonetic_length();
 		bool failure = (len <= 0);
 
-		failure ? stats->failures++ : stats->successes++;
+		failure ? cte->stats->failures++ : cte->stats->successes++;
 		int n = fprintf(out_file, MSG_PREFIX "phonetic lookup: maximum phonetic length (%d):", len);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
@@ -505,11 +505,11 @@ unsigned int test_phonetic_lookups_internal(cw_test_stats_t * stats)
 			}
 		}
 
-		lookup_failure ? stats->failures++ : stats->successes++;
+		lookup_failure ? cte->stats->failures++ : cte->stats->successes++;
 		n = fprintf(out_file, MSG_PREFIX "phonetic lookup: lookup:");
 		CW_TEST_PRINT_TEST_RESULT (lookup_failure, n);
 
-		reverse_failure ? stats->failures++ : stats->successes++;
+		reverse_failure ? cte->stats->failures++ : cte->stats->successes++;
 		n = fprintf(out_file, MSG_PREFIX "phonetic lookup: reverse lookup:");
 		CW_TEST_PRINT_TEST_RESULT (reverse_failure, n);
 	}
@@ -527,7 +527,7 @@ unsigned int test_phonetic_lookups_internal(cw_test_stats_t * stats)
    tests::cw_character_is_valid()
    tests::cw_string_is_valid()
 */
-unsigned int test_validate_character_and_string_internal(cw_test_stats_t * stats)
+int test_validate_character_and_string_internal(cw_test_executor_t * cte)
 {
 	/* Test: validation of individual characters. */
 	{
@@ -573,11 +573,11 @@ unsigned int test_validate_character_and_string_internal(cw_test_stats_t * stats
 			}
 		}
 
-		failure_valid ? stats->failures++ : stats->successes++;
+		failure_valid ? cte->stats->failures++ : cte->stats->successes++;
 		n = fprintf(out_file, MSG_PREFIX "validate character: valid characters:");
 		CW_TEST_PRINT_TEST_RESULT (failure_valid, n);
 
-		failure_invalid ? stats->failures++ : stats->successes++;
+		failure_invalid ? cte->stats->failures++ : cte->stats->successes++;
 		n = fprintf(out_file, MSG_PREFIX "validate character: invalid characters:");
 		CW_TEST_PRINT_TEST_RESULT (failure_invalid, n);
 	}
@@ -595,7 +595,7 @@ unsigned int test_validate_character_and_string_internal(cw_test_stats_t * stats
 		cw_list_characters(charlist);
 		failure = (CW_SUCCESS != cw_string_is_valid(charlist));
 
-		failure ? stats->failures++ : stats->successes++;
+		failure ? cte->stats->failures++ : cte->stats->successes++;
 		n = fprintf(out_file, MSG_PREFIX "validate string: valid string:");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
@@ -603,7 +603,7 @@ unsigned int test_validate_character_and_string_internal(cw_test_stats_t * stats
 		/* Test invalid string. */
 		failure = (CW_SUCCESS == cw_string_is_valid("%INVALID%"));
 
-		failure ? stats->failures++ : stats->successes++;
+		failure ? cte->stats->failures++ : cte->stats->successes++;
 		n = fprintf(out_file, MSG_PREFIX "validate string: invalid string:");
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
@@ -621,7 +621,7 @@ unsigned int test_validate_character_and_string_internal(cw_test_stats_t * stats
 
    tests::cw_representation_is_valid()
 */
-unsigned int test_validate_representation_internal(cw_test_stats_t * stats)
+int test_validate_representation_internal(cw_test_executor_t * cte)
 {
 	/* Test: validating valid representations. */
 	{
@@ -632,7 +632,7 @@ unsigned int test_validate_representation_internal(cw_test_stats_t * stats)
 
 		bool failure = (rv1 != CW_SUCCESS) || (rv2 != CW_SUCCESS) || (rv3 != CW_SUCCESS) || (rv4 != CW_SUCCESS);
 
-		failure ? stats->failures++ : stats->successes++;
+		failure ? cte->stats->failures++ : cte->stats->successes++;
 		int n = fprintf(out_file, MSG_PREFIX "validate representation: valid (%d/%d/%d/%d):", rv1, rv2, rv3, rv4);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
@@ -646,7 +646,7 @@ unsigned int test_validate_representation_internal(cw_test_stats_t * stats)
 
 		bool failure = (rv1 == CW_SUCCESS) || (rv2 == CW_SUCCESS) || (rv3 == CW_SUCCESS);
 
-		failure ? stats->failures++ : stats->successes++;
+		failure ? cte->stats->failures++ : cte->stats->successes++;
 		int n = fprintf(out_file, MSG_PREFIX "validate representation: invalid (%d/%d/%d):", rv1, rv2, rv3);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}

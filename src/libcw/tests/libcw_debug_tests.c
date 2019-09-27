@@ -38,7 +38,7 @@ extern cw_debug_t cw_debug_object_dev;
    tests::cw_debug_set_flags()
    tests::cw_debug_get_flags()
 */
-unsigned int test_cw_debug_flags_internal(cw_test_stats_t * stats)
+int test_cw_debug_flags_internal(cw_test_executor_t * cte)
 {
 	/* Store current flags for period of tests. */
 	uint32_t flags_backup = cw_debug_get_flags(&cw_debug_object);
@@ -62,11 +62,11 @@ unsigned int test_cw_debug_flags_internal(cw_test_stats_t * stats)
 		}
 	}
 
-	set_failure ? stats->failures++ : stats->successes++;
+	set_failure ? cte->stats->failures++ : cte->stats->successes++;
 	n = fprintf(out_file, MSG_PREFIX "set:");
 	CW_TEST_PRINT_TEST_RESULT (set_failure, n);
 
-	get_failure ? stats->failures++ : stats->successes++;
+	get_failure ? cte->stats->failures++ : cte->stats->successes++;
 	n = fprintf(out_file, MSG_PREFIX "get:");
 	CW_TEST_PRINT_TEST_RESULT (get_failure, n);
 

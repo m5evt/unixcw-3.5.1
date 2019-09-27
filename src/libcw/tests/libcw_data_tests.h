@@ -9,14 +9,14 @@
 
 
 
-unsigned int test_cw_representation_to_hash_internal(cw_test_stats_t * stats);
-unsigned int test_cw_representation_to_character_internal(cw_test_stats_t * stats);
-unsigned int test_cw_representation_to_character_internal_speed(cw_test_stats_t * stats);
-unsigned int test_character_lookups_internal(cw_test_stats_t * stats);
-unsigned int test_prosign_lookups_internal(cw_test_stats_t * stats);
-unsigned int test_phonetic_lookups_internal(cw_test_stats_t * stats);
-unsigned int test_validate_character_and_string_internal(cw_test_stats_t * stats);
-unsigned int test_validate_representation_internal(cw_test_stats_t * stats);
+int test_cw_representation_to_hash_internal(cw_test_executor_t * cte);
+int test_cw_representation_to_character_internal(cw_test_executor_t * cte);
+int test_cw_representation_to_character_internal_speed(cw_test_executor_t * cte);
+int test_character_lookups_internal(cw_test_executor_t * cte);
+int test_prosign_lookups_internal(cw_test_executor_t * cte);
+int test_phonetic_lookups_internal(cw_test_executor_t * cte);
+int test_validate_character_and_string_internal(cw_test_executor_t * cte);
+int test_validate_representation_internal(cw_test_executor_t * cte);
 
 
 

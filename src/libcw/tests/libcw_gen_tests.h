@@ -9,16 +9,16 @@
 
 
 
-unsigned int test_cw_gen_set_tone_slope(cw_test_stats_t * stats);
-unsigned int test_cw_gen_tone_slope_shape_enums(cw_test_stats_t * stats);
-unsigned int test_cw_gen_new_delete(cw_test_stats_t * stats);
-unsigned int test_cw_gen_forever_internal(cw_test_stats_t * stats);
-unsigned int test_cw_gen_get_timing_parameters_internal(cw_test_stats_t * stats);
-unsigned int test_cw_gen_parameter_getters_setters(cw_test_stats_t * stats);
-unsigned int test_cw_gen_volume_functions(cw_test_stats_t * stats);
-unsigned int test_cw_gen_enqueue_primitives(cw_test_stats_t * stats);
-unsigned int test_cw_gen_enqueue_representations(cw_test_stats_t * stats);
-unsigned int test_cw_gen_enqueue_character_and_string(cw_test_stats_t * stats);
+int test_cw_gen_set_tone_slope(cw_test_executor_t * cte);
+int test_cw_gen_tone_slope_shape_enums(cw_test_executor_t * cte);
+int test_cw_gen_new_delete(cw_test_executor_t * cte);
+int test_cw_gen_forever_internal(cw_test_executor_t * cte);
+int test_cw_gen_get_timing_parameters_internal(cw_test_executor_t * cte);
+int test_cw_gen_parameter_getters_setters(cw_test_executor_t * cte);
+int test_cw_gen_volume_functions(cw_test_executor_t * cte);
+int test_cw_gen_enqueue_primitives(cw_test_executor_t * cte);
+int test_cw_gen_enqueue_representations(cw_test_executor_t * cte);
+int test_cw_gen_enqueue_character_and_string(cw_test_executor_t * cte);
 
 
 
@@ -33,7 +33,7 @@ unsigned int test_cw_gen_enqueue_character_and_string(cw_test_stats_t * stats);
    So libcw_test_internal does basic tests ("does it work at all?"),
    and libcw_test_public does full test.
 */
-unsigned int test_cw_gen_forever_sub(cw_test_stats_t * stats, int seconds, int audio_system, const char *audio_device);
+int test_cw_gen_forever_sub(cw_test_executor_t * cte, int seconds, int audio_system, const char *audio_device);
 
 
 
