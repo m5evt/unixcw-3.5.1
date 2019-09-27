@@ -1,4 +1,3 @@
-#include "test_all_sets.h"
 
 #include "libcw_utils_tests.h"
 #include "libcw_data_tests.h"

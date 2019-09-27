@@ -46,7 +46,6 @@
 #include "libcw2.h"
 
 #include "libcw_test_framework.h"
-#include "test_all_sets.h"
 
 
 
