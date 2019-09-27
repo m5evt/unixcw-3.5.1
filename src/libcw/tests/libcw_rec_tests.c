@@ -99,16 +99,21 @@ int test_cw_rec_identify_mark_internal(cw_test_executor_t * cte)
 			rv = cw_rec_identify_mark_internal(rec, len, &representation);
 
 			failure = (rv != CW_SUCCESS);
+			// cte->expect_eq_int_errors_only(cte, );
 			if (failure) {
 				fprintf(out_file, MSG_PREFIX "identify mark @ %02d [wpm]: failed to identify dot for len = %d [us]\n", speed, len);
 				break;
 			}
+
 			failure = (representation != CW_DOT_REPRESENTATION);
+			// cte->expect_eq_int_errors_only(cte, );
 			if (failure) {
 				fprintf(out_file, MSG_PREFIX "identify mark @ %02d [wpm]: failed to get dot representation for len = %d [us]\n", speed, len);
 				break;
 			}
 		}
+
+		// cte->expect_eq_int_errors_only(cte, );
 		failure ? stats->failures++ : stats->successes++;
 		n = fprintf(out_file, MSG_PREFIX "identify mark @ %02d [wpm]: identify valid dot:", speed);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
@@ -119,6 +124,7 @@ int test_cw_rec_identify_mark_internal(cw_test_executor_t * cte)
 		/* Test mark shorter than minimal length of dot. */
 		rv = cw_rec_identify_mark_internal(rec, rec->dot_len_min - 1, &representation);
 		failure = (rv != CW_FAILURE);
+		// cte->expect_eq_int_errors_only(cte, );
 		failure ? stats->failures++ : stats->successes++;
 		n = fprintf(out_file, MSG_PREFIX "identify mark @ %02d [wpm]: mark shorter than min dot:", speed);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
@@ -127,6 +133,7 @@ int test_cw_rec_identify_mark_internal(cw_test_executor_t * cte)
 		/* Test mark longer than maximal length of dot (but shorter than minimal length of dash). */
 		rv = cw_rec_identify_mark_internal(rec, rec->dot_len_max + 1, &representation);
 		failure = (rv != CW_FAILURE);
+		// cte->expect_eq_int_errors_only(cte, );
 		failure ? stats->failures++ : stats->successes++;
 		n = fprintf(out_file, MSG_PREFIX "identify mark @ %02d [wpm]: mark longer than max dot:", speed);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
@@ -141,17 +148,21 @@ int test_cw_rec_identify_mark_internal(cw_test_executor_t * cte)
 			rv = cw_rec_identify_mark_internal(rec, len, &representation);
 
 			failure = (rv != CW_SUCCESS);
+			// cte->expect_eq_int_errors_only(cte, );
 			if (failure) {
 				fprintf(out_file, MSG_PREFIX "identify mark @ %02d [wpm]: failed to identify dash for len = %d [us]\n", speed, len);
 				break;
 			}
 
 			failure = (representation != CW_DASH_REPRESENTATION);
+			// cte->expect_eq_int_errors_only(cte, );
 			if (failure) {
 				fprintf(out_file, MSG_PREFIX "identify mark @ %02d [wpm]: failed to get dash representation for len = %d [us]\n", speed, len);
 				break;
 			}
 		}
+
+		// cte->expect_eq_int_errors_only(cte, );
 		failure ? stats->failures++ : stats->successes++;
 		n = fprintf(out_file, MSG_PREFIX "identify mark @ %02d [wpm]: identify valid dash:", speed);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
@@ -162,6 +173,7 @@ int test_cw_rec_identify_mark_internal(cw_test_executor_t * cte)
 		/* Test mark shorter than minimal length of dash (but longer than maximal length of dot). */
 		rv = cw_rec_identify_mark_internal(rec, rec->dash_len_min - 1, &representation);
 		failure = (rv != CW_FAILURE);
+		// cte->expect_eq_int_errors_only(cte, );
 		failure ? stats->failures++ : stats->successes++;
 		n = fprintf(out_file, MSG_PREFIX "identify mark @ %02d [wpm]: mark shorter than min dash:", speed);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
@@ -172,6 +184,7 @@ int test_cw_rec_identify_mark_internal(cw_test_executor_t * cte)
 		/* Test mark longer than maximal length of dash. */
 		rv = cw_rec_identify_mark_internal(rec, rec->dash_len_max + 1, &representation);
 		failure = (rv != CW_FAILURE);
+		// cte->expect_eq_int_errors_only(cte, );
 		failure ? stats->failures++ : stats->successes++;
 		n = fprintf(out_file, MSG_PREFIX "identify mark @ %02d [wpm]: mark longer than max dash:", speed);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
@@ -214,9 +227,11 @@ int test_cw_rec_test_with_base_constant(cw_test_executor_t * cte)
 		/* Make sure that the test speed has been set correctly. */
 		float diff = cw_rec_get_speed(rec) - (float) speed;
 		cw_assert (diff < 0.1, MSG_PREFIX "begin/end: base/constant: %f != %f\n",  cw_rec_get_speed(rec), (float) speed);
+		// cte->expect_eq_int_errors_only(cte, );
 
 		/* Actual tests of receiver functions are here. */
 		bool failure = test_cw_rec_test_begin_end(rec, data);
+		// cte->expect_eq_int_errors_only(cte, );
 
 		failure ? cte->stats->failures++ : cte->stats->successes++;
 		int n = fprintf(out_file, MSG_PREFIX "begin/end: base/constant @ %02d [wpm]:", speed);
@@ -304,13 +319,16 @@ bool test_cw_rec_test_begin_end(cw_rec_t * rec, struct cw_rec_test_data * data)
 			if (tone % 2) {
 				int rv = cw_rec_mark_end(rec, &tv);
 				if (CW_SUCCESS != rv) {
+					// cte->expect_eq_int_errors_only(cte, );
 					fprintf(out_file, MSG_PREFIX "begin/end: cw_rec_mark_end(): tone = %d, time = %d.%d\n", tone, (int) tv.tv_sec, (int) tv.tv_usec);
 					begin_end_failure = true;
 					break;
 				}
 			} else {
 				int rv = cw_rec_mark_begin(rec, &tv);
+				// cte->expect_eq_int_errors_only(cte, );
 				if (CW_SUCCESS != rv) {
+
 					fprintf(out_file, MSG_PREFIX "begin/end: cw_rec_mark_begin(): tone = %d, time = %d.%d\n", tone, (int) tv.tv_sec, (int) tv.tv_usec);
 					begin_end_failure = true;
 					break;
@@ -344,6 +362,7 @@ bool test_cw_rec_test_begin_end(cw_rec_t * rec, struct cw_rec_test_data * data)
 		{
 			int n = cw_rec_get_buffer_length_internal(rec);
 			buffer_length_failure = (n != (int) strlen(data[i].representation));
+			// cte->expect_eq_int_errors_only(cte, );
 			if (buffer_length_failure) {
 				fprintf(out_file, MSG_PREFIX "begin/end: cw_rec_get_buffer_length_internal(<nonempty>): %d != %zd\n", n, strlen(data[i].representation));
 				break;
@@ -378,18 +397,21 @@ bool test_cw_rec_test_begin_end(cw_rec_t * rec, struct cw_rec_test_data * data)
 			   length of "end of character" space is 5 x
 			   dot. */
 			poll_representation_failure = (CW_SUCCESS != cw_rec_poll_representation(rec, &tv, representation, &is_word, &is_error));
+			// cte->expect_eq_int_errors_only(cte, );
 			if (poll_representation_failure) {
 				fprintf(out_file, MSG_PREFIX "begin/end: poll representation returns !CW_SUCCESS\n");
 				break;
 			}
 
 			match_representation_failure = (0 != strcmp(representation, data[i].representation));
+			// cte->expect_eq_int_errors_only(cte, );
 			if (match_representation_failure) {
 				fprintf(out_file, MSG_PREFIX "being/end: polled representation does not match test representation: \"%s\" != \"%s\"\n", representation, data[i].representation);
 				break;
 			}
 
 			error_representation_failure = (true == is_error);
+			// cte->expect_eq_int_errors_only(cte, );
 			if (error_representation_failure) {
 				fprintf(out_file, MSG_PREFIX "begin/end: poll representation sets is_error\n");
 				break;
@@ -403,6 +425,7 @@ bool test_cw_rec_test_begin_end(cw_rec_t * rec, struct cw_rec_test_data * data)
 			   set by poll() to true. Otherwise both
 			   values should be false. */
 			word_representation_failure = (is_word != data[i].is_last_in_word);
+			// cte->expect_eq_int_errors_only(cte, );
 			if (word_representation_failure) {
 				fprintf(out_file, MSG_PREFIX "begin/end: poll representation: 'is_word' flag error: function returns '%d', data is tagged with '%d'\n" \
 					"'%c'  '%c'  '%c'  '%c'  '%c'",
@@ -437,12 +460,14 @@ bool test_cw_rec_test_begin_end(cw_rec_t * rec, struct cw_rec_test_data * data)
 			   receiver. Ask receiver for converting the
 			   representation to character. */
 			poll_character_failure = (CW_SUCCESS != cw_rec_poll_character(rec, &tv, &c, &is_word, &is_error));
+			// cte->expect_eq_int_errors_only(cte, );
 			if (poll_character_failure) {
 				fprintf(out_file, MSG_PREFIX "begin/end: poll character false\n");
 				break;
 			}
 
 			match_character_failure = (c != data[i].c);
+			// cte->expect_eq_int_errors_only(cte, );
 			if (match_character_failure) {
 				fprintf(out_file, MSG_PREFIX "begin/end: polled character does not match test character: '%c' != '%c'\n", c, data[i].c);
 				break;
@@ -466,6 +491,7 @@ bool test_cw_rec_test_begin_end(cw_rec_t * rec, struct cw_rec_test_data * data)
 			int length = cw_rec_get_buffer_length_internal(rec);
 
 			empty_failure = (length != 0);
+			// cte->expect_eq_int_errors_only(cte, );
 			if (empty_failure) {
 				fprintf(out_file, MSG_PREFIX "begin/end: get buffer length: length of cleared buffer is non zero (is %d)",  length);
 				break;
@@ -521,12 +547,14 @@ struct cw_rec_test_data * test_cw_rec_generate_base_data_constant(int speed, int
 	   characters. */
 	float * speeds = test_cw_rec_generate_speeds_constant(speed, n);
 	cw_assert (speeds, MSG_PREFIX "new base data fixed: test_cw_rec_generate_speeds_constant() failed\n");
+	// cte->expect_eq_int_errors_only(cte, );
 
 
 	/* Generate timing data for given set of characters, each
 	   character is sent with speed dictated by speeds[]. */
 	struct cw_rec_test_data * data = test_cw_rec_generate_data(base_characters, speeds, fuzz_percent);
 	cw_assert (data, MSG_PREFIX "failed to generate base/fixed test data\n");
+	// cte->expect_eq_int_errors_only(cte, );
 
 
 	free(base_characters);
@@ -569,10 +597,12 @@ int test_cw_rec_test_with_random_constant(cw_test_executor_t * cte)
 
 		/* Verify that test speed has been set correctly. */
 		float diff = cw_rec_get_speed(rec) - speed;
+		// cte->expect_eq_int_errors_only(cte, );
 		cw_assert (diff < 0.1, MSG_PREFIX "begin/end: random/constant: incorrect receive speed: %f != %f\n", cw_rec_get_speed(rec), (float) speed);
 
 		/* Actual tests of receiver functions are here. */
 		bool failure = test_cw_rec_test_begin_end(rec, data);
+		// cte->expect_eq_int_errors_only(cte, );
 
 		failure ? cte->stats->failures++ : cte->stats->successes++;
 		int n = fprintf(out_file, MSG_PREFIX "begin/end: random/constant @ %02d [wpm]:", speed);
@@ -617,9 +647,11 @@ int test_cw_rec_test_with_random_varying(cw_test_executor_t * cte)
 	/* Verify that initial test speed has been set correctly. */
 	float diff = cw_rec_get_speed(rec) - CW_SPEED_MAX;
 	cw_assert (diff < 0.1, MSG_PREFIX "begin/end: random/varying: incorrect receive speed: %f != %f\n", cw_rec_get_speed(rec), (float) CW_SPEED_MAX);
+	// cte->expect_eq_int_errors_only(cte, );
 
 	/* Actual tests of receiver functions are here. */
 	bool failure = test_cw_rec_test_begin_end(rec, data);
+	// cte->expect_eq_int_errors_only(cte, );
 
 	failure ? cte->stats->failures++ : cte->stats->successes++;
 	int n = fprintf(out_file, MSG_PREFIX "begin/end: random/varying:");
@@ -650,16 +682,19 @@ struct cw_rec_test_data * test_cw_rec_generate_data_random_constant(int speed, i
 
 	char * characters = test_cw_rec_generate_characters_random(n);
 	cw_assert (characters, MSG_PREFIX "test_cw_rec_generate_characters_random() failed\n");
+	// cte->expect_eq_int_errors_only(cte, );
 
 	/* Fixed speed receive mode - speed is constant for all characters. */
 	float * speeds = test_cw_rec_generate_speeds_constant(speed, n);
 	cw_assert (speeds, MSG_PREFIX "test_cw_rec_generate_speeds_constant() failed\n");
+	// cte->expect_eq_int_errors_only(cte, );
 
 
 	/* Generate timing data for given set of characters, each
 	   character is sent with speed dictated by speeds[]. */
 	struct cw_rec_test_data * data = test_cw_rec_generate_data(characters, speeds, fuzz_percent);
 	cw_assert (data, MSG_PREFIX "random/constant: failed to generate test data\n");
+	// cte->expect_eq_int_errors_only(cte, );
 
 
 	free(characters);
@@ -689,17 +724,20 @@ struct cw_rec_test_data * test_cw_rec_generate_data_random_varying(int speed_min
 
 	char *characters = test_cw_rec_generate_characters_random(n);
 	cw_assert (characters, MSG_PREFIX "begin/end: test_cw_rec_generate_characters_random() failed\n");
+	// cte->expect_eq_int_errors_only(cte, );
 
 	/* Adaptive speed receive mode - speed varies for all
 	   characters. */
 	float * speeds = test_cw_rec_generate_speeds_varying(speed_min, speed_max, n);
 	cw_assert (speeds, MSG_PREFIX "test_cw_rec_generate_speeds_varying() failed\n");
+	// cte->expect_eq_int_errors_only(cte, );
 
 
 	/* Generate timing data for given set of characters, each
 	   character is sent with speed dictated by speeds[]. */
 	struct cw_rec_test_data *data = test_cw_rec_generate_data(characters, speeds, fuzz_percent);
 	cw_assert (data, MSG_PREFIX "failed to generate random/varying test data\n");
+	// cte->expect_eq_int_errors_only(cte, );
 
 
 	free(characters);
@@ -727,6 +765,7 @@ char * test_cw_rec_new_base_characters(void)
 	int n = cw_get_character_count();
 	char * base_characters = (char *) malloc((n + 1) * sizeof (char));
 	cw_assert (base_characters, MSG_PREFIX "get base characters: malloc() failed\n");
+	// cte->expect_eq_int_errors_only(cte, );
 	cw_list_characters(base_characters);
 
 	return base_characters;
@@ -757,11 +796,13 @@ char * test_cw_rec_generate_characters_random(int n)
 	   set of all characters. */
 	char * base_characters = test_cw_rec_new_base_characters();
 	cw_assert (base_characters, MSG_PREFIX "test_cw_rec_new_base_characters() failed\n");
+	// cte->expect_eq_int_errors_only(cte, );
 	size_t length = strlen(base_characters);
 
 
 	char * characters = (char *) malloc ((n + 1) * sizeof (char));
 	cw_assert (characters, MSG_PREFIX "malloc() failed\n");
+	// cte->expect_eq_int_errors_only(cte, );
 	for (int i = 0; i < n; i++) {
 		int r = rand() % length;
 		if (!(r % 3)) {
@@ -856,6 +897,7 @@ float * test_cw_rec_generate_speeds_varying(int speed_min, int speed_max, size_t
 
 	float * speeds = (float *) malloc((n + 1) * sizeof (float));
 	cw_assert (speeds, MSG_PREFIX "generate speeds varying: malloc() failed\n");
+	// cte->expect_eq_int_errors_only(cte, );
 
 	for (size_t i = 0; i < n; i++) {
 
@@ -926,6 +968,7 @@ struct cw_rec_test_data * test_cw_rec_generate_data(char const * characters, flo
 	/* +1 for guard. */
 	struct cw_rec_test_data * test_data = (struct cw_rec_test_data *) malloc((n + 1) * sizeof(struct cw_rec_test_data));
 	cw_assert (test_data, MSG_PREFIX "generate data: malloc() failed\n");
+	//// cte->expect_eq_int_errors_only(cte, );
 
 	/* Initialization. */
 	for (size_t i = 0; i < n + 1; i++) {
@@ -964,6 +1007,7 @@ struct cw_rec_test_data * test_cw_rec_generate_data(char const * characters, flo
 		cw_assert (test_data[out].representation,
 			   MSG_PREFIX "generate data: cw_character_to_representation() failed for input char #%zu: '%c'\n",
 			   in, characters[in]);
+		//// cte->expect_eq_int_errors_only(cte, );
 		test_data[out].speed = speeds[in];
 
 
@@ -1156,39 +1200,46 @@ int test_cw_rec_get_parameters(cw_test_executor_t * cte)
 		   || eoc_len_ideal <= 0
 
 		   || adaptive_speed_threshold <= 0);
+	//cte->expect_eq_int_errors_only(cte, );
 
 
 	failure = dot_len_max >= dash_len_min;
+	//cte->expect_eq_int_errors_only(cte, );
 	failure ? cte->stats->failures++ : cte->stats->successes++;
 	n = fprintf(out_file, MSG_PREFIX "get: max dot len < min dash len (%d/%d):", dot_len_max, dash_len_min);
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 	failure = (dot_len_min >= dot_len_ideal) || (dot_len_ideal >= dot_len_max);
+	//cte->expect_eq_int_errors_only(cte, );
 	failure ? cte->stats->failures++ : cte->stats->successes++;
 	n = fprintf(out_file, MSG_PREFIX "get: dot len consistency (%d/%d/%d):", dot_len_min, dot_len_ideal, dot_len_max);
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 	failure = (dash_len_min >= dash_len_ideal) || (dash_len_ideal >= dash_len_max);
+	//cte->expect_eq_int_errors_only(cte, );
 	failure ? cte->stats->failures++ : cte->stats->successes++;
 	n = fprintf(out_file, MSG_PREFIX "get: dash len consistency (%d/%d/%d):", dash_len_min, dash_len_ideal, dash_len_max);
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 	failure = (eom_len_max >= eoc_len_min);
+	//cte->expect_eq_int_errors_only(cte, );
 	failure ? cte->stats->failures++ : cte->stats->successes++;
 	n = fprintf(out_file, MSG_PREFIX "get: max eom len < min eoc len (%d/%d):", eom_len_max, eoc_len_min);
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 	failure = (eom_len_min >= eom_len_ideal) || (eom_len_ideal >= eom_len_max);
+	//cte->expect_eq_int_errors_only(cte, );
 	failure ? cte->stats->failures++ : cte->stats->successes++;
 	n = fprintf(out_file, MSG_PREFIX "get: eom len consistency (%d/%d/%d)", eom_len_min, eom_len_ideal, eom_len_max);
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 	failure = (eoc_len_min >= eoc_len_ideal) || (eoc_len_ideal >= eoc_len_max);
+	//cte->expect_eq_int_errors_only(cte, );
 	failure ? cte->stats->failures++ : cte->stats->successes++;
 	n = fprintf(out_file, MSG_PREFIX "get: eoc len consistency (%d/%d/%d)", eoc_len_min, eoc_len_ideal, eoc_len_max);
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
@@ -1248,11 +1299,13 @@ int test_cw_rec_parameter_getters_setters_1(cw_test_executor_t * cte)
 		test_data[i].get_limits(&test_data[i].min, &test_data[i].max);
 
 		get_failure = (test_data[i].min <= -off_limits);
+		//cte->expect_eq_int_errors_only(cte, );
 		if (get_failure) {
 			fprintf(out_file, MSG_PREFIX "get/set param 1: get min %s: failed to get low limit, returned value = %d\n", test_data[i].name, test_data[i].min);
 			break;
 		}
 		get_failure = (test_data[i].max >= off_limits);
+		//cte->expect_eq_int_errors_only(cte, );
 		if (get_failure) {
 			fprintf(out_file, MSG_PREFIX "get/set param 1: get max %s: failed to get high limit, returned value = %d\n", test_data[i].name, test_data[i].max);
 			break;
@@ -1265,11 +1318,13 @@ int test_cw_rec_parameter_getters_setters_1(cw_test_executor_t * cte)
 		status = test_data[i].set_new_value(rec, value);
 
 		set_min_failure = (status == CW_SUCCESS);
+		//cte->expect_eq_int_errors_only(cte, );
 		if (set_min_failure) {
 			fprintf(out_file, MSG_PREFIX "get/set param 1: setting %s value below minimum succeeded, minimum is %d, attempted value is %d\n", test_data[i].name, test_data[i].min, value);
 			break;
 		}
 		set_min_failure = (errno != EINVAL);
+		//cte->expect_eq_int_errors_only(cte, );
 		if (set_min_failure) {
 			fprintf(out_file, MSG_PREFIX "get/set param 1: setting %s value below minimum didn't result in EINVAL, minimum is %d, attempted value is %d\n", test_data[i].name, test_data[i].min, value);
 			break;
@@ -1283,11 +1338,13 @@ int test_cw_rec_parameter_getters_setters_1(cw_test_executor_t * cte)
 		status = test_data[i].set_new_value(rec, value);
 
 		set_max_failure = (status == CW_SUCCESS);
+		//cte->expect_eq_int_errors_only(cte, );
 		if (set_max_failure) {
 			fprintf(out_file, MSG_PREFIX "get/set param 1: setting %s value above minimum succeeded, maximum is %d, attempted value is %d\n", test_data[i].name, test_data[i].min, value);
 			break;
 		}
 		set_max_failure = (errno != EINVAL);
+		//cte->expect_eq_int_errors_only(cte, );
 		if (set_max_failure) {
 			fprintf(out_file, MSG_PREFIX "get/set param 1: setting %s value above maximum didn't result in EINVAL, maximum is %d, attempted value is %d\n", test_data[i].name, test_data[i].min, value);
 			break;
@@ -1300,6 +1357,7 @@ int test_cw_rec_parameter_getters_setters_1(cw_test_executor_t * cte)
 
 			float diff = test_data[i].get_value(rec) - j;
 			set_ok_failure = (diff >= 0.01);
+			//cte->expect_eq_int_errors_only(cte, );
 			if (set_ok_failure) {
 				fprintf(stderr, MSG_PREFIX "get/set param 1: setting value in-range failed for %s value = %d (%f - %d = %f)\n",
 					test_data[i].name, j,
@@ -1315,18 +1373,22 @@ int test_cw_rec_parameter_getters_setters_1(cw_test_executor_t * cte)
 	cw_rec_delete(&rec);
 
 
+	//cte->expect_eq_int_errors_only(cte, );
 	get_failure ? cte->stats->failures++ : cte->stats->successes++;
 	n = fprintf(out_file, MSG_PREFIX "get/set param 1: get:");
 	CW_TEST_PRINT_TEST_RESULT (get_failure, n);
 
+	//cte->expect_eq_int_errors_only(cte, );
 	set_min_failure ? cte->stats->failures++ : cte->stats->successes++;
 	n = fprintf(out_file, MSG_PREFIX "get/set param 1: set value below min:");
 	CW_TEST_PRINT_TEST_RESULT (set_min_failure, n);
 
+	//cte->expect_eq_int_errors_only(cte, );
 	set_max_failure ? cte->stats->failures++ : cte->stats->successes++;
 	n = fprintf(out_file, MSG_PREFIX "get/set param 1: set value above max:");
 	CW_TEST_PRINT_TEST_RESULT (set_max_failure, n);
 
+	//cte->expect_eq_int_errors_only(cte, );
 	set_ok_failure ? cte->stats->failures++ : cte->stats->successes++;
 	n = fprintf(out_file, MSG_PREFIX "get/set param 1: set value in range:");
 	CW_TEST_PRINT_TEST_RESULT (set_ok_failure, n);
@@ -1384,11 +1446,13 @@ int test_cw_rec_parameter_getters_setters_2(cw_test_executor_t * cte)
 		test_data[i].get_limits(&test_data[i].min, &test_data[i].max);
 
 		get_failure = (test_data[i].min <= -off_limits);
+		//cte->expect_eq_int_errors_only(cte, );
 		if (get_failure) {
 			fprintf(out_file, MSG_PREFIX "get/set param 2: get min %s: failed to get low limit, returned value = %d\n", test_data[i].name, test_data[i].min);
 			break;
 		}
 		get_failure = (test_data[i].max >= off_limits);
+		//cte->expect_eq_int_errors_only(cte, );
 		if (get_failure) {
 			fprintf(out_file, MSG_PREFIX "get/set param 2: get max %s: failed to get high limit, returned value = %d\n", test_data[i].name, test_data[i].max);
 			break;
@@ -1401,11 +1465,13 @@ int test_cw_rec_parameter_getters_setters_2(cw_test_executor_t * cte)
 		status = test_data[i].set_new_value(rec, value);
 
 		set_min_failure = (status == CW_SUCCESS);
+		//cte->expect_eq_int_errors_only(cte, );
 		if (set_min_failure) {
 			fprintf(out_file, MSG_PREFIX "get/set param 2: setting %s value below minimum succeeded, minimum is %d, attempted value is %d\n", test_data[i].name, test_data[i].min, value);
 			break;
 		}
 		set_min_failure = (errno != EINVAL);
+		//cte->expect_eq_int_errors_only(cte, );
 		if (set_min_failure) {
 			fprintf(out_file, MSG_PREFIX "get/set param: setting %s value below minimum didn't result in EINVAL, minimum is %d, attempted value is %d\n", test_data[i].name, test_data[i].min, value);
 			break;
@@ -1419,11 +1485,13 @@ int test_cw_rec_parameter_getters_setters_2(cw_test_executor_t * cte)
 		status = test_data[i].set_new_value(rec, value);
 
 		set_max_failure = (status == CW_SUCCESS);
+		//cte->expect_eq_int_errors_only(cte, );
 		if (set_max_failure) {
 			fprintf(out_file, MSG_PREFIX "get/set param 2: setting %s value above minimum succeeded, maximum is %d, attempted value is %d\n", test_data[i].name, test_data[i].min, value);
 			break;
 		}
 		set_max_failure = (errno != EINVAL);
+		//cte->expect_eq_int_errors_only(cte, );
 		if (set_max_failure) {
 			fprintf(out_file, MSG_PREFIX "get/set param 2: setting %s value above maximum didn't result in EINVAL, maximum is %d, attempted value is %d\n", test_data[i].name, test_data[i].min, value);
 			break;
@@ -1436,6 +1504,7 @@ int test_cw_rec_parameter_getters_setters_2(cw_test_executor_t * cte)
 
 			float diff = test_data[i].get_value(rec) - j;
 			set_ok_failure = (diff >= 0.01);
+			//cte->expect_eq_int_errors_only(cte, );
 			if (set_ok_failure) {
 				fprintf(stderr, MSG_PREFIX "get/set param 2: setting value in-range failed for %s value = %d (%f - %d = %f)\n",
 					test_data[i].name, j,
@@ -1451,18 +1520,22 @@ int test_cw_rec_parameter_getters_setters_2(cw_test_executor_t * cte)
 	cw_rec_delete(&rec);
 
 
+	//cte->expect_eq_int_errors_only(cte, );
 	get_failure ? cte->stats->failures++ : cte->stats->successes++;
 	n = fprintf(out_file, MSG_PREFIX "get/set param 2: get:");
 	CW_TEST_PRINT_TEST_RESULT (get_failure, n);
 
+	//cte->expect_eq_int_errors_only(cte, );
 	set_min_failure ? cte->stats->failures++ : cte->stats->successes++;
 	n = fprintf(out_file, MSG_PREFIX "get/set param 2: set value below min:");
 	CW_TEST_PRINT_TEST_RESULT (set_min_failure, n);
 
+	//cte->expect_eq_int_errors_only(cte, );
 	set_max_failure ? cte->stats->failures++ : cte->stats->successes++;
 	n = fprintf(out_file, MSG_PREFIX "get/set param 2: set value above max:");
 	CW_TEST_PRINT_TEST_RESULT (set_max_failure, n);
 
+	//cte->expect_eq_int_errors_only(cte, );
 	set_ok_failure ? cte->stats->failures++ : cte->stats->successes++;
 	n = fprintf(out_file, MSG_PREFIX "get/set param 2: set value in range:");
 	CW_TEST_PRINT_TEST_RESULT (set_ok_failure, n);

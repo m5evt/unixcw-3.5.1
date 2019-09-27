@@ -61,6 +61,7 @@ int test_cw_timestamp_compare_internal(cw_test_executor_t * cte)
 
 		int delta = cw_timestamp_compare_internal(&earlier_timestamp, &later_timestamp);
 		failure = (delta != expected_deltas[i]);
+		//cte->expect_eq_int_errors_only(cte, );
 		if (failure) {
 			fprintf(out_file, "libcw:utils:compare timestamp: test #%d: unexpected delta: %d != %d\n", i, delta, expected_deltas[i]);
 			break;
@@ -69,8 +70,10 @@ int test_cw_timestamp_compare_internal(cw_test_executor_t * cte)
 		i++;
 	}
 
+
 	failure ? cte->stats->failures++ : cte->stats->successes++;
 	int n = fprintf(out_file, "libcw:utils:compare timestamp:");
+	// cte->expect_eq_int_errors_only(cte, );
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
@@ -105,6 +108,7 @@ int test_cw_timestamp_validate_internal(cw_test_executor_t * cte)
 
 	rv = cw_timestamp_validate_internal(&out_timestamp, NULL);
 	failure = (CW_SUCCESS != rv);
+	//cte->expect_eq_int_errors_only(cte, );
 	failure ? cte->stats->failures++ : cte->stats->successes++;
 	n = fprintf(out_file, "libcw:utils:validate timestamp:current timestamp:");
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
@@ -127,6 +131,7 @@ int test_cw_timestamp_validate_internal(cw_test_executor_t * cte)
 	failure = (CW_SUCCESS != rv)
 		|| (out_timestamp.tv_sec != in_timestamp.tv_sec)
 		|| (out_timestamp.tv_usec != in_timestamp.tv_usec);
+	//cte->expect_eq_int_errors_only(cte, );
 
 	if (failure) {
 		fprintf(out_file, "libcw:utils:validate timestamp:validate and copy:"
@@ -152,6 +157,7 @@ int test_cw_timestamp_validate_internal(cw_test_executor_t * cte)
 
 	rv = cw_timestamp_validate_internal(&out_timestamp, &in_timestamp);
 	failure = (rv == CW_SUCCESS) || (errno != EINVAL);
+	//cte->expect_eq_int_errors_only(cte, );
 	if (failure) {
 		fprintf(out_file, "libcw:utils:validate timestamp:invalid seconds: rv==CW_FAILURE = %d, errno==EINVAL = %d\n", rv == CW_FAILURE, errno == EINVAL);
 	}
@@ -171,6 +177,7 @@ int test_cw_timestamp_validate_internal(cw_test_executor_t * cte)
 	rv = cw_timestamp_validate_internal(&out_timestamp, &in_timestamp);
 	failure = (rv == CW_SUCCESS)
 		|| (errno != EINVAL);
+	//cte->expect_eq_int_errors_only(cte, );
 	if (failure) {
 		fprintf(out_file, "libcw:utils:validate timestamp:invalid milliseconds: rv==CW_FAILURE = %d, errno==EINVAL = %d\n", rv == CW_FAILURE, errno == EINVAL);
 	}
@@ -189,6 +196,7 @@ int test_cw_timestamp_validate_internal(cw_test_executor_t * cte)
 
 	rv = cw_timestamp_validate_internal(&out_timestamp, &in_timestamp);
 	failure = (rv == CW_SUCCESS) || (errno != EINVAL);
+	//cte->expect_eq_int_errors_only(cte, );
 	if (failure) {
 		fprintf(out_file, "libcw:utils:validate timestamp:negative milliseconds: rv==CW_FAILURE = %d, errno==EINVAL = %d\n", rv == CW_FAILURE, errno == EINVAL);
 	}
@@ -233,12 +241,14 @@ int test_cw_usecs_to_timespec_internal(cw_test_executor_t * cte)
 			input_data[i].input, (long) result.tv_sec, (long) result.tv_nsec);
 #endif
 		failure = (result.tv_sec != input_data[i].t.tv_sec);
+		//cte->expect_eq_int_errors_only(cte, );
 		if (failure) {
 			fprintf(out_file, "libcw:utils:usecs to timespec: test %d: %ld [s] != %ld [s]\n", i, result.tv_sec, input_data[i].t.tv_sec);
 			break;
 		}
 
 		failure = (result.tv_nsec != input_data[i].t.tv_nsec);
+		//cte->expect_eq_int_errors_only(cte, );
 		if (failure) {
 			fprintf(out_file, "libcw:utils:usecs to timespec: test %d: %ld [ns] != %ld [ns]\n", i, result.tv_nsec, input_data[i].t.tv_nsec);
 			break;
@@ -247,6 +257,7 @@ int test_cw_usecs_to_timespec_internal(cw_test_executor_t * cte)
 		i++;
 	}
 
+	//cte->expect_eq_int_errors_only(cte, );
 	failure ? cte->stats->failures++ : cte->stats->successes++;
 	int n = fprintf(out_file, "libcw:utils:usecs to timespec:");
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
@@ -292,6 +303,7 @@ int test_cw_version_internal(cw_test_executor_t * cte)
 		char *token = strtok(str, ":");
 		if (token == NULL) {
 			failure = (i != 3);
+			//cte->expect_eq_int_errors_only(cte, );
 			if (failure) {
 				fprintf(out_file, "libcw:utils:version: stopping at token %d\n", i);
 			}
@@ -306,16 +318,19 @@ int test_cw_version_internal(cw_test_executor_t * cte)
 			a = atoi(token);
 		} else {
 			failure = true;
+			//cte->expect_eq_int_errors_only(cte, );
 			fprintf(out_file, "libcw:utils:version: too many tokens in \"%s\"\n", LIBCW_VERSION);
 		}
 	}
 
 
 	failure = (current != c) || (revision != r) || (age != a);
+	//cte->expect_eq_int_errors_only(cte, );
 	if (failure) {
 		fprintf(out_file, "libcw:utils:version: current: %d / %d; revision: %d / %d; age: %d / %d\n", current, c, revision, r, age, a);
 	}
 
+	//cte->expect_eq_int_errors_only(cte, );
 	failure ? cte->stats->failures++ : cte->stats->successes++;
 	int n = fprintf(out_file, "libcw:utils:version: %d:%d:%d:", c, r, a);
 	CW_TEST_PRINT_TEST_RESULT (failure, n);
@@ -337,6 +352,7 @@ int test_cw_license_internal(cw_test_executor_t * cte)
 
 	cw_license();
 
+	//cte->expect_eq_int_errors_only(cte, );
 	false ? cte->stats->failures++ : cte->stats->successes++;
 	int n = fprintf(out_file, "libcw:utils:license:");
 	CW_TEST_PRINT_TEST_RESULT (false, n);
@@ -394,19 +410,23 @@ int test_cw_get_x_limits_internal(cw_test_executor_t * cte)
 		   by function call match those defined in library's
 		   header file). */
 		min_failure = (test_data[i].get_min != test_data[i].min);
+		//cte->expect_eq_int_errors_only(cte, );
 		if (min_failure) {
 			fprintf(out_file, "libcw:utils:limits: failed to get correct minimum of %s\n", test_data[i].name);
 		}
 
 		max_failure = (test_data[i].get_max != test_data[i].max);
+		//cte->expect_eq_int_errors_only(cte, );
 		if (max_failure) {
 			fprintf(out_file, "libcw:utils:limits: failed to get correct maximum of %s\n", test_data[i].name);
 		}
 
+		//cte->expect_eq_int_errors_only(cte, );
 		min_failure ? cte->stats->failures++ : cte->stats->successes++;
 		n = fprintf(out_file, "libcw:utils:get min %s:", test_data[i].name);
 		CW_TEST_PRINT_TEST_RESULT (min_failure, n);
 
+		//cte->expect_eq_int_errors_only(cte, );
 		max_failure ? cte->stats->failures++ : cte->stats->successes++;
 		n = fprintf(out_file, "libcw:utils:get max %s:", test_data[i].name);
 		CW_TEST_PRINT_TEST_RESULT (max_failure, n);

@@ -95,6 +95,7 @@ int test_keyer(cw_test_executor_t * cte)
 		   until further notice". First argument is true, so
 		   this is a dot. */
 		bool failure = !cw_key_ik_notify_paddle_event(key, true, false);
+		// cte->expect_eq_int_errors_only(cte, );
 
 		failure ? cte->stats->failures++ : cte->stats->successes++;
 		int n = fprintf(out_file, MSG_PREFIX "cw_key_ik_notify_paddle_event(key, true, false):");
@@ -109,6 +110,7 @@ int test_keyer(cw_test_executor_t * cte)
 		fflush(out_file);
 		for (int i = 0; i < 30; i++) {
 			success = success && cw_key_ik_wait_for_element(key);
+			// cte->expect_eq_int_errors_only(cte, );
 			putchar('.');
 			fflush(out_file);
 		}
@@ -125,6 +127,7 @@ int test_keyer(cw_test_executor_t * cte)
 	{
 		cw_key_ik_get_paddles(key, &dot_paddle, &dash_paddle);
 		bool failure = !dot_paddle || dash_paddle;
+		// cte->expect_eq_int_errors_only(cte, );
 
 		failure ? cte->stats->failures++ : cte->stats->successes++;
 		int n = fprintf(out_file, MSG_PREFIX "cw_keyer_get_keyer_paddles():");
@@ -140,6 +143,7 @@ int test_keyer(cw_test_executor_t * cte)
 		   argument is true, so this is a dash. */
 
 		bool failure = !cw_key_ik_notify_paddle_event(key, false, true);
+		// cte->expect_eq_int_errors_only(cte, );
 
 		failure ? cte->stats->failures++ : cte->stats->successes++;
 		int n = fprintf(out_file, MSG_PREFIX "cw_key_ik_notify_paddle_event(key, false, true):");
@@ -154,11 +158,13 @@ int test_keyer(cw_test_executor_t * cte)
 		fflush(out_file);
 		for (int i = 0; i < 30; i++) {
 			success = success && cw_key_ik_wait_for_element(key);
+			// cte->expect_eq_int_errors_only(cte, );
 			putchar('-');
 			fflush(out_file);
 		}
 		putchar('\n');
 
+		// cte->expect_eq_int_errors_only(cte, );
 		!success ? cte->stats->failures++ : cte->stats->successes++;
 		n = fprintf(out_file, MSG_PREFIX "cw_key_ik_wait_for_element():");
 		CW_TEST_PRINT_TEST_RESULT (!success, n);
@@ -170,6 +176,7 @@ int test_keyer(cw_test_executor_t * cte)
 	{
 		cw_key_ik_get_paddles(key, &dot_paddle, &dash_paddle);
 		bool failure = dot_paddle || !dash_paddle;
+		// cte->expect_eq_int_errors_only(cte, );
 
 		failure ? cte->stats->failures++ : cte->stats->successes++;
 		int n = fprintf(out_file, MSG_PREFIX "cw_key_ik_get_paddles():");
@@ -185,6 +192,7 @@ int test_keyer(cw_test_executor_t * cte)
 		   arguments are true, so both paddles are pressed at
 		   the same time.*/
 		bool failure = !cw_key_ik_notify_paddle_event(key, true, true);
+		// cte->expect_eq_int_errors_only(cte, );
 
 		failure ? cte->stats->failures++ : cte->stats->successes++;
 		int n = fprintf(out_file, MSG_PREFIX "cw_key_ik_notify_paddle_event(true, true):");
@@ -195,12 +203,14 @@ int test_keyer(cw_test_executor_t * cte)
 		fprintf(out_file, MSG_PREFIX "testing iambic alternating  ");
 		fflush(out_file);
 		for (int i = 0; i < 30; i++) {
+			// cte->expect_eq_int_errors_only(cte, );
 			success = success && cw_key_ik_wait_for_element(key);
 			putchar('#');
 			fflush(out_file);
 		}
 		putchar('\n');
 
+		// cte->expect_eq_int_errors_only(cte, );
 		!success ? cte->stats->failures++ : cte->stats->successes++;
 		n = fprintf(out_file, MSG_PREFIX "cw_key_ik_wait_for_element:");
 		CW_TEST_PRINT_TEST_RESULT (!success, n);
@@ -212,6 +222,7 @@ int test_keyer(cw_test_executor_t * cte)
 	{
 		cw_key_ik_get_paddles(key, &dot_paddle, &dash_paddle);
 		bool failure = !dot_paddle || !dash_paddle;
+		// cte->expect_eq_int_errors_only(cte, );
 
 		failure ? cte->stats->failures++ : cte->stats->successes++;
 		int n = fprintf(out_file, MSG_PREFIX "cw_key_ik_get_paddles():");
@@ -223,6 +234,7 @@ int test_keyer(cw_test_executor_t * cte)
 	/* Test: set new state of paddles: no paddle pressed. */
 	{
 		bool failure = !cw_key_ik_notify_paddle_event(key, false, false);
+		// cte->expect_eq_int_errors_only(cte, );
 
 		failure ? cte->stats->failures++ : cte->stats->successes++;
 		int n = fprintf(out_file, MSG_PREFIX "cw_key_ik_notify_paddle_event(false, false):");
@@ -266,29 +278,35 @@ int test_straight_key(cw_test_executor_t * cte)
 
 		for (int i = 0; i < 10; i++) {
 			if (CW_SUCCESS != cw_key_sk_notify_event(key, CW_KEY_STATE_OPEN)) {
+				// cte->expect_eq_int_errors_only(cte, );
 				event_failure = true;
 				break;
 			}
 
 			if (CW_KEY_STATE_OPEN != cw_key_sk_get_value(key)) {
+				// cte->expect_eq_int_errors_only(cte, );
 				state_failure = true;
 				break;
 			}
 
 			if (cw_key_sk_is_busy(key)) {
+				// cte->expect_eq_int_errors_only(cte, );
 				busy_failure = true;
 				break;
 			}
 		}
 
+		// cte->expect_eq_int_errors_only(cte, );
 		event_failure ? cte->stats->failures++ : cte->stats->successes++;
 		int n = fprintf(out_file, MSG_PREFIX "cw_key_sk_notify_event(<key open>):");
 		CW_TEST_PRINT_TEST_RESULT (event_failure, n);
 
+		// cte->expect_eq_int_errors_only(cte, );
 		state_failure ? cte->stats->failures++ : cte->stats->successes++;
 		n = fprintf(out_file, MSG_PREFIX "cw_key_sk_get_value(<key open>):");
 		CW_TEST_PRINT_TEST_RESULT (state_failure, n);
 
+		// cte->expect_eq_int_errors_only(cte, );
 		busy_failure ? cte->stats->failures++ : cte->stats->successes++;
 		n = fprintf(out_file, MSG_PREFIX "cw_straight_key_busy(<key open>):");
 		CW_TEST_PRINT_TEST_RESULT (busy_failure, n);
@@ -306,30 +324,36 @@ int test_straight_key(cw_test_executor_t * cte)
 		   row. TODO: why? */
 		for (int i = 0; i < 10; i++) {
 			if (CW_SUCCESS != cw_key_sk_notify_event(key, CW_KEY_STATE_CLOSED)) {
+				// cte->expect_eq_int_errors_only(cte, );
 				event_failure = true;
 				break;
 			}
 
 			if (CW_KEY_STATE_CLOSED != cw_key_sk_get_value(key)) {
+				// cte->expect_eq_int_errors_only(cte, );
 				state_failure = true;
 				break;
 			}
 
 			if (!cw_key_sk_is_busy(key)) {
+				// cte->expect_eq_int_errors_only(cte, );
 				busy_failure = true;
 				break;
 			}
 		}
 
 
+		// cte->expect_eq_int_errors_only(cte, );
 		event_failure ? cte->stats->failures++ : cte->stats->successes++;
 		int n = fprintf(out_file, MSG_PREFIX "cw_key_sk_notify_event(<key closed>):");
 		CW_TEST_PRINT_TEST_RESULT (event_failure, n);
 
+		// cte->expect_eq_int_errors_only(cte, );
 		state_failure ? cte->stats->failures++ : cte->stats->successes++;
 		n = fprintf(out_file, MSG_PREFIX "cw_key_sk_get_value(<key closed>):");
 		CW_TEST_PRINT_TEST_RESULT (state_failure, n);
 
+		// cte->expect_eq_int_errors_only(cte, );
 		busy_failure ? cte->stats->failures++ : cte->stats->successes++;
 		n = fprintf(out_file, MSG_PREFIX "cw_straight_key_busy(<key closed>):");
 		CW_TEST_PRINT_TEST_RESULT (busy_failure, n);
@@ -350,16 +374,19 @@ int test_straight_key(cw_test_executor_t * cte)
 		/* Alternate between open and closed. */
 		for (int i = 0; i < 5; i++) {
 			if (CW_SUCCESS != cw_key_sk_notify_event(key, CW_KEY_STATE_OPEN)) {
+				// cte->expect_eq_int_errors_only(cte, );
 				event_failure = true;
 				break;
 			}
 
 			if (CW_KEY_STATE_OPEN != cw_key_sk_get_value(key)) {
+				// cte->expect_eq_int_errors_only(cte, );
 				state_failure = true;
 				break;
 			}
 
 			if (cw_key_sk_is_busy(key)) {
+				// cte->expect_eq_int_errors_only(cte, );
 				busy_failure = true;
 				break;
 			}
@@ -375,16 +402,19 @@ int test_straight_key(cw_test_executor_t * cte)
 #endif
 
 			if (CW_SUCCESS != cw_key_sk_notify_event(key, CW_KEY_STATE_CLOSED)) {
+				// cte->expect_eq_int_errors_only(cte, );
 				event_failure = true;
 				break;
 			}
 
 			if (CW_KEY_STATE_CLOSED != cw_key_sk_get_value(key)) {
+				// cte->expect_eq_int_errors_only(cte, );
 				state_failure = true;
 				break;
 			}
 
 			if (!cw_key_sk_is_busy(key)) {
+				// cte->expect_eq_int_errors_only(cte, );
 				busy_failure = true;
 				break;
 			}
@@ -406,14 +436,17 @@ int test_straight_key(cw_test_executor_t * cte)
 		fprintf(out_file, "\n");
 		fflush(out_file);
 
+		// cte->expect_eq_int_errors_only(cte, );
 		event_failure ? cte->stats->failures++ : cte->stats->successes++;
 		int n = fprintf(out_file, "libcw: cw_key_sk_notify_event(<key open/closed>):");
 		CW_TEST_PRINT_TEST_RESULT (event_failure, n);
 
+		// cte->expect_eq_int_errors_only(cte, );
 		state_failure ? cte->stats->failures++ : cte->stats->successes++;
 		n = fprintf(out_file, "libcw: cw_key_sk_get_value(<key open/closed>):");
 		CW_TEST_PRINT_TEST_RESULT (state_failure, n);
 
+		// cte->expect_eq_int_errors_only(cte, );
 		busy_failure ? cte->stats->failures++ : cte->stats->successes++;
 		n = fprintf(out_file, "libcw: cw_straight_key_busy(<key open/closed>):");
 		CW_TEST_PRINT_TEST_RESULT (busy_failure, n);

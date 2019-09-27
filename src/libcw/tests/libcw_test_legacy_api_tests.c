@@ -621,6 +621,7 @@ void test_tone_queue_callback(cw_test_executor_t * executor)
 		bool failure = rv == CW_FAILURE;
 		sleep(1);
 
+		//cte->expect_eq_int_errors_only(cte, );
 		failure ? stats->failures++ : stats->successes++;
 		int n = printf(MSG_PREFIX "cw_register_tone_queue_low_callback(): threshold = %d:", level);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
@@ -658,6 +659,7 @@ void test_tone_queue_callback(cw_test_executor_t * executor)
 		int diff = level - cw_test_tone_queue_callback_data;
 		executor->expect_eq_int(executor, );
 		failure = diff > 1;
+		//cte->expect_eq_int_errors_only(cte, );
 
 		failure ? stats->failures++ : stats->successes++;
 		n = printf(MSG_PREFIX "tone queue callback:           level at callback = %d:", cw_test_tone_queue_callback_data);
