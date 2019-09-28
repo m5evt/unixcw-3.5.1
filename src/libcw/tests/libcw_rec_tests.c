@@ -651,11 +651,7 @@ int test_cw_rec_test_with_random_varying(cw_test_executor_t * cte)
 
 	/* Actual tests of receiver functions are here. */
 	bool failure = test_cw_rec_test_begin_end(rec, data);
-	// cte->expect_eq_int_errors_only(cte, );
-
-	failure ? cte->stats->failures++ : cte->stats->successes++;
-	int n = fprintf(out_file, MSG_PREFIX "begin/end: random/varying:");
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
+	cte->expect_eq_int(cte, false, failure, "begin/end: random/varying:");
 
 	test_cw_rec_delete_data(&data);
 
@@ -1287,7 +1283,6 @@ int test_cw_rec_parameter_getters_setters_1(cw_test_executor_t * cte)
 	bool set_min_failure = true;
 	bool set_max_failure = true;
 	bool set_ok_failure = false;
-	int n = 0;
 
 
 	for (int i = 0; test_data[i].get_limits; i++) {
@@ -1372,26 +1367,10 @@ int test_cw_rec_parameter_getters_setters_1(cw_test_executor_t * cte)
 
 	cw_rec_delete(&rec);
 
-
-	//cte->expect_eq_int_errors_only(cte, );
-	get_failure ? cte->stats->failures++ : cte->stats->successes++;
-	n = fprintf(out_file, MSG_PREFIX "get/set param 1: get:");
-	CW_TEST_PRINT_TEST_RESULT (get_failure, n);
-
-	//cte->expect_eq_int_errors_only(cte, );
-	set_min_failure ? cte->stats->failures++ : cte->stats->successes++;
-	n = fprintf(out_file, MSG_PREFIX "get/set param 1: set value below min:");
-	CW_TEST_PRINT_TEST_RESULT (set_min_failure, n);
-
-	//cte->expect_eq_int_errors_only(cte, );
-	set_max_failure ? cte->stats->failures++ : cte->stats->successes++;
-	n = fprintf(out_file, MSG_PREFIX "get/set param 1: set value above max:");
-	CW_TEST_PRINT_TEST_RESULT (set_max_failure, n);
-
-	//cte->expect_eq_int_errors_only(cte, );
-	set_ok_failure ? cte->stats->failures++ : cte->stats->successes++;
-	n = fprintf(out_file, MSG_PREFIX "get/set param 1: set value in range:");
-	CW_TEST_PRINT_TEST_RESULT (set_ok_failure, n);
+	cte->expect_eq_int(cte, false, get_failure, "get/set param 1: get:");
+	cte->expect_eq_int(cte, false, set_min_failure, "get/set param 1: set value below min:");
+	cte->expect_eq_int(cte, false, set_max_failure, "get/set param 1: set value above max:");
+	cte->expect_eq_int(cte, false, set_ok_failure, "get/set param 1: set value in range:");
 
 	return 0;
 }
@@ -1434,7 +1413,6 @@ int test_cw_rec_parameter_getters_setters_2(cw_test_executor_t * cte)
 	bool set_min_failure = true;
 	bool set_max_failure = true;
 	bool set_ok_failure = false;
-	int n = 0;
 
 
 	for (int i = 0; test_data[i].get_limits; i++) {
@@ -1520,25 +1498,10 @@ int test_cw_rec_parameter_getters_setters_2(cw_test_executor_t * cte)
 	cw_rec_delete(&rec);
 
 
-	//cte->expect_eq_int_errors_only(cte, );
-	get_failure ? cte->stats->failures++ : cte->stats->successes++;
-	n = fprintf(out_file, MSG_PREFIX "get/set param 2: get:");
-	CW_TEST_PRINT_TEST_RESULT (get_failure, n);
-
-	//cte->expect_eq_int_errors_only(cte, );
-	set_min_failure ? cte->stats->failures++ : cte->stats->successes++;
-	n = fprintf(out_file, MSG_PREFIX "get/set param 2: set value below min:");
-	CW_TEST_PRINT_TEST_RESULT (set_min_failure, n);
-
-	//cte->expect_eq_int_errors_only(cte, );
-	set_max_failure ? cte->stats->failures++ : cte->stats->successes++;
-	n = fprintf(out_file, MSG_PREFIX "get/set param 2: set value above max:");
-	CW_TEST_PRINT_TEST_RESULT (set_max_failure, n);
-
-	//cte->expect_eq_int_errors_only(cte, );
-	set_ok_failure ? cte->stats->failures++ : cte->stats->successes++;
-	n = fprintf(out_file, MSG_PREFIX "get/set param 2: set value in range:");
-	CW_TEST_PRINT_TEST_RESULT (set_ok_failure, n);
+	cte->expect_eq_int(cte, false, get_failure, "get/set param 2: get");
+	cte->expect_eq_int(cte, false, set_min_failure, "get/set param 2: set value below min:");
+	cte->expect_eq_int(cte, false, set_max_failure, "get/set param 2: set value above max:");
+	cte->expect_eq_int(cte, false, set_ok_failure, "get/set param 2: set value in range:");
 
 	return 0;
 }

@@ -33,7 +33,6 @@ int test_cw_gen_new_delete(cw_test_executor_t * cte)
 	int max = 100;
 
 	bool failure = true;
-	int n = 0;
 
 	/* new() + delete() */
 	for (int i = 0; i < max; i++) {
@@ -48,24 +47,21 @@ int test_cw_gen_new_delete(cw_test_executor_t * cte)
 		}
 
 		/* Try to access some fields in cw_gen_t just to be sure that the gen has been allocated properly. */
-		failure = (gen->buffer_sub_start != 0);
-		// cte->expect_eq_int_errors_only(cte, );
-		if (failure) {
-			fprintf(out_file, MSG_PREFIX "new/delete: buffer_sub_start in new generator is not at zero");
+		if (!cte->expect_eq_int_errors_only(cte, 0, gen->buffer_sub_start, "new/delete: buffer_sub_start in new generator is not at zero")) {
+			failure = true;
 			break;
 		}
 
 		gen->buffer_sub_stop = gen->buffer_sub_start + 10;
-		failure = (gen->buffer_sub_stop != 10);
-		// cte->expect_eq_int_errors_only(cte, );
-		if (failure) {
-			fprintf(out_file, MSG_PREFIX "new/delete: buffer_sub_stop didn't store correct new value");
+		if (!cte->expect_eq_int_errors_only(cte, 10, gen->buffer_sub_stop, "new/delete: buffer_sub_stop didn't store correct new value")) {
+			failure = true;
 			break;
 		}
 
 		failure = (gen->client.name != (char *) NULL);
 		// cte->expect_eq_int_errors_only(cte, );
 		if (failure) {
+			failure = true;
 			fprintf(out_file, MSG_PREFIX "new/delete: initial value of generator's client name is not NULL");
 			break;
 		}
@@ -73,6 +69,7 @@ int test_cw_gen_new_delete(cw_test_executor_t * cte)
 		failure = (gen->tq == NULL);
 		// cte->expect_eq_int_errors_only(cte, );
 		if (failure) {
+			failure = true;
 			fprintf(out_file, MSG_PREFIX "new/delete: tone queue is NULL");
 			break;
 		}
@@ -81,15 +78,13 @@ int test_cw_gen_new_delete(cw_test_executor_t * cte)
 		failure = (gen != NULL);
 		// cte->expect_eq_int_errors_only(cte, );
 		if (failure) {
+			failure = true;
 			fprintf(out_file, MSG_PREFIX "new/delete: delete() didn't set the pointer to NULL (loop #%d)", i);
 			break;
 		}
 	}
 
-	// cte->expect_eq_int_errors_only(cte, );
-	failure ? cte->stats->failures++ : cte->stats->successes++;
-	n = fprintf(out_file, MSG_PREFIX "new/delete:");
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
+	cte->expect_eq_int(cte, false, failure, "new/delete:");
 
 
 
@@ -108,10 +103,9 @@ int test_cw_gen_new_delete(cw_test_executor_t * cte)
 			break;
 		}
 
-		failure = (CW_SUCCESS != cw_gen_start(gen));
-		// cte->expect_eq_int_errors_only(cte, );
-		if (failure) {
-			fprintf(out_file, MSG_PREFIX "new/start/delete: failed to start generator (loop #%d)", i);
+		const int cwret = cw_gen_start(gen);
+		if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "new/start/delete: failed to start generator (loop #%d)", i)) {
+			failure = true;
 			break;
 		}
 
@@ -124,10 +118,7 @@ int test_cw_gen_new_delete(cw_test_executor_t * cte)
 		}
 	}
 
-	// cte->expect_eq_int_errors_only(cte, );
-	failure ? cte->stats->failures++ : cte->stats->successes++;
-	n = fprintf(out_file, MSG_PREFIX "new/start/delete:");
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
+	cte->expect_eq_int(cte, false, failure, "new/start/delete:");
 
 
 
@@ -139,14 +130,14 @@ int test_cw_gen_new_delete(cw_test_executor_t * cte)
 		failure = (gen == NULL);
 		// cte->expect_eq_int_errors_only(cte, );
 		if (failure) {
+			failure = true;
 			fprintf(out_file, MSG_PREFIX "new/stop/delete: failed to initialize generator (loop #%d)", i);
 			break;
 		}
 
-		failure = (CW_SUCCESS != cw_gen_stop(gen));
-		// cte->expect_eq_int_errors_only(cte, );
-		if (failure) {
-			fprintf(out_file, MSG_PREFIX "new/stop/delete: failed to stop generator (loop #%d)", i);
+		const int cwret = cw_gen_stop(gen);
+		if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "new/stop/delete: failed to stop generator (loop #%d)", i)) {
+			failure = true;
 			break;
 		}
 
@@ -154,16 +145,13 @@ int test_cw_gen_new_delete(cw_test_executor_t * cte)
 		failure = (gen != NULL);
 		// cte->expect_eq_int_errors_only(cte, );
 		if (failure) {
+			failure = true;
 			fprintf(out_file, MSG_PREFIX "new/stop/delete: delete() didn't set the pointer to NULL (loop #%d)", i);
 			break;
 		}
 	}
 
-	// cte->expect_eq_int_errors_only(cte, );
-	failure ? cte->stats->failures++ : cte->stats->successes++;
-	n = fprintf(out_file, MSG_PREFIX "new/stop/delete:");
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
-
+	cte->expect_eq_int(cte, false, failure, "new/stop/delete:");
 
 
 
@@ -175,6 +163,7 @@ int test_cw_gen_new_delete(cw_test_executor_t * cte)
 		// cte->expect_eq_int_errors_only(cte, );
 		failure = (gen == NULL);
 		if (failure) {
+			failure = true;
 			fprintf(out_file, MSG_PREFIX "new/start/stop/delete: failed to initialize generator (loop #%d)", i);
 			break;
 		}
@@ -182,17 +171,17 @@ int test_cw_gen_new_delete(cw_test_executor_t * cte)
 		int sub_max = max;
 
 		for (int j = 0; j < sub_max; j++) {
-			failure = (CW_SUCCESS != cw_gen_start(gen));
-			// cte->expect_eq_int_errors_only(cte, );
-			if (failure) {
-				fprintf(out_file, MSG_PREFIX "new/start/stop/delete: failed to start generator (loop #%d-%d)", i, j);
+			int cwret = CW_FAILURE;
+
+			cwret = cw_gen_start(gen);
+			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "new/start/stop/delete: failed to start generator (loop #%d-%d)", i, j)) {
+				failure = true;
 				break;
 			}
 
-			failure = (CW_SUCCESS != cw_gen_stop(gen));
-			// cte->expect_eq_int_errors_only(cte, );
-			if (failure) {
-				fprintf(out_file, MSG_PREFIX "new/start/stop/delete: failed to stop generator (loop #%d-%d)", i, j);
+			cwret = cw_gen_stop(gen);
+			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "new/start/stop/delete: failed to stop generator (loop #%d-%d)", i, j)) {
+				failure = true;
 				break;
 			}
 		}
@@ -203,16 +192,14 @@ int test_cw_gen_new_delete(cw_test_executor_t * cte)
 		cw_gen_delete(&gen);
 		failure = (gen != NULL);
 		if (failure) {
+			failure = true;
 			// cte->expect_eq_int_errors_only(cte, );
 			fprintf(out_file, MSG_PREFIX "new/start/stop/delete: delete() didn't set the pointer to NULL (loop #%d)", i);
 			break;
 		}
 	}
 
-	// cte->expect_eq_int_errors_only(cte, );
-	failure ? cte->stats->failures++ : cte->stats->successes++;
-	n = fprintf(out_file, MSG_PREFIX "new/start/stop/delete:");
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
+	cte->expect_eq_int(cte, false, failure, "new/start/stop/delete:");
 
 
 	return 0;
@@ -225,24 +212,15 @@ int test_cw_gen_set_tone_slope(cw_test_executor_t * cte)
 {
 	int audio_system = CW_AUDIO_NULL;
 	bool failure = true;
-	int n = 0;
+	int cwret = CW_FAILURE;
 
 	/* Test 0: test property of newly created generator. */
 	{
 		cw_gen_t * gen = cw_gen_new(audio_system, NULL);
 		cw_assert (gen, MSG_PREFIX "set slope: failed to initialize generator in test 0");
 
-		failure = (gen->tone_slope.shape != CW_TONE_SLOPE_SHAPE_RAISED_COSINE);
-		// cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "set slope: initial shape (%d):", gen->tone_slope.shape);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-
-		failure = (gen->tone_slope.len != CW_AUDIO_SLOPE_LEN);
-		// cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "set slope: initial length (%d):", gen->tone_slope.len);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		cte->expect_eq_int(cte, CW_TONE_SLOPE_SHAPE_RAISED_COSINE, gen->tone_slope.shape, "set slope: initial shape (%d)", gen->tone_slope.shape);
+		cte->expect_eq_int(cte, CW_AUDIO_SLOPE_LEN, gen->tone_slope.len, "set slope: initial length (%d)", gen->tone_slope.len);
 
 		cw_gen_delete(&gen);
 	}
@@ -260,11 +238,8 @@ int test_cw_gen_set_tone_slope(cw_test_executor_t * cte)
 		cw_gen_t * gen = cw_gen_new(audio_system, NULL);
 		cw_assert (gen, MSG_PREFIX "set slope: failed to initialize generator in test A");
 
-		failure = (CW_SUCCESS == cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_RECTANGULAR, 10));
-		// cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "set slope: conflicting arguments:");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		cwret = cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_RECTANGULAR, 10);
+		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "set slope: conflicting arguments");
 
 		cw_gen_delete(&gen);
 	}
@@ -280,26 +255,14 @@ int test_cw_gen_set_tone_slope(cw_test_executor_t * cte)
 		cw_gen_t * gen = cw_gen_new(audio_system, NULL);
 		cw_assert (gen, MSG_PREFIX "set slope: failed to initialize generator in test B");
 
-		int shape_before = gen->tone_slope.shape;
-		int len_before = gen->tone_slope.len;
+		const int shape_before = gen->tone_slope.shape;
+		const int len_before = gen->tone_slope.len;
 
-		failure = (CW_SUCCESS != cw_gen_set_tone_slope(gen, -1, -1));
-		// cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "set slope: set tone slope -1 -1:");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		const int cwret = failure = (CW_SUCCESS != cw_gen_set_tone_slope(gen, -1, -1));
 
-		failure = (gen->tone_slope.shape != shape_before);
-		// cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "set slope -1 -1: shape (%d / %d)", shape_before, gen->tone_slope.shape);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-
-		failure = (gen->tone_slope.len != len_before);
-		// cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "set slope -1 -1: len (%d / %d):", len_before, gen->tone_slope.len);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "set slope: set tone slope -1 -1");
+		cte->expect_eq_int(cte, shape_before, gen->tone_slope.shape, "set slope -1 -1: shape (%d / %d)", shape_before, gen->tone_slope.shape);
+		cte->expect_eq_int(cte, len_before, gen->tone_slope.len, "set slope -1 -1: len (%d / %d)", len_before, gen->tone_slope.len);
 
 		cw_gen_delete(&gen);
 	}
@@ -328,63 +291,32 @@ int test_cw_gen_set_tone_slope(cw_test_executor_t * cte)
 
 		/* At this point generator should have initial values
 		   of its parameters (yes, that's test zero again). */
-		failure = (gen->tone_slope.shape != expected_shape);
-		// cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "set slope: N -1: initial shape (%d / %d):", gen->tone_slope.shape, expected_shape);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		cte->expect_eq_int(cte, expected_shape, gen->tone_slope.shape, "set slope: N -1: initial shape (%d / %d)", gen->tone_slope.shape, expected_shape);
+		cte->expect_eq_int(cte, expected_len, gen->tone_slope.len, "set slope: N -1: initial length (%d / %d)", gen->tone_slope.len, expected_len);
 
-		failure = (gen->tone_slope.len != expected_len);
-		// cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "set slope: N -1: initial length (%d / %d):", gen->tone_slope.len, expected_len);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 		/* Set only new slope shape. */
 		expected_shape = CW_TONE_SLOPE_SHAPE_LINEAR;
-		failure = (CW_SUCCESS != cw_gen_set_tone_slope(gen, expected_shape, -1));
-		// cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "set slope: N -1: set:");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		cwret = cw_gen_set_tone_slope(gen, expected_shape, -1);
+		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "set slope: N -1: set");
 
 		/* At this point only slope shape should be updated. */
-		failure = (gen->tone_slope.shape != expected_shape);
-		// cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "set slope: N -1: get:");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-
-		failure = (gen->tone_slope.len != expected_len);
-		// cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "set slope: N -1: preserved length:");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		cte->expect_eq_int(cte, expected_shape, gen->tone_slope.shape, "set slope: N -1: get:");
+		cte->expect_eq_int(cte, expected_len, gen->tone_slope.len, "set slope: N -1: preserved length");
 
 
 
 		/* Set only new slope length. */
 		expected_len = 30;
-		failure = (CW_SUCCESS != cw_gen_set_tone_slope(gen, -1, expected_len));
-		// cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "set slope: -1 N: set:");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		cwret = cw_gen_set_tone_slope(gen, -1, expected_len);
+		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "set slope: -1 N: set:");
 
 		/* At this point only slope length should be updated
 		   (compared to previous function call). */
-		failure = (gen->tone_slope.len != expected_len);
-		// cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "set slope: -1 N: get (%d / %d):", gen->tone_slope.len, expected_len);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		cte->expect_eq_int(cte, expected_len, gen->tone_slope.len, "set slope: -1 N: get (%d / %d)", gen->tone_slope.len, expected_len);
+		cte->expect_eq_int(cte, expected_shape, gen->tone_slope.shape, "set slope: -1 N: preserved shape:");
 
-		failure = (gen->tone_slope.shape != expected_shape);
-		// cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "set slope: -1 N: preserved shape:");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 
 		cw_gen_delete(&gen);
@@ -412,45 +344,24 @@ int test_cw_gen_set_tone_slope(cw_test_executor_t * cte)
 
 		/* At this point generator should have initial values
 		   of its parameters (yes, that's test zero again). */
-		failure = (gen->tone_slope.shape != expected_shape);
-		// cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "set slope: initial shape (%d / %d):", gen->tone_slope.shape, expected_shape);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-
-		failure = (gen->tone_slope.len != expected_len);
-		// cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "set slope: initial length (%d / %d):", gen->tone_slope.len, expected_len);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		cte->expect_eq_int(cte, expected_shape, gen->tone_slope.shape, "set slope: initial shape (%d / %d):", gen->tone_slope.shape, expected_shape);
+		cte->expect_eq_int(cte, expected_len, gen->tone_slope.len, "set slope: initial length (%d / %d):", gen->tone_slope.len, expected_len);
 
 
 
 		/* Set only new slope shape. */
 		expected_shape = CW_TONE_SLOPE_SHAPE_RECTANGULAR;
 		expected_len = 0; /* Even though we won't pass this to function, this is what we expect to get after this call. */
-		failure = (CW_SUCCESS != cw_gen_set_tone_slope(gen, expected_shape, -1));
-		// cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "set slope: set rectangular:");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		cwret = cw_gen_set_tone_slope(gen, expected_shape, -1);
+		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "set slope: set rectangular");
+
 
 
 		/* At this point slope shape AND slope length should
 		   be updated (slope length is updated only because of
 		   requested rectangular slope shape). */
-		failure = (gen->tone_slope.shape != expected_shape);
-		// cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "set slope: set rectangular: shape (%d/ %d):", gen->tone_slope.shape, expected_shape);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-
-
-		failure = (gen->tone_slope.len != expected_len);
-		// cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "set slope: set rectangular: length (%d / %d):", gen->tone_slope.len, expected_len);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		cte->expect_eq_int(cte, expected_shape, gen->tone_slope.shape, "set slope: set rectangular: shape (%d/ %d):", gen->tone_slope.shape, expected_shape);
+		cte->expect_eq_int(cte, expected_len, gen->tone_slope.len, "set slope: set rectangular: length (%d / %d):", gen->tone_slope.len, expected_len);
 
 
 		cw_gen_delete(&gen);
@@ -467,104 +378,37 @@ int test_cw_gen_set_tone_slope(cw_test_executor_t * cte)
 		cw_gen_t * gen = cw_gen_new(audio_system, NULL);
 		cw_assert (gen, MSG_PREFIX "set slope: failed to initialize generator in test D");
 
-
-		failure = (CW_SUCCESS != cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_LINEAR, 0));
-		// cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "set slope: LINEAR 0: set:");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-
-		failure = (gen->tone_slope.shape != CW_TONE_SLOPE_SHAPE_LINEAR);
-		// cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "set slope: LINEAR 0: get:");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-
-		failure = (gen->tone_slope.len != 0);
-		// cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "set slope: LINEAR 0: length (%d):", gen->tone_slope.len);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		const int expected_len = 0;
 
 
-
-		failure = (CW_SUCCESS != cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_RAISED_COSINE, 0));
-		// cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "set slope: RAISED_COSINE 0: set:");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-
-		failure = (gen->tone_slope.shape != CW_TONE_SLOPE_SHAPE_RAISED_COSINE);
-		// cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "set slope: RAISED_COSINE 0: get:");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-
-		failure = (gen->tone_slope.len != 0);
-		// cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "set slope: RAISED_COSINE 0: length (%d):", gen->tone_slope.len);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		cwret = cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_LINEAR, expected_len);
+		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "set slope: <LINEAR/0>: set");
+		cte->expect_eq_int(cte, CW_TONE_SLOPE_SHAPE_LINEAR, gen->tone_slope.shape, "set slope: <LINEAR/0>: get");
+		cte->expect_eq_int(cte, expected_len, gen->tone_slope.len, "set slope: <LINEAR/0>: length = %d:", gen->tone_slope.len);
 
 
-
-		failure = (CW_SUCCESS != cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_SINE, 0));
-		// cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "set slope: SINE 0: set:");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-
-		failure = (gen->tone_slope.shape != CW_TONE_SLOPE_SHAPE_SINE);
-		// cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "set slope: SINE 0: get:");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-
-		failure = (gen->tone_slope.len != 0);
-		// cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "set slope: SINE 0: length (%d):", gen->tone_slope.len);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		cwret = cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_RAISED_COSINE, 0);
+		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "set slope: <RAISED_COSINE/0>: set");
+		cte->expect_eq_int(cte, CW_TONE_SLOPE_SHAPE_RAISED_COSINE, gen->tone_slope.shape, "set slope: <RAISED_COSINE/0>: get");
+		cte->expect_eq_int(cte, expected_len, gen->tone_slope.len, "set slope: <RAISED_COSINE/0>: length = %d:", gen->tone_slope.len);
 
 
-
-		failure = (CW_SUCCESS != cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_RECTANGULAR, 0));
-		// cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "set slope: RECTANGULAR 0: set:");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-
-		failure = (gen->tone_slope.shape != CW_TONE_SLOPE_SHAPE_RECTANGULAR);
-		// cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "set slope: RECTANGULAR 0: get:");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-
-		failure = (gen->tone_slope.len != 0);
-		// cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "set slope: RECTANGULAR 0: length (%d):", gen->tone_slope.len);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		cwret = cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_SINE, 0);
+		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "set slope: <SINE/0>: set:");
+		cte->expect_eq_int(cte, CW_TONE_SLOPE_SHAPE_SINE, gen->tone_slope.shape, "set slope: <SINE/0>: get:");
+		cte->expect_eq_int(cte, expected_len, gen->tone_slope.len, "set slope: <SINE/0>: length = %d", gen->tone_slope.len);
 
 
+		cwret = cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_RECTANGULAR, 0);
+		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "set slope: <RECTANGULAR/0>: set");
+		cte->expect_eq_int(cte, CW_TONE_SLOPE_SHAPE_RECTANGULAR, gen->tone_slope.shape, "set slope: <RECTANGULAR/0>: get");
+		cte->expect_eq_int(cte, expected_len, gen->tone_slope.len, "set slope: <RECTANGULAR/0>: length = %d:", gen->tone_slope.len);
 
-		failure = (CW_SUCCESS != cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_LINEAR, 0));
-		// cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "set slope: LINEAR 0: set:");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
 
-		failure = (gen->tone_slope.shape != CW_TONE_SLOPE_SHAPE_LINEAR);
-		// cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "set slope: LINEAR 0: get:");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-
-		failure = (gen->tone_slope.len != 0);
-		// cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "set slope: LINEAR 0: length (%d):", gen->tone_slope.len);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		cwret = cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_LINEAR, 0);
+		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "set slope: <LINEAR/0>: set");
+		cte->expect_eq_int(cte, CW_TONE_SLOPE_SHAPE_LINEAR, gen->tone_slope.shape, "set slope: <LINEAR/0>: get");
+		cte->expect_eq_int(cte, expected_len, gen->tone_slope.len, "set slope: <LINEAR/0>: length = %d", gen->tone_slope.len);
 
 
 		cw_gen_delete(&gen);
@@ -643,11 +487,13 @@ int test_cw_gen_forever_sub(cw_test_executor_t * cte, int seconds, int audio_sys
 	int freq = 500;
 
 	CW_TONE_INIT(&tone, freq, len, CW_SLOPE_MODE_RISING_SLOPE);
-	int rv1 = cw_tq_enqueue_internal(gen->tq, &tone);
+	const int cwret1 = cw_tq_enqueue_internal(gen->tq, &tone);
+	cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret1, "forever tone: enqueue first tone"); /* Use "_errors_only() here because this is not a core part of test. */
 
 	CW_TONE_INIT(&tone, freq, gen->quantum_len, CW_SLOPE_MODE_NO_SLOPES);
 	tone.is_forever = true;
-	int rv2 = cw_tq_enqueue_internal(gen->tq, &tone);
+	const int cwret2 = cw_tq_enqueue_internal(gen->tq, &tone);
+	cte->expect_eq_int(cte, CW_SUCCESS, cwret2, "forever tone: enqueue forever tone");
 
 #ifdef __FreeBSD__  /* Tested on FreeBSD 10. */
 	/* Separate path for FreeBSD because for some reason signals
@@ -666,14 +512,8 @@ int test_cw_gen_forever_sub(cw_test_executor_t * cte, int seconds, int audio_sys
 
 	/* Silence the generator. */
 	CW_TONE_INIT(&tone, 0, len, CW_SLOPE_MODE_FALLING_SLOPE);
-	int rv3 = cw_tq_enqueue_internal(gen->tq, &tone);
-
-	bool failure = (rv1 != CW_SUCCESS || rv2 != CW_SUCCESS || rv3 != CW_SUCCESS);
-	// cte->expect_eq_int_errors_only(cte, );
-
-	failure ? cte->stats->failures++ : cte->stats->successes++;
-	int n = fprintf(out_file, MSG_PREFIX "forever tone:");
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
+	const int cwret3 = cw_tq_enqueue_internal(gen->tq, &tone);
+	cte->expect_eq_int(cte, CW_SUCCESS, cwret3, "forever tone: silence the generator");
 
 	return 0;
 }
@@ -791,64 +631,48 @@ int test_cw_gen_parameter_getters_setters(cw_test_executor_t * cte)
 
 		int value = 0;
 		bool failure = false;
-		int n = 0;
+		int cwret = CW_FAILURE;
 
 		/* Test getting limits of values to be tested. */
 		test_data[i].get_limits(&test_data[i].min, &test_data[i].max);
-
 		failure = (test_data[i].min <= -off_limits) || (test_data[i].max >= off_limits);
-		// cte->expect_eq_int_errors_only(cte, );
-
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "get %s limits:", test_data[i].name);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-
+		cte->expect_eq_int_errors_only(cte, false, failure, "get %s limits:", test_data[i].name);
 
 
 		/* Test setting out-of-range value lower than minimum. */
 		errno = 0;
 		value = test_data[i].min - 1;
-		failure = (CW_SUCCESS == test_data[i].set_new_value(gen, value)) || (errno != EINVAL);
-		// cte->expect_eq_int_errors_only(cte, );
-
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "set %s below limit:", test_data[i].name);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-
+		cwret = test_data[i].set_new_value(gen, value);
+		cte->expect_eq_int(cte, CW_FAILURE, cwret, "set %s below limit (cwret)", test_data[i].name);
+		cte->expect_eq_int(cte, EINVAL, errno, "set %s below limit (errno)", test_data[i].name);
 
 
 		/* Test setting out-of-range value higher than maximum. */
 		errno = 0;
 		value = test_data[i].max + 1;
-		failure = (CW_SUCCESS == test_data[i].set_new_value(gen, value)) || (errno != EINVAL);
-		// cte->expect_eq_int_errors_only(cte, );
-
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "set %s above limit:", test_data[i].name);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		cwret = test_data[i].set_new_value(gen, value);
+		cte->expect_eq_int(cte, CW_FAILURE, cwret, "set %s above limit (cwret)", test_data[i].name);
+		cte->expect_eq_int(cte, EINVAL, errno, "set %s above limit (errno)", test_data[i].name);
 
 
 
 		/* Test setting in-range values. Set with setter and then read back with getter. */
 		failure = false;
 		for (int j = test_data[i].min; j <= test_data[i].max; j++) {
-			failure = (CW_SUCCESS != test_data[i].set_new_value(gen, j));
-			// cte->expect_eq_int_errors_only(cte, );
-			if (failure) {
+			cwret = test_data[i].set_new_value(gen, j);
+			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "set %s within limits:", test_data[i].name)) {
+				failure = true;
 				break;
 			}
 
-			failure = (test_data[i].get_value(gen) != j);
-			// cte->expect_eq_int_errors_only(cte, );
-			if (failure) {
+			const int readback_value = test_data[i].get_value(gen);
+			if (!cte->expect_eq_int_errors_only(cte, readback_value, j, "readback %s within limits:", test_data[i].name)) {
+				failure = true;
 				break;
 			}
 		}
 
-		// cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "set %s within limits:", test_data[i].name);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		cte->expect_eq_int(cte, false, failure, "set/get %s within limits:", test_data[i].name);
 	}
 
 	cw_gen_delete(&gen);
@@ -883,11 +707,7 @@ int test_cw_gen_volume_functions(cw_test_executor_t * cte)
 		bool failure = cw_min != CW_VOLUME_MIN
 			|| cw_max != CW_VOLUME_MAX;
 
-		// cte->expect_eq_int_errors_only(cte, );
-
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		int n = fprintf(out_file, MSG_PREFIX "cw_get_volume_limits(): %d, %d", cw_min, cw_max);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		cte->expect_eq_int(cte, false, failure, "cw_get_volume_limits(): %d, %d", cw_min, cw_max);
 	}
 
 
@@ -907,14 +727,14 @@ int test_cw_gen_volume_functions(cw_test_executor_t * cte)
 		   beginning and end of loop's body? */
 		for (int i = cw_max; i >= cw_min; i -= 10) {
 			cw_gen_wait_for_tone(gen);
-			if (CW_SUCCESS != cw_gen_set_volume(gen, i)) {
-				// cte->expect_eq_int_errors_only(cte, );
+			const int cwret = cw_gen_set_volume(gen, i);
+			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "cw_gen_set_volume(%d)", i)) {
 				set_failure = true;
 				break;
 			}
 
-			if (cw_gen_get_volume(gen) != i) {
-				// cte->expect_eq_int_errors_only(cte, );
+			const int readback_value = cw_gen_get_volume(gen);
+			if (!cte->expect_eq_int_errors_only(cte, readback_value, i, "cw_gen_get_volume() (i = %d)", i)) {
 				get_failure = true;
 				break;
 			}
@@ -922,15 +742,8 @@ int test_cw_gen_volume_functions(cw_test_executor_t * cte)
 			cw_gen_wait_for_tone(gen);
 		}
 
-		// cte->expect_eq_int_errors_only(cte, );
-		set_failure ? cte->stats->failures++ : cte->stats->successes++;
-		int n = fprintf(out_file, MSG_PREFIX "cw_gen_set_volume() (down):");
-		CW_TEST_PRINT_TEST_RESULT (set_failure, n);
-
-		// cte->expect_eq_int_errors_only(cte, );
-		get_failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "cw_gen_get_volume() (down):");
-		CW_TEST_PRINT_TEST_RESULT (get_failure, n);
+		cte->expect_eq_int(cte, false, set_failure, "cw_gen_set_volume() (down)");
+		cte->expect_eq_int(cte, false, get_failure, "cw_gen_get_volume() (down)");
 	}
 
 
@@ -952,29 +765,22 @@ int test_cw_gen_volume_functions(cw_test_executor_t * cte)
 		   beginning and end of loop's body? */
 		for (int i = cw_min; i <= cw_max; i += 10) {
 			cw_gen_wait_for_tone(gen);
-			if (CW_SUCCESS != cw_gen_set_volume(gen, i)) {
-				// cte->expect_eq_int_errors_only(cte, );
+			const int cwret = cw_gen_set_volume(gen, i);
+			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "cw_gen_set_volume(%d)", i)) {
 				set_failure = true;
 				break;
 			}
 
-			if (cw_gen_get_volume(gen) != i) {
-				// cte->expect_eq_int_errors_only(cte, );
+			const int readback_value = cw_gen_get_volume(gen);
+			if (!cte->expect_eq_int_errors_only(cte, readback_value, i, "cw_gen_get_volume() (vol = %d)", i)) {
 				get_failure = true;
 				break;
 			}
 			cw_gen_wait_for_tone(gen);
 		}
 
-		// cte->expect_eq_int_errors_only(cte, );
-		set_failure ? cte->stats->failures++ : cte->stats->successes++;
-		int n = fprintf(out_file, MSG_PREFIX "cw_gen_set_volume() (up):");
-		CW_TEST_PRINT_TEST_RESULT (set_failure, n);
-
-		// cte->expect_eq_int_errors_only(cte, );
-		get_failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "cw_gen_get_volume() (up):");
-		CW_TEST_PRINT_TEST_RESULT (get_failure, n);
+		cte->expect_eq_int(cte, false, set_failure, "cw_gen_set_volume() (up)");
+		cte->expect_eq_int(cte, false, get_failure, "cw_gen_get_volume() (up)");
 	}
 
 	cw_gen_wait_for_tone(gen);
@@ -1006,18 +812,15 @@ int test_cw_gen_enqueue_primitives(cw_test_executor_t * cte)
 	{
 		bool failure = false;
 		for (int i = 0; i < N; i++) {
-			if (CW_SUCCESS != cw_gen_enqueue_mark_internal(gen, CW_DOT_REPRESENTATION, false)) {
-				// cte->expect_eq_int_errors_only(cte, );
+			const int cwret = cw_gen_enqueue_mark_internal(gen, CW_DOT_REPRESENTATION, false);
+			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "cw_gen_enqueue_mark_internal(CW_DOT_REPRESENTATION) (i = %d)", i)) {
 				failure = true;
 				break;
 			}
 		}
 		cw_gen_wait_for_tone(gen);
 
-		// cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		int n = printf(MSG_PREFIX "cw_gen_enqueue_mark_internal(CW_DOT_REPRESENTATION):");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		cte->expect_eq_int(cte, false, failure, "cw_gen_enqueue_mark_internal(CW_DOT_REPRESENTATION)");
 	}
 
 
@@ -1026,18 +829,15 @@ int test_cw_gen_enqueue_primitives(cw_test_executor_t * cte)
 	{
 		bool failure = false;
 		for (int i = 0; i < N; i++) {
-			if (CW_SUCCESS != cw_gen_enqueue_mark_internal(gen, CW_DASH_REPRESENTATION, false)) {
-				// cte->expect_eq_int_errors_only(cte, );
+			const int cwret = cw_gen_enqueue_mark_internal(gen, CW_DASH_REPRESENTATION, false);
+			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "cw_gen_enqueue_mark_internal(CW_DASH_REPRESENTATION) (i = %d)", i)) {
 				failure = true;
 				break;
 			}
 		}
 		cw_gen_wait_for_tone(gen);
 
-		// cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		int n = printf(MSG_PREFIX "cw_gen_enqueue_mark_internal(CW_DASH_REPRESENTATION):");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		cte->expect_eq_int(cte, false, failure, "cw_gen_enqueue_mark_internal(CW_DASH_REPRESENTATION)");
 	}
 
 
@@ -1045,18 +845,15 @@ int test_cw_gen_enqueue_primitives(cw_test_executor_t * cte)
 	{
 		bool failure = false;
 		for (int i = 0; i < N; i++) {
-			if (CW_SUCCESS != cw_gen_enqueue_eoc_space_internal(gen)) {
-				// cte->expect_eq_int_errors_only(cte, );
+			const int cwret = cw_gen_enqueue_eoc_space_internal(gen);
+			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "cw_gen_enqueue_eoc_space_internal() (i = %d)", i)) {
 				failure = true;
 				break;
 			}
 		}
 		cw_gen_wait_for_tone(gen);
 
-		// cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		int n = printf(MSG_PREFIX "cw_gen_enqueue_eoc_space_internal():");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		cte->expect_eq_int(cte, false, failure, "cw_gen_enqueue_eoc_space_internal()");
 	}
 
 
@@ -1065,18 +862,15 @@ int test_cw_gen_enqueue_primitives(cw_test_executor_t * cte)
 	{
 		bool failure = false;
 		for (int i = 0; i < N; i++) {
-			if (CW_SUCCESS != cw_gen_enqueue_eow_space_internal(gen)) {
-				// cte->expect_eq_int_errors_only(cte, );
+			const int cwret = cw_gen_enqueue_eow_space_internal(gen);
+			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "cw_gen_enqueue_eow_space_internal() (i = %d)", i)) {
 				failure = true;
 				break;
 			}
 		}
 		cw_gen_wait_for_tone(gen);
 
-		// cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		int n = printf(MSG_PREFIX "cw_gen_enqueue_eow_space_internal():");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		cte->expect_eq_int(cte, false, failure, "cw_gen_enqueue_eow_space_internal()");
 	}
 
 	cw_gen_delete(&gen);
@@ -1108,11 +902,8 @@ int test_cw_gen_enqueue_representations(cw_test_executor_t * cte)
 			|| (CW_SUCCESS != cw_gen_enqueue_representation_partial_internal(gen, ".-"))
 			|| (CW_SUCCESS != cw_gen_enqueue_representation_partial_internal(gen, "---"))
 			|| (CW_SUCCESS != cw_gen_enqueue_representation_partial_internal(gen, "...-"));
-		// cte->expect_eq_int_errors_only(cte, );
 
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		int n = fprintf(out_file, MSG_PREFIX "cw_gen_enqueue_representation_partial_internal(<valid>):");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		cte->expect_eq_int(cte, false, failure, "cw_gen_enqueue_representation_partial_internal(<valid>)");
 	}
 
 
@@ -1122,11 +913,8 @@ int test_cw_gen_enqueue_representations(cw_test_executor_t * cte)
 			|| (CW_SUCCESS == cw_gen_enqueue_representation_partial_internal(gen, "_._T"))
 			|| (CW_SUCCESS == cw_gen_enqueue_representation_partial_internal(gen, "_.A_."))
 			|| (CW_SUCCESS == cw_gen_enqueue_representation_partial_internal(gen, "S-_-"));
-		// cte->expect_eq_int_errors_only(cte, );
 
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		int n = fprintf(out_file, MSG_PREFIX "cw_gen_enqueue_representation_partial_internal(<invalid>):");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		cte->expect_eq_int(cte, false, failure, "cw_gen_enqueue_representation_partial_internal(<invalid>)");
 	}
 
 	cw_gen_wait_for_tone(gen);
@@ -1165,8 +953,8 @@ int test_cw_gen_enqueue_character_and_string(cw_test_executor_t * cte)
 		for (int i = 0; charlist[i] != '\0'; i++) {
 			fprintf(out_file, "%c", charlist[i]);
 			fflush(out_file);
-			if (CW_SUCCESS != cw_gen_enqueue_character(gen, charlist[i])) {
-				// cte->expect_eq_int_errors_only(cte, );
+			const int cwret = cw_gen_enqueue_character(gen, charlist[i]);
+			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "cw_gen_enqueue_character() (i = %d)", i)) {
 				failure = true;
 				break;
 			}
@@ -1175,22 +963,15 @@ int test_cw_gen_enqueue_character_and_string(cw_test_executor_t * cte)
 
 		fprintf(out_file, "\n");
 
-		// cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		int n = fprintf(out_file,MSG_PREFIX "cw_gen_enqueue_character(<valid>):");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		cte->expect_eq_int(cte, false, failure, "cw_gen_enqueue_character(<valid>)");
 	}
 
 
 
 	/* Test: sending invalid character. */
 	{
-		bool failure = CW_SUCCESS == cw_gen_enqueue_character(gen, 0);
-		// cte->expect_eq_int_errors_only(cte, );
-
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		int n = fprintf(out_file, MSG_PREFIX "cw_gen_enqueue_character(<invalid>):");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		const int cwret = cw_gen_enqueue_character(gen, 0);
+		cte->expect_eq_int(cte, CW_FAILURE, cwret, "cw_gen_enqueue_character(<invalid>):");
 	}
 
 
@@ -1203,8 +984,8 @@ int test_cw_gen_enqueue_character_and_string(cw_test_executor_t * cte)
 		/* Send the complete charlist as a single string. */
 		fprintf(out_file, MSG_PREFIX "cw_gen_enqueue_string(<valid>):\n"
 			MSG_PREFIX "    %s\n", charlist);
-		bool failure = CW_SUCCESS != cw_gen_enqueue_string(gen, charlist);
-		// cte->expect_eq_int_errors_only(cte, );
+		const int enqueue_cwret = cw_gen_enqueue_string(gen, charlist);
+
 
 		while (cw_gen_get_queue_length(gen) > 0) {
 			fprintf(out_file, MSG_PREFIX "tone queue length %-6zu\r", cw_gen_get_queue_length(gen));
@@ -1214,20 +995,14 @@ int test_cw_gen_enqueue_character_and_string(cw_test_executor_t * cte)
 		fprintf(out_file, "libcw:gen tone queue length %-6zu\n", cw_gen_get_queue_length(gen));
 		cw_gen_wait_for_queue_level(gen, 0);
 
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		int n = fprintf(out_file, MSG_PREFIX "cw_gen_enqueue_string(<valid>):");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		cte->expect_eq_int(cte, CW_SUCCESS, enqueue_cwret, "cw_gen_enqueue_string(<valid>)");
 	}
 
 
 	/* Test: sending invalid string. */
 	{
-		bool failure = CW_SUCCESS == cw_gen_enqueue_string(gen, "%INVALID%");
-		// cte->expect_eq_int_errors_only(cte, );
-
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		int n = fprintf(out_file, MSG_PREFIX "cw_gen_enqueue_string(<invalid>):");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		const int cwret = cw_gen_enqueue_string(gen, "%INVALID%");
+		cte->expect_eq_int(cte, CW_FAILURE, cwret, "cw_gen_enqueue_string(<invalid>):");
 	}
 
 	cw_gen_delete(&gen);

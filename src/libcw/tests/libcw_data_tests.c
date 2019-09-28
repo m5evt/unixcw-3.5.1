@@ -117,7 +117,7 @@ int test_cw_representation_to_hash_internal(cw_test_executor_t * cte)
 
 	/* Compute hash for every valid representation. */
 	for (int i = 0; i < rep; i++) {
-		uint8_t hash = cw_representation_to_hash_internal(input[i]);
+		const uint8_t hash = cw_representation_to_hash_internal(input[i]);
 		/* The function returns values in range CW_DATA_MIN_REPRESENTATION_HASH - CW_DATA_MAX_REPRESENTATION_HASH. */
 		failure = (hash < CW_DATA_MIN_REPRESENTATION_HASH) || (hash > CW_DATA_MAX_REPRESENTATION_HASH);
 		// cte->expect_eq_int_errors_only(cte, );
@@ -127,10 +127,7 @@ int test_cw_representation_to_hash_internal(cw_test_executor_t * cte)
 		}
 	}
 
-	failure ? cte->stats->failures++ : cte->stats->successes++;
-	int n = fprintf(out_file, MSG_PREFIX "representation to hash:");
-	// cte->expect_eq_int_errors_only(cte, );
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
+	cte->expect_eq_int(cte, false, failure, "representation to hash:");
 
 	return 0;
 }
@@ -152,19 +149,16 @@ int test_cw_representation_to_character_internal(cw_test_executor_t * cte)
 
 	for (const cw_entry_t *cw_entry = CW_TABLE; cw_entry->character; cw_entry++) {
 
-		int lookup = cw_representation_to_character_internal(cw_entry->representation);
-		int direct = cw_representation_to_character_direct_internal(cw_entry->representation);
+		const int lookup = cw_representation_to_character_internal(cw_entry->representation);
+		const int direct = cw_representation_to_character_direct_internal(cw_entry->representation);
 
-		failure = (lookup != direct);
-		if (failure) {
-			fprintf(out_file, MSG_PREFIX "representation to character: failed for \"%s\"\n", cw_entry->representation);
+		if (!cte->expect_eq_int_errors_only(cte, lookup, direct, "lookup vs. direct: '%s'", cw_entry->representation)) {
+			failure = true;
 			break;
 		}
 	}
 
-	failure ? cte->stats->failures++ : cte->stats->successes++;
-	int n = fprintf(out_file, MSG_PREFIX "representation to character:");
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
+	cte->expect_eq_int(cte, false, failure, "representation to character");
 
 	return 0;
 }
@@ -236,7 +230,7 @@ int test_cw_representation_to_character_internal_speed(cw_test_executor_t * cte)
 */
 int test_character_lookups_internal(cw_test_executor_t * cte)
 {
-	int count = 0; /* Number of characters. */
+
 	bool failure = true;
 	int n = 0;
 
@@ -247,13 +241,13 @@ int test_character_lookups_internal(cw_test_executor_t * cte)
 		   but there is a function calculating the number. One
 		   thing is certain: the number is larger than
 		   zero. */
-		count = cw_get_character_count();
+		const int extracted_count = cw_get_character_count();
 
-		failure = (count <= 0);
+		failure = (extracted_count <= 0);
 		// cte->expect_eq_int_errors_only(cte, );
 
 		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "character count (%d):", count);
+		n = fprintf(out_file, MSG_PREFIX "character count (%d):", extracted_count);
 		CW_TEST_PRINT_TEST_RESULT (failure, n);
 	}
 
@@ -262,17 +256,15 @@ int test_character_lookups_internal(cw_test_executor_t * cte)
 	/* Test: get list of characters supported by libcw. */
 	{
 		/* Of course length of the list must match the
-		   character count discovered above. */
+		   character count returned by library. */
+
+		const int extracted_count = cw_get_character_count();
 
 		cw_list_characters(charlist);
 		fprintf(out_file, MSG_PREFIX "list of characters: %s\n", charlist);
-		size_t len = strlen(charlist);
-		failure = (count != (int) len);
-		// cte->expect_eq_int_errors_only(cte, );
+		const int extracted_len = (int) strlen(charlist);
 
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = printf(MSG_PREFIX "character list length (%d / %d):", count, (int) len);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		cte->expect_eq_int(cte, extracted_len, extracted_count, "character count = %d, list length = %d", extracted_count, extracted_len);
 	}
 
 
@@ -299,7 +291,6 @@ int test_character_lookups_internal(cw_test_executor_t * cte)
 		bool c2r_failure = true;
 		bool r2c_failure = true;
 		bool two_way_failure = true;
-		int n = 0;
 
 		/* For each character, look up its representation, the
 		   look up each representation in the opposite
@@ -327,10 +318,8 @@ int test_character_lookups_internal(cw_test_executor_t * cte)
 			}
 
 			/* Compare output char with input char. */
-			two_way_failure = (charlist[i] != c);
-			// cte->expect_eq_int_errors_only(cte, );
-			if (two_way_failure) {
-				fprintf(out_file, MSG_PREFIX "character lookup: two-way lookup failed for #%d ('%c' -> '%s' -> '%c')\n", i, charlist[i], representation, c);
+			if (!cte->expect_eq_int_errors_only(cte, c, charlist[i], "character lookup: two-way lookup for #%d ('%c' -> '%s' -> '%c')\n", i, charlist[i], representation, c)) {
+				two_way_failure = true;
 				break;
 			}
 
@@ -338,20 +327,9 @@ int test_character_lookups_internal(cw_test_executor_t * cte)
 			representation = NULL;
 		}
 
-		c2r_failure ? cte->stats->failures++ : cte->stats->successes++;
-		// cte->expect_eq_int_errors_only(cte, );
-		n = printf(MSG_PREFIX "character lookup: char to representation:");
-		CW_TEST_PRINT_TEST_RESULT (c2r_failure, n);
-
-		r2c_failure ? cte->stats->failures++ : cte->stats->successes++;
-		// cte->expect_eq_int_errors_only(cte, );
-		n = printf(MSG_PREFIX "character lookup: representation to char:");
-		CW_TEST_PRINT_TEST_RESULT (r2c_failure, n);
-
-		two_way_failure ? cte->stats->failures++ : cte->stats->successes++;
-		// cte->expect_eq_int_errors_only(cte, );
-		n = printf(MSG_PREFIX "character lookup: two-way lookup:");
-		CW_TEST_PRINT_TEST_RESULT (two_way_failure, n);
+		cte->expect_eq_int(cte, false, c2r_failure, "character lookup: char to representation");
+		cte->expect_eq_int(cte, false, r2c_failure, "character lookup: representation to char:");
+		cte->expect_eq_int(cte, false, two_way_failure, "character lookup: two-way lookup");
 	}
 
 	return 0;
@@ -396,13 +374,11 @@ int test_prosign_lookups_internal(cw_test_executor_t * cte)
 	{
 		cw_list_procedural_characters(charlist);
 		fprintf(out_file, MSG_PREFIX "list of procedural characters: %s\n", charlist);
-		size_t len = strlen(charlist);
-		failure = (count != (int) len);
-		// cte->expect_eq_int_errors_only(cte, );
+		const int extracted_len = (int) strlen(charlist);
 
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "procedural character list length (%d / %d):", count, (int) len);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		const int extracted_count = cw_get_procedural_character_count();
+
+		cte->expect_eq_int(cte, extracted_count, extracted_len, "procedural character count = %d, list length = %d", extracted_count, extracted_len);
 	}
 
 
@@ -433,12 +409,9 @@ int test_prosign_lookups_internal(cw_test_executor_t * cte)
 			char expansion[256];
 			int is_usually_expanded = -1;
 
-			lookup_failure = (CW_SUCCESS != cw_lookup_procedural_character(charlist[i],
-										       expansion,
-										       &is_usually_expanded));
-			// cte->expect_eq_int_errors_only(cte, );
-			if (lookup_failure) {
-				fprintf(out_file, MSG_PREFIX "procedural character lookup: lookup of character '%c' (#%d) failed\n", charlist[i], i);
+			const int cwret = cw_lookup_procedural_character(charlist[i], expansion, &is_usually_expanded);
+			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "procedural character lookup: lookup of character '%c' (#%d)", charlist[i], i)) {
+				lookup_failure = true;
 				break;
 			}
 
@@ -454,15 +427,8 @@ int test_prosign_lookups_internal(cw_test_executor_t * cte)
 			}
 		}
 
-		// cte->expect_eq_int_errors_only(cte, );
-		lookup_failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = printf(MSG_PREFIX "procedural character lookup: lookup:");
-		CW_TEST_PRINT_TEST_RESULT (lookup_failure, n);
-
-		// cte->expect_eq_int_errors_only(cte, );
-		check_failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = printf(MSG_PREFIX "procedural character lookup: lookup check:");
-		CW_TEST_PRINT_TEST_RESULT (check_failure, n);
+		cte->expect_eq_int(cte, false, lookup_failure, "procedural character lookup: lookup");
+		cte->expect_eq_int(cte, false, check_failure, "procedural character lookup: lookup check");
 	}
 
 	return 0;
@@ -499,7 +465,6 @@ int test_phonetic_lookups_internal(cw_test_executor_t * cte)
 	{
 		bool lookup_failure = true;
 		bool reverse_failure = true;
-		int n = 0;
 
 		for (int i = 0; i < UCHAR_MAX; i++) {
 			char phonetic[256];
@@ -527,15 +492,8 @@ int test_phonetic_lookups_internal(cw_test_executor_t * cte)
 			}
 		}
 
-		// cte->expect_eq_int_errors_only(cte, );
-		lookup_failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "phonetic lookup: lookup:");
-		CW_TEST_PRINT_TEST_RESULT (lookup_failure, n);
-
-		// cte->expect_eq_int_errors_only(cte, );
-		reverse_failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "phonetic lookup: reverse lookup:");
-		CW_TEST_PRINT_TEST_RESULT (reverse_failure, n);
+		cte->expect_eq_int(cte, false, lookup_failure, "phonetic lookup: lookup");
+		cte->expect_eq_int(cte, false, reverse_failure, "phonetic lookup: reverse lookup");
 	}
 
 	return 0;
@@ -557,7 +515,6 @@ int test_validate_character_and_string_internal(cw_test_executor_t * cte)
 	{
 		bool failure_valid = true;
 		bool failure_invalid = true;
-		int n = 0;
 
 		char charlist[UCHAR_MAX + 1];
 		cw_list_characters(charlist);
@@ -568,10 +525,10 @@ int test_validate_character_and_string_internal(cw_test_executor_t * cte)
 				   not 'sendable' but can be handled by libcw
 				   nevertheless. cw_character_is_valid() should
 				   confirm it. */
-				failure_valid = (false == cw_character_is_valid(i));
-				// cte->expect_eq_int_errors_only(cte, );
-				if (failure_valid) {
-					fprintf(out_file, MSG_PREFIX "validate character: valid character '<backspace>' / #%d not recognized as valid\n", i);
+				const bool is_valid = cw_character_is_valid(i);
+
+				if (!cte->expect_eq_int_errors_only(cte, true, is_valid, "validate character: valid character '<backspace>' / #%d not recognized as valid\n", i)) {
+					failure_valid = true;
 					break;
 				}
 			} else if (i == ' ' || (i != 0 && strchr(charlist, toupper(i)) != NULL)) {
@@ -580,10 +537,9 @@ int test_validate_character_and_string_internal(cw_test_executor_t * cte)
 				   recognized/supported as 'sendable' by
 				   libcw.  cw_character_is_valid() should
 				   confirm it. */
-				failure_valid = (false == cw_character_is_valid(i));
-				// cte->expect_eq_int_errors_only(cte, );
-				if (failure_valid) {
-					fprintf(out_file, MSG_PREFIX "validate character: valid character '%c' / #%d not recognized as valid\n", (char ) i, i);
+				const bool is_valid = cw_character_is_valid(i);
+				if (!cte->expect_eq_int_errors_only(cte, true, is_valid, "validate character: valid character '%c' / #%d not recognized as valid\n", (char ) i, i)) {
+					failure_valid = true;
 					break;
 				}
 			} else {
@@ -591,52 +547,34 @@ int test_validate_character_and_string_internal(cw_test_executor_t * cte)
 				   recognized/supported by libcw.
 				   cw_character_is_valid() should return false
 				   to signify that the char is invalid. */
-				failure_invalid = (true == cw_character_is_valid(i));
-				// cte->expect_eq_int_errors_only(cte, );
-				if (failure_invalid) {
-					fprintf(out_file, MSG_PREFIX "validate character: invalid character '%c' / #%d recognized as valid\n", (char ) i, i);
+				const bool is_valid = cw_character_is_valid(i);
+				if (!cte->expect_eq_int_errors_only(cte, false, is_valid, "validate character: invalid character '%c' / #%d recognized as valid\n", (char ) i, i)) {
+					failure_invalid = true;
 					break;
 				}
 			}
 		}
 
-		// cte->expect_eq_int_errors_only(cte, );
-		failure_valid ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "validate character: valid characters:");
-		CW_TEST_PRINT_TEST_RESULT (failure_valid, n);
-
-		// cte->expect_eq_int_errors_only(cte, );
-		failure_invalid ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "validate character: invalid characters:");
-		CW_TEST_PRINT_TEST_RESULT (failure_invalid, n);
+		cte->expect_eq_int(cte, false, failure_valid, "validate character: valid characters");
+		cte->expect_eq_int(cte, false, failure_invalid, "validate character: invalid characters:");
 	}
 
 
 
 	/* Test: validation of string as a whole. */
 	{
-		bool failure = true;
-		int n = 0;
+		bool are_we_valid = false;
 		/* Check the whole charlist item as a single string,
 		   then check a known invalid string. */
 
 		char charlist[UCHAR_MAX + 1];
 		cw_list_characters(charlist);
-		failure = (CW_SUCCESS != cw_string_is_valid(charlist));
-		// cte->expect_eq_int_errors_only(cte, );
-
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "validate string: valid string:");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-
+		are_we_valid = cw_string_is_valid(charlist);
+		cte->expect_eq_int(cte, true, are_we_valid, "validate string: valid string");
 
 		/* Test invalid string. */
-		failure = (CW_SUCCESS == cw_string_is_valid("%INVALID%"));
-		// cte->expect_eq_int_errors_only(cte, );
-
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "validate string: invalid string:");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		are_we_valid = cw_string_is_valid("%INVALID%");
+		cte->expect_eq_int(cte, false, are_we_valid, "validate string: invalid string");
 	}
 
 

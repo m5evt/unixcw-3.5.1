@@ -44,7 +44,6 @@ int test_cw_debug_flags_internal(cw_test_executor_t * cte)
 	uint32_t flags_backup = cw_debug_get_flags(&cw_debug_object);
 	bool set_failure = true;
 	bool get_failure = true;
-	int n = 0;
 
 	for (uint32_t i = 1; i <= CW_DEBUG_MASK; i++) {
 		cw_debug_set_flags(&cw_debug_object, i);
@@ -64,15 +63,8 @@ int test_cw_debug_flags_internal(cw_test_executor_t * cte)
 		}
 	}
 
-	// cte->expect_eq_int_errors_only(cte, );
-	set_failure ? cte->stats->failures++ : cte->stats->successes++;
-	n = fprintf(out_file, MSG_PREFIX "set:");
-	CW_TEST_PRINT_TEST_RESULT (set_failure, n);
-
-	// cte->expect_eq_int_errors_only(cte, );
-	get_failure ? cte->stats->failures++ : cte->stats->successes++;
-	n = fprintf(out_file, MSG_PREFIX "get:");
-	CW_TEST_PRINT_TEST_RESULT (get_failure, n);
+	cte->expect_eq_int(cte, false, set_failure, "set");
+	cte->expect_eq_int(cte, false, get_failure, "get");
 
 	/* Restore original flags. */
 	cw_debug_set_flags(&cw_debug_object, flags_backup);

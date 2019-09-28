@@ -71,11 +71,7 @@ int test_cw_timestamp_compare_internal(cw_test_executor_t * cte)
 	}
 
 
-	failure ? cte->stats->failures++ : cte->stats->successes++;
-	int n = fprintf(out_file, "libcw:utils:compare timestamp:");
-	// cte->expect_eq_int_errors_only(cte, );
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
-
+	cte->expect_eq_int(cte, false, failure, "libcw:utils:compare timestamp:");
 
 	return 0;
 }
@@ -257,10 +253,7 @@ int test_cw_usecs_to_timespec_internal(cw_test_executor_t * cte)
 		i++;
 	}
 
-	//cte->expect_eq_int_errors_only(cte, );
-	failure ? cte->stats->failures++ : cte->stats->successes++;
-	int n = fprintf(out_file, "libcw:utils:usecs to timespec:");
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
+	cte->expect_eq_int(cte, false, failure, "libcw:utils:usecs to timespec:");
 
 	return 0;
 }
@@ -330,10 +323,7 @@ int test_cw_version_internal(cw_test_executor_t * cte)
 		fprintf(out_file, "libcw:utils:version: current: %d / %d; revision: %d / %d; age: %d / %d\n", current, c, revision, r, age, a);
 	}
 
-	//cte->expect_eq_int_errors_only(cte, );
-	failure ? cte->stats->failures++ : cte->stats->successes++;
-	int n = fprintf(out_file, "libcw:utils:version: %d:%d:%d:", c, r, a);
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
+	cte->expect_eq_int(cte, false, failure, "libcw:utils:version: %d:%d:%d:", c, r, a);
 
 	return 0;
 }
@@ -401,7 +391,6 @@ int test_cw_get_x_limits_internal(cw_test_executor_t * cte)
 
 		bool min_failure = true;
 		bool max_failure = true;
-		int n = 0;
 
 		/* Get limits of a parameter. */
 		test_data[i].getter(&test_data[i].get_min, &test_data[i].get_max);
@@ -421,15 +410,8 @@ int test_cw_get_x_limits_internal(cw_test_executor_t * cte)
 			fprintf(out_file, "libcw:utils:limits: failed to get correct maximum of %s\n", test_data[i].name);
 		}
 
-		//cte->expect_eq_int_errors_only(cte, );
-		min_failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, "libcw:utils:get min %s:", test_data[i].name);
-		CW_TEST_PRINT_TEST_RESULT (min_failure, n);
-
-		//cte->expect_eq_int_errors_only(cte, );
-		max_failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, "libcw:utils:get max %s:", test_data[i].name);
-		CW_TEST_PRINT_TEST_RESULT (max_failure, n);
+		cte->expect_eq_int(cte, false, min_failure, "libcw:utils:get min %s:", test_data[i].name);
+		cte->expect_eq_int(cte, false, max_failure, "libcw:utils:get max %s:", test_data[i].name);
 	}
 
 

@@ -296,20 +296,9 @@ int test_straight_key(cw_test_executor_t * cte)
 			}
 		}
 
-		// cte->expect_eq_int_errors_only(cte, );
-		event_failure ? cte->stats->failures++ : cte->stats->successes++;
-		int n = fprintf(out_file, MSG_PREFIX "cw_key_sk_notify_event(<key open>):");
-		CW_TEST_PRINT_TEST_RESULT (event_failure, n);
-
-		// cte->expect_eq_int_errors_only(cte, );
-		state_failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "cw_key_sk_get_value(<key open>):");
-		CW_TEST_PRINT_TEST_RESULT (state_failure, n);
-
-		// cte->expect_eq_int_errors_only(cte, );
-		busy_failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "cw_straight_key_busy(<key open>):");
-		CW_TEST_PRINT_TEST_RESULT (busy_failure, n);
+		cte->expect_eq_int(cte, false, event_failure, "cw_key_sk_notify_event(<key open>)");
+		cte->expect_eq_int(cte, false, state_failure, "cw_key_sk_get_value(<key open>):");
+		cte->expect_eq_int(cte, false, busy_failure, "cw_straight_key_busy(<key open>):");
 	}
 
 
@@ -343,20 +332,9 @@ int test_straight_key(cw_test_executor_t * cte)
 		}
 
 
-		// cte->expect_eq_int_errors_only(cte, );
-		event_failure ? cte->stats->failures++ : cte->stats->successes++;
-		int n = fprintf(out_file, MSG_PREFIX "cw_key_sk_notify_event(<key closed>):");
-		CW_TEST_PRINT_TEST_RESULT (event_failure, n);
-
-		// cte->expect_eq_int_errors_only(cte, );
-		state_failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "cw_key_sk_get_value(<key closed>):");
-		CW_TEST_PRINT_TEST_RESULT (state_failure, n);
-
-		// cte->expect_eq_int_errors_only(cte, );
-		busy_failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "cw_straight_key_busy(<key closed>):");
-		CW_TEST_PRINT_TEST_RESULT (busy_failure, n);
+		cte->expect_eq_int(cte, false, event_failure, "cw_key_sk_notify_event(<key closed>):");
+		cte->expect_eq_int(cte, false, state_failure, "cw_key_sk_get_value(<key closed>):");
+		cte->expect_eq_int(cte, false, busy_failure, "cw_straight_key_busy(<key closed>):");
 	}
 
 
@@ -436,20 +414,9 @@ int test_straight_key(cw_test_executor_t * cte)
 		fprintf(out_file, "\n");
 		fflush(out_file);
 
-		// cte->expect_eq_int_errors_only(cte, );
-		event_failure ? cte->stats->failures++ : cte->stats->successes++;
-		int n = fprintf(out_file, "libcw: cw_key_sk_notify_event(<key open/closed>):");
-		CW_TEST_PRINT_TEST_RESULT (event_failure, n);
-
-		// cte->expect_eq_int_errors_only(cte, );
-		state_failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, "libcw: cw_key_sk_get_value(<key open/closed>):");
-		CW_TEST_PRINT_TEST_RESULT (state_failure, n);
-
-		// cte->expect_eq_int_errors_only(cte, );
-		busy_failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, "libcw: cw_straight_key_busy(<key open/closed>):");
-		CW_TEST_PRINT_TEST_RESULT (busy_failure, n);
+		cte->expect_eq_int(cte, false, event_failure, "cw_key_sk_notify_event(<key open/closed>):");
+		cte->expect_eq_int(cte, false, state_failure, "cw_key_sk_get_value(<key open/closed>):");
+		cte->expect_eq_int(cte, false, busy_failure, "cw_straight_key_busy(<key open/closed>):");
 	}
 
 

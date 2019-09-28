@@ -104,10 +104,7 @@ int test_cw_tq_new_delete_internal(cw_test_executor_t * cte)
 		}
 	}
 
-	//cte->expect_eq_int_errors_only(cte, );
-	failure ? cte->stats->failures++ : cte->stats->successes++;
-	int n = fprintf(out_file, MSG_PREFIX "new/delete:");
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
+	cte->expect_eq_int(cte, false, failure, "new/delete:");
 
 	return 0;
 }
@@ -142,10 +139,7 @@ int test_cw_tq_get_capacity_internal(cw_test_executor_t * cte)
 
 	cw_tq_delete_internal(&tq);
 
-	//cte->expect_eq_int_errors_only(cte, );
-	failure ? cte->stats->failures++ : cte->stats->successes++;
-	int n = fprintf(out_file, MSG_PREFIX "get capacity:");
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
+	cte->expect_eq_int(cte, false, failure, "get capacity");
 
 	return 0;
 }
@@ -204,10 +198,7 @@ int test_cw_tq_prev_index_internal(cw_test_executor_t * cte)
 
 	cw_tq_delete_internal(&tq);
 
-	//cte->expect_eq_int_errors_only(cte, );
-	failure ? cte->stats->failures++ : cte->stats->successes++;
-	int n = fprintf(out_file, MSG_PREFIX "prev index:");
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
+	cte->expect_eq_int(cte, false, failure, "prev index:");
 #endif
 	return 0;
 }
@@ -259,10 +250,7 @@ int test_cw_tq_next_index_internal(cw_test_executor_t * cte)
 
 	cw_tq_delete_internal(&tq);
 
-	//cte->expect_eq_int_errors_only(cte, );
-	failure ? cte->stats->failures++ : cte->stats->successes++;
-	int n = fprintf(out_file, MSG_PREFIX "next index:");
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
+	cte->expect_eq_int(cte, false, failure, "next index:");
 #endif
 	return 0;
 }
@@ -339,10 +327,7 @@ int test_cw_tq_length_internal(cw_test_executor_t * cte)
 
 	cw_tq_delete_internal(&tq);
 
-	//cte->expect_eq_int_errors_only(cte, );
-	failure ? cte->stats->failures++ : cte->stats->successes++;
-	int n = fprintf(out_file, MSG_PREFIX "length:");
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
+	cte->expect_eq_int(cte, false, failure, "length:");
 #endif
 	return 0;
 }
@@ -392,8 +377,6 @@ int test_cw_tq_enqueue_internal_1(cw_tone_queue_t *tq, cw_test_executor_t * cte)
 	CW_TONE_INIT(&tone, 1, 1, CW_SLOPE_MODE_NO_SLOPES);
 	bool enqueue_failure = false;
 	bool length_failure = false;
-	bool failure = false;
-	int n = 0;
 
 	for (size_t i = 0; i < tq->capacity; i++) {
 
@@ -416,15 +399,8 @@ int test_cw_tq_enqueue_internal_1(cw_tone_queue_t *tq, cw_test_executor_t * cte)
 		}
 	}
 
-	//cte->expect_eq_int_errors_only(cte, );
-	enqueue_failure ? cte->stats->failures++ : cte->stats->successes++;
-	n = fprintf(out_file, MSG_PREFIX "enqueue: enqueueing tones to queue:");
-	CW_TEST_PRINT_TEST_RESULT (enqueue_failure, n);
-
-	//cte->expect_eq_int_errors_only(cte, );
-	length_failure ? cte->stats->failures++ : cte->stats->successes++;
-	n = fprintf(out_file, MSG_PREFIX "enqueue: length of tq during enqueueing:");
-	CW_TEST_PRINT_TEST_RESULT (length_failure, n);
+	cte->expect_eq_int(cte, false, enqueue_failure, "enqueue: enqueueing tones to queue:");
+	cte->expect_eq_int(cte, false, length_failure, "enqueue: length of tq during enqueueing:");
 
 
 
@@ -433,21 +409,13 @@ int test_cw_tq_enqueue_internal_1(cw_tone_queue_t *tq, cw_test_executor_t * cte)
 	   Enqueueing should fail when the queue is full. */
 	fprintf(out_file, MSG_PREFIX "you may now see \"EE:" MSG_PREFIX "can't enqueue tone, tq is full\" message:\n");
 	fflush(out_file);
-	int rv = cw_tq_enqueue_internal(tq, &tone);
-	failure = rv != CW_FAILURE;
-	//cte->expect_eq_int_errors_only(cte, );
-	failure ? cte->stats->failures++ : cte->stats->successes++;
-	n = fprintf(out_file, MSG_PREFIX "enqueue: attempting to enqueue tone to full queue:");
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
+	const int cwret = cw_tq_enqueue_internal(tq, &tone);
+	cte->expect_eq_int(cte, CW_FAILURE, cwret, "enqueue: attempting to enqueue tone to full queue:");
 
 
 	/* This tests for correctness of working of the 'enqueue'
 	   function.  Full tq should not grow beyond its capacity. */
-	failure = (tq->len != tq->capacity);
-	//cte->expect_eq_int_errors_only(cte, );
-	failure ? cte->stats->failures++ : cte->stats->successes++;
-	n = fprintf(out_file, MSG_PREFIX "enqueue: length of full queue == capacity (%zd == %zd):", tq->len, tq->capacity);
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
+	cte->expect_eq_int(cte, tq->capacity, tq->len, "enqueue: length of full queue == capacity (%zd == %zd):", tq->len, tq->capacity);
 
 	return 0;
 }
@@ -470,11 +438,9 @@ int test_cw_tq_dequeue_internal(cw_tone_queue_t *tq, cw_test_executor_t * cte)
 
 	cw_tone_t tone;
 	CW_TONE_INIT(&tone, 1, 1, CW_SLOPE_MODE_NO_SLOPES);
-	int n = 0;
 
 	bool dequeue_failure = false;
 	bool length_failure = false;
-	bool failure = false;
 
 	for (size_t i = tq->capacity; i > 0; i--) {
 
@@ -504,26 +470,15 @@ int test_cw_tq_dequeue_internal(cw_tone_queue_t *tq, cw_test_executor_t * cte)
 		}
 	}
 
-	//cte->expect_eq_int_errors_only(cte, );
-	dequeue_failure ? cte->stats->failures++ : cte->stats->successes++;
-	n = fprintf(out_file, MSG_PREFIX "dequeue: dequeueing tones from queue:");
-	CW_TEST_PRINT_TEST_RESULT (dequeue_failure, n);
-
-	//cte->expect_eq_int_errors_only(cte, );
-	length_failure ? cte->stats->failures++ : cte->stats->successes++;
-	n = fprintf(out_file, MSG_PREFIX "dequeue: length of tq during dequeueing:");
-	CW_TEST_PRINT_TEST_RESULT (length_failure, n);
+	cte->expect_eq_int(cte, false, dequeue_failure, "dequeue: dequeueing tones from queue:");
+	cte->expect_eq_int(cte, false, length_failure, "dequeue: length of tq during dequeueing:");
 
 
 
 	/* Try removing a tone from empty queue. */
 	/* This tests for potential problems with function call. */
-	int rv = cw_tq_dequeue_internal(tq, &tone);
-	failure = rv != CW_FAILURE;
-	//cte->expect_eq_int_errors_only(cte, );
-	failure ? cte->stats->failures++ : cte->stats->successes++;
-	n = fprintf(out_file, MSG_PREFIX "dequeue: attempting to dequeue tone from empty queue:");
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
+	int cwret = cw_tq_dequeue_internal(tq, &tone);
+	cte->expect_eq_int(cte, CW_FAILURE, cwret, "dequeue: attempting to dequeue tone from empty queue:");
 
 
 	/* This tests for correctness of working of the dequeue()
@@ -532,22 +487,15 @@ int test_cw_tq_dequeue_internal(cw_tone_queue_t *tq, cw_test_executor_t * cte)
 	   At this point cw_tq_length_internal() should be tested, so
 	   we can use it to verify correctness of dequeue()
 	   function. */
-	size_t len = cw_tq_length_internal(tq);
-	failure = (len != 0) || (tq->len != 0);
-	//cte->expect_eq_int_errors_only(cte, );
-	failure ? cte->stats->failures++ : cte->stats->successes++;
-	n = fprintf(out_file, MSG_PREFIX "dequeue: length of empty queue should be zero (%zd == %zd):", len, tq->len);
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
+	const size_t readback_len = cw_tq_length_internal(tq);
+	cte->expect_eq_int(cte, 0, readback_len, "dequeue: length of empty queue should be zero (readback)");
+	cte->expect_eq_int(cte, 0, tq->len, "dequeue: length of empty queue should be zero (direct check)");
 
 
 	/* Try removing a tone from empty queue. Since the queue is
 	   empty, this should fail. */
-	rv = cw_tq_dequeue_internal(tq, &tone);
-	bool expect = (rv == CW_FAILURE);
-	//cte->expect_eq_int_errors_only(cte, );
-	expect ? cte->stats->successes++ : cte->stats->failures++;
-	n = fprintf(out_file, MSG_PREFIX "dequeue: attempt to dequeue from empty queue should fail (got rv = %d):", rv);
-	CW_TEST_PRINT_TEST_RESULT(!expect, n);
+	cwret = cw_tq_dequeue_internal(tq, &tone);
+	cte->expect_eq_int(cte, CW_FAILURE, cwret, "dequeue: attempt to dequeue from empty queue should fail");
 
 	return 0;
 }
@@ -569,7 +517,6 @@ int test_cw_tq_is_full_internal(cw_test_executor_t * cte)
 	cw_assert (tq, MSG_PREFIX "failed to create new tq");
 	tq->state = CW_TQ_BUSY;
 	bool failure = true;
-	int n = 0;
 
 	cw_tone_t tone;
 	CW_TONE_INIT(&tone, 1, 1, CW_SLOPE_MODE_NO_SLOPES);
@@ -599,56 +546,38 @@ int test_cw_tq_is_full_internal(cw_test_executor_t * cte)
 	}
 
 
-	//cte->expect_eq_int_errors_only(cte, );
-	failure ? cte->stats->failures++ : cte->stats->successes++;
-	n = fprintf(out_file, MSG_PREFIX "is_full: 'full' state during enqueueing:");
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
+	cte->expect_eq_int(cte, false, failure, "is_full: 'full' state during enqueueing:");
 
 
 	/* At this point there is still place in tq for one more
 	   tone. Enqueue it and verify that the tq is now full. */
-	int rv = cw_tq_enqueue_internal(tq, &tone);
-	failure = rv != CW_SUCCESS;
-	//cte->expect_eq_int_errors_only(cte, );
-	failure ? cte->stats->failures++ : cte->stats->successes++;
-	n = fprintf(out_file, MSG_PREFIX "is_full: adding last element:");
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
-
+	int cwret = cw_tq_enqueue_internal(tq, &tone);
+	cte->expect_eq_int(cte, CW_SUCCESS, cwret, "is_full: adding last element");
 
 	bool is_full = cw_tq_is_full_internal(tq);
-	failure = !is_full;
-	//cte->expect_eq_int_errors_only(cte, );
-	failure ? cte->stats->failures++ : cte->stats->successes++;
-	n = fprintf(out_file, MSG_PREFIX "is_full: queue is full after adding last element:");
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
+	cte->expect_eq_int(cte, true, is_full, "is_full: queue is full after adding last element");
 
 
 	/* Now test the function as we dequeue tones. */
-
 	for (size_t i = tq->capacity; i > 0; i--) {
 		/* The 'dequeue' function has been already tested, but
 		   it won't hurt to check this simple assertion here
 		   as well. */
-		failure = (CW_FAILURE == cw_tq_dequeue_internal(tq, &tone));
-		//cte->expect_eq_int_errors_only(cte, );
-		if (failure) {
-			fprintf(out_file, MSG_PREFIX "is_full: failed to dequeue tone %zd\n", i);
+		cwret = cw_tq_dequeue_internal(tq, &tone);
+		if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "is_full: dequeueing tone #%zd\n", i)) {
+			failure = true;
 			break;
 		}
 
 		/* Here is the proper test of tested function. */
-		failure = (true == cw_tq_is_full_internal(tq));
-		//cte->expect_eq_int_errors_only(cte, );
-		if (failure) {
-			fprintf(out_file, MSG_PREFIX "is_full: queue is full after dequeueing tone %zd\n", i);
+		is_full = cw_tq_is_full_internal(tq);
+		if (!cte->expect_eq_int_errors_only(cte, false, is_full, "is_full: queue should not be full after dequeueing tone %zd\n", i)) {
+			failure = true;
 			break;
 		}
 	}
 
-	//cte->expect_eq_int_errors_only(cte, );
-	failure ? cte->stats->failures++ : cte->stats->successes++;
-	n = fprintf(out_file, MSG_PREFIX "is_full: 'full' state during dequeueing:");
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
+	cte->expect_eq_int(cte, false, failure, "is_full: 'full' state during dequeueing:");
 
 	cw_tq_delete_internal(&tq);
 
@@ -762,15 +691,8 @@ int test_cw_tq_test_capacity_1(cw_test_executor_t * cte)
 		   test_cw_tq_capacity_test_init(). */
 		cw_tq_delete_internal(&tq);
 
-		//cte->expect_eq_int_errors_only(cte, );
-		enqueue_failure ? cte->stats->failures++ : cte->stats->successes++;
-		int n = fprintf(out_file, MSG_PREFIX "capacity1: enqueue @ shift=%d:", head_shifts[s]);
-		CW_TEST_PRINT_TEST_RESULT (enqueue_failure, n);
-
-		//cte->expect_eq_int_errors_only(cte, );
-		dequeue_failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "capacity1: dequeue @ shift=%d:", head_shifts[s]);
-		CW_TEST_PRINT_TEST_RESULT (dequeue_failure, n);
+		cte->expect_eq_int(cte, false, enqueue_failure, "capacity1: enqueue @ shift=%d:", head_shifts[s]);
+		cte->expect_eq_int(cte, false, dequeue_failure, "capacity1: dequeue @ shift=%d:", head_shifts[s]);
 
 		s++;
 	}
@@ -897,20 +819,9 @@ int test_cw_tq_test_capacity_2(cw_test_executor_t * cte)
 		cw_tq_delete_internal(&tq);
 
 
-		//cte->expect_eq_int_errors_only(cte, );
-		enqueue_failure ? cte->stats->failures++ : cte->stats->successes++;
-		int n = fprintf(out_file, MSG_PREFIX "capacity2: enqueue  @ shift=%d:", head_shifts[s]);
-		CW_TEST_PRINT_TEST_RESULT (enqueue_failure, n);
-
-		//cte->expect_eq_int_errors_only(cte, );
-		dequeue_failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "capacity2: dequeue  @ shift=%d:", head_shifts[s]);
-		CW_TEST_PRINT_TEST_RESULT (dequeue_failure, n);
-
-		//cte->expect_eq_int_errors_only(cte, );
-		capacity_failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "capacity2: capacity @ shift=%d:", head_shifts[s]);
-		CW_TEST_PRINT_TEST_RESULT (capacity_failure, n);
+		cte->expect_eq_int(cte, false, enqueue_failure, "capacity2: enqueue  @ shift=%d:", head_shifts[s]);
+		cte->expect_eq_int(cte, false, dequeue_failure, "capacity2: dequeue  @ shift=%d:", head_shifts[s]);
+		cte->expect_eq_int(cte, false, capacity_failure, "capacity2: capacity @ shift=%d:", head_shifts[s]);
 
 
 		s++;
@@ -1107,15 +1018,8 @@ int test_cw_tq_wait_for_level_internal(cw_test_executor_t * cte)
 		cw_gen_stop(gen);
 		cw_gen_delete(&gen);
 
-		//cte->expect_eq_int_errors_only(cte, );
-		wait_failure ? cte->stats->failures++ : cte->stats->successes++;
-		int n = fprintf(out_file, MSG_PREFIX "wait for level: wait @ level=%d:", level);
-		CW_TEST_PRINT_TEST_RESULT (wait_failure, n);
-
-		//cte->expect_eq_int_errors_only(cte, );
-		diff_failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "wait for level: diff @ level=%d:", level);
-		CW_TEST_PRINT_TEST_RESULT (diff_failure, n);
+		cte->expect_eq_int(cte, false, wait_failure, "wait for level: wait @ level=%d:", level);
+		cte->expect_eq_int(cte, false, diff_failure, "wait for level: diff @ level=%d:", level);
 	}
 
 
@@ -1141,8 +1045,8 @@ int test_cw_tq_operations_1(cw_test_executor_t * cte)
 	gen_setup(cte, &gen);
 
 
-	int l = 0;         /* Measured length of tone queue. */
-	int expected = 0;  /* Expected length of tone queue. */
+	int readback_length = 0;         /* Measured length of tone queue. */
+	int expected_length = 0;  /* Expected length of tone queue. */
 
 	int f_min, f_max;
 
@@ -1167,12 +1071,8 @@ int test_cw_tq_operations_1(cw_test_executor_t * cte)
 	int f = f_min;
 	cw_tone_t tone;
 	CW_TONE_INIT(&tone, f, duration, CW_SLOPE_MODE_NO_SLOPES);
-	bool failure = !cw_tq_enqueue_internal(gen->tq, &tone);
-	//cte->expect_eq_int_errors_only(cte, );
-	failure ? cte->stats->failures++ : cte->stats->successes++;
-	int n = fprintf(out_file, MSG_PREFIX "cw_tq_enqueue_internal():");
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
-
+	int cwret = cw_tq_enqueue_internal(gen->tq, &tone);
+	cte->expect_eq_int(cte, CW_SUCCESS, cwret, "cw_tq_enqueue_internal()");
 
 	/* This is to make sure that rest of tones is enqueued when
 	   the first tone is being dequeued. */
@@ -1186,15 +1086,9 @@ int test_cw_tq_operations_1(cw_test_executor_t * cte)
 
 		/* Monitor length of a queue as it is filled - before
 		   adding a new tone. */
-		l = cw_tq_length_internal(gen->tq);
-		expected = (i - 1);
-		failure = l != expected;
-		//cte->expect_eq_int_errors_only(cte, );
-
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "cw_tq_length_internal(): pre (#%02d):", i);
-		// n = printf("libcw: cw_tq_length_internal(): pre-queue: expected %d != result %d:", expected, l);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		readback_length = cw_tq_length_internal(gen->tq);
+		expected_length = (i - 1);
+		cte->expect_eq_int_errors_only(cte, readback_length, expected_length, "cw_tq_length_internal(): pre-enqueue (#%02d):", i);
 
 
 		/* Add a tone to queue. All frequencies should be
@@ -1202,27 +1096,15 @@ int test_cw_tq_operations_1(cw_test_executor_t * cte)
 		   error. */
 		f = f_min + i * delta_f;
 		CW_TONE_INIT(&tone, f, duration, CW_SLOPE_MODE_NO_SLOPES);
-		failure = !cw_tq_enqueue_internal(gen->tq, &tone);
-		//cte->expect_eq_int_errors_only(cte, );
-
-		//cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "cw_tq_enqueue_internal():");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-
+		cwret = cw_tq_enqueue_internal(gen->tq, &tone);
+		cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "cw_tq_enqueue_internal(): enqueue (#%02d)", i);
 
 
 		/* Monitor length of a queue as it is filled - after
 		   adding a new tone. */
-		l = cw_tq_length_internal(gen->tq);
-		expected = (i - 1) + 1;
-		failure = l != expected;
-		//cte->expect_eq_int_errors_only(cte, );
-
-		//cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "cw_tq_length_internal(): post (#%02d):", i);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		readback_length = cw_tq_length_internal(gen->tq);
+		expected_length = (i - 1) + 1;
+		cte->expect_eq_int_errors_only(cte, expected_length, readback_length, "cw_tq_length_internal(): post-enqueue (#%02d):", i);
 	}
 
 
@@ -1239,38 +1121,20 @@ int test_cw_tq_operations_1(cw_test_executor_t * cte)
 	for (int i = 1; i < N; i++) {
 #if 0
 		/* Monitor length of a queue as it is emptied - before dequeueing. */
-		l = cw_tq_length_internal(gen->tq);
-		expected = N - i;
-		failure = l != expected;
-		//cte->expect_eq_int_errors_only(cte, );
-
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, MSG_PREFIX "cw_tq_length_internal(): pre (#%02d):", i);
-		// n = printf("libcw: cw_tq_length_internal(): pre-dequeue:  expected %d != result %d: failure\n", expected, l);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		readback_length = cw_tq_length_internal(gen->tq);
+		expected_length = N - i;
+		cte->expect_eq_int_errors_only(cte, expected_length, readback_length, "cw_tq_length_internal(): pre-enqueue (#%02d):", i);
 
 
 		/* Wait for each of N tones to be dequeued. */
-		failure = !cw_wait_for_tone();
-		//cte->expect_eq_int_errors_only(cte, );
-
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = fprintf(out_file, "libcw: cw_wait_for_tone():");
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		cwret = cw_wait_for_tone();
+		cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "libcw: cw_wait_for_tone()");
 
 
 		/* Monitor length of a queue as it is emptied - after dequeueing. */
-		l = cw_tq_length_internal();
-		expected = N - i - 1;
-		//printf("libcw: cw_tq_length_internal(): post: l = %d\n", l);
-		failure = l != expected;
-		//cte->expect_eq_int_errors_only(cte, );
-
-		//cte->expect_eq_int_errors_only(cte, );
-		failure ? cte->stats->failures++ : cte->stats->successes++;
-		n = printf("libcw: cw_tq_length_internal(): post (#%02d):", i);
-		// n = printf("libcw: cw_tq_length_internal(): post-dequeue: expected %d != result %d: failure\n", expected, l);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		readback_length = cw_tq_length_internal();
+		expected_length = N - i - 1;
+		cte->expect_eq_int_errors_only(cte, expected_length, readback_length, "libcw: cw_tq_length_internal(): post-dequeue: readback length = %d\n", readback_length);
 #endif
 	}
 
@@ -1279,31 +1143,23 @@ int test_cw_tq_operations_1(cw_test_executor_t * cte)
 	/* Test 2: fill a queue, but this time don't wait for each
 	   tone separately, but wait for a whole queue to become
 	   empty. */
-	failure = false;
+	bool failure = false;
 	f = 0;
 	for (int i = 0; i < N; i++) {
 		f = f_min + i * delta_f;
 		CW_TONE_INIT(&tone, f, duration, CW_SLOPE_MODE_NO_SLOPES);
-		if (!cw_tq_enqueue_internal(gen->tq, &tone)) {
-			//cte->expect_eq_int_errors_only(cte, );
+		cwret = cw_tq_enqueue_internal(gen->tq, &tone);
+		if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "cw_tq_enqueue_internal(%08d, %04d):", duration, f)) {
 			failure = true;
 			break;
 		}
 	}
-
-	//cte->expect_eq_int_errors_only(cte, );
-	failure ? cte->stats->failures++ : cte->stats->successes++;
-	n = fprintf(out_file, MSG_PREFIX "cw_tq_enqueue_internal(%08d, %04d):", duration, f);
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
+	cte->expect_eq_int(cte, false, failure, "cw_tq_enqueue_internal(%08d, %04d):", duration, f);
 
 
+	cwret = cw_tq_wait_for_level_internal(gen->tq, 0);
+	cte->expect_eq_int(cte, CW_SUCCESS, cwret, "cw_tq_wait_for_level_internal(0)");
 
-	failure = !cw_tq_wait_for_level_internal(gen->tq, 0);
-	//cte->expect_eq_int_errors_only(cte, );
-
-	failure ? cte->stats->failures++ : cte->stats->successes++;
-	n = fprintf(out_file, MSG_PREFIX "cw_tq_wait_for_level_internal():");
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
 
 	gen_destroy(&gen);
 
@@ -1372,19 +1228,11 @@ int test_cw_tq_operations_2(cw_test_executor_t * cte)
 	}
 
 
-	//cte->expect_eq_int_errors_only(cte, );
-	queue_failure ? cte->stats->failures++ : cte->stats->successes++;
-	int n = fprintf(out_file, MSG_PREFIX "cw_tq_enqueue_internal():");
-	CW_TEST_PRINT_TEST_RESULT (queue_failure, n);
+	cte->expect_eq_int(cte, false, queue_failure, "cw_tq_enqueue_internal():");
+	cte->expect_eq_int(cte, false, wait_failure, "cw_tq_wait_for_level_internal(A):");
 
 
-	//cte->expect_eq_int_errors_only(cte, );
-	wait_failure ? cte->stats->failures++ : cte->stats->successes++;
-	n = fprintf(out_file, MSG_PREFIX "cw_tq_wait_for_level_internal(A):");
-	CW_TEST_PRINT_TEST_RESULT (wait_failure, n);
-
-
-	n = fprintf(out_file, MSG_PREFIX "cw_tq_wait_for_level_internal(B):");
+	int n = fprintf(out_file, MSG_PREFIX "cw_tq_wait_for_level_internal(B):");
 	fflush(out_file);
 	bool wait_tq_failure = !cw_tq_wait_for_level_internal(gen->tq, 0);
 	//cte->expect_eq_int_errors_only(cte, );
