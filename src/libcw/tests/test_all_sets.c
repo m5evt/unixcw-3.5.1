@@ -56,9 +56,11 @@ cw_test_function_t cw_unit_tests_tq[] = {
 	test_cw_tq_length_internal,
 	test_cw_tq_prev_index_internal,
 	test_cw_tq_next_index_internal,
+#if 0
 	test_cw_tq_callback,
 	test_cw_tq_operations_1,
 	test_cw_tq_operations_2,
+#endif
 	test_cw_tq_operations_3,
 
 	NULL
