@@ -462,6 +462,23 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, struct
 
 	}
 
+	/*
+	  This test function will be called many times so success
+	  counters may go over a thousand, but without these expects
+	  here the whole test of receiver would end with only of few
+	  success counter hits. Maybe we should somehow move the calls
+	  up the call chain.
+	*/
+	cte->expect_eq_int(cte, false, begin_end_failure, "Signalling begin and end of mark");
+	cte->expect_eq_int(cte, false, buffer_length_failure, "Getting length of representation buffer");
+	cte->expect_eq_int(cte, false, poll_representation_failure, "Polling representation");
+	cte->expect_eq_int(cte, false, match_representation_failure, "Representation match");
+	cte->expect_eq_int(cte, false, error_representation_failure, "Representation 'is error'");
+	cte->expect_eq_int(cte, false, word_representation_failure, "Representation 'is word'");
+	cte->expect_eq_int(cte, false, poll_character_failure, "Polling character");
+	cte->expect_eq_int(cte, false, match_character_failure, "Character match");
+	cte->expect_eq_int(cte, false, empty_failure, "Empty representation buffer");
+
 	return begin_end_failure
 		|| buffer_length_failure
 		|| poll_representation_failure || match_representation_failure || error_representation_failure || word_representation_failure
@@ -1217,9 +1234,9 @@ int test_cw_rec_parameter_getters_setters_1(cw_test_executor_t * cte)
 		{ NULL,                     NULL,                  NULL,                           0,            0,  NULL            }
 	};
 
-	bool get_failure = true;
-	bool set_min_failure = true;
-	bool set_max_failure = true;
+	bool get_failure = false;
+	bool set_min_failure = false;
+	bool set_max_failure = false;
 	bool set_ok_failure = false;
 
 
