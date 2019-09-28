@@ -200,7 +200,7 @@ int test_cw_usecs_to_timespec_internal(cw_test_executor_t * cte)
 		fprintf(stderr, "input = %d usecs, output = %ld.%ld\n",
 			input_data[i].input, (long) result.tv_sec, (long) result.tv_nsec);
 #endif
-		if (cte->expect_eq_int_errors_only(cte, input_data[i].t.tv_sec, result.tv_sec, "libcw:utils:usecs to timespec: test %d: %ld [s] != %ld [s]\n", i, result.tv_sec, input_data[i].t.tv_sec)) {
+		if (!cte->expect_eq_int_errors_only(cte, input_data[i].t.tv_sec, result.tv_sec, "libcw:utils:usecs to timespec: test %d: %ld [s] != %ld [s]\n", i, result.tv_sec, input_data[i].t.tv_sec)) {
 			failure = true;
 			break;
 		}

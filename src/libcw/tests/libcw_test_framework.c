@@ -563,6 +563,7 @@ void cw_test_init(cw_test_executor_t * self, FILE * stdout, FILE * stderr, const
 	gettimeofday(&tv, NULL);
 	const suseconds_t seed = tv.tv_usec;
 	fprintf(self->stdout, "%sRandom seed = %lu\n", self->msg_prefix, seed);
+	fflush(self->stdout);
 	srand(seed);
 }
 
@@ -661,6 +662,7 @@ void cw_test_log_info(struct cw_test_executor_t * self, const char * fmt, ...)
 	va_end(ap);
 
 	fprintf(self->stdout, "[II] %s: %s", self->msg_prefix, va_buf);
+	fflush(self->stdout);
 
 	return;
 }
@@ -682,6 +684,7 @@ void cw_test_log_info_cont(struct cw_test_executor_t * self, const char * fmt, .
 	va_end(ap);
 
 	fprintf(self->stdout, "%s", va_buf);
+	fflush(self->stdout);
 
 	return;
 }
@@ -703,6 +706,7 @@ void cw_test_log_err(struct cw_test_executor_t * self, const char * fmt, ...)
 	va_end(ap);
 
 	fprintf(self->stdout, "[EE] %s: %s", self->msg_prefix, va_buf);
+	fflush(self->stdout);
 
 	return;
 }

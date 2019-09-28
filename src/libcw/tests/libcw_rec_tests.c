@@ -99,7 +99,7 @@ int test_cw_rec_identify_mark_internal(cw_test_executor_t * cte)
 		int len_step = (rec->dot_len_max - rec->dot_len_min) / 10;
 		for (int len = rec->dot_len_min; len < rec->dot_len_max; len += len_step) {
 			const int cwret = cw_rec_identify_mark_internal(rec, len, &representation);
-			if (cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "identify mark @ %02d [wpm]: failed to identify dot for len = %d [us]\n", speed, len)) {
+			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "identify mark @ %02d [wpm]: failed to identify dot for len = %d [us]\n", speed, len)) {
 				failure = true;
 				break;
 			}
@@ -231,18 +231,18 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, struct
 {
 	struct timeval tv = { 0, 0 };
 
-	bool begin_end_failure = true;
+	bool begin_end_failure = false;
 
-	bool buffer_length_failure = true;
+	bool buffer_length_failure = false;
 
-	bool poll_representation_failure = true;
-	bool match_representation_failure = true;
-	bool error_representation_failure = true;
-	bool word_representation_failure = true;
+	bool poll_representation_failure = false;
+	bool match_representation_failure = false;
+	bool error_representation_failure = false;
+	bool word_representation_failure = false;
 
-	bool poll_character_failure = true;
-	bool match_character_failure = true;
-	bool empty_failure = true;
+	bool poll_character_failure = false;
+	bool match_character_failure = false;
+	bool empty_failure = false;
 
 	for (int i = 0; data[i].representation; i++) {
 
@@ -1247,11 +1247,11 @@ int test_cw_rec_parameter_getters_setters_1(cw_test_executor_t * cte)
 		errno = 0;
 		value = test_data[i].min - 1;
 		status = test_data[i].set_new_value(rec, value);
-		if (cte->expect_eq_int_errors_only(cte, CW_FAILURE, status, "get/set param 1: setting %s value below minimum succeeded, minimum is %d, attempted value is %d\n", test_data[i].name, test_data[i].min, value)) {
+		if (!cte->expect_eq_int_errors_only(cte, CW_FAILURE, status, "get/set param 1: setting %s value below minimum succeeded, minimum is %d, attempted value is %d\n", test_data[i].name, test_data[i].min, value)) {
 			set_min_failure = true;
 			break;
 		}
-		if (cte->expect_eq_int_errors_only(cte, EINVAL, errno, "get/set param 1: setting %s value below minimum didn't result in EINVAL, minimum is %d, attempted value is %d\n", test_data[i].name, test_data[i].min, value)) {
+		if (!cte->expect_eq_int_errors_only(cte, EINVAL, errno, "get/set param 1: setting %s value below minimum didn't result in EINVAL, minimum is %d, attempted value is %d\n", test_data[i].name, test_data[i].min, value)) {
 			set_min_failure = true;
 			break;
 		}

@@ -34,7 +34,7 @@ int test_cw_gen_new_delete(cw_test_executor_t * cte)
 	/* Arbitrary number of calls to a set of tested functions. */
 	int max = 100;
 
-	bool failure = true;
+	bool failure = false;
 	cw_gen_t * gen = NULL;
 
 	/* new() + delete() */
@@ -90,6 +90,7 @@ int test_cw_gen_new_delete(cw_test_executor_t * cte)
 
 	/* new() + start() + delete() (skipping stop() on purpose). */
 	gen = NULL;
+	failure = false;
 	for (int i = 0; i < max; i++) {
 		fprintf(stderr, MSG_PREFIX "new/start/delete: generator test 2/4, loop #%d/%d\n", i, max);
 
@@ -106,7 +107,7 @@ int test_cw_gen_new_delete(cw_test_executor_t * cte)
 		}
 
 		cw_gen_delete(&gen);
-		if (cte->expect_null_pointer_errors_only(cte, gen, "new/start/delete: delete() didn't set the pointer to NULL (loop #%d)", i)) {
+		if (!cte->expect_null_pointer_errors_only(cte, gen, "new/start/delete: delete() didn't set the pointer to NULL (loop #%d)", i)) {
 			failure = true;
 			break;
 		}
@@ -123,6 +124,7 @@ int test_cw_gen_new_delete(cw_test_executor_t * cte)
 	/* new() + stop() + delete() (skipping start() on purpose). */
 	fprintf(stderr, MSG_PREFIX "new/stop/delete: generator test 3/4\n");
 	gen = NULL;
+	failure = false;
 	for (int i = 0; i < max; i++) {
 		gen = cw_gen_new(CW_AUDIO_NULL, NULL);
 		if (!cte->expect_valid_pointer_errors_only(cte, gen, "new/stop/delete: failed to initialize generator (loop #%d)", i)) {
@@ -152,6 +154,7 @@ int test_cw_gen_new_delete(cw_test_executor_t * cte)
 
 	/* new() + start() + stop() + delete() */
 	gen = NULL;
+	failure = false;
 	for (int i = 0; i < max; i++) {
 		fprintf(stderr, MSG_PREFIX "new/start/stop/delete: generator test 4/4, loop #%d/%d\n", i, max);
 
