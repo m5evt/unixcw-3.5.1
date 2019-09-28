@@ -24,21 +24,6 @@
    everyone works in X. */
 #define default_cw_test_print_n_chars 75
 
-/* Notice that failure status string ("FAIL!") is visually very
-   different than "success". This makes finding failed tests
-   easier. */
-#define CW_TEST_PRINT_TEST_RESULT(m_failure, m_n) {			\
-		printf("%*s\n", (default_cw_test_print_n_chars - m_n), m_failure ? "\x1B[7m FAIL! \x1B[0m" : "success"); \
-	}
-
-#define CW_TEST_PRINT_FUNCTION_COMPLETED(m_func_name) {			\
-		int m = printf("libcw: %s(): ", m_func_name);		\
-		printf("%*s\n\n", default_cw_test_print_n_chars - m, "completed");	\
-	}
-
-
-
-
 #define LIBCW_TEST_ALL_MODULES          "gtkro"   /* generator, tone queue, key, receiver, other. */
 #define LIBCW_TEST_ALL_SOUND_SYSTEMS    "ncoap"   /* null, console, oss, alsa, pulseaudio. */
 
@@ -93,8 +78,17 @@ typedef struct cw_test_executor_t {
 	char tested_sound_systems[sizeof (LIBCW_TEST_ALL_SOUND_SYSTEMS)];
 	char tested_modules[sizeof (LIBCW_TEST_ALL_MODULES)];
 
+
 	bool (* expect_eq_int)(struct cw_test_executor_t * self, int expected_value, int received_value, const char * fmt, ...) __attribute__ ((format (printf, 4, 5)));
 	bool (* expect_eq_int_errors_only)(struct cw_test_executor_t * self, int expected_value, int received_value, const char * fmt, ...) __attribute__ ((format (printf, 4, 5)));
+
+	bool (* expect_null_pointer)(struct cw_test_executor_t * self, const void * pointer, const char * fmt, ...) __attribute__ ((format (printf, 3, 4)));
+	bool (* expect_null_pointer_errors_only)(struct cw_test_executor_t * self, const void * pointer, const char * fmt, ...) __attribute__ ((format (printf, 3, 4)));
+
+	bool (* expect_valid_pointer)(struct cw_test_executor_t * self, const void * pointer, const char * fmt, ...) __attribute__ ((format (printf, 3, 4)));
+	bool (* expect_valid_pointer_errors_only)(struct cw_test_executor_t * self, const void * pointer, const char * fmt, ...) __attribute__ ((format (printf, 3, 4)));
+
+
 	void (* print_test_header)(struct cw_test_executor_t * self, const char * text);
 	void (* print_test_footer)(struct cw_test_executor_t * self, const char * text);
 	int (* process_args)(struct cw_test_executor_t * self, int argc, char * const argv[]);

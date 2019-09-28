@@ -49,16 +49,14 @@ int test_cw_debug_flags_internal(cw_test_executor_t * cte)
 		cw_debug_set_flags(&cw_debug_object, i);
 
 		set_failure = !((&cw_debug_object)->flags & i);
-		// cte->expect_eq_int_errors_only(cte, );
-		if (set_failure) {
-			fprintf(out_file, MSG_PREFIX "failed to set debug flag %"PRIu32"\n", i);
+		if (!cte->expect_eq_int_errors_only(cte, false, set_failure, "failed to set debug flag %"PRIu32"\n", i)) {
+			set_failure = true;
 			break;
 		}
 
 		get_failure = (cw_debug_get_flags(&cw_debug_object) != i);
-		// cte->expect_eq_int_errors_only(cte, );
-		if (get_failure) {
-			fprintf(out_file, MSG_PREFIX "failed to get debug flag %"PRIu32"\n", i);
+		if (!cte->expect_eq_int_errors_only(cte, false, get_failure, "failed to get debug flag %"PRIu32"\n", i)) {
+			get_failure = true;
 			break;
 		}
 	}

@@ -616,16 +616,9 @@ void test_tone_queue_callback(cw_test_executor_t * executor)
 		   but for a bit larger as well. */
 		int level = i <= 5 ? i : 10 * i;
 
-		int rv = cw_register_tone_queue_low_callback(cw_test_helper_tq_callback, (void *) &cw_test_tone_queue_callback_data, level);
-		executor->expect_eq_int(executor, );
-		bool failure = rv == CW_FAILURE;
+		int cwret = cw_register_tone_queue_low_callback(cw_test_helper_tq_callback, (void *) &cw_test_tone_queue_callback_data, level);
+		executor->expect_eq_int(executor, CW_SUCCESS, cwret, "cw_register_tone_queue_low_callback(): threshold = %d:", level);
 		sleep(1);
-
-		//cte->expect_eq_int_errors_only(cte, );
-		failure ? stats->failures++ : stats->successes++;
-		int n = printf(MSG_PREFIX "cw_register_tone_queue_low_callback(): threshold = %d:", level);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
-
 
 
 		/* Add a lot of tones to tone queue. "a lot" means three times more than a value of trigger level. */
@@ -657,13 +650,8 @@ void test_tone_queue_callback(cw_test_executor_t * executor)
 		   that there may be a difference of 1 between these
 		   two values. */
 		int diff = level - cw_test_tone_queue_callback_data;
-		executor->expect_eq_int(executor, );
-		failure = diff > 1;
-		//cte->expect_eq_int_errors_only(cte, );
-
-		failure ? stats->failures++ : stats->successes++;
-		n = printf(MSG_PREFIX "tone queue callback:           level at callback = %d:", cw_test_tone_queue_callback_data);
-		CW_TEST_PRINT_TEST_RESULT (failure, n);
+		const bool failure = diff > 1;
+		cte->expect_eq_int_errors_only(cte, false, failure, "tone queue callback:           level at callback = %d, diff = %d", cw_test_tone_queue_callback_data, diff);
 
 		cw_reset_tone_queue();
 	}

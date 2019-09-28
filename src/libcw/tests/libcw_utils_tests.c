@@ -59,11 +59,9 @@ int test_cw_timestamp_compare_internal(cw_test_executor_t * cte)
 		later_timestamp.tv_sec = earlier_timestamp.tv_sec + (expected_deltas[i] / CW_USECS_PER_SEC);
 		later_timestamp.tv_usec = earlier_timestamp.tv_usec + (expected_deltas[i] % CW_USECS_PER_SEC);
 
-		int delta = cw_timestamp_compare_internal(&earlier_timestamp, &later_timestamp);
-		failure = (delta != expected_deltas[i]);
-		//cte->expect_eq_int_errors_only(cte, );
-		if (failure) {
-			fprintf(out_file, "libcw:utils:compare timestamp: test #%d: unexpected delta: %d != %d\n", i, delta, expected_deltas[i]);
+		const int delta = cw_timestamp_compare_internal(&earlier_timestamp, &later_timestamp);
+		if (!cte->expect_eq_int_errors_only(cte, expected_deltas[i], delta, "libcw:utils:compare timestamp: test #%d: unexpected delta: %d != %d\n", i, delta, expected_deltas[i])) {
+			failure = true;
 			break;
 		}
 
@@ -88,11 +86,7 @@ int test_cw_timestamp_validate_internal(cw_test_executor_t * cte)
 	struct timeval out_timestamp;
 	struct timeval in_timestamp;
 	struct timeval ref_timestamp; /* Reference timestamp. */
-	int rv = 0;
-
-	bool failure = true;
-	int n = 0;
-
+	int cwret = CW_FAILURE;
 
 
 
@@ -102,12 +96,8 @@ int test_cw_timestamp_validate_internal(cw_test_executor_t * cte)
 
 	cw_assert (!gettimeofday(&ref_timestamp, NULL), "libcw:utils:validate timestamp 1: failed to get reference time");
 
-	rv = cw_timestamp_validate_internal(&out_timestamp, NULL);
-	failure = (CW_SUCCESS != rv);
-	//cte->expect_eq_int_errors_only(cte, );
-	failure ? cte->stats->failures++ : cte->stats->successes++;
-	n = fprintf(out_file, "libcw:utils:validate timestamp:current timestamp:");
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
+	cwret = cw_timestamp_validate_internal(&out_timestamp, NULL);
+	cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "libcw:utils:validate timestamp:current timestamp:");
 
 #if 0
 	fprintf(stderr, "\nINFO: delay in getting timestamp is %d microseconds\n",
@@ -123,24 +113,10 @@ int test_cw_timestamp_validate_internal(cw_test_executor_t * cte)
 	in_timestamp.tv_sec = 1234;
 	in_timestamp.tv_usec = 987;
 
-	rv = cw_timestamp_validate_internal(&out_timestamp, &in_timestamp);
-	failure = (CW_SUCCESS != rv)
-		|| (out_timestamp.tv_sec != in_timestamp.tv_sec)
-		|| (out_timestamp.tv_usec != in_timestamp.tv_usec);
-	//cte->expect_eq_int_errors_only(cte, );
-
-	if (failure) {
-		fprintf(out_file, "libcw:utils:validate timestamp:validate and copy:"
-			"rv = %d,"
-			"%d / %d,"
-			"%d / %d",
-			rv,
-			(int) out_timestamp.tv_sec, (int) in_timestamp.tv_sec,
-			(int) out_timestamp.tv_usec, (int) in_timestamp.tv_usec);
-	}
-	failure ? cte->stats->failures++ : cte->stats->successes++;
-	n = fprintf(out_file, "libcw:utils:validate timestamp:validate and copy:");
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
+	cwret = cw_timestamp_validate_internal(&out_timestamp, &in_timestamp);
+	cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "libcw:utils:validate timestamp:validate and copy (cwret):");
+	cte->expect_eq_int_errors_only(cte, in_timestamp.tv_sec, out_timestamp.tv_sec, "libcw:utils:validate timestamp:validate and copy (copy sec):");
+	cte->expect_eq_int_errors_only(cte, in_timestamp.tv_usec, out_timestamp.tv_usec, "libcw:utils:validate timestamp:validate and copy (copy usec):");
 
 
 
@@ -151,16 +127,9 @@ int test_cw_timestamp_validate_internal(cw_test_executor_t * cte)
 	in_timestamp.tv_sec = -1;
 	in_timestamp.tv_usec = 987;
 
-	rv = cw_timestamp_validate_internal(&out_timestamp, &in_timestamp);
-	failure = (rv == CW_SUCCESS) || (errno != EINVAL);
-	//cte->expect_eq_int_errors_only(cte, );
-	if (failure) {
-		fprintf(out_file, "libcw:utils:validate timestamp:invalid seconds: rv==CW_FAILURE = %d, errno==EINVAL = %d\n", rv == CW_FAILURE, errno == EINVAL);
-	}
-	failure ? cte->stats->failures++ : cte->stats->successes++;
-	n = fprintf(out_file, "libcw:utils:validate timestamp:invalid seconds:");
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
-
+	cwret = cw_timestamp_validate_internal(&out_timestamp, &in_timestamp);
+	cte->expect_eq_int_errors_only(cte, CW_FAILURE, cwret, "libcw:utils:validate timestamp:invalid seconds (cwret)");
+	cte->expect_eq_int_errors_only(cte, EINVAL, errno, "libcw:utils:validate timestamp:invalid seconds (errno)");
 
 
 
@@ -170,17 +139,9 @@ int test_cw_timestamp_validate_internal(cw_test_executor_t * cte)
 	in_timestamp.tv_sec = 123;
 	in_timestamp.tv_usec = CW_USECS_PER_SEC + 1;
 
-	rv = cw_timestamp_validate_internal(&out_timestamp, &in_timestamp);
-	failure = (rv == CW_SUCCESS)
-		|| (errno != EINVAL);
-	//cte->expect_eq_int_errors_only(cte, );
-	if (failure) {
-		fprintf(out_file, "libcw:utils:validate timestamp:invalid milliseconds: rv==CW_FAILURE = %d, errno==EINVAL = %d\n", rv == CW_FAILURE, errno == EINVAL);
-	}
-	failure ? cte->stats->failures++ : cte->stats->successes++;
-	n = fprintf(out_file, "libcw:utils:validate timestamp:invalid milliseconds:");
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
-
+	cwret = cw_timestamp_validate_internal(&out_timestamp, &in_timestamp);
+	cte->expect_eq_int_errors_only(cte, CW_FAILURE, cwret, "libcw:utils:validate timestamp:invalid milliseconds (cwret)");
+	cte->expect_eq_int_errors_only(cte, EINVAL, errno, "libcw:utils:validate timestamp:invalid milliseconds (cwret)");
 
 
 
@@ -190,15 +151,9 @@ int test_cw_timestamp_validate_internal(cw_test_executor_t * cte)
 	in_timestamp.tv_sec = 123;
 	in_timestamp.tv_usec = -1;
 
-	rv = cw_timestamp_validate_internal(&out_timestamp, &in_timestamp);
-	failure = (rv == CW_SUCCESS) || (errno != EINVAL);
-	//cte->expect_eq_int_errors_only(cte, );
-	if (failure) {
-		fprintf(out_file, "libcw:utils:validate timestamp:negative milliseconds: rv==CW_FAILURE = %d, errno==EINVAL = %d\n", rv == CW_FAILURE, errno == EINVAL);
-	}
-	failure ? cte->stats->failures++ : cte->stats->successes++;
-	n = fprintf(out_file, "libcw:utils:validate timestamp:negative milliseconds:");
-	CW_TEST_PRINT_TEST_RESULT (failure, n);
+	cwret = cw_timestamp_validate_internal(&out_timestamp, &in_timestamp);
+	cte->expect_eq_int_errors_only(cte, CW_FAILURE, cwret, "libcw:utils:validate timestamp:negative milliseconds (cwret)");
+	cte->expect_eq_int_errors_only(cte, EINVAL, errno, "libcw:utils:validate timestamp:negative milliseconds (cwret)");
 
 
 	return 0;
@@ -236,17 +191,12 @@ int test_cw_usecs_to_timespec_internal(cw_test_executor_t * cte)
 		fprintf(stderr, "input = %d usecs, output = %ld.%ld\n",
 			input_data[i].input, (long) result.tv_sec, (long) result.tv_nsec);
 #endif
-		failure = (result.tv_sec != input_data[i].t.tv_sec);
-		//cte->expect_eq_int_errors_only(cte, );
-		if (failure) {
-			fprintf(out_file, "libcw:utils:usecs to timespec: test %d: %ld [s] != %ld [s]\n", i, result.tv_sec, input_data[i].t.tv_sec);
+		if (cte->expect_eq_int_errors_only(cte, input_data[i].t.tv_sec, result.tv_sec, "libcw:utils:usecs to timespec: test %d: %ld [s] != %ld [s]\n", i, result.tv_sec, input_data[i].t.tv_sec)) {
+			failure = true;
 			break;
 		}
-
-		failure = (result.tv_nsec != input_data[i].t.tv_nsec);
-		//cte->expect_eq_int_errors_only(cte, );
-		if (failure) {
-			fprintf(out_file, "libcw:utils:usecs to timespec: test %d: %ld [ns] != %ld [ns]\n", i, result.tv_nsec, input_data[i].t.tv_nsec);
+		if (!cte->expect_eq_int_errors_only(cte, input_data[i].t.tv_nsec, result.tv_nsec, "libcw:utils:usecs to timespec: test %d: %ld [ns] != %ld [ns]\n", i, result.tv_nsec, input_data[i].t.tv_nsec)) {
+			failure = true;
 			break;
 		}
 
@@ -293,13 +243,10 @@ int test_cw_version_internal(cw_test_executor_t * cte)
 
 	for (int i = 0; ; i++, str = NULL) {
 
-		char *token = strtok(str, ":");
+		char * token = strtok(str, ":");
 		if (token == NULL) {
-			failure = (i != 3);
-			//cte->expect_eq_int_errors_only(cte, );
-			if (failure) {
-				fprintf(out_file, "libcw:utils:version: stopping at token %d\n", i);
-			}
+			/* We should end tokenizing process after 3 valid tokens, no more and no less. */
+			cte->expect_eq_int(cte, 3, i, "libcw:utils:version: stopping at token %d\n", i);
 			break;
 		}
 
@@ -311,19 +258,13 @@ int test_cw_version_internal(cw_test_executor_t * cte)
 			a = atoi(token);
 		} else {
 			failure = true;
-			//cte->expect_eq_int_errors_only(cte, );
-			fprintf(out_file, "libcw:utils:version: too many tokens in \"%s\"\n", LIBCW_VERSION);
+			cte->expect_eq_int_errors_only(cte, false, failure, "libcw:utils:version: too many tokens in '%s\': %d\n", LIBCW_VERSION, i);
 		}
 	}
 
-
-	failure = (current != c) || (revision != r) || (age != a);
-	//cte->expect_eq_int_errors_only(cte, );
-	if (failure) {
-		fprintf(out_file, "libcw:utils:version: current: %d / %d; revision: %d / %d; age: %d / %d\n", current, c, revision, r, age, a);
-	}
-
-	cte->expect_eq_int(cte, false, failure, "libcw:utils:version: %d:%d:%d:", c, r, a);
+	cte->expect_eq_int(cte, current, c, "libcw:utils:version: current: %d / %dn", current, c);
+	cte->expect_eq_int(cte, revision, r, "libcw:utils:version: revision: %d / %d", revision, r);
+	cte->expect_eq_int(cte, age, a, "libcw:utils:version: age: %d / %d", age, a);
 
 	return 0;
 }
@@ -341,12 +282,7 @@ int test_cw_license_internal(cw_test_executor_t * cte)
 	   prints the license to stdout, and that's it. */
 
 	cw_license();
-
-	//cte->expect_eq_int_errors_only(cte, );
-	false ? cte->stats->failures++ : cte->stats->successes++;
-	int n = fprintf(out_file, "libcw:utils:license:");
-	CW_TEST_PRINT_TEST_RESULT (false, n);
-
+	cte->expect_eq_int(cte, false, false, "libcw:utils:license:");
 
 	return 0;
 }
@@ -389,29 +325,14 @@ int test_cw_get_x_limits_internal(cw_test_executor_t * cte)
 
 	for (int i = 0; test_data[i].getter; i++) {
 
-		bool min_failure = true;
-		bool max_failure = true;
-
 		/* Get limits of a parameter. */
 		test_data[i].getter(&test_data[i].get_min, &test_data[i].get_max);
 
 		/* Test that limits are as expected (values received
 		   by function call match those defined in library's
 		   header file). */
-		min_failure = (test_data[i].get_min != test_data[i].min);
-		//cte->expect_eq_int_errors_only(cte, );
-		if (min_failure) {
-			fprintf(out_file, "libcw:utils:limits: failed to get correct minimum of %s\n", test_data[i].name);
-		}
-
-		max_failure = (test_data[i].get_max != test_data[i].max);
-		//cte->expect_eq_int_errors_only(cte, );
-		if (max_failure) {
-			fprintf(out_file, "libcw:utils:limits: failed to get correct maximum of %s\n", test_data[i].name);
-		}
-
-		cte->expect_eq_int(cte, false, min_failure, "libcw:utils:get min %s:", test_data[i].name);
-		cte->expect_eq_int(cte, false, max_failure, "libcw:utils:get max %s:", test_data[i].name);
+		cte->expect_eq_int(cte, test_data[i].get_min, test_data[i].min, "libcw:utils:get min %s:", test_data[i].name);
+		cte->expect_eq_int(cte, test_data[i].get_max, test_data[i].max, "libcw:utils:get max %s:", test_data[i].name);
 	}
 
 
