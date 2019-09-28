@@ -33,7 +33,7 @@ static void key_setup(cw_test_executor_t * cte, cw_key_t ** key, cw_gen_t ** gen
 		cte->log_err(cte, "Can't create key, stopping the test\n");
 		return;
 	}
-	cw_key_register_generator(*key, *gen);
+
 
 	*gen = cw_gen_new(cte->current_sound_system, NULL);
 
@@ -46,6 +46,7 @@ static void key_setup(cw_test_executor_t * cte, cw_key_t ** key, cw_gen_t ** gen
 		return;
 	}
 
+	cw_key_register_generator(*key, *gen);
 	cw_gen_reset_parameters_internal(*gen);
 	cw_gen_sync_parameters_internal(*gen);
 	cw_gen_set_speed(*gen, 30);
