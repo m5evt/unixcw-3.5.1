@@ -24,7 +24,7 @@
    everyone works in X. */
 #define default_cw_test_print_n_chars 75
 
-#define LIBCW_TEST_ALL_MODULES          "gtkro"   /* generator, tone queue, key, receiver, other. */
+#define LIBCW_TEST_ALL_TOPICS           "gtkro"   /* generator, tone queue, key, receiver, other. */
 #define LIBCW_TEST_ALL_SOUND_SYSTEMS    "ncoap"   /* null, console, oss, alsa, pulseaudio. */
 
 
@@ -33,15 +33,15 @@
 enum {
 	/* Explicitly stated values in this enum shall never
 	   change. */
-	LIBCW_MODULE_TQ      = 0,
-	LIBCW_MODULE_GEN     = 1,
-	LIBCW_MODULE_KEY     = 2,
-	LIBCW_MODULE_REC     = 3,
-	LIBCW_MODULE_DATA    = 4,
+	LIBCW_TEST_TOPIC_TQ      = 0,
+	LIBCW_TEST_TOPIC_GEN     = 1,
+	LIBCW_TEST_TOPIC_KEY     = 2,
+	LIBCW_TEST_TOPIC_REC     = 3,
+	LIBCW_TEST_TOPIC_DATA    = 4,
 
-	LIBCW_MODULE_OTHER,
+	LIBCW_TEST_TOPIC_OTHER,
 
-	LIBCW_MODULE_MAX
+	LIBCW_TEST_TOPIC_MAX
 };
 
 
@@ -73,10 +73,10 @@ typedef struct cw_test_executor_t {
 	cw_test_stats_t stats_alsa;
 	cw_test_stats_t stats_pa;
 	cw_test_stats_t * stats; /* Pointer to current stats. */
-	cw_test_stats_t stats2[CW_AUDIO_SOUNDCARD][LIBCW_MODULE_MAX];
+	cw_test_stats_t stats2[CW_AUDIO_SOUNDCARD][LIBCW_TEST_TOPIC_MAX];
 
 	char tested_sound_systems[sizeof (LIBCW_TEST_ALL_SOUND_SYSTEMS)];
-	char tested_modules[sizeof (LIBCW_TEST_ALL_MODULES)];
+	char tested_topics[sizeof (LIBCW_TEST_ALL_TOPICS)];
 
 
 	bool (* expect_eq_int)(struct cw_test_executor_t * self, int expected_value, int received_value, const char * fmt, ...) __attribute__ ((format (printf, 4, 5)));
@@ -119,7 +119,7 @@ typedef struct cw_test_executor_t {
 	*/
 	void (* log_err)(struct cw_test_executor_t * self, const char * fmt, ...) __attribute__ ((format (printf, 2, 3)));
 
-	bool (* should_test_module)(struct cw_test_executor_t * self, const char * module);
+	bool (* should_test_topic)(struct cw_test_executor_t * self, const char * topic);
 	bool (* should_test_sound_system)(struct cw_test_executor_t * self, const char * sound_system);
 } cw_test_executor_t;
 
@@ -132,9 +132,9 @@ void cw_test_print_help(const char *progname);
 
 typedef int (* cw_test_function_t)(cw_test_executor_t * cte);
 
-typedef int (* tester_fn)(cw_test_executor_t * executor);
+typedef int (* tester_fn)(cw_test_executor_t * cte);
 
-int cw_test_modules_with_sound_systems(cw_test_executor_t * executor, tester_fn test_modules_with_current_sound_system);
+int cw_test_topics_with_sound_systems(cw_test_executor_t * cte, tester_fn test_topics_with_current_sound_system);
 
 
 

@@ -64,46 +64,39 @@ int main(int argc, char *const argv[])
 	// cw_debug_set_flags(&cw_debug_object, CW_DEBUG_RECEIVE_STATES | CW_DEBUG_TONE_QUEUE | CW_DEBUG_GENERATOR | CW_DEBUG_KEYING);
 	// cw_debug_object.level = CW_DEBUG_DEBUG;
 
-#define CW_SYSTEMS_MAX 5
-	char sound_systems[CW_SYSTEMS_MAX + 1];
+	cw_test_executor_t cte;
+	cw_test_init(&cte, stdout, stderr, "simple gen test");
 
-	/* TODO: modules aren't necessary here. Make cw_test_process_args() accept modules==NULL. */
-#define CW_MODULES_MAX 5
-	char modules[CW_MODULES_MAX + 1];
-
-	cw_test_executor_t tests;
-	cw_test_init(&tests, stdout, stderr, "simple gen test");
-
-	if (!tests.process_args(&tests, argc, argv)) {
+	if (!cte.process_args(&cte, argc, argv)) {
 		cw_test_print_help(argv[0]);
 		exit(EXIT_FAILURE);
 	}
 
-	if (strstr(tests.tested_sound_systems, "n")) {
+	if (strstr(cte.tested_sound_systems, "n")) {
 		fprintf(stderr, "========================================\n");
 		fprintf(stderr, "libcw: testing with null output\n");
 		main_helper(CW_AUDIO_NULL,    "Null",        CW_DEFAULT_NULL_DEVICE,      cw_is_null_possible);
 	}
 
-	if (strstr(tests.tested_sound_systems, "c")) {
+	if (strstr(cte.tested_sound_systems, "c")) {
 		fprintf(stderr, "========================================\n");
 		fprintf(stderr, "libcw: testing with console output\n");
 		main_helper(CW_AUDIO_CONSOLE, "console",     CW_DEFAULT_CONSOLE_DEVICE,   cw_is_console_possible);
 	}
 
-	if (strstr(tests.tested_sound_systems, "o")) {
+	if (strstr(cte.tested_sound_systems, "o")) {
 		fprintf(stderr, "========================================\n");
 		fprintf(stderr, "libcw: testing with OSS output\n");
 		main_helper(CW_AUDIO_OSS,     "OSS",         CW_DEFAULT_OSS_DEVICE,       cw_is_oss_possible);
 	}
 
-	if (strstr(tests.tested_sound_systems, "a")) {
+	if (strstr(cte.tested_sound_systems, "a")) {
 		fprintf(stderr, "========================================\n");
 		fprintf(stderr, "libcw: testing with ALSA output\n");
 		main_helper(CW_AUDIO_ALSA,    "ALSA",        CW_DEFAULT_ALSA_DEVICE,      cw_is_alsa_possible);
 	}
 
-	if (strstr(tests.tested_sound_systems, "p")) {
+	if (strstr(cte.tested_sound_systems, "p")) {
 		fprintf(stderr, "========================================\n");
 		fprintf(stderr, "libcw: testing with PulseAudio output\n");
 		main_helper(CW_AUDIO_PA,      "PulseAudio",  CW_DEFAULT_PA_DEVICE,        cw_is_pa_possible);

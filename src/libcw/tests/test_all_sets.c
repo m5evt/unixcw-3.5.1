@@ -12,7 +12,7 @@
 
 cw_test_function_t cw_unit_tests_other_s[] = {
 
-	/* cw_utils module */
+	/* cw_utils topic */
 	test_cw_timestamp_compare_internal,
 	test_cw_timestamp_validate_internal,
 	test_cw_usecs_to_timespec_internal,
@@ -20,7 +20,7 @@ cw_test_function_t cw_unit_tests_other_s[] = {
 	test_cw_license_internal,
 	test_cw_get_x_limits_internal,
 
-	/* cw_data module */
+	/* cw_data topic */
 	test_cw_representation_to_hash_internal,
 	test_cw_representation_to_character_internal,
 	test_cw_representation_to_character_internal_speed,
@@ -30,7 +30,7 @@ cw_test_function_t cw_unit_tests_other_s[] = {
 	test_validate_character_and_string_internal,
 	test_validate_representation_internal,
 
-	/* cw_debug module */
+	/* cw_debug topic */
 	test_cw_debug_flags_internal,
 
 	NULL
@@ -39,7 +39,7 @@ cw_test_function_t cw_unit_tests_other_s[] = {
 
 
 /* Tests that are dependent on a sound system being configured.
-   Tone queue module functions */
+   Tone queue topic functions */
 cw_test_function_t cw_unit_tests_tq[] = {
 	test_cw_tq_test_capacity_1,
 	test_cw_tq_test_capacity_2,
@@ -70,7 +70,7 @@ cw_test_function_t cw_unit_tests_tq[] = {
 
 
 /* Tests that are dependent on a sound system being configured.
-   Generator module functions. */
+   Generator topic functions. */
 cw_test_function_t cw_unit_tests_gen[] = {
 	test_cw_gen_set_tone_slope,
 	test_cw_gen_tone_slope_shape_enums,
@@ -89,7 +89,7 @@ cw_test_function_t cw_unit_tests_gen[] = {
 
 
 
-/* 'key' module. */
+/* 'key' topic. */
 cw_test_function_t cw_unit_tests_key[] = {
 	test_keyer,
 	test_straight_key,

@@ -66,7 +66,7 @@
 static void cw_test_helper_tq_callback(void *data);
 
 /* Helper function for iambic key tests. */
-static void test_iambic_key_paddles_common(cw_test_executor_t * executor, const int intended_dot_paddle, const int intended_dash_paddle, char character, int n_elements);
+static void test_iambic_key_paddles_common(cw_test_executor_t * cte, const int intended_dot_paddle, const int intended_dash_paddle, char character, int n_elements);
 
 /* This variable will be used in "forever" test. This test function
    needs to open generator itself, so it needs to know the current
@@ -95,9 +95,9 @@ static int test_audio_system = CW_AUDIO_NONE;
    tests::cw_set_weighting()
    tests::cw_get_weighting()
 */
-void test_parameter_ranges(cw_test_executor_t * executor)
+void test_parameter_ranges(cw_test_executor_t * cte)
 {
-	executor->print_test_header(executor, __func__);
+	cte->print_test_header(cte, __func__);
 
 	int txdot_usecs, txdash_usecs, end_of_element_usecs, end_of_character_usecs,
 		end_of_word_usecs, additional_usecs, adjustment_usecs;
@@ -155,15 +155,15 @@ void test_parameter_ranges(cw_test_executor_t * executor)
 		/* Test out-of-range value lower than minimum. */
 		errno = 0;
 		cwret = test_data[i].set_new_value(test_data[i].min - 1);
-		executor->expect_eq_int(executor, EINVAL, errno, "cw_set_%s(min - 1):", test_data[i].name);
-		executor->expect_eq_int(executor, CW_FAILURE, cwret, "cw_set_%s(min - 1):", test_data[i].name);
+		cte->expect_eq_int(cte, EINVAL, errno, "cw_set_%s(min - 1):", test_data[i].name);
+		cte->expect_eq_int(cte, CW_FAILURE, cwret, "cw_set_%s(min - 1):", test_data[i].name);
 
 
 		/* Test out-of-range value higher than maximum. */
 		errno = 0;
 		cwret = test_data[i].set_new_value(test_data[i].max + 1);
-		executor->expect_eq_int(executor, EINVAL, errno, "cw_set_%s(max + 1):", test_data[i].name);
-		executor->expect_eq_int(executor, CW_FAILURE, cwret, "cw_set_%s(max + 1):", test_data[i].name);
+		cte->expect_eq_int(cte, EINVAL, errno, "cw_set_%s(max + 1):", test_data[i].name);
+		cte->expect_eq_int(cte, CW_FAILURE, cwret, "cw_set_%s(max + 1):", test_data[i].name);
 
 
 		/*
@@ -176,16 +176,16 @@ void test_parameter_ranges(cw_test_executor_t * executor)
 			test_data[i].set_new_value(value_set);
 			const int value_readback = test_data[i].get_value();
 
-			success = executor->expect_eq_int_errors_only(executor, value_set, value_readback, "cw_get/set_%s(%d):", test_data[i].name, value_set);
+			success = cte->expect_eq_int_errors_only(cte, value_set, value_readback, "cw_get/set_%s(%d):", test_data[i].name, value_set);
 			if (!success) {
 				break;
 			}
 		}
-		executor->expect_eq_int(executor, true, success, "cw_get/set_%s():", test_data[i].name);
+		cte->expect_eq_int(cte, true, success, "cw_get/set_%s():", test_data[i].name);
 	}
 
 
-	executor->print_test_footer(executor, __func__);
+	cte->print_test_footer(cte, __func__);
 
 	return;
 }
@@ -202,9 +202,9 @@ void test_parameter_ranges(cw_test_executor_t * executor)
    tests::cw_get_tone_queue_length()
    tests::cw_wait_for_tone()
 */
-void test_cw_wait_for_tone(cw_test_executor_t * executor)
+void test_cw_wait_for_tone(cw_test_executor_t * cte)
 {
-	executor->print_test_header(executor, __func__);
+	cte->print_test_header(cte, __func__);
 
 	int cwret;
 
@@ -233,7 +233,7 @@ void test_cw_wait_for_tone(cw_test_executor_t * executor)
 		int freq = freq_min;
 
 		cwret = cw_queue_tone(tone_duration, freq);
-		executor->expect_eq_int(executor, CW_SUCCESS, cwret, "setup: cw_queue_tone()");
+		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "setup: cw_queue_tone()");
 
 
 		/* This is to make sure that rest of tones is enqueued when
@@ -254,7 +254,7 @@ void test_cw_wait_for_tone(cw_test_executor_t * executor)
 			   adding a new tone. */
 			got_tq_len = cw_get_tone_queue_length();
 			expected_tq_len = (i - 1);
-			executor->expect_eq_int(executor, expected_tq_len, got_tq_len, "setup: cw_get_tone_queue_length(): before adding tone (#%02d):", i);
+			cte->expect_eq_int(cte, expected_tq_len, got_tq_len, "setup: cw_get_tone_queue_length(): before adding tone (#%02d):", i);
 
 
 			/* Add a tone to queue. All frequencies should be
@@ -262,14 +262,14 @@ void test_cw_wait_for_tone(cw_test_executor_t * executor)
 			   error. */
 			freq = freq_min + i * delta_freq;
 			cwret = cw_queue_tone(tone_duration, freq);
-			executor->expect_eq_int(executor, CW_SUCCESS, cwret, "setup: cw_queue_tone() #%02d", i);
+			cte->expect_eq_int(cte, CW_SUCCESS, cwret, "setup: cw_queue_tone() #%02d", i);
 
 
 			/* Monitor length of a queue as it is filled - after
 			   adding a new tone. */
 			got_tq_len = cw_get_tone_queue_length();
 			expected_tq_len = (i - 1) + 1;
-			executor->expect_eq_int(executor, expected_tq_len, got_tq_len, "setup: cw_get_tone_queue_length(): after adding tone (#%02d):", i);
+			cte->expect_eq_int(cte, expected_tq_len, got_tq_len, "setup: cw_get_tone_queue_length(): after adding tone (#%02d):", i);
 		}
 	}
 
@@ -293,16 +293,16 @@ void test_cw_wait_for_tone(cw_test_executor_t * executor)
 			/* Monitor length of a queue as it is emptied - before dequeueing. */
 			got_tq_len = cw_get_tone_queue_length();
 			expected_tq_len = n_tones_to_add - i;
-			executor->expect_eq_int(executor, expected_tq_len, got_tq_len, "test: cw_get_tone_queue_length(): before dequeueing (#%02d):", i);
+			cte->expect_eq_int(cte, expected_tq_len, got_tq_len, "test: cw_get_tone_queue_length(): before dequeueing (#%02d):", i);
 
 			/* Wait for each of n_tones_to_add tones to be dequeued. */
 			cwret = cw_wait_for_tone();
-			executor->expect_eq_int(executor, CW_SUCCESS, cwret, "test: cw_wait_for_tone():");
+			cte->expect_eq_int(cte, CW_SUCCESS, cwret, "test: cw_wait_for_tone():");
 
 			/* Monitor length of a queue as it is emptied - after dequeueing single tone. */
 			got_tq_len = cw_get_tone_queue_length();
 			expected_tq_len = n_tones_to_add - i - 1;
-			executor->expect_eq_int(executor, expected_tq_len, got_tq_len, "test: cw_get_tone_queue_length(): after dequeueing (#%02d):", i);
+			cte->expect_eq_int(cte, expected_tq_len, got_tq_len, "test: cw_get_tone_queue_length(): after dequeueing (#%02d):", i);
 		}
 	}
 
@@ -310,7 +310,7 @@ void test_cw_wait_for_tone(cw_test_executor_t * executor)
 	{
 	}
 
-	executor->print_test_footer(executor, __func__);
+	cte->print_test_footer(cte, __func__);
 
 	return;
 }
@@ -325,9 +325,9 @@ void test_cw_wait_for_tone(cw_test_executor_t * executor)
    tests::cw_get_tone_queue_length()
    tests::cw_wait_for_tone_queue()
 */
-void test_cw_wait_for_tone_queue(cw_test_executor_t * executor)
+void test_cw_wait_for_tone_queue(cw_test_executor_t * cte)
 {
-	executor->print_test_header(executor, __func__);
+	cte->print_test_header(cte, __func__);
 
 	const int n_tones_to_add = 6;     /* This is a simple test, so only a handful of tones. */
 
@@ -347,7 +347,7 @@ void test_cw_wait_for_tone_queue(cw_test_executor_t * executor)
 		for (int i = 0; i < n_tones_to_add; i++) {
 			const int freq = freq_min + i * delta_freq;
 			int cwret = cw_queue_tone(tone_duration, freq);
-			const bool success = executor->expect_eq_int(executor, CW_SUCCESS, cwret, "setup: cw_queue_tone(%d, %d):", tone_duration, freq);
+			const bool success = cte->expect_eq_int(cte, CW_SUCCESS, cwret, "setup: cw_queue_tone(%d, %d):", tone_duration, freq);
 			if (!success) {
 				break;
 			}
@@ -360,7 +360,7 @@ void test_cw_wait_for_tone_queue(cw_test_executor_t * executor)
 	*/
 	{
 		const int len = cw_get_tone_queue_length();
-		executor->expect_eq_int(executor, n_tones_to_add, len, "test: cw_get_tone_queue_length()");
+		cte->expect_eq_int(cte, n_tones_to_add, len, "test: cw_get_tone_queue_length()");
 	}
 
 	/*
@@ -369,14 +369,14 @@ void test_cw_wait_for_tone_queue(cw_test_executor_t * executor)
 	*/
 	{
 		int cwret = cw_wait_for_tone_queue();
-		executor->expect_eq_int(executor, CW_SUCCESS, cwret, "test: cw_wait_for_tone_queue()");
+		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "test: cw_wait_for_tone_queue()");
 	}
 
 	/* Test tear-down. */
 	{
 	}
 
-	executor->print_test_footer(executor, __func__);
+	cte->print_test_footer(cte, __func__);
 
 	return;
 }
@@ -396,9 +396,9 @@ void test_cw_wait_for_tone_queue(cw_test_executor_t * executor)
 
    tests::cw_queue_tone()
 */
-void test_cw_queue_tone(cw_test_executor_t * executor)
+void test_cw_queue_tone(cw_test_executor_t * cte)
 {
-	executor->print_test_header(executor, __func__);
+	cte->print_test_header(cte, __func__);
 
 	cw_set_volume(70);
 	int duration = 40000;
@@ -417,14 +417,14 @@ void test_cw_queue_tone(cw_test_executor_t * executor)
 			   cw_wait_for_tone() function because the
 			   queue will never be full in this test. */
 			int cwret = cw_wait_for_tone();
-			if (!executor->expect_eq_int_errors_only(executor, CW_SUCCESS, cwret, "cw_wait_for_tone(#1, %d)", freq)) {
+			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "cw_wait_for_tone(#1, %d)", freq)) {
 				wait_success = false;
 				break;
 			}
 		}
 
 		int cwret = cw_queue_tone(duration, freq);
-		if (!executor->expect_eq_int_errors_only(executor, CW_SUCCESS, cwret, "cw_queue_tone(#1, %d)", freq)) {
+		if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "cw_queue_tone(#1, %d)", freq)) {
 			queue_success = false;
 			break;
 		}
@@ -437,31 +437,31 @@ void test_cw_queue_tone(cw_test_executor_t * executor)
 			   cw_wait_for_tone() function because the
 			   queue will never be full in this test. */
 			int cwret = cw_wait_for_tone();
-			if (!executor->expect_eq_int_errors_only(executor, CW_SUCCESS, cwret, "cw_wait_for_tone(#2, %d)", freq)) {
+			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "cw_wait_for_tone(#2, %d)", freq)) {
 				wait_success = false;
 				break;
 			}
 		}
 
 		int cwret = cw_queue_tone(duration, freq);
-		if (!executor->expect_eq_int_errors_only(executor, CW_SUCCESS, cwret, "cw_queue_tone(#2, %d)", freq)) {
+		if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "cw_queue_tone(#2, %d)", freq)) {
 			queue_success = false;
 			break;
 		}
 	}
 
 	/* Final expect for 'queue' and 'wait' calls in the loop above. */
-	executor->expect_eq_int(executor, true, queue_success, "cw_queue_tone() - enqueueing");
-	executor->expect_eq_int(executor, true, wait_success, "cw_queue_tone() - waiting");
+	cte->expect_eq_int(cte, true, queue_success, "cw_queue_tone() - enqueueing");
+	cte->expect_eq_int(cte, true, wait_success, "cw_queue_tone() - waiting");
 
 
 	/* We have been adding tones to the queue, so we can test
 	   waiting for the queue to be emptied. */
 	int cwret = cw_wait_for_tone_queue();
-	executor->expect_eq_int(executor, CW_SUCCESS, cwret, "cw_wait_for_tone_queue()");
+	cte->expect_eq_int(cte, CW_SUCCESS, cwret, "cw_wait_for_tone_queue()");
 
 
-	executor->print_test_footer(executor, __func__);
+	cte->print_test_footer(cte, __func__);
 
 	return;
 }
@@ -474,9 +474,9 @@ void test_cw_queue_tone(cw_test_executor_t * executor)
    tests::cw_get_tone_queue_capacity()
    tests::cw_get_tone_queue_length()
 */
-void test_empty_tone_queue(cw_test_executor_t * executor)
+void test_empty_tone_queue(cw_test_executor_t * cte)
 {
-	executor->print_test_header(executor, __func__);
+	cte->print_test_header(cte, __func__);
 
 	/* Test setup. */
 	{
@@ -491,17 +491,17 @@ void test_empty_tone_queue(cw_test_executor_t * executor)
 	/* Test. */
 	{
 		const int capacity = cw_get_tone_queue_capacity();
-		executor->expect_eq_int(executor, CW_TONE_QUEUE_CAPACITY_MAX, capacity, "cw_get_tone_queue_capacity()");
+		cte->expect_eq_int(cte, CW_TONE_QUEUE_CAPACITY_MAX, capacity, "cw_get_tone_queue_capacity()");
 
 		const int len_empty = cw_get_tone_queue_length();
-		executor->expect_eq_int(executor, 0, len_empty, "cw_get_tone_queue_length() when tq is empty");
+		cte->expect_eq_int(cte, 0, len_empty, "cw_get_tone_queue_length() when tq is empty");
 	}
 
 	/* Test tear-down. */
 	{
 	}
 
-	executor->print_test_footer(executor, __func__);
+	cte->print_test_footer(cte, __func__);
 }
 
 
@@ -514,9 +514,9 @@ void test_empty_tone_queue(cw_test_executor_t * executor)
    tests::cw_flush_tone_queue()
    tests::cw_wait_for_tone_queue()
 */
-void test_full_tone_queue(cw_test_executor_t * executor)
+void test_full_tone_queue(cw_test_executor_t * cte)
 {
-	executor->print_test_header(executor, __func__);
+	cte->print_test_header(cte, __func__);
 
 	/* Test setup. */
 	{
@@ -547,10 +547,10 @@ void test_full_tone_queue(cw_test_executor_t * executor)
 	*/
 	{
 		const int capacity = cw_get_tone_queue_capacity();
-		executor->expect_eq_int(executor, CW_TONE_QUEUE_CAPACITY_MAX, capacity, "cw_get_tone_queue_capacity()");
+		cte->expect_eq_int(cte, CW_TONE_QUEUE_CAPACITY_MAX, capacity, "cw_get_tone_queue_capacity()");
 
 		const int len_full = cw_get_tone_queue_length();
-		executor->expect_eq_int(executor, CW_TONE_QUEUE_CAPACITY_MAX, len_full, "cw_get_tone_queue_length() when tq is full");
+		cte->expect_eq_int(cte, CW_TONE_QUEUE_CAPACITY_MAX, len_full, "cw_get_tone_queue_length() when tq is full");
 	}
 
 	/*
@@ -560,8 +560,8 @@ void test_full_tone_queue(cw_test_executor_t * executor)
 	{
 		errno = 0;
 		int cwret = cw_queue_tone(1000000, 100);
-		executor->expect_eq_int(executor, EAGAIN, errno, "cw_queue_tone() for full tq (errno)");
-		executor->expect_eq_int(executor, CW_FAILURE, cwret, "cw_queue_tone() for full tq (cwret)");
+		cte->expect_eq_int(cte, EAGAIN, errno, "cw_queue_tone() for full tq (errno)");
+		cte->expect_eq_int(cte, CW_FAILURE, cwret, "cw_queue_tone() for full tq (cwret)");
 	}
 
 	/*
@@ -578,22 +578,22 @@ void test_full_tone_queue(cw_test_executor_t * executor)
 		cw_flush_tone_queue();
 
 		cwret = cw_wait_for_tone_queue();
-		executor->expect_eq_int(executor, CW_SUCCESS, cwret, "cw_wait_for_tone_queue() after flushing");
+		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "cw_wait_for_tone_queue() after flushing");
 
 		const int capacity = cw_get_tone_queue_capacity();
-		executor->expect_eq_int(executor, CW_TONE_QUEUE_CAPACITY_MAX, capacity, "cw_get_tone_queue_capacity() after flushing");
+		cte->expect_eq_int(cte, CW_TONE_QUEUE_CAPACITY_MAX, capacity, "cw_get_tone_queue_capacity() after flushing");
 
 		/* Test that the tq is really empty after
 		   cw_wait_for_tone_queue() has returned. */
 		const int len_empty = cw_get_tone_queue_length();
-		executor->expect_eq_int(executor, 0, len_empty, "cw_get_tone_queue_length() after flushing");
+		cte->expect_eq_int(cte, 0, len_empty, "cw_get_tone_queue_length() after flushing");
 	}
 
 	/* Test tear-down. */
 	{
 	}
 
-	executor->print_test_footer(executor, __func__);
+	cte->print_test_footer(cte, __func__);
 
 	return;
 }
@@ -607,9 +607,9 @@ static int cw_test_helper_tq_callback_capture = false;
 
 
 
-void test_tone_queue_callback(cw_test_executor_t * executor)
+void test_tone_queue_callback(cw_test_executor_t * cte)
 {
-	executor->print_test_header(executor, __func__);
+	cte->print_test_header(cte, __func__);
 #if 0
 	for (int i = 1; i < 10; i++) {
 		/* Test the callback mechanism for very small values,
@@ -617,7 +617,7 @@ void test_tone_queue_callback(cw_test_executor_t * executor)
 		int level = i <= 5 ? i : 10 * i;
 
 		int cwret = cw_register_tone_queue_low_callback(cw_test_helper_tq_callback, (void *) &cw_test_tone_queue_callback_data, level);
-		executor->expect_eq_int(executor, CW_SUCCESS, cwret, "cw_register_tone_queue_low_callback(): threshold = %d:", level);
+		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "cw_register_tone_queue_low_callback(): threshold = %d:", level);
 		sleep(1);
 
 
@@ -657,7 +657,7 @@ void test_tone_queue_callback(cw_test_executor_t * executor)
 	}
 
 #endif
-	executor->print_test_footer(executor, __func__);
+	cte->print_test_footer(cte, __func__);
 
 	return;
 }
@@ -690,9 +690,9 @@ static void cw_test_helper_tq_callback(void *data)
 
    tests::cw_get_volume_limits()
 */
-void test_volume_functions(cw_test_executor_t * executor)
+void test_volume_functions(cw_test_executor_t * cte)
 {
-	executor->print_test_header(executor, __func__);
+	cte->print_test_header(cte, __func__);
 
 	int vol_min = -1;
 	int vol_max = -1;
@@ -701,8 +701,8 @@ void test_volume_functions(cw_test_executor_t * executor)
 	{
 		cw_get_volume_limits(&vol_min, &vol_max);
 
-		executor->expect_eq_int(executor, CW_VOLUME_MIN, vol_min, "cw_get_volume_limits() - min = %d%%", vol_min);
-		executor->expect_eq_int(executor, CW_VOLUME_MAX, vol_max, "cw_get_volume_limits() - max = %d%%", vol_max);
+		cte->expect_eq_int(cte, CW_VOLUME_MIN, vol_min, "cw_get_volume_limits() - min = %d%%", vol_min);
+		cte->expect_eq_int(cte, CW_VOLUME_MAX, vol_max, "cw_get_volume_limits() - max = %d%%", vol_max);
 	}
 
 
@@ -729,20 +729,20 @@ void test_volume_functions(cw_test_executor_t * executor)
 			cw_wait_for_tone();
 
 			const int cwret = cw_set_volume(volume);
-			if (!executor->expect_eq_int_errors_only(executor, CW_SUCCESS, cwret, "cw_set_volume(%d) (down)", volume)) {
+			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "cw_set_volume(%d) (down)", volume)) {
 				set_failure = true;
 				break;
 			}
 
 			const int readback = cw_get_volume();
-			if (!executor->expect_eq_int_errors_only(executor, volume, readback, "cw_get_volume() (down) -> %d", readback)) {
+			if (!cte->expect_eq_int_errors_only(cte, volume, readback, "cw_get_volume() (down) -> %d", readback)) {
 				get_failure = true;
 				break;
 			}
 		}
 
-		executor->expect_eq_int(executor, false, set_failure, "cw_set_volume() (down)");
-		executor->expect_eq_int(executor, false, get_failure, "cw_get_volume() (down)");
+		cte->expect_eq_int(cte, false, set_failure, "cw_set_volume() (down)");
+		cte->expect_eq_int(cte, false, get_failure, "cw_get_volume() (down)");
 	}
 
 	/* Test tear-down. */
@@ -777,20 +777,20 @@ void test_volume_functions(cw_test_executor_t * executor)
 			cw_wait_for_tone();
 
 			const int cwret = cw_set_volume(volume);
-			if (!executor->expect_eq_int_errors_only(executor, CW_SUCCESS, cwret, "cw_set_volume(%d) (up)", volume)) {
+			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "cw_set_volume(%d) (up)", volume)) {
 				set_failure = true;
 				break;
 			}
 
 			const int readback = cw_get_volume();
-			if (!executor->expect_eq_int_errors_only(executor, volume, readback, "cw_get_volume() (up) -> %d", readback)) {
+			if (!cte->expect_eq_int_errors_only(cte, volume, readback, "cw_get_volume() (up) -> %d", readback)) {
 				get_failure = true;
 				break;
 			}
 		}
 
-		executor->expect_eq_int(executor, false, set_failure, "cw_set_volume() (up)");
-		executor->expect_eq_int(executor, false, get_failure, "cw_get_volume() (up)");
+		cte->expect_eq_int(cte, false, set_failure, "cw_set_volume() (up)");
+		cte->expect_eq_int(cte, false, get_failure, "cw_get_volume() (up)");
 	}
 
 	/* Test tear-down. */
@@ -798,7 +798,7 @@ void test_volume_functions(cw_test_executor_t * executor)
 		cw_flush_tone_queue();
 	}
 
-	executor->print_test_footer(executor, __func__);
+	cte->print_test_footer(cte, __func__);
 
 	return;
 }
@@ -814,9 +814,9 @@ void test_volume_functions(cw_test_executor_t * executor)
    tests::cw_send_character_space()
    tests::cw_send_word_space()
 */
-void test_send_primitives(cw_test_executor_t * executor)
+void test_send_primitives(cw_test_executor_t * cte)
 {
-	executor->print_test_header(executor, __func__);
+	cte->print_test_header(cte, __func__);
 
 	int N = 20;
 
@@ -825,13 +825,13 @@ void test_send_primitives(cw_test_executor_t * executor)
 		bool failure = false;
 		for (int i = 0; i < N; i++) {
 			const int cwret = cw_send_dot();
-			if (!executor->expect_eq_int_errors_only(executor, CW_SUCCESS, cwret, "cw_send_dot() #%d", i)) {
+			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "cw_send_dot() #%d", i)) {
 				failure = true;
 				break;
 			}
 		}
 		cw_wait_for_tone_queue();
-		executor->expect_eq_int(executor, false, failure, "cw_send_dot()");
+		cte->expect_eq_int(cte, false, failure, "cw_send_dot()");
 	}
 
 	/* Test: sending dash. */
@@ -839,13 +839,13 @@ void test_send_primitives(cw_test_executor_t * executor)
 		bool failure = false;
 		for (int i = 0; i < N; i++) {
 			const int cwret = cw_send_dash();
-			if (!executor->expect_eq_int_errors_only(executor, CW_SUCCESS, cwret, "cw_send_dash() #%d", i)) {
+			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "cw_send_dash() #%d", i)) {
 				failure = true;
 				break;
 			}
 		}
 		cw_wait_for_tone_queue();
-		executor->expect_eq_int(executor, false, failure, "cw_send_dash()");
+		cte->expect_eq_int(cte, false, failure, "cw_send_dash()");
 	}
 
 	/* Test: sending character space. */
@@ -853,13 +853,13 @@ void test_send_primitives(cw_test_executor_t * executor)
 		bool failure = false;
 		for (int i = 0; i < N; i++) {
 			const int cwret = cw_send_character_space();
-			if (!executor->expect_eq_int_errors_only(executor, CW_SUCCESS, cwret, "cw_send_character_space() #%d", i)) {
+			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "cw_send_character_space() #%d", i)) {
 				failure = true;
 				break;
 			}
 		}
 		cw_wait_for_tone_queue();
-		executor->expect_eq_int(executor, false, failure, "cw_send_character_space()");
+		cte->expect_eq_int(cte, false, failure, "cw_send_character_space()");
 	}
 
 	/* Test: sending word space. */
@@ -867,16 +867,16 @@ void test_send_primitives(cw_test_executor_t * executor)
 		bool failure = false;
 		for (int i = 0; i < N; i++) {
 			const int cwret = cw_send_word_space();
-			if (!executor->expect_eq_int_errors_only(executor, CW_SUCCESS, cwret, "cw_send_word_space() #%d", i)) {
+			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "cw_send_word_space() #%d", i)) {
 				failure = true;
 				break;
 			}
 		}
 		cw_wait_for_tone_queue();
-		executor->expect_eq_int(executor, false, failure, "cw_send_word_space()");
+		cte->expect_eq_int(cte, false, failure, "cw_send_word_space()");
 	}
 
-	executor->print_test_footer(executor, __func__);
+	cte->print_test_footer(cte, __func__);
 
 	return;
 }
@@ -891,9 +891,9 @@ void test_send_primitives(cw_test_executor_t * executor)
    tests::cw_send_representation()
    tests::cw_send_representation_partial()
 */
-void test_representations(cw_test_executor_t * executor)
+void test_representations(cw_test_executor_t * cte)
 {
-	executor->print_test_header(executor, __func__);
+	cte->print_test_header(cte, __func__);
 
 	const char * valid_representations[] = {
 		".-.-.-",
@@ -918,13 +918,13 @@ void test_representations(cw_test_executor_t * executor)
 		int i = 0;
 		while (NULL != valid_representations[i]) {
 			const int cwret = cw_send_representation(valid_representations[i]);
-			if (!executor->expect_eq_int_errors_only(executor, CW_SUCCESS, cwret, "cw_send_representation(valid #%d)", i)) {
+			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "cw_send_representation(valid #%d)", i)) {
 				failure = true;
 				break;
 			}
 			i++;
 		}
-		executor->expect_eq_int(executor, false, failure, "cw_send_representation(valid)");
+		cte->expect_eq_int(cte, false, failure, "cw_send_representation(valid)");
 		cw_wait_for_tone_queue();
 	}
 
@@ -934,13 +934,13 @@ void test_representations(cw_test_executor_t * executor)
 		int i = 0;
 		while (NULL != invalid_representations[i]) {
 			const int cwret = cw_send_representation(invalid_representations[i]);
-			if (!executor->expect_eq_int_errors_only(executor, CW_FAILURE, cwret, "cw_send_representation(invalid #%d)", i)) {
+			if (!cte->expect_eq_int_errors_only(cte, CW_FAILURE, cwret, "cw_send_representation(invalid #%d)", i)) {
 				failure = true;
 				break;
 			}
 			i++;
 		}
-		executor->expect_eq_int(executor, false, failure, "cw_send_representation(invalid)");
+		cte->expect_eq_int(cte, false, failure, "cw_send_representation(invalid)");
 		cw_wait_for_tone_queue();
 	}
 
@@ -950,13 +950,13 @@ void test_representations(cw_test_executor_t * executor)
 		int i = 0;
 		while (NULL != valid_representations[i]) {
 			const int cwret = cw_send_representation_partial(valid_representations[i]);
-			if (!executor->expect_eq_int_errors_only(executor, CW_SUCCESS, cwret, "cw_send_representation_partial(valid #%d)", i)) {
+			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "cw_send_representation_partial(valid #%d)", i)) {
 				failure = true;
 				break;
 			}
 			i++;
 		}
-		executor->expect_eq_int(executor, false, failure, "cw_send_representation_partial(valid)");
+		cte->expect_eq_int(cte, false, failure, "cw_send_representation_partial(valid)");
 		cw_wait_for_tone_queue();
 	}
 
@@ -966,19 +966,19 @@ void test_representations(cw_test_executor_t * executor)
 		int i = 0;
 		while (NULL != invalid_representations[i]) {
 			const int cwret = cw_send_representation_partial(invalid_representations[i]);
-			if (!executor->expect_eq_int_errors_only(executor, CW_FAILURE, cwret, "cw_send_representation_partial(invalid #%d)", i)) {
+			if (!cte->expect_eq_int_errors_only(cte, CW_FAILURE, cwret, "cw_send_representation_partial(invalid #%d)", i)) {
 				failure = true;
 				break;
 			}
 			i++;
 		}
-		executor->expect_eq_int(executor, false, failure, "cw_send_representation_partial(invalid)");
+		cte->expect_eq_int(cte, false, failure, "cw_send_representation_partial(invalid)");
 		cw_wait_for_tone_queue();
 	}
 
 	cw_wait_for_tone_queue();
 
-	executor->print_test_footer(executor, __func__);
+	cte->print_test_footer(cte, __func__);
 
 	return;
 }
@@ -993,9 +993,9 @@ void test_representations(cw_test_executor_t * executor)
    tests::cw_send_character()
    tests::cw_send_string()
 */
-void test_send_character_and_string(cw_test_executor_t * executor)
+void test_send_character_and_string(cw_test_executor_t * cte)
 {
-	executor->print_test_header(executor, __func__);
+	cte->print_test_header(cte, __func__);
 
 	/* Test: sending all supported characters as individual characters. */
 	{
@@ -1006,34 +1006,34 @@ void test_send_character_and_string(cw_test_executor_t * executor)
 
 		/* Send all the characters from the charlist individually. */
 
-		fprintf(executor->stdout,
+		fprintf(cte->stdout,
 			MSG_PREFIX "cw_send_character(<valid>):\n"
 			MSG_PREFIX "    ");
 
 		for (int i = 0; charlist[i] != '\0'; i++) {
 
 			const char character = charlist[i];
-			fprintf(executor->stdout, "%c", character);
-			fflush(executor->stdout);
+			fprintf(cte->stdout, "%c", character);
+			fflush(cte->stdout);
 
 			const int cwret = cw_send_character(character);
-			if (!executor->expect_eq_int_errors_only(executor, CW_SUCCESS, cwret, "cw_send_character(%c)", character)) {
+			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "cw_send_character(%c)", character)) {
 				failure = true;
 				break;
 			}
 			cw_wait_for_tone_queue();
 		}
 
-		fprintf(executor->stdout, "\n");
-		fflush(executor->stdout);
+		fprintf(cte->stdout, "\n");
+		fflush(cte->stdout);
 
-		executor->expect_eq_int(executor, false, failure, "cw_send_character(<valid>)");
+		cte->expect_eq_int(cte, false, failure, "cw_send_character(<valid>)");
 	}
 
 	/* Test: sending invalid character. */
 	{
 		const int cwret = cw_send_character(0);
-		executor->expect_eq_int(executor, CW_FAILURE, cwret, "cw_send_character(<invalid>)");
+		cte->expect_eq_int(cte, CW_FAILURE, cwret, "cw_send_character(<invalid>)");
 	}
 
 	/* Test: sending all supported characters as single string. */
@@ -1042,30 +1042,30 @@ void test_send_character_and_string(cw_test_executor_t * executor)
 		cw_list_characters(charlist);
 
 		/* Send the complete charlist as a single string. */
-		fprintf(executor->stdout, MSG_PREFIX "cw_send_string(<valid>):\n"
+		fprintf(cte->stdout, MSG_PREFIX "cw_send_string(<valid>):\n"
 		       MSG_PREFIX "    %s\n", charlist);
 
 		const int cwret = cw_send_string(charlist);
-		executor->expect_eq_int(executor, CW_SUCCESS, cwret, "cw_send_string(<valid>)");
+		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "cw_send_string(<valid>)");
 
 
 		while (cw_get_tone_queue_length() > 0) {
-			fprintf(executor->stdout, MSG_PREFIX "tone queue length %-6d\r", cw_get_tone_queue_length());
-			fflush(executor->stdout);
+			fprintf(cte->stdout, MSG_PREFIX "tone queue length %-6d\r", cw_get_tone_queue_length());
+			fflush(cte->stdout);
 			cw_wait_for_tone();
 		}
-		fprintf(executor->stdout, MSG_PREFIX "tone queue length %-6d\n", cw_get_tone_queue_length());
+		fprintf(cte->stdout, MSG_PREFIX "tone queue length %-6d\n", cw_get_tone_queue_length());
 	}
 
 
 	/* Test: sending invalid string. */
 	{
 		const int cwret = cw_send_string("%INVALID%");
-		executor->expect_eq_int(executor, CW_FAILURE, cwret, "cw_send_string(<invalid>)");
+		cte->expect_eq_int(cte, CW_FAILURE, cwret, "cw_send_string(<invalid>)");
 	}
 
 
-	executor->print_test_footer(executor, __func__);
+	cte->print_test_footer(cte, __func__);
 
 	return;
 }
@@ -1074,7 +1074,7 @@ void test_send_character_and_string(cw_test_executor_t * executor)
 
 
 /* Wrapper for common code used by three test functions. */
-void test_iambic_key_paddles_common(cw_test_executor_t * executor, const int intended_dot_paddle, const int intended_dash_paddle, char character, int n_elements)
+void test_iambic_key_paddles_common(cw_test_executor_t * cte, const int intended_dot_paddle, const int intended_dash_paddle, char character, int n_elements)
 {
 	/* Test: keying alternate dit/dash. */
 	{
@@ -1083,18 +1083,18 @@ void test_iambic_key_paddles_common(cw_test_executor_t * executor, const int int
 		   arguments are true, so both paddles are pressed at
 		   the same time.*/
 		const int cwret = cw_notify_keyer_paddle_event(intended_dot_paddle, intended_dash_paddle);
-		executor->expect_eq_int(executor, CW_SUCCESS, cwret, "cw_notify_keyer_paddle_event(%d, %d)", intended_dot_paddle, intended_dash_paddle);
+		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "cw_notify_keyer_paddle_event(%d, %d)", intended_dot_paddle, intended_dash_paddle);
 
 		bool success = true;
-		fflush(executor->stdout);
+		fflush(cte->stdout);
 		for (int i = 0; i < n_elements; i++) {
 			success = success && cw_wait_for_keyer_element();
-			fprintf(executor->stdout, "%c", character);
-			fflush(executor->stdout);
+			fprintf(cte->stdout, "%c", character);
+			fflush(cte->stdout);
 		}
-		fprintf(executor->stdout, "\n");
+		fprintf(cte->stdout, "\n");
 
-		executor->expect_eq_int(executor, true, success, "cw_wait_for_keyer_element() (%c)", character);
+		cte->expect_eq_int(cte, true, success, "cw_wait_for_keyer_element() (%c)", character);
 	}
 
 	/* Test: preserving of paddle states. */
@@ -1104,11 +1104,11 @@ void test_iambic_key_paddles_common(cw_test_executor_t * executor, const int int
 		int read_back_dot_paddle;
 		int read_back_dash_paddle;
 		cw_get_keyer_paddles(&read_back_dot_paddle, &read_back_dash_paddle);
-		executor->expect_eq_int(executor, intended_dot_paddle, read_back_dot_paddle, "cw_get_keyer_paddles(): dot paddle");
-		executor->expect_eq_int(executor, intended_dash_paddle, read_back_dash_paddle, "cw_get_keyer_paddles(): dash paddle");
+		cte->expect_eq_int(cte, intended_dot_paddle, read_back_dot_paddle, "cw_get_keyer_paddles(): dot paddle");
+		cte->expect_eq_int(cte, intended_dash_paddle, read_back_dash_paddle, "cw_get_keyer_paddles(): dash paddle");
 	}
 
-	fflush(executor->stdout);
+	fflush(cte->stdout);
 
 	cw_wait_for_keyer();
 
@@ -1127,9 +1127,9 @@ void test_iambic_key_paddles_common(cw_test_executor_t * executor, const int int
    tests::cw_wait_for_keyer_element()
    tests::cw_get_keyer_paddles()
 */
-void test_iambic_key_dot(cw_test_executor_t * executor)
+void test_iambic_key_dot(cw_test_executor_t * cte)
 {
-	executor->print_test_header(executor, __func__);
+	cte->print_test_header(cte, __func__);
 
 	/*
 	  Test: keying dot.
@@ -1143,9 +1143,9 @@ void test_iambic_key_dot(cw_test_executor_t * executor)
 	const int intended_dash_paddle = false;
 	const char character = '.';
 	const int n_elements = 30;
-	test_iambic_key_paddles_common(executor, intended_dot_paddle, intended_dash_paddle, character, n_elements);
+	test_iambic_key_paddles_common(cte, intended_dot_paddle, intended_dash_paddle, character, n_elements);
 
-	executor->print_test_footer(executor, __func__);
+	cte->print_test_footer(cte, __func__);
 
 	return;
 }
@@ -1162,9 +1162,9 @@ void test_iambic_key_dot(cw_test_executor_t * executor)
    tests::cw_wait_for_keyer_element()
    tests::cw_get_keyer_paddles()
 */
-void test_iambic_key_dash(cw_test_executor_t * executor)
+void test_iambic_key_dash(cw_test_executor_t * cte)
 {
-	executor->print_test_header(executor, __func__);
+	cte->print_test_header(cte, __func__);
 
 	/*
 	  Test: keying dash.
@@ -1178,9 +1178,9 @@ void test_iambic_key_dash(cw_test_executor_t * executor)
 	const int intended_dash_paddle = true;
 	const char character = '-';
 	const int n_elements = 30;
-	test_iambic_key_paddles_common(executor, intended_dot_paddle, intended_dash_paddle, character, n_elements);
+	test_iambic_key_paddles_common(cte, intended_dot_paddle, intended_dash_paddle, character, n_elements);
 
-	executor->print_test_footer(executor, __func__);
+	cte->print_test_footer(cte, __func__);
 
 	return;
 }
@@ -1197,9 +1197,9 @@ void test_iambic_key_dash(cw_test_executor_t * executor)
    tests::cw_wait_for_keyer_element()
    tests::cw_get_keyer_paddles()
 */
-void test_iambic_key_alternating(cw_test_executor_t * executor)
+void test_iambic_key_alternating(cw_test_executor_t * cte)
 {
-	executor->print_test_header(executor, __func__);
+	cte->print_test_header(cte, __func__);
 
 	/*
 	  Test: keying alternate dit/dash.
@@ -1213,9 +1213,9 @@ void test_iambic_key_alternating(cw_test_executor_t * executor)
 	const int intended_dash_paddle = true;
 	const char character = '#';
 	const int n_elements = 30;
-	test_iambic_key_paddles_common(executor, intended_dot_paddle, intended_dash_paddle, character, n_elements);
+	test_iambic_key_paddles_common(cte, intended_dot_paddle, intended_dash_paddle, character, n_elements);
 
-	executor->print_test_footer(executor, __func__);
+	cte->print_test_footer(cte, __func__);
 
 	return;
 }
@@ -1232,9 +1232,9 @@ void test_iambic_key_alternating(cw_test_executor_t * executor)
    tests::cw_wait_for_keyer_element()
    tests::cw_get_keyer_paddles()
 */
-void test_iambic_key_none(cw_test_executor_t * executor)
+void test_iambic_key_none(cw_test_executor_t * cte)
 {
-	executor->print_test_header(executor, __func__);
+	cte->print_test_header(cte, __func__);
 
 	/*
 	  Test: set new state of paddles: no paddle pressed.
@@ -1248,7 +1248,7 @@ void test_iambic_key_none(cw_test_executor_t * executor)
 	/* Test: depress paddles. */
 	{
 		const int cwret = cw_notify_keyer_paddle_event(intended_dot_paddle, intended_dot_paddle);
-		executor->expect_eq_int(executor, CW_SUCCESS, cwret, "cw_notify_keyer_paddle_event(%d, %d)", intended_dot_paddle, intended_dash_paddle);
+		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "cw_notify_keyer_paddle_event(%d, %d)", intended_dot_paddle, intended_dash_paddle);
 	}
 
 	/* Test: preserving of paddle states. */
@@ -1258,12 +1258,12 @@ void test_iambic_key_none(cw_test_executor_t * executor)
 		int read_back_dot_paddle;
 		int read_back_dash_paddle;
 		cw_get_keyer_paddles(&read_back_dot_paddle, &read_back_dash_paddle);
-		executor->expect_eq_int(executor, intended_dot_paddle, read_back_dot_paddle, "cw_get_keyer_paddles(): dot paddle");
-		executor->expect_eq_int(executor, intended_dash_paddle, read_back_dash_paddle, "cw_get_keyer_paddles(): dash paddle");
+		cte->expect_eq_int(cte, intended_dot_paddle, read_back_dot_paddle, "cw_get_keyer_paddles(): dot paddle");
+		cte->expect_eq_int(cte, intended_dash_paddle, read_back_dash_paddle, "cw_get_keyer_paddles(): dash paddle");
 	}
 	cw_wait_for_keyer();
 
-	executor->print_test_footer(executor, __func__);
+	cte->print_test_footer(cte, __func__);
 
 	return;
 }
@@ -1276,9 +1276,9 @@ void test_iambic_key_none(cw_test_executor_t * executor)
    tests::cw_get_straight_key_state()
    tests::cw_is_straight_key_busy()
 */
-void test_straight_key(cw_test_executor_t * executor)
+void test_straight_key(cw_test_executor_t * cte)
 {
-	executor->print_test_header(executor, __func__);
+	cte->print_test_header(cte, __func__);
 
 	{
 		bool event_failure = false;
@@ -1292,7 +1292,7 @@ void test_straight_key(cw_test_executor_t * executor)
 		const int key_states[] = { CW_KEY_STATE_OPEN, CW_KEY_STATE_CLOSED };
 		const int first = rand() % 5;
 		const int last = first + 10 + (rand() % 30);
-		fprintf(executor->stdout, "Randomized key indices range: from %d to %d\n", first, last);
+		fprintf(cte->stdout, "Randomized key indices range: from %d to %d\n", first, last);
 
 		/* Alternate between open and closed. */
 		for (int i = first; i <= last; i++) {
@@ -1300,26 +1300,26 @@ void test_straight_key(cw_test_executor_t * executor)
 			const int intended_key_state = key_states[i % 2]; /* Notice that depending on rand(), we may start with key open or key closed. */
 
 			const int cwret = cw_notify_straight_key_event(intended_key_state);
-			if (!executor->expect_eq_int_errors_only(executor, CW_SUCCESS, cwret, "cw_notify_straight_key_event(%d)", intended_key_state)) {
+			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "cw_notify_straight_key_event(%d)", intended_key_state)) {
 				event_failure = true;
 				break;
 			}
 
 			const int readback_key_state = cw_get_straight_key_state();
-			if (!executor->expect_eq_int_errors_only(executor, intended_key_state, readback_key_state, "cw_get_straight_key_state() (%d)", intended_key_state)) {
+			if (!cte->expect_eq_int_errors_only(cte, intended_key_state, readback_key_state, "cw_get_straight_key_state() (%d)", intended_key_state)) {
 				state_failure = true;
 				break;
 			}
 
 			/* "busy" is misleading. This function just asks if key is down. */
 			const bool is_busy = cw_is_straight_key_busy();
-			if (!executor->expect_eq_int_errors_only(executor, (bool) intended_key_state, is_busy, "cw_is_straight_key_busy() (%d)", intended_key_state)) {
+			if (!cte->expect_eq_int_errors_only(cte, (bool) intended_key_state, is_busy, "cw_is_straight_key_busy() (%d)", intended_key_state)) {
 				busy_failure = true;
 				break;
 			}
 
-			fprintf(executor->stdout, "%d", intended_key_state);
-			fflush(executor->stdout);
+			fprintf(cte->stdout, "%d", intended_key_state);
+			fflush(cte->stdout);
 #ifdef __FreeBSD__
 			/* There is a problem with nanosleep() and
 			   signals on FreeBSD. */
@@ -1332,17 +1332,17 @@ void test_straight_key(cw_test_executor_t * executor)
 		/* Whatever happens during tests, keep the key open after the tests. */
 		cw_notify_straight_key_event(CW_KEY_STATE_OPEN);
 
-		fprintf(executor->stdout, "\n");
-		fflush(executor->stdout);
+		fprintf(cte->stdout, "\n");
+		fflush(cte->stdout);
 
-		executor->expect_eq_int(executor, false, event_failure, "cw_notify_straight_key_event(<key open/closed>)");
-		executor->expect_eq_int(executor, false, state_failure, "cw_get_straight_key_state()");
-		executor->expect_eq_int(executor, false, busy_failure, "cw_is_straight_key_busy()");
+		cte->expect_eq_int(cte, false, event_failure, "cw_notify_straight_key_event(<key open/closed>)");
+		cte->expect_eq_int(cte, false, state_failure, "cw_get_straight_key_state()");
+		cte->expect_eq_int(cte, false, busy_failure, "cw_is_straight_key_busy()");
 	}
 
 	sleep(1);
 
-	executor->print_test_footer(executor, __func__);
+	cte->print_test_footer(cte, __func__);
 
 	return;
 }
@@ -1355,9 +1355,9 @@ void test_straight_key(cw_test_executor_t * executor)
 /*
  * cw_test_delayed_release()
  */
-void cw_test_delayed_release(cw_test_executor_t * executor)
+void cw_test_delayed_release(cw_test_executor_t * cte)
 {
-	executor->print_test_header(executor, __func__);
+	cte->print_test_header(cte, __func__);
 
 
 	int failures = 0;
@@ -1416,7 +1416,7 @@ void cw_test_delayed_release(cw_test_executor_t * executor)
 	}
 
 
-	executor->print_test_footer(executor, __func__);
+	cte->print_test_footer(cte, __func__);
 
 	return;
 }
@@ -1440,7 +1440,7 @@ void cw_test_signal_handling_callback(int signal_number)
 
 
 
-void cw_test_signal_handling(cw_test_executor_t * executor)
+void cw_test_signal_handling(cw_test_executor_t * cte)
 {
 	int failures = 0;
 	struct sigaction action, disposition;
@@ -1525,10 +1525,10 @@ void cw_test_signal_handling(cw_test_executor_t * executor)
   Because the function calls cw_generator_delete(), it should be
   executed as last test in test suite (unless you want to call
   cw_generator_new/start() again). */
-void test_cw_gen_forever_public(cw_test_executor_t * executor)
+void test_cw_gen_forever_public(cw_test_executor_t * cte)
 {
 #if 0
-	executor->print_test_header(executor, __func__);
+	cte->print_test_header(cte, __func__);
 
 	/* Make sure that an audio sink is closed. If we try to open
 	   an OSS sink that is already open, we may end up with
@@ -1545,7 +1545,7 @@ void test_cw_gen_forever_public(cw_test_executor_t * executor)
 	unsigned int rv = test_cw_gen_forever_sub(seconds, test_audio_system, NULL);
 	rv == 0 ? stats->successes++ : stats->failures++;
 
-	executor->print_test_footer(executor, __func__);
+	cte->print_test_footer(cte, __func__);
 #endif
 	return;
 }

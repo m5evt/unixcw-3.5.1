@@ -73,7 +73,7 @@ static cw_test_executor_t g_tests_executor;
 
 
 static void cw_test_print_stats_wrapper(void);
-static int cw_test_modules_with_current_sound_system(cw_test_executor_t * executor);
+static int cw_test_topics_with_current_sound_system(cw_test_executor_t * cte);
 static void signal_handler(int signal_number);
 static void register_signal_handler(void);
 
@@ -106,7 +106,7 @@ int main(int argc, char *const argv[])
 	atexit(cw_test_print_stats_wrapper);
 	register_signal_handler();
 
-	int rv = cw_test_modules_with_sound_systems(&g_tests_executor, cw_test_modules_with_current_sound_system);
+	int rv = cw_test_topics_with_sound_systems(&g_tests_executor, cw_test_topics_with_current_sound_system);
 
 	/* "make check" facility requires this message to be
 	   printed on stdout; don't localize it */
@@ -156,67 +156,67 @@ void register_signal_handler(void)
 
    Perform a series of self-tests on library public interfaces, using
    audio system specified with \p audio_system.  Tests should be
-   performed on modules specified with \p modules.
+   performed on topics specified with \p topics.
 
    \param audio_system - audio system to use for tests
-   \param modules - libcw modules to be tested
+   \param topics - libcw test topics to be tested
 
    \return 0
 */
-int cw_test_modules_with_current_sound_system(cw_test_executor_t * executor)
+int cw_test_topics_with_current_sound_system(cw_test_executor_t * cte)
 {
-	executor->log_info(executor, "Testing with %s sound system\n", executor->get_current_sound_system_label(executor));
+	cte->log_info(cte, "Testing with %s sound system\n", cte->get_current_sound_system_label(cte));
 
 
 
-	if (executor->should_test_module(executor, "t")) {
+	if (cte->should_test_topic(cte, "t")) {
 		int i = 0;
 		while (cw_unit_tests_tq[i]) {
-			executor->stats = &executor->stats2[executor->current_sound_system][LIBCW_MODULE_TQ];
-			(*cw_unit_tests_tq[i])(executor);
+			cte->stats = &cte->stats2[cte->current_sound_system][LIBCW_TEST_TOPIC_TQ];
+			(*cw_unit_tests_tq[i])(cte);
 			i++;
 		}
-		executor->log_info_cont(executor, "\n");
+		cte->log_info_cont(cte, "\n");
 	}
 
-	if (executor->should_test_module(executor, "g")) {
+	if (cte->should_test_topic(cte, "g")) {
 		int i = 0;
 		while (cw_unit_tests_gen[i]) {
-			executor->stats = &executor->stats2[executor->current_sound_system][LIBCW_MODULE_GEN];
-			(*cw_unit_tests_gen[i])(executor);
+			cte->stats = &cte->stats2[cte->current_sound_system][LIBCW_TEST_TOPIC_GEN];
+			(*cw_unit_tests_gen[i])(cte);
 			i++;
 		}
-		executor->log_info_cont(executor, "\n");
+		cte->log_info_cont(cte, "\n");
 	}
 
-	if (executor->should_test_module(executor, "k")) {
+	if (cte->should_test_topic(cte, "k")) {
 		int i = 0;
 		while (cw_unit_tests_key[i]) {
-			executor->stats = &executor->stats2[executor->current_sound_system][LIBCW_MODULE_KEY];
-	                (*cw_unit_tests_key[i])(executor);
+			cte->stats = &cte->stats2[cte->current_sound_system][LIBCW_TEST_TOPIC_KEY];
+	                (*cw_unit_tests_key[i])(cte);
 			i++;
 		}
-		executor->log_info_cont(executor, "\n");
+		cte->log_info_cont(cte, "\n");
 	}
 
-	if (executor->should_test_module(executor, "r")) {
+	if (cte->should_test_topic(cte, "r")) {
 		int i = 0;
 		while (cw_unit_tests_rec1[i]) {
-			executor->stats = &executor->stats2[executor->current_sound_system][LIBCW_MODULE_REC];
-	                (*cw_unit_tests_rec1[i])(executor);
+			cte->stats = &cte->stats2[cte->current_sound_system][LIBCW_TEST_TOPIC_REC];
+	                (*cw_unit_tests_rec1[i])(cte);
 			i++;
 		}
-		executor->log_info_cont(executor, "\n");
+		cte->log_info_cont(cte, "\n");
 	}
 
-	if (executor->should_test_module(executor, "o")) {
+	if (cte->should_test_topic(cte, "o")) {
 		int i = 0;
 		while (cw_unit_tests_other_s[i]) {
-			executor->stats = &executor->stats2[executor->current_sound_system][LIBCW_MODULE_OTHER];
-	                (*cw_unit_tests_other_s[i])(executor);
+			cte->stats = &cte->stats2[cte->current_sound_system][LIBCW_TEST_TOPIC_OTHER];
+	                (*cw_unit_tests_other_s[i])(cte);
 			i++;
 		}
-		executor->log_info_cont(executor, "\n");
+		cte->log_info_cont(cte, "\n");
 	}
 
 
@@ -231,23 +231,23 @@ int cw_test_modules_with_current_sound_system(cw_test_executor_t * executor)
 
 
 /**
-   \brief Run a series of tests for specified audio systems and modules
+   \brief Run a series of tests for specified audio systems and topics
 
    Function attempts to run a set of testcases for every audio system
-   specified in \p audio_systems and for every module specified in \p modules.
+   specified in \p audio_systems and for every topic specified in \p topics.
 
    These testcases require some kind of audio system configured. The
-   function calls cw_test_modules_with_current_sound_system() to do the configuration and
+   function calls cw_test_topics_with_current_sound_system() to do the configuration and
    run the tests.
 
    \p audio_systems is a list of audio systems to be tested: "ncoap".
    Pass NULL pointer to attempt to test all of audio systems supported
    by libcw.
 
-   \param modules is a list of libcw modules to be tested.
+   \param topics is a list of libcw test topics to be tested.
 
    \param audio_systems - list of audio systems to be tested
-   \param modules - list of modules systems to be tested
+   \param topics - list of topics systems to be tested
 */
 void cw_test_print_stats_wrapper(void)
 {

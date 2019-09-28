@@ -44,7 +44,7 @@ void (* const libcw_test_set_tq_with_audio[])(cw_test_executor_t *) = {
 
 
 /* Tests that are dependent on a sound system being configured.
-   Generator module functions. */
+   Generator topic functions. */
 void (*const libcw_test_set_gen_with_audio[])(cw_test_executor_t *) = {
 	test_volume_functions,
 	test_send_primitives,
@@ -58,7 +58,7 @@ void (*const libcw_test_set_gen_with_audio[])(cw_test_executor_t *) = {
 
 
 /* Tests that are dependent on a sound system being configured.
-   Morse key module functions */
+   Morse key topic functions */
 void (*const libcw_test_set_key_with_audio[])(cw_test_executor_t *) = {
 	test_iambic_key_dot,
 	test_iambic_key_dash,
@@ -73,7 +73,7 @@ void (*const libcw_test_set_key_with_audio[])(cw_test_executor_t *) = {
 
 
 /* Tests that are dependent on a sound system being configured.
-   Other modules' functions. */
+   Other topics' functions. */
 void (*const libcw_test_set_other_with_audio[])(cw_test_executor_t *) = {
 	test_parameter_ranges,
 	test_cw_gen_forever_public,

@@ -76,10 +76,10 @@ extern void (*const libcw_test_set_other_with_audio[])(cw_test_executor_t *);
 
 
 static void cw_test_setup(void);
-//static int  cw_test_modules_with_sound_systems(cw_test_executor_t * executor);
-static int  cw_test_modules_with_current_sound_system(cw_test_executor_t * executor);
+//static int  cw_test_topics_with_sound_systems(cw_test_executor_t * cte);
+static int  cw_test_topics_with_current_sound_system(cw_test_executor_t * cte);
 static void cw_test_print_stats_wrapper(void);
-static void cw_test_print_stats(cw_test_executor_t * executor);
+static void cw_test_print_stats(cw_test_executor_t * cte);
 
 
 
@@ -129,52 +129,52 @@ void cw_test_setup(void)
    \return 0 if tests were run, and no errors occurred
    \return 1 if tests were run, and some errors occurred
 */
-int cw_test_modules_with_current_sound_system(cw_test_executor_t * executor)
+int cw_test_topics_with_current_sound_system(cw_test_executor_t * cte)
 {
-	test_audio_system = executor->current_sound_system;
+	test_audio_system = cte->current_sound_system;
 
-	executor->log_info(executor, "Testing with %s sound system\n", executor->get_current_sound_system_label(executor));
+	cte->log_info(cte, "Testing with %s sound system\n", cte->get_current_sound_system_label(cte));
 
-	int rv = cw_generator_new(executor->current_sound_system, NULL);
+	int rv = cw_generator_new(cte->current_sound_system, NULL);
 	if (rv != 1) {
-		executor->log_err(executor, "Can't create generator, stopping the test\n");
+		cte->log_err(cte, "Can't create generator, stopping the test\n");
 		return -1;
 	}
 	rv = cw_generator_start();
 	if (rv != 1) {
-		executor->log_err(executor, "Can't start generator, stopping the test\n");
+		cte->log_err(cte, "Can't start generator, stopping the test\n");
 		cw_generator_delete();
 		return -1;
 	}
 
-	if (executor->should_test_module(executor, "t")) {
+	if (cte->should_test_topic(cte, "t")) {
 		for (int test = 0; libcw_test_set_tq_with_audio[test]; test++) {
 			cw_test_setup();
-			(*libcw_test_set_tq_with_audio[test])(executor);
+			(*libcw_test_set_tq_with_audio[test])(cte);
 		}
 	}
 
 
-	if (executor->should_test_module(executor, "g")) {
+	if (cte->should_test_topic(cte, "g")) {
 		for (int test = 0; libcw_test_set_gen_with_audio[test]; test++) {
 			cw_test_setup();
-			(*libcw_test_set_gen_with_audio[test])(executor);
+			(*libcw_test_set_gen_with_audio[test])(cte);
 		}
 	}
 
 
-	if (executor->should_test_module(executor, "k")) {
+	if (cte->should_test_topic(cte, "k")) {
 		for (int test = 0; libcw_test_set_key_with_audio[test]; test++) {
 			cw_test_setup();
-			(*libcw_test_set_key_with_audio[test])(executor);
+			(*libcw_test_set_key_with_audio[test])(cte);
 		}
 	}
 
 
-	if (executor->should_test_module(executor, "o")) {
+	if (cte->should_test_topic(cte, "o")) {
 		for (int test = 0; libcw_test_set_other_with_audio[test]; test++) {
 			cw_test_setup();
-			(*libcw_test_set_other_with_audio[test])(executor);
+			(*libcw_test_set_other_with_audio[test])(cte);
 		}
 	}
 
@@ -186,7 +186,7 @@ int cw_test_modules_with_current_sound_system(cw_test_executor_t * executor)
 
 	/* All tests done; return success if no failures,
 	   otherwise return an error status code. */
-	return executor->stats->failures ? 1 : 0;
+	return cte->stats->failures ? 1 : 0;
 }
 
 
@@ -205,57 +205,57 @@ void cw_test_print_stats_wrapper(void)
 
 
 
-void cw_test_print_stats(cw_test_executor_t * executor)
+void cw_test_print_stats(cw_test_executor_t * cte)
 {
-	executor->log_info_cont(executor, "\n\n");
-	executor->log_info(executor, "Statistics of tests:\n");
+	cte->log_info_cont(cte, "\n\n");
+	cte->log_info(cte, "Statistics of tests:\n");
 
-	executor->log_info(executor, "Tests not requiring any audio system:            ");
-	if (executor->stats_indep.failures + executor->stats_indep.successes) {
-		executor->log_info_cont(executor, "errors: %03d, total: %03d\n",
-					executor->stats_indep.failures, executor->stats_indep.failures + executor->stats_indep.successes);
+	cte->log_info(cte, "Tests not requiring any audio system:            ");
+	if (cte->stats_indep.failures + cte->stats_indep.successes) {
+		cte->log_info_cont(cte, "errors: %03d, total: %03d\n",
+					cte->stats_indep.failures, cte->stats_indep.failures + cte->stats_indep.successes);
 	} else {
-		executor->log_info_cont(executor, "no tests were performed\n");
+		cte->log_info_cont(cte, "no tests were performed\n");
 	}
 
-	executor->log_info(executor, "Tests performed with NULL audio system:          ");
-	if (executor->stats_null.failures + executor->stats_null.successes) {
-		executor->log_info_cont(executor, "errors: %03d, total: %03d\n",
-					executor->stats_null.failures, executor->stats_null.failures + executor->stats_null.successes);
+	cte->log_info(cte, "Tests performed with NULL audio system:          ");
+	if (cte->stats_null.failures + cte->stats_null.successes) {
+		cte->log_info_cont(cte, "errors: %03d, total: %03d\n",
+					cte->stats_null.failures, cte->stats_null.failures + cte->stats_null.successes);
 	} else {
-		executor->log_info_cont(executor, "no tests were performed\n");
+		cte->log_info_cont(cte, "no tests were performed\n");
 	}
 
-	executor->log_info(executor, "Tests performed with console audio system:       ");
-	if (executor->stats_console.failures + executor->stats_console.successes) {
-		executor->log_info_cont(executor, "errors: %03d, total: %03d\n",
-					executor->stats_console.failures, executor->stats_console.failures + executor->stats_console.successes);
+	cte->log_info(cte, "Tests performed with console audio system:       ");
+	if (cte->stats_console.failures + cte->stats_console.successes) {
+		cte->log_info_cont(cte, "errors: %03d, total: %03d\n",
+					cte->stats_console.failures, cte->stats_console.failures + cte->stats_console.successes);
 	} else {
-		executor->log_info_cont(executor, "no tests were performed\n");
+		cte->log_info_cont(cte, "no tests were performed\n");
 	}
 
-	executor->log_info(executor, "Tests performed with OSS audio system:           ");
-	if (executor->stats_oss.failures + executor->stats_oss.successes) {
-		executor->log_info_cont(executor, "errors: %03d, total: %03d\n",
-					executor->stats_oss.failures, executor->stats_oss.failures + executor->stats_oss.successes);
+	cte->log_info(cte, "Tests performed with OSS audio system:           ");
+	if (cte->stats_oss.failures + cte->stats_oss.successes) {
+		cte->log_info_cont(cte, "errors: %03d, total: %03d\n",
+					cte->stats_oss.failures, cte->stats_oss.failures + cte->stats_oss.successes);
 	} else {
-		executor->log_info_cont(executor, "no tests were performed\n");
+		cte->log_info_cont(cte, "no tests were performed\n");
 	}
 
-	executor->log_info(executor, "Tests performed with ALSA audio system:          ");
-	if (executor->stats_alsa.failures + executor->stats_alsa.successes) {
-		executor->log_info_cont(executor, "errors: %03d, total: %03d\n",
-		       executor->stats_alsa.failures, executor->stats_alsa.failures + executor->stats_alsa.successes);
+	cte->log_info(cte, "Tests performed with ALSA audio system:          ");
+	if (cte->stats_alsa.failures + cte->stats_alsa.successes) {
+		cte->log_info_cont(cte, "errors: %03d, total: %03d\n",
+		       cte->stats_alsa.failures, cte->stats_alsa.failures + cte->stats_alsa.successes);
 	} else {
-		executor->log_info_cont(executor, "no tests were performed\n");
+		cte->log_info_cont(cte, "no tests were performed\n");
 	}
 
-	executor->log_info(executor, "Tests performed with PulseAudio audio system:    ");
-	if (executor->stats_pa.failures + executor->stats_pa.successes) {
-		executor->log_info_cont(executor, "errors: %03d, total: %03d\n",
-		       executor->stats_pa.failures, executor->stats_pa.failures + executor->stats_pa.successes);
+	cte->log_info(cte, "Tests performed with PulseAudio audio system:    ");
+	if (cte->stats_pa.failures + cte->stats_pa.successes) {
+		cte->log_info_cont(cte, "errors: %03d, total: %03d\n",
+		       cte->stats_pa.failures, cte->stats_pa.failures + cte->stats_pa.successes);
 	} else {
-		executor->log_info_cont(executor, "no executor were performed\n");
+		cte->log_info_cont(cte, "no executor were performed\n");
 	}
 
 	return;
@@ -295,7 +295,7 @@ int main(int argc, char *const argv[])
 		}
 	}
 
-	rv = cw_test_modules_with_sound_systems(&g_tests_executor, cw_test_modules_with_current_sound_system);
+	rv = cw_test_topics_with_sound_systems(&g_tests_executor, cw_test_topics_with_current_sound_system);
 
 	return rv == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }
