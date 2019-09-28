@@ -64,6 +64,8 @@ void gen_destroy(cw_gen_t ** gen)
 */
 int test_cw_tq_new_delete_internal(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	/* Arbitrary number of calls to new()/delete() pair. */
 	const int max = 40;
 	bool failure = false;
@@ -104,6 +106,8 @@ int test_cw_tq_new_delete_internal(cw_test_executor_t * cte)
 		cw_tq_delete_internal(&tq);
 	}
 
+	cte->print_test_footer(cte, __func__);
+
 	return 0;
 }
 
@@ -116,6 +120,8 @@ int test_cw_tq_new_delete_internal(cw_test_executor_t * cte)
 */
 int test_cw_tq_get_capacity_internal(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	bool failure = false;
 
 	cw_tone_queue_t * tq = cw_tq_new_internal();
@@ -137,6 +143,8 @@ int test_cw_tq_get_capacity_internal(cw_test_executor_t * cte)
 
 	cte->expect_eq_int(cte, false, failure, "get capacity");
 
+	cte->print_test_footer(cte, __func__);
+
 	return 0;
 }
 
@@ -149,6 +157,8 @@ int test_cw_tq_get_capacity_internal(cw_test_executor_t * cte)
 */
 int test_cw_tq_prev_index_internal(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 #if 0
 	cw_tone_queue_t * tq = cw_tq_new_internal();
 	cw_assert (tq, MSG_PREFIX "failed to create new tone queue");
@@ -194,6 +204,8 @@ int test_cw_tq_prev_index_internal(cw_test_executor_t * cte)
 
 	cte->expect_eq_int(cte, false, failure, "prev index:");
 #endif
+	cte->print_test_footer(cte, __func__);
+
 	return 0;
 }
 
@@ -206,6 +218,8 @@ int test_cw_tq_prev_index_internal(cw_test_executor_t * cte)
 */
 int test_cw_tq_next_index_internal(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 #if 0
 	cw_tone_queue_t *tq = cw_tq_new_internal();
 	cw_assert (tq, MSG_PREFIX "failed to create new tone queue");
@@ -244,6 +258,8 @@ int test_cw_tq_next_index_internal(cw_test_executor_t * cte)
 
 	cte->expect_eq_int(cte, false, failure, "next index:");
 #endif
+	cte->print_test_footer(cte, __func__);
+
 	return 0;
 }
 
@@ -260,6 +276,8 @@ int test_cw_tq_next_index_internal(cw_test_executor_t * cte)
 */
 int test_cw_tq_length_internal(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 #if 0
 	/* This is just some code copied from implementation of
 	   'enqueue' function. I don't use 'enqueue' function itself
@@ -316,6 +334,8 @@ int test_cw_tq_length_internal(cw_test_executor_t * cte)
 
 	cte->expect_eq_int(cte, false, failure, "length:");
 #endif
+	cte->print_test_footer(cte, __func__);
+
 	return 0;
 }
 
@@ -331,6 +351,8 @@ int test_cw_tq_length_internal(cw_test_executor_t * cte)
 */
 int test_cw_tq_enqueue_dequeue_internal(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	cw_tone_queue_t * tq = cw_tq_new_internal();
 	cw_assert (tq, MSG_PREFIX "failed to create new tone queue");
 	tq->state = CW_TQ_BUSY; /* TODO: why this assignment? */
@@ -343,6 +365,8 @@ int test_cw_tq_enqueue_dequeue_internal(cw_test_executor_t * cte)
 	test_cw_tq_dequeue_internal(tq, cte);
 
 	cw_tq_delete_internal(&tq);
+
+	cte->print_test_footer(cte, __func__);
 
 	return 0;
 }
@@ -400,6 +424,8 @@ int test_cw_tq_enqueue_internal_1(cw_tone_queue_t *tq, cw_test_executor_t * cte)
 	/* This tests for correctness of working of the 'enqueue'
 	   function.  Full tq should not grow beyond its capacity. */
 	cte->expect_eq_int(cte, tq->capacity, tq->len, "enqueue: length of full queue == capacity (%zd == %zd):", tq->len, tq->capacity);
+
+	cte->print_test_footer(cte, __func__);
 
 	return 0;
 }
@@ -491,6 +517,8 @@ int test_cw_tq_dequeue_internal(cw_tone_queue_t *tq, cw_test_executor_t * cte)
 */
 int test_cw_tq_is_full_internal(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	cw_tone_queue_t * tq = cw_tq_new_internal();
 	cw_assert (tq, MSG_PREFIX "failed to create new tq");
 	tq->state = CW_TQ_BUSY;
@@ -557,6 +585,8 @@ int test_cw_tq_is_full_internal(cw_test_executor_t * cte)
 
 	cw_tq_delete_internal(&tq);
 
+	cte->print_test_footer(cte, __func__);
+
 	return 0;
 }
 
@@ -583,6 +613,8 @@ int test_cw_tq_is_full_internal(cw_test_executor_t * cte)
 */
 int test_cw_tq_test_capacity_1(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 #if 0
 	/* We don't need to check tq with capacity ==
 	   CW_TONE_QUEUE_CAPACITY_MAX (yet). Let's test a smaller
@@ -669,6 +701,8 @@ int test_cw_tq_test_capacity_1(cw_test_executor_t * cte)
 		s++;
 	}
 #endif
+	cte->print_test_footer(cte, __func__);
+
 	return 0;
 }
 
@@ -696,6 +730,8 @@ int test_cw_tq_test_capacity_1(cw_test_executor_t * cte)
 */
 int test_cw_tq_test_capacity_2(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 #if 0
 	/* We don't need to check tq with capacity ==
 	   CW_TONE_QUEUE_CAPACITY_MAX (yet). Let's test a smaller
@@ -792,6 +828,8 @@ int test_cw_tq_test_capacity_2(cw_test_executor_t * cte)
 		s++;
 	}
 #endif
+	cte->print_test_footer(cte, __func__);
+
 	return 0;
 }
 
@@ -874,6 +912,8 @@ cw_tone_queue_t *test_cw_tq_capacity_test_init(size_t capacity, size_t high_wate
 */
 int test_cw_tq_enqueue_internal_2(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	cw_tone_queue_t *tq = cw_tq_new_internal();
 	cw_assert (tq, "failed to create a tone queue\n");
 	cw_tone_t tone;
@@ -914,6 +954,8 @@ int test_cw_tq_enqueue_internal_2(cw_test_executor_t * cte)
 	cw_tq_delete_internal(&tq);
 	cte->expect_null_pointer(cte, tq, "tone queue not deleted properly");
 
+	cte->print_test_footer(cte, __func__);
+
 	return 0;
 }
 
@@ -931,6 +973,8 @@ int test_cw_tq_enqueue_internal_2(cw_test_executor_t * cte)
 */
 int test_cw_tq_wait_for_level_internal(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	cw_tone_t tone;
 	CW_TONE_INIT(&tone, 20, 10000, CW_SLOPE_MODE_STANDARD_SLOPES);
 
@@ -978,6 +1022,7 @@ int test_cw_tq_wait_for_level_internal(cw_test_executor_t * cte)
 		cte->expect_eq_int(cte, false, diff_failure, "wait for level: diff @ level=%d:", level);
 	}
 
+	cte->print_test_footer(cte, __func__);
 
 	return 0;
 }
@@ -997,6 +1042,8 @@ int test_cw_tq_wait_for_level_internal(cw_test_executor_t * cte)
 */
 int test_cw_tq_operations_1(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	cw_gen_t * gen = NULL;
 	gen_setup(cte, &gen);
 
@@ -1119,6 +1166,8 @@ int test_cw_tq_operations_1(cw_test_executor_t * cte)
 
 	gen_destroy(&gen);
 
+	cte->print_test_footer(cte, __func__);
+
 	return 0;
 }
 
@@ -1136,6 +1185,8 @@ int test_cw_tq_operations_1(cw_test_executor_t * cte)
 */
 int test_cw_tq_operations_2(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	cw_gen_t * gen = NULL;
 	gen_setup(cte, &gen);
 
@@ -1200,6 +1251,8 @@ int test_cw_tq_operations_2(cw_test_executor_t * cte)
 
 	gen_destroy(&gen);
 
+	cte->print_test_footer(cte, __func__);
+
 	return 0;
 }
 
@@ -1219,6 +1272,8 @@ int test_cw_tq_operations_2(cw_test_executor_t * cte)
 */
 int test_cw_tq_operations_3(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	cw_gen_t * gen = NULL;
 	gen_setup(cte, &gen);
 
@@ -1311,6 +1366,8 @@ int test_cw_tq_operations_3(cw_test_executor_t * cte)
 
 	gen_destroy(&gen);
 
+	cte->print_test_footer(cte, __func__);
+
 	return 0;
 }
 
@@ -1332,6 +1389,8 @@ struct cw_test_struct{
 */
 int test_cw_tq_callback(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	cw_gen_t * gen = NULL;
 	gen_setup(cte, &gen);
 
@@ -1387,6 +1446,8 @@ int test_cw_tq_callback(cw_test_executor_t * cte)
 	}
 
 	gen_destroy(&gen);
+
+	cte->print_test_footer(cte, __func__);
 
 	return 0;
 }

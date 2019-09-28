@@ -40,6 +40,8 @@ extern cw_debug_t cw_debug_object_dev;
 */
 int test_cw_debug_flags_internal(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	/* Store current flags for period of tests. */
 	uint32_t flags_backup = cw_debug_get_flags(&cw_debug_object);
 	bool set_failure = true;
@@ -66,6 +68,8 @@ int test_cw_debug_flags_internal(cw_test_executor_t * cte)
 
 	/* Restore original flags. */
 	cw_debug_set_flags(&cw_debug_object, flags_backup);
+
+	cte->print_test_footer(cte, __func__);
 
 	return 0;
 }

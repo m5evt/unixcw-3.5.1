@@ -30,6 +30,8 @@
 */
 int test_cw_timestamp_compare_internal(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	struct timeval earlier_timestamp;
 	struct timeval later_timestamp;
 
@@ -71,6 +73,8 @@ int test_cw_timestamp_compare_internal(cw_test_executor_t * cte)
 
 	cte->expect_eq_int(cte, false, failure, "libcw:utils:compare timestamp:");
 
+	cte->print_test_footer(cte, __func__);
+
 	return 0;
 }
 
@@ -83,6 +87,8 @@ int test_cw_timestamp_compare_internal(cw_test_executor_t * cte)
 */
 int test_cw_timestamp_validate_internal(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	struct timeval out_timestamp;
 	struct timeval in_timestamp;
 	struct timeval ref_timestamp; /* Reference timestamp. */
@@ -155,6 +161,7 @@ int test_cw_timestamp_validate_internal(cw_test_executor_t * cte)
 	cte->expect_eq_int_errors_only(cte, CW_FAILURE, cwret, "libcw:utils:validate timestamp:negative milliseconds (cwret)");
 	cte->expect_eq_int_errors_only(cte, EINVAL, errno, "libcw:utils:validate timestamp:negative milliseconds (cwret)");
 
+	cte->print_test_footer(cte, __func__);
 
 	return 0;
 }
@@ -168,6 +175,8 @@ int test_cw_timestamp_validate_internal(cw_test_executor_t * cte)
 */
 int test_cw_usecs_to_timespec_internal(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	struct {
 		int input;
 		struct timespec t;
@@ -205,6 +214,8 @@ int test_cw_usecs_to_timespec_internal(cw_test_executor_t * cte)
 
 	cte->expect_eq_int(cte, false, failure, "libcw:utils:usecs to timespec:");
 
+	cte->print_test_footer(cte, __func__);
+
 	return 0;
 }
 
@@ -218,6 +229,8 @@ int test_cw_usecs_to_timespec_internal(cw_test_executor_t * cte)
 */
 int test_cw_version_internal(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	int current = 77, revision = 88, age = 99; /* Dummy values. */
 	cw_get_lib_version(&current, &revision, &age);
 
@@ -266,6 +279,8 @@ int test_cw_version_internal(cw_test_executor_t * cte)
 	cte->expect_eq_int(cte, revision, r, "libcw:utils:version: revision: %d / %d", revision, r);
 	cte->expect_eq_int(cte, age, a, "libcw:utils:version: age: %d / %d", age, a);
 
+	cte->print_test_footer(cte, __func__);
+
 	return 0;
 }
 
@@ -278,11 +293,15 @@ int test_cw_version_internal(cw_test_executor_t * cte)
 */
 int test_cw_license_internal(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	/* Well, there isn't much to test here. The function just
 	   prints the license to stdout, and that's it. */
 
 	cw_license();
 	cte->expect_eq_int(cte, false, false, "libcw:utils:license:");
+
+	cte->print_test_footer(cte, __func__);
 
 	return 0;
 }
@@ -303,6 +322,8 @@ int test_cw_license_internal(cw_test_executor_t * cte)
 */
 int test_cw_get_x_limits_internal(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	struct {
 		void (* getter)(int *min, int *max);
 		int min;     /* Minimum hardwired in library. */
@@ -335,6 +356,7 @@ int test_cw_get_x_limits_internal(cw_test_executor_t * cte)
 		cte->expect_eq_int(cte, test_data[i].get_max, test_data[i].max, "libcw:utils:get max %s:", test_data[i].name);
 	}
 
+	cte->print_test_footer(cte, __func__);
 
 	return 0;
 }

@@ -74,6 +74,8 @@ static float * test_cw_rec_generate_speeds_varying(int speed_min, int speed_max,
 */
 int test_cw_rec_identify_mark_internal(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 #if 0
 	cw_rec_t * rec = cw_rec_new();
 	cw_assert (rec, MSG_PREFIX "identify mark: failed to create new receiver\n");
@@ -151,6 +153,9 @@ int test_cw_rec_identify_mark_internal(cw_test_executor_t * cte)
 
 	cw_rec_delete(&rec);
 #endif
+
+	cte->print_test_footer(cte, __func__);
+
 	return 0;
 }
 
@@ -167,6 +172,8 @@ int test_cw_rec_identify_mark_internal(cw_test_executor_t * cte)
 */
 int test_cw_rec_test_with_base_constant(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	cw_rec_t * rec = cw_rec_new();
 	cw_assert (rec, MSG_PREFIX "begin/end: base/constant: failed to create new receiver\n");
 
@@ -195,6 +202,8 @@ int test_cw_rec_test_with_base_constant(cw_test_executor_t * cte)
 	}
 
 	cw_rec_delete(&rec);
+
+	cte->print_test_footer(cte, __func__);
 
 	return 0;
 }
@@ -520,6 +529,8 @@ struct cw_rec_test_data * test_cw_rec_generate_base_data_constant(int speed, int
 */
 int test_cw_rec_test_with_random_constant(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	cw_rec_t * rec = cw_rec_new();
 	cw_assert (rec, MSG_PREFIX "begin/end: random/constant: failed to create new receiver\n");
 
@@ -549,6 +560,8 @@ int test_cw_rec_test_with_random_constant(cw_test_executor_t * cte)
 
 	cw_rec_delete(&rec);
 
+	cte->print_test_footer(cte, __func__);
+
 	return 0;
 }
 
@@ -566,6 +579,8 @@ int test_cw_rec_test_with_random_constant(cw_test_executor_t * cte)
 */
 int test_cw_rec_test_with_random_varying(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	struct cw_rec_test_data * data = test_cw_rec_generate_data_random_varying(CW_SPEED_MIN, CW_SPEED_MAX, 0);
 	//test_cw_rec_print_data(data);
 
@@ -591,6 +606,8 @@ int test_cw_rec_test_with_random_varying(cw_test_executor_t * cte)
 	test_cw_rec_delete_data(&data);
 
 	cw_rec_delete(&rec);
+
+	cte->print_test_footer(cte, __func__);
 
 	return 0;
 }
@@ -1067,6 +1084,8 @@ void test_cw_rec_print_data(struct cw_rec_test_data * data)
 
 int test_cw_rec_get_parameters(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	bool failure = true;
 
 	cw_rec_t * rec = cw_rec_new();
@@ -1156,6 +1175,8 @@ int test_cw_rec_get_parameters(cw_test_executor_t * cte)
 	failure = (eoc_len_min >= eoc_len_ideal) || (eoc_len_ideal >= eoc_len_max);
 	cte->expect_eq_int_errors_only(cte, false, failure, "get: eoc len consistency (%d/%d/%d)", eoc_len_min, eoc_len_ideal, eoc_len_max);
 
+	cte->print_test_footer(cte, __func__);
+
 	return 0;
 }
 
@@ -1168,6 +1189,8 @@ int test_cw_rec_get_parameters(cw_test_executor_t * cte)
    for limit getters, which don't require a receiver at all. */
 int test_cw_rec_parameter_getters_setters_1(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	cw_rec_t * rec = cw_rec_new();
 	cw_assert (rec, MSG_PREFIX "get/set param 1: failed to create new receiver\n");
 
@@ -1272,6 +1295,8 @@ int test_cw_rec_parameter_getters_setters_1(cw_test_executor_t * cte)
 	cte->expect_eq_int(cte, false, set_max_failure, "get/set param 1: set value above max:");
 	cte->expect_eq_int(cte, false, set_ok_failure, "get/set param 1: set value in range:");
 
+	cte->print_test_footer(cte, __func__);
+
 	return 0;
 }
 
@@ -1283,6 +1308,8 @@ int test_cw_rec_parameter_getters_setters_1(cw_test_executor_t * cte)
    for limit getters, which don't require a receiver at all. */
 int test_cw_rec_parameter_getters_setters_2(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	cw_rec_t * rec = cw_rec_new();
 	cw_assert (rec, MSG_PREFIX "get/set param 2: failed to create new receiver\n");
 
@@ -1389,6 +1416,8 @@ int test_cw_rec_parameter_getters_setters_2(cw_test_executor_t * cte)
 	cte->expect_eq_int(cte, false, set_min_failure, "get/set param 2: set value below min:");
 	cte->expect_eq_int(cte, false, set_max_failure, "get/set param 2: set value above max:");
 	cte->expect_eq_int(cte, false, set_ok_failure, "get/set param 2: set value in range:");
+
+	cte->print_test_footer(cte, __func__);
 
 	return 0;
 }

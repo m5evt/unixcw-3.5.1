@@ -29,6 +29,8 @@
 */
 int test_cw_gen_new_delete(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	/* Arbitrary number of calls to a set of tested functions. */
 	int max = 100;
 
@@ -193,6 +195,7 @@ int test_cw_gen_new_delete(cw_test_executor_t * cte)
 		cw_gen_delete(&gen);
 	}
 
+	cte->print_test_footer(cte, __func__);
 
 	return 0;
 }
@@ -202,6 +205,8 @@ int test_cw_gen_new_delete(cw_test_executor_t * cte)
 
 int test_cw_gen_set_tone_slope(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	int audio_system = CW_AUDIO_NULL;
 	bool failure = true;
 	int cwret = CW_FAILURE;
@@ -411,6 +416,7 @@ int test_cw_gen_set_tone_slope(cw_test_executor_t * cte)
 		cw_gen_delete(&gen);
 	}
 
+	cte->print_test_footer(cte, __func__);
 
 	return 0;
 }
@@ -430,12 +436,16 @@ int test_cw_gen_set_tone_slope(cw_test_executor_t * cte)
 */
 int test_cw_gen_tone_slope_shape_enums(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	const bool failure = CW_TONE_SLOPE_SHAPE_LINEAR < 0
 		|| CW_TONE_SLOPE_SHAPE_RAISED_COSINE < 0
 		|| CW_TONE_SLOPE_SHAPE_SINE < 0
 		|| CW_TONE_SLOPE_SHAPE_RECTANGULAR < 0;
 
 	cte->expect_eq_int_errors_only(cte, false, failure, "slope shape enums:");
+
+	cte->print_test_footer(cte, __func__);
 
 	return 0;
 }
@@ -449,11 +459,15 @@ int test_cw_gen_tone_slope_shape_enums(cw_test_executor_t * cte)
 */
 int test_cw_gen_forever_internal(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	const int seconds = 2;
 	cte->log_info(cte, "forever tone (%d seconds):", seconds);
 
 	const int rv = test_cw_gen_forever_sub(cte, 2, CW_AUDIO_NULL, (const char *) NULL);
 	cte->expect_eq_int_errors_only(cte, 0, rv, "'forever' test");
+
+	cte->print_test_footer(cte, __func__);
 
 	return 0;
 }
@@ -515,6 +529,8 @@ int test_cw_gen_forever_sub(cw_test_executor_t * cte, int seconds, int audio_sys
 */
 int test_cw_gen_get_timing_parameters_internal(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	int initial = -5;
 
 	int dot_len = initial;
@@ -554,6 +570,8 @@ int test_cw_gen_get_timing_parameters_internal(cw_test_executor_t * cte)
 
 	cw_gen_delete(&gen);
 
+	cte->print_test_footer(cte, __func__);
+
 	return 0;
 }
 
@@ -583,6 +601,8 @@ int test_cw_gen_get_timing_parameters_internal(cw_test_executor_t * cte)
 */
 int test_cw_gen_parameter_getters_setters(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	int off_limits = 10000;
 
 	cw_gen_t * gen = cw_gen_new(CW_AUDIO_NULL, NULL);
@@ -662,6 +682,8 @@ int test_cw_gen_parameter_getters_setters(cw_test_executor_t * cte)
 
 	cw_gen_delete(&gen);
 
+	cte->print_test_footer(cte, __func__);
+
 	return 0;
 }
 
@@ -680,6 +702,8 @@ int test_cw_gen_parameter_getters_setters(cw_test_executor_t * cte)
 */
 int test_cw_gen_volume_functions(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	int cw_min = -1, cw_max = -1;
 
 	cw_gen_t * gen = cw_gen_new(CW_AUDIO_NULL, NULL);
@@ -773,6 +797,8 @@ int test_cw_gen_volume_functions(cw_test_executor_t * cte)
 
 	cw_gen_delete(&gen);
 
+	cte->print_test_footer(cte, __func__);
+
 	return 0;
 }
 
@@ -788,6 +814,8 @@ int test_cw_gen_volume_functions(cw_test_executor_t * cte)
 */
 int test_cw_gen_enqueue_primitives(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	int N = 20;
 
 	cw_gen_t * gen = cw_gen_new(CW_AUDIO_NULL, NULL);
@@ -860,6 +888,8 @@ int test_cw_gen_enqueue_primitives(cw_test_executor_t * cte)
 
 	cw_gen_delete(&gen);
 
+	cte->print_test_footer(cte, __func__);
+
 	return 0;
 }
 
@@ -873,6 +903,8 @@ int test_cw_gen_enqueue_primitives(cw_test_executor_t * cte)
 */
 int test_cw_gen_enqueue_representations(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	/* Representation is valid when it contains dots and dashes
 	   only.  cw_gen_enqueue_representation_partial_internal()
 	   doesn't care about correct mapping of representation to a
@@ -909,6 +941,8 @@ int test_cw_gen_enqueue_representations(cw_test_executor_t * cte)
 
 	cw_gen_delete(&gen);
 
+	cte->print_test_footer(cte, __func__);
+
 	return 0;
 }
 
@@ -923,6 +957,8 @@ int test_cw_gen_enqueue_representations(cw_test_executor_t * cte)
 */
 int test_cw_gen_enqueue_character_and_string(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	cw_gen_t * gen = cw_gen_new(CW_AUDIO_NULL, NULL);
 	cw_gen_start(gen);
 
@@ -991,6 +1027,8 @@ int test_cw_gen_enqueue_character_and_string(cw_test_executor_t * cte)
 	}
 
 	cw_gen_delete(&gen);
+
+	cte->print_test_footer(cte, __func__);
 
 	return 0;
 }

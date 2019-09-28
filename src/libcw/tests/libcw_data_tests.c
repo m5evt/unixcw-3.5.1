@@ -57,6 +57,8 @@ extern const cw_entry_t CW_TABLE[];
 */
 int test_cw_representation_to_hash_internal(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	/* Intended contents of input[] is something like that:
 	  input[0]  = "."
 	  input[1]  = "-"
@@ -123,6 +125,8 @@ int test_cw_representation_to_hash_internal(cw_test_executor_t * cte)
 		}
 	}
 
+	cte->print_test_footer(cte, __func__);
+
 	return 0;
 }
 
@@ -135,6 +139,8 @@ int test_cw_representation_to_hash_internal(cw_test_executor_t * cte)
 */
 int test_cw_representation_to_character_internal(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	bool failure = true;
 
 	/* The test is performed by comparing results of function
@@ -154,6 +160,8 @@ int test_cw_representation_to_character_internal(cw_test_executor_t * cte)
 
 	cte->expect_eq_int(cte, false, failure, "representation to character");
 
+	cte->print_test_footer(cte, __func__);
+
 	return 0;
 }
 
@@ -164,6 +172,8 @@ int test_cw_representation_to_character_internal(cw_test_executor_t * cte)
 
 int test_cw_representation_to_character_internal_speed(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	/* Testing speed gain between function with direct lookup, and
 	   function with fast lookup table.  Test is preformed by
 	   running each function N times with timer started before the
@@ -202,6 +212,8 @@ int test_cw_representation_to_character_internal_speed(cw_test_executor_t * cte)
 	bool failure = gain < 1.1;
 	cte->expect_eq_int_errors_only(cte, false, failure, "lookup speed gain: %.2f", gain);
 
+	cte->print_test_footer(cte, __func__);
+
 	return 0;
 }
 
@@ -220,6 +232,8 @@ int test_cw_representation_to_character_internal_speed(cw_test_executor_t * cte)
 */
 int test_character_lookups_internal(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	bool failure = true;
 
 	/* Test: get number of characters known to libcw. */
@@ -306,6 +320,8 @@ int test_character_lookups_internal(cw_test_executor_t * cte)
 		cte->expect_eq_int(cte, false, two_way_failure, "character lookup: two-way lookup");
 	}
 
+	cte->print_test_footer(cte, __func__);
+
 	return 0;
 }
 
@@ -323,6 +339,8 @@ int test_character_lookups_internal(cw_test_executor_t * cte)
 */
 int test_prosign_lookups_internal(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	/* Collect and print out a list of characters in the
 	   procedural signals expansion table. */
 
@@ -396,6 +414,8 @@ int test_prosign_lookups_internal(cw_test_executor_t * cte)
 		cte->expect_eq_int(cte, false, check_failure, "procedural character lookup: lookup check");
 	}
 
+	cte->print_test_footer(cte, __func__);
+
 	return 0;
 }
 
@@ -409,6 +429,8 @@ int test_prosign_lookups_internal(cw_test_executor_t * cte)
 */
 int test_phonetic_lookups_internal(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	/* For each ASCII character, look up its phonetic and check
 	   for a string that start with this character, if alphabetic,
 	   and false otherwise. */
@@ -455,6 +477,8 @@ int test_phonetic_lookups_internal(cw_test_executor_t * cte)
 		cte->expect_eq_int(cte, false, reverse_failure, "phonetic lookup: reverse lookup");
 	}
 
+	cte->print_test_footer(cte, __func__);
+
 	return 0;
 }
 
@@ -470,6 +494,8 @@ int test_phonetic_lookups_internal(cw_test_executor_t * cte)
 */
 int test_validate_character_and_string_internal(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	/* Test: validation of individual characters. */
 	{
 		bool failure_valid = true;
@@ -536,6 +562,7 @@ int test_validate_character_and_string_internal(cw_test_executor_t * cte)
 		cte->expect_eq_int(cte, false, are_we_valid, "validate string: invalid string");
 	}
 
+	cte->print_test_footer(cte, __func__);
 
 	return 0;
 }
@@ -551,6 +578,8 @@ int test_validate_character_and_string_internal(cw_test_executor_t * cte)
 */
 int test_validate_representation_internal(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	/* Test: validating valid representations. */
 	{
 		int rv1 = cw_representation_is_valid(".-.-.-");
@@ -572,6 +601,8 @@ int test_validate_representation_internal(cw_test_executor_t * cte)
 		bool failure = (rv1 == CW_SUCCESS) || (rv2 == CW_SUCCESS) || (rv3 == CW_SUCCESS);
 		cte->expect_eq_int_errors_only(cte, false, failure, "validate representation: invalid (%d/%d/%d):", rv1, rv2, rv3);
 	}
+
+	cte->print_test_footer(cte, __func__);
 
 	return 0;
 }

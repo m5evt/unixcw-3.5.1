@@ -76,6 +76,8 @@ void key_destroy(cw_key_t ** key, cw_gen_t ** gen)
 */
 int test_keyer(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	cw_key_t * key = NULL;
 	cw_gen_t * gen = NULL;
 	key_setup(cte, &key, &gen);
@@ -212,6 +214,8 @@ int test_keyer(cw_test_executor_t * cte)
 
 	key_destroy(&key, &gen);
 
+	cte->print_test_footer(cte, __func__);
+
 	return 0;
 }
 
@@ -226,6 +230,8 @@ int test_keyer(cw_test_executor_t * cte)
 */
 int test_straight_key(cw_test_executor_t * cte)
 {
+	cte->print_test_header(cte, __func__);
+
 	cw_key_t * key = NULL;
 	cw_gen_t * gen = NULL;
 	key_setup(cte, &key, &gen);
@@ -357,6 +363,8 @@ int test_straight_key(cw_test_executor_t * cte)
 	fflush(out_file);
 
 	key_destroy(&key, &gen);
+
+	cte->print_test_footer(cte, __func__);
 
 	return 0;
 }
