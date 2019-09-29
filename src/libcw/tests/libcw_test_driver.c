@@ -147,7 +147,7 @@ int cw_test_topics_with_current_sound_system(cw_test_executor_t * cte)
 		return -1;
 	}
 
-	if (cte->should_test_topic(cte, "t")) {
+	if (cte->test_topic_was_requested(cte, LIBCW_TEST_TOPIC_TQ)) {
 		for (int test = 0; libcw_test_set_tq_with_audio[test]; test++) {
 			cw_test_setup();
 			(*libcw_test_set_tq_with_audio[test])(cte);
@@ -155,7 +155,7 @@ int cw_test_topics_with_current_sound_system(cw_test_executor_t * cte)
 	}
 
 
-	if (cte->should_test_topic(cte, "g")) {
+	if (cte->test_topic_was_requested(cte, LIBCW_TEST_TOPIC_GEN)) {
 		for (int test = 0; libcw_test_set_gen_with_audio[test]; test++) {
 			cw_test_setup();
 			(*libcw_test_set_gen_with_audio[test])(cte);
@@ -163,7 +163,7 @@ int cw_test_topics_with_current_sound_system(cw_test_executor_t * cte)
 	}
 
 
-	if (cte->should_test_topic(cte, "k")) {
+	if (cte->test_topic_was_requested(cte, LIBCW_TEST_TOPIC_KEY)) {
 		for (int test = 0; libcw_test_set_key_with_audio[test]; test++) {
 			cw_test_setup();
 			(*libcw_test_set_key_with_audio[test])(cte);
@@ -171,7 +171,7 @@ int cw_test_topics_with_current_sound_system(cw_test_executor_t * cte)
 	}
 
 
-	if (cte->should_test_topic(cte, "o")) {
+	if (cte->test_topic_was_requested(cte, LIBCW_TEST_TOPIC_OTHER)) {
 		for (int test = 0; libcw_test_set_other_with_audio[test]; test++) {
 			cw_test_setup();
 			(*libcw_test_set_other_with_audio[test])(cte);

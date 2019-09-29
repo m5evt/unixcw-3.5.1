@@ -63,7 +63,7 @@ extern cw_test_function_t cw_unit_tests_tq[];
 extern cw_test_function_t cw_unit_tests_gen[];
 extern cw_test_function_t cw_unit_tests_key[];
 extern cw_test_function_t cw_unit_tests_rec1[];
-
+extern cw_test_set_t cw_all_tests[];
 
 
 
@@ -94,23 +94,66 @@ int main(int argc, char *const argv[])
 	//cw_debug_set_flags(&cw_debug_object_dev, CW_DEBUG_RECEIVE_STATES | CW_DEBUG_TONE_QUEUE | CW_DEBUG_GENERATOR | CW_DEBUG_KEYING);
 	//cw_debug_object_dev.level = CW_DEBUG_DEBUG;
 
+	cw_test_executor_t * cte = &g_tests_executor;
 
-	cw_test_init(&g_tests_executor, stdout, stderr, MSG_PREFIX);
+	cw_test_init(cte, stdout, stderr, MSG_PREFIX);
 
-	if (!g_tests_executor.process_args(&g_tests_executor, argc, argv)) {
+	if (!cte->process_args(cte, argc, argv)) {
 		cw_test_print_help(argv[0]);
 		exit(EXIT_FAILURE);
 	}
+
+	cte->print_args_summary(cte);
+	sleep(4);
 
 
 	atexit(cw_test_print_stats_wrapper);
 	register_signal_handler();
 
-	int rv = cw_test_topics_with_sound_systems(&g_tests_executor, cw_test_topics_with_current_sound_system);
+
+	int set = 0;
+	while (CW_TEST_SET_VALID == cw_all_tests[set].set_valid) {
+
+		cw_test_set_t * test_set = &cw_all_tests[set];
+
+		for (int topic = LIBCW_TEST_TOPIC_TQ; topic < LIBCW_TEST_TOPIC_MAX; topic++) {
+			if (!cte->test_topic_was_requested(cte, topic)) {
+				continue;
+			}
+			if (!cte->test_topic_is_member(cte, topic, test_set->topics)) {
+				continue;
+			}
+
+
+			for (int sound_system = CW_AUDIO_NULL; sound_system < LIBCW_TEST_SOUND_SYSTEM_MAX; sound_system++) {
+				if (!cte->sound_system_was_requested(cte, sound_system)) {
+					continue;
+				}
+				if (!cte->sound_system_is_member(cte, sound_system, test_set->sound_systems)) {
+					continue;
+				}
+
+
+				int f = 0;
+				while (test_set->test_functions[f]) {
+					cte->stats = &cte->stats2[sound_system][topic];
+					cte->current_sound_system = sound_system;
+
+					(*test_set->test_functions[f])(cte);
+
+					f++;
+				}
+			}
+		}
+		set++;
+	}
+
+	int rv;
+	//int rv = cw_test_topics_with_sound_systems(cte, cw_test_topics_with_current_sound_system);
 
 	/* "make check" facility requires this message to be
 	   printed on stdout; don't localize it */
-	g_tests_executor.log_info(&g_tests_executor, "Test result: success\n\n");
+	cte->log_info(cte, "Test result: success\n\n");
 
 	return rv == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }
@@ -168,51 +211,55 @@ int cw_test_topics_with_current_sound_system(cw_test_executor_t * cte)
 	cte->log_info(cte, "Testing with %s sound system\n", cte->get_current_sound_system_label(cte));
 
 
-
-	if (cte->should_test_topic(cte, "t")) {
+	if (cte->test_topic_was_requested(cte, LIBCW_TEST_TOPIC_TQ)) {
 		int i = 0;
+		cte->stats = &cte->stats2[cte->current_sound_system][LIBCW_TEST_TOPIC_TQ];
 		while (cw_unit_tests_tq[i]) {
-			cte->stats = &cte->stats2[cte->current_sound_system][LIBCW_TEST_TOPIC_TQ];
+
 			(*cw_unit_tests_tq[i])(cte);
 			i++;
 		}
 		cte->log_info_cont(cte, "\n");
 	}
 
-	if (cte->should_test_topic(cte, "g")) {
+	if (cte->test_topic_was_requested(cte, LIBCW_TEST_TOPIC_GEN)) {
 		int i = 0;
+		cte->stats = &cte->stats2[cte->current_sound_system][LIBCW_TEST_TOPIC_GEN];
 		while (cw_unit_tests_gen[i]) {
-			cte->stats = &cte->stats2[cte->current_sound_system][LIBCW_TEST_TOPIC_GEN];
+
 			(*cw_unit_tests_gen[i])(cte);
 			i++;
 		}
 		cte->log_info_cont(cte, "\n");
 	}
 
-	if (cte->should_test_topic(cte, "k")) {
+	if (cte->test_topic_was_requested(cte, LIBCW_TEST_TOPIC_KEY)) {
 		int i = 0;
+		cte->stats = &cte->stats2[cte->current_sound_system][LIBCW_TEST_TOPIC_KEY];
 		while (cw_unit_tests_key[i]) {
-			cte->stats = &cte->stats2[cte->current_sound_system][LIBCW_TEST_TOPIC_KEY];
+
 	                (*cw_unit_tests_key[i])(cte);
 			i++;
 		}
 		cte->log_info_cont(cte, "\n");
 	}
 
-	if (cte->should_test_topic(cte, "r")) {
+	if (cte->test_topic_was_requested(cte, LIBCW_TEST_TOPIC_REC)) {
 		int i = 0;
+		cte->stats = &cte->stats2[cte->current_sound_system][LIBCW_TEST_TOPIC_REC];
 		while (cw_unit_tests_rec1[i]) {
-			cte->stats = &cte->stats2[cte->current_sound_system][LIBCW_TEST_TOPIC_REC];
+
 	                (*cw_unit_tests_rec1[i])(cte);
 			i++;
 		}
 		cte->log_info_cont(cte, "\n");
 	}
 
-	if (cte->should_test_topic(cte, "o")) {
+	if (cte->test_topic_was_requested(cte, LIBCW_TEST_TOPIC_OTHER)) {
 		int i = 0;
+		cte->stats = &cte->stats2[cte->current_sound_system][LIBCW_TEST_TOPIC_OTHER];
 		while (cw_unit_tests_other_s[i]) {
-			cte->stats = &cte->stats2[cte->current_sound_system][LIBCW_TEST_TOPIC_OTHER];
+
 	                (*cw_unit_tests_other_s[i])(cte);
 			i++;
 		}

@@ -76,9 +76,13 @@ static bool cw_test_expect_valid_pointer_errors_only(struct cw_test_executor_t *
 static void cw_test_print_test_header(cw_test_executor_t * self, const char * text);
 static void cw_test_print_test_footer(cw_test_executor_t * self, const char * text);
 static void cw_test_append_status_string(cw_test_executor_t * self, char * msg_buf, int n, const char * status_string);
+
 static int cw_test_process_args(cw_test_executor_t * self, int argc, char * const argv[]);
-static bool cw_test_should_test_topic(cw_test_executor_t * self, const char * topic);
-static bool cw_test_should_test_sound_system(cw_test_executor_t * self, const char * sound_system);
+static void cw_test_print_args_summary(cw_test_executor_t * self);
+
+static bool cw_test_test_topic_was_requested(cw_test_executor_t * self, int libcw_test_topic);
+static bool cw_test_sound_system_was_requested(cw_test_executor_t * self, int sound_system);
+
 static void cw_test_set_current_sound_system(cw_test_executor_t * self, int sound_system);
 static const char * cw_test_get_current_sound_system_label(cw_test_executor_t * self);
 static void cw_test_print_test_stats(cw_test_executor_t * self);
@@ -87,19 +91,34 @@ static void cw_test_log_info(struct cw_test_executor_t * self, const char * fmt,
 static void cw_test_log_info_cont(struct cw_test_executor_t * self, const char * fmt, ...) __attribute__ ((format (printf, 2, 3)));
 static void cw_test_log_err(struct cw_test_executor_t * self, const char * fmt, ...) __attribute__ ((format (printf, 2, 3)));
 
+static void cw_test_print_sound_systems(cw_test_executor_t * self, int * sound_systems);
+static void cw_test_print_topics(cw_test_executor_t * self, int * topics);
+
+static bool cw_test_test_topic_is_member(cw_test_executor_t * cte, int topic, int * topics);
+static bool cw_test_sound_system_is_member(cw_test_executor_t * cte, int sound_system, int * sound_systems);
+
+
 
 
 
 int cw_test_process_args(cw_test_executor_t * self, int argc, char * const argv[])
 {
-	memset(self->tested_sound_systems, 0, sizeof (self->tested_sound_systems));
-	memset(self->tested_topics, 0, sizeof (self->tested_topics));
-	snprintf(self->tested_sound_systems, sizeof (self->tested_sound_systems), "%s", LIBCW_TEST_ALL_SOUND_SYSTEMS);
-	snprintf(self->tested_topics, sizeof (self->tested_topics), "%s", LIBCW_TEST_ALL_TOPICS);
+	self->tested_sound_systems[0] = CW_AUDIO_NULL;
+	self->tested_sound_systems[1] = CW_AUDIO_CONSOLE;
+	self->tested_sound_systems[2] = CW_AUDIO_OSS;
+	self->tested_sound_systems[3] = CW_AUDIO_ALSA;
+	self->tested_sound_systems[4] = CW_AUDIO_PA;
+	self->tested_sound_systems[5] = LIBCW_TEST_SOUND_SYSTEM_MAX;
+
+	self->tested_topics[0] = LIBCW_TEST_TOPIC_TQ;
+	self->tested_topics[1] = LIBCW_TEST_TOPIC_GEN;
+	self->tested_topics[2] = LIBCW_TEST_TOPIC_KEY;
+	self->tested_topics[3] = LIBCW_TEST_TOPIC_REC;
+	self->tested_topics[4] = LIBCW_TEST_TOPIC_DATA;
+	self->tested_topics[5] = LIBCW_TEST_TOPIC_OTHER;
+	self->tested_topics[6] = LIBCW_TEST_TOPIC_MAX;
 
 	if (argc == 1) {
-		fprintf(self->stderr, "%s: sound systems = '%s'\n", self->msg_prefix, self->tested_sound_systems);
-		fprintf(self->stderr, "%s: topics = '%s'\n", self->msg_prefix, self->tested_topics);
 		return CW_SUCCESS;
 	}
 
@@ -119,14 +138,33 @@ int cw_test_process_args(cw_test_executor_t * self, int argc, char * const argv[
 			dest_idx = 0;
 			for (size_t i = 0; i < optarg_len; i++) {
 				const int val = optarg[i];
-				if (NULL == strchr(LIBCW_TEST_ALL_SOUND_SYSTEMS, optarg[i])) {
+				if (NULL == strchr(LIBCW_TEST_ALL_SOUND_SYSTEMS, val)) {
 					fprintf(stderr, "Unsupported sound system '%c'\n", val);
 					return CW_FAILURE;
 				}
-				self->tested_sound_systems[dest_idx] = optarg[i];
+				switch (val) {
+				case 'n':
+					self->tested_sound_systems[dest_idx] = CW_AUDIO_NULL;
+					break;
+				case 'c':
+					self->tested_sound_systems[dest_idx] = CW_AUDIO_CONSOLE;
+					break;
+				case 'o':
+					self->tested_sound_systems[dest_idx] = CW_AUDIO_OSS;
+					break;
+				case 'a':
+					self->tested_sound_systems[dest_idx] = CW_AUDIO_ALSA;
+					break;
+				case 'p':
+					self->tested_sound_systems[dest_idx] = CW_AUDIO_PA;
+					break;
+				default:
+					fprintf(stderr, "Unsupported sound system '%c'\n", val);
+					return CW_FAILURE;
+				}
 				dest_idx++;
 			}
-			self->tested_sound_systems[dest_idx] = '\0';
+			self->tested_sound_systems[dest_idx] = LIBCW_TEST_SOUND_SYSTEM_MAX;
 			break;
 
 		case 'm':
@@ -139,14 +177,36 @@ int cw_test_process_args(cw_test_executor_t * self, int argc, char * const argv[
 			dest_idx = 0;
 			for (size_t i = 0; i < optarg_len; i++) {
 				const int val = optarg[i];
-				if (NULL == strchr(LIBCW_TEST_ALL_TOPICS, optarg[i])) {
+				if (NULL == strchr(LIBCW_TEST_ALL_TOPICS, val)) {
 					fprintf(stderr, "Unsupported topic '%c'\n", val);
 					return CW_FAILURE;
 				}
-				self->tested_topics[dest_idx] = optarg[i];
+				switch (val) {
+				case 't':
+					self->tested_topics[dest_idx] = LIBCW_TEST_TOPIC_TQ;
+					break;
+				case 'g':
+					self->tested_topics[dest_idx] = LIBCW_TEST_TOPIC_GEN;
+					break;
+				case 'k':
+					self->tested_topics[dest_idx] = LIBCW_TEST_TOPIC_KEY;
+					break;
+				case 'r':
+					self->tested_topics[dest_idx] = LIBCW_TEST_TOPIC_REC;
+					break;
+				case 'd':
+					self->tested_topics[dest_idx] = LIBCW_TEST_TOPIC_DATA;
+					break;
+				case 'o':
+					self->tested_topics[dest_idx] = LIBCW_TEST_TOPIC_OTHER;
+					break;
+				default:
+					fprintf(stderr, "Unsupported topic: '%c'\n", val);
+					return CW_FAILURE;
+				}
 				dest_idx++;
 			}
-			self->tested_topics[dest_idx] = '\0';
+			self->tested_topics[dest_idx] = LIBCW_TEST_TOPIC_MAX;
 			break;
 
 		default: /* '?' */
@@ -154,8 +214,6 @@ int cw_test_process_args(cw_test_executor_t * self, int argc, char * const argv[
 		}
 	}
 
-	fprintf(self->stderr, "%s: sound systems = '%s'\n", self->msg_prefix, self->tested_sound_systems);
-	fprintf(self->stderr, "%s: topics = '%s'\n", self->msg_prefix, self->tested_topics);
 	return CW_SUCCESS;
 }
 
@@ -419,17 +477,65 @@ bool cw_test_expect_valid_pointer_errors_only(struct cw_test_executor_t * self, 
 
 
 
-bool cw_test_should_test_topic(cw_test_executor_t * self, const char * topic)
+bool cw_test_test_topic_was_requested(cw_test_executor_t * self, int libcw_test_topic)
 {
-	return NULL != strstr(self->tested_topics, topic);
+	const int n = sizeof (self->tested_topics) / sizeof (self->tested_topics[0]);
+
+	switch (libcw_test_topic) {
+	case LIBCW_TEST_TOPIC_TQ:
+	case LIBCW_TEST_TOPIC_GEN:
+	case LIBCW_TEST_TOPIC_KEY:
+	case LIBCW_TEST_TOPIC_REC:
+	case LIBCW_TEST_TOPIC_DATA:
+	case LIBCW_TEST_TOPIC_OTHER:
+		for (int i = 0; i < n; i++) {
+			if (LIBCW_TEST_TOPIC_MAX == self->tested_topics[i]) {
+				/* Found guard element. */
+				return false;
+			}
+			if (libcw_test_topic == self->tested_topics[i]) {
+				return true;
+			}
+		}
+		return false;
+
+	case LIBCW_TEST_TOPIC_MAX:
+	default:
+		fprintf(stderr, "Unexpected test topic %d\n", libcw_test_topic);
+		exit(EXIT_FAILURE);
+	}
 }
 
 
 
 
-bool cw_test_should_test_sound_system(cw_test_executor_t * self, const char * sound_system)
+bool cw_test_sound_system_was_requested(cw_test_executor_t * self, int sound_system)
 {
-	return NULL != strstr(self->tested_sound_systems, sound_system);
+	const int n = sizeof (self->tested_sound_systems) / sizeof (self->tested_sound_systems[0]);
+
+	switch (sound_system) {
+	case CW_AUDIO_NULL:
+	case CW_AUDIO_CONSOLE:
+	case CW_AUDIO_OSS:
+	case CW_AUDIO_ALSA:
+	case CW_AUDIO_PA:
+		for (int i = 0; i < n; i++) {
+			if (LIBCW_TEST_SOUND_SYSTEM_MAX == self->tested_sound_systems[i]) {
+				/* Found guard element. */
+				return false;
+			}
+			if (sound_system == self->tested_sound_systems[i]) {
+				return true;
+			}
+		}
+		return false;
+
+	case CW_AUDIO_NONE:
+	case CW_AUDIO_SOUNDCARD:
+	default:
+		fprintf(stderr, "Unexpected sound system %d\n", sound_system);
+		exit(EXIT_FAILURE);
+	}
 }
 
 
@@ -537,9 +643,13 @@ void cw_test_init(cw_test_executor_t * self, FILE * stdout, FILE * stderr, const
 
 	self->print_test_header = cw_test_print_test_header;
 	self->print_test_footer = cw_test_print_test_footer;
+
 	self->process_args = cw_test_process_args;
-	self->should_test_topic = cw_test_should_test_topic;
-	self->should_test_sound_system = cw_test_should_test_sound_system;
+	self->print_args_summary = cw_test_print_args_summary;
+
+	self->test_topic_was_requested = cw_test_test_topic_was_requested;
+	self->sound_system_was_requested = cw_test_sound_system_was_requested;
+
 	self->get_current_sound_system_label = cw_test_get_current_sound_system_label;
 	self->set_current_sound_system = cw_test_set_current_sound_system;
 	self->print_test_stats = cw_test_print_test_stats;
@@ -547,6 +657,12 @@ void cw_test_init(cw_test_executor_t * self, FILE * stdout, FILE * stderr, const
 	self->log_info = cw_test_log_info;
 	self->log_info_cont = cw_test_log_info_cont;
 	self->log_err = cw_test_log_err;
+
+	self->print_sound_systems = cw_test_print_sound_systems;
+	self->print_topics = cw_test_print_topics;
+
+	self->test_topic_is_member = cw_test_test_topic_is_member;
+	self->sound_system_is_member = cw_test_sound_system_is_member;
 
 	self->console_n_cols = default_cw_test_print_n_chars;
 
@@ -584,7 +700,7 @@ int cw_test_topics_with_sound_systems(cw_test_executor_t * self, tester_fn test_
 {
 	int n = 0, c = 0, o = 0, a = 0, p = 0;
 
-	if (self->should_test_sound_system(self, "n")) {
+	if (self->sound_system_was_requested(self, CW_AUDIO_NULL)) {
 		if (cw_is_null_possible(NULL)) {
 			fprintf(self->stderr, "========================================\n");
 			self->set_current_sound_system(self, CW_AUDIO_NULL);
@@ -594,7 +710,7 @@ int cw_test_topics_with_sound_systems(cw_test_executor_t * self, tester_fn test_
 		}
 	}
 
-	if (self->should_test_sound_system(self, "c")) {
+	if (self->sound_system_was_requested(self, CW_AUDIO_CONSOLE)) {
 		if (cw_is_console_possible(NULL)) {
 			fprintf(self->stderr, "========================================\n");
 			self->set_current_sound_system(self, CW_AUDIO_CONSOLE);
@@ -604,7 +720,7 @@ int cw_test_topics_with_sound_systems(cw_test_executor_t * self, tester_fn test_
 		}
 	}
 
-	if (self->should_test_sound_system(self, "o")) {
+	if (self->sound_system_was_requested(self, CW_AUDIO_OSS)) {
 		if (cw_is_oss_possible(NULL)) {
 			fprintf(self->stderr, "========================================\n");
 			self->set_current_sound_system(self, CW_AUDIO_OSS);
@@ -614,16 +730,17 @@ int cw_test_topics_with_sound_systems(cw_test_executor_t * self, tester_fn test_
 		}
 	}
 
-	if (self->should_test_sound_system(self, "a")) {
+	if (self->sound_system_was_requested(self, CW_AUDIO_ALSA)) {
 		if (cw_is_alsa_possible(NULL)) {
 			fprintf(self->stderr, "========================================\n");
+			self->set_current_sound_system(self, CW_AUDIO_ALSA);
 			a = (*test_topics_with_current_sound_system)(self);
 		} else {
 			fprintf(self->stderr, "%sAlsa output not available\n", self->msg_prefix);
 		}
 	}
 
-	if (self->should_test_sound_system(self, "p")) {
+	if (self->sound_system_was_requested(self, CW_AUDIO_PA)) {
 		if (cw_is_pa_possible(NULL)) {
 			fprintf(self->stderr, "========================================\n");
 			self->set_current_sound_system(self, CW_AUDIO_PA);
@@ -704,4 +821,130 @@ void cw_test_log_err(struct cw_test_executor_t * self, const char * fmt, ...)
 	fflush(self->stdout);
 
 	return;
+}
+
+
+
+
+
+void cw_test_print_sound_systems(cw_test_executor_t * self, int * sound_systems)
+{
+	for (int i = 0; i < LIBCW_TEST_SOUND_SYSTEM_MAX; i++) {
+		if (LIBCW_TEST_SOUND_SYSTEM_MAX == sound_systems[i]) {
+			/* Found guard element. */
+			return;
+		}
+
+		switch (sound_systems[i]) {
+		case CW_AUDIO_NULL:
+			self->log_info_cont(self, "null ");
+			break;
+		case CW_AUDIO_CONSOLE:
+			self->log_info_cont(self, "console ");
+			break;
+		case CW_AUDIO_OSS:
+			self->log_info_cont(self, "OSS ");
+			break;
+		case CW_AUDIO_ALSA:
+			self->log_info_cont(self, "ALSA ");
+			break;
+		case CW_AUDIO_PA:
+			self->log_info_cont(self, "PulseAudio ");
+			break;
+		default:
+			self->log_info_cont(self, "unknown! ");
+			break;
+		}
+	}
+
+	return;
+}
+
+
+
+
+void cw_test_print_topics(cw_test_executor_t * self, int * topics)
+{
+	for (int i = 0; i < LIBCW_TEST_TOPIC_MAX; i++) {
+		if (LIBCW_TEST_TOPIC_MAX == topics[i]) {
+			/* Found guard element. */
+			return;
+		}
+
+		switch (topics[i]) {
+		case LIBCW_TEST_TOPIC_TQ:
+			self->log_info_cont(self, "tq ");
+			break;
+		case LIBCW_TEST_TOPIC_GEN:
+			self->log_info_cont(self, "gen ");
+			break;
+		case LIBCW_TEST_TOPIC_KEY:
+			self->log_info_cont(self, "key ");
+			break;
+		case LIBCW_TEST_TOPIC_REC:
+			self->log_info_cont(self, "rec ");
+			break;
+		case LIBCW_TEST_TOPIC_DATA:
+			self->log_info_cont(self, "data ");
+			break;
+		case LIBCW_TEST_TOPIC_OTHER:
+			self->log_info_cont(self, "other ");
+			break;
+		default:
+			self->log_info_cont(self, "unknown! ");
+			break;
+		}
+	}
+	self->log_info_cont(self, "\n");
+
+	return;
+}
+
+
+
+
+void cw_test_print_args_summary(cw_test_executor_t * self)
+{
+	self->log_info(self, "tested sound systems: ");
+	self->print_sound_systems(self, self->tested_sound_systems);
+	self->log_info_cont(self, "\n");
+
+	self->log_info(self, "tested topics: ");
+	self->print_topics(self, self->tested_topics);
+	self->log_info_cont(self, "\n");
+}
+
+
+
+
+
+bool cw_test_test_topic_is_member(cw_test_executor_t * cte, int topic, int * topics)
+{
+	for (int i = 0; i < LIBCW_TEST_TOPIC_MAX; i++) {
+		if (LIBCW_TEST_TOPIC_MAX == topics[i]) {
+			/* Found guard element. */
+			return false;
+		}
+		if (topic == topics[i]) {
+			return true;
+		}
+	}
+	return false;
+}
+
+
+
+
+bool cw_test_sound_system_is_member(cw_test_executor_t * cte, int sound_system, int * sound_systems)
+{
+	for (int i = 0; i < LIBCW_TEST_SOUND_SYSTEM_MAX; i++) {
+		if (LIBCW_TEST_SOUND_SYSTEM_MAX == sound_systems[i]) {
+			/* Found guard element. */
+			return false;
+		}
+		if (sound_system == sound_systems[i]) {
+			return true;
+		}
+	}
+	return false;
 }

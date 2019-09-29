@@ -119,8 +119,8 @@ int test_cw_representation_to_hash_internal(cw_test_executor_t * cte)
 	for (int i = 0; i < rep; i++) {
 		const uint8_t hash = cw_representation_to_hash_internal(input[i]);
 		/* The function returns values in range CW_DATA_MIN_REPRESENTATION_HASH - CW_DATA_MAX_REPRESENTATION_HASH. */
-		const bool failure = (hash < CW_DATA_MIN_REPRESENTATION_HASH) || (hash > CW_DATA_MAX_REPRESENTATION_HASH);
-		if (!cte->expect_eq_int(cte, false, failure, "representation to hash: Invalid hash #%d: %u\n", i, hash)) {
+		const bool failure = (hash < (uint8_t) CW_DATA_MIN_REPRESENTATION_HASH) || (hash > (uint8_t) CW_DATA_MAX_REPRESENTATION_HASH);
+		if (!cte->expect_eq_int(cte, false, failure, "representation to hash: Invalid hash #%d: %u (min = %u, max = %u)\n", i, hash, CW_DATA_MIN_REPRESENTATION_HASH, CW_DATA_MAX_REPRESENTATION_HASH)) {
 			break;
 		}
 	}
