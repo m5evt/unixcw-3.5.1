@@ -19,8 +19,7 @@
 -include $(top_builddir)/Makefile.inc
 
 # targets to be built in this directory
-check_PROGRAMS = libcw_test_legacy_api libcw_test_all
-#	libcw_test_tq_short_space
+check_PROGRAMS = libcw_test_legacy_api libcw_test_all libcw_test_tq_short_space
 
 
 
@@ -150,16 +149,16 @@ libcw_test_all_LDADD = -lm -lpthread $(DL_LIB) -L../.libs -lcw
 # target: libcw_test_tq_short_space, a test program for a specific bug;
 
 # source code files used to build the program
-#libcw_test_tq_short_space_SOURCES = libcw_test_tq_short_space.c
+libcw_test_tq_short_space_SOURCES = libcw_test_tq_short_space.c
 
 # target-specific preprocessor flags (#defs and include dirs)
-#libcw_test_tq_short_space_CPPFLAGS = $(AM_CPPFLAGS)
+libcw_test_tq_short_space_CPPFLAGS = $(AM_CPPFLAGS)
 
 # target-specific linker flags (objects to link)
-#libcw_test_tq_short_space_LDADD=-lm -lpthread $(DL_LIB) $(OSS_LIB) -L../.libs -lcw
+libcw_test_tq_short_space_LDADD=-lm -lpthread $(DL_LIB) $(OSS_LIB) -L../.libs -lcw
 
 # target-specific compiler flags
-#libcw_test_tq_short_space_CFLAGS = -rdynamic
+libcw_test_tq_short_space_CFLAGS = -rdynamic
 
 
 
