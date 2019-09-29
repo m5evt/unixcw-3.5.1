@@ -79,6 +79,7 @@ static void cw_test_append_status_string(cw_test_executor_t * self, char * msg_b
 
 static int cw_test_process_args(cw_test_executor_t * self, int argc, char * const argv[]);
 static void cw_test_print_args_summary(cw_test_executor_t * self);
+static int cw_test_fill_default_sound_systems_and_topics(cw_test_executor_t * self);
 
 static bool cw_test_test_topic_was_requested(cw_test_executor_t * self, int libcw_test_topic);
 static bool cw_test_sound_system_was_requested(cw_test_executor_t * self, int sound_system);
@@ -101,14 +102,65 @@ static int cw_test_main_test_loop(cw_test_executor_t * cte, cw_test_set_t * test
 
 
 
-int cw_test_process_args(cw_test_executor_t * self, int argc, char * const argv[])
+
+
+int cw_test_fill_default_sound_systems_and_topics(cw_test_executor_t * self)
 {
-	self->tested_sound_systems[0] = CW_AUDIO_NULL;
-	self->tested_sound_systems[1] = CW_AUDIO_CONSOLE;
-	self->tested_sound_systems[2] = CW_AUDIO_OSS;
-	self->tested_sound_systems[3] = CW_AUDIO_ALSA;
-	self->tested_sound_systems[4] = CW_AUDIO_PA;
-	self->tested_sound_systems[5] = LIBCW_TEST_SOUND_SYSTEM_MAX;
+	int dest_idx = 0;
+	if (cw_is_null_possible(NULL)) {
+		self->tested_sound_systems[dest_idx] = CW_AUDIO_NULL;
+		dest_idx++;
+	} else {
+		/* When during preparation of default set of sound
+		   system we detect that some sound set is not
+		   available, we can simply not include int in set of
+		   default sound systems. */
+		self->log_info(self, "NULL sound system is not available on this machine - will skip it\n");
+	}
+
+	if (cw_is_console_possible(NULL)) {
+		self->tested_sound_systems[dest_idx] = CW_AUDIO_CONSOLE;
+		dest_idx++;
+	} else {
+		/* When during preparation of default set of sound
+		   system we detect that some sound set is not
+		   available, we can simply not include int in set of
+		   default sound systems. */
+		self->log_info(self, "Console sound system is not available on this machine - will skip it\n");
+	}
+
+	if (cw_is_oss_possible(NULL)) {
+		self->tested_sound_systems[dest_idx] = CW_AUDIO_OSS;
+		dest_idx++;
+	} else {
+		/* When during preparation of default set of sound
+		   system we detect that some sound set is not
+		   available, we can simply not include int in set of
+		   default sound systems. */
+		self->log_info(self, "OSS sound system is not available on this machine - will skip it\n");
+	}
+
+	if (cw_is_alsa_possible(NULL)) {
+		self->tested_sound_systems[dest_idx] = CW_AUDIO_ALSA;
+		dest_idx++;
+	} else {
+		/* When during preparation of default set of sound
+		   system we detect that some sound set is not
+		   available, we can simply not include int in set of
+		   default sound systems. */
+		self->log_info(self, "ALSA sound system is not available on this machine - will skip it\n");
+	}
+	if (cw_is_pa_possible(NULL)) {
+		self->tested_sound_systems[dest_idx] = CW_AUDIO_PA;
+		dest_idx++;
+	} else {
+		/* When during preparation of default set of sound
+		   system we detect that some sound set is not
+		   available, we can simply not include int in set of
+		   default sound systems. */
+		self->log_info(self, "PulseAudio sound system is not available on this machine - will skip it\n");
+	}
+	self->tested_sound_systems[dest_idx] = LIBCW_TEST_SOUND_SYSTEM_MAX;
 
 	self->tested_topics[0] = LIBCW_TEST_TOPIC_TQ;
 	self->tested_topics[1] = LIBCW_TEST_TOPIC_GEN;
@@ -118,7 +170,18 @@ int cw_test_process_args(cw_test_executor_t * self, int argc, char * const argv[
 	self->tested_topics[5] = LIBCW_TEST_TOPIC_OTHER;
 	self->tested_topics[6] = LIBCW_TEST_TOPIC_MAX;
 
+	return 0;
+}
+
+
+
+
+int cw_test_process_args(cw_test_executor_t * self, int argc, char * const argv[])
+{
+	self->fill_default_sound_systems_and_topics(self);
+
 	if (argc == 1) {
+		/* Use defaults configured in fill_default_sound_systems_and_topics(). */
 		return CW_SUCCESS;
 	}
 
@@ -144,25 +207,73 @@ int cw_test_process_args(cw_test_executor_t * self, int argc, char * const argv[
 				}
 				switch (val) {
 				case 'n':
-					self->tested_sound_systems[dest_idx] = CW_AUDIO_NULL;
+					if (cw_is_null_possible(NULL)) {
+						self->tested_sound_systems[dest_idx] = CW_AUDIO_NULL;
+						dest_idx++;
+					} else {
+						/* If user has explicitly requested this sound system,
+						   then we have to fail if the system is not available.
+						   Otherwise we may mislead the user. */
+						fprintf(stderr, "Requested null sound system is not available on this machine\n");
+						return CW_FAILURE;
+					}
 					break;
 				case 'c':
-					self->tested_sound_systems[dest_idx] = CW_AUDIO_CONSOLE;
+					if (cw_is_console_possible(NULL)) {
+						self->tested_sound_systems[dest_idx] = CW_AUDIO_CONSOLE;
+						dest_idx++;
+					} else {
+						/* If user has explicitly requested this sound system,
+						   then we have to fail if the system is not available.
+						   Otherwise we may mislead the user. */
+						fprintf(stderr, "Requested console sound system is not available on this machine\n");
+						return CW_FAILURE;
+
+					}
 					break;
 				case 'o':
-					self->tested_sound_systems[dest_idx] = CW_AUDIO_OSS;
+					if (cw_is_oss_possible(NULL)) {
+						self->tested_sound_systems[dest_idx] = CW_AUDIO_OSS;
+						dest_idx++;
+					} else {
+						/* If user has explicitly requested this sound system,
+						   then we have to fail if the system is not available.
+						   Otherwise we may mislead the user. */
+						fprintf(stderr, "Requested OSS sound system is not available on this machine\n");
+						return CW_FAILURE;
+
+					}
 					break;
 				case 'a':
-					self->tested_sound_systems[dest_idx] = CW_AUDIO_ALSA;
+					if (cw_is_alsa_possible(NULL)) {
+						self->tested_sound_systems[dest_idx] = CW_AUDIO_ALSA;
+						dest_idx++;
+					} else {
+						/* If user has explicitly requested this sound system,
+						   then we have to fail if the system is not available.
+						   Otherwise we may mislead the user. */
+						fprintf(stderr, "Requested ALSA sound system is not available on this machine\n");
+						return CW_FAILURE;
+
+					}
 					break;
 				case 'p':
-					self->tested_sound_systems[dest_idx] = CW_AUDIO_PA;
+					if (cw_is_pa_possible(NULL)) {
+						self->tested_sound_systems[dest_idx] = CW_AUDIO_PA;
+						dest_idx++;
+					} else {
+						/* If user has explicitly requested this sound system,
+						   then we have to fail if the system is not available.
+						   Otherwise we may mislead the user. */
+						fprintf(stderr, "Requested PulseAudio sound system is not available on this machine\n");
+						return CW_FAILURE;
+
+					}
 					break;
 				default:
 					fprintf(stderr, "Unsupported sound system '%c'\n", val);
 					return CW_FAILURE;
 				}
-				dest_idx++;
 			}
 			self->tested_sound_systems[dest_idx] = LIBCW_TEST_SOUND_SYSTEM_MAX;
 			break;
@@ -646,6 +757,7 @@ void cw_test_init(cw_test_executor_t * self, FILE * stdout, FILE * stderr, const
 
 	self->process_args = cw_test_process_args;
 	self->print_args_summary = cw_test_print_args_summary;
+	self->fill_default_sound_systems_and_topics = cw_test_fill_default_sound_systems_and_topics;
 
 	self->test_topic_was_requested = cw_test_test_topic_was_requested;
 	self->sound_system_was_requested = cw_test_sound_system_was_requested;
@@ -910,11 +1022,11 @@ void cw_test_print_topics(cw_test_executor_t * self, int * topics)
 
 void cw_test_print_args_summary(cw_test_executor_t * self)
 {
-	self->log_info(self, "tested sound systems: ");
+	self->log_info(self, "Sound systems that will be tested: ");
 	self->print_sound_systems(self, self->tested_sound_systems);
 	self->log_info_cont(self, "\n");
 
-	self->log_info(self, "tested topics: ");
+	self->log_info(self, "Topics that will be tested: ");
 	self->print_topics(self, self->tested_topics);
 	self->log_info_cont(self, "\n");
 }

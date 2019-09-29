@@ -106,6 +106,7 @@ typedef struct cw_test_executor_t {
 
 	int (* process_args)(struct cw_test_executor_t * self, int argc, char * const argv[]);
 	void (* print_args_summary)(struct cw_test_executor_t * self);
+	int (* fill_default_sound_systems_and_topics)(struct cw_test_executor_t * self);
 
 	void (* print_test_stats)(struct cw_test_executor_t * self);
 
