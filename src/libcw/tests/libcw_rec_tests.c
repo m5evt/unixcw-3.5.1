@@ -1221,9 +1221,9 @@ int test_cw_rec_parameter_getters_setters_1(cw_test_executor_t * cte)
 		   seconds sets a new value of parameter, and third
 		   reads back the value. */
 
-		void (* get_limits)(int *min, int *max);
-		int (* set_new_value)(cw_rec_t *rec, int new_value);
-		float (* get_value)(cw_rec_t *rec);
+		void (* get_limits)(int * min, int * max);
+		int (* set_new_value)(cw_rec_t * rec, int new_value);
+		float (* get_value)(const cw_rec_t * rec);
 
 		int min; /* Minimal acceptable value of parameter. */
 		int max; /* Maximal acceptable value of parameter. */
@@ -1340,9 +1340,9 @@ int test_cw_rec_parameter_getters_setters_2(cw_test_executor_t * cte)
 		   seconds sets a new value of parameter, and third
 		   reads back the value. */
 
-		void (* get_limits)(int *min, int *max);
-		int (* set_new_value)(cw_rec_t *rec, int new_value);
-		int (* get_value)(cw_rec_t *rec);
+		void (* get_limits)(int * min, int * max);
+		int (* set_new_value)(cw_rec_t * rec, int new_value);
+		int (* get_value)(const cw_rec_t * rec);
 
 		int min; /* Minimal acceptable value of parameter. */
 		int max; /* Maximal acceptable value of parameter. */

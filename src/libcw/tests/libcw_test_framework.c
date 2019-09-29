@@ -98,8 +98,8 @@ static void cw_test_log_err(struct cw_test_executor_t * self, const char * fmt, 
 static void cw_test_print_sound_systems(cw_test_executor_t * self, int * sound_systems);
 static void cw_test_print_topics(cw_test_executor_t * self, int * topics);
 
-static bool cw_test_test_topic_is_member(cw_test_executor_t * cte, int topic, int * topics);
-static bool cw_test_sound_system_is_member(cw_test_executor_t * cte, int sound_system, int * sound_systems);
+static bool cw_test_test_topic_is_member(cw_test_executor_t * cte, int topic, int * topics, int max);
+static bool cw_test_sound_system_is_member(cw_test_executor_t * cte, int sound_system, int * sound_systems, int max);
 
 static int cw_test_main_test_loop(cw_test_executor_t * cte, cw_test_set_t * test_sets);
 
@@ -933,10 +933,9 @@ void cw_test_print_args_summary(cw_test_executor_t * self)
 
 
 
-
-bool cw_test_test_topic_is_member(cw_test_executor_t * cte, int topic, int * topics)
+bool cw_test_test_topic_is_member(__attribute__((unused)) cw_test_executor_t * cte, int topic, int * topics, int max)
 {
-	for (int i = 0; i < LIBCW_TEST_TOPIC_MAX; i++) {
+	for (int i = 0; i < max; i++) {
 		if (LIBCW_TEST_TOPIC_MAX == topics[i]) {
 			/* Found guard element. */
 			return false;
@@ -951,9 +950,9 @@ bool cw_test_test_topic_is_member(cw_test_executor_t * cte, int topic, int * top
 
 
 
-bool cw_test_sound_system_is_member(cw_test_executor_t * cte, int sound_system, int * sound_systems)
+bool cw_test_sound_system_is_member(__attribute__((unused)) cw_test_executor_t * cte, int sound_system, int * sound_systems, int max)
 {
-	for (int i = 0; i < LIBCW_TEST_SOUND_SYSTEM_MAX; i++) {
+	for (int i = 0; i < max; i++) {
 		if (LIBCW_TEST_SOUND_SYSTEM_MAX == sound_systems[i]) {
 			/* Found guard element. */
 			return false;
@@ -979,7 +978,8 @@ int cw_test_main_test_loop(cw_test_executor_t * cte, cw_test_set_t * test_sets)
 			if (!cte->test_topic_was_requested(cte, topic)) {
 				continue;
 			}
-			if (!cte->test_topic_is_member(cte, topic, test_set->topics)) {
+			const int topics_max = sizeof (test_set->topics) / sizeof (test_set->topics[0]);
+			if (!cte->test_topic_is_member(cte, topic, test_set->topics, topics_max)) {
 				continue;
 			}
 
@@ -988,7 +988,8 @@ int cw_test_main_test_loop(cw_test_executor_t * cte, cw_test_set_t * test_sets)
 				if (!cte->sound_system_was_requested(cte, sound_system)) {
 					continue;
 				}
-				if (!cte->sound_system_is_member(cte, sound_system, test_set->sound_systems)) {
+				const int systems_max = sizeof (test_set->sound_systems) / sizeof (test_set->sound_systems[0]);
+				if (!cte->sound_system_is_member(cte, sound_system, test_set->sound_systems, systems_max)) {
 					continue;
 				}
 

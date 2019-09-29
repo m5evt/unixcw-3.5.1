@@ -151,8 +151,8 @@ typedef struct cw_test_executor_t {
 	void (* print_sound_systems)(struct cw_test_executor_t * self, int * sound_systems);
 	void (* print_topics)(struct cw_test_executor_t * self, int * topics);
 
-	bool (* test_topic_is_member)(struct cw_test_executor_t * cte, int topic, int * topics);
-	bool (* sound_system_is_member)(struct cw_test_executor_t * cte, int sound_system, int * sound_systems);
+	bool (* test_topic_is_member)(struct cw_test_executor_t * cte, int topic, int * topics, int max);
+	bool (* sound_system_is_member)(struct cw_test_executor_t * cte, int sound_system, int * sound_systems, int max);
 
 	int (* main_test_loop)(struct cw_test_executor_t * cte, struct cw_test_set_t * test_sets);
 

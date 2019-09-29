@@ -64,6 +64,7 @@
 
 
 static void cw_test_helper_tq_callback(void *data);
+static void cw_test_setup(void);
 
 /* Helper function for iambic key tests. */
 static void test_iambic_key_paddles_common(cw_test_executor_t * cte, const int intended_dot_paddle, const int intended_dash_paddle, char character, int n_elements);
@@ -120,7 +121,7 @@ int legacy_api_test_setup(cw_test_executor_t * cte)
 
 
 
-int legacy_api_test_teardown(cw_test_executor_t * cte)
+int legacy_api_test_teardown(__attribute__((unused)) cw_test_executor_t * cte)
 {
 	sleep(1);
 	cw_generator_stop();
@@ -719,7 +720,6 @@ int test_tone_queue_callback(cw_test_executor_t * cte)
 
 	return 0;
 }
-
 
 
 
@@ -1585,9 +1585,8 @@ void cw_test_signal_handling(cw_test_executor_t * cte)
   cw_generator_new/start() again). */
 int test_cw_gen_forever_public(cw_test_executor_t * cte)
 {
-#if 0
 	cte->print_test_header(cte, __func__);
-
+#if 0
 	/* Make sure that an audio sink is closed. If we try to open
 	   an OSS sink that is already open, we may end up with
 	   "resource busy" error in libcw_oss.c module (that's what
@@ -1602,8 +1601,8 @@ int test_cw_gen_forever_public(cw_test_executor_t * cte)
 
 	unsigned int rv = test_cw_gen_forever_sub(seconds, test_audio_system, NULL);
 	rv == 0 ? stats->successes++ : stats->failures++;
-
-	cte->print_test_footer(cte, __func__);
 #endif
+	cte->print_test_footer(cte, __func__);
+
 	return 0;
 }

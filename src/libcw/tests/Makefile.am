@@ -81,7 +81,7 @@ libcw_test_legacy_api_SOURCES = \
 	test_main.c
 
 # target-specific preprocessor flags (#defs and include dirs)
-libcw_test_legacy_api_CPPFLAGS = $(AM_CPPFLAGS)
+libcw_test_legacy_api_CPPFLAGS = $(AM_CPPFLAGS) -DLIBCW_UNIT_TESTS
 
 # Target-specific linker flags (objects to link).
 #
@@ -108,7 +108,7 @@ libcw_test_all_SOURCES = \
 
 
 
-libcw_test_all_CPPFLAGS = $(AM_CPPFLAGS)
+libcw_test_all_CPPFLAGS = $(AM_CPPFLAGS) -DLIBCW_UNIT_TESTS
 
 libcw_test_all_LDADD = -lm -lpthread $(DL_LIB) -L../.libs -lcw
 
