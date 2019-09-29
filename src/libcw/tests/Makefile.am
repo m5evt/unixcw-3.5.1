@@ -28,8 +28,7 @@ check_PROGRAMS = libcw_test_legacy_api libcw_test_all
 test_infrastructure_files = \
 	libcw_test_framework.c \
 	libcw_test_framework.h \
-	libcw_test_driver.c \
-	libcw_test_all_driver.c
+	libcw_test_driver.c
 
 legacy_api_test_files = \
 	libcw_test_legacy_api_tests.c \
@@ -80,7 +79,7 @@ libcw_test_legacy_api_SOURCES = \
 	libcw_test_legacy_api_tests.c \
 	libcw_test_legacy_api_test_sets.c \
 	libcw_test_framework.c \
-	libcw_test_driver.c
+	test_main.c
 
 # target-specific preprocessor flags (#defs and include dirs)
 libcw_test_legacy_api_CPPFLAGS = $(AM_CPPFLAGS)
@@ -97,7 +96,7 @@ libcw_test_legacy_api_LDADD = -lm -lpthread $(DL_LIB) -L../.libs -lcw
 
 
 libcw_test_all_SOURCES = \
-	test_all_driver.c \
+	test_main.c \
 	test_all_sets.c \
 	libcw_test_framework.c \
 	libcw_utils_tests.c \
