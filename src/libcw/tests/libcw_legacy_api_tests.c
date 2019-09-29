@@ -53,7 +53,7 @@
 #include "libcw_tq.h"
 #include "libcw_utils.h"
 #include "libcw_gen.h"
-#include "libcw_test_legacy_api_tests.h"
+#include "libcw_legacy_api_tests.h"
 
 
 

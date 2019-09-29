@@ -9,7 +9,7 @@
 
 #include "test_framework.h"
 
-#include "libcw_test_legacy_api_tests.h"
+#include "libcw_legacy_api_tests.h"
 
 
 
