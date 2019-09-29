@@ -195,9 +195,4 @@ typedef struct cw_test_set_t {
 
 
 
-
-int cw_test_topics_with_sound_systems(cw_test_executor_t * cte, tester_fn test_topics_with_current_sound_system);
-
-
-
 #endif /* #ifndef _LIBCW_TEST_UTILS_H_ */
