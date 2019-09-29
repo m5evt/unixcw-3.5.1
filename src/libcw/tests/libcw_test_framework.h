@@ -63,6 +63,9 @@ typedef struct {
 
 
 
+struct cw_test_set_t;
+
+
 
 struct cw_test_executor_t;
 typedef struct cw_test_executor_t {
@@ -150,6 +153,7 @@ typedef struct cw_test_executor_t {
 	bool (* test_topic_is_member)(struct cw_test_executor_t * cte, int topic, int * topics);
 	bool (* sound_system_is_member)(struct cw_test_executor_t * cte, int sound_system, int * sound_systems);
 
+	int (* main_test_loop)(struct cw_test_executor_t * cte, struct cw_test_set_t * test_sets);
 
 } cw_test_executor_t;
 

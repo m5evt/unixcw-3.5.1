@@ -58,7 +58,10 @@
 extern cw_debug_t cw_debug_object;
 extern cw_debug_t cw_debug_object_dev;
 
-extern cw_test_set_t cw_all_tests[];
+
+/* Depending on which object file are we linked with, this will be a
+   set of legacy API tests or set of all API/modern API/other stuff. */
+extern cw_test_set_t cw_test_sets[];
 
 
 
@@ -104,45 +107,7 @@ int main(int argc, char *const argv[])
 	atexit(cw_test_print_stats_wrapper);
 	register_signal_handler();
 
-
-	int set = 0;
-	while (CW_TEST_SET_VALID == cw_all_tests[set].set_valid) {
-
-		cw_test_set_t * test_set = &cw_all_tests[set];
-
-		for (int topic = LIBCW_TEST_TOPIC_TQ; topic < LIBCW_TEST_TOPIC_MAX; topic++) {
-			if (!cte->test_topic_was_requested(cte, topic)) {
-				continue;
-			}
-			if (!cte->test_topic_is_member(cte, topic, test_set->topics)) {
-				continue;
-			}
-
-
-			for (int sound_system = CW_AUDIO_NULL; sound_system < LIBCW_TEST_SOUND_SYSTEM_MAX; sound_system++) {
-				if (!cte->sound_system_was_requested(cte, sound_system)) {
-					continue;
-				}
-				if (!cte->sound_system_is_member(cte, sound_system, test_set->sound_systems)) {
-					continue;
-				}
-
-
-				int f = 0;
-				while (test_set->test_functions[f]) {
-					cte->stats = &cte->stats2[sound_system][topic];
-					cte->current_sound_system = sound_system;
-
-					(*test_set->test_functions[f])(cte);
-
-					f++;
-				}
-			}
-		}
-		set++;
-	}
-
-	int rv;
+	int rv = cte->main_test_loop(cte, cw_test_sets);
 
 	/* "make check" facility requires this message to be
 	   printed on stdout; don't localize it */

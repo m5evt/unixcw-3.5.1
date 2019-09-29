@@ -53,7 +53,7 @@
 
 
 
-cw_test_set_t cw_all_tests[] = {
+cw_test_set_t cw_test_sets[] = {
 	{
 		CW_TEST_SET_VALID,
 		CW_TEST_API_LEGACY,
