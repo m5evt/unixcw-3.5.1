@@ -31,8 +31,8 @@ test_framework_files = \
 legacy_api_test_files = \
 	libcw_legacy_api_tests.c \
 	libcw_legacy_api_tests.h \
-	libcw_test_legacy_api_test_sets.c \
-	libcw_test_legacy_api_test_sets.inc
+	libcw_legacy_api_sets.c \
+	libcw_legacy_api_sets.inc
 
 modern_api_test_files = \
 	libcw_data_tests.c \
@@ -75,7 +75,7 @@ EXTRA_DIST = $(test_framework_files) $(legacy_api_test_files) $(modern_api_test_
 # compile only test files and "link" them with this library file.
 libcw_test_legacy_api_SOURCES = \
 	libcw_legacy_api_tests.c \
-	libcw_test_legacy_api_test_sets.c \
+	libcw_legacy_api_sets.c \
 	test_framework.c \
 	test_main.c
 

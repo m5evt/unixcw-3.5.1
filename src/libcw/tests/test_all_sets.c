@@ -142,7 +142,7 @@ cw_test_set_t cw_test_sets[] = {
 
 	/* "Import" test sets from another file. That file is shared
 	   between two test binaries. */
-#include "libcw_test_legacy_api_test_sets.inc"
+#include "libcw_legacy_api_sets.inc"
 
 
 	/* Guard. */
