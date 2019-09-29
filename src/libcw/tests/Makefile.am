@@ -20,7 +20,6 @@
 
 # targets to be built in this directory
 check_PROGRAMS = libcw_test_legacy_api libcw_test_all
-#	libcw_test_simple_gen
 #	libcw_test_tq_short_space
 
 
@@ -52,7 +51,6 @@ modern_api_test_files = \
 	libcw_tq_tests.h
 
 other_test_files = \
-	libcw_test_simple_gen.c \
 	libcw_test_tq_short_space.c
 
 EXTRA_DIST = $(test_infrastructure_files) $(legacy_api_test_files) $(modern_api_test_files) $(other_test_files)
@@ -114,22 +112,6 @@ libcw_test_all_CPPFLAGS = $(AM_CPPFLAGS) -DLIBCW_UNIT_TESTS
 
 libcw_test_all_LDADD = -lm -lpthread $(DL_LIB) -L../.libs -lcw
 
-
-
-
-# target: libcw_test_simple_gen, yet another test program;
-# main() is defined in libcw_test_simple_gen.c
-# The file defines a very simple set of tests that make only a basic
-# use of libcw's generator facilities.
-
-# source code files used to build libcw_test_simple_gen program
-#libcw_test_simple_gen_SOURCES = libcw_test_simple_gen.c
-
-# target-specific linker flags (objects to link)
-#libcw_test_simple_gen_LDADD=-lm -lpthread $(DL_LIB) $(OSS_LIB) libcw_check.a -L../.libs -lcw
-
-# target-specific compiler flags
-#libcw_test_simple_gen_CFLAGS = -rdynamic
 
 
 
