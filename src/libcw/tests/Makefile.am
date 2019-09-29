@@ -27,8 +27,7 @@ check_PROGRAMS = libcw_test_legacy_api libcw_test_all
 
 test_infrastructure_files = \
 	libcw_test_framework.c \
-	libcw_test_framework.h \
-	libcw_test_driver.c
+	libcw_test_framework.h
 
 legacy_api_test_files = \
 	libcw_test_legacy_api_tests.c \
