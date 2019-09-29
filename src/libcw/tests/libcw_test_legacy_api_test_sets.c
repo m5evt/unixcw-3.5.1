@@ -24,34 +24,6 @@
 
 
 
-/*
-  FIXME: creating and deleting of generator has been removed from test
-  driver, so now each test set will have to have a function for setup
-  and teardown:
-
-  setup:
-   	int rv = cw_generator_new(cte->current_sound_system, NULL);
-	if (rv != 1) {
-		cte->log_err(cte, "Can't create generator, stopping the test\n");
-		return -1;
-	}
-	rv = cw_generator_start();
-	if (rv != 1) {
-		cte->log_err(cte, "Can't start generator, stopping the test\n");
-		cw_generator_delete();
-		return -1;
-	}
-
-
-  teardown:
-	sleep(1);
-	cw_generator_stop();
-	sleep(1);
-	cw_generator_delete();
-*/
-
-
-
 
 cw_test_set_t cw_test_sets[] = {
 	{
@@ -62,12 +34,16 @@ cw_test_set_t cw_test_sets[] = {
 		{ CW_AUDIO_NULL, CW_AUDIO_CONSOLE, CW_AUDIO_OSS, CW_AUDIO_ALSA, CW_AUDIO_PA, LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. */
 
 		{
+			legacy_api_test_setup,
+
 			test_cw_wait_for_tone,
 			test_cw_wait_for_tone_queue,
 			test_cw_queue_tone,
 			test_empty_tone_queue,
 			test_full_tone_queue,
 			test_tone_queue_callback,
+
+			legacy_api_test_teardown,
 
 			NULL,
 		}
@@ -80,10 +56,14 @@ cw_test_set_t cw_test_sets[] = {
 		{ CW_AUDIO_NULL, CW_AUDIO_CONSOLE, CW_AUDIO_OSS, CW_AUDIO_ALSA, CW_AUDIO_PA, LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. */
 
 		{
+			legacy_api_test_setup,
+
 			test_volume_functions,
 			test_send_primitives,
 			test_send_character_and_string,
 			test_representations,
+
+			legacy_api_test_teardown,
 
 			NULL,
 		}
@@ -96,11 +76,15 @@ cw_test_set_t cw_test_sets[] = {
 		{ CW_AUDIO_NULL, CW_AUDIO_CONSOLE, CW_AUDIO_OSS, CW_AUDIO_ALSA, CW_AUDIO_PA, LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. */
 
 		{
+			legacy_api_test_setup,
+
 			test_iambic_key_dot,
 			test_iambic_key_dash,
 			test_iambic_key_alternating,
 			test_iambic_key_none,
 			test_straight_key,
+
+			legacy_api_test_teardown,
 
 			NULL,
 		}
@@ -113,11 +97,14 @@ cw_test_set_t cw_test_sets[] = {
 		{ CW_AUDIO_NULL, CW_AUDIO_CONSOLE, CW_AUDIO_OSS, CW_AUDIO_ALSA, CW_AUDIO_PA, LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. */
 
 		{
+			legacy_api_test_setup,
+
 			test_parameter_ranges,
 			test_cw_gen_forever_public,
-
 			//cw_test_delayed_release,
 			//cw_test_signal_handling, /* FIXME - not sure why this test fails :( */
+
+			legacy_api_test_teardown,
 
 			NULL,
 		}
