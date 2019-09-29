@@ -32,7 +32,8 @@ test_infrastructure_files = \
 legacy_api_test_files = \
 	libcw_test_legacy_api_tests.c \
 	libcw_test_legacy_api_tests.h \
-	libcw_test_legacy_api_test_sets.c
+	libcw_test_legacy_api_test_sets.c \
+	libcw_test_legacy_api_test_sets.inc
 
 modern_api_test_files = \
 	libcw_data_tests.c \
@@ -104,7 +105,8 @@ libcw_test_all_SOURCES = \
 	libcw_tq_tests.c \
 	libcw_gen_tests.c \
 	libcw_key_tests.c \
-	libcw_rec_tests.c
+	libcw_rec_tests.c \
+	libcw_test_legacy_api_tests.c
 
 
 

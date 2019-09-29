@@ -259,7 +259,7 @@ int cw_test_process_args(cw_test_executor_t * self, int argc, char * const argv[
 			self->tested_sound_systems[dest_idx] = LIBCW_TEST_SOUND_SYSTEM_MAX; /* Guard element. */
 			break;
 
-		case 'm':
+		case 't':
 			optarg_len = strlen(optarg);
 			if (optarg_len > strlen(LIBCW_TEST_ALL_TOPICS)) {
 				fprintf(stderr, "Too many values for 'topics' option: '%s'\n", optarg);

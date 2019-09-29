@@ -26,90 +26,10 @@
 
 
 cw_test_set_t cw_test_sets[] = {
-	{
-		CW_TEST_SET_VALID,
-		CW_TEST_API_LEGACY,
 
-		{ LIBCW_TEST_TOPIC_TQ, LIBCW_TEST_TOPIC_MAX }, /* Topics. */
-		{ CW_AUDIO_NULL, CW_AUDIO_CONSOLE, CW_AUDIO_OSS, CW_AUDIO_ALSA, CW_AUDIO_PA, LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. */
-
-		{
-			legacy_api_test_setup,
-
-			test_cw_wait_for_tone,
-			test_cw_wait_for_tone_queue,
-			test_cw_queue_tone,
-			test_empty_tone_queue,
-			test_full_tone_queue,
-			test_tone_queue_callback,
-
-			legacy_api_test_teardown,
-
-			NULL,
-		}
-	},
-	{
-		CW_TEST_SET_VALID,
-		CW_TEST_API_LEGACY,
-
-		{ LIBCW_TEST_TOPIC_GEN, LIBCW_TEST_TOPIC_MAX }, /* Topics. */
-		{ CW_AUDIO_NULL, CW_AUDIO_CONSOLE, CW_AUDIO_OSS, CW_AUDIO_ALSA, CW_AUDIO_PA, LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. */
-
-		{
-			legacy_api_test_setup,
-
-			test_volume_functions,
-			test_send_primitives,
-			test_send_character_and_string,
-			test_representations,
-
-			legacy_api_test_teardown,
-
-			NULL,
-		}
-	},
-	{
-		CW_TEST_SET_VALID,
-		CW_TEST_API_LEGACY,
-
-		{ LIBCW_TEST_TOPIC_KEY, LIBCW_TEST_TOPIC_MAX }, /* Topics. */
-		{ CW_AUDIO_NULL, CW_AUDIO_CONSOLE, CW_AUDIO_OSS, CW_AUDIO_ALSA, CW_AUDIO_PA, LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. */
-
-		{
-			legacy_api_test_setup,
-
-			test_iambic_key_dot,
-			test_iambic_key_dash,
-			test_iambic_key_alternating,
-			test_iambic_key_none,
-			test_straight_key,
-
-			legacy_api_test_teardown,
-
-			NULL,
-		}
-	},
-	{
-		CW_TEST_SET_VALID,
-		CW_TEST_API_LEGACY,
-
-		{ LIBCW_TEST_TOPIC_OTHER, LIBCW_TEST_TOPIC_MAX }, /* Topics. */
-		{ CW_AUDIO_NULL, CW_AUDIO_CONSOLE, CW_AUDIO_OSS, CW_AUDIO_ALSA, CW_AUDIO_PA, LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. */
-
-		{
-			legacy_api_test_setup,
-
-			test_parameter_ranges,
-			test_cw_gen_forever_public,
-			//cw_test_delayed_release,
-			//cw_test_signal_handling, /* FIXME - not sure why this test fails :( */
-
-			legacy_api_test_teardown,
-
-			NULL,
-		}
-	},
-
+	/* "Import" test sets from another file. That file is shared
+	   between two test binaries. */
+#include "libcw_test_legacy_api_test_sets.inc"
 
 	/* Guard. */
 	{

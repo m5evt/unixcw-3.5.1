@@ -1334,7 +1334,7 @@ int test_iambic_key_none(cw_test_executor_t * cte)
    tests::cw_get_straight_key_state()
    tests::cw_is_straight_key_busy()
 */
-int test_straight_key(cw_test_executor_t * cte)
+int legacy_api_test_straight_key(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 

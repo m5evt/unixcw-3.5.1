@@ -35,7 +35,7 @@ int test_iambic_key_dot(cw_test_executor_t * cte);
 int test_iambic_key_dash(cw_test_executor_t * cte);
 int test_iambic_key_alternating(cw_test_executor_t * cte);
 int test_iambic_key_none(cw_test_executor_t * cte);
-int test_straight_key(cw_test_executor_t * cte);
+int legacy_api_test_straight_key(cw_test_executor_t * cte);
 
 
 /* Other functions. */
