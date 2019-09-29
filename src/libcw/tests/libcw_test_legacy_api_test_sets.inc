@@ -54,8 +54,13 @@
 			test_send_primitives,
 			test_send_character_and_string,
 			test_representations,
-
 			legacy_api_test_teardown,
+
+			/* This function creates and deletes a
+			   generator on its own, so it has to be put
+			   after legacy_api_test_teardown() that
+			   deletes a generator. */
+			legacy_api_test_basic_gen_operations,
 
 			NULL,
 		}

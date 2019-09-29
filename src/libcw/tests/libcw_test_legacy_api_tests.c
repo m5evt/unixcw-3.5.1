@@ -1606,3 +1606,64 @@ int test_cw_gen_forever_public(cw_test_executor_t * cte)
 
 	return 0;
 }
+
+
+
+
+int legacy_api_test_basic_gen_operations(cw_test_executor_t * cte)
+{
+	cte->print_test_header(cte, __func__);
+
+	const char * device = NULL; /* Use default device. */
+	int cwret = CW_FAILURE;
+
+	/* Test setting up generator. */
+	{
+		cwret = cw_generator_new(cte->current_sound_system, device);
+		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "cw_generator_new()");
+		if (cwret != CW_SUCCESS) {
+			return -1;
+		}
+
+		cw_reset_send_receive_parameters();
+
+		cwret = cw_set_send_speed(12);
+		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "cw_set_send_speed()");
+
+		cwret = cw_generator_start();
+		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "cw_generator_start()");
+	}
+
+	/* Test using generator. */
+	{
+		cwret = cw_send_string("one ");
+		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "cw_send_string()");
+
+		cwret = cw_wait_for_tone_queue();
+		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "cw_wait_for_tone_queue()");
+
+		cwret = cw_send_string("two");
+		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "cw_send_string()");
+
+		cwret = cw_wait_for_tone_queue();
+		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "cw_wait_for_tone_queue()");
+
+		cwret = cw_send_string("three");
+		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "cw_send_string()");
+
+		cwret = cw_wait_for_tone_queue();
+		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "cw_wait_for_tone_queue()");
+	}
+
+	/* Deconfigure generator. These functions don't return a
+	   value, so we can't verify anything. */
+	{
+		cw_generator_stop();
+		cw_generator_delete();
+	}
+
+
+	cte->print_test_footer(cte, __func__);
+
+	return 0;
+}

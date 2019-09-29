@@ -29,6 +29,7 @@ int test_volume_functions(cw_test_executor_t * cte);
 int test_send_primitives(cw_test_executor_t * cte);
 int test_send_character_and_string(cw_test_executor_t * cte);
 int test_representations(cw_test_executor_t * cte);
+int legacy_api_test_basic_gen_operations(cw_test_executor_t * cte);
 
 /* "Morse key" topic. */
 int test_iambic_key_dot(cw_test_executor_t * cte);
