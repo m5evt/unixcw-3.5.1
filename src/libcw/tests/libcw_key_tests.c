@@ -30,7 +30,7 @@ static void key_setup(cw_test_executor_t * cte, cw_key_t ** key, cw_gen_t ** gen
 {
 	*key = cw_key_new();
 	if (!*key) {
-		cte->log_err(cte, "Can't create key, stopping the test\n");
+		cte->log_error(cte, "Can't create key, stopping the test\n");
 		return;
 	}
 
@@ -38,7 +38,7 @@ static void key_setup(cw_test_executor_t * cte, cw_key_t ** key, cw_gen_t ** gen
 	*gen = cw_gen_new(cte->current_sound_system, NULL);
 
 	if (CW_SUCCESS != cw_gen_start(*gen)) {
-		cte->log_err(cte, "Can't start generator, stopping the test\n");
+		cte->log_error(cte, "Can't start generator, stopping the test\n");
 		cw_gen_delete(gen);
 		if (*key) {
 			cw_key_delete(key);
@@ -121,7 +121,7 @@ int test_keyer(cw_test_executor_t * cte)
 	{
 		cw_key_ik_get_paddles(key, &dot_paddle, &dash_paddle);
 		const bool failure = !dot_paddle || dash_paddle;
-		cte->expect_eq_int_errors_only(cte, false, failure, "cw_keyer_get_keyer_paddles():");
+		cte->expect_eq_int(cte, false, failure, "cw_keyer_get_keyer_paddles():");
 	}
 
 
@@ -133,7 +133,7 @@ int test_keyer(cw_test_executor_t * cte)
 		   argument is true, so this is a dash. */
 
 		int cwret = cw_key_ik_notify_paddle_event(key, false, true);
-		cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "cw_key_ik_notify_paddle_event(key, false, true):");
+		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "cw_key_ik_notify_paddle_event(key, false, true):");
 
 
 		bool failure = false;
@@ -150,7 +150,7 @@ int test_keyer(cw_test_executor_t * cte)
 		}
 		cte->log_info_cont(cte, "\n");
 
-		cte->expect_eq_int_errors_only(cte, false, failure, "wait for iambic key elements (dashes)");
+		cte->expect_eq_int(cte, false, failure, "wait for iambic key elements (dashes)");
 	}
 
 
@@ -159,7 +159,7 @@ int test_keyer(cw_test_executor_t * cte)
 	{
 		cw_key_ik_get_paddles(key, &dot_paddle, &dash_paddle);
 		bool failure = dot_paddle || !dash_paddle;
-		cte->expect_eq_int_errors_only(cte, false, failure, "cw_key_ik_get_paddles():");
+		cte->expect_eq_int(cte, false, failure, "cw_key_ik_get_paddles():");
 	}
 
 
@@ -171,7 +171,7 @@ int test_keyer(cw_test_executor_t * cte)
 		   arguments are true, so both paddles are pressed at
 		   the same time.*/
 		int cwret = cw_key_ik_notify_paddle_event(key, true, true);
-		cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "cw_key_ik_notify_paddle_event(true, true):");
+		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "cw_key_ik_notify_paddle_event(true, true):");
 
 
 		bool failure = false;
@@ -186,7 +186,7 @@ int test_keyer(cw_test_executor_t * cte)
 		}
 		cte->log_info_cont(cte, "\n");
 
-		cte->expect_eq_int_errors_only(cte, false, failure, "wait for iambic key elements (alternating)");
+		cte->expect_eq_int(cte, false, failure, "wait for iambic key elements (alternating)");
 	}
 
 
@@ -195,7 +195,7 @@ int test_keyer(cw_test_executor_t * cte)
 	{
 		cw_key_ik_get_paddles(key, &dot_paddle, &dash_paddle);
 		const bool failure = !dot_paddle || !dash_paddle;
-		cte->expect_eq_int_errors_only(cte, false, failure, "cw_key_ik_get_paddles():");
+		cte->expect_eq_int(cte, false, failure, "cw_key_ik_get_paddles():");
 	}
 
 
@@ -203,7 +203,7 @@ int test_keyer(cw_test_executor_t * cte)
 	/* Test: set new state of paddles: no paddle pressed. */
 	{
 		bool failure = !cw_key_ik_notify_paddle_event(key, false, false);
-		cte->expect_eq_int_errors_only(cte, false, failure, "cw_key_ik_notify_paddle_event(false, false)");
+		cte->expect_eq_int(cte, false, failure, "cw_key_ik_notify_paddle_event(false, false)");
 	}
 
 	cw_key_ik_wait_for_keyer(key);

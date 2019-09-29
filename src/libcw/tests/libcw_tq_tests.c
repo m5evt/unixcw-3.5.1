@@ -38,7 +38,7 @@ static void gen_setup(cw_test_executor_t * cte, cw_gen_t ** gen)
 {
 	*gen = cw_gen_new(cte->current_sound_system, NULL);
 	if (!*gen) {
-		cte->log_err(cte, "Can't create generator, stopping the test\n");
+		cte->log_error(cte, "Can't create generator, stopping the test\n");
 		return;
 	}
 
@@ -1294,7 +1294,7 @@ int test_cw_tq_operations_3(cw_test_executor_t * cte)
 		cte->expect_eq_int(cte, CW_TONE_QUEUE_CAPACITY_MAX, capacity, "empty queue's capacity");
 
 		const int len_empty = cw_tq_length_internal(gen->tq);
-		cte->expect_eq_int_errors_only(cte, 0, len_empty, "empty queue's length");
+		cte->expect_eq_int(cte, 0, len_empty, "empty queue's length");
 	}
 
 
@@ -1324,7 +1324,7 @@ int test_cw_tq_operations_3(cw_test_executor_t * cte)
 
 
 		const int len_full = cw_tq_length_internal(gen->tq);
-		cte->expect_eq_int_errors_only(cte, CW_TONE_QUEUE_CAPACITY_MAX, len_full, "full queue's length");
+		cte->expect_eq_int(cte, CW_TONE_QUEUE_CAPACITY_MAX, len_full, "full queue's length");
 	}
 
 
@@ -1338,8 +1338,8 @@ int test_cw_tq_operations_3(cw_test_executor_t * cte)
 		CW_TONE_INIT(&tone, 100, 1000000, CW_SLOPE_MODE_NO_SLOPES);
 		errno = 0;
 		const int cwret = cw_tq_enqueue_internal(gen->tq, &tone);
-		cte->expect_eq_int_errors_only(cte, CW_FAILURE, cwret, "trying to enqueue tone to full queue (cwret)");
-		cte->expect_eq_int_errors_only(cte, EAGAIN, errno, "trying to enqueue tone to full queue (cwret)");
+		cte->expect_eq_int(cte, CW_FAILURE, cwret, "trying to enqueue tone to full queue (cwret)");
+		cte->expect_eq_int(cte, EAGAIN, errno, "trying to enqueue tone to full queue (cwret)");
 	}
 
 
@@ -1361,7 +1361,7 @@ int test_cw_tq_operations_3(cw_test_executor_t * cte)
 		/* Test that the tq is really empty after
 		   cw_tq_wait_for_level_internal() has returned. */
 		const int len_empty = cw_tq_length_internal(gen->tq);
-		cte->expect_eq_int_errors_only(cte, 0, len_empty, "empty queue's length");
+		cte->expect_eq_int(cte, 0, len_empty, "empty queue's length");
 	}
 
 	gen_destroy(&gen);

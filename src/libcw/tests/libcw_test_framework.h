@@ -73,19 +73,16 @@ typedef struct cw_test_executor_t {
 	FILE * stdout;
 	FILE * stderr;
 
+	/* Sound system and test topic currently tested.
+	   Should be set right before calling a specific test function. */
 	int current_sound_system;
+	int current_topic;
 
 	/* Limit of characters that can be printed to console in one row. */
 	int console_n_cols;
 
-	cw_test_stats_t stats_indep;
-	cw_test_stats_t stats_null;
-	cw_test_stats_t stats_console;
-	cw_test_stats_t stats_oss;
-	cw_test_stats_t stats_alsa;
-	cw_test_stats_t stats_pa;
-	cw_test_stats_t * stats; /* Pointer to current stats. */
-	cw_test_stats_t stats2[LIBCW_TEST_SOUND_SYSTEM_MAX][LIBCW_TEST_TOPIC_MAX];
+	cw_test_stats_t all_stats[LIBCW_TEST_SOUND_SYSTEM_MAX][LIBCW_TEST_TOPIC_MAX];
+	cw_test_stats_t * stats; /* Pointer to current stats (one of members of ::all_stats[][]). */
 
 	int tested_sound_systems[LIBCW_TEST_SOUND_SYSTEM_MAX + 1];
 	int tested_topics[LIBCW_TEST_TOPIC_MAX + 1];
@@ -110,16 +107,19 @@ typedef struct cw_test_executor_t {
 
 	void (* print_test_stats)(struct cw_test_executor_t * self);
 
+	void (* set_current_topic_and_sound_system)(struct cw_test_executor_t * self, int topic, int sound_system);
+	const char * (* get_current_topic_label)(struct cw_test_executor_t * self);
 	const char * (* get_current_sound_system_label)(struct cw_test_executor_t * self);
-	void (* set_current_sound_system)(struct cw_test_executor_t * self, int sound_system);
 
 	/**
 	   Log information to cw_test_executor_t::stdout file (if it is set).
 	   Add "[II]" mark at the beginning.
 	   Add message prefix at the beginning.
 	   Don't add newline character at the end.
+
+	   @return number of characters printed
 	*/
-	void (* log_info)(struct cw_test_executor_t * self, const char * fmt, ...) __attribute__ ((format (printf, 2, 3)));
+        int (* log_info)(struct cw_test_executor_t * self, const char * fmt, ...) __attribute__ ((format (printf, 2, 3)));
 	/**
 	   Log information to cw_test_executor_t::stdout file (if it is set).
 	   Don't add "[II]" mark at the beginning.
@@ -133,7 +133,7 @@ typedef struct cw_test_executor_t {
 	   Add message prefix at the beginning.
 	   Don't add newline character at the end.
 	*/
-	void (* log_err)(struct cw_test_executor_t * self, const char * fmt, ...) __attribute__ ((format (printf, 2, 3)));
+	void (* log_error)(struct cw_test_executor_t * self, const char * fmt, ...) __attribute__ ((format (printf, 2, 3)));
 
 	/**
 	   See whether or not a given test topic or sound system was

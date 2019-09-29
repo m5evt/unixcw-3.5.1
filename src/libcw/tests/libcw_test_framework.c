@@ -76,8 +76,8 @@ static bool cw_test_expect_valid_pointer(struct cw_test_executor_t * self, const
 static bool cw_test_expect_valid_pointer_errors_only(struct cw_test_executor_t * self, const void * pointer, const char * fmt, ...) __attribute__ ((format (printf, 3, 4)));
 
 
-static void cw_test_print_test_header(cw_test_executor_t * self, const char * text);
-static void cw_test_print_test_footer(cw_test_executor_t * self, const char * text);
+static void cw_test_print_test_header(cw_test_executor_t * self, const char * function_name);
+static void cw_test_print_test_footer(cw_test_executor_t * self, const char * function_name);
 static void cw_test_append_status_string(cw_test_executor_t * self, char * msg_buf, int n, const char * status_string);
 
 static int cw_test_process_args(cw_test_executor_t * self, int argc, char * const argv[]);
@@ -87,13 +87,16 @@ static int cw_test_fill_default_sound_systems_and_topics(cw_test_executor_t * se
 static bool cw_test_test_topic_was_requested(cw_test_executor_t * self, int libcw_test_topic);
 static bool cw_test_sound_system_was_requested(cw_test_executor_t * self, int sound_system);
 
-static void cw_test_set_current_sound_system(cw_test_executor_t * self, int sound_system);
+static const char * cw_test_get_current_topic_label(cw_test_executor_t * self);
 static const char * cw_test_get_current_sound_system_label(cw_test_executor_t * self);
+static void cw_test_set_current_topic_and_sound_system(cw_test_executor_t * self, int topic, int sound_system);
+
+
 static void cw_test_print_test_stats(cw_test_executor_t * self);
 
-static void cw_test_log_info(struct cw_test_executor_t * self, const char * fmt, ...) __attribute__ ((format (printf, 2, 3)));
+static int cw_test_log_info(struct cw_test_executor_t * self, const char * fmt, ...) __attribute__ ((format (printf, 2, 3)));
 static void cw_test_log_info_cont(struct cw_test_executor_t * self, const char * fmt, ...) __attribute__ ((format (printf, 2, 3)));
-static void cw_test_log_err(struct cw_test_executor_t * self, const char * fmt, ...) __attribute__ ((format (printf, 2, 3)));
+static void cw_test_log_error(struct cw_test_executor_t * self, const char * fmt, ...) __attribute__ ((format (printf, 2, 3)));
 
 static void cw_test_print_sound_systems(cw_test_executor_t * self, int * sound_systems);
 static void cw_test_print_topics(cw_test_executor_t * self, int * topics);
@@ -178,7 +181,7 @@ int cw_test_process_args(cw_test_executor_t * self, int argc, char * const argv[
 	int dest_idx = 0;
 
 	int opt;
-	while ((opt = getopt(argc, argv, "m:s:")) != -1) {
+	while ((opt = getopt(argc, argv, "t:s:")) != -1) {
 		switch (opt) {
 		case 's':
 			optarg_len = strlen(optarg);
@@ -354,15 +357,15 @@ bool cw_test_expect_eq_int(struct cw_test_executor_t * self, int expected_value,
 		self->stats->successes++;
 
 		cw_test_append_status_string(self, msg_buf, message_len, "[ OK ]");
-		fprintf(self->stderr, "%s\n", msg_buf);
+		self->log_info(self, "%s\n", msg_buf);
 
 		as_expected = true;
 	} else {
 		self->stats->failures++;
 
 		cw_test_append_status_string(self, msg_buf, message_len, "[FAIL]");
-		fprintf(self->stderr, "%s\n", msg_buf);
-		fprintf(self->stderr, "   ***   expected %d, got %d   ***\n", expected_value, received_value);
+		self->log_error(self, "%s\n", msg_buf);
+		self->log_error(self, "   ***   expected %d, got %d   ***\n", expected_value, received_value);
 
 		as_expected = false;
 	}
@@ -405,8 +408,8 @@ bool cw_test_expect_eq_int_errors_only(struct cw_test_executor_t * self, int exp
 	} else {
 		const int n = fprintf(self->stderr, "%s%s", self->msg_prefix, buf);
 		self->stats->failures++;
-		fprintf(self->stderr, "%*s", self->console_n_cols - n, "failure: ");
-		fprintf(self->stderr, "expected %d, got %d\n", expected_value, received_value);
+		self->log_error(self, "%*s", self->console_n_cols - n, "failure: ");
+		self->log_error(self, "expected %d, got %d\n", expected_value, received_value);
 		as_expected = false;
 	}
 
@@ -436,15 +439,15 @@ bool cw_test_expect_null_pointer(struct cw_test_executor_t * self, const void * 
 		self->stats->successes++;
 
 		cw_test_append_status_string(self, msg_buf, message_len, "[ OK ]");
-		fprintf(self->stderr, "%s\n", msg_buf);
+		self->log_info(self, "%s\n", msg_buf);
 
 		as_expected = true;
 	} else {
 		self->stats->failures++;
 
 		cw_test_append_status_string(self, msg_buf, message_len, "[FAIL]");
-		fprintf(self->stderr, "%s\n", msg_buf);
-		fprintf(self->stderr, "   ***   expected NULL, got %p   ***\n", pointer);
+		self->log_error(self, "%s\n", msg_buf);
+		self->log_error(self, "   ***   expected NULL, got %p   ***\n", pointer);
 
 		as_expected = false;
 	}
@@ -478,8 +481,8 @@ bool cw_test_expect_null_pointer_errors_only(struct cw_test_executor_t * self, c
 		self->stats->failures++;
 
 		cw_test_append_status_string(self, msg_buf, message_len, "[FAIL]");
-		fprintf(self->stderr, "%s\n", msg_buf);
-		fprintf(self->stderr, "   ***   expected NULL, got %p   ***\n", pointer);
+		self->log_error(self, "%s\n", msg_buf);
+		self->log_error(self, "   ***   expected NULL, got %p   ***\n", pointer);
 
 		as_expected = false;
 	}
@@ -511,15 +514,15 @@ bool cw_test_expect_valid_pointer(struct cw_test_executor_t * self, const void *
 		self->stats->successes++;
 
 		cw_test_append_status_string(self, msg_buf, message_len, "[ OK ]");
-		fprintf(self->stderr, "%s\n", msg_buf);
+		self->log_info(self, "%s\n", msg_buf);
 
 		as_expected = true;
 	} else {
 		self->stats->failures++;
 
 		cw_test_append_status_string(self, msg_buf, message_len, "[FAIL]");
-		fprintf(self->stderr, "%s\n", msg_buf);
-		fprintf(self->stderr, "   ***   expected valid pointer, got NULL   ***\n");
+		self->log_error(self, "%s\n", msg_buf);
+		self->log_error(self, "   ***   expected valid pointer, got NULL   ***\n");
 
 		as_expected = false;
 	}
@@ -553,8 +556,8 @@ bool cw_test_expect_valid_pointer_errors_only(struct cw_test_executor_t * self, 
 		self->stats->failures++;
 
 		cw_test_append_status_string(self, msg_buf, message_len, "[FAIL]");
-		fprintf(self->stderr, "%s\n", msg_buf);
-		fprintf(self->stderr, "   ***   expected valid pointer, got NULL   ***\n");
+		self->log_error(self, "%s\n", msg_buf);
+		self->log_error(self, "   ***   expected valid pointer, got NULL   ***\n");
 
 		as_expected = false;
 	}
@@ -630,9 +633,31 @@ bool cw_test_sound_system_was_requested(cw_test_executor_t * self, int sound_sys
 
 
 
-void cw_test_print_test_header(cw_test_executor_t * self, const char * text)
+void cw_test_print_test_header(cw_test_executor_t * self, const char * function_name)
 {
-	fprintf(self->stderr, "\n%sbeginning of test: %s:\n", self->msg_prefix, text);
+	self->log_info_cont(self, "\n");
+
+	self->log_info(self, "Beginning of test\n");
+
+	{
+		self->log_info(self, " ");
+		for (size_t i = 0; i < self->console_n_cols - (strlen ("[II]  ")); i++) {
+			self->log_info_cont(self, "-");
+		}
+		self->log_info_cont(self, "\n");
+	}
+
+	self->log_info(self, "Test function name: %s\n", function_name);
+	self->log_info(self, "Current test topic: %s\n", self->get_current_topic_label(self));
+	self->log_info(self, "Current sound system: %s\n", self->get_current_sound_system_label(self));
+
+	{
+		self->log_info(self, " ");
+		for (size_t i = 0; i < self->console_n_cols - (strlen ("[II]  ")); i++) {
+			self->log_info_cont(self, "-");
+		}
+		self->log_info_cont(self, "\n");
+	}
 }
 
 
@@ -640,9 +665,10 @@ void cw_test_print_test_header(cw_test_executor_t * self, const char * text)
 
 void cw_test_print_test_footer(cw_test_executor_t * self, const char * text)
 {
-	const int n = fprintf(self->stderr, "%send of test: %s: ", self->msg_prefix, text);
-	fprintf(self->stderr, "%*s\n", self->console_n_cols - n, "completed\n");
+	const int n = self->log_info(self, "End of test: %s: ", text);
+	self->log_info_cont(self, "%*s\n", self->console_n_cols - n, "completed\n");
 }
+
 
 
 
@@ -654,33 +680,35 @@ const char * cw_test_get_current_sound_system_label(cw_test_executor_t * self)
 
 
 
-void cw_test_set_current_sound_system(cw_test_executor_t * self, int sound_system)
+const char * cw_test_get_current_topic_label(cw_test_executor_t * self)
 {
-	self->current_sound_system = sound_system;
-	switch (sound_system) {
-
-
-	case CW_AUDIO_NULL:
-		self->stats = &self->stats_null;
-		break;
-	case CW_AUDIO_CONSOLE:
-		self->stats = &self->stats_console;
-		break;
-	case CW_AUDIO_OSS:
-		self->stats = &self->stats_oss;
-		break;
-	case CW_AUDIO_ALSA:
-		self->stats = &self->stats_alsa;
-		break;
-	case CW_AUDIO_PA:
-		self->stats = &self->stats_pa;
-		break;
+	switch (self->current_topic) {
+	case LIBCW_TEST_TOPIC_TQ:
+		return "tq";
+	case LIBCW_TEST_TOPIC_GEN:
+		return "gen";
+	case LIBCW_TEST_TOPIC_KEY:
+		return "key";
+	case LIBCW_TEST_TOPIC_REC:
+		return "rec";
+	case LIBCW_TEST_TOPIC_DATA:
+		return "data";
+	case LIBCW_TEST_TOPIC_OTHER:
+		return "other";
 	default:
-	case CW_AUDIO_NONE:
-	case CW_AUDIO_SOUNDCARD:
-		fprintf(self->stderr, "Unexpected sound system %d\n", sound_system);
+		self->log_error(self, "Unknown current topic %d\n", self->current_topic);
 		exit(EXIT_FAILURE);
 	}
+}
+
+
+
+
+void cw_test_set_current_topic_and_sound_system(cw_test_executor_t * self, int topic, int sound_system)
+{
+	self->current_topic = topic;
+	self->current_sound_system = sound_system;
+	self->stats = &self->all_stats[sound_system][topic];
 }
 
 
@@ -701,11 +729,11 @@ void cw_test_print_test_stats(cw_test_executor_t * self)
 	for (int i = CW_AUDIO_NULL; i <= CW_AUDIO_PA; i++) {
 		fprintf(self->stderr, LINE_FORMAT,
 			audio_systems[i], /* TODO: global variable. */
-			self->stats2[i][LIBCW_TEST_TOPIC_TQ].failures    + self->stats2[i][LIBCW_TEST_TOPIC_TQ].successes,    self->stats2[i][LIBCW_TEST_TOPIC_TQ].failures,
-			self->stats2[i][LIBCW_TEST_TOPIC_GEN].failures   + self->stats2[i][LIBCW_TEST_TOPIC_GEN].successes,   self->stats2[i][LIBCW_TEST_TOPIC_GEN].failures,
-			self->stats2[i][LIBCW_TEST_TOPIC_KEY].failures   + self->stats2[i][LIBCW_TEST_TOPIC_KEY].successes,   self->stats2[i][LIBCW_TEST_TOPIC_KEY].failures,
-			self->stats2[i][LIBCW_TEST_TOPIC_REC].failures   + self->stats2[i][LIBCW_TEST_TOPIC_REC].successes,   self->stats2[i][LIBCW_TEST_TOPIC_REC].failures,
-			self->stats2[i][LIBCW_TEST_TOPIC_OTHER].failures + self->stats2[i][LIBCW_TEST_TOPIC_OTHER].successes, self->stats2[i][LIBCW_TEST_TOPIC_OTHER].failures);
+			self->all_stats[i][LIBCW_TEST_TOPIC_TQ].failures    + self->all_stats[i][LIBCW_TEST_TOPIC_TQ].successes,    self->all_stats[i][LIBCW_TEST_TOPIC_TQ].failures,
+			self->all_stats[i][LIBCW_TEST_TOPIC_GEN].failures   + self->all_stats[i][LIBCW_TEST_TOPIC_GEN].successes,   self->all_stats[i][LIBCW_TEST_TOPIC_GEN].failures,
+			self->all_stats[i][LIBCW_TEST_TOPIC_KEY].failures   + self->all_stats[i][LIBCW_TEST_TOPIC_KEY].successes,   self->all_stats[i][LIBCW_TEST_TOPIC_KEY].failures,
+			self->all_stats[i][LIBCW_TEST_TOPIC_REC].failures   + self->all_stats[i][LIBCW_TEST_TOPIC_REC].successes,   self->all_stats[i][LIBCW_TEST_TOPIC_REC].failures,
+			self->all_stats[i][LIBCW_TEST_TOPIC_OTHER].failures + self->all_stats[i][LIBCW_TEST_TOPIC_OTHER].successes, self->all_stats[i][LIBCW_TEST_TOPIC_OTHER].failures);
 	}
 
 	return;
@@ -740,13 +768,15 @@ void cw_test_init(cw_test_executor_t * self, FILE * stdout, FILE * stderr, const
 	self->test_topic_was_requested = cw_test_test_topic_was_requested;
 	self->sound_system_was_requested = cw_test_sound_system_was_requested;
 
+	self->get_current_topic_label = cw_test_get_current_topic_label;
 	self->get_current_sound_system_label = cw_test_get_current_sound_system_label;
-	self->set_current_sound_system = cw_test_set_current_sound_system;
+	self->set_current_topic_and_sound_system = cw_test_set_current_topic_and_sound_system;
+
 	self->print_test_stats = cw_test_print_test_stats;
 
 	self->log_info = cw_test_log_info;
 	self->log_info_cont = cw_test_log_info_cont;
-	self->log_err = cw_test_log_err;
+	self->log_error = cw_test_log_error;
 
 	self->print_sound_systems = cw_test_print_sound_systems;
 	self->print_topics = cw_test_print_topics;
@@ -776,10 +806,10 @@ void cw_test_init(cw_test_executor_t * self, FILE * stdout, FILE * stderr, const
 
 
 
-void cw_test_log_info(struct cw_test_executor_t * self, const char * fmt, ...)
+int cw_test_log_info(struct cw_test_executor_t * self, const char * fmt, ...)
 {
 	if (NULL == self->stdout) {
-		return;
+		return 0;
 	}
 
 	char va_buf[256] = { 0 };
@@ -789,10 +819,10 @@ void cw_test_log_info(struct cw_test_executor_t * self, const char * fmt, ...)
 	vsnprintf(va_buf, sizeof (va_buf), fmt, ap);
 	va_end(ap);
 
-	fprintf(self->stdout, "[II] %s: %s", self->msg_prefix, va_buf);
+	const int n = fprintf(self->stdout, "[II] %s", va_buf);
 	fflush(self->stdout);
 
-	return;
+	return n;
 }
 
 
@@ -820,7 +850,7 @@ void cw_test_log_info_cont(struct cw_test_executor_t * self, const char * fmt, .
 
 
 
-void cw_test_log_err(struct cw_test_executor_t * self, const char * fmt, ...)
+void cw_test_log_error(struct cw_test_executor_t * self, const char * fmt, ...)
 {
 	if (NULL == self->stdout) {
 		return;
@@ -833,7 +863,7 @@ void cw_test_log_err(struct cw_test_executor_t * self, const char * fmt, ...)
 	vsnprintf(va_buf, sizeof (va_buf), fmt, ap);
 	va_end(ap);
 
-	fprintf(self->stdout, "[EE] %s: %s", self->msg_prefix, va_buf);
+	fprintf(self->stdout, "[EE] %s", va_buf);
 	fflush(self->stdout);
 
 	return;
@@ -996,11 +1026,8 @@ int cw_test_main_test_loop(cw_test_executor_t * cte, cw_test_set_t * test_sets)
 
 				int f = 0;
 				while (test_set->test_functions[f]) {
-					cte->stats = &cte->stats2[sound_system][topic];
-					cte->current_sound_system = sound_system;
-
+					cte->set_current_topic_and_sound_system(cte, topic, sound_system);
 					(*test_set->test_functions[f])(cte);
-
 					f++;
 				}
 			}

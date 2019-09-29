@@ -103,7 +103,7 @@ int test_cw_timestamp_validate_internal(cw_test_executor_t * cte)
 	cw_assert (!gettimeofday(&ref_timestamp, NULL), "libcw:utils:validate timestamp 1: failed to get reference time");
 
 	cwret = cw_timestamp_validate_internal(&out_timestamp, NULL);
-	cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "libcw:utils:validate timestamp:current timestamp:");
+	cte->expect_eq_int(cte, CW_SUCCESS, cwret, "libcw:utils:validate timestamp:current timestamp:");
 
 #if 0
 	fprintf(stderr, "\nINFO: delay in getting timestamp is %d microseconds\n",
@@ -120,9 +120,9 @@ int test_cw_timestamp_validate_internal(cw_test_executor_t * cte)
 	in_timestamp.tv_usec = 987;
 
 	cwret = cw_timestamp_validate_internal(&out_timestamp, &in_timestamp);
-	cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "libcw:utils:validate timestamp:validate and copy (cwret):");
-	cte->expect_eq_int_errors_only(cte, in_timestamp.tv_sec, out_timestamp.tv_sec, "libcw:utils:validate timestamp:validate and copy (copy sec):");
-	cte->expect_eq_int_errors_only(cte, in_timestamp.tv_usec, out_timestamp.tv_usec, "libcw:utils:validate timestamp:validate and copy (copy usec):");
+	cte->expect_eq_int(cte, CW_SUCCESS, cwret, "libcw:utils:validate timestamp:validate and copy (cwret):");
+	cte->expect_eq_int(cte, in_timestamp.tv_sec, out_timestamp.tv_sec, "libcw:utils:validate timestamp:validate and copy (copy sec):");
+	cte->expect_eq_int(cte, in_timestamp.tv_usec, out_timestamp.tv_usec, "libcw:utils:validate timestamp:validate and copy (copy usec):");
 
 
 
@@ -134,8 +134,8 @@ int test_cw_timestamp_validate_internal(cw_test_executor_t * cte)
 	in_timestamp.tv_usec = 987;
 
 	cwret = cw_timestamp_validate_internal(&out_timestamp, &in_timestamp);
-	cte->expect_eq_int_errors_only(cte, CW_FAILURE, cwret, "libcw:utils:validate timestamp:invalid seconds (cwret)");
-	cte->expect_eq_int_errors_only(cte, EINVAL, errno, "libcw:utils:validate timestamp:invalid seconds (errno)");
+	cte->expect_eq_int(cte, CW_FAILURE, cwret, "libcw:utils:validate timestamp:invalid seconds (cwret)");
+	cte->expect_eq_int(cte, EINVAL, errno, "libcw:utils:validate timestamp:invalid seconds (errno)");
 
 
 
@@ -146,8 +146,8 @@ int test_cw_timestamp_validate_internal(cw_test_executor_t * cte)
 	in_timestamp.tv_usec = CW_USECS_PER_SEC + 1;
 
 	cwret = cw_timestamp_validate_internal(&out_timestamp, &in_timestamp);
-	cte->expect_eq_int_errors_only(cte, CW_FAILURE, cwret, "libcw:utils:validate timestamp:invalid milliseconds (cwret)");
-	cte->expect_eq_int_errors_only(cte, EINVAL, errno, "libcw:utils:validate timestamp:invalid milliseconds (cwret)");
+	cte->expect_eq_int(cte, CW_FAILURE, cwret, "libcw:utils:validate timestamp:invalid milliseconds (cwret)");
+	cte->expect_eq_int(cte, EINVAL, errno, "libcw:utils:validate timestamp:invalid milliseconds (cwret)");
 
 
 
@@ -158,8 +158,8 @@ int test_cw_timestamp_validate_internal(cw_test_executor_t * cte)
 	in_timestamp.tv_usec = -1;
 
 	cwret = cw_timestamp_validate_internal(&out_timestamp, &in_timestamp);
-	cte->expect_eq_int_errors_only(cte, CW_FAILURE, cwret, "libcw:utils:validate timestamp:negative milliseconds (cwret)");
-	cte->expect_eq_int_errors_only(cte, EINVAL, errno, "libcw:utils:validate timestamp:negative milliseconds (cwret)");
+	cte->expect_eq_int(cte, CW_FAILURE, cwret, "libcw:utils:validate timestamp:negative milliseconds (cwret)");
+	cte->expect_eq_int(cte, EINVAL, errno, "libcw:utils:validate timestamp:negative milliseconds (cwret)");
 
 	cte->print_test_footer(cte, __func__);
 

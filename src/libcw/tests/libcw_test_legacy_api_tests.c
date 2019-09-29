@@ -105,12 +105,12 @@ int legacy_api_test_setup(cw_test_executor_t * cte)
 {
 	int rv = cw_generator_new(cte->current_sound_system, NULL);
 	if (rv != 1) {
-		cte->log_err(cte, "Can't create generator, stopping the test\n");
+		cte->log_error(cte, "Can't create generator, stopping the test\n");
 		return -1;
 	}
 	rv = cw_generator_start();
 	if (rv != 1) {
-		cte->log_err(cte, "Can't start generator, stopping the test\n");
+		cte->log_error(cte, "Can't start generator, stopping the test\n");
 		cw_generator_delete();
 		return -1;
 	}

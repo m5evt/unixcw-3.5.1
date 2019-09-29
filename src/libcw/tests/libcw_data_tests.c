@@ -210,7 +210,7 @@ int test_cw_representation_to_character_internal_speed(cw_test_executor_t * cte)
 
 	float gain = 1.0 * direct / lookup;
 	bool failure = gain < 1.1;
-	cte->expect_eq_int_errors_only(cte, false, failure, "lookup speed gain: %.2f", gain);
+	cte->expect_eq_int(cte, false, failure, "lookup speed gain: %.2f", gain);
 
 	cte->print_test_footer(cte, __func__);
 
@@ -245,7 +245,7 @@ int test_character_lookups_internal(cw_test_executor_t * cte)
 		   zero. */
 		const int extracted_count = cw_get_character_count();
 		failure = (extracted_count <= 0);
-		cte->expect_eq_int_errors_only(cte, false, failure, "character count (%d):", extracted_count);
+		cte->expect_eq_int(cte, false, failure, "character count (%d):", extracted_count);
 	}
 
 
@@ -274,7 +274,7 @@ int test_character_lookups_internal(cw_test_executor_t * cte)
 
 		int rep_len = cw_get_maximum_representation_length();
 		failure = (rep_len <= 0);
-		cte->expect_eq_int_errors_only(cte, false, failure, "maximum representation length (%d):", rep_len);
+		cte->expect_eq_int(cte, false, failure, "maximum representation length (%d):", rep_len);
 	}
 
 
@@ -351,7 +351,7 @@ int test_prosign_lookups_internal(cw_test_executor_t * cte)
 	{
 		count = cw_get_procedural_character_count();
 		failure = (count <= 0);
-		cte->expect_eq_int_errors_only(cte, false, failure, "procedural character count (%d):", count);
+		cte->expect_eq_int(cte, false, failure, "procedural character count (%d):", count);
 	}
 
 
@@ -374,7 +374,7 @@ int test_prosign_lookups_internal(cw_test_executor_t * cte)
 	{
 		int exp_len = cw_get_maximum_procedural_expansion_length();
 		failure = (exp_len <= 0);
-		cte->expect_eq_int_errors_only(cte, false, failure, "maximum procedural expansion length (%d):", (int) exp_len);
+		cte->expect_eq_int(cte, false, failure, "maximum procedural expansion length (%d):", (int) exp_len);
 	}
 
 
@@ -440,7 +440,7 @@ int test_phonetic_lookups_internal(cw_test_executor_t * cte)
 	{
 		int len = cw_get_maximum_phonetic_length();
 		bool failure = (len <= 0);
-		cte->expect_eq_int_errors_only(cte, false, failure, "phonetic lookup: maximum phonetic length (%d):", len);
+		cte->expect_eq_int(cte, false, failure, "phonetic lookup: maximum phonetic length (%d):", len);
 	}
 
 
@@ -588,7 +588,7 @@ int test_validate_representation_internal(cw_test_executor_t * cte)
 		int rv4 = cw_representation_is_valid("...-");
 
 		bool failure = (rv1 != CW_SUCCESS) || (rv2 != CW_SUCCESS) || (rv3 != CW_SUCCESS) || (rv4 != CW_SUCCESS);
-		cte->expect_eq_int_errors_only(cte, false, failure, "validate representation: valid (%d/%d/%d/%d):", rv1, rv2, rv3, rv4);
+		cte->expect_eq_int(cte, false, failure, "validate representation: valid (%d/%d/%d/%d):", rv1, rv2, rv3, rv4);
 	}
 
 
@@ -599,7 +599,7 @@ int test_validate_representation_internal(cw_test_executor_t * cte)
 		int rv3 = cw_representation_is_valid("-_-");
 
 		bool failure = (rv1 == CW_SUCCESS) || (rv2 == CW_SUCCESS) || (rv3 == CW_SUCCESS);
-		cte->expect_eq_int_errors_only(cte, false, failure, "validate representation: invalid (%d/%d/%d):", rv1, rv2, rv3);
+		cte->expect_eq_int(cte, false, failure, "validate representation: invalid (%d/%d/%d):", rv1, rv2, rv3);
 	}
 
 	cte->print_test_footer(cte, __func__);

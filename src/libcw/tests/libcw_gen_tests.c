@@ -446,7 +446,7 @@ int test_cw_gen_tone_slope_shape_enums(cw_test_executor_t * cte)
 		|| CW_TONE_SLOPE_SHAPE_SINE < 0
 		|| CW_TONE_SLOPE_SHAPE_RECTANGULAR < 0;
 
-	cte->expect_eq_int_errors_only(cte, false, failure, "slope shape enums:");
+	cte->expect_eq_int(cte, false, failure, "slope shape enums:");
 
 	cte->print_test_footer(cte, __func__);
 
@@ -468,7 +468,7 @@ int test_cw_gen_forever_internal(cw_test_executor_t * cte)
 	cte->log_info(cte, "forever tone (%d seconds):", seconds);
 
 	const int rv = test_cw_gen_forever_sub(cte, 2, CW_AUDIO_NULL, (const char *) NULL);
-	cte->expect_eq_int_errors_only(cte, 0, rv, "'forever' test");
+	cte->expect_eq_int(cte, 0, rv, "'forever' test");
 
 	cte->print_test_footer(cte, __func__);
 
@@ -569,7 +569,7 @@ int test_cw_gen_get_timing_parameters_internal(cw_test_executor_t * cte)
 		|| (eow_space_len == initial)
 		|| (additional_space_len == initial)
 		|| (adjustment_space_len == initial);
-	cte->expect_eq_int_errors_only(cte, false, failure, "get timing parameters:");
+	cte->expect_eq_int(cte, false, failure, "get timing parameters:");
 
 	cw_gen_delete(&gen);
 

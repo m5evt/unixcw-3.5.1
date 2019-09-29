@@ -141,7 +141,7 @@ void register_signal_handler(void)
 		action.sa_flags = 0;
 		int rv = sigaction(SIGNALS[i], &action, (struct sigaction *) NULL);
 		if (rv == -1) {
-			g_tests_executor.log_err(&g_tests_executor, "Can't register signal %d: '%s'\n", SIGNALS[i], strerror(errno));
+			g_tests_executor.log_error(&g_tests_executor, "Can't register signal %d: '%s'\n", SIGNALS[i], strerror(errno));
 			exit(EXIT_FAILURE);
 		}
 	}

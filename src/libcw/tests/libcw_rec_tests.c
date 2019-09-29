@@ -513,14 +513,14 @@ struct cw_rec_test_data * test_cw_rec_generate_base_data_constant(int speed, int
 	   characters. */
 	float * speeds = test_cw_rec_generate_speeds_constant(speed, n);
 	cw_assert (speeds, MSG_PREFIX "new base data fixed: test_cw_rec_generate_speeds_constant() failed\n");
-	// cte->expect_eq_int_errors_only(cte, ); // TODO: implement
+	// cte->expect_eq_int(cte, ); // TODO: implement
 
 
 	/* Generate timing data for given set of characters, each
 	   character is sent with speed dictated by speeds[]. */
 	struct cw_rec_test_data * data = test_cw_rec_generate_data(base_characters, speeds, fuzz_percent);
 	cw_assert (data, MSG_PREFIX "failed to generate base/fixed test data\n");
-	// cte->expect_eq_int_errors_only(cte, ); // TODO: implement
+	// cte->expect_eq_int(cte, ); // TODO: implement
 
 
 	free(base_characters);
@@ -614,7 +614,7 @@ int test_cw_rec_test_with_random_varying(cw_test_executor_t * cte)
 	/* Verify that initial test speed has been set correctly. */
 	float diff = cw_rec_get_speed(rec) - CW_SPEED_MAX;
 	cw_assert (diff < 0.1, MSG_PREFIX "begin/end: random/varying: incorrect receive speed: %f != %f\n", cw_rec_get_speed(rec), (float) CW_SPEED_MAX);
-	// cte->expect_eq_int_errors_only(cte, ); // TODO: implement
+	// cte->expect_eq_int(cte, ); // TODO: implement
 
 	/* Actual tests of receiver functions are here. */
 	bool failure = test_cw_rec_test_begin_end(cte, rec, data);
@@ -647,19 +647,19 @@ struct cw_rec_test_data * test_cw_rec_generate_data_random_constant(int speed, i
 
 	char * characters = test_cw_rec_generate_characters_random(n);
 	cw_assert (characters, MSG_PREFIX "test_cw_rec_generate_characters_random() failed\n");
-	// cte->expect_eq_int_errors_only(cte, ); // TODO: implement
+	// cte->expect_eq_int(cte, ); // TODO: implement
 
 	/* Fixed speed receive mode - speed is constant for all characters. */
 	float * speeds = test_cw_rec_generate_speeds_constant(speed, n);
 	cw_assert (speeds, MSG_PREFIX "test_cw_rec_generate_speeds_constant() failed\n");
-	// cte->expect_eq_int_errors_only(cte, ); // TODO: implement
+	// cte->expect_eq_int(cte, ); // TODO: implement
 
 
 	/* Generate timing data for given set of characters, each
 	   character is sent with speed dictated by speeds[]. */
 	struct cw_rec_test_data * data = test_cw_rec_generate_data(characters, speeds, fuzz_percent);
 	cw_assert (data, MSG_PREFIX "random/constant: failed to generate test data\n");
-	// cte->expect_eq_int_errors_only(cte, ); // TODO: implement
+	// cte->expect_eq_int(cte, ); // TODO: implement
 
 
 	free(characters);
@@ -689,20 +689,20 @@ struct cw_rec_test_data * test_cw_rec_generate_data_random_varying(int speed_min
 
 	char *characters = test_cw_rec_generate_characters_random(n);
 	cw_assert (characters, MSG_PREFIX "begin/end: test_cw_rec_generate_characters_random() failed\n");
-	// cte->expect_eq_int_errors_only(cte, ); // TODO: implement
+	// cte->expect_eq_int(cte, ); // TODO: implement
 
 	/* Adaptive speed receive mode - speed varies for all
 	   characters. */
 	float * speeds = test_cw_rec_generate_speeds_varying(speed_min, speed_max, n);
 	cw_assert (speeds, MSG_PREFIX "test_cw_rec_generate_speeds_varying() failed\n");
-	// cte->expect_eq_int_errors_only(cte, ); // TODO: implement
+	// cte->expect_eq_int(cte, ); // TODO: implement
 
 
 	/* Generate timing data for given set of characters, each
 	   character is sent with speed dictated by speeds[]. */
 	struct cw_rec_test_data *data = test_cw_rec_generate_data(characters, speeds, fuzz_percent);
 	cw_assert (data, MSG_PREFIX "failed to generate random/varying test data\n");
-	// cte->expect_eq_int_errors_only(cte, ); // TODO: implement
+	// cte->expect_eq_int(cte, ); // TODO: implement
 
 
 	free(characters);
@@ -730,7 +730,7 @@ char * test_cw_rec_new_base_characters(void)
 	int n = cw_get_character_count();
 	char * base_characters = (char *) malloc((n + 1) * sizeof (char));
 	cw_assert (base_characters, MSG_PREFIX "get base characters: malloc() failed\n");
-	// cte->expect_eq_int_errors_only(cte, ); // TODO: implement
+	// cte->expect_eq_int(cte, ); // TODO: implement
 	cw_list_characters(base_characters);
 
 	return base_characters;
@@ -761,13 +761,13 @@ char * test_cw_rec_generate_characters_random(int n)
 	   set of all characters. */
 	char * base_characters = test_cw_rec_new_base_characters();
 	cw_assert (base_characters, MSG_PREFIX "test_cw_rec_new_base_characters() failed\n");
-	// cte->expect_eq_int_errors_only(cte, ); // TODO: implement
+	// cte->expect_eq_int(cte, ); // TODO: implement
 	size_t length = strlen(base_characters);
 
 
 	char * characters = (char *) malloc ((n + 1) * sizeof (char));
 	cw_assert (characters, MSG_PREFIX "malloc() failed\n");
-	// cte->expect_eq_int_errors_only(cte, ); // TODO: implement
+	// cte->expect_eq_int(cte, ); // TODO: implement
 	for (int i = 0; i < n; i++) {
 		int r = rand() % length;
 		if (!(r % 3)) {
@@ -862,7 +862,7 @@ float * test_cw_rec_generate_speeds_varying(int speed_min, int speed_max, size_t
 
 	float * speeds = (float *) malloc((n + 1) * sizeof (float));
 	cw_assert (speeds, MSG_PREFIX "generate speeds varying: malloc() failed\n");
-	// cte->expect_eq_int_errors_only(cte, ); // TODO: implement
+	// cte->expect_eq_int(cte, ); // TODO: implement
 
 	for (size_t i = 0; i < n; i++) {
 
@@ -933,7 +933,7 @@ struct cw_rec_test_data * test_cw_rec_generate_data(char const * characters, flo
 	/* +1 for guard. */
 	struct cw_rec_test_data * test_data = (struct cw_rec_test_data *) malloc((n + 1) * sizeof(struct cw_rec_test_data));
 	cw_assert (test_data, MSG_PREFIX "generate data: malloc() failed\n");
-	//// cte->expect_eq_int_errors_only(cte, ); // TODO: implement
+	//// cte->expect_eq_int(cte, ); // TODO: implement
 
 	/* Initialization. */
 	for (size_t i = 0; i < n + 1; i++) {
@@ -972,7 +972,7 @@ struct cw_rec_test_data * test_cw_rec_generate_data(char const * characters, flo
 		cw_assert (test_data[out].representation,
 			   MSG_PREFIX "generate data: cw_character_to_representation() failed for input char #%zu: '%c'\n",
 			   in, characters[in]);
-		//// cte->expect_eq_int_errors_only(cte, ); // TODO: implement
+		//// cte->expect_eq_int(cte, ); // TODO: implement
 		test_data[out].speed = speeds[in];
 
 
@@ -1166,31 +1166,26 @@ int test_cw_rec_get_parameters(cw_test_executor_t * cte)
 		   || eoc_len_ideal <= 0
 
 		   || adaptive_speed_threshold <= 0);
-	cte->expect_eq_int_errors_only(cte, false, failure, "cw_rec_get_parameters_internal()");
-
+	cte->expect_eq_int(cte, false, failure, "cw_rec_get_parameters_internal()");
 
 	failure = dot_len_max >= dash_len_min;
-	cte->expect_eq_int_errors_only(cte, false, failure, "get: max dot len < min dash len (%d/%d):", dot_len_max, dash_len_min);
-
+	cte->expect_eq_int(cte, false, failure, "get: max dot len < min dash len (%d/%d):", dot_len_max, dash_len_min);
 
 	failure = (dot_len_min >= dot_len_ideal) || (dot_len_ideal >= dot_len_max);
-	cte->expect_eq_int_errors_only(cte, false, failure, "get: dot len consistency (%d/%d/%d):", dot_len_min, dot_len_ideal, dot_len_max);
-
+	cte->expect_eq_int(cte, false, failure, "get: dot len consistency (%d/%d/%d):", dot_len_min, dot_len_ideal, dot_len_max);
 
 	failure = (dash_len_min >= dash_len_ideal) || (dash_len_ideal >= dash_len_max);
-	cte->expect_eq_int_errors_only(cte, false, failure, "get: dash len consistency (%d/%d/%d):", dash_len_min, dash_len_ideal, dash_len_max);
-
+	cte->expect_eq_int(cte, false, failure, "get: dash len consistency (%d/%d/%d):", dash_len_min, dash_len_ideal, dash_len_max);
 
 	failure = (eom_len_max >= eoc_len_min);
-	cte->expect_eq_int_errors_only(cte, false, failure, "get: max eom len < min eoc len (%d/%d):", eom_len_max, eoc_len_min);
-
+	cte->expect_eq_int(cte, false, failure, "get: max eom len < min eoc len (%d/%d):", eom_len_max, eoc_len_min);
 
 	failure = (eom_len_min >= eom_len_ideal) || (eom_len_ideal >= eom_len_max);
-	cte->expect_eq_int_errors_only(cte, false, failure, "get: eom len consistency (%d/%d/%d)", eom_len_min, eom_len_ideal, eom_len_max);
-
+	cte->expect_eq_int(cte, false, failure, "get: eom len consistency (%d/%d/%d)", eom_len_min, eom_len_ideal, eom_len_max);
 
 	failure = (eoc_len_min >= eoc_len_ideal) || (eoc_len_ideal >= eoc_len_max);
-	cte->expect_eq_int_errors_only(cte, false, failure, "get: eoc len consistency (%d/%d/%d)", eoc_len_min, eoc_len_ideal, eoc_len_max);
+	cte->expect_eq_int(cte, false, failure, "get: eoc len consistency (%d/%d/%d)", eoc_len_min, eoc_len_ideal, eoc_len_max);
+
 
 	cte->print_test_footer(cte, __func__);
 
