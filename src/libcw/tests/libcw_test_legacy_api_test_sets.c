@@ -24,62 +24,116 @@
 
 
 
-
 /*
-  Tests for tone queue (tq) which need a sound system to be
-  configured.
+  FIXME: creating and deleting of generator has been removed from test
+  driver, so now each test set will have to have a function for setup
+  and teardown:
+
+  setup:
+   	int rv = cw_generator_new(cte->current_sound_system, NULL);
+	if (rv != 1) {
+		cte->log_err(cte, "Can't create generator, stopping the test\n");
+		return -1;
+	}
+	rv = cw_generator_start();
+	if (rv != 1) {
+		cte->log_err(cte, "Can't start generator, stopping the test\n");
+		cw_generator_delete();
+		return -1;
+	}
+
+
+  teardown:
+	sleep(1);
+	cw_generator_stop();
+	sleep(1);
+	cw_generator_delete();
 */
-void (* const libcw_test_set_tq_with_audio[])(cw_test_executor_t *) = {
-	test_cw_wait_for_tone,
-	test_cw_wait_for_tone_queue,
-	test_cw_queue_tone,
-	test_empty_tone_queue,
-	test_full_tone_queue,
-	test_tone_queue_callback,
-
-	NULL
-};
 
 
 
 
-/* Tests that are dependent on a sound system being configured.
-   Generator topic functions. */
-void (*const libcw_test_set_gen_with_audio[])(cw_test_executor_t *) = {
-	test_volume_functions,
-	test_send_primitives,
-	test_send_character_and_string,
-	test_representations,
+cw_test_set_t cw_all_tests[] = {
+	{
+		CW_TEST_SET_VALID,
+		CW_TEST_API_LEGACY,
 
-	NULL
-};
+		{ LIBCW_TEST_TOPIC_TQ, LIBCW_TEST_TOPIC_MAX }, /* Topics. */
+		{ CW_AUDIO_NULL, CW_AUDIO_CONSOLE, CW_AUDIO_OSS, CW_AUDIO_ALSA, CW_AUDIO_PA, LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. */
+
+		{
+			test_cw_wait_for_tone,
+			test_cw_wait_for_tone_queue,
+			test_cw_queue_tone,
+			test_empty_tone_queue,
+			test_full_tone_queue,
+			test_tone_queue_callback,
+
+			NULL,
+		}
+	},
+	{
+		CW_TEST_SET_VALID,
+		CW_TEST_API_LEGACY,
+
+		{ LIBCW_TEST_TOPIC_GEN, LIBCW_TEST_TOPIC_MAX }, /* Topics. */
+		{ CW_AUDIO_NULL, CW_AUDIO_CONSOLE, CW_AUDIO_OSS, CW_AUDIO_ALSA, CW_AUDIO_PA, LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. */
+
+		{
+			test_volume_functions,
+			test_send_primitives,
+			test_send_character_and_string,
+			test_representations,
+
+			NULL,
+		}
+	},
+	{
+		CW_TEST_SET_VALID,
+		CW_TEST_API_LEGACY,
+
+		{ LIBCW_TEST_TOPIC_KEY, LIBCW_TEST_TOPIC_MAX }, /* Topics. */
+		{ CW_AUDIO_NULL, CW_AUDIO_CONSOLE, CW_AUDIO_OSS, CW_AUDIO_ALSA, CW_AUDIO_PA, LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. */
+
+		{
+			test_iambic_key_dot,
+			test_iambic_key_dash,
+			test_iambic_key_alternating,
+			test_iambic_key_none,
+			test_straight_key,
+
+			NULL,
+		}
+	},
+	{
+		CW_TEST_SET_VALID,
+		CW_TEST_API_LEGACY,
+
+		{ LIBCW_TEST_TOPIC_OTHER, LIBCW_TEST_TOPIC_MAX }, /* Topics. */
+		{ CW_AUDIO_NULL, CW_AUDIO_CONSOLE, CW_AUDIO_OSS, CW_AUDIO_ALSA, CW_AUDIO_PA, LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. */
+
+		{
+			test_parameter_ranges,
+			test_cw_gen_forever_public,
+
+			//cw_test_delayed_release,
+			//cw_test_signal_handling, /* FIXME - not sure why this test fails :( */
+
+			NULL,
+		}
+	},
 
 
+	/* Guard. */
+	{
+		CW_TEST_SET_INVALID,
+		CW_TEST_API_LEGACY,
 
+		{ LIBCW_TEST_TOPIC_MAX }, /* Topics. */
+		{ LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. */
 
-/* Tests that are dependent on a sound system being configured.
-   Morse key topic functions */
-void (*const libcw_test_set_key_with_audio[])(cw_test_executor_t *) = {
-	test_iambic_key_dot,
-	test_iambic_key_dash,
-	test_iambic_key_alternating,
-	test_iambic_key_none,
-	test_straight_key,
-
-	NULL
-};
-
-
-
-
-/* Tests that are dependent on a sound system being configured.
-   Other topics' functions. */
-void (*const libcw_test_set_other_with_audio[])(cw_test_executor_t *) = {
-	test_parameter_ranges,
-	test_cw_gen_forever_public,
-
-	//cw_test_delayed_release,
-	//cw_test_signal_handling, /* FIXME - not sure why this test fails :( */
-
-	NULL
+		{
+			NULL,
+		}
+	}
 };

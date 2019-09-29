@@ -78,6 +78,29 @@ static int test_audio_system = CW_AUDIO_NONE;
 
 
 /**
+   \brief Set up common test conditions
+
+   TODO: this will have to be called at the beginning of every test.
+
+   Run before each individual test, to handle setup of common test conditions.
+*/
+void cw_test_setup(void)
+{
+	cw_reset_send_receive_parameters();
+	cw_set_send_speed(30);
+	cw_set_receive_speed(30);
+	cw_disable_adaptive_receive();
+	cw_reset_receive_statistics();
+	cw_unregister_signal_handler(SIGUSR1);
+	errno = 0;
+
+	return;
+}
+
+
+
+
+/**
    Notice that getters of parameter limits are tested in test_cw_get_x_limits()
 
    tests::cw_set_send_speed()
@@ -95,7 +118,7 @@ static int test_audio_system = CW_AUDIO_NONE;
    tests::cw_set_weighting()
    tests::cw_get_weighting()
 */
-void test_parameter_ranges(cw_test_executor_t * cte)
+int test_parameter_ranges(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
@@ -187,7 +210,7 @@ void test_parameter_ranges(cw_test_executor_t * cte)
 
 	cte->print_test_footer(cte, __func__);
 
-	return;
+	return 0;
 }
 
 
@@ -202,7 +225,7 @@ void test_parameter_ranges(cw_test_executor_t * cte)
    tests::cw_get_tone_queue_length()
    tests::cw_wait_for_tone()
 */
-void test_cw_wait_for_tone(cw_test_executor_t * cte)
+int test_cw_wait_for_tone(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
@@ -312,7 +335,7 @@ void test_cw_wait_for_tone(cw_test_executor_t * cte)
 
 	cte->print_test_footer(cte, __func__);
 
-	return;
+	return 0;
 }
 
 
@@ -325,7 +348,7 @@ void test_cw_wait_for_tone(cw_test_executor_t * cte)
    tests::cw_get_tone_queue_length()
    tests::cw_wait_for_tone_queue()
 */
-void test_cw_wait_for_tone_queue(cw_test_executor_t * cte)
+int test_cw_wait_for_tone_queue(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
@@ -378,7 +401,7 @@ void test_cw_wait_for_tone_queue(cw_test_executor_t * cte)
 
 	cte->print_test_footer(cte, __func__);
 
-	return;
+	return 0;
 }
 
 
@@ -396,7 +419,7 @@ void test_cw_wait_for_tone_queue(cw_test_executor_t * cte)
 
    tests::cw_queue_tone()
 */
-void test_cw_queue_tone(cw_test_executor_t * cte)
+int test_cw_queue_tone(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
@@ -463,7 +486,7 @@ void test_cw_queue_tone(cw_test_executor_t * cte)
 
 	cte->print_test_footer(cte, __func__);
 
-	return;
+	return 0;
 }
 
 
@@ -474,7 +497,7 @@ void test_cw_queue_tone(cw_test_executor_t * cte)
    tests::cw_get_tone_queue_capacity()
    tests::cw_get_tone_queue_length()
 */
-void test_empty_tone_queue(cw_test_executor_t * cte)
+int test_empty_tone_queue(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
@@ -502,6 +525,8 @@ void test_empty_tone_queue(cw_test_executor_t * cte)
 	}
 
 	cte->print_test_footer(cte, __func__);
+
+	return 0;
 }
 
 
@@ -514,7 +539,7 @@ void test_empty_tone_queue(cw_test_executor_t * cte)
    tests::cw_flush_tone_queue()
    tests::cw_wait_for_tone_queue()
 */
-void test_full_tone_queue(cw_test_executor_t * cte)
+int test_full_tone_queue(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
@@ -595,7 +620,7 @@ void test_full_tone_queue(cw_test_executor_t * cte)
 
 	cte->print_test_footer(cte, __func__);
 
-	return;
+	return 0;
 }
 
 
@@ -607,7 +632,7 @@ static int cw_test_helper_tq_callback_capture = false;
 
 
 
-void test_tone_queue_callback(cw_test_executor_t * cte)
+int test_tone_queue_callback(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 #if 0
@@ -659,7 +684,7 @@ void test_tone_queue_callback(cw_test_executor_t * cte)
 #endif
 	cte->print_test_footer(cte, __func__);
 
-	return;
+	return 0;
 }
 
 
@@ -690,7 +715,7 @@ static void cw_test_helper_tq_callback(void *data)
 
    tests::cw_get_volume_limits()
 */
-void test_volume_functions(cw_test_executor_t * cte)
+int test_volume_functions(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
@@ -800,7 +825,7 @@ void test_volume_functions(cw_test_executor_t * cte)
 
 	cte->print_test_footer(cte, __func__);
 
-	return;
+	return 0;
 }
 
 
@@ -814,7 +839,7 @@ void test_volume_functions(cw_test_executor_t * cte)
    tests::cw_send_character_space()
    tests::cw_send_word_space()
 */
-void test_send_primitives(cw_test_executor_t * cte)
+int test_send_primitives(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
@@ -878,7 +903,7 @@ void test_send_primitives(cw_test_executor_t * cte)
 
 	cte->print_test_footer(cte, __func__);
 
-	return;
+	return 0;
 }
 
 
@@ -891,7 +916,7 @@ void test_send_primitives(cw_test_executor_t * cte)
    tests::cw_send_representation()
    tests::cw_send_representation_partial()
 */
-void test_representations(cw_test_executor_t * cte)
+int test_representations(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
@@ -980,7 +1005,7 @@ void test_representations(cw_test_executor_t * cte)
 
 	cte->print_test_footer(cte, __func__);
 
-	return;
+	return 0;
 }
 
 
@@ -993,7 +1018,7 @@ void test_representations(cw_test_executor_t * cte)
    tests::cw_send_character()
    tests::cw_send_string()
 */
-void test_send_character_and_string(cw_test_executor_t * cte)
+int test_send_character_and_string(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
@@ -1067,7 +1092,7 @@ void test_send_character_and_string(cw_test_executor_t * cte)
 
 	cte->print_test_footer(cte, __func__);
 
-	return;
+	return 0;
 }
 
 
@@ -1127,7 +1152,7 @@ void test_iambic_key_paddles_common(cw_test_executor_t * cte, const int intended
    tests::cw_wait_for_keyer_element()
    tests::cw_get_keyer_paddles()
 */
-void test_iambic_key_dot(cw_test_executor_t * cte)
+int test_iambic_key_dot(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
@@ -1147,7 +1172,7 @@ void test_iambic_key_dot(cw_test_executor_t * cte)
 
 	cte->print_test_footer(cte, __func__);
 
-	return;
+	return 0;
 }
 
 
@@ -1162,7 +1187,7 @@ void test_iambic_key_dot(cw_test_executor_t * cte)
    tests::cw_wait_for_keyer_element()
    tests::cw_get_keyer_paddles()
 */
-void test_iambic_key_dash(cw_test_executor_t * cte)
+int test_iambic_key_dash(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
@@ -1182,7 +1207,7 @@ void test_iambic_key_dash(cw_test_executor_t * cte)
 
 	cte->print_test_footer(cte, __func__);
 
-	return;
+	return 0;
 }
 
 
@@ -1197,7 +1222,7 @@ void test_iambic_key_dash(cw_test_executor_t * cte)
    tests::cw_wait_for_keyer_element()
    tests::cw_get_keyer_paddles()
 */
-void test_iambic_key_alternating(cw_test_executor_t * cte)
+int test_iambic_key_alternating(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
@@ -1217,7 +1242,7 @@ void test_iambic_key_alternating(cw_test_executor_t * cte)
 
 	cte->print_test_footer(cte, __func__);
 
-	return;
+	return 0;
 }
 
 
@@ -1232,7 +1257,7 @@ void test_iambic_key_alternating(cw_test_executor_t * cte)
    tests::cw_wait_for_keyer_element()
    tests::cw_get_keyer_paddles()
 */
-void test_iambic_key_none(cw_test_executor_t * cte)
+int test_iambic_key_none(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
@@ -1265,7 +1290,7 @@ void test_iambic_key_none(cw_test_executor_t * cte)
 
 	cte->print_test_footer(cte, __func__);
 
-	return;
+	return 0;
 }
 
 
@@ -1276,7 +1301,7 @@ void test_iambic_key_none(cw_test_executor_t * cte)
    tests::cw_get_straight_key_state()
    tests::cw_is_straight_key_busy()
 */
-void test_straight_key(cw_test_executor_t * cte)
+int test_straight_key(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
@@ -1344,7 +1369,7 @@ void test_straight_key(cw_test_executor_t * cte)
 
 	cte->print_test_footer(cte, __func__);
 
-	return;
+	return 0;
 }
 
 
@@ -1525,7 +1550,7 @@ void cw_test_signal_handling(cw_test_executor_t * cte)
   Because the function calls cw_generator_delete(), it should be
   executed as last test in test suite (unless you want to call
   cw_generator_new/start() again). */
-void test_cw_gen_forever_public(cw_test_executor_t * cte)
+int test_cw_gen_forever_public(cw_test_executor_t * cte)
 {
 #if 0
 	cte->print_test_header(cte, __func__);
@@ -1547,5 +1572,5 @@ void test_cw_gen_forever_public(cw_test_executor_t * cte)
 
 	cte->print_test_footer(cte, __func__);
 #endif
-	return;
+	return 0;
 }

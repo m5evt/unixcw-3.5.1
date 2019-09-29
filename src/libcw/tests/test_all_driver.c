@@ -58,11 +58,6 @@
 extern cw_debug_t cw_debug_object;
 extern cw_debug_t cw_debug_object_dev;
 
-extern cw_test_function_t cw_unit_tests_other_s[];
-extern cw_test_function_t cw_unit_tests_tq[];
-extern cw_test_function_t cw_unit_tests_gen[];
-extern cw_test_function_t cw_unit_tests_key[];
-extern cw_test_function_t cw_unit_tests_rec1[];
 extern cw_test_set_t cw_all_tests[];
 
 
@@ -73,7 +68,6 @@ static cw_test_executor_t g_tests_executor;
 
 
 static void cw_test_print_stats_wrapper(void);
-static int cw_test_topics_with_current_sound_system(cw_test_executor_t * cte);
 static void signal_handler(int signal_number);
 static void register_signal_handler(void);
 
@@ -149,7 +143,6 @@ int main(int argc, char *const argv[])
 	}
 
 	int rv;
-	//int rv = cw_test_topics_with_sound_systems(cte, cw_test_topics_with_current_sound_system);
 
 	/* "make check" facility requires this message to be
 	   printed on stdout; don't localize it */
@@ -189,89 +182,6 @@ void register_signal_handler(void)
 	}
 
 	return;
-}
-
-
-
-
-/**
-   \brief Run tests for given audio system.
-
-   Perform a series of self-tests on library public interfaces, using
-   audio system specified with \p audio_system.  Tests should be
-   performed on topics specified with \p topics.
-
-   \param audio_system - audio system to use for tests
-   \param topics - libcw test topics to be tested
-
-   \return 0
-*/
-int cw_test_topics_with_current_sound_system(cw_test_executor_t * cte)
-{
-	cte->log_info(cte, "Testing with %s sound system\n", cte->get_current_sound_system_label(cte));
-
-
-	if (cte->test_topic_was_requested(cte, LIBCW_TEST_TOPIC_TQ)) {
-		int i = 0;
-		cte->stats = &cte->stats2[cte->current_sound_system][LIBCW_TEST_TOPIC_TQ];
-		while (cw_unit_tests_tq[i]) {
-
-			(*cw_unit_tests_tq[i])(cte);
-			i++;
-		}
-		cte->log_info_cont(cte, "\n");
-	}
-
-	if (cte->test_topic_was_requested(cte, LIBCW_TEST_TOPIC_GEN)) {
-		int i = 0;
-		cte->stats = &cte->stats2[cte->current_sound_system][LIBCW_TEST_TOPIC_GEN];
-		while (cw_unit_tests_gen[i]) {
-
-			(*cw_unit_tests_gen[i])(cte);
-			i++;
-		}
-		cte->log_info_cont(cte, "\n");
-	}
-
-	if (cte->test_topic_was_requested(cte, LIBCW_TEST_TOPIC_KEY)) {
-		int i = 0;
-		cte->stats = &cte->stats2[cte->current_sound_system][LIBCW_TEST_TOPIC_KEY];
-		while (cw_unit_tests_key[i]) {
-
-	                (*cw_unit_tests_key[i])(cte);
-			i++;
-		}
-		cte->log_info_cont(cte, "\n");
-	}
-
-	if (cte->test_topic_was_requested(cte, LIBCW_TEST_TOPIC_REC)) {
-		int i = 0;
-		cte->stats = &cte->stats2[cte->current_sound_system][LIBCW_TEST_TOPIC_REC];
-		while (cw_unit_tests_rec1[i]) {
-
-	                (*cw_unit_tests_rec1[i])(cte);
-			i++;
-		}
-		cte->log_info_cont(cte, "\n");
-	}
-
-	if (cte->test_topic_was_requested(cte, LIBCW_TEST_TOPIC_OTHER)) {
-		int i = 0;
-		cte->stats = &cte->stats2[cte->current_sound_system][LIBCW_TEST_TOPIC_OTHER];
-		while (cw_unit_tests_other_s[i]) {
-
-	                (*cw_unit_tests_other_s[i])(cte);
-			i++;
-		}
-		cte->log_info_cont(cte, "\n");
-	}
-
-
-
-
-	/* All tests done; return success if no failures,
-	   otherwise return an error status code. */
-	return 0;
 }
 
 
