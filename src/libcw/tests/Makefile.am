@@ -24,9 +24,9 @@ check_PROGRAMS = libcw_test_legacy_api libcw_test_all
 
 
 
-test_infrastructure_files = \
-	libcw_test_framework.c \
-	libcw_test_framework.h
+test_framework_files = \
+	test_framework.c \
+	test_framework.h
 
 legacy_api_test_files = \
 	libcw_test_legacy_api_tests.c \
@@ -53,7 +53,7 @@ modern_api_test_files = \
 other_test_files = \
 	libcw_test_tq_short_space.c
 
-EXTRA_DIST = $(test_infrastructure_files) $(legacy_api_test_files) $(modern_api_test_files) $(other_test_files)
+EXTRA_DIST = $(test_framework_files) $(legacy_api_test_files) $(modern_api_test_files) $(other_test_files)
 
 
 
@@ -76,7 +76,7 @@ EXTRA_DIST = $(test_infrastructure_files) $(legacy_api_test_files) $(modern_api_
 libcw_test_legacy_api_SOURCES = \
 	libcw_test_legacy_api_tests.c \
 	libcw_test_legacy_api_test_sets.c \
-	libcw_test_framework.c \
+	test_framework.c \
 	test_main.c
 
 # target-specific preprocessor flags (#defs and include dirs)
@@ -96,7 +96,7 @@ libcw_test_legacy_api_LDADD = -lm -lpthread $(DL_LIB) -L../.libs -lcw
 libcw_test_all_SOURCES = \
 	test_main.c \
 	test_all_sets.c \
-	libcw_test_framework.c \
+	test_framework.c \
 	libcw_utils_tests.c \
 	libcw_data_tests.c \
 	libcw_debug_tests.c \
@@ -143,25 +143,6 @@ libcw_test_all_LDADD = -lm -lpthread $(DL_LIB) -L../.libs -lcw
 
 # target-specific compiler flags
 # libcw_test_internal_CFLAGS = -rdynamic
-
-
-
-
-#libcw_test_legacy_SOURCES = libcw_legacy_tests.c \
-#	libcw_legacy_tests_sets.c \
-#	tests/libcw_test_framework.c \
-#	tests/libcw_test_driver.c
-#
-#libcw_test_legacy_CPPFLAGS = $(AM_CPPFLAGS)
-#
-## target-specific linker flags (objects to link)
-#libcw_test_legacy_LDADD=-lm -lpthread $(DL_LIB) $(OSS_LIB) -L./.libs -lcw
-#
-## target-specific compiler flags
-#libcw_test_legacy_CFLAGS = -rdynamic
-
-
-
 
 
 

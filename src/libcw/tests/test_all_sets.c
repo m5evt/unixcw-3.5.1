@@ -6,7 +6,8 @@
 #include "libcw_gen_tests.h"
 #include "libcw_key_tests.h"
 #include "libcw_rec_tests.h"
-#include "libcw_test_framework.h"
+
+#include "test_framework.h"
 
 #include "libcw_test_legacy_api_tests.h"
 

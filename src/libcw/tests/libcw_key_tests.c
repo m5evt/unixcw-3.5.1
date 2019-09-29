@@ -7,7 +7,8 @@
 
 
 
-#include "tests/libcw_test_framework.h"
+#include "test_framework.h"
+
 #include "libcw_key.h"
 #include "libcw_key_tests.h"
 #include "libcw_debug.h"

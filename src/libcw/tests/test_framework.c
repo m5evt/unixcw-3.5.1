@@ -21,7 +21,7 @@
 
 
 /**
-   \file libcw_test_framework.c
+   \file test_framework.c
 
    \brief Test framework for libcw test code
 */
@@ -61,7 +61,8 @@
 
 #include "libcw.h"
 #include "libcw_debug.h"
-#include "libcw_test_framework.h"
+
+#include "test_framework.h"
 
 
 

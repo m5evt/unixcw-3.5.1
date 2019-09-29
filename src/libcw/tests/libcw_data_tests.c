@@ -10,7 +10,8 @@
 
 
 
-#include "tests/libcw_test_framework.h"
+#include "test_framework.h"
+
 #include "libcw_data.h"
 #include "libcw_data_tests.h"
 #include "libcw_debug.h"
