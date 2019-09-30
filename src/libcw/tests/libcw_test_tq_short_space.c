@@ -2,6 +2,11 @@
 #include <stdlib.h> /* atoi() */
 #include <unistd.h> /* sleep() */
 #include <libcw.h>
+#include <string.h>
+
+
+#include "libcw_debug.h"
+#include "test_framework.h"
 
 
 /* This test checks presence of a specific bug in tone queue. The bug
@@ -29,17 +34,24 @@ void tone_queue_low_callback(__attribute__((unused)) void *arg);
 /* Callback to be called when tone queue level passes this mark. */
 static const int tq_low_watermark = 1;
 
-/* There were actual n calls made to callback. We expect this to be
-   equal to n_expected. */
-static int n_calls = 0;
-
-/* libcw's send speed. */
-static int speed = 0;
 
 
-static bool test(int i, int n);
+static int legacy_api_test_tq_short_space(cw_test_executor_t * cte);
 
 
+
+struct tq_short_space_data {
+	cw_test_executor_t * cte;
+	int cw_speed;
+
+	/* This is how many actual calls to callback have been made.
+	   We expect this value to be equal to
+	   n_expected_callback_executions that you will find below. */
+	int n_actual_callback_executions;
+};
+
+
+static bool single_test_over_speed_range(struct tq_short_space_data * data, int i, int n);
 
 
 
@@ -61,21 +73,13 @@ int main(int argc, char *const argv[])
 	/* Expected number of calls to the callback with correct
 	   implementation of tone queue in libcw. */
 
-	bool success = true;
+	cw_test_executor_t cte;
+	cw_test_init(&cte, stdout, stderr, "tq short space");
+	cte.current_sound_system = CW_AUDIO_NULL;
 
-	for (int i = 0; i < n; i++) {
-		fprintf(stdout, "libcw/tq: iteration #%d / %d\n", i + 1, n);
-		fflush(stdout);
+	int cwret = legacy_api_test_tq_short_space(&cte);
 
-		n_calls = 0;
-
-		if (!test(i, n)) {
-			success = false;
-			break;
-		}
-	}
-
-	if (success) {
+	if (CW_SUCCESS == cwret) {
 		/* "make check" facility requires this message to be
 		   printed on stdout; don't localize it */
 		fprintf(stdout, "\nlibcw: test result: success\n\n");
@@ -88,28 +92,57 @@ int main(int argc, char *const argv[])
 
 
 
-
-bool test(int i, int n)
+int legacy_api_test_tq_short_space(cw_test_executor_t * cte)
 {
-	bool success = true;
+	cte->print_test_header(cte, __func__);
 
+	const int n = 1; /* TODO: this should be a large value that will allow making the test many times. */
+
+	struct tq_short_space_data data;
+	memset(&data, 0, sizeof (data));
+	data.cte = cte;
+
+	bool success = true;;
+	for (int i = 0; i < n; i++) {
+		cte->log_info(cte, "libcw/tq: iteration #%d / %d\n", i + 1, n);
+
+		data.n_actual_callback_executions = 0;
+
+		success = single_test_over_speed_range(&data, i, n);
+		if (!success) {
+			break;
+		}
+	}
+
+	//cte->expect_eq_int(cte, true, success, "Testing dequeuing short space\n");
+
+	cte->print_test_footer(cte, __func__);
+
+	return 0;
+}
+
+
+
+
+bool single_test_over_speed_range(struct tq_short_space_data * data, int i, int n)
+{
 	/* Library initialization. */
-	cw_generator_new(CW_AUDIO_SOUNDCARD, NULL);
+	cw_generator_new(data->cte->current_sound_system, NULL);
 	cw_generator_start();
 
-	cw_register_tone_queue_low_callback(tone_queue_low_callback, NULL, tq_low_watermark);
 
+	cw_register_tone_queue_low_callback(tone_queue_low_callback, data, tq_low_watermark);
 
 
 	/* Let's test this for a full range of supported speeds (from
 	   min to max). MIN and MAX are even numbers, so +=2 is ok. */
-	for (speed = CW_SPEED_MIN; speed <= CW_SPEED_MAX; speed += 2) {
-		cw_set_send_speed(speed);
+	int n_iterations = 0;
+	for (data->cw_speed = CW_SPEED_MIN; data->cw_speed <= CW_SPEED_MAX; data->cw_speed += 2) {
+		cw_set_send_speed(data->cw_speed);
 		cw_set_volume(50);
 		cw_set_frequency(200);
 
-		fprintf(stdout, "speed = %d\n", speed);
-		fflush(stdout);
+		data->cte->log_info(data->cte, "current send speed = %d WPM\n", data->cw_speed);
 
 		/* Correct action for libcw upon sending a single
 		   space will be to enqueue few tones, and to call
@@ -122,6 +155,7 @@ bool test(int i, int n)
 
 		cw_wait_for_tone_queue();
 		usleep(300);
+		n_iterations++;
 	}
 
 
@@ -130,30 +164,30 @@ bool test(int i, int n)
 	cw_generator_delete();
 
 
-	int n_expected = ((CW_SPEED_MAX - CW_SPEED_MIN) / 2) + 1;
-	if (n_expected != n_calls) {
-		success = false;
-	}
+	/* This is how many times we did a following test: send a
+	   single space and wait for queue to drain. */
+	const int n_expected_callback_executions = ((CW_SPEED_MAX - CW_SPEED_MIN) / 2) + 1;
+	cw_assert (n_expected_callback_executions == n_iterations, "Number of loop iterations does not meet expectations: %d vs. %d\n",
+		   n_expected_callback_executions, data->n_actual_callback_executions);
 
 
-	fprintf(stdout, "libcw/tq: iteration #%d / %d: expected %d calls, actual calls: %d\n\n",
-		i + 1, n,
-		n_expected, n_calls);
-	fflush(stdout);
-
+	const bool success = data->cte->expect_eq_int_errors_only(data->cte,
+								  n_expected_callback_executions,
+								  data->n_actual_callback_executions,
+								  "test execution %d out of %d\n", i + 1, n);
 	return success;
 }
 
 
 
 
-
-void tone_queue_low_callback(__attribute__((unused)) void *arg)
+void tone_queue_low_callback(void * arg)
 {
-	fprintf(stdout, "speed = %d, callback called\n", speed);
-	fflush(stdout);
+	struct tq_short_space_data * data = (struct tq_short_space_data *) arg;
 
-	n_calls++;
+	data->cte->log_info(data->cte, "current send speed = %d WPM, callback has been called (as expected)\n", data->cw_speed);
+
+	data->n_actual_callback_executions++;
 
 	return;
 }

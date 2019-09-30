@@ -98,8 +98,8 @@ typedef struct cw_test_executor_t {
 	bool (* expect_valid_pointer_errors_only)(struct cw_test_executor_t * self, const void * pointer, const char * fmt, ...) __attribute__ ((format (printf, 3, 4)));
 
 
-	void (* print_test_header)(struct cw_test_executor_t * self, const char * text);
-	void (* print_test_footer)(struct cw_test_executor_t * self, const char * text);
+	void (* print_test_header)(struct cw_test_executor_t * self, const char * function_name);
+	void (* print_test_footer)(struct cw_test_executor_t * self, const char * function_name);
 
 	int (* process_args)(struct cw_test_executor_t * self, int argc, char * const argv[]);
 	void (* print_args_summary)(struct cw_test_executor_t * self);

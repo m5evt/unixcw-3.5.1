@@ -149,7 +149,7 @@ libcw_test_all_LDADD = -lm -lpthread $(DL_LIB) -L../.libs -lcw
 # target: libcw_test_tq_short_space, a test program for a specific bug;
 
 # source code files used to build the program
-libcw_test_tq_short_space_SOURCES = libcw_test_tq_short_space.c
+libcw_test_tq_short_space_SOURCES = libcw_test_tq_short_space.c test_framework.c
 
 # target-specific preprocessor flags (#defs and include dirs)
 libcw_test_tq_short_space_CPPFLAGS = $(AM_CPPFLAGS)
