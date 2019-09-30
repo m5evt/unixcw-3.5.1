@@ -5,8 +5,13 @@
 #include <string.h>
 
 
+
+
 #include "libcw_debug.h"
 #include "test_framework.h"
+#include "libcw_test_tq_short_space.h"
+
+
 
 
 /* This test checks presence of a specific bug in tone queue. The bug
@@ -28,15 +33,6 @@
    treating the bug as related to tone queue.
 */
 
-void tone_queue_low_callback(__attribute__((unused)) void *arg);
-
-
-/* Callback to be called when tone queue level passes this mark. */
-static const int tq_low_watermark = 1;
-
-
-
-static int legacy_api_test_tq_short_space(cw_test_executor_t * cte);
 
 
 
@@ -51,11 +47,18 @@ struct tq_short_space_data {
 };
 
 
+
+
 static bool single_test_over_speed_range(struct tq_short_space_data * data, int i, int n);
+static void tone_queue_low_callback(void * arg);
+
+/* Callback to be called when tone queue level passes this mark. */
+static const int tq_low_watermark = 1;
 
 
 
-int main(int argc, char *const argv[])
+#if 0
+int main(int argc, char * const argv[])
 {
 	int n = 1;
 	if (argc > 1) {
@@ -89,6 +92,7 @@ int main(int argc, char *const argv[])
 		return -1;
 	}
 }
+#endif
 
 
 
@@ -96,7 +100,7 @@ int legacy_api_test_tq_short_space(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
-	const int n = 1; /* TODO: this should be a large value that will allow making the test many times. */
+	const int n = 3; /* TODO: this should be a large value that will allow making the test many times. */
 
 	struct tq_short_space_data data;
 	memset(&data, 0, sizeof (data));
@@ -114,7 +118,7 @@ int legacy_api_test_tq_short_space(cw_test_executor_t * cte)
 		}
 	}
 
-	//cte->expect_eq_int(cte, true, success, "Testing dequeuing short space\n");
+	cte->expect_eq_int(cte, true, success, "Testing dequeuing short space");
 
 	cte->print_test_footer(cte, __func__);
 
@@ -171,10 +175,10 @@ bool single_test_over_speed_range(struct tq_short_space_data * data, int i, int 
 		   n_expected_callback_executions, data->n_actual_callback_executions);
 
 
-	const bool success = data->cte->expect_eq_int_errors_only(data->cte,
-								  n_expected_callback_executions,
-								  data->n_actual_callback_executions,
-								  "test execution %d out of %d\n", i + 1, n);
+	const bool success = data->cte->expect_eq_int(data->cte,
+						      n_expected_callback_executions,
+						      data->n_actual_callback_executions,
+						      "test execution %d out of %d", i + 1, n);
 	return success;
 }
 
@@ -185,6 +189,7 @@ void tone_queue_low_callback(void * arg)
 {
 	struct tq_short_space_data * data = (struct tq_short_space_data *) arg;
 
+	/* TODO: move the log to a loop looping over speeds, and add an expect there? */
 	data->cte->log_info(data->cte, "current send speed = %d WPM, callback has been called (as expected)\n", data->cw_speed);
 
 	data->n_actual_callback_executions++;

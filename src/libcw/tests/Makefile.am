@@ -19,9 +19,11 @@
 -include $(top_builddir)/Makefile.inc
 
 # targets to be built in this directory
-check_PROGRAMS = libcw_test_legacy_api libcw_test_all libcw_test_tq_short_space
+check_PROGRAMS = libcw_test_legacy_api libcw_test_all
 
-
+# List of files that implement tests of specific bug fixes.
+LIBCW_BUG_TEST_FILES = \
+	libcw_test_tq_short_space.c
 
 test_framework_files = \
 	test_framework.c \
@@ -50,7 +52,7 @@ modern_api_test_files = \
 	libcw_tq_tests.h
 
 other_test_files = \
-	libcw_test_tq_short_space.c
+	$(LIBCW_BUG_TEST_FILES)
 
 EXTRA_DIST = $(test_framework_files) $(legacy_api_test_files) $(modern_api_test_files) $(other_test_files)
 
@@ -75,6 +77,7 @@ EXTRA_DIST = $(test_framework_files) $(legacy_api_test_files) $(modern_api_test_
 libcw_test_legacy_api_SOURCES = \
 	libcw_legacy_api_tests.c \
 	libcw_legacy_api_sets.c \
+	$(LIBCW_BUG_TEST_FILES) \
 	test_framework.c \
 	test_main.c
 
@@ -103,7 +106,8 @@ libcw_test_all_SOURCES = \
 	libcw_gen_tests.c \
 	libcw_key_tests.c \
 	libcw_rec_tests.c \
-	libcw_legacy_api_tests.c
+	libcw_legacy_api_tests.c \
+	$(LIBCW_BUG_TEST_FILES)
 
 
 
@@ -149,16 +153,16 @@ libcw_test_all_LDADD = -lm -lpthread $(DL_LIB) -L../.libs -lcw
 # target: libcw_test_tq_short_space, a test program for a specific bug;
 
 # source code files used to build the program
-libcw_test_tq_short_space_SOURCES = libcw_test_tq_short_space.c test_framework.c
+# libcw_test_tq_short_space_SOURCES = libcw_test_tq_short_space.c test_framework.c
 
 # target-specific preprocessor flags (#defs and include dirs)
-libcw_test_tq_short_space_CPPFLAGS = $(AM_CPPFLAGS)
+# libcw_test_tq_short_space_CPPFLAGS = $(AM_CPPFLAGS)
 
 # target-specific linker flags (objects to link)
-libcw_test_tq_short_space_LDADD=-lm -lpthread $(DL_LIB) $(OSS_LIB) -L../.libs -lcw
+# libcw_test_tq_short_space_LDADD=-lm -lpthread $(DL_LIB) $(OSS_LIB) -L../.libs -lcw
 
 # target-specific compiler flags
-libcw_test_tq_short_space_CFLAGS = -rdynamic
+# libcw_test_tq_short_space_CFLAGS = -rdynamic
 
 
 
