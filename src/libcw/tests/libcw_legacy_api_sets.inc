@@ -106,3 +106,17 @@
 			NULL,
 		}
 	},
+	{
+		CW_TEST_SET_VALID,
+		CW_TEST_API_LEGACY,
+
+		{ LIBCW_TEST_TOPIC_OTHER, LIBCW_TEST_TOPIC_MAX }, /* Topics. */
+		{ CW_AUDIO_NULL, CW_AUDIO_CONSOLE, CW_AUDIO_OSS, CW_AUDIO_ALSA, CW_AUDIO_PA, LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. */
+
+		{
+			/* This test does its own generator setup and deconfig. */
+			legacy_api_test_tq_short_space,
+
+			NULL,
+		}
+	},
