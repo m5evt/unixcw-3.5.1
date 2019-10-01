@@ -41,7 +41,6 @@
 
 
 
-#include "libcw_gen.h"
 #include "libcw_debug.h"
 #include "libcw2.h"
 
@@ -50,22 +49,12 @@
 
 
 
-#define MSG_PREFIX  "libcw modern API"
-
-
-
-
 extern cw_debug_t cw_debug_object;
 extern cw_debug_t cw_debug_object_dev;
-
 
 /* Depending on which object file are we linked with, this will be a
    set of legacy API tests or set of all API/modern API/other stuff. */
 extern cw_test_set_t cw_test_sets[];
-
-
-
-static cw_test_executor_t g_tests_executor;
 
 
 
@@ -74,6 +63,8 @@ static void cw_test_print_stats_wrapper(void);
 static void signal_handler(int signal_number);
 static void register_signal_handler(void);
 
+static cw_test_executor_t g_tests_executor;
+
 
 
 
@@ -81,9 +72,9 @@ static void register_signal_handler(void);
    \return EXIT_SUCCESS if all tests complete successfully,
    \return EXIT_FAILURE otherwise
 */
-int main(int argc, char *const argv[])
+int main(int argc, char * const argv[])
 {
-	fprintf(stderr, "%s\n\n", MSG_PREFIX);
+	fprintf(stderr, "%s\n\n", argv[0]);
 
 	//cw_debug_set_flags(&cw_debug_object, CW_DEBUG_RECEIVE_STATES | CW_DEBUG_TONE_QUEUE | CW_DEBUG_GENERATOR | CW_DEBUG_KEYING);
 	//cw_debug_object.level = CW_DEBUG_ERROR;
@@ -92,22 +83,21 @@ int main(int argc, char *const argv[])
 	//cw_debug_object_dev.level = CW_DEBUG_DEBUG;
 
 	cw_test_executor_t * cte = &g_tests_executor;
+	cw_test_init(cte, stdout, stderr, "libcw/tests");
 
-	cw_test_init(cte, stdout, stderr, MSG_PREFIX);
+	/* May cause exit on errors or "-h" option. */
+	cte->process_args(cte, argc, argv);
 
-	if (!cte->process_args(cte, argc, argv)) {
-		cw_test_print_help(argv[0]);
-		exit(EXIT_FAILURE);
-	}
-
-	cte->print_args_summary(cte);
-	sleep(4);
+	cte->print_test_options(cte);
+	/* Let the test options be clearly visible for few seconds
+	   before screen is filled with testcase debugs. */
+	sleep(3);
 
 
 	atexit(cw_test_print_stats_wrapper);
 	register_signal_handler();
 
-	int rv = cte->main_test_loop(cte, cw_test_sets);
+	const int rv = cte->main_test_loop(cte, cw_test_sets);
 
 	/* "make check" facility requires this message to be
 	   printed on stdout; don't localize it */
@@ -122,7 +112,7 @@ int main(int argc, char *const argv[])
 /* Show the signal caught, and exit. */
 void signal_handler(int signal_number)
 {
-	fprintf(stderr, "\n%s: caught signal %d, exiting...\n", MSG_PREFIX, signal_number);
+	g_tests_executor.log_info(&g_tests_executor, "Caught signal %d, exiting...\n", signal_number);
 	exit(EXIT_SUCCESS);
 }
 
@@ -153,23 +143,12 @@ void register_signal_handler(void)
 
 
 /**
-   \brief Run a series of tests for specified audio systems and topics
+   \brief Print statistics of tests
 
-   Function attempts to run a set of testcases for every audio system
-   specified in \p audio_systems and for every topic specified in \p topics.
+   Wrapper around call to method of global object.
 
-   These testcases require some kind of audio system configured. The
-   function calls cw_test_topics_with_current_sound_system() to do the configuration and
-   run the tests.
-
-   \p audio_systems is a list of audio systems to be tested: "ncoap".
-   Pass NULL pointer to attempt to test all of audio systems supported
-   by libcw.
-
-   \param topics is a list of libcw test topics to be tested.
-
-   \param audio_systems - list of audio systems to be tested
-   \param topics - list of topics systems to be tested
+   This function should be passed to atexit() to print stats before
+   program exits (whether in normal way or during some error).
 */
 void cw_test_print_stats_wrapper(void)
 {

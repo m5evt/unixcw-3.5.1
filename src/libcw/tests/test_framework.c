@@ -35,7 +35,6 @@
 #define _XOPEN_SOURCE 600 /* signaction() + SA_RESTART */
 
 
-#include <sys/time.h>
 #include <signal.h>
 #include <stdio.h>
 #include <ctype.h>
@@ -82,16 +81,17 @@ static void cw_test_print_test_footer(cw_test_executor_t * self, const char * fu
 static void cw_test_append_status_string(cw_test_executor_t * self, char * msg_buf, int n, const char * status_string);
 
 static int cw_test_process_args(cw_test_executor_t * self, int argc, char * const argv[]);
-static void cw_test_print_args_summary(cw_test_executor_t * self);
 static int cw_test_fill_default_sound_systems_and_topics(cw_test_executor_t * self);
+
+static void cw_test_print_test_options(cw_test_executor_t * self);
 
 static bool cw_test_test_topic_was_requested(cw_test_executor_t * self, int libcw_test_topic);
 static bool cw_test_sound_system_was_requested(cw_test_executor_t * self, int sound_system);
 
 static const char * cw_test_get_current_topic_label(cw_test_executor_t * self);
 static const char * cw_test_get_current_sound_system_label(cw_test_executor_t * self);
-static void cw_test_set_current_topic_and_sound_system(cw_test_executor_t * self, int topic, int sound_system);
 
+static void cw_test_set_current_topic_and_sound_system(cw_test_executor_t * self, int topic, int sound_system);
 
 static void cw_test_print_test_stats(cw_test_executor_t * self);
 
@@ -99,53 +99,69 @@ static int cw_test_log_info(struct cw_test_executor_t * self, const char * fmt, 
 static void cw_test_log_info_cont(struct cw_test_executor_t * self, const char * fmt, ...) __attribute__ ((format (printf, 2, 3)));
 static void cw_test_log_error(struct cw_test_executor_t * self, const char * fmt, ...) __attribute__ ((format (printf, 2, 3)));
 
-static void cw_test_print_sound_systems(cw_test_executor_t * self, int * sound_systems);
-static void cw_test_print_topics(cw_test_executor_t * self, int * topics);
+static void cw_test_print_sound_systems(cw_test_executor_t * self, int * sound_systems, int max);
+static void cw_test_print_topics(cw_test_executor_t * self, int * topics, int max);
 
 static bool cw_test_test_topic_is_member(cw_test_executor_t * cte, int topic, int * topics, int max);
 static bool cw_test_sound_system_is_member(cw_test_executor_t * cte, int sound_system, int * sound_systems, int max);
 
 static int cw_test_main_test_loop(cw_test_executor_t * cte, cw_test_set_t * test_sets);
 
+static void cw_test_print_help(cw_test_executor_t * self, const char * program_name);
 
 
 
+
+/**
+   \brief Set default contents of
+   cw_test_executor_t::tested_sound_systems[] and
+   cw_test_executor_t::tested_topics[]
+
+   One or both sets of defaults will be used if related argument was
+   not used in command line.
+
+   When during preparation of default set of sound system we detect
+   that some sound set is not available, we will not include it in set
+   of default sound systems.
+
+   This is a private function so it is not put into cw_test_executor_t
+   class.
+*/
 int cw_test_fill_default_sound_systems_and_topics(cw_test_executor_t * self)
 {
-	/* When during preparation of default set of sound system we
-	   detect that some sound set is not available, we can simply
-	   not include int in set of default sound systems. */
+	/* NULL means "use default device" for every sound system */
+	const char * default_device = NULL;
 
 	int dest_idx = 0;
-	if (cw_is_null_possible(NULL)) {
+	if (cw_is_null_possible(default_device)) {
 		self->tested_sound_systems[dest_idx] = CW_AUDIO_NULL;
 		dest_idx++;
 	} else {
-		self->log_info(self, "NULL sound system is not available on this machine - will skip it\n");
+		self->log_info(self, "Null sound system is not available on this machine - will skip it\n");
 	}
 
-	if (cw_is_console_possible(NULL)) {
+	if (cw_is_console_possible(default_device)) {
 		self->tested_sound_systems[dest_idx] = CW_AUDIO_CONSOLE;
 		dest_idx++;
 	} else {
 		self->log_info(self, "Console sound system is not available on this machine - will skip it\n");
 	}
 
-	if (cw_is_oss_possible(NULL)) {
+	if (cw_is_oss_possible(default_device)) {
 		self->tested_sound_systems[dest_idx] = CW_AUDIO_OSS;
 		dest_idx++;
 	} else {
 		self->log_info(self, "OSS sound system is not available on this machine - will skip it\n");
 	}
 
-	if (cw_is_alsa_possible(NULL)) {
+	if (cw_is_alsa_possible(default_device)) {
 		self->tested_sound_systems[dest_idx] = CW_AUDIO_ALSA;
 		dest_idx++;
 	} else {
 		self->log_info(self, "ALSA sound system is not available on this machine - will skip it\n");
 	}
 
-	if (cw_is_pa_possible(NULL)) {
+	if (cw_is_pa_possible(default_device)) {
 		self->tested_sound_systems[dest_idx] = CW_AUDIO_PA;
 		dest_idx++;
 	} else {
@@ -171,24 +187,24 @@ int cw_test_fill_default_sound_systems_and_topics(cw_test_executor_t * self)
 
 int cw_test_process_args(cw_test_executor_t * self, int argc, char * const argv[])
 {
-	self->fill_default_sound_systems_and_topics(self);
-
+	cw_test_fill_default_sound_systems_and_topics(self);
 	if (argc == 1) {
-		/* Use defaults configured in fill_default_sound_systems_and_topics(). */
-		return CW_SUCCESS;
+		/* Use defaults configured by
+		   cw_test_fill_default_sound_systems_and_topics(). */
+		return 0;
 	}
 
 	size_t optarg_len = 0;
 	int dest_idx = 0;
 
 	int opt;
-	while ((opt = getopt(argc, argv, "t:s:")) != -1) {
+	while ((opt = getopt(argc, argv, "t:s:h")) != -1) {
 		switch (opt) {
 		case 's':
 			optarg_len = strlen(optarg);
 			if (optarg_len > strlen(LIBCW_TEST_ALL_SOUND_SYSTEMS)) {
 				fprintf(stderr, "Too many values for 'sound system' option: '%s'\n", optarg);
-				return CW_FAILURE;
+				goto help_and_error;
 			}
 
 			dest_idx = 0;
@@ -196,7 +212,7 @@ int cw_test_process_args(cw_test_executor_t * self, int argc, char * const argv[
 				const int val = optarg[i];
 				if (NULL == strchr(LIBCW_TEST_ALL_SOUND_SYSTEMS, val)) {
 					fprintf(stderr, "Unsupported sound system '%c'\n", val);
-					return CW_FAILURE;
+					goto help_and_error;
 				}
 
 				/* If user has explicitly requested a sound system,
@@ -209,7 +225,7 @@ int cw_test_process_args(cw_test_executor_t * self, int argc, char * const argv[
 						dest_idx++;
 					} else {
 						fprintf(stderr, "Requested null sound system is not available on this machine\n");
-						return CW_FAILURE;
+						goto help_and_error;
 					}
 					break;
 				case 'c':
@@ -218,7 +234,7 @@ int cw_test_process_args(cw_test_executor_t * self, int argc, char * const argv[
 						dest_idx++;
 					} else {
 						fprintf(stderr, "Requested console sound system is not available on this machine\n");
-						return CW_FAILURE;
+						goto help_and_error;
 
 					}
 					break;
@@ -228,7 +244,7 @@ int cw_test_process_args(cw_test_executor_t * self, int argc, char * const argv[
 						dest_idx++;
 					} else {
 						fprintf(stderr, "Requested OSS sound system is not available on this machine\n");
-						return CW_FAILURE;
+						goto help_and_error;
 
 					}
 					break;
@@ -238,7 +254,7 @@ int cw_test_process_args(cw_test_executor_t * self, int argc, char * const argv[
 						dest_idx++;
 					} else {
 						fprintf(stderr, "Requested ALSA sound system is not available on this machine\n");
-						return CW_FAILURE;
+						goto help_and_error;
 
 					}
 					break;
@@ -248,13 +264,13 @@ int cw_test_process_args(cw_test_executor_t * self, int argc, char * const argv[
 						dest_idx++;
 					} else {
 						fprintf(stderr, "Requested PulseAudio sound system is not available on this machine\n");
-						return CW_FAILURE;
+						goto help_and_error;
 
 					}
 					break;
 				default:
 					fprintf(stderr, "Unsupported sound system '%c'\n", val);
-					return CW_FAILURE;
+					goto help_and_error;
 				}
 			}
 			self->tested_sound_systems[dest_idx] = LIBCW_TEST_SOUND_SYSTEM_MAX; /* Guard element. */
@@ -264,7 +280,7 @@ int cw_test_process_args(cw_test_executor_t * self, int argc, char * const argv[
 			optarg_len = strlen(optarg);
 			if (optarg_len > strlen(LIBCW_TEST_ALL_TOPICS)) {
 				fprintf(stderr, "Too many values for 'topics' option: '%s'\n", optarg);
-				return CW_FAILURE;
+				return -1;
 			}
 
 			dest_idx = 0;
@@ -272,7 +288,7 @@ int cw_test_process_args(cw_test_executor_t * self, int argc, char * const argv[
 				const int val = optarg[i];
 				if (NULL == strchr(LIBCW_TEST_ALL_TOPICS, val)) {
 					fprintf(stderr, "Unsupported topic '%c'\n", val);
-					return CW_FAILURE;
+					goto help_and_error;
 				}
 				switch (val) {
 				case 't':
@@ -295,42 +311,56 @@ int cw_test_process_args(cw_test_executor_t * self, int argc, char * const argv[
 					break;
 				default:
 					fprintf(stderr, "Unsupported topic: '%c'\n", val);
-					return CW_FAILURE;
+					goto help_and_error;
 				}
 				dest_idx++;
 			}
 			self->tested_topics[dest_idx] = LIBCW_TEST_TOPIC_MAX; /* Guard element. */
 			break;
 
-		default: /* '?' */
-			return CW_FAILURE;
+		case 'h':
+			cw_test_print_help(self, argv[0]);
+			exit(EXIT_SUCCESS);
+		default:
+			goto help_and_error;
 		}
 	}
 
-	return CW_SUCCESS;
+	return 0;
+
+ help_and_error:
+	cw_test_print_help(self, argv[0]);
+	exit(EXIT_FAILURE);
 }
 
 
 
 
-void cw_test_print_help(const char * progname)
+/**
+   @brief Print help text with summary of available command line
+   options and their possible values
+
+   Pass argv[0] as the second argument of the function.
+*/
+void cw_test_print_help(__attribute__((unused)) cw_test_executor_t * self, const char * program_name)
 {
-	fprintf(stderr, "Usage: %s [-s <sound systems>] [-t <topics>]\n\n", progname);
+	fprintf(stderr, "\n");
+	fprintf(stderr, "Usage: %s [-s <sound systems>] [-t <topics>]\n\n", program_name);
 	fprintf(stderr, "       <sound system> is one or more of those:\n");
-	fprintf(stderr, "       n - null\n");
+	fprintf(stderr, "       n - Null\n");
 	fprintf(stderr, "       c - console\n");
 	fprintf(stderr, "       o - OSS\n");
 	fprintf(stderr, "       a - ALSA\n");
 	fprintf(stderr, "       p - PulseAudio\n");
 	fprintf(stderr, "\n");
-	fprintf(stderr, "       <topics> is one or more of those:\n");
+	fprintf(stderr, "       <topics> is one or more of those:\n"); /* TODO: add missing test topics. */
 	fprintf(stderr, "       g - generator\n");
 	fprintf(stderr, "       t - tone queue\n");
 	fprintf(stderr, "       k - Morse key\n");
 	fprintf(stderr, "       r - receiver\n");
 	fprintf(stderr, "       o - other\n");
 	fprintf(stderr, "\n");
-	fprintf(stderr, "       If no argument is provided, the program will attempt to test all audio systems and all topics\n");
+	fprintf(stderr, "       If no argument is provided, the program will attempt to test all sound systems available on the machine and all topics\n");
 
 	return;
 }
@@ -378,7 +408,12 @@ bool cw_test_expect_eq_int(struct cw_test_executor_t * self, int expected_value,
 
 
 
-/* Append given status string at the end of buffer, but within cw_test::console_n_cols limit. */
+/**
+   @brief Append given status string at the end of buffer, but within cw_test::console_n_cols limit
+
+   This is a private function so it is not put into cw_test_executor_t
+   class.
+*/
 void cw_test_append_status_string(cw_test_executor_t * self, char * msg_buf, int n, const char * status_string)
 {
 	const char * separator = " "; /* Separator between test message and test status string, for better visibility of status string. */
@@ -666,8 +701,7 @@ void cw_test_print_test_header(cw_test_executor_t * self, const char * function_
 
 void cw_test_print_test_footer(cw_test_executor_t * self, const char * text)
 {
-	const int n = self->log_info(self, "End of test: %s: ", text);
-	self->log_info_cont(self, "%*s\n", self->console_n_cols - n, "completed\n");
+	self->log_info(self, "End of test: %s: ", text);
 }
 
 
@@ -697,14 +731,23 @@ const char * cw_test_get_current_topic_label(cw_test_executor_t * self)
 	case LIBCW_TEST_TOPIC_OTHER:
 		return "other";
 	default:
-		self->log_error(self, "Unknown current topic %d\n", self->current_topic);
-		exit(EXIT_FAILURE);
+		return "*** unknown ***";
 	}
 }
 
 
 
 
+/**
+   @brief Set a test topic and sound system that is about to be tested
+
+   This is a private function so it is not put into cw_test_executor_t
+   class.
+
+   Call this function before calling each test function. Topic and
+   sound system values to be passed to this function should be taken
+   from the same test set that the test function is taken.
+*/
 void cw_test_set_current_topic_and_sound_system(cw_test_executor_t * self, int topic, int sound_system)
 {
 	self->current_topic = topic;
@@ -725,11 +768,11 @@ void cw_test_print_test_stats(cw_test_executor_t * self)
 	#define LINE_FORMAT   " %c |% 10d/% 3d|% 10d/% 3d|% 10d/% 3d|% 10d/% 3d|% 10d/% 3d|\n"
 
 
-	char audio_systems[] = " NCOAP";
+	char sound_systems[] = " NCOAP";
 
 	for (int i = CW_AUDIO_NULL; i <= CW_AUDIO_PA; i++) {
 		fprintf(self->stderr, LINE_FORMAT,
-			audio_systems[i], /* TODO: global variable. */
+			sound_systems[i],
 			self->all_stats[i][LIBCW_TEST_TOPIC_TQ].failures    + self->all_stats[i][LIBCW_TEST_TOPIC_TQ].successes,    self->all_stats[i][LIBCW_TEST_TOPIC_TQ].failures,
 			self->all_stats[i][LIBCW_TEST_TOPIC_GEN].failures   + self->all_stats[i][LIBCW_TEST_TOPIC_GEN].successes,   self->all_stats[i][LIBCW_TEST_TOPIC_GEN].failures,
 			self->all_stats[i][LIBCW_TEST_TOPIC_KEY].failures   + self->all_stats[i][LIBCW_TEST_TOPIC_KEY].successes,   self->all_stats[i][LIBCW_TEST_TOPIC_KEY].failures,
@@ -763,27 +806,20 @@ void cw_test_init(cw_test_executor_t * self, FILE * stdout, FILE * stderr, const
 	self->print_test_footer = cw_test_print_test_footer;
 
 	self->process_args = cw_test_process_args;
-	self->print_args_summary = cw_test_print_args_summary;
-	self->fill_default_sound_systems_and_topics = cw_test_fill_default_sound_systems_and_topics;
+
+	self->print_test_options = cw_test_print_test_options;
 
 	self->test_topic_was_requested = cw_test_test_topic_was_requested;
 	self->sound_system_was_requested = cw_test_sound_system_was_requested;
 
 	self->get_current_topic_label = cw_test_get_current_topic_label;
 	self->get_current_sound_system_label = cw_test_get_current_sound_system_label;
-	self->set_current_topic_and_sound_system = cw_test_set_current_topic_and_sound_system;
 
 	self->print_test_stats = cw_test_print_test_stats;
 
 	self->log_info = cw_test_log_info;
 	self->log_info_cont = cw_test_log_info_cont;
 	self->log_error = cw_test_log_error;
-
-	self->print_sound_systems = cw_test_print_sound_systems;
-	self->print_topics = cw_test_print_topics;
-
-	self->test_topic_is_member = cw_test_test_topic_is_member;
-	self->sound_system_is_member = cw_test_sound_system_is_member;
 
 	self->main_test_loop = cw_test_main_test_loop;
 
@@ -798,10 +834,8 @@ void cw_test_init(cw_test_executor_t * self, FILE * stdout, FILE * stderr, const
 
 	struct timeval tv;
 	gettimeofday(&tv, NULL);
-	const suseconds_t seed = tv.tv_usec;
-	fprintf(self->stdout, "%sRandom seed = %lu\n", self->msg_prefix, seed);
-	fflush(self->stdout);
-	srand(seed);
+	self->random_seed = tv.tv_usec;
+	srand(self->random_seed);
 }
 
 
@@ -873,10 +907,18 @@ void cw_test_log_error(struct cw_test_executor_t * self, const char * fmt, ...)
 
 
 
+/**
+   @brief Print labels of sound systems specified by @param sound_systems array
 
-void cw_test_print_sound_systems(cw_test_executor_t * self, int * sound_systems)
+   There are no more than @param max items in @param sound_systems
+   vector. LIBCW_TEST_SOUND_SYSTEM_MAX is considered a guard
+   element. Function stops either after processing @param max
+   elements, or at guard element (without printing label for the guard
+   element) - whichever comes first.
+*/
+void cw_test_print_sound_systems(cw_test_executor_t * self, int * sound_systems, int max)
 {
-	for (int i = 0; i < LIBCW_TEST_SOUND_SYSTEM_MAX; i++) {
+	for (int i = 0; i < max; i++) {
 		if (LIBCW_TEST_SOUND_SYSTEM_MAX == sound_systems[i]) {
 			/* Found guard element. */
 			return;
@@ -910,9 +952,18 @@ void cw_test_print_sound_systems(cw_test_executor_t * self, int * sound_systems)
 
 
 
-void cw_test_print_topics(cw_test_executor_t * self, int * topics)
+/**
+   @brief Print labels of test topics specified by @param topics array
+
+   There are no more than @param max items in @param topics
+   vector. LIBCW_TEST_TOPIC_MAX is considered a guard
+   element. Function stops either after processing @param max
+   elements, or at guard element (without printing label for the guard
+   element) - whichever comes first.
+*/
+void cw_test_print_topics(cw_test_executor_t * self, int * topics, int max)
 {
-	for (int i = 0; i < LIBCW_TEST_TOPIC_MAX; i++) {
+	for (int i = 0; i < max; i++) {
 		if (LIBCW_TEST_TOPIC_MAX == topics[i]) {
 			/* Found guard element. */
 			return;
@@ -950,20 +1001,29 @@ void cw_test_print_topics(cw_test_executor_t * self, int * topics)
 
 
 
-void cw_test_print_args_summary(cw_test_executor_t * self)
+void cw_test_print_test_options(cw_test_executor_t * self)
 {
 	self->log_info(self, "Sound systems that will be tested: ");
-	self->print_sound_systems(self, self->tested_sound_systems);
+	cw_test_print_sound_systems(self, self->tested_sound_systems, sizeof (self->tested_sound_systems) / sizeof (self->tested_sound_systems[0]));
 	self->log_info_cont(self, "\n");
 
 	self->log_info(self, "Topics that will be tested: ");
-	self->print_topics(self, self->tested_topics);
+	cw_test_print_topics(self, self->tested_topics, sizeof (self->tested_topics) / sizeof (self->tested_topics[0]));
 	self->log_info_cont(self, "\n");
+
+	self->log_info(self, "Random seed = %lu\n", self->random_seed);
+
+	fflush(self->stdout);
 }
 
 
 
 
+/**
+   @brief See if given @param topic is a member of given list of test topics @param topics
+
+   The size of @param topics is specified by @param max.
+*/
 bool cw_test_test_topic_is_member(__attribute__((unused)) cw_test_executor_t * cte, int topic, int * topics, int max)
 {
 	for (int i = 0; i < max; i++) {
@@ -981,6 +1041,11 @@ bool cw_test_test_topic_is_member(__attribute__((unused)) cw_test_executor_t * c
 
 
 
+/**
+   @brief See if given @param sound_system is a member of given list of test topics @param sound_system
+
+   The size of @param sound_system is specified by @param max.
+*/
 bool cw_test_sound_system_is_member(__attribute__((unused)) cw_test_executor_t * cte, int sound_system, int * sound_systems, int max)
 {
 	for (int i = 0; i < max; i++) {
@@ -1010,7 +1075,7 @@ int cw_test_main_test_loop(cw_test_executor_t * cte, cw_test_set_t * test_sets)
 				continue;
 			}
 			const int topics_max = sizeof (test_set->topics) / sizeof (test_set->topics[0]);
-			if (!cte->test_topic_is_member(cte, topic, test_set->topics, topics_max)) {
+			if (!cw_test_test_topic_is_member(cte, topic, test_set->topics, topics_max)) {
 				continue;
 			}
 
@@ -1020,14 +1085,14 @@ int cw_test_main_test_loop(cw_test_executor_t * cte, cw_test_set_t * test_sets)
 					continue;
 				}
 				const int systems_max = sizeof (test_set->sound_systems) / sizeof (test_set->sound_systems[0]);
-				if (!cte->sound_system_is_member(cte, sound_system, test_set->sound_systems, systems_max)) {
+				if (!cw_test_sound_system_is_member(cte, sound_system, test_set->sound_systems, systems_max)) {
 					continue;
 				}
 
 
 				int f = 0;
 				while (test_set->test_functions[f]) {
-					cte->set_current_topic_and_sound_system(cte, topic, sound_system);
+					cw_test_set_current_topic_and_sound_system(cte, topic, sound_system);
 					(*test_set->test_functions[f])(cte);
 					f++;
 				}
