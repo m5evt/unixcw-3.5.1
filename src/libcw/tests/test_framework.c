@@ -701,7 +701,7 @@ void cw_test_print_test_header(cw_test_executor_t * self, const char * function_
 
 void cw_test_print_test_footer(cw_test_executor_t * self, const char * text)
 {
-	self->log_info(self, "End of test: %s: ", text);
+	self->log_info(self, "End of test: %s\n", text);
 }
 
 

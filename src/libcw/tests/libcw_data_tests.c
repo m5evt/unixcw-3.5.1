@@ -142,7 +142,7 @@ int test_cw_representation_to_character_internal(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
-	bool failure = true;
+	bool failure = false;
 
 	/* The test is performed by comparing results of function
 	   using fast lookup table, and function using direct
@@ -282,9 +282,9 @@ int test_character_lookups_internal(cw_test_executor_t * cte)
 
 	/* Test: character <--> representation lookup. */
 	{
-		bool c2r_failure = true;
-		bool r2c_failure = true;
-		bool two_way_failure = true;
+		bool c2r_failure = false;
+		bool r2c_failure = false;
+		bool two_way_failure = false;
 
 		/* For each character, look up its representation, the
 		   look up each representation in the opposite
@@ -499,8 +499,8 @@ int test_validate_character_and_string_internal(cw_test_executor_t * cte)
 
 	/* Test: validation of individual characters. */
 	{
-		bool failure_valid = true;
-		bool failure_invalid = true;
+		bool failure_valid = false;
+		bool failure_invalid = false;
 
 		char charlist[UCHAR_MAX + 1];
 		cw_list_characters(charlist);

@@ -212,7 +212,6 @@ int test_cw_gen_set_tone_slope(cw_test_executor_t * cte)
 	cte->print_test_header(cte, __func__);
 
 	int audio_system = CW_AUDIO_NULL;
-	bool failure = true;
 	int cwret = CW_FAILURE;
 
 	/* Test 0: test property of newly created generator. */
@@ -240,7 +239,7 @@ int test_cw_gen_set_tone_slope(cw_test_executor_t * cte)
 		cw_assert (gen, MSG_PREFIX "set slope: failed to initialize generator in test A");
 
 		cwret = cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_RECTANGULAR, 10);
-		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "set slope: conflicting arguments");
+		cte->expect_eq_int(cte, CW_FAILURE, cwret, "set slope: conflicting arguments");
 
 		cw_gen_delete(&gen);
 	}
@@ -251,7 +250,12 @@ int test_cw_gen_set_tone_slope(cw_test_executor_t * cte)
 
 	   "B: If you pass to function '-1' as value of both \p
 	   slope_shape and \p slope_len, the function won't change
-	   any of the related two generator's parameters." */
+	   any of the related two generator's parameters."
+
+	   TODO: add to function description an explicit information
+	   that -1/-1 is not an error, and that CW_SUCCESS will be
+	   returned.
+	*/
 	{
 		cw_gen_t * gen = cw_gen_new(audio_system, NULL);
 		cw_assert (gen, MSG_PREFIX "set slope: failed to initialize generator in test B");
@@ -259,11 +263,11 @@ int test_cw_gen_set_tone_slope(cw_test_executor_t * cte)
 		const int shape_before = gen->tone_slope.shape;
 		const int len_before = gen->tone_slope.len;
 
-		const int cwret = failure = (CW_SUCCESS != cw_gen_set_tone_slope(gen, -1, -1));
+		const int cwret = cw_gen_set_tone_slope(gen, -1, -1);
 
-		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "set slope: set tone slope -1 -1");
-		cte->expect_eq_int(cte, shape_before, gen->tone_slope.shape, "set slope -1 -1: shape (%d / %d)", shape_before, gen->tone_slope.shape);
-		cte->expect_eq_int(cte, len_before, gen->tone_slope.len, "set slope -1 -1: len (%d / %d)", len_before, gen->tone_slope.len);
+		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "set slope: set tone slope -1 -1 (cwret) ");
+		cte->expect_eq_int(cte, shape_before, gen->tone_slope.shape, "set slope -1 -1 (shape)");
+		cte->expect_eq_int(cte, len_before, gen->tone_slope.len, "set slope -1 -1 (len)");
 
 		cw_gen_delete(&gen);
 	}

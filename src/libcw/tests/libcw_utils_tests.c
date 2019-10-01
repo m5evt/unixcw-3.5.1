@@ -54,7 +54,7 @@ int test_cw_timestamp_compare_internal(cw_test_executor_t * cte)
 	earlier_timestamp.tv_sec = 3;
 	earlier_timestamp.tv_usec = 567;
 
-	bool failure = true;
+	bool failure = false;
 
 	int i = 0;
 	while (expected_deltas[i] != -1) {
@@ -191,7 +191,7 @@ int test_cw_usecs_to_timespec_internal(cw_test_executor_t * cte)
 		{          -1,    {   0,             0 }},
 	};
 
-	bool failure = true;
+	bool failure = false;
 
 	int i = 0;
 	while (input_data[i].input != -1) {
@@ -253,29 +253,32 @@ int test_cw_version_internal(cw_test_executor_t * cte)
 	char *str = buffer;
 	int c = 0, r = 0, a = 0;
 
-	bool failure = true;
+	bool tokens_failure = false;
 
-	for (int i = 0; ; i++, str = NULL) {
+	int i_tokens = 0;
+	for (; ; i_tokens++, str = NULL) {
 
 		char * token = strtok(str, ":");
 		if (token == NULL) {
 			/* We should end tokenizing process after 3 valid tokens, no more and no less. */
-			cte->expect_eq_int(cte, 3, i, "libcw:utils:version: stopping at token %d\n", i);
+			cte->expect_eq_int(cte, 3, i_tokens, "libcw:utils:version: stopping at token %d\n", i_tokens);
 			break;
 		}
 
-		if (i == 0) {
+		if (0 == i_tokens) {
 			c = atoi(token);
-		} else if (i == 1) {
+		} else if (1 == i_tokens) {
 			r = atoi(token);
-		} else if (i == 2) {
+		} else if (2 == i_tokens) {
 			a = atoi(token);
 		} else {
-			failure = true;
-			cte->expect_eq_int_errors_only(cte, false, failure, "libcw:utils:version: too many tokens in '%s\': %d\n", LIBCW_VERSION, i);
+			tokens_failure = true;
+			break;
+
 		}
 	}
 
+	cte->expect_eq_int(cte, false, tokens_failure, "libcw:utils:version: correct number of tokens");
 	cte->expect_eq_int(cte, current, c, "libcw:utils:version: current: %d / %dn", current, c);
 	cte->expect_eq_int(cte, revision, r, "libcw:utils:version: revision: %d / %d", revision, r);
 	cte->expect_eq_int(cte, age, a, "libcw:utils:version: age: %d / %d", age, a);

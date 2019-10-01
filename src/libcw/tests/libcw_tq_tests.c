@@ -523,7 +523,7 @@ int test_cw_tq_is_full_internal(cw_test_executor_t * cte)
 	cw_tone_queue_t * tq = cw_tq_new_internal();
 	cw_assert (tq, MSG_PREFIX "failed to create new tq");
 	tq->state = CW_TQ_BUSY;
-	bool failure = true;
+	bool failure = false;
 
 	cw_tone_t tone;
 	CW_TONE_INIT(&tone, 1, 1, CW_SLOPE_MODE_NO_SLOPES);
