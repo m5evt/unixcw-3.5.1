@@ -1,3 +1,11 @@
+2019-10-02 Kamil Ignacak
+	* libcw: big part of work on test framework has been
+	completed. There is now a single test framework to execute all
+	unit tests in the same fashion, and to collect and display test
+	statistic in the same manner. The next big step in test code is to
+	review test functions to ensure good code quality and clarity of
+	tests.
+
 2019-09-21 Kamil Ignacak
 	* libcw: beginning to create libcw2.h in master branch with
 	declarations of functions similar to those existing in
