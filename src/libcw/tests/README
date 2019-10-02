@@ -1,5 +1,76 @@
-The directory contains some generic test programs.
+This directory contains test code for libcw library.
 
-The directory also contains test programs testing specific bugs. See
-top-level comments in source code files for details on the bugs.
+
+
+
+The tests in this directory can be considered as unit tests, but this
+may not be a 100% accurate description of the tests.
+
+
+
+
+There are two main sets of test functions:
+
+A. test functions testing existing public API from libcw.h. The API is
+called "legacy API" because in the future I would like to replace it
+with something better. This set also includes a single function that
+verifies that a fix of one specific bug, implemented some time ago, is
+still working.
+
+B. test functions testing new (future) public API and internal
+functions of libcw that are used to implement both legacy API and new
+API. The future public API is not official yet, it's not stable nor
+fully specified.
+
+
+
+
+There are two main programs that call these test functions:
+
+1. test program that calls functions from set A. The program is a good
+tool to test public API of this release, and it may be a good
+candidate to test public API of past releases, to verify that
+implementations of the public API work exactly the same across
+releases.
+
+2. test program that calls all functions from set A and set B. The
+program is a good tool to test everything that is possible to be
+tested: both legacy public API and new public API, as well as internal
+functions. The tool is intended to be a completely thorough test tool
+for libcw code.
+
+
+
+
+The two test programs use a tiny custom test framework to execute test
+functions described in points A and B. The tests are separated into
+topics (e.g. generator, tone queue, receiver, etc). Big part of the
+test functions is executed few times: once per every supported and
+available sound system (e.g. OSS, ALSA, PulseAudio). Testing the code
+with different sound systems is necessary because behaviour of some
+low level functions may depend on how a sound system handles received
+PCM frames.
+
+
+
+
+--------
+
+
+
+
+In addition to the unit tests, the following Quality Assurance
+measures are implemented:
+1. TO BE DONE: test coverage reports (gcov),
+2. TO BE DONE: static code analysis with cppcheck (for both production
+   code and test code),
+3. TO BE DONE: static code analysis with clang-tidy (for both
+   production code and test code),
+4. TO BE DONE: compilation with c++ compilers (g++ and clang) (for
+   both production code and test code),
+5. TO BE DONE: compilation with -Wall -Werror -pedantic -Wextra
+   (other) by default (for both production code and test code),
+6. TO BE DESCRIBED: valgrind,
+7. PARTIALLY DONE, TO BE DESCRIBED: compilation and tests on different
+   platforms.
 
