@@ -1,3 +1,8 @@
+/*
+  This file is a part of unixcw project.  unixcw project is covered by
+  GNU General Public License, version 2 or later.
+*/
+
 #ifndef _LIBCW_TQ_TESTS_H_
 #define _LIBCW_TQ_TESTS_H_
 

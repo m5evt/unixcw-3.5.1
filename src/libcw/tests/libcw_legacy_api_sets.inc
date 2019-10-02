@@ -28,12 +28,12 @@
 		{
 			legacy_api_test_setup,
 
-			test_cw_wait_for_tone,
-			test_cw_wait_for_tone_queue,
-			test_cw_queue_tone,
-			test_empty_tone_queue,
-			test_full_tone_queue,
-			test_tone_queue_callback,
+			legacy_api_test_cw_wait_for_tone,
+			legacy_api_test_cw_wait_for_tone_queue,
+			legacy_api_test_cw_queue_tone,
+			legacy_api_test_empty_tone_queue,
+			legacy_api_test_full_tone_queue,
+			legacy_api_test_tone_queue_callback,
 
 			legacy_api_test_teardown,
 
@@ -50,10 +50,10 @@
 		{
 			legacy_api_test_setup,
 
-			test_volume_functions,
-			test_send_primitives,
-			test_send_character_and_string,
-			test_representations,
+			legacy_api_test_volume_functions,
+			legacy_api_test_send_primitives,
+			legacy_api_test_send_character_and_string,
+			legacy_api_test_representations,
 			legacy_api_test_teardown,
 
 			/* This function creates and deletes a
@@ -75,10 +75,10 @@
 		{
 			legacy_api_test_setup,
 
-			test_iambic_key_dot,
-			test_iambic_key_dash,
-			test_iambic_key_alternating,
-			test_iambic_key_none,
+			legacy_api_test_iambic_key_dot,
+			legacy_api_test_iambic_key_dash,
+			legacy_api_test_iambic_key_alternating,
+			legacy_api_test_iambic_key_none,
 			legacy_api_test_straight_key,
 
 			legacy_api_test_teardown,
@@ -96,10 +96,10 @@
 		{
 			legacy_api_test_setup,
 
-			test_parameter_ranges,
-			test_cw_gen_forever_public,
-			//cw_test_delayed_release,
-			//cw_test_signal_handling, /* FIXME - not sure why this test fails :( */
+			legacy_api_test_parameter_ranges,
+			legacy_api_test_cw_gen_forever_public,
+			//legacy_api_cw_test_delayed_release,
+			//legacy_api_cw_test_signal_handling, /* FIXME - not sure why this test fails :( */
 
 			legacy_api_test_teardown,
 

@@ -1,6 +1,6 @@
 /*
-  This file is a part of unixcw project.
-  unixcw project is covered by GNU General Public License, version 2 or later.
+  This file is a part of unixcw project.  unixcw project is covered by
+  GNU General Public License, version 2 or later.
 */
 
 #ifndef _LIBCW_TEST_FRAMEWORK_H_
@@ -325,17 +325,17 @@ typedef enum cw_test_set_valid {
 } cw_test_set_valid;
 
 typedef enum cw_test_api_tested {
-	CW_TEST_API_LEGACY,
-	CW_TEST_API_MODERN,
+	CW_TEST_API_LEGACY, /* Tests of functions from libcw.h. Legacy API that does not allow using multiple gen/key/rec objects. */
+	CW_TEST_API_MODERN, /* Tests of internal functions that operate on explicit gen/key/rec objects (functions that accept such objects as arguments). */
 } cw_test_api_tested;
 
 typedef struct cw_test_set_t {
-	cw_test_set_valid set_valid;
+	cw_test_set_valid set_valid; /* Invalid test set is a guard element in array of test sets. */
 	cw_test_api_tested api_tested;
 
-	int topics[LIBCW_TEST_TOPIC_MAX];
-	int sound_systems[LIBCW_TEST_SOUND_SYSTEM_MAX];
-	cw_test_function_t test_functions[100];
+	int topics[LIBCW_TEST_TOPIC_MAX]; /* Test topics tested by given test set. */
+	int sound_systems[LIBCW_TEST_SOUND_SYSTEM_MAX]; /* Sound systems that need to be configured to test given test set. */
+	cw_test_function_t test_functions[100]; /* Right now my test sets have only a few test functions. For now 100 is a safe limit. */
 } cw_test_set_t;
 
 

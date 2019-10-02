@@ -63,17 +63,17 @@
 
 
 
-static void cw_test_helper_tq_callback(void *data);
-static void cw_test_setup(void);
+__attribute__((unused)) static void legacy_api_cw_test_helper_tq_callback(void *data);
+__attribute__((unused)) static void legacy_api_cw_test_setup(void);
 
 /* Helper function for iambic key tests. */
-static void test_iambic_key_paddles_common(cw_test_executor_t * cte, const int intended_dot_paddle, const int intended_dash_paddle, char character, int n_elements);
+static void legacy_api_test_iambic_key_paddles_common(cw_test_executor_t * cte, const int intended_dot_paddle, const int intended_dash_paddle, char character, int n_elements);
 
 /* This variable will be used in "forever" test. This test function
    needs to open generator itself, so it needs to know the current
    audio system to be used. _NONE is just an initial value, to be
    changed in test setup. */
-static int test_audio_system = CW_AUDIO_NONE;
+__attribute__((unused)) static int test_audio_system = CW_AUDIO_NONE;
 
 
 
@@ -85,7 +85,7 @@ static int test_audio_system = CW_AUDIO_NONE;
 
    Run before each individual test, to handle setup of common test conditions.
 */
-void cw_test_setup(void)
+void legacy_api_cw_test_setup(void)
 {
 	cw_reset_send_receive_parameters();
 	cw_set_send_speed(30);
@@ -152,7 +152,7 @@ int legacy_api_test_teardown(__attribute__((unused)) cw_test_executor_t * cte)
    tests::cw_set_weighting()
    tests::cw_get_weighting()
 */
-int test_parameter_ranges(cw_test_executor_t * cte)
+int legacy_api_test_parameter_ranges(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
@@ -259,7 +259,7 @@ int test_parameter_ranges(cw_test_executor_t * cte)
    tests::cw_get_tone_queue_length()
    tests::cw_wait_for_tone()
 */
-int test_cw_wait_for_tone(cw_test_executor_t * cte)
+int legacy_api_test_cw_wait_for_tone(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
@@ -382,7 +382,7 @@ int test_cw_wait_for_tone(cw_test_executor_t * cte)
    tests::cw_get_tone_queue_length()
    tests::cw_wait_for_tone_queue()
 */
-int test_cw_wait_for_tone_queue(cw_test_executor_t * cte)
+int legacy_api_test_cw_wait_for_tone_queue(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
@@ -453,7 +453,7 @@ int test_cw_wait_for_tone_queue(cw_test_executor_t * cte)
 
    tests::cw_queue_tone()
 */
-int test_cw_queue_tone(cw_test_executor_t * cte)
+int legacy_api_test_cw_queue_tone(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
@@ -531,7 +531,7 @@ int test_cw_queue_tone(cw_test_executor_t * cte)
    tests::cw_get_tone_queue_capacity()
    tests::cw_get_tone_queue_length()
 */
-int test_empty_tone_queue(cw_test_executor_t * cte)
+int legacy_api_test_empty_tone_queue(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
@@ -573,7 +573,7 @@ int test_empty_tone_queue(cw_test_executor_t * cte)
    tests::cw_flush_tone_queue()
    tests::cw_wait_for_tone_queue()
 */
-int test_full_tone_queue(cw_test_executor_t * cte)
+int legacy_api_test_full_tone_queue(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
@@ -661,12 +661,12 @@ int test_full_tone_queue(cw_test_executor_t * cte)
 
 
 
-static int cw_test_tone_queue_callback_data = 999999;
+__attribute__((unused)) static int cw_test_tone_queue_callback_data = 999999;
 static int cw_test_helper_tq_callback_capture = false;
 
 
 
-int test_tone_queue_callback(cw_test_executor_t * cte)
+int legacy_api_test_tone_queue_callback(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 #if 0
@@ -724,7 +724,7 @@ int test_tone_queue_callback(cw_test_executor_t * cte)
 
 
 
-static void cw_test_helper_tq_callback(void *data)
+static void legacy_api_cw_test_helper_tq_callback(void *data)
 {
 	if (cw_test_helper_tq_callback_capture) {
 	int *d = (int *) data;
@@ -748,7 +748,7 @@ static void cw_test_helper_tq_callback(void *data)
 
    tests::cw_get_volume_limits()
 */
-int test_volume_functions(cw_test_executor_t * cte)
+int legacy_api_test_volume_functions(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
@@ -872,7 +872,7 @@ int test_volume_functions(cw_test_executor_t * cte)
    tests::cw_send_character_space()
    tests::cw_send_word_space()
 */
-int test_send_primitives(cw_test_executor_t * cte)
+int legacy_api_test_send_primitives(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
@@ -949,7 +949,7 @@ int test_send_primitives(cw_test_executor_t * cte)
    tests::cw_send_representation()
    tests::cw_send_representation_partial()
 */
-int test_representations(cw_test_executor_t * cte)
+int legacy_api_test_representations(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
@@ -1051,7 +1051,7 @@ int test_representations(cw_test_executor_t * cte)
    tests::cw_send_character()
    tests::cw_send_string()
 */
-int test_send_character_and_string(cw_test_executor_t * cte)
+int legacy_api_test_send_character_and_string(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
@@ -1132,7 +1132,7 @@ int test_send_character_and_string(cw_test_executor_t * cte)
 
 
 /* Wrapper for common code used by three test functions. */
-void test_iambic_key_paddles_common(cw_test_executor_t * cte, const int intended_dot_paddle, const int intended_dash_paddle, char character, int n_elements)
+void legacy_api_test_iambic_key_paddles_common(cw_test_executor_t * cte, const int intended_dot_paddle, const int intended_dash_paddle, char character, int n_elements)
 {
 	/* Test: keying alternate dit/dash. */
 	{
@@ -1185,7 +1185,7 @@ void test_iambic_key_paddles_common(cw_test_executor_t * cte, const int intended
    tests::cw_wait_for_keyer_element()
    tests::cw_get_keyer_paddles()
 */
-int test_iambic_key_dot(cw_test_executor_t * cte)
+int legacy_api_test_iambic_key_dot(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
@@ -1201,7 +1201,7 @@ int test_iambic_key_dot(cw_test_executor_t * cte)
 	const int intended_dash_paddle = false;
 	const char character = '.';
 	const int n_elements = 30;
-	test_iambic_key_paddles_common(cte, intended_dot_paddle, intended_dash_paddle, character, n_elements);
+	legacy_api_test_iambic_key_paddles_common(cte, intended_dot_paddle, intended_dash_paddle, character, n_elements);
 
 	cte->print_test_footer(cte, __func__);
 
@@ -1220,7 +1220,7 @@ int test_iambic_key_dot(cw_test_executor_t * cte)
    tests::cw_wait_for_keyer_element()
    tests::cw_get_keyer_paddles()
 */
-int test_iambic_key_dash(cw_test_executor_t * cte)
+int legacy_api_test_iambic_key_dash(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
@@ -1236,7 +1236,7 @@ int test_iambic_key_dash(cw_test_executor_t * cte)
 	const int intended_dash_paddle = true;
 	const char character = '-';
 	const int n_elements = 30;
-	test_iambic_key_paddles_common(cte, intended_dot_paddle, intended_dash_paddle, character, n_elements);
+	legacy_api_test_iambic_key_paddles_common(cte, intended_dot_paddle, intended_dash_paddle, character, n_elements);
 
 	cte->print_test_footer(cte, __func__);
 
@@ -1255,7 +1255,7 @@ int test_iambic_key_dash(cw_test_executor_t * cte)
    tests::cw_wait_for_keyer_element()
    tests::cw_get_keyer_paddles()
 */
-int test_iambic_key_alternating(cw_test_executor_t * cte)
+int legacy_api_test_iambic_key_alternating(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
@@ -1271,7 +1271,7 @@ int test_iambic_key_alternating(cw_test_executor_t * cte)
 	const int intended_dash_paddle = true;
 	const char character = '#';
 	const int n_elements = 30;
-	test_iambic_key_paddles_common(cte, intended_dot_paddle, intended_dash_paddle, character, n_elements);
+	legacy_api_test_iambic_key_paddles_common(cte, intended_dot_paddle, intended_dash_paddle, character, n_elements);
 
 	cte->print_test_footer(cte, __func__);
 
@@ -1290,7 +1290,7 @@ int test_iambic_key_alternating(cw_test_executor_t * cte)
    tests::cw_wait_for_keyer_element()
    tests::cw_get_keyer_paddles()
 */
-int test_iambic_key_none(cw_test_executor_t * cte)
+int legacy_api_test_iambic_key_none(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
@@ -1583,7 +1583,7 @@ void cw_test_signal_handling(cw_test_executor_t * cte)
   Because the function calls cw_generator_delete(), it should be
   executed as last test in test suite (unless you want to call
   cw_generator_new/start() again). */
-int test_cw_gen_forever_public(cw_test_executor_t * cte)
+int legacy_api_test_cw_gen_forever_public(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 #if 0

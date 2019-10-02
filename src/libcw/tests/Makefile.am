@@ -60,16 +60,8 @@ EXTRA_DIST = $(test_framework_files) $(legacy_api_test_files) $(modern_api_test_
 
 
 
-# library built only for purposes of testing (checking)
-#check_LIBRARIES = libcw_check.a
-#libcw_check_a_SOURCES = libcw_test.c
-#libcw_check_a_CPPFLAGS = $(AM_CPPFLAGS)
-
-
-
-# target: libcw_test_legacy_api: a test program testing only public API of libcw library;
-# main() is defined in libcw_test_legacy_api.c
-# Source code files used to build libcw_test_legacy_api program.
+# target: libcw_test_legacy_api: a test program testing only public
+# API of libcw library
 # This test tests library's public API, so the target should depend on
 # a regular shared library file found in build directory. It shouldn't
 # compile all *.c files that are used to create library, it should
@@ -109,62 +101,9 @@ libcw_test_all_SOURCES = \
 	libcw_legacy_api_tests.c \
 	$(LIBCW_BUG_TEST_FILES)
 
-
-
 libcw_test_all_CPPFLAGS = $(AM_CPPFLAGS) -DLIBCW_UNIT_TESTS
 
 libcw_test_all_LDADD = -lm -lpthread $(DL_LIB) -L../.libs -lcw
-
-
-
-
-# target: libcw_test_internal, a test program invoking unit tests for
-# (internal) functions defined in libcw_xyz.c files;
-# main() is defined in libcw_test_internal.c.
-
-# For now I can't move this test to tests/ because the target refers
-# to $(LIBCW_BASE_C_FILES) files residing in this directory, and not
-# in tests/ directory. I could use
-# "AM_INIT_AUTOMAKE([subdir-objects])" in configure.ac, but I don't
-# know how portable it is.
-
-# source code files used to build libcw_test_internal program
-# libcw_test_internal_SOURCES = $(LIBCW_BASE_C_FILES) \
-	libcw_utils_tests.c \
-	libcw_debug_tests.c \
-	libcw_data_tests.c \
-	libcw_tq_tests.c \
-	libcw_gen_tests.c \
-	libcw_rec_tests.c \
-	libcw_key_tests.c
-
-# target-specific preprocessor flags (#defs and include dirs)
-# libcw_test_internal_CPPFLAGS = $(AM_CPPFLAGS) -DLIBCW_UNIT_TESTS
-
-# target-specific linker flags (objects to link)
-# libcw_test_internal_LDADD=-lm -lpthread $(DL_LIB) $(OSS_LIB)
-
-# target-specific compiler flags
-# libcw_test_internal_CFLAGS = -rdynamic
-
-
-
-
-# target: libcw_test_tq_short_space, a test program for a specific bug;
-
-# source code files used to build the program
-# libcw_test_tq_short_space_SOURCES = libcw_test_tq_short_space.c test_framework.c
-
-# target-specific preprocessor flags (#defs and include dirs)
-# libcw_test_tq_short_space_CPPFLAGS = $(AM_CPPFLAGS)
-
-# target-specific linker flags (objects to link)
-# libcw_test_tq_short_space_LDADD=-lm -lpthread $(DL_LIB) $(OSS_LIB) -L../.libs -lcw
-
-# target-specific compiler flags
-# libcw_test_tq_short_space_CFLAGS = -rdynamic
-
-
 
 
 
