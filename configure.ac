@@ -622,6 +622,7 @@ AC_MSG_NOTICE([build cw:  ..............................  yes])
 AC_MSG_NOTICE([build cwgen:  ...........................  yes])
 AC_MSG_NOTICE([build cwcp:  ............................  $WITH_CWCP])
 AC_MSG_NOTICE([build xcwcp:  ...........................  $WITH_XCWCP])
+AC_MSG_NOTICE([CFLAGS:  ................................  $CFLAGS])
 if test "$WITH_XCWCP" = 'yes' ; then
     AC_MSG_NOTICE([    Qt5 CFLAGS:  $QT5_CFLAGS])
     AC_MSG_NOTICE([    Qt5 LIBS:    $QT5_LIBS])
