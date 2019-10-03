@@ -193,8 +193,8 @@ bool single_test_over_speed_range(struct tq_short_space_data * data, int i, int 
 	/* This is how many times we did a following test: send a
 	   single space and wait for queue to drain. */
 	const int n_expected_callback_executions = ((CW_SPEED_MAX - CW_SPEED_MIN) / 2) + 1;
-	cw_assert (n_expected_callback_executions == n_iterations, "Number of loop iterations does not meet expectations: %d vs. %d\n",
-		   n_expected_callback_executions, data->n_actual_callback_executions);
+	data->cte->assert2(data->cte, n_expected_callback_executions == n_iterations, "Number of loop iterations does not meet expectations: %d vs. %d\n",
+			   n_expected_callback_executions, data->n_actual_callback_executions);
 
 
 	const bool success = data->cte->expect_eq_int(data->cte,

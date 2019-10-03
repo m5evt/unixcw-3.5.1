@@ -164,7 +164,7 @@ int test_cw_tq_get_capacity_internal(cw_test_executor_t * cte)
 
 	bool failure = false;
 	cw_tone_queue_t * tq = cw_tq_new_internal();
-	cw_assert (tq, "failed to create new tone queue");
+	cte->assert2(cte, tq, "failed to create new tone queue");
 
 	for (int i = 0; i < loop_max; i++) {
 		/* This is a silly test, but let's have any test of
@@ -328,7 +328,7 @@ int test_cw_tq_length_internal(cw_test_executor_t * cte)
 	   length of the list. */
 
 	cw_tone_queue_t * tq = cw_tq_new_internal();
-	cw_assert (tq, MSG_PREFIX "failed to create new tone queue");
+	cte->assert2(cte, tq, MSG_PREFIX "failed to create new tone queue");
 
 	cw_tone_t tone;
 	CW_TONE_INIT(&tone, 1, 1, CW_SLOPE_MODE_NO_SLOPES);
@@ -344,7 +344,7 @@ int test_cw_tq_length_internal(cw_test_executor_t * cte)
 		   enforced by for loop's conditions. */
 		{
 			/* Notice that this is *before* enqueueing the tone. */
-			cw_assert (tq->len < tq->capacity,
+			cte->assert2(cte, tq->len < tq->capacity,
 				   "length before enqueue reached capacity: %zu / %zu",
 				   tq->len, tq->capacity);
 
@@ -353,7 +353,7 @@ int test_cw_tq_length_internal(cw_test_executor_t * cte)
 			tq->tail = cw_tq_next_index_internal(tq, tq->tail);
 			tq->len++;
 
-			cw_assert (tq->len <= tq->capacity,
+			cte->assert2(cte, tq->len <= tq->capacity,
 				   "length after enqueue exceeded capacity: %zu / %zu",
 				   tq->len, tq->capacity);
 		}
@@ -395,7 +395,7 @@ int test_cw_tq_enqueue_dequeue_internal(cw_test_executor_t * cte)
 	cte->print_test_header(cte, __func__);
 
 	cw_tone_queue_t * tq = cw_tq_new_internal();
-	cw_assert (tq, MSG_PREFIX "failed to create new tone queue");
+	cte->assert2(cte, tq, MSG_PREFIX "failed to create new tone queue");
 	tq->state = CW_TQ_BUSY; /* TODO: why this assignment? */
 
 	/* Fill the tone queue with tones. */
@@ -483,7 +483,7 @@ int test_cw_tq_dequeue_internal(cw_tone_queue_t *tq, cw_test_executor_t * cte)
 	   function. */
 
 	/* Test some assertions about full tq, just to be sure. */
-	cw_assert (tq->capacity == tq->len,
+	cte->assert2(cte, tq->capacity == tq->len,
 		   MSG_PREFIX "enqueue: capacity != len of full queue: %zu != %zu",
 		   tq->capacity, tq->len);
 
@@ -561,7 +561,7 @@ int test_cw_tq_is_full_internal(cw_test_executor_t * cte)
 	cte->print_test_header(cte, __func__);
 
 	cw_tone_queue_t * tq = cw_tq_new_internal();
-	cw_assert (tq, MSG_PREFIX "failed to create new tq");
+	cte->assert2(cte, tq, MSG_PREFIX "failed to create new tq");
 	tq->state = CW_TQ_BUSY;
 	bool failure = false;
 
@@ -914,13 +914,13 @@ int test_cw_tq_test_capacity_2(cw_test_executor_t * cte)
 cw_tone_queue_t *test_cw_tq_capacity_test_init(size_t capacity, size_t high_water_mark, int head_shift)
 {
 	cw_tone_queue_t *tq = cw_tq_new_internal();
-	cw_assert (tq, "failed to create new tone queue");
+	cte->assert2(cte, tq, "failed to create new tone queue");
 	tq->state = CW_TQ_BUSY;
 
 	int rv = cw_tq_set_capacity_internal(tq, capacity, high_water_mark);
-	cw_assert (rv == CW_SUCCESS, "failed to set capacity/high water mark");
-	cw_assert (tq->capacity == capacity, "incorrect capacity: %zu != %zu", tq->capacity, capacity);
-	cw_assert (tq->high_water_mark == high_water_mark, "incorrect high water mark: %zu != %zu", tq->high_water_mark, high_water_mark);
+	cte->assert2(cte, rv == CW_SUCCESS, "failed to set capacity/high water mark");
+	cte->assert2(cte, tq->capacity == capacity, "incorrect capacity: %zu != %zu", tq->capacity, capacity);
+	cte->assert2(cte, tq->high_water_mark == high_water_mark, "incorrect high water mark: %zu != %zu", tq->high_water_mark, high_water_mark);
 
 	/* Initialize *all* tones with known value. Do this manually,
 	   to be 100% sure that all tones in queue table have been
@@ -956,7 +956,7 @@ int test_cw_tq_enqueue_internal_2(cw_test_executor_t * cte)
 	cte->print_test_header(cte, __func__);
 
 	cw_tone_queue_t *tq = cw_tq_new_internal();
-	cw_assert (tq, "failed to create a tone queue\n");
+	cte->assert2(cte, tq, "failed to create a tone queue\n");
 	cw_tone_t tone;
 	int cwret = CW_FAILURE;
 
@@ -1021,7 +1021,7 @@ int test_cw_tq_wait_for_level_internal(cw_test_executor_t * cte)
 
 	for (int i = 0; i < 10; i++) {
 		cw_gen_t * gen = cw_gen_new(CW_AUDIO_NULL, CW_DEFAULT_NULL_DEVICE);
-		cw_assert (gen, "failed to create a tone queue\n");
+		cte->assert2(cte, gen, "failed to create a tone queue\n");
 		cw_gen_start(gen);
 
 		bool wait_failure = false;

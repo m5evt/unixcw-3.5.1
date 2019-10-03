@@ -239,7 +239,7 @@ int test_cw_gen_set_tone_slope(cw_test_executor_t * cte)
 	/* Test 0: test property of newly created generator. */
 	{
 		cw_gen_t * gen = cw_gen_new(audio_system, NULL);
-		cw_assert (gen, MSG_PREFIX "set slope: failed to initialize generator in test 0");
+		cte->assert2(cte, gen, MSG_PREFIX "set slope: failed to initialize generator in test 0");
 
 		cte->expect_eq_int(cte, CW_TONE_SLOPE_SHAPE_RAISED_COSINE, gen->tone_slope.shape, "set slope: initial shape (%d)", gen->tone_slope.shape);
 		cte->expect_eq_int(cte, CW_AUDIO_SLOPE_LEN, gen->tone_slope.len, "set slope: initial length (%d)", gen->tone_slope.len);
@@ -258,7 +258,7 @@ int test_cw_gen_set_tone_slope(cw_test_executor_t * cte)
 	   have rectangular slopes that have non-zero length." */
 	{
 		cw_gen_t * gen = cw_gen_new(audio_system, NULL);
-		cw_assert (gen, MSG_PREFIX "set slope: failed to initialize generator in test A");
+		cte->assert2(cte, gen, MSG_PREFIX "set slope: failed to initialize generator in test A");
 
 		cwret = cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_RECTANGULAR, 10);
 		cte->expect_eq_int(cte, CW_FAILURE, cwret, "set slope: conflicting arguments");
@@ -280,7 +280,7 @@ int test_cw_gen_set_tone_slope(cw_test_executor_t * cte)
 	*/
 	{
 		cw_gen_t * gen = cw_gen_new(audio_system, NULL);
-		cw_assert (gen, MSG_PREFIX "set slope: failed to initialize generator in test B");
+		cte->assert2(cte, gen, MSG_PREFIX "set slope: failed to initialize generator in test B");
 
 		const int shape_before = gen->tone_slope.shape;
 		const int len_before = gen->tone_slope.len;
@@ -509,7 +509,7 @@ int test_cw_gen_forever_internal(cw_test_executor_t * cte)
 int test_cw_gen_forever_sub(cw_test_executor_t * cte, int seconds, int audio_system, const char *audio_device)
 {
 	cw_gen_t *gen = cw_gen_new(audio_system, audio_device);
-	cw_assert (gen, "ERROR: failed to create generator\n");
+	cte->assert2(cte, gen, "ERROR: failed to create generator\n");
 	cw_gen_start(gen);
 
 	sleep(1);

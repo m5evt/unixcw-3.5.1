@@ -65,10 +65,10 @@ struct cw_rec_test_data {
 
 
 
-static struct cw_rec_test_data * test_cw_rec_generate_data(const char * characters, float speeds[], int fuzz_percent);
-static struct cw_rec_test_data * test_cw_rec_generate_base_data_constant(int speed, int fuzz_percent);
-static struct cw_rec_test_data * test_cw_rec_generate_data_random_constant(int speed, int fuzz_percent);
-static struct cw_rec_test_data * test_cw_rec_generate_data_random_varying(int speed_min, int speed_max, int fuzz_percent);
+static struct cw_rec_test_data * test_cw_rec_generate_data(cw_test_executor_t * cte, const char * characters, float speeds[], int fuzz_percent);
+static struct cw_rec_test_data * test_cw_rec_generate_base_data_constant(cw_test_executor_t * cte, int speed, int fuzz_percent);
+static struct cw_rec_test_data * test_cw_rec_generate_data_random_constant(cw_test_executor_t * cte, int speed, int fuzz_percent);
+static struct cw_rec_test_data * test_cw_rec_generate_data_random_varying(cw_test_executor_t * cte, int speed_min, int speed_max, int fuzz_percent);
 
 static void test_cw_rec_delete_data(struct cw_rec_test_data ** data);
 __attribute__((unused)) static void test_cw_rec_print_data(struct cw_rec_test_data * data);
@@ -76,10 +76,10 @@ static bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec,
 
 /* Functions creating tables of test values: characters and speeds.
    Characters and speeds will be combined into test (timing) data. */
-static char  * test_cw_rec_new_base_characters(void);
-static char  * test_cw_rec_generate_characters_random(int n);
-static float * test_cw_rec_generate_speeds_constant(int speed, size_t n);
-static float * test_cw_rec_generate_speeds_varying(int speed_min, int speed_max, size_t n);
+static char  * test_cw_rec_new_base_characters(cw_test_executor_t * cte);
+static char  * test_cw_rec_generate_characters_random(cw_test_executor_t * cte, int n);
+static float * test_cw_rec_generate_speeds_constant(cw_test_executor_t * cte, int speed, size_t n);
+static float * test_cw_rec_generate_speeds_varying(cw_test_executor_t * cte, int speed_min, int speed_max, size_t n);
 
 
 
@@ -101,14 +101,14 @@ int test_cw_rec_identify_mark_internal(cw_test_executor_t * cte)
 
 #if 0
 	cw_rec_t * rec = cw_rec_new();
-	cw_assert (rec, MSG_PREFIX "identify mark: failed to create new receiver\n");
+	cte->assert2(cte, rec, MSG_PREFIX "identify mark: failed to create new receiver\n");
 	cw_rec_disable_adaptive_mode(rec);
 
 	int speed_step = (CW_SPEED_MAX - CW_SPEED_MIN) / 10;
 
 	for (int speed = CW_SPEED_MIN; speed < CW_SPEED_MAX; speed += speed_step) {
 		int rv = cw_rec_set_speed(rec, speed);
-		cw_assert (rv, MSG_PREFIX "identify mark @ %02d [wpm]: failed to set receive speed\n", speed);
+		cte->assert2(cte, rv, MSG_PREFIX "identify mark @ %02d [wpm]: failed to set receive speed\n", speed);
 
 
 		bool failure = true;
@@ -198,11 +198,11 @@ int test_cw_rec_test_with_base_constant(cw_test_executor_t * cte)
 	cte->print_test_header(cte, __func__);
 
 	cw_rec_t * rec = cw_rec_new();
-	cw_assert (rec, MSG_PREFIX "begin/end: base/constant: failed to create new receiver\n");
+	cte->assert2(cte, rec, MSG_PREFIX "begin/end: base/constant: failed to create new receiver\n");
 
 
 	for (int speed = CW_SPEED_MIN; speed <= CW_SPEED_MAX; speed++) {
-		struct cw_rec_test_data * data = test_cw_rec_generate_base_data_constant(speed, 0);
+		struct cw_rec_test_data * data = test_cw_rec_generate_base_data_constant(cte, speed, 0);
 		//test_cw_rec_print_data(data);
 
 		/* Reset. */
@@ -214,7 +214,7 @@ int test_cw_rec_test_with_base_constant(cw_test_executor_t * cte)
 
 		/* Make sure that the test speed has been set correctly. */
 		float diff = cw_rec_get_speed(rec) - (float) speed;
-		cw_assert (diff < 0.1, MSG_PREFIX "begin/end: base/constant: %f != %f\n",  cw_rec_get_speed(rec), (float) speed);
+		cte->assert2(cte, diff < 0.1, MSG_PREFIX "begin/end: base/constant: %f != %f\n",  cw_rec_get_speed(rec), (float) speed);
 		// cte->expect_eq_int_errors_only(cte, ); // TODO: implement
 
 		/* Actual tests of receiver functions are here. */
@@ -329,7 +329,7 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, struct
 			   cw_rec_poll_representation(). */
 		}
 
-		cw_assert (tone, MSG_PREFIX "begin/end executed zero times\n");
+		cte->assert2(cte, tone, MSG_PREFIX "begin/end executed zero times\n");
 		if (begin_end_failure) {
 			break;
 		}
@@ -519,14 +519,14 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, struct
 
   This function is used to generate a data set guaranteed to contain all characters supported by libcw.
 */
-struct cw_rec_test_data * test_cw_rec_generate_base_data_constant(int speed, int fuzz_percent)
+struct cw_rec_test_data * test_cw_rec_generate_base_data_constant(cw_test_executor_t * cte, int speed, int fuzz_percent)
 {
 	/* All characters supported by libcw.  Don't use
 	   get_characters_random(): for this test get a small table of
 	   all characters supported by libcw. This should be a quick
 	   test, and it should cover all characters. */
-	char * base_characters = test_cw_rec_new_base_characters();
-	cw_assert (base_characters, MSG_PREFIX "new base data fixed: test_cw_rec_new_base_characters() failed\n");
+	char * base_characters = test_cw_rec_new_base_characters(cte);
+	cte->assert2(cte, base_characters, MSG_PREFIX "new base data fixed: test_cw_rec_new_base_characters() failed\n");
 
 
 	size_t n = strlen(base_characters);
@@ -534,15 +534,15 @@ struct cw_rec_test_data * test_cw_rec_generate_base_data_constant(int speed, int
 
 	/* Fixed speed receive mode - speed is constant for all
 	   characters. */
-	float * speeds = test_cw_rec_generate_speeds_constant(speed, n);
-	cw_assert (speeds, MSG_PREFIX "new base data fixed: test_cw_rec_generate_speeds_constant() failed\n");
+	float * speeds = test_cw_rec_generate_speeds_constant(cte, speed, n);
+	cte->assert2(cte, speeds, MSG_PREFIX "new base data fixed: test_cw_rec_generate_speeds_constant() failed\n");
 	// cte->expect_eq_int(cte, ); // TODO: implement
 
 
 	/* Generate timing data for given set of characters, each
 	   character is sent with speed dictated by speeds[]. */
-	struct cw_rec_test_data * data = test_cw_rec_generate_data(base_characters, speeds, fuzz_percent);
-	cw_assert (data, MSG_PREFIX "failed to generate base/fixed test data\n");
+	struct cw_rec_test_data * data = test_cw_rec_generate_data(cte, base_characters, speeds, fuzz_percent);
+	cte->assert2(cte, data, MSG_PREFIX "failed to generate base/fixed test data\n");
 	// cte->expect_eq_int(cte, ); // TODO: implement
 
 
@@ -572,11 +572,11 @@ int test_cw_rec_test_with_random_constant(cw_test_executor_t * cte)
 	cte->print_test_header(cte, __func__);
 
 	cw_rec_t * rec = cw_rec_new();
-	cw_assert (rec, MSG_PREFIX "begin/end: random/constant: failed to create new receiver\n");
+	cte->assert2(cte, rec, MSG_PREFIX "begin/end: random/constant: failed to create new receiver\n");
 
 
 	for (int speed = CW_SPEED_MIN; speed <= CW_SPEED_MAX; speed++) {
-		struct cw_rec_test_data * data = test_cw_rec_generate_data_random_constant(speed, 0);
+		struct cw_rec_test_data * data = test_cw_rec_generate_data_random_constant(cte, speed, 0);
 		//test_cw_rec_print_data(data);
 
 		/* Reset. */
@@ -588,7 +588,7 @@ int test_cw_rec_test_with_random_constant(cw_test_executor_t * cte)
 
 		/* Verify that test speed has been set correctly. */
 		float diff = cw_rec_get_speed(rec) - speed;
-		cw_assert (diff < 0.1, MSG_PREFIX "begin/end: random/constant: incorrect receive speed: %f != %f\n", cw_rec_get_speed(rec), (float) speed);
+		cte->assert2(cte, diff < 0.1, MSG_PREFIX "begin/end: random/constant: incorrect receive speed: %f != %f\n", cw_rec_get_speed(rec), (float) speed);
 		// cte->expect_eq_int_errors_only(cte, );  // TODO: implement
 
 		/* Actual tests of receiver functions are here. */
@@ -621,11 +621,11 @@ int test_cw_rec_test_with_random_varying(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
-	struct cw_rec_test_data * data = test_cw_rec_generate_data_random_varying(CW_SPEED_MIN, CW_SPEED_MAX, 0);
+	struct cw_rec_test_data * data = test_cw_rec_generate_data_random_varying(cte, CW_SPEED_MIN, CW_SPEED_MAX, 0);
 	//test_cw_rec_print_data(data);
 
 	cw_rec_t * rec = cw_rec_new();
-	cw_assert (rec, MSG_PREFIX "begin/end: random/varying: failed to create new receiver\n");
+	cte->assert2(cte, rec, MSG_PREFIX "begin/end: random/varying: failed to create new receiver\n");
 
 	/* Reset. */
 	cw_rec_reset_statistics(rec);
@@ -636,7 +636,7 @@ int test_cw_rec_test_with_random_varying(cw_test_executor_t * cte)
 
 	/* Verify that initial test speed has been set correctly. */
 	float diff = cw_rec_get_speed(rec) - CW_SPEED_MAX;
-	cw_assert (diff < 0.1, MSG_PREFIX "begin/end: random/varying: incorrect receive speed: %f != %f\n", cw_rec_get_speed(rec), (float) CW_SPEED_MAX);
+	cte->assert2(cte, diff < 0.1, MSG_PREFIX "begin/end: random/varying: incorrect receive speed: %f != %f\n", cw_rec_get_speed(rec), (float) CW_SPEED_MAX);
 	// cte->expect_eq_int(cte, ); // TODO: implement
 
 	/* Actual tests of receiver functions are here. */
@@ -664,24 +664,24 @@ int test_cw_rec_test_with_random_varying(cw_test_executor_t * cte)
 
   This function is used to generate a large test data set.
 */
-struct cw_rec_test_data * test_cw_rec_generate_data_random_constant(int speed, int fuzz_percent)
+struct cw_rec_test_data * test_cw_rec_generate_data_random_constant(cw_test_executor_t * cte, int speed, int fuzz_percent)
 {
 	const int n = cw_get_character_count() * 30;
 
-	char * characters = test_cw_rec_generate_characters_random(n);
-	cw_assert (characters, MSG_PREFIX "test_cw_rec_generate_characters_random() failed\n");
+	char * characters = test_cw_rec_generate_characters_random(cte, n);
+	cte->assert2(cte, characters, MSG_PREFIX "test_cw_rec_generate_characters_random() failed\n");
 	// cte->expect_eq_int(cte, ); // TODO: implement
 
 	/* Fixed speed receive mode - speed is constant for all characters. */
-	float * speeds = test_cw_rec_generate_speeds_constant(speed, n);
-	cw_assert (speeds, MSG_PREFIX "test_cw_rec_generate_speeds_constant() failed\n");
+	float * speeds = test_cw_rec_generate_speeds_constant(cte, speed, n);
+	cte->assert2(cte, speeds, MSG_PREFIX "test_cw_rec_generate_speeds_constant() failed\n");
 	// cte->expect_eq_int(cte, ); // TODO: implement
 
 
 	/* Generate timing data for given set of characters, each
 	   character is sent with speed dictated by speeds[]. */
-	struct cw_rec_test_data * data = test_cw_rec_generate_data(characters, speeds, fuzz_percent);
-	cw_assert (data, MSG_PREFIX "random/constant: failed to generate test data\n");
+	struct cw_rec_test_data * data = test_cw_rec_generate_data(cte, characters, speeds, fuzz_percent);
+	cte->assert2(cte, data, MSG_PREFIX "random/constant: failed to generate test data\n");
 	// cte->expect_eq_int(cte, ); // TODO: implement
 
 
@@ -706,25 +706,25 @@ struct cw_rec_test_data * test_cw_rec_generate_data_random_constant(int speed, i
 
   This function is used to generate a large test data set.
 */
-struct cw_rec_test_data * test_cw_rec_generate_data_random_varying(int speed_min, int speed_max, int fuzz_percent)
+struct cw_rec_test_data * test_cw_rec_generate_data_random_varying(cw_test_executor_t * cte, int speed_min, int speed_max, int fuzz_percent)
 {
 	int n = cw_get_character_count() * 30;
 
-	char *characters = test_cw_rec_generate_characters_random(n);
-	cw_assert (characters, MSG_PREFIX "begin/end: test_cw_rec_generate_characters_random() failed\n");
+	char *characters = test_cw_rec_generate_characters_random(cte, n);
+	cte->assert2(cte, characters, MSG_PREFIX "begin/end: test_cw_rec_generate_characters_random() failed\n");
 	// cte->expect_eq_int(cte, ); // TODO: implement
 
 	/* Adaptive speed receive mode - speed varies for all
 	   characters. */
-	float * speeds = test_cw_rec_generate_speeds_varying(speed_min, speed_max, n);
-	cw_assert (speeds, MSG_PREFIX "test_cw_rec_generate_speeds_varying() failed\n");
+	float * speeds = test_cw_rec_generate_speeds_varying(cte, speed_min, speed_max, n);
+	cte->assert2(cte, speeds, MSG_PREFIX "test_cw_rec_generate_speeds_varying() failed\n");
 	// cte->expect_eq_int(cte, ); // TODO: implement
 
 
 	/* Generate timing data for given set of characters, each
 	   character is sent with speed dictated by speeds[]. */
-	struct cw_rec_test_data *data = test_cw_rec_generate_data(characters, speeds, fuzz_percent);
-	cw_assert (data, MSG_PREFIX "failed to generate random/varying test data\n");
+	struct cw_rec_test_data *data = test_cw_rec_generate_data(cte, characters, speeds, fuzz_percent);
+	cte->assert2(cte, data, MSG_PREFIX "failed to generate random/varying test data\n");
 	// cte->expect_eq_int(cte, ); // TODO: implement
 
 
@@ -748,11 +748,11 @@ struct cw_rec_test_data * test_cw_rec_generate_data_random_varying(int speed_min
 
    \return allocated string.
 */
-char * test_cw_rec_new_base_characters(void)
+char * test_cw_rec_new_base_characters(cw_test_executor_t * cte)
 {
 	int n = cw_get_character_count();
 	char * base_characters = (char *) malloc((n + 1) * sizeof (char));
-	cw_assert (base_characters, MSG_PREFIX "get base characters: malloc() failed\n");
+	cte->assert2(cte, base_characters, MSG_PREFIX "get base characters: malloc() failed\n");
 	// cte->expect_eq_int(cte, ); // TODO: implement
 	cw_list_characters(base_characters);
 
@@ -778,18 +778,18 @@ char * test_cw_rec_new_base_characters(void)
 
    \return string of random characters (including spaces)
 */
-char * test_cw_rec_generate_characters_random(int n)
+char * test_cw_rec_generate_characters_random(cw_test_executor_t * cte, int n)
 {
 	/* All characters supported by libcw - this will be an input
 	   set of all characters. */
-	char * base_characters = test_cw_rec_new_base_characters();
-	cw_assert (base_characters, MSG_PREFIX "test_cw_rec_new_base_characters() failed\n");
+	char * base_characters = test_cw_rec_new_base_characters(cte);
+	cte->assert2(cte, base_characters, MSG_PREFIX "test_cw_rec_new_base_characters() failed\n");
 	// cte->expect_eq_int(cte, ); // TODO: implement
 	size_t length = strlen(base_characters);
 
 
 	char * characters = (char *) malloc ((n + 1) * sizeof (char));
-	cw_assert (characters, MSG_PREFIX "malloc() failed\n");
+	cte->assert2(cte, characters, MSG_PREFIX "malloc() failed\n");
 	// cte->expect_eq_int(cte, ); // TODO: implement
 	for (int i = 0; i < n; i++) {
 		int r = rand() % length;
@@ -840,12 +840,12 @@ char * test_cw_rec_generate_characters_random(int n)
 
    \return table of speeds of constant value
 */
-float * test_cw_rec_generate_speeds_constant(int speed, size_t n)
+float * test_cw_rec_generate_speeds_constant(cw_test_executor_t * cte, int speed, size_t n)
 {
-	cw_assert (speed > 0, MSG_PREFIX "generate speeds constant: speed must be larger than zero\n");
+	cte->assert2(cte, speed > 0, MSG_PREFIX "generate speeds constant: speed must be larger than zero\n");
 
 	float * speeds = (float *) malloc((n + 1) * sizeof (float));
-	cw_assert (speeds, MSG_PREFIX "generate speeds constant: malloc() failed\n");
+	cte->assert2(cte, speeds, MSG_PREFIX "generate speeds constant: malloc() failed\n");
 
 	for (size_t i = 0; i < n; i++) {
 		/* Fixed speed receive mode - speed values are constant for
@@ -877,14 +877,14 @@ float * test_cw_rec_generate_speeds_constant(int speed, size_t n)
 
    \return table of speeds
 */
-float * test_cw_rec_generate_speeds_varying(int speed_min, int speed_max, size_t n)
+float * test_cw_rec_generate_speeds_varying(cw_test_executor_t * cte, int speed_min, int speed_max, size_t n)
 {
-	cw_assert (speed_min > 0, MSG_PREFIX "generate speeds varying: speed_min must be larger than zero\n");
-	cw_assert (speed_max > 0, MSG_PREFIX "generate speeds varying: speed_max must be larger than zero\n");
-	cw_assert (speed_min <= speed_max, MSG_PREFIX "generate speeds varying: speed_min can't be larger than speed_max\n");
+	cte->assert2(cte, speed_min > 0, MSG_PREFIX "generate speeds varying: speed_min must be larger than zero\n");
+	cte->assert2(cte, speed_max > 0, MSG_PREFIX "generate speeds varying: speed_max must be larger than zero\n");
+	cte->assert2(cte, speed_min <= speed_max, MSG_PREFIX "generate speeds varying: speed_min can't be larger than speed_max\n");
 
 	float * speeds = (float *) malloc((n + 1) * sizeof (float));
-	cw_assert (speeds, MSG_PREFIX "generate speeds varying: malloc() failed\n");
+	cte->assert2(cte, speeds, MSG_PREFIX "generate speeds varying: malloc() failed\n");
 	// cte->expect_eq_int(cte, ); // TODO: implement
 
 	for (size_t i = 0; i < n; i++) {
@@ -950,12 +950,12 @@ float * test_cw_rec_generate_speeds_varying(int speed_min, int speed_max, size_t
 
    \return table of timing data sets
 */
-struct cw_rec_test_data * test_cw_rec_generate_data(char const * characters, float speeds[], __attribute__((unused)) int fuzz_percent)
+struct cw_rec_test_data * test_cw_rec_generate_data(cw_test_executor_t * cte, char const * characters, float speeds[], __attribute__((unused)) int fuzz_percent)
 {
 	size_t n = strlen(characters);
 	/* +1 for guard. */
 	struct cw_rec_test_data * test_data = (struct cw_rec_test_data *) malloc((n + 1) * sizeof(struct cw_rec_test_data));
-	cw_assert (test_data, MSG_PREFIX "generate data: malloc() failed\n");
+	cte->assert2(cte, test_data, MSG_PREFIX "generate data: malloc() failed\n");
 	//// cte->expect_eq_int(cte, ); // TODO: implement
 
 	/* Initialization. */
@@ -992,7 +992,7 @@ struct cw_rec_test_data * test_cw_rec_generate_data(char const * characters, flo
 
 		test_data[out].c = characters[in];
 		test_data[out].representation = cw_character_to_representation(test_data[out].c);
-		cw_assert (test_data[out].representation,
+		cte->assert2(cte, test_data[out].representation,
 			   MSG_PREFIX "generate data: cw_character_to_representation() failed for input char #%zu: '%c'\n",
 			   in, characters[in]);
 		//// cte->expect_eq_int(cte, ); // TODO: implement
@@ -1016,7 +1016,7 @@ struct cw_rec_test_data * test_cw_rec_generate_data(char const * characters, flo
 				test_data[out].times[n_times] = unit_len * 3;
 
 			} else {
-				cw_assert (0, MSG_PREFIX "generate data: unknown char in representation: '%c'\n", test_data[out].representation[k]);
+				cte->assert2(cte, 0, MSG_PREFIX "generate data: unknown char in representation: '%c'\n", test_data[out].representation[k]);
 			}
 			n_times++;
 
@@ -1028,13 +1028,13 @@ struct cw_rec_test_data * test_cw_rec_generate_data(char const * characters, flo
 		}
 
 		/* Every character has non-zero marks and spaces. */
-		cw_assert (n_times > 0, MSG_PREFIX "generate data: number of data points is %zu for representation '%s'\n", n_times, test_data[out].representation);
+		cte->assert2(cte, n_times > 0, MSG_PREFIX "generate data: number of data points is %zu for representation '%s'\n", n_times, test_data[out].representation);
 
 		/* Mark and space always go in pair, so nd should be even. */
-		cw_assert (! (n_times % 2), MSG_PREFIX "generate data: number of times is not even\n");
+		cte->assert2(cte, ! (n_times % 2), MSG_PREFIX "generate data: number of times is not even\n");
 
 		/* Mark/space pair per each dot or dash. */
-		cw_assert (n_times == 2 * rep_length, MSG_PREFIX "generate data: number of times incorrect: %zu != 2 * %zu\n", n_times, rep_length);
+		cte->assert2(cte, n_times == 2 * rep_length, MSG_PREFIX "generate data: number of times incorrect: %zu != 2 * %zu\n", n_times, rep_length);
 
 
 		/* Graduate that last space (inter-mark space) into
@@ -1129,7 +1129,7 @@ int test_cw_rec_get_parameters(cw_test_executor_t * cte)
 	bool failure = true;
 
 	cw_rec_t * rec = cw_rec_new();
-	cw_assert (rec, MSG_PREFIX "get: failed to create new receiver\n");
+	cte->assert2(cte, rec, MSG_PREFIX "get: failed to create new receiver\n");
 
 	cw_rec_reset_parameters_internal(rec);
 	cw_rec_sync_parameters_internal(rec);
@@ -1227,7 +1227,7 @@ int test_cw_rec_parameter_getters_setters_1(cw_test_executor_t * cte)
 	cte->print_test_header(cte, __func__);
 
 	cw_rec_t * rec = cw_rec_new();
-	cw_assert (rec, MSG_PREFIX "get/set param 1: failed to create new receiver\n");
+	cte->assert2(cte, rec, MSG_PREFIX "get/set param 1: failed to create new receiver\n");
 
 	/* Test setting and getting of some basic parameters. */
 
@@ -1346,7 +1346,7 @@ int test_cw_rec_parameter_getters_setters_2(cw_test_executor_t * cte)
 	cte->print_test_header(cte, __func__);
 
 	cw_rec_t * rec = cw_rec_new();
-	cw_assert (rec, MSG_PREFIX "get/set param 2: failed to create new receiver\n");
+	cte->assert2(cte, rec, MSG_PREFIX "get/set param 2: failed to create new receiver\n");
 
 	/* Test setting and getting of some basic parameters. */
 

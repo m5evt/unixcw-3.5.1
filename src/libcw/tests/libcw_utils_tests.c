@@ -118,7 +118,7 @@ int test_cw_timestamp_validate_internal(cw_test_executor_t * cte)
 	out_timestamp.tv_sec = 0;
 	out_timestamp.tv_usec = 0;
 
-	cw_assert (!gettimeofday(&ref_timestamp, NULL), "libcw:utils:validate timestamp 1: failed to get reference time");
+	cte->assert2(cte, !gettimeofday(&ref_timestamp, NULL), "libcw:utils:validate timestamp 1: failed to get reference time");
 
 	cwret = cw_timestamp_validate_internal(&out_timestamp, NULL);
 	cte->expect_eq_int(cte, CW_SUCCESS, cwret, "libcw:utils:validate timestamp:current timestamp:");
@@ -260,7 +260,7 @@ int test_cw_version_internal(cw_test_executor_t * cte)
 	   into numbers. */
 
 #define VERSION_LEN_MAX 30
-	cw_assert (strlen(LIBCW_VERSION) <= VERSION_LEN_MAX, "LIBCW_VERSION longer than expected!\n");
+	cte->assert2(cte, strlen(LIBCW_VERSION) <= VERSION_LEN_MAX, "LIBCW_VERSION longer than expected!\n");
 
 	char buffer[VERSION_LEN_MAX + 1];
 	strncpy(buffer, LIBCW_VERSION, VERSION_LEN_MAX);
