@@ -21,7 +21,7 @@ SUBDIRS=tests
 -include $(top_builddir)/Makefile.inc
 
 # targets to be built in this directory
-lib_LTLIBRARIES=libcw.la
+lib_LTLIBRARIES=libcw.la libcw_test.la
 check_PROGRAMS = # libcw_test_internal
 man_MANS=libcw.3 cw.7
 pkgconfig_DATA=libcw.pc
@@ -78,6 +78,31 @@ libcw_la_CPPFLAGS = $(AM_CPPFLAGS) $(LIBCW_NDEBUG)
 libcw_includedir=$(includedir)
 libcw_include_HEADERS = libcw.h libcw_debug.h
 
+
+
+
+
+# target: shared library for tests
+
+# source code files used to build libcw shared library
+libcw_test_la_SOURCES = $(LIBCW_BASE_C_FILES)
+
+# target-specific linker flags (objects to link)
+libcw_test_la_LIBADD=-lm -lpthread $(DL_LIB) $(OSS_LIB)
+
+# target-specific linker flags (additional flags)
+# http://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html
+# LIBCW_VERSION is defined in configure.ac
+libcw_test_la_LDFLAGS = -version-number $(LIBCW_VERSION)
+
+# target-specific compiler flags
+libcw_test_la_CFLAGS = -rdynamic
+
+# target-specific preprocessor flags (#defs and include dirs)
+#
+# $(LIBCW_NDEBUG) activates asserts in base libcw for dev builds, and
+# deactivates asserts in base libcw for regular builds.
+libcw_test_la_CPPFLAGS = $(AM_CPPFLAGS) $(LIBCW_NDEBUG) -DLIBCW_UNIT_TESTS
 
 
 

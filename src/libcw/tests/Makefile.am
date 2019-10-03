@@ -103,7 +103,7 @@ libcw_test_all_SOURCES = \
 
 libcw_test_all_CPPFLAGS = $(AM_CPPFLAGS) -DLIBCW_UNIT_TESTS
 
-libcw_test_all_LDADD = -lm -lpthread $(DL_LIB) -L../.libs -lcw
+libcw_test_all_LDADD = -lm -lpthread $(DL_LIB) -L../.libs -lcw_test
 
 
 
