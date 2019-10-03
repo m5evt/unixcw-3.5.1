@@ -75,8 +75,10 @@ static bool cw_test_expect_null_pointer_errors_only(struct cw_test_executor_t * 
 static bool cw_test_expect_valid_pointer(struct cw_test_executor_t * self, const void * pointer, const char * fmt, ...) __attribute__ ((format (printf, 3, 4)));
 static bool cw_test_expect_valid_pointer_errors_only(struct cw_test_executor_t * self, const void * pointer, const char * fmt, ...) __attribute__ ((format (printf, 3, 4)));
 
+static void cw_assert2(struct cw_test_executor_t * self, bool condition, const char * fmt, ...) __attribute__ ((format (printf, 3, 4)));
 
-static void cw_test_print_test_header(cw_test_executor_t * self, const char * function_name);
+
+static void cw_test_print_test_header(cw_test_executor_t * self, const char * fmt, ...);
 static void cw_test_print_test_footer(cw_test_executor_t * self, const char * function_name);
 static void cw_test_append_status_string(cw_test_executor_t * self, char * msg_buf, int n, const char * status_string);
 
@@ -605,6 +607,28 @@ bool cw_test_expect_valid_pointer_errors_only(struct cw_test_executor_t * self, 
 
 
 
+void cw_assert2(struct cw_test_executor_t * self, bool condition, const char * fmt, ...)
+{
+	if (!condition) {
+
+		char va_buf[128] = { 0 };
+
+		va_list ap;
+		va_start(ap, fmt);
+		vsnprintf(va_buf, sizeof (va_buf), fmt, ap);
+		va_end(ap);
+
+		self->log_error(self, "Assertion failed: %s\n", va_buf);
+
+		exit(EXIT_FAILURE);
+	}
+
+	return;
+}
+
+
+
+
 bool cw_test_test_topic_was_requested(cw_test_executor_t * self, int libcw_test_topic)
 {
 	const int n = sizeof (self->tested_topics) / sizeof (self->tested_topics[0]);
@@ -669,7 +693,7 @@ bool cw_test_sound_system_was_requested(cw_test_executor_t * self, int sound_sys
 
 
 
-void cw_test_print_test_header(cw_test_executor_t * self, const char * function_name)
+void cw_test_print_test_header(cw_test_executor_t * self, const char * fmt, ...)
 {
 	self->log_info_cont(self, "\n");
 
@@ -683,7 +707,14 @@ void cw_test_print_test_header(cw_test_executor_t * self, const char * function_
 		self->log_info_cont(self, "\n");
 	}
 
-	self->log_info(self, "Test function name: %s\n", function_name);
+
+	char va_buf[256] = { 0 };
+	va_list ap;
+	va_start(ap, fmt);
+	vsnprintf(va_buf, sizeof (va_buf), fmt, ap);
+	va_end(ap);
+
+	self->log_info(self, "Test name: %s\n", va_buf);
 	self->log_info(self, "Current test topic: %s\n", self->get_current_topic_label(self));
 	self->log_info(self, "Current sound system: %s\n", self->get_current_sound_system_label(self));
 
@@ -801,6 +832,8 @@ void cw_test_init(cw_test_executor_t * self, FILE * stdout, FILE * stderr, const
 
 	self->expect_valid_pointer = cw_test_expect_valid_pointer;
 	self->expect_valid_pointer_errors_only = cw_test_expect_valid_pointer_errors_only;
+
+	self->assert2 = cw_assert2;
 
 	self->print_test_header = cw_test_print_test_header;
 	self->print_test_footer = cw_test_print_test_footer;

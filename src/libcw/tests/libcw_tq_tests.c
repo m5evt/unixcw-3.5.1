@@ -56,6 +56,8 @@ static void gen_setup(cw_test_executor_t * cte, cw_gen_t ** gen);
 static void gen_destroy(cw_gen_t ** gen);
 
 
+
+
 static void gen_setup(cw_test_executor_t * cte, cw_gen_t ** gen)
 {
 	*gen = cw_gen_new(cte->current_sound_system, NULL);
@@ -72,7 +74,9 @@ static void gen_setup(cw_test_executor_t * cte, cw_gen_t ** gen)
 }
 
 
-void gen_destroy(cw_gen_t ** gen)
+
+
+static void gen_destroy(cw_gen_t ** gen)
 {
 	cw_gen_delete(gen);
 }
@@ -83,36 +87,47 @@ void gen_destroy(cw_gen_t ** gen)
 /**
    tests::cw_tq_new_internal()
    tests::cw_tq_delete_internal()
+
+   @reviewed on 2019-10-03
 */
 int test_cw_tq_new_delete_internal(cw_test_executor_t * cte)
 {
-	cte->print_test_header(cte, __func__);
+	const int loop_max = (rand() % 40) + 20;
 
-	/* Arbitrary number of calls to new()/delete() pair. */
-	const int max = 40;
+	cte->print_test_header(cte, "%s (%d)", __func__, loop_max);
+
 	bool failure = false;
-
 	cw_tone_queue_t * tq = NULL;
 
-	for (int i = 0; i < max; i++) {
+	for (int i = 0; i < loop_max; i++) {
 		tq = cw_tq_new_internal();
 		if (!cte->expect_valid_pointer_errors_only(cte, tq, "creating new tone queue")) {
 			failure = true;
 			break;
 		}
 
-		/* Try to access some fields in cw_tone_queue_t just
-		   to be sure that the tq has been allocated properly. */
-		if (!cte->expect_eq_int_errors_only(cte, 0, tq->head, "head in new tone queue is not at zero")) {
-			failure = true;
-			break;
+
+		/*
+		  Try to access some fields in cw_tone_queue_t just to
+		  be sure that the tq has been allocated properly.
+
+		  Trying to read and write tq->head and tq->tail may
+		  seem silly, but I just want to dereference tq
+		  pointer and be sure that nothing crashes.
+		*/
+		{
+			if (!cte->expect_eq_int_errors_only(cte, 0, tq->head, "trying to dereference tq (read ::head)")) {
+				failure = true;
+				break;
+			}
+
+			tq->tail = tq->head + 10;
+			if (!cte->expect_eq_int_errors_only(cte, 10, tq->tail, "trying to dereference tq (read ::tail)")) {
+				failure = true;
+				break;
+			}
 		}
 
-		tq->tail = tq->head + 10;
-		if (!cte->expect_eq_int_errors_only(cte, 10, tq->tail, "tail didn't store correct new value")) {
-			failure = true;
-			break;
-		}
 
 		cw_tq_delete_internal(&tq);
 		if (!cte->expect_null_pointer_errors_only(cte, tq, "deleting tone queue")) {
@@ -121,7 +136,7 @@ int test_cw_tq_new_delete_internal(cw_test_executor_t * cte)
 		}
 	}
 
-	cte->expect_eq_int(cte, false, failure, "new/delete:");
+	cte->expect_eq_int(cte, false, failure, "using tone queue's new/delete methods");
 
 	/* Cleanup after (possibly) failed tests. */
 	if (tq) {
@@ -136,26 +151,30 @@ int test_cw_tq_new_delete_internal(cw_test_executor_t * cte)
 
 
 
-
 /**
    tests::cw_tq_get_capacity_internal()
+
+   @reviewed on 2019-10-03
 */
 int test_cw_tq_get_capacity_internal(cw_test_executor_t * cte)
 {
-	cte->print_test_header(cte, __func__);
+	const int loop_max = (rand() % 40) + 20;
+
+	cte->print_test_header(cte, "%s (%d)", __func__, loop_max);
 
 	bool failure = false;
-
 	cw_tone_queue_t * tq = cw_tq_new_internal();
 	cw_assert (tq, "failed to create new tone queue");
-	for (size_t i = 10; i < 40; i++) {
+
+	for (int i = 0; i < loop_max; i++) {
 		/* This is a silly test, but let's have any test of
 		   the getter. */
 
-		tq->capacity = i;
+		const size_t intended_capacity = (rand() % 4000) + 10;
+		tq->capacity = intended_capacity;
 
-		const size_t capacity = cw_tq_get_capacity_internal(tq);
-		if (!cte->expect_eq_int_errors_only(cte, capacity, i, "incorrect capacity: %zu != %zu", capacity, i)) {
+		const size_t readback_capacity = cw_tq_get_capacity_internal(tq);
+		if (!cte->expect_eq_int_errors_only(cte, intended_capacity, readback_capacity, "getting tone queue capacity")) {
 			failure = true;
 			break;
 		}
@@ -163,7 +182,7 @@ int test_cw_tq_get_capacity_internal(cw_test_executor_t * cte)
 
 	cw_tq_delete_internal(&tq);
 
-	cte->expect_eq_int(cte, false, failure, "get capacity");
+	cte->expect_eq_int(cte, false, failure, "getting tone queue capacity");
 
 	cte->print_test_footer(cte, __func__);
 
@@ -176,18 +195,19 @@ int test_cw_tq_get_capacity_internal(cw_test_executor_t * cte)
 
 /**
    tests::cw_tq_prev_index_internal()
+
+   @reviewed on 2019-10-03
 */
 int test_cw_tq_prev_index_internal(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
-#if 0
 	cw_tone_queue_t * tq = cw_tq_new_internal();
-	cw_assert (tq, MSG_PREFIX "failed to create new tone queue");
+	cte->assert2(cte, NULL != tq, "failed to create new tone queue");
 
 	struct {
-		int arg;
-		size_t expected;
+		size_t current_index;
+		size_t expected_prev_index;
 		bool guard;
 	} input[] = {
 		{ tq->capacity - 4, tq->capacity - 5, false },
@@ -213,9 +233,8 @@ int test_cw_tq_prev_index_internal(cw_test_executor_t * cte)
 	int i = 0;
 	bool failure = false;
 	while (!input[i].guard) {
-		const size_t prev = cw_tq_prev_index_internal(tq, input[i].arg);
-		//fprintf(stderr, "arg = %d, result = %d, expected = %d\n", input[i].arg, (int) prev, input[i].expected);
-		if (!cte->expect_eq_int_errors_only(cte, input[i].expected, prev, "calculated \"prev\" != expected \"prev\": %zu != %zu", prev, input[i].expected)) {
+		const size_t readback_prev_index = cw_tq_prev_index_internal(tq, input[i].current_index);
+		if (!cte->expect_eq_int_errors_only(cte, input[i].expected_prev_index, readback_prev_index, "calculating 'prev' index, test %d", i)) {
 			failure = true;
 			break;
 		}
@@ -224,8 +243,8 @@ int test_cw_tq_prev_index_internal(cw_test_executor_t * cte)
 
 	cw_tq_delete_internal(&tq);
 
-	cte->expect_eq_int(cte, false, failure, "prev index:");
-#endif
+	cte->expect_eq_int(cte, false, failure, "calculating 'prev' index");
+
 	cte->print_test_footer(cte, __func__);
 
 	return 0;
@@ -237,18 +256,19 @@ int test_cw_tq_prev_index_internal(cw_test_executor_t * cte)
 
 /**
    tests::cw_tq_next_index_internal()
+
+   @reviewed on 2019-10-03
 */
 int test_cw_tq_next_index_internal(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
-#if 0
-	cw_tone_queue_t *tq = cw_tq_new_internal();
-	cw_assert (tq, MSG_PREFIX "failed to create new tone queue");
+	cw_tone_queue_t * tq = cw_tq_new_internal();
+	cte->assert2(cte, NULL != tq, "failed to create new tone queue");
 
 	struct {
-		int arg;
-		size_t expected;
+		size_t current_index;
+		size_t expected_next_index;
 		bool guard;
 	} input[] = {
 		{ tq->capacity - 5, tq->capacity - 4, false },
@@ -267,9 +287,8 @@ int test_cw_tq_next_index_internal(cw_test_executor_t * cte)
 	int i = 0;
 	bool failure = false;
 	while (!input[i].guard) {
-		const size_t next = cw_tq_next_index_internal(tq, input[i].arg);
-		//fprintf(stderr, "arg = %d, result = %d, expected = %d\n", input[i].arg, (int) next, input[i].expected);
-		if (!cte->expect_eq_int_errors_only(cte, input[i].expected, next, "calculated \"next\" != expected \"next\": %zu != %zu",  next, input[i].expected)) {
+		const size_t readback_next_index = cw_tq_next_index_internal(tq, input[i].current_index);
+		if (!cte->expect_eq_int_errors_only(cte, input[i].expected_next_index, readback_next_index, "calculating 'next' index, test %d", i)) {
 			failure = true;
 			break;
 		}
@@ -278,8 +297,8 @@ int test_cw_tq_next_index_internal(cw_test_executor_t * cte)
 
 	cw_tq_delete_internal(&tq);
 
-	cte->expect_eq_int(cte, false, failure, "next index:");
-#endif
+	cte->expect_eq_int(cte, false, failure, "calculating 'next' index");
+
 	cte->print_test_footer(cte, __func__);
 
 	return 0;

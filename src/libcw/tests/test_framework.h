@@ -157,15 +157,26 @@ typedef struct cw_test_executor_t {
 
 
 	/**
+	   An assert - not much to explain
+	*/
+	void (* assert2)(struct cw_test_executor_t * self, bool condition, const char * fmt, ...) __attribute__ ((format (printf, 3, 4)));
+
+
+
+
+	/**
 	   @brief Print an informative header with information about current test
 
 	   Call this function on top of a test function to display
 	   some basic information about test: current test topic,
-	   current sound system and name of test function (@param
-	   function_name). This should get a basic overview of what is
-	   about to be tested now.
+	   current sound system and name of test function. This should
+	   get a basic overview of what is about to be tested now.
+
+	   Name of the function is usually passed through @param fmt
+	   argument. @param fmt can be also printf()-like format
+	   string, followed by additional arguments
 	*/
-	void (* print_test_header)(struct cw_test_executor_t * self, const char * function_name);
+	void (* print_test_header)(struct cw_test_executor_t * self, const char * fmt, ...) __attribute__ ((format (printf, 2, 3)));
 
 	/**
 	   @brief Print a not-so-informative test footer
