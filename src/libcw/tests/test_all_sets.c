@@ -86,11 +86,11 @@ cw_test_set_t cw_test_sets[] = {
 #if 0
 			test_cw_tq_enqueue_args_internal,
 #endif
-			test_cw_tq_enqueue_internal_2,
+			test_cw_tq_enqueue_internal_B,
 
 			test_cw_tq_new_delete_internal,
 			test_cw_tq_get_capacity_internal,
-			test_cw_tq_length_internal,
+			test_cw_tq_length_internal_1,
 			test_cw_tq_prev_index_internal,
 			test_cw_tq_next_index_internal,
 #if 0

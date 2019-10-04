@@ -867,7 +867,7 @@ void cw_test_init(cw_test_executor_t * self, FILE * stdout, FILE * stderr, const
 
 	struct timeval tv;
 	gettimeofday(&tv, NULL);
-	self->random_seed = tv.tv_usec;
+	self->random_seed = tv.tv_sec;
 	srand(self->random_seed);
 }
 
