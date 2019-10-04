@@ -18,8 +18,8 @@
 
 int test_cw_tq_init_internal(void);
 int test_cw_tq_enqueue_internal_B(cw_test_executor_t * cte);
-int test_cw_tq_test_capacity_1(cw_test_executor_t * cte);
-int test_cw_tq_test_capacity_2(cw_test_executor_t * cte);
+int test_cw_tq_test_capacity_A(cw_test_executor_t * cte);
+int test_cw_tq_test_capacity_B(cw_test_executor_t * cte);
 int test_cw_tq_wait_for_level_internal(cw_test_executor_t * cte);
 int test_cw_tq_is_full_internal(cw_test_executor_t * cte);
 int test_cw_tq_enqueue_dequeue_internal(cw_test_executor_t * cte);

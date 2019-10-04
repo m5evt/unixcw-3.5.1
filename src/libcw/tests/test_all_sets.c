@@ -78,8 +78,8 @@ cw_test_set_t cw_test_sets[] = {
 		{ CW_AUDIO_NULL, LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. */
 
 		{
-			test_cw_tq_test_capacity_1,
-			test_cw_tq_test_capacity_2,
+			test_cw_tq_test_capacity_A,
+			test_cw_tq_test_capacity_B,
 			test_cw_tq_wait_for_level_internal,
 			test_cw_tq_is_full_internal,
 			test_cw_tq_enqueue_dequeue_internal,

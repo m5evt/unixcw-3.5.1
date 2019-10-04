@@ -55,6 +55,7 @@ static int test_cw_tq_dequeue_internal(cw_test_executor_t * cte, cw_tone_queue_t
 static void gen_setup(cw_test_executor_t * cte, cw_gen_t ** gen);
 static void gen_destroy(cw_gen_t ** gen);
 static void enqueue_tone_low_level(cw_test_executor_t * cte, cw_tone_queue_t * tq, const cw_tone_t * tone);
+static cw_tone_queue_t * test_cw_tq_capacity_test_init(cw_test_executor_t * cte, size_t capacity, size_t high_water_mark, int head_shift);
 
 
 
@@ -193,7 +194,6 @@ int test_cw_tq_get_capacity_internal(cw_test_executor_t * cte)
 
 
 
-
 /**
    tests::cw_tq_prev_index_internal()
 
@@ -250,7 +250,6 @@ int test_cw_tq_prev_index_internal(cw_test_executor_t * cte)
 
 	return 0;
 }
-
 
 
 
@@ -429,7 +428,6 @@ int test_cw_tq_enqueue_dequeue_internal(cw_test_executor_t * cte)
 
 	return 0;
 }
-
 
 
 
@@ -669,56 +667,59 @@ int test_cw_tq_is_full_internal(cw_test_executor_t * cte)
 
 
 
-
 /**
    \brief Test "capacity" property of tone queue
 
    Function tests "capacity" property of tone queue, and also tests
    related properties: head and tail.
 
-   Just like in test_cw_tq_test_capacity_2(), enqueueing is done with
+   Just like in test_cw_tq_test_capacity_B(), enqueueing is done with
    cw_tq_enqueue_internal().
 
-   Unlike test_cw_tq_test_capacity_2(), this function dequeues tones
+   Unlike test_cw_tq_test_capacity_B(), this function dequeues tones
    using "manual" method.
 
    After every dequeue we check that dequeued tone is the one that we
    were expecting to get.
 
    tests::cw_tq_enqueue_internal()
-*/
-int test_cw_tq_test_capacity_1(cw_test_executor_t * cte)
-{
-	cte->print_test_header(cte, __func__);
 
-#if 0
+   @reviewed on 2019-10-04
+*/
+int test_cw_tq_test_capacity_A(cw_test_executor_t * cte)
+{
 	/* We don't need to check tq with capacity ==
 	   CW_TONE_QUEUE_CAPACITY_MAX (yet). Let's test a smaller
-	   queue. 30 tones will be enough (for now), and 30-4 is a
-	   good value for high water mark. */
-	size_t capacity = 30;
-	size_t watermark = capacity - 4;
+	   queue capacity. */
+	const size_t capacity = (rand() % 40) + 30;
+	const size_t watermark = capacity - (capacity * 0.2);
+
+	cte->print_test_header(cte, "%s (%zu)", __func__, capacity);
 
 	/* We will do tests of queue with constant capacity, but with
 	   different initial position at which we insert first element
 	   (tone), i.e. different position of queue's head.
 
-	   Put the guard after "capacity - 1".
+	   Elements of the array should be no larger than capacity. -1
+	   is a guard.
 
 	   TODO: allow negative head shifts in the test. */
-	int head_shifts[] = { 0, 5, 10, 29, -1, 30, -1 };
-	int s = 0;
+	const int head_shifts[] = { 0, 5, 10, 29, -1, 30, -1 };
+	int shift_idx = 0;
 
-	while (head_shifts[s] != -1) {
+	while (head_shifts[shift_idx] != -1) {
 
-		bool enqueue_failure = true;
-		bool dequeue_failure = true;
+		bool enqueue_failure = false;
+		bool dequeue_failure = false;
 
-		// fprintf(stderr, "\nTesting with head shift = %d\n", head_shifts[s]);
+		const int current_head_shift = head_shifts[shift_idx];
+
+		cte->log_info_cont(cte, "\n");
+		cte->log_info(cte, "Testing with head shift = %d\n", current_head_shift);
 
 		/* For every new test with new head shift we need a
 		   "clean" queue. */
-		cw_tone_queue_t * tq = test_cw_tq_capacity_test_init(capacity, watermark, head_shifts[s]);
+		cw_tone_queue_t * tq = test_cw_tq_capacity_test_init(cte, capacity, watermark, current_head_shift);
 
 		/* Fill all positions in queue with tones of known
 		   frequency.  If shift_head != 0, the enqueue
@@ -728,38 +729,38 @@ int test_cw_tq_test_capacity_1(cw_test_executor_t * cte)
 			cw_tone_t tone;
 			CW_TONE_INIT(&tone, (int) i, 1000, CW_SLOPE_MODE_NO_SLOPES);
 
-			const cwret = cw_tq_enqueue_internal(tq, &tone);
-			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "capacity1: failed to enqueue tone #%zu", i)) {
+			const int cwret = cw_tq_enqueue_internal(tq, &tone);
+			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "capacity A: enqueueing ton #%zu, queue size %zu, head shift %d", i, capacity, current_head_shift)) {
 				enqueue_failure = true;
 				break;
 			}
 		}
 
-		/* With the queue filled with valid and known data,
-		   it's time to read back the data and verify that the
-		   tones were placed in correct positions, as
-		   expected. Let's do the readback N times, just for
-		   fun. Every time the results should be the same. */
+		/*
+		  With the queue filled with valid and known data,
+		  it's time to read back the data and verify that the
+		  tones were placed in correct positions, as
+		  expected. Let's do the readback N times, just for
+		  fun. Every time the results should be the same.
 
-		for (int l = 0; l < 3; l++) {
+		  We don't remove/dequeue tones from tq, we just
+		  iterate over tq and check that tone at shifted_i has
+		  correct, expected properties.
+		*/
+		for (int loop = 0; loop < 3; loop++) {
 			for (size_t i = 0; i < tq->capacity; i++) {
 
 				/* When shift of head == 0, tone with
 				   frequency 'i' is at index 'i'. But with
 				   non-zero shift of head, tone with frequency
 				   'i' is at index 'shifted_i'. */
+				const size_t shifted_i = (i + current_head_shift) % (tq->capacity);
 
+				const size_t expected_freq = i;
+				const size_t readback_freq = tq->queue[shifted_i].frequency;
 
-				size_t shifted_i = (i + head_shifts[s]) % (tq->capacity);
-				// fprintf(stderr, "Readback %d: position %zu: checking tone %zu, expected %zu, got %d\n",
-				// 	l, shifted_i, i, i, tq->queue[shifted_i].frequency);
-
-				/* This is the "manual" dequeue. We
-				   don't really remove the tone from
-				   tq, just checking that tone at
-				   shifted_i has correct, expected
-				   properties. */
-				if (!cte->expect_eq_int_errors_only(cte, tq->queue[shifted_i].frequency, (int) i, "capacity1: frequency of dequeued tone is incorrect: %d != %d", tq->queue[shifted_i].frequency, (int) i)) {
+				if (!cte->expect_eq_int_errors_only(cte, expected_freq, readback_freq, "capacity A: readback loop #%d: queue position %zu, head shift %d",
+								    loop, i, current_head_shift)) {
 					dequeue_failure = true;
 					break;
 				}
@@ -771,12 +772,12 @@ int test_cw_tq_test_capacity_1(cw_test_executor_t * cte)
 		   test_cw_tq_capacity_test_init(). */
 		cw_tq_delete_internal(&tq);
 
-		cte->expect_eq_int(cte, false, enqueue_failure, "capacity1: enqueue @ shift=%d:", head_shifts[s]);
-		cte->expect_eq_int(cte, false, dequeue_failure, "capacity1: dequeue @ shift=%d:", head_shifts[s]);
+		cte->expect_eq_int(cte, false, enqueue_failure, "capacity A: enqueue @ head shift = %d:", current_head_shift);
+		cte->expect_eq_int(cte, false, dequeue_failure, "capacity A: dequeue @ head shift = %d:", current_head_shift);
 
-		s++;
+		shift_idx++;
 	}
-#endif
+
 	cte->print_test_footer(cte, __func__);
 
 	return 0;
@@ -792,10 +793,10 @@ int test_cw_tq_test_capacity_1(cw_test_executor_t * cte)
    Function tests "capacity" property of tone queue, and also tests
    related properties: head and tail.
 
-   Just like in test_cw_tq_test_capacity_1(), enqueueing is done with
+   Just like in test_cw_tq_test_capacity_A(), enqueueing is done with
    cw_tq_enqueue_internal().
 
-   Unlike test_cw_tq_test_capacity_1(), this function dequeues tones
+   Unlike test_cw_tq_test_capacity_A(), this function dequeues tones
    using cw_tq_dequeue_internal().
 
    After every dequeue we check that dequeued tone is the one that we
@@ -803,40 +804,43 @@ int test_cw_tq_test_capacity_1(cw_test_executor_t * cte)
 
    tests::cw_tq_enqueue_internal()
    tests::cw_tq_dequeue_internal()
-*/
-int test_cw_tq_test_capacity_2(cw_test_executor_t * cte)
-{
-	cte->print_test_header(cte, __func__);
 
-#if 0
+   @reviewed on 2019-10-04
+*/
+int test_cw_tq_test_capacity_B(cw_test_executor_t * cte)
+{
 	/* We don't need to check tq with capacity ==
 	   CW_TONE_QUEUE_CAPACITY_MAX (yet). Let's test a smaller
-	   queue. 30 tones will be enough (for now), and 30-4 is a
-	   good value for high water mark. */
-	size_t capacity = 30;
-	size_t watermark = capacity - 4;
+	   queue. */
+	const size_t capacity = (rand() % 40) + 30;
+	const size_t watermark = capacity - (capacity * 0.2);
+
+	cte->print_test_header(cte, "%s (%zu)", __func__, capacity);
 
 	/* We will do tests of queue with constant capacity, but with
 	   different initial position at which we insert first element
 	   (tone), i.e. different position of queue's head.
 
-	   Put the guard after "capacity - 1".
+	   Elements of the array should be no larger than capacity. -1
+	   is a guard.
 
 	   TODO: allow negative head shifts in the test. */
-	int head_shifts[] = { 0, 5, 10, 29, -1, 30, -1 };
-	int s = 0;
+	const int head_shifts[] = { 0, 5, 10, 29, -1, 30, -1 };
+	int shift_idx = 0;
 
-	while (head_shifts[s] != -1) {
+	while (head_shifts[shift_idx] != -1) {
 
-		bool enqueue_failure = true;
-		bool dequeue_failure = true;
-		bool capacity_failure = true;
+		bool enqueue_failure = false;
+		bool dequeue_failure = false;
+		bool capacity_failure = false;
+		const int current_head_shift = head_shifts[shift_idx];
 
-		// fprintf(stderr, "\nTesting with head shift = %d\n", head_shifts[s]);
+		cte->log_info_cont(cte, "\n");
+		cte->log_info(cte, "Testing with head shift = %d\n", current_head_shift);
 
 		/* For every new test with new head shift we need a
 		   "clean" queue. */
-		cw_tone_queue_t *tq = test_cw_tq_capacity_test_init(capacity, watermark, head_shifts[s]);
+		cw_tone_queue_t * tq = test_cw_tq_capacity_test_init(cte, capacity, watermark, current_head_shift);
 
 		/* Fill all positions in queue with tones of known
 		   frequency.  If shift_head != 0, the enqueue
@@ -847,7 +851,7 @@ int test_cw_tq_test_capacity_2(cw_test_executor_t * cte)
 			CW_TONE_INIT(&tone, (int) i, 1000, CW_SLOPE_MODE_NO_SLOPES);
 
 			const int cwret = cw_tq_enqueue_internal(tq, &tone);
-			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "capacity2: failed to enqueue tone #%zu", i)) {
+			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "capacity B: enqueueing ton #%zu, queue size %zu, head shift %d", i, capacity, current_head_shift)) {
 				enqueue_failure = true;
 				break;
 			}
@@ -858,9 +862,11 @@ int test_cw_tq_test_capacity_2(cw_test_executor_t * cte)
 		   tones were placed in correct positions, as
 		   expected.
 
-		   In test_cw_tq_test_capacity_1() we did the
-		   readback "manually", this time let's use "dequeue"
-		   function to do the job.
+		   In test_cw_tq_test_capacity_A() we did the readback
+		   "manually" (or rather we just iterated over a tone
+		   queue, without actually taking anything out of the
+		   tq), this time let's use "dequeue" function to do
+		   the job.
 
 		   Since the "dequeue" function moves queue pointers,
 		   we can do this test only once (we can't repeat the
@@ -868,25 +874,28 @@ int test_cw_tq_test_capacity_2(cw_test_executor_t * cte)
 		   the same results). */
 
 		size_t i = 0;
-		cw_tone_t tone; /* For output only, so no need to initialize. */
-
-		while (CW_SUCCESS == cw_tq_dequeue_internal(tq, &tone)) {
+		cw_tone_t deq_tone; /* For output only, so no need to initialize. */
+		while (CW_SUCCESS == cw_tq_dequeue_internal(tq, &deq_tone)) {
 
 			/* When shift of head == 0, tone with
 			   frequency 'i' is at index 'i'. But with
 			   non-zero shift of head, tone with frequency
 			   'i' is at index 'shifted_i'. */
 
-			size_t shifted_i = (i + head_shifts[s]) % (tq->capacity);
-			if (!cte->expect_eq_int_errors_only(cte, tq->queue[shifted_i].frequency, (int) i, "capacity2: position %zu: checking tone %zu, expected %zu, got %d\n", shifted_i, i, i, tq->queue[shifted_i].frequency)) {
+			const size_t expected_freq = i;
+			const size_t readback_freq = deq_tone.frequency;
+
+			if (!cte->expect_eq_int_errors_only(cte, expected_freq, readback_freq, "capacity B: readback: queue position %zu, head shift %d",
+							    i, current_head_shift)) {
 				dequeue_failure = true;
 				break;
 			}
 
 			i++;
 		}
+		const size_t n_dequeues = i;
 
-		if (!cte->expect_eq_int_errors_only(cte, i, tq->capacity, "capacity2: number of dequeues (%zu) is different than capacity (%zu)\n", i, tq->capacity)) {
+		if (!cte->expect_eq_int_errors_only(cte, tq->capacity, n_dequeues, "capacity B: number of dequeues vs tone queue capacity")) {
 			capacity_failure = true;
 		}
 
@@ -896,14 +905,14 @@ int test_cw_tq_test_capacity_2(cw_test_executor_t * cte)
 		cw_tq_delete_internal(&tq);
 
 
-		cte->expect_eq_int(cte, false, enqueue_failure, "capacity2: enqueue  @ shift=%d:", head_shifts[s]);
-		cte->expect_eq_int(cte, false, dequeue_failure, "capacity2: dequeue  @ shift=%d:", head_shifts[s]);
-		cte->expect_eq_int(cte, false, capacity_failure, "capacity2: capacity @ shift=%d:", head_shifts[s]);
+		cte->expect_eq_int(cte, false, enqueue_failure, "capacity B: enqueue  @ shift = %d:", current_head_shift);
+		cte->expect_eq_int(cte, false, dequeue_failure, "capacity B: dequeue  @ shift = %d:", current_head_shift);
+		cte->expect_eq_int(cte, false, capacity_failure, "capacity B: capacity @ shift = %d:", current_head_shift);
 
 
-		s++;
+		shift_idx++;
 	}
-#endif
+
 	cte->print_test_footer(cte, __func__);
 
 	return 0;
@@ -912,7 +921,6 @@ int test_cw_tq_test_capacity_2(cw_test_executor_t * cte)
 
 
 
-#if 0
 /**
    \brief Create and initialize tone queue for tests of capacity
 
@@ -940,20 +948,22 @@ int test_cw_tq_test_capacity_2(cw_test_executor_t * cte)
 
    tests::cw_tq_set_capacity_internal()
 
+   @reviewed on 2019-10-04
+
    \param capacity - intended capacity of tone queue
    \param high_water_mark - high water mark to be set for tone queue
    \param head_shift - position of first element that will be inserted in empty queue
 
    \return newly allocated and initialized tone queue
 */
-cw_tone_queue_t *test_cw_tq_capacity_test_init(size_t capacity, size_t high_water_mark, int head_shift)
+cw_tone_queue_t * test_cw_tq_capacity_test_init(cw_test_executor_t * cte, size_t capacity, size_t high_water_mark, int head_shift)
 {
-	cw_tone_queue_t *tq = cw_tq_new_internal();
+	cw_tone_queue_t * tq = cw_tq_new_internal();
 	cte->assert2(cte, tq, "failed to create new tone queue");
-	tq->state = CW_TQ_BUSY;
+	// tq->state = CW_TQ_BUSY; TODO: what does it do here?
 
-	int rv = cw_tq_set_capacity_internal(tq, capacity, high_water_mark);
-	cte->assert2(cte, rv == CW_SUCCESS, "failed to set capacity/high water mark");
+	int cwret = cw_tq_set_capacity_internal(tq, capacity, high_water_mark);
+	cte->assert2(cte, cwret == CW_SUCCESS, "failed to set capacity/high water mark");
 	cte->assert2(cte, tq->capacity == capacity, "incorrect capacity: %zu != %zu", tq->capacity, capacity);
 	cte->assert2(cte, tq->high_water_mark == high_water_mark, "incorrect high water mark: %zu != %zu", tq->high_water_mark, high_water_mark);
 
@@ -961,22 +971,22 @@ cw_tone_queue_t *test_cw_tq_capacity_test_init(size_t capacity, size_t high_wate
 	   to be 100% sure that all tones in queue table have been
 	   initialized. */
 	for (int i = 0; i < CW_TONE_QUEUE_CAPACITY_MAX; i++) {
-		CW_TONE_INIT(&(tq->queue[i]), 10000 + i, 1, CW_SLOPE_MODE_STANDARD_SLOPES);
+		CW_TONE_INIT(&tq->queue[i], 10000 + i, 1, CW_SLOPE_MODE_STANDARD_SLOPES);
 	}
 
 	/* Move head and tail of empty queue to initial position. The
-	   queue is empty - the initialization of fields done above is not
-	   considered as real enqueueing of valid tones. */
+	   queue is empty because the initialization of fields done
+	   above is not considered as real enqueueing of valid
+	   tones. */
 	tq->tail = head_shift;
 	tq->head = tq->tail;
 	tq->len = 0;
 
 	/* TODO: why do this here? */
-	tq->state = CW_TQ_BUSY;
+	//tq->state = CW_TQ_BUSY;
 
 	return tq;
 }
-#endif
 
 
 
@@ -985,12 +995,14 @@ cw_tone_queue_t *test_cw_tq_capacity_test_init(size_t capacity, size_t high_wate
    \brief Test the limits of the parameters to the tone queue routine
 
    tests::cw_tq_enqueue_internal()
+
+   @reviewed on 2019-10-04
 */
 int test_cw_tq_enqueue_internal_B(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
-	cw_tone_queue_t *tq = cw_tq_new_internal();
+	cw_tone_queue_t * tq = cw_tq_new_internal();
 	cte->assert2(cte, tq, "failed to create a tone queue\n");
 	cw_tone_t tone;
 	int cwret = CW_FAILURE;
@@ -1034,7 +1046,6 @@ int test_cw_tq_enqueue_internal_B(cw_test_executor_t * cte)
 
 	return 0;
 }
-
 
 
 
