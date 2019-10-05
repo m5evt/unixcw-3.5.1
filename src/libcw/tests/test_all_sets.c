@@ -95,7 +95,9 @@ cw_test_set_t cw_test_sets[] = {
 			test_cw_tq_next_index_internal,
 #if 0
 			test_cw_tq_callback,
-			test_cw_tq_operations_1,
+#endif
+			test_cw_tq_gen_operations_A,
+#if 0
 			test_cw_tq_operations_2,
 #endif
 			test_cw_tq_operations_3,

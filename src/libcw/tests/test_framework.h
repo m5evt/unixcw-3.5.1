@@ -121,6 +121,28 @@ typedef struct cw_test_executor_t {
 	bool (* expect_eq_int_errors_only)(struct cw_test_executor_t * self, int expected_value, int received_value, const char * fmt, ...) __attribute__ ((format (printf, 4, 5)));
 
 	/**
+	   Verify that @param received_value is between @param
+	   expected_lower and @param expect_higher (inclusive)
+
+	   Use the function to verify that a successful behaviour has
+	   occurred and some result of calculation (@param
+	   received_value) is larger than or equal to @param
+	   expected_lower, and at the same time is smaller than or
+	   equal to @param expected_higher
+
+	   Print log specified by @param fmt and following args
+	   regardless of results of the verification or (in case of
+	   _errors_only() variant) only if the comparison has shown
+	   that the tested value is NOT within specified range, which
+	   is regarded as failure of expectation, i.e. an error.
+
+	   @return true if this comparison shows that the given value is within specified range
+	   @return false otherwise
+	*/
+	bool (* expect_between_int)(struct cw_test_executor_t * self, int expected_lower, int received_value, int expected_higher, const char * fmt, ...) __attribute__ ((format (printf, 5, 6)));
+	bool (* expect_between_int_errors_only)(struct cw_test_executor_t * self, int expected_lower, int received_value, int expected_higher, const char * fmt, ...) __attribute__ ((format (printf, 5, 6)));
+
+	/**
 	   Verify that @param pointer is NULL pointer
 
 	   Print log specified by @param fmt and following args

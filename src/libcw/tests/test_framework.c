@@ -69,6 +69,9 @@
 static bool cw_test_expect_eq_int(struct cw_test_executor_t * self, int expected_value, int received_value, const char * fmt, ...) __attribute__ ((format (printf, 4, 5)));
 static bool cw_test_expect_eq_int_errors_only(struct cw_test_executor_t * self, int expected_value, int received_value, const char * fmt, ...) __attribute__ ((format (printf, 4, 5)));
 
+static bool cw_test_expect_between_int(struct cw_test_executor_t * self, int expected_lower, int received_value, int expected_higher, const char * fmt, ...) __attribute__ ((format (printf, 5, 6)));
+static bool cw_test_expect_between_int_errors_only(struct cw_test_executor_t * self, int expected_lower, int received_value, int expected_higher, const char * fmt, ...) __attribute__ ((format (printf, 5, 6)));
+
 static bool cw_test_expect_null_pointer(struct cw_test_executor_t * self, const void * pointer, const char * fmt, ...) __attribute__ ((format (printf, 3, 4)));
 static bool cw_test_expect_null_pointer_errors_only(struct cw_test_executor_t * self, const void * pointer, const char * fmt, ...) __attribute__ ((format (printf, 3, 4)));
 
@@ -434,6 +437,78 @@ void cw_test_append_status_string(cw_test_executor_t * self, char * msg_buf, int
 bool cw_test_expect_eq_int_errors_only(struct cw_test_executor_t * self, int expected_value, int received_value, const char * fmt, ...)
 {
 	bool as_expected = true;
+	char va_buf[128] = { 0 };
+
+	va_list ap;
+	va_start(ap, fmt);
+	vsnprintf(va_buf, sizeof (va_buf), fmt, ap);
+	va_end(ap);
+
+	char msg_buf[1024] = { 0 };
+	int n = snprintf(msg_buf, sizeof (msg_buf), "%s", self->msg_prefix);
+	const int message_len = n + snprintf(msg_buf + n, sizeof (msg_buf) - n, "%s", va_buf);
+	n += snprintf(msg_buf + n, sizeof (msg_buf) - n, "%-*s", (int) (self->console_n_cols - n), va_buf);
+
+	if (expected_value == received_value) {
+		as_expected = true;
+	} else {
+		self->stats->failures++;
+
+		cw_test_append_status_string(self, msg_buf, message_len, "[FAIL]");
+		self->log_error(self, "%s\n", msg_buf);
+		self->log_error(self, "   ***   expected %d, got %d   ***\n", expected_value, received_value);
+
+		as_expected = false;
+	}
+
+	return as_expected;
+}
+
+
+
+
+bool cw_test_expect_between_int(struct cw_test_executor_t * self, int expected_lower, int received_value, int expected_higher, const char * fmt, ...)
+{
+	bool as_expected = true;
+	char va_buf[128] = { 0 };
+
+	va_list ap;
+	va_start(ap, fmt);
+	vsnprintf(va_buf, sizeof (va_buf), fmt, ap);
+	va_end(ap);
+
+	char msg_buf[1024] = { 0 };
+	int n = snprintf(msg_buf, sizeof (msg_buf), "%s", self->msg_prefix);
+	const int message_len = n + snprintf(msg_buf + n, sizeof (msg_buf) - n, "%s", va_buf);
+	n += snprintf(msg_buf + n, sizeof (msg_buf) - n, "%-*s", (int) (self->console_n_cols - n), va_buf);
+
+	if (expected_lower <= received_value && received_value <= expected_higher) {
+		self->stats->successes++;
+
+		cw_test_append_status_string(self, msg_buf, message_len, "[ OK ]");
+		//self->log_info(self, "%s\n", msg_buf);
+		self->log_info(self, "%s %d %d %d\n", msg_buf, expected_lower, received_value, expected_higher);
+
+		as_expected = true;
+	} else {
+		self->stats->failures++;
+
+		cw_test_append_status_string(self, msg_buf, message_len, "[FAIL]");
+		self->log_error(self, "%s\n", msg_buf);
+		self->log_error(self, "   ***   expected within %d-%d, got %d   ***\n", expected_lower, expected_higher, received_value);
+
+		as_expected = false;
+	}
+
+	return as_expected;
+}
+
+
+
+
+bool cw_test_expect_between_int_errors_only(struct cw_test_executor_t * self, int expected_lower, int received_value, int expected_higher, const char * fmt, ...)
+{
+	bool as_expected = true;
 	char buf[128] = { 0 };
 
 	va_list ap;
@@ -441,13 +516,13 @@ bool cw_test_expect_eq_int_errors_only(struct cw_test_executor_t * self, int exp
 	vsnprintf(buf, sizeof (buf), fmt, ap);
 	va_end(ap);
 
-	if (expected_value == received_value) {
+	if (expected_lower <= received_value && received_value <= expected_higher) {
 		as_expected = true;
 	} else {
 		const int n = fprintf(self->stderr, "%s%s", self->msg_prefix, buf);
 		self->stats->failures++;
 		self->log_error(self, "%*s", self->console_n_cols - n, "failure: ");
-		self->log_error(self, "expected %d, got %d\n", expected_value, received_value);
+		self->log_error(self, "expected value within %d-%d, got %d\n", expected_lower, expected_higher, received_value);
 		as_expected = false;
 	}
 
@@ -826,6 +901,9 @@ void cw_test_init(cw_test_executor_t * self, FILE * stdout, FILE * stderr, const
 
 	self->expect_eq_int = cw_test_expect_eq_int;
 	self->expect_eq_int_errors_only = cw_test_expect_eq_int_errors_only;
+
+	self->expect_between_int = cw_test_expect_between_int;
+	self->expect_between_int_errors_only = cw_test_expect_between_int_errors_only;
 
 	self->expect_null_pointer = cw_test_expect_null_pointer;
 	self->expect_null_pointer_errors_only = cw_test_expect_null_pointer_errors_only;
