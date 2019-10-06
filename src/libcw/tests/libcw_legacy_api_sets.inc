@@ -26,18 +26,18 @@
 		{ CW_AUDIO_NULL, CW_AUDIO_CONSOLE, CW_AUDIO_OSS, CW_AUDIO_ALSA, CW_AUDIO_PA, LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. */
 
 		{
-			legacy_api_test_setup,
+			CW_TEST_FUNCTION_INSERT(legacy_api_test_setup),
 
-			legacy_api_test_cw_wait_for_tone,
-			legacy_api_test_cw_wait_for_tone_queue,
-			legacy_api_test_cw_queue_tone,
-			legacy_api_test_empty_tone_queue,
-			legacy_api_test_full_tone_queue,
-			legacy_api_test_tone_queue_callback,
+			CW_TEST_FUNCTION_INSERT(legacy_api_test_cw_wait_for_tone),
+			CW_TEST_FUNCTION_INSERT(legacy_api_test_cw_wait_for_tone_queue),
+			CW_TEST_FUNCTION_INSERT(legacy_api_test_cw_queue_tone),
+			CW_TEST_FUNCTION_INSERT(legacy_api_test_empty_tone_queue),
+			CW_TEST_FUNCTION_INSERT(legacy_api_test_full_tone_queue),
+			CW_TEST_FUNCTION_INSERT(legacy_api_test_tone_queue_callback),
 
-			legacy_api_test_teardown,
+			CW_TEST_FUNCTION_INSERT(legacy_api_test_teardown),
 
-			NULL,
+			CW_TEST_FUNCTION_INSERT(NULL),
 		}
 	},
 	{
@@ -48,21 +48,21 @@
 		{ CW_AUDIO_NULL, CW_AUDIO_CONSOLE, CW_AUDIO_OSS, CW_AUDIO_ALSA, CW_AUDIO_PA, LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. */
 
 		{
-			legacy_api_test_setup,
+			CW_TEST_FUNCTION_INSERT(legacy_api_test_setup),
 
-			legacy_api_test_volume_functions,
-			legacy_api_test_send_primitives,
-			legacy_api_test_send_character_and_string,
-			legacy_api_test_representations,
-			legacy_api_test_teardown,
+			CW_TEST_FUNCTION_INSERT(legacy_api_test_volume_functions),
+			CW_TEST_FUNCTION_INSERT(legacy_api_test_send_primitives),
+			CW_TEST_FUNCTION_INSERT(legacy_api_test_send_character_and_string),
+			CW_TEST_FUNCTION_INSERT(legacy_api_test_representations),
+			CW_TEST_FUNCTION_INSERT(legacy_api_test_teardown),
 
 			/* This function creates and deletes a
 			   generator on its own, so it has to be put
 			   after legacy_api_test_teardown() that
 			   deletes a generator. */
-			legacy_api_test_basic_gen_operations,
+			CW_TEST_FUNCTION_INSERT(legacy_api_test_basic_gen_operations),
 
-			NULL,
+			CW_TEST_FUNCTION_INSERT(NULL),
 		}
 	},
 	{
@@ -73,17 +73,17 @@
 		{ CW_AUDIO_NULL, CW_AUDIO_CONSOLE, CW_AUDIO_OSS, CW_AUDIO_ALSA, CW_AUDIO_PA, LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. */
 
 		{
-			legacy_api_test_setup,
+			CW_TEST_FUNCTION_INSERT(legacy_api_test_setup),
 
-			legacy_api_test_iambic_key_dot,
-			legacy_api_test_iambic_key_dash,
-			legacy_api_test_iambic_key_alternating,
-			legacy_api_test_iambic_key_none,
-			legacy_api_test_straight_key,
+			CW_TEST_FUNCTION_INSERT(legacy_api_test_iambic_key_dot),
+			CW_TEST_FUNCTION_INSERT(legacy_api_test_iambic_key_dash),
+			CW_TEST_FUNCTION_INSERT(legacy_api_test_iambic_key_alternating),
+			CW_TEST_FUNCTION_INSERT(legacy_api_test_iambic_key_none),
+			CW_TEST_FUNCTION_INSERT(legacy_api_test_straight_key),
 
-			legacy_api_test_teardown,
+			CW_TEST_FUNCTION_INSERT(legacy_api_test_teardown),
 
-			NULL,
+			CW_TEST_FUNCTION_INSERT(NULL),
 		}
 	},
 	{
@@ -94,16 +94,16 @@
 		{ CW_AUDIO_NULL, CW_AUDIO_CONSOLE, CW_AUDIO_OSS, CW_AUDIO_ALSA, CW_AUDIO_PA, LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. */
 
 		{
-			legacy_api_test_setup,
+			CW_TEST_FUNCTION_INSERT(legacy_api_test_setup),
 
-			legacy_api_test_parameter_ranges,
-			legacy_api_test_cw_gen_forever_public,
-			//legacy_api_cw_test_delayed_release,
-			//legacy_api_cw_test_signal_handling, /* FIXME - not sure why this test fails :( */
+			CW_TEST_FUNCTION_INSERT(legacy_api_test_parameter_ranges),
+			CW_TEST_FUNCTION_INSERT(legacy_api_test_cw_gen_forever_public),
+			//CW_TEST_FUNCTION_INSERT(legacy_api_cw_test_delayed_release),
+			//CW_TEST_FUNCTION_INSERT(legacy_api_cw_test_signal_handling), /* FIXME - not sure why this test fails :( */
 
-			legacy_api_test_teardown,
+			CW_TEST_FUNCTION_INSERT(legacy_api_test_teardown),
 
-			NULL,
+			CW_TEST_FUNCTION_INSERT(NULL),
 		}
 	},
 	{
@@ -115,8 +115,8 @@
 
 		{
 			/* This test does its own generator setup and deconfig. */
-			legacy_api_test_tq_short_space,
+			CW_TEST_FUNCTION_INSERT(legacy_api_test_tq_short_space),
 
-			NULL,
+			CW_TEST_FUNCTION_INSERT(NULL),
 		}
 	},

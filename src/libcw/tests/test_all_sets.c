@@ -47,27 +47,27 @@ cw_test_set_t cw_test_sets[] = {
 
 		{
 			/* cw_utils topic */
-			test_cw_timestamp_compare_internal,
-			test_cw_timestamp_validate_internal,
-			test_cw_usecs_to_timespec_internal,
-			test_cw_version_internal,
-			test_cw_license_internal,
-			test_cw_get_x_limits_internal,
+			CW_TEST_FUNCTION_INSERT(test_cw_timestamp_compare_internal),
+			CW_TEST_FUNCTION_INSERT(test_cw_timestamp_validate_internal),
+			CW_TEST_FUNCTION_INSERT(test_cw_usecs_to_timespec_internal),
+			CW_TEST_FUNCTION_INSERT(test_cw_version_internal),
+			CW_TEST_FUNCTION_INSERT(test_cw_license_internal),
+			CW_TEST_FUNCTION_INSERT(test_cw_get_x_limits_internal),
 
 			/* cw_data topic */
-			test_cw_representation_to_hash_internal,
-			test_cw_representation_to_character_internal,
-			test_cw_representation_to_character_internal_speed,
-			test_character_lookups_internal,
-			test_prosign_lookups_internal,
-			test_phonetic_lookups_internal,
-			test_validate_character_and_string_internal,
-			test_validate_representation_internal,
+			CW_TEST_FUNCTION_INSERT(test_cw_representation_to_hash_internal),
+			CW_TEST_FUNCTION_INSERT(test_cw_representation_to_character_internal),
+			CW_TEST_FUNCTION_INSERT(test_cw_representation_to_character_internal_speed),
+			CW_TEST_FUNCTION_INSERT(test_character_lookups_internal),
+			CW_TEST_FUNCTION_INSERT(test_prosign_lookups_internal),
+			CW_TEST_FUNCTION_INSERT(test_phonetic_lookups_internal),
+			CW_TEST_FUNCTION_INSERT(test_validate_character_and_string_internal),
+			CW_TEST_FUNCTION_INSERT(test_validate_representation_internal),
 
 			/* cw_debug topic */
-			test_cw_debug_flags_internal,
+			CW_TEST_FUNCTION_INSERT(test_cw_debug_flags_internal),
 
-			NULL,
+			CW_TEST_FUNCTION_INSERT(NULL),
 		}
 	},
 	{
@@ -78,29 +78,29 @@ cw_test_set_t cw_test_sets[] = {
 		{ CW_AUDIO_NULL, CW_AUDIO_CONSOLE, CW_AUDIO_OSS, CW_AUDIO_ALSA, CW_AUDIO_PA, LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. All sound systems are included in tests of tq, because sometimes a running gen is necessary. */
 
 		{
-			test_cw_tq_test_capacity_A,
-			test_cw_tq_test_capacity_B,
-			test_cw_tq_wait_for_level_internal,
-			test_cw_tq_is_full_internal,
-			test_cw_tq_enqueue_dequeue_internal,
+			CW_TEST_FUNCTION_INSERT(test_cw_tq_test_capacity_A),
+			CW_TEST_FUNCTION_INSERT(test_cw_tq_test_capacity_B),
+			CW_TEST_FUNCTION_INSERT(test_cw_tq_wait_for_level_internal),
+			CW_TEST_FUNCTION_INSERT(test_cw_tq_is_full_internal),
+			CW_TEST_FUNCTION_INSERT(test_cw_tq_enqueue_dequeue_internal),
 #if 0
-			test_cw_tq_enqueue_args_internal,
+			CW_TEST_FUNCTION_INSERT(test_cw_tq_enqueue_args_internal),
 #endif
-			test_cw_tq_enqueue_internal_B,
+			CW_TEST_FUNCTION_INSERT(test_cw_tq_enqueue_internal_B),
 
-			test_cw_tq_new_delete_internal,
-			test_cw_tq_get_capacity_internal,
-			test_cw_tq_length_internal_1,
-			test_cw_tq_prev_index_internal,
-			test_cw_tq_next_index_internal,
+			CW_TEST_FUNCTION_INSERT(test_cw_tq_new_delete_internal),
+			CW_TEST_FUNCTION_INSERT(test_cw_tq_get_capacity_internal),
+			CW_TEST_FUNCTION_INSERT(test_cw_tq_length_internal_1),
+			CW_TEST_FUNCTION_INSERT(test_cw_tq_prev_index_internal),
+			CW_TEST_FUNCTION_INSERT(test_cw_tq_next_index_internal),
 #if 0
-			test_cw_tq_callback,
+			CW_TEST_FUNCTION_INSERT(test_cw_tq_callback),
 #endif
-			test_cw_tq_gen_operations_A,
-			test_cw_tq_gen_operations_B,
-			test_cw_tq_operations_3,
+			CW_TEST_FUNCTION_INSERT(test_cw_tq_gen_operations_A),
+			CW_TEST_FUNCTION_INSERT(test_cw_tq_gen_operations_B),
+			CW_TEST_FUNCTION_INSERT(test_cw_tq_operations_3),
 
-			NULL,
+			CW_TEST_FUNCTION_INSERT(NULL),
 		}
 	},
 	{
@@ -111,18 +111,18 @@ cw_test_set_t cw_test_sets[] = {
 		{ CW_AUDIO_NULL, LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. */
 
 		{
-			test_cw_gen_set_tone_slope,
-			test_cw_gen_tone_slope_shape_enums,
-			test_cw_gen_new_delete,
-			test_cw_gen_get_timing_parameters_internal,
-			test_cw_gen_parameter_getters_setters,
-			test_cw_gen_volume_functions,
-			test_cw_gen_enqueue_primitives,
-			test_cw_gen_enqueue_representations,
-			test_cw_gen_enqueue_character_and_string,
-			test_cw_gen_forever_internal,
+			CW_TEST_FUNCTION_INSERT(test_cw_gen_set_tone_slope),
+			CW_TEST_FUNCTION_INSERT(test_cw_gen_tone_slope_shape_enums),
+			CW_TEST_FUNCTION_INSERT(test_cw_gen_new_delete),
+			CW_TEST_FUNCTION_INSERT(test_cw_gen_get_timing_parameters_internal),
+			CW_TEST_FUNCTION_INSERT(test_cw_gen_parameter_getters_setters),
+			CW_TEST_FUNCTION_INSERT(test_cw_gen_volume_functions),
+			CW_TEST_FUNCTION_INSERT(test_cw_gen_enqueue_primitives),
+			CW_TEST_FUNCTION_INSERT(test_cw_gen_enqueue_representations),
+			CW_TEST_FUNCTION_INSERT(test_cw_gen_enqueue_character_and_string),
+			CW_TEST_FUNCTION_INSERT(test_cw_gen_forever_internal),
 
-			NULL,
+			CW_TEST_FUNCTION_INSERT(NULL),
 		}
 	},
 	{
@@ -133,10 +133,10 @@ cw_test_set_t cw_test_sets[] = {
 		{ CW_AUDIO_NULL, LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. */
 
 		{
-			test_keyer,
-			test_straight_key,
+			CW_TEST_FUNCTION_INSERT(test_keyer),
+			CW_TEST_FUNCTION_INSERT(test_straight_key),
 
-			NULL,
+			CW_TEST_FUNCTION_INSERT(NULL),
 		}
 	},
 	{
@@ -147,18 +147,18 @@ cw_test_set_t cw_test_sets[] = {
 		{ CW_AUDIO_NULL, LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. */
 
 		{
-			test_cw_rec_get_parameters,
-			test_cw_rec_parameter_getters_setters_1,
-			test_cw_rec_parameter_getters_setters_2,
-			test_cw_rec_identify_mark_internal,
-			test_cw_rec_test_with_base_constant,
-			test_cw_rec_test_with_random_constant,
-			test_cw_rec_test_with_random_varying,
+			CW_TEST_FUNCTION_INSERT(test_cw_rec_get_parameters),
+			CW_TEST_FUNCTION_INSERT(test_cw_rec_parameter_getters_setters_1),
+			CW_TEST_FUNCTION_INSERT(test_cw_rec_parameter_getters_setters_2),
+			CW_TEST_FUNCTION_INSERT(test_cw_rec_identify_mark_internal),
+			CW_TEST_FUNCTION_INSERT(test_cw_rec_test_with_base_constant),
+			CW_TEST_FUNCTION_INSERT(test_cw_rec_test_with_random_constant),
+			CW_TEST_FUNCTION_INSERT(test_cw_rec_test_with_random_varying),
 
 #if 0
-			test_cw_get_receive_parameters,
+			CW_TEST_FUNCTION_INSERT(test_cw_get_receive_parameters),
 #endif
-			NULL,
+			CW_TEST_FUNCTION_INSERT(NULL)
 		}
 	},
 
@@ -176,7 +176,7 @@ cw_test_set_t cw_test_sets[] = {
 		{ LIBCW_TEST_TOPIC_MAX },
 		{ LIBCW_TEST_SOUND_SYSTEM_MAX },
 		{
-			NULL
+			CW_TEST_FUNCTION_INSERT(NULL)
 		}
 	}
 };

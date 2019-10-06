@@ -203,7 +203,7 @@ int cw_test_process_args(cw_test_executor_t * self, int argc, char * const argv[
 	int dest_idx = 0;
 
 	int opt;
-	while ((opt = getopt(argc, argv, "t:s:h")) != -1) {
+	while ((opt = getopt(argc, argv, "t:s:n:h")) != -1) {
 		switch (opt) {
 		case 's':
 			optarg_len = strlen(optarg);
@@ -323,6 +323,11 @@ int cw_test_process_args(cw_test_executor_t * self, int argc, char * const argv[
 			self->tested_topics[dest_idx] = LIBCW_TEST_TOPIC_MAX; /* Guard element. */
 			break;
 
+		case 'n':
+			strncpy(self->single_test_function_name, optarg, sizeof (self->single_test_function_name));
+			self->single_test_function_name[sizeof (self->single_test_function_name) - 1] = '\0';
+			break;
+
 		case 'h':
 			cw_test_print_help(self, argv[0]);
 			exit(EXIT_SUCCESS);
@@ -350,22 +355,24 @@ int cw_test_process_args(cw_test_executor_t * self, int argc, char * const argv[
 void cw_test_print_help(__attribute__((unused)) cw_test_executor_t * self, const char * program_name)
 {
 	fprintf(stderr, "\n");
-	fprintf(stderr, "Usage: %s [-s <sound systems>] [-t <topics>]\n\n", program_name);
-	fprintf(stderr, "       <sound system> is one or more of those:\n");
-	fprintf(stderr, "       n - Null\n");
-	fprintf(stderr, "       c - console\n");
-	fprintf(stderr, "       o - OSS\n");
-	fprintf(stderr, "       a - ALSA\n");
-	fprintf(stderr, "       p - PulseAudio\n");
+	fprintf(stderr, "Usage: %s [-s <sound systems>] [-t <topics>] [-n <test function name>]\n\n", program_name);
+	fprintf(stderr, "    <sound system> is one or more of those:\n");
+	fprintf(stderr, "    n - Null\n");
+	fprintf(stderr, "    c - console\n");
+	fprintf(stderr, "    o - OSS\n");
+	fprintf(stderr, "    a - ALSA\n");
+	fprintf(stderr, "    p - PulseAudio\n");
 	fprintf(stderr, "\n");
-	fprintf(stderr, "       <topics> is one or more of those:\n"); /* TODO: add missing test topics. */
-	fprintf(stderr, "       g - generator\n");
-	fprintf(stderr, "       t - tone queue\n");
-	fprintf(stderr, "       k - Morse key\n");
-	fprintf(stderr, "       r - receiver\n");
-	fprintf(stderr, "       o - other\n");
+	fprintf(stderr, "    <topics> is one or more of those:\n"); /* TODO: add missing test topics. */
+	fprintf(stderr, "    g - generator\n");
+	fprintf(stderr, "    t - tone queue\n");
+	fprintf(stderr, "    k - Morse key\n");
+	fprintf(stderr, "    r - receiver\n");
+	fprintf(stderr, "    o - other\n");
 	fprintf(stderr, "\n");
-	fprintf(stderr, "       If no argument is provided, the program will attempt to test all sound systems available on the machine and all topics\n");
+	fprintf(stderr, "    -n argument is used to specify one (and only one) test function to be executed.\n");
+	fprintf(stderr, "\n");
+	fprintf(stderr, "    If no argument is provided, the program will attempt to test all sound systems available on the machine and all topics\n");
 
 	return;
 }
@@ -1124,6 +1131,10 @@ void cw_test_print_test_options(cw_test_executor_t * self)
 
 	self->log_info(self, "Random seed = %lu\n", self->random_seed);
 
+	if (strlen(self->single_test_function_name)) {
+		self->log_info(self, "Single function to be tested: '%s'\n", self->single_test_function_name);
+	}
+
 	fflush(self->stdout);
 }
 
@@ -1202,9 +1213,20 @@ int cw_test_main_test_loop(cw_test_executor_t * cte, cw_test_set_t * test_sets)
 
 
 				int f = 0;
-				while (test_set->test_functions[f]) {
-					cw_test_set_current_topic_and_sound_system(cte, topic, sound_system);
-					(*test_set->test_functions[f])(cte);
+				while (test_set->test_functions[f].fn) {
+					bool execute = true;
+					if (0 != strlen(cte->single_test_function_name)) {
+						if (0 != strcmp(cte->single_test_function_name, test_set->test_functions[f].name)) {
+							execute = false;
+						}
+					}
+
+					if (execute) {
+						cw_test_set_current_topic_and_sound_system(cte, topic, sound_system);
+						fprintf(stderr, "+++ %s +++\n", test_set->test_functions[f].name);
+						(*test_set->test_functions[f].fn)(cte);
+					}
+
 					f++;
 				}
 			}

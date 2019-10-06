@@ -88,6 +88,10 @@ typedef struct cw_test_executor_t {
 	int current_sound_system;
 	int current_topic;
 
+	/* We can ask to execute one specific function by function's
+	   name (command line argument "-n"). */
+	char single_test_function_name[128];
+
 	/* Limit of characters that can be printed to console in one row. */
 	int console_n_cols;
 
@@ -362,14 +366,32 @@ typedef enum cw_test_api_tested {
 	CW_TEST_API_MODERN, /* Tests of internal functions that operate on explicit gen/key/rec objects (functions that accept such objects as arguments). */
 } cw_test_api_tested;
 
+
+
+
+typedef	struct cw_test_function_wrapper_t {
+	cw_test_function_t fn;
+	const char * name; /* Unique label/name of test function, used to execute only one test function from whole set. Can be empty/NULL. */
+} cw_test_function_wrapper_t;
+
+
+
+
 typedef struct cw_test_set_t {
 	cw_test_set_valid set_valid; /* Invalid test set is a guard element in array of test sets. */
 	cw_test_api_tested api_tested;
 
 	int topics[LIBCW_TEST_TOPIC_MAX]; /* Test topics tested by given test set. */
 	int sound_systems[LIBCW_TEST_SOUND_SYSTEM_MAX]; /* Sound systems that need to be configured to test given test set. */
-	cw_test_function_t test_functions[100]; /* Right now my test sets have only a few test functions. For now 100 is a safe limit. */
+	cw_test_function_wrapper_t test_functions[100]; /* Right now my test sets have only a few test functions. For now 100 is a safe limit. */
 } cw_test_set_t;
+
+
+
+
+#define STRINGIFY(x) #x
+#define TOSTRING(x) STRINGIFY(x)
+#define CW_TEST_FUNCTION_INSERT(function_pointer) { .fn = function_pointer, .name = TOSTRING(function_pointer) }
 
 
 

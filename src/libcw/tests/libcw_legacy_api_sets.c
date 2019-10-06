@@ -41,7 +41,7 @@ cw_test_set_t cw_test_sets[] = {
 		{ LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. */
 
 		{
-			NULL,
+			CW_TEST_FUNCTION_INSERT(NULL),
 		}
 	}
 };
