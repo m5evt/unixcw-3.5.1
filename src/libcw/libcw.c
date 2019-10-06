@@ -974,6 +974,11 @@ int cw_wait_for_tone(void)
    blocked, the routine returns false, with errno set to EDEADLK,
    to avoid indefinite waits.
 
+   Notice that generator must be running (started with
+   cw_generator_start()) when this function is called, otherwise it
+   will be waiting forever for a change of tone queue's level that
+   will never happen.
+
    testedin::test_cw_wait_for_tone_queue()
    testedin::test_full_tone_queue()
 
@@ -1000,6 +1005,11 @@ int cw_wait_for_tone_queue(void)
    The routine returns CW_SUCCESS on success.  If called with SIGALRM
    blocked, the routine returns false, with errno set to EDEADLK, to
    avoid indefinite waits.
+
+   Notice that generator must be running (started with
+   cw_generator_start()) when this function is called, otherwise it
+   will be waiting forever for a change of tone queue's level that
+   will never happen.
 
    \param level - low level in queue, at which to return
 

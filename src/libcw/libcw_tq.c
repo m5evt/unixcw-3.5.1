@@ -822,6 +822,10 @@ int cw_tq_wait_for_tone_internal(cw_tone_queue_t *tq)
    level.  If at the time of function call the level of queue is
    already equal or lower than \p level, function returns immediately.
 
+   Notice that generator must be running (started with cw_gen_start())
+   when this function is called, otherwise it will be waiting forever
+   for a change of tone queue's level that will never happen.
+
    \reviewed on 2017-01-30
 
    \param tq - tone queue
@@ -877,6 +881,12 @@ bool cw_tq_is_full_internal(const cw_tone_queue_t *tq)
 
 /**
    \brief Force emptying tone queue. Wait until it's really empty.
+
+   Notice that because this function uses
+   cw_tq_wait_for_level_internal(), generator must be running (started
+   with cw_gen_start()) when this function is called, otherwise it
+   will be waiting forever for a change of tone queue's level that
+   will never happen.
 
    \reviewed on 2017-01-30
 

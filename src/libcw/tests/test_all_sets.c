@@ -75,7 +75,7 @@ cw_test_set_t cw_test_sets[] = {
 		CW_TEST_API_MODERN,
 
 		{ LIBCW_TEST_TOPIC_TQ, LIBCW_TEST_TOPIC_MAX }, /* Topics. */
-		{ CW_AUDIO_NULL, LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. */
+		{ CW_AUDIO_NULL, CW_AUDIO_CONSOLE, CW_AUDIO_OSS, CW_AUDIO_ALSA, CW_AUDIO_PA, LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. All sound systems are included in tests of tq, because sometimes a running gen is necessary. */
 
 		{
 			test_cw_tq_test_capacity_A,
@@ -97,9 +97,7 @@ cw_test_set_t cw_test_sets[] = {
 			test_cw_tq_callback,
 #endif
 			test_cw_tq_gen_operations_A,
-#if 0
-			test_cw_tq_operations_2,
-#endif
+			test_cw_tq_gen_operations_B,
 			test_cw_tq_operations_3,
 
 			NULL,

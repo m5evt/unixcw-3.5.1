@@ -1310,32 +1310,54 @@ int test_cw_tq_gen_operations_A(cw_test_executor_t * cte)
 
 
 /**
-   Run the complete range of tone generation, at 100Hz intervals,
-   first up the octaves, and then down.  If the queue fills, though it
-   shouldn't with this amount of data, then pause until it isn't so
+   Run the complete range of tone generation, at 1Hz intervals, first
+   up the octaves, and then down.  If the queue fills (which is
+   expected with frequency step so small) then pause until it isn't so
    full.
 
    tests::cw_tq_enqueue_internal()
    tests::cw_tq_wait_for_level_internal()
-*/
-int test_cw_tq_operations_2(cw_test_executor_t * cte)
-{
-	cte->print_test_header(cte, __func__);
 
+   @reviewed on 2019-10-06
+*/
+int test_cw_tq_gen_operations_B(cw_test_executor_t * cte)
+{
 	cw_gen_t * gen = NULL;
 	gen_setup(cte, &gen);
+	const size_t capacity =  cw_tq_get_capacity_internal(gen->tq);
+	const int level = rand() % (capacity / 2);
 
-	int duration = 40000;
+
+	cte->print_test_header(cte, "%s (%d)", __func__, level);
+
+
+	const int duration = 4000;
+
 	int freq_min, freq_max;
 	cw_get_frequency_limits(&freq_min, &freq_max);
+	const int freq_delta = 1;
+
+	/* Because in the loops below we want to saturate (completely
+	   fill) tone queue with tones and then wait (with
+	   cw_tq_is_full_internal() + cw_tq_wait_for_level_internal())
+	   for some free space in the queue, we have to be able to
+	   enqueue more tones than the capacity of tq. Because we want
+	   to enqueue (freq_max - freq_min) tones, we better check
+	   that capacity is smaller than that. */
+	cte->assert2(cte, capacity < (size_t) (freq_max - freq_min), "range of frequencies is too small");
+
 
 	bool wait_failure = false;
 	bool queue_failure = false;
 
-	for (int freq = freq_min; freq < freq_max; freq += 100) {
+	/* The test loops below use cw_tq_wait_for_level_internal(),
+	   so generator must be running. */
+	cw_gen_start(gen);
+
+	for (int freq = freq_min; freq < freq_max; freq += freq_delta) {
 		while (cw_tq_is_full_internal(gen->tq)) {
-			const int cwret = cw_tq_wait_for_level_internal(gen->tq, 0);
-			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "wait for level 0 (up)")) {
+			const int cwret = cw_tq_wait_for_level_internal(gen->tq, level);
+			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "wait for level %d (up)", level)) {
 				wait_failure = true;
 				break;
 			}
@@ -1344,16 +1366,21 @@ int test_cw_tq_operations_2(cw_test_executor_t * cte)
 		cw_tone_t tone;
 		CW_TONE_INIT(&tone, freq, duration, CW_SLOPE_MODE_NO_SLOPES);
 		const int cwret = cw_tq_enqueue_internal(gen->tq, &tone);
-		if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "enqueue tone (up)")) {
+		if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "enqueue tone %d (up)", freq)) {
 			queue_failure = true;
 			break;
 		}
 	}
+	cte->expect_eq_int(cte, false, queue_failure, "enqueueing tone (up)");
+	cte->expect_eq_int(cte, false, wait_failure, "waiting for level %d (up)", level);
 
-	for (int freq = freq_max; freq > freq_min; freq -= 100) {
+
+	wait_failure = false;
+	queue_failure = false;
+	for (int freq = freq_max; freq > freq_min; freq -= 1) {
 		while (cw_tq_is_full_internal(gen->tq)) {
-			const int cwret = cw_tq_wait_for_level_internal(gen->tq, 0);
-			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "wait for level 0 (down)")) {
+			const int cwret = cw_tq_wait_for_level_internal(gen->tq, level);
+			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "wait for level %d (down)", level)) {
 				wait_failure = true;
 				break;
 			}
@@ -1362,21 +1389,20 @@ int test_cw_tq_operations_2(cw_test_executor_t * cte)
 		cw_tone_t tone;
 		CW_TONE_INIT(&tone, freq, duration, CW_SLOPE_MODE_NO_SLOPES);
 		const int cwret = cw_tq_enqueue_internal(gen->tq, &tone);
-		if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "enqueue tone (down)")) {
+		if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "enqueue tone %d (down)", freq)) {
 			queue_failure = true;
 			break;
 		}
 	}
+	cte->expect_eq_int(cte, false, queue_failure, "enqueueing tone (down)");
+	cte->expect_eq_int(cte, false, wait_failure, "waiting for level %d (down)", level);
 
-	cte->expect_eq_int(cte, false, queue_failure, "cw_tq_enqueue_internal():");
-	cte->expect_eq_int(cte, false, wait_failure, "cw_tq_wait_for_level_internal(A):");
 
 
 	const int cwret = cw_tq_wait_for_level_internal(gen->tq, 0);
-	cte->expect_eq_int(cte, CW_SUCCESS, cwret, "cw_tq_wait_for_level_internal(B):");
+	cte->expect_eq_int(cte, CW_SUCCESS, cwret, "waiting for level 0 (final)");
 
 
-	/* Silence the generator before next test. */
 	cw_tone_t tone;
 	CW_TONE_INIT(&tone, 0, 100, CW_SLOPE_MODE_NO_SLOPES);
 	cw_tq_enqueue_internal(gen->tq, &tone);
@@ -1388,7 +1414,6 @@ int test_cw_tq_operations_2(cw_test_executor_t * cte)
 
 	return 0;
 }
-
 
 
 

@@ -31,7 +31,7 @@ int test_cw_tq_callback(cw_test_executor_t * cte);
 int test_cw_tq_prev_index_internal(cw_test_executor_t * cte);
 int test_cw_tq_next_index_internal(cw_test_executor_t * cte);
 int test_cw_tq_gen_operations_A(cw_test_executor_t * cte);
-int test_cw_tq_operations_2(cw_test_executor_t * cte);
+int test_cw_tq_gen_operations_B(cw_test_executor_t * cte);
 int test_cw_tq_operations_3(cw_test_executor_t * cte);
 
 

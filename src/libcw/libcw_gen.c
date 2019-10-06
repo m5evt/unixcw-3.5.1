@@ -2823,6 +2823,10 @@ int cw_gen_enqueue_partial_symbol_internal(cw_gen_t *gen, char symbol)
    level.  If at the time of function call the level of queue is
    already equal or lower than \p level, function returns immediately.
 
+   Notice that generator must be running (started with cw_gen_start())
+   when this function is called, otherwise it will be waiting forever
+   for a change of tone queue's level that will never happen.
+
    \reviewed on 2017-01-20
 
    \param gen - generator on which to wait
