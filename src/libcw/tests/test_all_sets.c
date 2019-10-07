@@ -93,12 +93,10 @@ cw_test_set_t cw_test_sets[] = {
 			CW_TEST_FUNCTION_INSERT(test_cw_tq_length_internal_1),
 			CW_TEST_FUNCTION_INSERT(test_cw_tq_prev_index_internal),
 			CW_TEST_FUNCTION_INSERT(test_cw_tq_next_index_internal),
-#if 0
 			CW_TEST_FUNCTION_INSERT(test_cw_tq_callback),
-#endif
 			CW_TEST_FUNCTION_INSERT(test_cw_tq_gen_operations_A),
 			CW_TEST_FUNCTION_INSERT(test_cw_tq_gen_operations_B),
-			CW_TEST_FUNCTION_INSERT(test_cw_tq_operations_3),
+			CW_TEST_FUNCTION_INSERT(test_cw_tq_operations_C),
 
 			CW_TEST_FUNCTION_INSERT(NULL),
 		}

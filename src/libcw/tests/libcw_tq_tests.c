@@ -57,6 +57,7 @@ static void gen_setup(cw_test_executor_t * cte, cw_gen_t ** gen);
 static void gen_destroy(cw_gen_t ** gen);
 static void enqueue_tone_low_level(cw_test_executor_t * cte, cw_tone_queue_t * tq, const cw_tone_t * tone);
 static cw_tone_queue_t * test_cw_tq_capacity_test_init(cw_test_executor_t * cte, size_t capacity, size_t high_water_mark, int head_shift);
+static void test_helper_tq_callback(void * data);
 
 
 
@@ -1419,64 +1420,67 @@ int test_cw_tq_gen_operations_B(cw_test_executor_t * cte)
 
 
 /**
-   Test the tone queue manipulations, ensuring that we can fill the
-   queue, that it looks full when it is, and that we can flush it all
-   again afterwards, and recover.
+   Test the tone queue manipulations, ensuring that:
+   1. we can test properties of empty tone queue,
+   2. we can fill the queue, that the filled tone queue really has
+      some characteristics of full tone queue,
+   3. that we can flush it all again afterwards, and re-test empty
+      tone queue's properties.
+
+   @reviewed on 2019-10-07
 
    tests::cw_tq_get_capacity_internal()
    tests::cw_tq_length_internal()
    tests::cw_tq_enqueue_internal()
    tests::cw_tq_wait_for_level_internal()
 */
-int test_cw_tq_operations_3(cw_test_executor_t * cte)
+int test_cw_tq_operations_C(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
-	cw_gen_t * gen = NULL;
-	gen_setup(cte, &gen);
-
+	cw_tone_queue_t * tq = cw_tq_new_internal();
 
 	/* Test: properties (capacity and length) of empty tq. */
 	{
 		/* Empty tone queue and make sure that it is really
 		   empty (wait for info from libcw). */
-		cw_tq_flush_internal(gen->tq);
-		cw_tq_wait_for_level_internal(gen->tq, 0);
+		cw_tq_flush_internal(tq);
+		cw_tq_wait_for_level_internal(tq, 0);
 
-		const int capacity = cw_tq_get_capacity_internal(gen->tq);
+		const int capacity = cw_tq_get_capacity_internal(tq);
 		cte->expect_eq_int(cte, CW_TONE_QUEUE_CAPACITY_MAX, capacity, "empty queue's capacity");
 
-		const int len_empty = cw_tq_length_internal(gen->tq);
+		const int len_empty = cw_tq_length_internal(tq);
 		cte->expect_eq_int(cte, 0, len_empty, "empty queue's length");
 	}
 
 
 
-	/* Test: properties (capacity and length) of full tq. */
+	/*
+	  Test: properties (capacity and length) of full tq.
 
-	/* FIXME: we call cw_tq_enqueue_internal() until tq is full, and then
-	   expect the tq to be full while we perform tests. Doesn't
-	   the tq start dequeuing tones right away? Can we expect the
-	   tq to be full for some time after adding last tone?
-	   Hint: check when a length of tq is decreased. Probably
-	   after playing first tone on tq, which - in this test - is
-	   pretty long. Or perhaps not. */
+	  Since the queue is not a member of a generator that is
+	  started, there will be no automatic dequeueing.
+
+	  TODO: add a test that verifies that non-started-generator
+	  doesn't dequeue tones.
+	*/
 	{
 		int i = 0;
 		/* FIXME: cw_tq_is_full_internal() is not tested */
-		while (!cw_tq_is_full_internal(gen->tq)) {
+		while (!cw_tq_is_full_internal(tq)) {
 			cw_tone_t tone;
 			int f = 5; /* I don't want to hear the tone during tests. */
-			CW_TONE_INIT(&tone, f + (i++ & 1) * f, 1000000, CW_SLOPE_MODE_NO_SLOPES);
-			cw_tq_enqueue_internal(gen->tq, &tone);
+			CW_TONE_INIT(&tone, f + (i++ & 1) * f, 1000, CW_SLOPE_MODE_NO_SLOPES);
+			cw_tq_enqueue_internal(tq, &tone);
 		}
 
 
-		const int capacity = cw_tq_get_capacity_internal(gen->tq);
+		const int capacity = cw_tq_get_capacity_internal(tq);
 		cte->expect_eq_int(cte, CW_TONE_QUEUE_CAPACITY_MAX, capacity, "full queue's capacity");
 
 
-		const int len_full = cw_tq_length_internal(gen->tq);
+		const int len_full = cw_tq_length_internal(tq);
 		cte->expect_eq_int(cte, CW_TONE_QUEUE_CAPACITY_MAX, len_full, "full queue's length");
 	}
 
@@ -1484,15 +1488,14 @@ int test_cw_tq_operations_3(cw_test_executor_t * cte)
 
 	/* Test: attempt to add tone to full queue. */
 	{
-		fprintf(out_file, MSG_PREFIX "you may now see \"EE:" MSG_PREFIX "can't enqueue tone, tq is full\" message:\n");
-		fflush(out_file);
+		cte->log_info(cte, "you may now see \"EE: can't enqueue tone, tq is full\" message\n");
 
 		cw_tone_t tone;
 		CW_TONE_INIT(&tone, 100, 1000000, CW_SLOPE_MODE_NO_SLOPES);
 		errno = 0;
-		const int cwret = cw_tq_enqueue_internal(gen->tq, &tone);
+		const int cwret = cw_tq_enqueue_internal(tq, &tone);
 		cte->expect_eq_int(cte, CW_FAILURE, cwret, "trying to enqueue tone to full queue (cwret)");
-		cte->expect_eq_int(cte, EAGAIN, errno, "trying to enqueue tone to full queue (cwret)");
+		cte->expect_eq_int(cte, EAGAIN, errno, "trying to enqueue tone to full queue (errno)");
 	}
 
 
@@ -1504,20 +1507,21 @@ int test_cw_tq_operations_3(cw_test_executor_t * cte)
 	{
 		/* Empty tone queue and make sure that it is really
 		   empty (wait for info from libcw). */
-		cw_tq_flush_internal(gen->tq);
-		cw_tq_wait_for_level_internal(gen->tq, 0);
+		cw_tq_flush_internal(tq);
+		cw_tq_wait_for_level_internal(tq, 0);
 
-		const int capacity = cw_tq_get_capacity_internal(gen->tq);
+		const int capacity = cw_tq_get_capacity_internal(tq);
 		cte->expect_eq_int(cte, CW_TONE_QUEUE_CAPACITY_MAX, capacity, "empty queue's capacity");
 
 
 		/* Test that the tq is really empty after
 		   cw_tq_wait_for_level_internal() has returned. */
-		const int len_empty = cw_tq_length_internal(gen->tq);
+		const int len_empty = cw_tq_length_internal(tq);
 		cte->expect_eq_int(cte, 0, len_empty, "empty queue's length");
 	}
 
-	gen_destroy(&gen);
+	cw_tq_delete_internal(&tq);
+	cte->expect_null_pointer_errors_only(cte, tq, "deleting tone queue");
 
 	cte->print_test_footer(cte, __func__);
 
@@ -1527,59 +1531,76 @@ int test_cw_tq_operations_3(cw_test_executor_t * cte)
 
 
 
-static void cw_test_helper_tq_callback(void * data);
-static size_t cw_test_tone_queue_callback_data = 999999;
-static int cw_test_helper_tq_callback_capture = false;
-
-struct cw_test_struct{
-	cw_gen_t *gen;
-	size_t *data;
+struct cw_callback_struct {
+	cw_gen_t * gen;
+	cw_test_executor_t * cte;
+	size_t captured_level;
+	bool already_captured;
 };
 
 
 /**
    tests::cw_register_tone_queue_low_callback()
+
+   @reviewed on 2019-10-07
 */
 int test_cw_tq_callback(cw_test_executor_t * cte)
 {
-	cte->print_test_header(cte, __func__);
+	const int max = rand() % 15 + 10;
+	cte->print_test_header(cte, "%s (%d)", __func__, max);
 
 	cw_gen_t * gen = NULL;
-	gen_setup(cte, &gen);
 
-	struct cw_test_struct s;
-	s.gen = gen;
-	s.data = &cw_test_tone_queue_callback_data;
+	bool register_failure = false;
+	bool enqueue_failure = false;
+	bool capture_failure = false;
 
-	for (int i = 1; i < 10; i++) {
+	for (int i = 1; i < max; i++) { /* TODO: the test doesn't work for i == 0. This needs to be communicated in documentation. */
+
+		gen_setup(cte, &gen);
+
+		struct cw_callback_struct test_data;
+		memset(&test_data, 0, sizeof (test_data));
+		test_data.gen = gen;
+		test_data.cte = cte;
+		test_data.captured_level = 999999;
+		test_data.already_captured = false; /* Used to prevent multiple captures of level in one iteration of this loop. */
+
 		/* Test the callback mechanism for very small values,
 		   but for a bit larger as well. */
 		int level = i <= 5 ? i : 3 * i;
 
-		int cwret = cw_tq_register_low_level_callback_internal(gen->tq, cw_test_helper_tq_callback, (void *) &s, level);
-		cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "libcw: cw_register_tone_queue_low_callback(): threshold = %d:", level);
-		sleep(1);
-
+		int cwret = cw_tq_register_low_level_callback_internal(gen->tq, test_helper_tq_callback, (void *) &test_data, level);
+		if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "registering low level callback with level %d", level)) {
+			register_failure = true;
+			break;
+		}
 
 
 		/* Add a lot of tones to tone queue. "a lot" means two
 		   times more than a value of trigger level. */
 		for (int j = 0; j < 2 * level; j++) {
 			const int cwret = cw_gen_enqueue_character_partial(gen, 'e');
-			cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "enqueueing tones, tone #%d", j);
+			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "enqueueing tones, tone #%d", j)) {
+				enqueue_failure = true;
+				break;
+			}
+		}
+		if (enqueue_failure) {
+			break;
 		}
 
 
-		/* Allow the callback to work only after initial
-		   filling of queue. */
-		cw_test_helper_tq_callback_capture = true;
+		/* Start generator (and dequeueing) only after the qt
+		   has been filled. */
+		cw_gen_start(gen);
 
 		/* Wait for the queue to be drained to zero. While the
 		   tq is drained, and level of tq reaches trigger
 		   level, a callback will be called. Its only task is
 		   to copy the current level (tq level at time of
 		   calling the callback) value into
-		   cw_test_tone_queue_callback_data.
+		   test_data.captured_level.
 
 		   Since the value of trigger level is different in
 		   consecutive iterations of loop, we can test the
@@ -1588,17 +1609,23 @@ int test_cw_tq_callback(cw_test_executor_t * cte)
 
 		/* Because of order of calling callback and decreasing
 		   length of queue, I think that it's safe to assume
-		   that there may be a difference of 1 between these
-		   two values. */
-		const int diff = level - cw_test_tone_queue_callback_data;
-		const bool failure = abs(diff) > 1;
-		cte->expect_eq_int_errors_only(cte, false, failure, "libcw: tone queue callback:           level at callback = %zd:", cw_test_tone_queue_callback_data);
-
+		   that level captured by registered callback may be
+		   within a range of expected values. */
+		const int expected_level_lower = level - 1;
+		const int expected_level_higher = level;
+		if (!cte->expect_between_int_errors_only(cte, expected_level_lower, test_data.captured_level, expected_level_higher, "tone queue callback:  capturing level")) {
+			capture_failure = true;
+			break;
+		}
 
 		cw_tq_flush_internal(gen->tq);
+		gen_destroy(&gen);
 	}
 
-	gen_destroy(&gen);
+	cte->expect_eq_int(cte, false, register_failure, "registering low level callback");
+	cte->expect_eq_int(cte, false, enqueue_failure, "enqueueing tones");
+	cte->expect_eq_int(cte, false, capture_failure, "capturing tone queue level");
+
 
 	cte->print_test_footer(cte, __func__);
 
@@ -1608,16 +1635,18 @@ int test_cw_tq_callback(cw_test_executor_t * cte)
 
 
 
-
-static void cw_test_helper_tq_callback(void *data)
+/**
+   @reviewed on 2019-10-07
+*/
+static void test_helper_tq_callback(void * data)
 {
-	if (cw_test_helper_tq_callback_capture) {
-		struct cw_test_struct *s = (struct cw_test_struct *) data;
+	struct cw_callback_struct * s = (struct cw_callback_struct *) data;
+	if (!s->already_captured) {
 
-		*(s->data) = cw_tq_length_internal(s->gen->tq);
+		s->captured_level = cw_tq_length_internal(s->gen->tq);
+		s->already_captured = true;
 
-		cw_test_helper_tq_callback_capture = false;
-		fprintf(stderr, MSG_PREFIX "cw_test_helper_tq_callback:    captured level = %zd\n", *(s->data));
+		s->cte->log_info(s->cte, "tq callback helper: captured level = %zd\n", s->captured_level);
 	}
 
 	return;
