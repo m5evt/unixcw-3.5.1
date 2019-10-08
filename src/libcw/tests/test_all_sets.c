@@ -109,9 +109,13 @@ cw_test_set_t cw_test_sets[] = {
 		{ CW_AUDIO_NULL, LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. */
 
 		{
+			CW_TEST_FUNCTION_INSERT(test_cw_gen_new_delete),
+			CW_TEST_FUNCTION_INSERT(test_cw_gen_new_start_delete),
+			CW_TEST_FUNCTION_INSERT(test_cw_gen_new_stop_delete),
+			CW_TEST_FUNCTION_INSERT(test_cw_gen_new_start_stop_delete),
+
 			CW_TEST_FUNCTION_INSERT(test_cw_gen_set_tone_slope),
 			CW_TEST_FUNCTION_INSERT(test_cw_gen_tone_slope_shape_enums),
-			CW_TEST_FUNCTION_INSERT(test_cw_gen_new_delete),
 			CW_TEST_FUNCTION_INSERT(test_cw_gen_get_timing_parameters_internal),
 			CW_TEST_FUNCTION_INSERT(test_cw_gen_parameter_getters_setters),
 			CW_TEST_FUNCTION_INSERT(test_cw_gen_volume_functions),

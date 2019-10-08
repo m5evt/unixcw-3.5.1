@@ -49,21 +49,20 @@
 /**
    tests::cw_gen_new()
    tests::cw_gen_delete()
+
+   @reviewed on 2019-10-08
 */
 int test_cw_gen_new_delete(cw_test_executor_t * cte)
 {
-	cte->print_test_header(cte, __func__);
+	const int max = (rand() % 70) + 60;
 
-	/* Arbitrary number of calls to a set of tested functions. */
-	int max = 100;
+	cte->print_test_header(cte, "%s (%d)", __func__, max);
 
 	bool failure = false;
 	cw_gen_t * gen = NULL;
 
 	/* new() + delete() */
 	for (int i = 0; i < max; i++) {
-		fprintf(stderr, MSG_PREFIX "new/delete: generator test 1/4, loop #%d/%d\n", i, max);
-
 		gen = cw_gen_new(CW_AUDIO_NULL, NULL);
 		if (!cte->expect_valid_pointer_errors_only(cte, gen, "new/delete: failed to initialize generator (loop #%d)", i)) {
 			failure = true;
@@ -98,7 +97,6 @@ int test_cw_gen_new_delete(cw_test_executor_t * cte)
 			break;
 		}
 	}
-
 	cte->expect_eq_int(cte, false, failure, "new/delete:");
 
 	/* Clean up after (possibly) failed test. */
@@ -106,115 +104,179 @@ int test_cw_gen_new_delete(cw_test_executor_t * cte)
 		cw_gen_delete(&gen);
 	}
 
+	cte->print_test_footer(cte, __func__);
+
+	return 0;
+}
 
 
 
-	max = 5;
+
+/**
+   tests::cw_gen_new()
+   tests::cw_gen_start()
+   tests::cw_gen_delete()
+
+   @reviewed on 2019-10-08
+*/
+int test_cw_gen_new_start_delete(cw_test_executor_t * cte)
+{
+	const int max = (rand() % 70) + 60;
+
+	cte->print_test_header(cte, "%s (%d)", __func__, max);
+
+	bool failure = false;
+	cw_gen_t * gen = NULL;
 
 	/* new() + start() + delete() (skipping stop() on purpose). */
-	gen = NULL;
-	failure = false;
 	for (int i = 0; i < max; i++) {
-		fprintf(stderr, MSG_PREFIX "new/start/delete: generator test 2/4, loop #%d/%d\n", i, max);
-
 		gen = cw_gen_new(CW_AUDIO_NULL, NULL);
-		if (!cte->expect_valid_pointer_errors_only(cte, gen, "new/start/delete: failed to initialize generator (loop #%d)", i)) {
+		if (!cte->expect_valid_pointer_errors_only(cte, gen, "new/start/delete: new (loop #%d)", i)) {
 			failure = true;
 			break;
 		}
 
 		const int cwret = cw_gen_start(gen);
-		if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "new/start/delete: failed to start generator (loop #%d)", i)) {
+		if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "new/start/delete: start (loop #%d)", i)) {
 			failure = true;
 			break;
 		}
 
 		cw_gen_delete(&gen);
-		if (!cte->expect_null_pointer_errors_only(cte, gen, "new/start/delete: delete() didn't set the pointer to NULL (loop #%d)", i)) {
+		if (!cte->expect_null_pointer_errors_only(cte, gen, "new/start/delete: delete (loop #%d)", i)) {
 			failure = true;
 			break;
 		}
 	}
-	cte->expect_eq_int(cte, false, failure, "new/start/delete:");
+	cte->expect_eq_int(cte, false, failure, "new/start/delete");
 
 	/* Clean up after (possibly) failed test. */
 	if (gen) {
 		cw_gen_delete(&gen);
 	}
 
+	cte->print_test_footer(cte, __func__);
 
+	return 0;
+}
+
+
+
+
+/**
+   tests::cw_gen_new()
+   tests::cw_gen_stop()
+   tests::cw_gen_delete()
+
+   @reviewed on 2019-10-08
+*/
+int test_cw_gen_new_stop_delete(cw_test_executor_t * cte)
+{
+	const int max = (rand() % 70) + 60;
+
+	cte->print_test_header(cte, "%s (%d)", __func__, max);
+
+	bool new_failure = false;
+	bool stop_failure = false;
+	bool delete_failure = false;
+	cw_gen_t * gen = NULL;
 
 	/* new() + stop() + delete() (skipping start() on purpose). */
-	fprintf(stderr, MSG_PREFIX "new/stop/delete: generator test 3/4\n");
-	gen = NULL;
-	failure = false;
 	for (int i = 0; i < max; i++) {
 		gen = cw_gen_new(CW_AUDIO_NULL, NULL);
-		if (!cte->expect_valid_pointer_errors_only(cte, gen, "new/stop/delete: failed to initialize generator (loop #%d)", i)) {
-			failure = true;
+		if (!cte->expect_valid_pointer_errors_only(cte, gen, "new/stop/delete: new (loop #%d)", i)) {
+			new_failure = true;
 			break;
 		}
 
 		const int cwret = cw_gen_stop(gen);
-		if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "new/stop/delete: failed to stop generator (loop #%d)", i)) {
-			failure = true;
+		if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "new/stop/delete: stop (loop #%d)", i)) {
+			stop_failure = true;
 			break;
 		}
 
 		cw_gen_delete(&gen);
-		if (!cte->expect_null_pointer_errors_only(cte, gen, "new/stop/delete: delete() didn't set the pointer to NULL (loop #%d)", i)) {
-			failure = true;
+		if (!cte->expect_null_pointer_errors_only(cte, gen, "new/stop/delete: delete (loop #%d)", i)) {
+			delete_failure = true;
 			break;
 		}
 	}
-	cte->expect_eq_int(cte, false, failure, "new/stop/delete:");
+	cte->expect_eq_int(cte, false, new_failure, "new/stop/delete: new");
+	cte->expect_eq_int(cte, false, stop_failure, "new/stop/delete: stop");
+	cte->expect_eq_int(cte, false, delete_failure, "new/stop/delete: delete");
+
 	/* Clean up after (possibly) failed test. */
 	if (gen) {
 		cw_gen_delete(&gen);
 	}
 
+	cte->print_test_footer(cte, __func__);
 
+	return 0;
+}
+
+
+
+
+/**
+   tests::cw_gen_new()
+   tests::cw_gen_start()
+   tests::cw_gen_stop()
+   tests::cw_gen_delete()
+
+   @reviewed on 2019-10-08
+*/
+int test_cw_gen_new_start_stop_delete(cw_test_executor_t * cte)
+{
+	const int max = (rand() % 70) + 60;
+
+	cte->print_test_header(cte, "%s (%d)", __func__, max);
+
+	bool new_failure = false;
+	bool start_failure = false;
+	bool stop_failure = false;
+	bool delete_failure = false;
+	cw_gen_t * gen = NULL;
 
 	/* new() + start() + stop() + delete() */
-	gen = NULL;
-	failure = false;
 	for (int i = 0; i < max; i++) {
-		fprintf(stderr, MSG_PREFIX "new/start/stop/delete: generator test 4/4, loop #%d/%d\n", i, max);
-
 		gen = cw_gen_new(CW_AUDIO_NULL, NULL);
-		if (!cte->expect_valid_pointer_errors_only(cte, gen, "new/start/stop/delete: failed to initialize generator (loop #%d)", i)) {
-			failure = true;
+		if (!cte->expect_valid_pointer_errors_only(cte, gen, "new/start/stop/delete: new (loop #%d)", i)) {
+			new_failure = true;
 			break;
 		}
 
-		int sub_max = max;
-
+		/* Starting/stopping a generator may be a common pattern. */
+		const int sub_max = max;
 		for (int j = 0; j < sub_max; j++) {
 			int cwret = CW_FAILURE;
 
 			cwret = cw_gen_start(gen);
-			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "new/start/stop/delete: failed to start generator (loop #%d-%d)", i, j)) {
-				failure = true;
+			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "new/start/stop/delete: start (loop #%d-%d)", i, j)) {
+				start_failure = true;
 				break;
 			}
 
 			cwret = cw_gen_stop(gen);
-			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "new/start/stop/delete: failed to stop generator (loop #%d-%d)", i, j)) {
-				failure = true;
+			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "new/start/stop/delete: stop (loop #%d-%d)", i, j)) {
+				stop_failure = true;
 				break;
 			}
 		}
-		if (failure) {
+		if (start_failure || stop_failure) {
 			break;
 		}
 
 		cw_gen_delete(&gen);
-		if (!cte->expect_null_pointer_errors_only(cte, gen, "new/start/stop/delete: delete() didn't set the pointer to NULL (loop #%d)", i)) {
-			failure = true;
+		if (!cte->expect_null_pointer_errors_only(cte, gen, "new/start/stop/delete: delete (loop #%d)", i)) {
+			delete_failure = true;
 			break;
 		}
 	}
-	cte->expect_eq_int(cte, false, failure, "new/start/stop/delete:");
+	cte->expect_eq_int(cte, false, new_failure, "new/start/stop/delete: new");
+	cte->expect_eq_int(cte, false, start_failure, "new/start/stop/delete: start");
+	cte->expect_eq_int(cte, false, stop_failure, "new/start/stop/delete: stop");
+	cte->expect_eq_int(cte, false, delete_failure, "new/start/stop/delete: delete");
 
 	/* Clean up after (possibly) failed test. */
 	if (gen) {
@@ -239,7 +301,7 @@ int test_cw_gen_set_tone_slope(cw_test_executor_t * cte)
 	/* Test 0: test property of newly created generator. */
 	{
 		cw_gen_t * gen = cw_gen_new(audio_system, NULL);
-		cte->assert2(cte, gen, MSG_PREFIX "set slope: failed to initialize generator in test 0");
+		cte->assert2(cte, gen, "set slope: failed to initialize generator in test 0");
 
 		cte->expect_eq_int(cte, CW_TONE_SLOPE_SHAPE_RAISED_COSINE, gen->tone_slope.shape, "set slope: initial shape (%d)", gen->tone_slope.shape);
 		cte->expect_eq_int(cte, CW_AUDIO_SLOPE_LEN, gen->tone_slope.len, "set slope: initial length (%d)", gen->tone_slope.len);
@@ -258,7 +320,7 @@ int test_cw_gen_set_tone_slope(cw_test_executor_t * cte)
 	   have rectangular slopes that have non-zero length." */
 	{
 		cw_gen_t * gen = cw_gen_new(audio_system, NULL);
-		cte->assert2(cte, gen, MSG_PREFIX "set slope: failed to initialize generator in test A");
+		cte->assert2(cte, gen, "set slope: failed to initialize generator in test A");
 
 		cwret = cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_RECTANGULAR, 10);
 		cte->expect_eq_int(cte, CW_FAILURE, cwret, "set slope: conflicting arguments");
@@ -280,7 +342,7 @@ int test_cw_gen_set_tone_slope(cw_test_executor_t * cte)
 	*/
 	{
 		cw_gen_t * gen = cw_gen_new(audio_system, NULL);
-		cte->assert2(cte, gen, MSG_PREFIX "set slope: failed to initialize generator in test B");
+		cte->assert2(cte, gen, "set slope: failed to initialize generator in test B");
 
 		const int shape_before = gen->tone_slope.shape;
 		const int len_before = gen->tone_slope.len;
@@ -999,11 +1061,11 @@ int test_cw_gen_enqueue_character_and_string(cw_test_executor_t * cte)
 
 		/* Send all the characters from the charlist individually. */
 		cw_list_characters(charlist);
-		fprintf(out_file, MSG_PREFIX "cw_enqueue_character(<valid>):\n"
-			MSG_PREFIX "    ");
+		cte->log_info(cte, "cw_gen_enqueue_character(<valid>):\n"
+			      "    ");
 		for (int i = 0; charlist[i] != '\0'; i++) {
-			fprintf(out_file, "%c", charlist[i]);
-			fflush(out_file);
+			cte->log_info_cont(cte, "%c", charlist[i]);
+			cte->flush_info(cte);
 			const int cwret = cw_gen_enqueue_character(gen, charlist[i]);
 			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "cw_gen_enqueue_character() (i = %d)", i)) {
 				failure = true;
@@ -1012,7 +1074,8 @@ int test_cw_gen_enqueue_character_and_string(cw_test_executor_t * cte)
 			cw_gen_wait_for_queue_level(gen, 0);
 		}
 
-		fprintf(out_file, "\n");
+		cte->log_info_cont(cte, "\n");
+		cte->flush_info(cte);
 
 		cte->expect_eq_int(cte, false, failure, "cw_gen_enqueue_character(<valid>)");
 	}
@@ -1039,8 +1102,8 @@ int test_cw_gen_enqueue_character_and_string(cw_test_executor_t * cte)
 
 
 		while (cw_gen_get_queue_length(gen) > 0) {
-			fprintf(out_file, MSG_PREFIX "tone queue length %-6zu\r", cw_gen_get_queue_length(gen));
-			fflush(out_file);
+			cte->log_info(cte, "tone queue length %-6zu\r", cw_gen_get_queue_length(gen));
+			cte->flush_info(cte);
 			cw_gen_wait_for_tone(gen);
 		}
 		fprintf(out_file, "libcw:gen tone queue length %-6zu\n", cw_gen_get_queue_length(gen));
