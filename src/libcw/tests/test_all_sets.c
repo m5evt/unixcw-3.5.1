@@ -106,7 +106,7 @@ cw_test_set_t cw_test_sets[] = {
 		CW_TEST_API_MODERN,
 
 		{ LIBCW_TEST_TOPIC_GEN, LIBCW_TEST_TOPIC_MAX }, /* Topics. */
-		{ CW_AUDIO_NULL, LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. */
+		{ CW_AUDIO_NULL, CW_AUDIO_CONSOLE, CW_AUDIO_OSS, CW_AUDIO_ALSA, CW_AUDIO_PA, LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. */
 
 		{
 			CW_TEST_FUNCTION_INSERT(test_cw_gen_new_delete),
@@ -121,7 +121,8 @@ cw_test_set_t cw_test_sets[] = {
 			CW_TEST_FUNCTION_INSERT(test_cw_gen_volume_functions),
 			CW_TEST_FUNCTION_INSERT(test_cw_gen_enqueue_primitives),
 			CW_TEST_FUNCTION_INSERT(test_cw_gen_enqueue_representations),
-			CW_TEST_FUNCTION_INSERT(test_cw_gen_enqueue_character_and_string),
+			CW_TEST_FUNCTION_INSERT(test_cw_gen_enqueue_character),
+			CW_TEST_FUNCTION_INSERT(test_cw_gen_enqueue_string),
 			CW_TEST_FUNCTION_INSERT(test_cw_gen_forever_internal),
 
 			CW_TEST_FUNCTION_INSERT(NULL),

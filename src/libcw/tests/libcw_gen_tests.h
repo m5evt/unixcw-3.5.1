@@ -27,7 +27,8 @@ int test_cw_gen_parameter_getters_setters(cw_test_executor_t * cte);
 int test_cw_gen_volume_functions(cw_test_executor_t * cte);
 int test_cw_gen_enqueue_primitives(cw_test_executor_t * cte);
 int test_cw_gen_enqueue_representations(cw_test_executor_t * cte);
-int test_cw_gen_enqueue_character_and_string(cw_test_executor_t * cte);
+int test_cw_gen_enqueue_character(cw_test_executor_t * cte);
+int test_cw_gen_enqueue_string(cw_test_executor_t * cte);
 
 
 

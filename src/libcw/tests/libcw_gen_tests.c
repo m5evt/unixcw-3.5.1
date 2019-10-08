@@ -41,11 +41,6 @@
 
 
 
-#define MSG_PREFIX "libcw/gen: "
-
-
-
-
 /**
    tests::cw_gen_new()
    tests::cw_gen_delete()
@@ -63,7 +58,7 @@ int test_cw_gen_new_delete(cw_test_executor_t * cte)
 
 	/* new() + delete() */
 	for (int i = 0; i < max; i++) {
-		gen = cw_gen_new(CW_AUDIO_NULL, NULL);
+		gen = cw_gen_new(cte->current_sound_system, NULL);
 		if (!cte->expect_valid_pointer_errors_only(cte, gen, "new/delete: failed to initialize generator (loop #%d)", i)) {
 			failure = true;
 			break;
@@ -130,7 +125,7 @@ int test_cw_gen_new_start_delete(cw_test_executor_t * cte)
 
 	/* new() + start() + delete() (skipping stop() on purpose). */
 	for (int i = 0; i < max; i++) {
-		gen = cw_gen_new(CW_AUDIO_NULL, NULL);
+		gen = cw_gen_new(cte->current_sound_system, NULL);
 		if (!cte->expect_valid_pointer_errors_only(cte, gen, "new/start/delete: new (loop #%d)", i)) {
 			failure = true;
 			break;
@@ -183,7 +178,7 @@ int test_cw_gen_new_stop_delete(cw_test_executor_t * cte)
 
 	/* new() + stop() + delete() (skipping start() on purpose). */
 	for (int i = 0; i < max; i++) {
-		gen = cw_gen_new(CW_AUDIO_NULL, NULL);
+		gen = cw_gen_new(cte->current_sound_system, NULL);
 		if (!cte->expect_valid_pointer_errors_only(cte, gen, "new/stop/delete: new (loop #%d)", i)) {
 			new_failure = true;
 			break;
@@ -240,7 +235,7 @@ int test_cw_gen_new_start_stop_delete(cw_test_executor_t * cte)
 
 	/* new() + start() + stop() + delete() */
 	for (int i = 0; i < max; i++) {
-		gen = cw_gen_new(CW_AUDIO_NULL, NULL);
+		gen = cw_gen_new(cte->current_sound_system, NULL);
 		if (!cte->expect_valid_pointer_errors_only(cte, gen, "new/start/stop/delete: new (loop #%d)", i)) {
 			new_failure = true;
 			break;
@@ -295,7 +290,7 @@ int test_cw_gen_set_tone_slope(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
-	int audio_system = CW_AUDIO_NULL;
+	const int audio_system = cte->current_sound_system;
 	int cwret = CW_FAILURE;
 
 	/* Test 0: test property of newly created generator. */
@@ -556,7 +551,7 @@ int test_cw_gen_forever_internal(cw_test_executor_t * cte)
 	const int seconds = 2;
 	cte->log_info(cte, "forever tone (%d seconds):", seconds);
 
-	const int rv = test_cw_gen_forever_sub(cte, 2, CW_AUDIO_NULL, (const char *) NULL);
+	const int rv = test_cw_gen_forever_sub(cte, 2, cte->current_sound_system, (const char *) NULL);
 	cte->expect_eq_int(cte, 0, rv, "'forever' test");
 
 	cte->print_test_footer(cte, __func__);
@@ -570,7 +565,7 @@ int test_cw_gen_forever_internal(cw_test_executor_t * cte)
 
 int test_cw_gen_forever_sub(cw_test_executor_t * cte, int seconds, int audio_system, const char *audio_device)
 {
-	cw_gen_t *gen = cw_gen_new(audio_system, audio_device);
+	cw_gen_t * gen = cw_gen_new(audio_system, audio_device);
 	cte->assert2(cte, gen, "ERROR: failed to create generator\n");
 	cw_gen_start(gen);
 
@@ -633,7 +628,7 @@ int test_cw_gen_get_timing_parameters_internal(cw_test_executor_t * cte)
 	int additional_space_len = initial;
 	int adjustment_space_len = initial;
 
-	cw_gen_t * gen = cw_gen_new(CW_AUDIO_NULL, NULL);
+	cw_gen_t * gen = cw_gen_new(cte->current_sound_system, NULL);
 	cw_gen_start(gen);
 
 
@@ -697,7 +692,7 @@ int test_cw_gen_parameter_getters_setters(cw_test_executor_t * cte)
 
 	int off_limits = 10000;
 
-	cw_gen_t * gen = cw_gen_new(CW_AUDIO_NULL, NULL);
+	cw_gen_t * gen = cw_gen_new(cte->current_sound_system, NULL);
 	cw_gen_start(gen);
 
 	struct {
@@ -798,7 +793,7 @@ int test_cw_gen_volume_functions(cw_test_executor_t * cte)
 
 	int cw_min = -1, cw_max = -1;
 
-	cw_gen_t * gen = cw_gen_new(CW_AUDIO_NULL, NULL);
+	cw_gen_t * gen = cw_gen_new(cte->current_sound_system, NULL);
 	cw_gen_start(gen);
 
 	/* Test: get range of allowed volumes. */
@@ -910,7 +905,7 @@ int test_cw_gen_enqueue_primitives(cw_test_executor_t * cte)
 
 	int N = 20;
 
-	cw_gen_t * gen = cw_gen_new(CW_AUDIO_NULL, NULL);
+	cw_gen_t * gen = cw_gen_new(cte->current_sound_system, NULL);
 	cw_gen_start(gen);
 
 	/* Test: sending dot. */
@@ -1002,7 +997,7 @@ int test_cw_gen_enqueue_representations(cw_test_executor_t * cte)
 	   doesn't care about correct mapping of representation to a
 	   character. */
 
-	cw_gen_t * gen = cw_gen_new(CW_AUDIO_NULL, NULL);
+	cw_gen_t * gen = cw_gen_new(cte->current_sound_system, NULL);
 	cw_gen_start(gen);
 
 	/* Test: sending valid representations. */
@@ -1042,16 +1037,17 @@ int test_cw_gen_enqueue_representations(cw_test_executor_t * cte)
 
 
 /**
-   Send all supported characters: first as individual characters, and then as a string.
+   Send all supported characters as individual characters
 
    tests::cw_gen_enqueue_character()
-   tests::cw_gen_enqueue_string()
+
+   @reviewed on 2019-10-08
 */
-int test_cw_gen_enqueue_character_and_string(cw_test_executor_t * cte)
+int test_cw_gen_enqueue_character(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
-	cw_gen_t * gen = cw_gen_new(CW_AUDIO_NULL, NULL);
+	cw_gen_t * gen = cw_gen_new(cte->current_sound_system, NULL);
 	cw_gen_start(gen);
 
 	/* Test: sending all supported characters as individual characters. */
@@ -1061,34 +1057,65 @@ int test_cw_gen_enqueue_character_and_string(cw_test_executor_t * cte)
 
 		/* Send all the characters from the charlist individually. */
 		cw_list_characters(charlist);
-		cte->log_info(cte, "cw_gen_enqueue_character(<valid>):\n"
-			      "    ");
+		cte->log_info(cte,
+			      "enqueue character(<valid>):\n"
+			      "       ");
 		for (int i = 0; charlist[i] != '\0'; i++) {
 			cte->log_info_cont(cte, "%c", charlist[i]);
 			cte->flush_info(cte);
 			const int cwret = cw_gen_enqueue_character(gen, charlist[i]);
-			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "cw_gen_enqueue_character() (i = %d)", i)) {
+			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "enqueue character(<valid>) (i = %d)", i)) {
 				failure = true;
 				break;
 			}
 			cw_gen_wait_for_queue_level(gen, 0);
 		}
-
 		cte->log_info_cont(cte, "\n");
 		cte->flush_info(cte);
 
-		cte->expect_eq_int(cte, false, failure, "cw_gen_enqueue_character(<valid>)");
+		cte->expect_eq_int(cte, false, failure, "enqueue character(<valid>)");
 	}
-
 
 
 	/* Test: sending invalid character. */
 	{
-		const int cwret = cw_gen_enqueue_character(gen, 0);
-		cte->expect_eq_int(cte, CW_FAILURE, cwret, "cw_gen_enqueue_character(<invalid>):");
+		const char invalid_characters[] = { 0x00, 0x01 }; /* List of invalid characters to be expanded. */
+		const int n = sizeof (invalid_characters) / sizeof (invalid_characters[0]);
+		bool failure = false;
+
+		for (int i = 0; i < n; i++) {
+			const int cwret = cw_gen_enqueue_character(gen, invalid_characters[i]);
+			if (!cte->expect_eq_int_errors_only(cte, CW_FAILURE, cwret, "enqueue character(<invalid>) (i = %d)", i)) {
+				failure = false;
+			}
+		}
+		cte->expect_eq_int(cte, false, failure, "enqueue character(<invalid>)");
 	}
 
 
+	cw_gen_delete(&gen);
+
+	cte->print_test_footer(cte, __func__);
+
+	return 0;
+}
+
+
+
+
+/**
+   Send all supported characters as a string.
+
+   tests::cw_gen_enqueue_string()
+
+   @reviewed on 2019-10-08
+*/
+int test_cw_gen_enqueue_string(cw_test_executor_t * cte)
+{
+	cte->print_test_header(cte, __func__);
+
+	cw_gen_t * gen = cw_gen_new(cte->current_sound_system, NULL);
+	cw_gen_start(gen);
 
 	/* Test: sending all supported characters as single string. */
 	{
@@ -1096,9 +1123,11 @@ int test_cw_gen_enqueue_character_and_string(cw_test_executor_t * cte)
 		cw_list_characters(charlist);
 
 		/* Send the complete charlist as a single string. */
-		fprintf(out_file, MSG_PREFIX "cw_gen_enqueue_string(<valid>):\n"
-			MSG_PREFIX "    %s\n", charlist);
+		cte->log_info(cte,
+			      "enqueue string(<valid>):\n"
+			      "       %s\n", charlist);
 		const int enqueue_cwret = cw_gen_enqueue_string(gen, charlist);
+		cte->expect_eq_int(cte, CW_SUCCESS, enqueue_cwret, "enqueue string(<valid>)");
 
 
 		while (cw_gen_get_queue_length(gen) > 0) {
@@ -1106,17 +1135,25 @@ int test_cw_gen_enqueue_character_and_string(cw_test_executor_t * cte)
 			cte->flush_info(cte);
 			cw_gen_wait_for_tone(gen);
 		}
-		fprintf(out_file, "libcw:gen tone queue length %-6zu\n", cw_gen_get_queue_length(gen));
+		cte->log_info(cte, "tone queue length %-6zu\n", cw_gen_get_queue_length(gen));
+		cte->flush_info(cte);
 		cw_gen_wait_for_queue_level(gen, 0);
-
-		cte->expect_eq_int(cte, CW_SUCCESS, enqueue_cwret, "cw_gen_enqueue_string(<valid>)");
 	}
 
 
 	/* Test: sending invalid string. */
 	{
-		const int cwret = cw_gen_enqueue_string(gen, "%INVALID%");
-		cte->expect_eq_int(cte, CW_FAILURE, cwret, "cw_gen_enqueue_string(<invalid>):");
+		const char * invalid_strings[] = { "%INVALID%" }; /* List of invalid strings to be expanded. */
+		const int n = sizeof (invalid_strings) / sizeof (invalid_strings[0]);
+		bool failure = false;
+
+		for (int i = 0; i < n; i++) {
+			const int cwret = cw_gen_enqueue_string(gen, invalid_strings[i]);
+			if (!cte->expect_eq_int_errors_only(cte, CW_FAILURE, cwret, "enqueue string(<invalid>) (i = %d)", i)) {
+				failure = false;
+			}
+		}
+		cte->expect_eq_int(cte, false, failure, "enqueue string(<invalid>)");
 	}
 
 	cw_gen_delete(&gen);

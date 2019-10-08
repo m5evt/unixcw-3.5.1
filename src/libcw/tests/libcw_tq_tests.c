@@ -1059,7 +1059,7 @@ int test_cw_tq_enqueue_internal_B(cw_test_executor_t * cte)
    operations, so that cw_tq_wait_for_level_internal() can detect
    expected level.
 
-   @reviewed on 2019-10-05
+   @reviewed on 2019-10-08
 
    tests::cw_tq_wait_for_level_internal()
 */
@@ -1077,7 +1077,7 @@ int test_cw_tq_wait_for_level_internal(cw_test_executor_t * cte)
 	cw_gen_t * gen = NULL;
 
 	for (int i = 0; i < max; i++) {
-		gen = cw_gen_new(CW_AUDIO_NULL, CW_DEFAULT_NULL_DEVICE);
+		gen = cw_gen_new(cte->current_sound_system, NULL);
 		cte->assert2(cte, gen, "failed to create a tone queue\n");
 		cw_gen_start(gen);
 
