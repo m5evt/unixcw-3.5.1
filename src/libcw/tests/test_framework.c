@@ -102,6 +102,7 @@ static void cw_test_print_test_stats(cw_test_executor_t * self);
 
 static int cw_test_log_info(struct cw_test_executor_t * self, const char * fmt, ...) __attribute__ ((format (printf, 2, 3)));
 static void cw_test_log_info_cont(struct cw_test_executor_t * self, const char * fmt, ...) __attribute__ ((format (printf, 2, 3)));
+static void cw_test_flush_info(struct cw_test_executor_t * self);
 static void cw_test_log_error(struct cw_test_executor_t * self, const char * fmt, ...) __attribute__ ((format (printf, 2, 3)));
 
 static void cw_test_print_sound_systems(cw_test_executor_t * self, int * sound_systems, int max);
@@ -937,6 +938,7 @@ void cw_test_init(cw_test_executor_t * self, FILE * stdout, FILE * stderr, const
 
 	self->log_info = cw_test_log_info;
 	self->log_info_cont = cw_test_log_info_cont;
+	self->flush_info = cw_test_flush_info;
 	self->log_error = cw_test_log_error;
 
 	self->main_test_loop = cw_test_main_test_loop;
@@ -997,6 +999,18 @@ void cw_test_log_info_cont(struct cw_test_executor_t * self, const char * fmt, .
 	fprintf(self->stdout, "%s", va_buf);
 	fflush(self->stdout);
 
+	return;
+}
+
+
+
+
+void cw_test_flush_info(struct cw_test_executor_t * self)
+{
+	if (NULL == self->stdout) {
+		return;
+	}
+	fflush(self->stdout);
 	return;
 }
 

@@ -300,6 +300,11 @@ typedef struct cw_test_executor_t {
 	void (* log_info_cont)(struct cw_test_executor_t * self, const char * fmt, ...) __attribute__ ((format (printf, 2, 3)));
 
 	/**
+	   Flush file descriptor used to log info messages
+	*/
+	void (* flush_info)(struct cw_test_executor_t * self);
+
+	/**
 	   Log error to cw_test_executor_t::stdout file (if it is set).
 	   Add "[EE]" mark at the beginning.
 	   Add message prefix at the beginning.
