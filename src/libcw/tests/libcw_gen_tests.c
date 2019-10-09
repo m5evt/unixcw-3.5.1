@@ -92,7 +92,7 @@ int test_cw_gen_new_delete(cw_test_executor_t * cte)
 			break;
 		}
 	}
-	cte->expect_eq_int(cte, false, failure, "new/delete:");
+	cte->expect_eq_int(cte, false, failure, "new/delete");
 
 	/* Clean up after (possibly) failed test. */
 	if (gen) {
@@ -223,7 +223,7 @@ int test_cw_gen_new_stop_delete(cw_test_executor_t * cte)
 */
 int test_cw_gen_new_start_stop_delete(cw_test_executor_t * cte)
 {
-	const int max = (rand() % 70) + 60;
+	const int max = (rand() % 20) + 20;
 
 	cte->print_test_header(cte, "%s (%d)", __func__, max);
 
@@ -286,20 +286,24 @@ int test_cw_gen_new_start_stop_delete(cw_test_executor_t * cte)
 
 
 
+/**
+   Test setting tone slope shape and length
+
+   @reviewed on 2019-10-09
+*/
 int test_cw_gen_set_tone_slope(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
 	const int audio_system = cte->current_sound_system;
-	int cwret = CW_FAILURE;
 
 	/* Test 0: test property of newly created generator. */
 	{
 		cw_gen_t * gen = cw_gen_new(audio_system, NULL);
-		cte->assert2(cte, gen, "set slope: failed to initialize generator in test 0");
+		cte->assert2(cte, gen, "set slope: 0: failed to initialize generator");
 
-		cte->expect_eq_int(cte, CW_TONE_SLOPE_SHAPE_RAISED_COSINE, gen->tone_slope.shape, "set slope: initial shape (%d)", gen->tone_slope.shape);
-		cte->expect_eq_int(cte, CW_AUDIO_SLOPE_LEN, gen->tone_slope.len, "set slope: initial length (%d)", gen->tone_slope.len);
+		cte->expect_eq_int(cte, CW_TONE_SLOPE_SHAPE_RAISED_COSINE, gen->tone_slope.shape, "set slope: 0: initial shape (%d)", gen->tone_slope.shape);
+		cte->expect_eq_int(cte, CW_AUDIO_SLOPE_LEN, gen->tone_slope.len, "set slope: 0: initial length (%d)", gen->tone_slope.len);
 
 		cw_gen_delete(&gen);
 	}
@@ -315,10 +319,10 @@ int test_cw_gen_set_tone_slope(cw_test_executor_t * cte)
 	   have rectangular slopes that have non-zero length." */
 	{
 		cw_gen_t * gen = cw_gen_new(audio_system, NULL);
-		cte->assert2(cte, gen, "set slope: failed to initialize generator in test A");
+		cte->assert2(cte, gen, "set slope: A: failed to initialize generator");
 
-		cwret = cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_RECTANGULAR, 10);
-		cte->expect_eq_int(cte, CW_FAILURE, cwret, "set slope: conflicting arguments");
+		const int cwret = cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_RECTANGULAR, 10);
+		cte->expect_eq_int(cte, CW_FAILURE, cwret, "set slope: A: conflicting arguments");
 
 		cw_gen_delete(&gen);
 	}
@@ -337,16 +341,16 @@ int test_cw_gen_set_tone_slope(cw_test_executor_t * cte)
 	*/
 	{
 		cw_gen_t * gen = cw_gen_new(audio_system, NULL);
-		cte->assert2(cte, gen, "set slope: failed to initialize generator in test B");
+		cte->assert2(cte, gen, "set slope: B: failed to initialize generator");
 
 		const int shape_before = gen->tone_slope.shape;
 		const int len_before = gen->tone_slope.len;
 
 		const int cwret = cw_gen_set_tone_slope(gen, -1, -1);
 
-		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "set slope: set tone slope -1 -1 (cwret) ");
-		cte->expect_eq_int(cte, shape_before, gen->tone_slope.shape, "set slope -1 -1 (shape)");
-		cte->expect_eq_int(cte, len_before, gen->tone_slope.len, "set slope -1 -1 (len)");
+		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "set slope: B: set tone slope <-1 -1> (cwret) ");
+		cte->expect_eq_int(cte, shape_before, gen->tone_slope.shape, "set slope: B: <-1 -1> (shape)");
+		cte->expect_eq_int(cte, len_before, gen->tone_slope.len, "set slope: B: <-1 -1> (len)");
 
 		cw_gen_delete(&gen);
 	}
@@ -360,10 +364,9 @@ int test_cw_gen_set_tone_slope(cw_test_executor_t * cte)
 	   set only this generator's parameter that is different than
 	   '-1'." */
 	{
+		int cwret = CW_FAILURE;
 		cw_gen_t * gen = cw_gen_new(audio_system, NULL);
-		if (!cte->expect_valid_pointer(cte, gen, "set slope: failed to initialize generator in test C1")) {
-			return -1;
-		}
+		cte->assert2(cte, gen, "set slope: C1: failed to initialize generator");
 
 
 		/* At the beginning of test these values are
@@ -376,31 +379,31 @@ int test_cw_gen_set_tone_slope(cw_test_executor_t * cte)
 
 		/* At this point generator should have initial values
 		   of its parameters (yes, that's test zero again). */
-		cte->expect_eq_int(cte, expected_shape, gen->tone_slope.shape, "set slope: N -1: initial shape (%d / %d)", gen->tone_slope.shape, expected_shape);
-		cte->expect_eq_int(cte, expected_len, gen->tone_slope.len, "set slope: N -1: initial length (%d / %d)", gen->tone_slope.len, expected_len);
+		cte->expect_eq_int(cte, expected_shape, gen->tone_slope.shape, "set slope: C1: <x -1>: initial shape");
+		cte->expect_eq_int(cte, expected_len, gen->tone_slope.len, "set slope: C1: <x -1>: initial length");
 
 
 
 		/* Set only new slope shape. */
 		expected_shape = CW_TONE_SLOPE_SHAPE_LINEAR;
 		cwret = cw_gen_set_tone_slope(gen, expected_shape, -1);
-		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "set slope: N -1: set");
+		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "set slope: C1: <x -1>: set");
 
 		/* At this point only slope shape should be updated. */
-		cte->expect_eq_int(cte, expected_shape, gen->tone_slope.shape, "set slope: N -1: get:");
-		cte->expect_eq_int(cte, expected_len, gen->tone_slope.len, "set slope: N -1: preserved length");
+		cte->expect_eq_int(cte, expected_shape, gen->tone_slope.shape, "set slope: C1: <x -1>: get");
+		cte->expect_eq_int(cte, expected_len, gen->tone_slope.len, "set slope: C1: <x -1>: preserved length");
 
 
 
 		/* Set only new slope length. */
 		expected_len = 30;
 		cwret = cw_gen_set_tone_slope(gen, -1, expected_len);
-		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "set slope: -1 N: set:");
+		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "set slope: C1: <-1 x>: set");
 
 		/* At this point only slope length should be updated
 		   (compared to previous function call). */
-		cte->expect_eq_int(cte, expected_len, gen->tone_slope.len, "set slope: -1 N: get (%d / %d)", gen->tone_slope.len, expected_len);
-		cte->expect_eq_int(cte, expected_shape, gen->tone_slope.shape, "set slope: -1 N: preserved shape:");
+		cte->expect_eq_int(cte, expected_len, gen->tone_slope.len, "set slope: C1: <-1 x>: get");
+		cte->expect_eq_int(cte, expected_shape, gen->tone_slope.shape, "set slope: C1: <-1 x>: preserved shape");
 
 
 
@@ -416,10 +419,9 @@ int test_cw_gen_set_tone_slope(cw_test_executor_t * cte)
 	   value of \p slope_len is '-1'." */
 	{
 		cw_gen_t * gen = cw_gen_new(audio_system, NULL);
-		if (!cte->expect_valid_pointer(cte, gen, "set slope: failed to initialize generator in test C2")) {
-			return -1;
-		}
+		cte->assert2(cte, gen, "set slope: C2: failed to initialize generator");
 
+		int cwret = CW_FAILURE;
 
 		/* At the beginning of test these values are
 		   generator's initial values.  As test progresses,
@@ -431,24 +433,24 @@ int test_cw_gen_set_tone_slope(cw_test_executor_t * cte)
 
 		/* At this point generator should have initial values
 		   of its parameters (yes, that's test zero again). */
-		cte->expect_eq_int(cte, expected_shape, gen->tone_slope.shape, "set slope: initial shape (%d / %d):", gen->tone_slope.shape, expected_shape);
-		cte->expect_eq_int(cte, expected_len, gen->tone_slope.len, "set slope: initial length (%d / %d):", gen->tone_slope.len, expected_len);
+		cte->expect_eq_int(cte, expected_shape, gen->tone_slope.shape, "set slope: C2: initial shape");
+		cte->expect_eq_int(cte, expected_len, gen->tone_slope.len, "set slope: C2: initial length");
 
 
 
 		/* Set only new slope shape. */
 		expected_shape = CW_TONE_SLOPE_SHAPE_RECTANGULAR;
-		expected_len = 0; /* Even though we won't pass this to function, this is what we expect to get after this call. */
+		expected_len = 0; /* Even though we won't pass this to function, this is what we expect to get after this call: we request rectangular slope, which by its nature has zero length. */
 		cwret = cw_gen_set_tone_slope(gen, expected_shape, -1);
-		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "set slope: set rectangular");
+		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "set slope: C2: set rectangular");
 
 
 
 		/* At this point slope shape AND slope length should
 		   be updated (slope length is updated only because of
 		   requested rectangular slope shape). */
-		cte->expect_eq_int(cte, expected_shape, gen->tone_slope.shape, "set slope: set rectangular: shape (%d/ %d):", gen->tone_slope.shape, expected_shape);
-		cte->expect_eq_int(cte, expected_len, gen->tone_slope.len, "set slope: set rectangular: length (%d / %d):", gen->tone_slope.len, expected_len);
+		cte->expect_eq_int(cte, expected_shape, gen->tone_slope.shape, "set slope: C2: set rectangular: shape");
+		cte->expect_eq_int(cte, expected_len, gen->tone_slope.len, "set slope: C2: set rectangular: length");
 
 
 		cw_gen_delete(&gen);
@@ -462,42 +464,41 @@ int test_cw_gen_set_tone_slope(cw_test_executor_t * cte)
 	   shape with zero length of the slopes. The slopes will be
 	   non-rectangular, but just unusually short." */
 	{
+		int cwret = CW_FAILURE;
 		cw_gen_t * gen = cw_gen_new(audio_system, NULL);
-		if (!cte->expect_valid_pointer(cte, gen, "set slope: failed to initialize generator in test D")) {
-			return -1;
-		}
+		cte->assert2(cte, gen, "set slope: D: failed to initialize generator");
 
 		const int expected_len = 0;
 
 
 		cwret = cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_LINEAR, expected_len);
-		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "set slope: <LINEAR/0>: set");
-		cte->expect_eq_int(cte, CW_TONE_SLOPE_SHAPE_LINEAR, gen->tone_slope.shape, "set slope: <LINEAR/0>: get");
-		cte->expect_eq_int(cte, expected_len, gen->tone_slope.len, "set slope: <LINEAR/0>: length = %d:", gen->tone_slope.len);
+		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "set slope: D: <LINEAR/0>: set");
+		cte->expect_eq_int(cte, CW_TONE_SLOPE_SHAPE_LINEAR, gen->tone_slope.shape, "set slope: D: <LINEAR/0>: get");
+		cte->expect_eq_int(cte, expected_len, gen->tone_slope.len, "set slope: D: <LINEAR/0>");
 
 
 		cwret = cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_RAISED_COSINE, 0);
-		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "set slope: <RAISED_COSINE/0>: set");
-		cte->expect_eq_int(cte, CW_TONE_SLOPE_SHAPE_RAISED_COSINE, gen->tone_slope.shape, "set slope: <RAISED_COSINE/0>: get");
-		cte->expect_eq_int(cte, expected_len, gen->tone_slope.len, "set slope: <RAISED_COSINE/0>: length = %d:", gen->tone_slope.len);
+		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "set slope: D: <RAISED_COSINE/0>: set");
+		cte->expect_eq_int(cte, CW_TONE_SLOPE_SHAPE_RAISED_COSINE, gen->tone_slope.shape, "set slope: D: <RAISED_COSINE/0>: get");
+		cte->expect_eq_int(cte, expected_len, gen->tone_slope.len, "set slope: D: <RAISED_COSINE/0>");
 
 
 		cwret = cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_SINE, 0);
-		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "set slope: <SINE/0>: set:");
-		cte->expect_eq_int(cte, CW_TONE_SLOPE_SHAPE_SINE, gen->tone_slope.shape, "set slope: <SINE/0>: get:");
-		cte->expect_eq_int(cte, expected_len, gen->tone_slope.len, "set slope: <SINE/0>: length = %d", gen->tone_slope.len);
+		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "set slope: D: <SINE/0>: set");
+		cte->expect_eq_int(cte, CW_TONE_SLOPE_SHAPE_SINE, gen->tone_slope.shape, "set slope: D: <SINE/0>: get");
+		cte->expect_eq_int(cte, expected_len, gen->tone_slope.len, "set slope: D: <SINE/0>");
 
 
 		cwret = cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_RECTANGULAR, 0);
-		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "set slope: <RECTANGULAR/0>: set");
-		cte->expect_eq_int(cte, CW_TONE_SLOPE_SHAPE_RECTANGULAR, gen->tone_slope.shape, "set slope: <RECTANGULAR/0>: get");
-		cte->expect_eq_int(cte, expected_len, gen->tone_slope.len, "set slope: <RECTANGULAR/0>: length = %d:", gen->tone_slope.len);
+		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "set slope: D: <RECTANGULAR/0>: set");
+		cte->expect_eq_int(cte, CW_TONE_SLOPE_SHAPE_RECTANGULAR, gen->tone_slope.shape, "set slope: D: <RECTANGULAR/0>: get");
+		cte->expect_eq_int(cte, expected_len, gen->tone_slope.len, "set slope: D: <RECTANGULAR/0>");
 
 
 		cwret = cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_LINEAR, 0);
-		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "set slope: <LINEAR/0>: set");
-		cte->expect_eq_int(cte, CW_TONE_SLOPE_SHAPE_LINEAR, gen->tone_slope.shape, "set slope: <LINEAR/0>: get");
-		cte->expect_eq_int(cte, expected_len, gen->tone_slope.len, "set slope: <LINEAR/0>: length = %d", gen->tone_slope.len);
+		cte->expect_eq_int(cte, CW_SUCCESS, cwret, "set slope: D: <LINEAR/0>: set");
+		cte->expect_eq_int(cte, CW_TONE_SLOPE_SHAPE_LINEAR, gen->tone_slope.shape, "set slope: D: <LINEAR/0>: get");
+		cte->expect_eq_int(cte, expected_len, gen->tone_slope.len, "set slope: D: <LINEAR/0>");
 
 
 		cw_gen_delete(&gen);
@@ -512,14 +513,15 @@ int test_cw_gen_set_tone_slope(cw_test_executor_t * cte)
 
 
 
-/* Test some assertions about CW_TONE_SLOPE_SHAPE_*
+/**
+   Test some assertions about CW_TONE_SLOPE_SHAPE_*
 
-   Code in this file depends on the fact that these values are
-   different than -1. I think that ensuring that they are in general
-   small, non-negative values is a good idea.
+   Test code in this file depends on the fact that these values are
+   different than -1. I'm testing these values to be sure that when I
+   get a silly idea to modify them, the test will catch this
+   modification.
 
-   I'm testing these values to be sure that when I get a silly idea to
-   modify them, the test will catch this modification.
+   @reviewed on 2019-10-09
 */
 int test_cw_gen_tone_slope_shape_enums(cw_test_executor_t * cte)
 {
@@ -530,7 +532,7 @@ int test_cw_gen_tone_slope_shape_enums(cw_test_executor_t * cte)
 		|| CW_TONE_SLOPE_SHAPE_SINE < 0
 		|| CW_TONE_SLOPE_SHAPE_RECTANGULAR < 0;
 
-	cte->expect_eq_int(cte, false, failure, "slope shape enums:");
+	cte->expect_eq_int(cte, false, failure, "slope shape enums");
 
 	cte->print_test_footer(cte, __func__);
 
@@ -613,6 +615,8 @@ int test_cw_gen_forever_sub(cw_test_executor_t * cte, int seconds, int audio_sys
 
 /**
    tests::cw_gen_get_timing_parameters_internal()
+
+   @reviewed on 2019-10-09
 */
 int test_cw_gen_get_timing_parameters_internal(cw_test_executor_t * cte)
 {
@@ -653,7 +657,7 @@ int test_cw_gen_get_timing_parameters_internal(cw_test_executor_t * cte)
 		|| (eow_space_len == initial)
 		|| (additional_space_len == initial)
 		|| (adjustment_space_len == initial);
-	cte->expect_eq_int(cte, false, failure, "get timing parameters:");
+	cte->expect_eq_int(cte, false, failure, "get timing parameters");
 
 	cw_gen_delete(&gen);
 
@@ -685,11 +689,16 @@ int test_cw_gen_get_timing_parameters_internal(cw_test_executor_t * cte)
    tests::cw_gen_get_volume()
    tests::cw_gen_get_gap()
    tests::cw_gen_get_weighting()
+
+   @reviewed on 2019-10-09
 */
 int test_cw_gen_parameter_getters_setters(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
+	/* No parameter should have value that is larger (for "max"
+	   params) or smaller (for "min" params) than this, so this is
+	   a good initial value. */
 	int off_limits = 10000;
 
 	cw_gen_t * gen = cw_gen_new(cte->current_sound_system, NULL);
@@ -708,63 +717,98 @@ int test_cw_gen_parameter_getters_setters(cw_test_executor_t * cte)
 		int min; /* Minimal acceptable value of parameter. */
 		int max; /* Maximal acceptable value of parameter. */
 
-		const char *name;
+		const char * name;
 	} test_data[] = {
 		{ cw_get_speed_limits,      cw_gen_set_speed,      cw_gen_get_speed,      off_limits,  -off_limits,  "speed"      },
 		{ cw_get_frequency_limits,  cw_gen_set_frequency,  cw_gen_get_frequency,  off_limits,  -off_limits,  "frequency"  },
 		{ cw_get_volume_limits,     cw_gen_set_volume,     cw_gen_get_volume,     off_limits,  -off_limits,  "volume"     },
 		{ cw_get_gap_limits,        cw_gen_set_gap,        cw_gen_get_gap,        off_limits,  -off_limits,  "gap"        },
 		{ cw_get_weighting_limits,  cw_gen_set_weighting,  cw_gen_get_weighting,  off_limits,  -off_limits,  "weighting"  },
-		{ NULL,                     NULL,                  NULL,                      0,                 0,  NULL         }
+		{ NULL,                     NULL,                  NULL,                  0,           0,            NULL         }
 	};
 
+
+	bool get_limits_failure = false;
+	bool set_below_min_cwret_failure = false;
+	bool set_below_min_errno_failure = false;
+	bool set_above_max_cwret_failure = false;
+	bool set_above_max_errno_failure = false;
+	bool set_within_range_cwret_failure = false;
+	bool set_within_range_errno_failure = false;
+	bool set_within_range_readback_failure = false;
 
 	for (int i = 0; test_data[i].get_limits; i++) {
 
 		int value = 0;
-		bool failure = false;
+
 		int cwret = CW_FAILURE;
 
 		/* Test getting limits of values to be tested. */
 		test_data[i].get_limits(&test_data[i].min, &test_data[i].max);
-		failure = (test_data[i].min <= -off_limits) || (test_data[i].max >= off_limits);
-		cte->expect_eq_int_errors_only(cte, false, failure, "get %s limits:", test_data[i].name);
+		get_limits_failure = (test_data[i].min <= -off_limits) || (test_data[i].max >= off_limits);
+		if (!cte->expect_eq_int_errors_only(cte, false, get_limits_failure, "get %s limits", test_data[i].name)) {
+			get_limits_failure = true;
+			break;
+		}
 
 
 		/* Test setting out-of-range value lower than minimum. */
 		errno = 0;
 		value = test_data[i].min - 1;
 		cwret = test_data[i].set_new_value(gen, value);
-		cte->expect_eq_int(cte, CW_FAILURE, cwret, "set %s below limit (cwret)", test_data[i].name);
-		cte->expect_eq_int(cte, EINVAL, errno, "set %s below limit (errno)", test_data[i].name);
+		if (!cte->expect_eq_int_errors_only(cte, CW_FAILURE, cwret, "set %s below limit (cwret)", test_data[i].name)) {
+			set_below_min_cwret_failure = true;
+			break;
+		}
+		if (!cte->expect_eq_int_errors_only(cte, EINVAL, errno, "set %s below limit (errno)", test_data[i].name)) {
+			set_below_min_errno_failure = true;
+			break;
+		}
 
 
 		/* Test setting out-of-range value higher than maximum. */
 		errno = 0;
 		value = test_data[i].max + 1;
 		cwret = test_data[i].set_new_value(gen, value);
-		cte->expect_eq_int(cte, CW_FAILURE, cwret, "set %s above limit (cwret)", test_data[i].name);
-		cte->expect_eq_int(cte, EINVAL, errno, "set %s above limit (errno)", test_data[i].name);
+		if (!cte->expect_eq_int_errors_only(cte, CW_FAILURE, cwret, "set %s above limit (cwret)", test_data[i].name)) {
+			set_above_max_cwret_failure = true;
+			break;
+		}
+		if (!cte->expect_eq_int_errors_only(cte, EINVAL, errno, "set %s above limit (errno)", test_data[i].name)) {
+			set_above_max_errno_failure = true;
+			break;
+		}
 
 
 
 		/* Test setting in-range values. Set with setter and then read back with getter. */
-		failure = false;
-		for (int j = test_data[i].min; j <= test_data[i].max; j++) {
-			cwret = test_data[i].set_new_value(gen, j);
-			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "set %s within limits:", test_data[i].name)) {
-				failure = true;
+		for (int value_to_set = test_data[i].min; value_to_set <= test_data[i].max; value_to_set++) {
+			errno = 0;
+			cwret = test_data[i].set_new_value(gen, value_to_set);
+			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "set %s within limits (cwret) (value to set = %d)", test_data[i].name, value_to_set)) {
+				set_within_range_cwret_failure = true;
+				break;
+			}
+			if (!cte->expect_eq_int_errors_only(cte, 0, errno, "set %s within limits (errno) (value to set = %d)", test_data[i].name, value_to_set)) {
+				set_within_range_errno_failure = true;
 				break;
 			}
 
 			const int readback_value = test_data[i].get_value(gen);
-			if (!cte->expect_eq_int_errors_only(cte, readback_value, j, "readback %s within limits:", test_data[i].name)) {
-				failure = true;
+			if (!cte->expect_eq_int_errors_only(cte, readback_value, value_to_set, "readback %s within limits (value to set = %d)", test_data[i].name, value_to_set)) {
+				set_within_range_readback_failure = true;
 				break;
 			}
 		}
 
-		cte->expect_eq_int(cte, false, failure, "set/get %s within limits:", test_data[i].name);
+		cte->expect_eq_int(cte, false, get_limits_failure, "get %s limits", test_data[i].name);
+		cte->expect_eq_int(cte, false, set_below_min_cwret_failure, "set %s below limit (cwret)", test_data[i].name);
+		cte->expect_eq_int(cte, false, set_below_min_errno_failure, "set %s below limit (errno)", test_data[i].name);
+		cte->expect_eq_int(cte, false, set_above_max_cwret_failure, "set %s above limit (cwret)", test_data[i].name);
+		cte->expect_eq_int(cte, false, set_above_max_errno_failure, "set %s above limit (errno)", test_data[i].name);
+		cte->expect_eq_int(cte, false, set_within_range_cwret_failure, "set %s within range (cwret)", test_data[i].name);
+		cte->expect_eq_int(cte, false, set_within_range_errno_failure, "set %s above limit (errno)", test_data[i].name);
+		cte->expect_eq_int(cte, false, set_within_range_readback_failure, "set %s above limit (readback)", test_data[i].name);
 	}
 
 	cw_gen_delete(&gen);
