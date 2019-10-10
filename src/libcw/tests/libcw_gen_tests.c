@@ -830,51 +830,70 @@ int test_cw_gen_parameter_getters_setters(cw_test_executor_t * cte)
    tests::cw_get_volume_limits()
    tests::cw_gen_set_volume()
    tests::cw_gen_get_volume()
+
+   @reviewed on 2019-10-10
 */
 int test_cw_gen_volume_functions(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
-	int cw_min = -1, cw_max = -1;
+	int volume_min = -1;
+	int volume_max = -1;
+
+	const int slope_mode = CW_SLOPE_MODE_NO_SLOPES; // CW_SLOPE_MODE_STANDARD_SLOPES;
+	const int tone_duration = 100000; /* Duration can't be too short, because the loops will run too fast. */
 
 	cw_gen_t * gen = cw_gen_new(cte->current_sound_system, NULL);
-	cw_gen_start(gen);
+
 
 	/* Test: get range of allowed volumes. */
 	{
-		cw_get_volume_limits(&cw_min, &cw_max);
+		cw_get_volume_limits(&volume_min, &volume_max);
 
-		bool failure = cw_min != CW_VOLUME_MIN
-			|| cw_max != CW_VOLUME_MAX;
+		const bool failure = volume_min != CW_VOLUME_MIN
+			|| volume_max != CW_VOLUME_MAX;
 
-		cte->expect_eq_int(cte, false, failure, "cw_get_volume_limits(): %d, %d", cw_min, cw_max);
+		cte->expect_eq_int(cte, false, failure, "get volume limits: %d, %d", volume_min, volume_max);
 	}
+
+
+	const int volume_delta = 1;
+	/*
+	  There are more tones to be enqueued than there will be loop
+	  iterators, because I don't want to run out of tones in queue
+	  before I iterate over all volumes. When a queue is emptied
+	  too quickly, then cw_gen_wait_for_tone(gen) used in the loop
+	  will wait forever.
+
+	  FIXME: should the cw_gen_wait_for_tone(gen) wait forever on
+	  empty queue?
+	*/
+	const int n_enqueued = 3 * (volume_max - volume_min) / volume_delta;
 
 
 	/* Test: decrease volume from max to low. */
 	{
-		/* Fill the tone queue with valid tones. */
-		while (!cw_gen_is_queue_full(gen)) {
+		/* Add a bunch of tones to tone queue. */
+		for (int i = 0; i < n_enqueued; i++) {
 			cw_tone_t tone;
-			CW_TONE_INIT(&tone, 440, 100000, CW_SLOPE_MODE_STANDARD_SLOPES);
+			CW_TONE_INIT(&tone, 440, tone_duration, slope_mode);
 			cw_tq_enqueue_internal(gen->tq, &tone);
 		}
 
 		bool set_failure = false;
 		bool get_failure = false;
 
-		/* TODO: why call the cw_gen_wait_for_tone() at the
-		   beginning and end of loop's body? */
-		for (int i = cw_max; i >= cw_min; i -= 10) {
-			cw_gen_wait_for_tone(gen);
-			const int cwret = cw_gen_set_volume(gen, i);
-			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "cw_gen_set_volume(%d)", i)) {
+		cw_gen_start(gen);
+
+		for (int vol = volume_max; vol >= volume_min; vol -= volume_delta) {
+			const int cwret = cw_gen_set_volume(gen, vol);
+			if (!cte->expect_eq_int(cte, CW_SUCCESS, cwret, "set volume (down, vol = %d)", vol)) {
 				set_failure = true;
 				break;
 			}
 
 			const int readback_value = cw_gen_get_volume(gen);
-			if (!cte->expect_eq_int_errors_only(cte, readback_value, i, "cw_gen_get_volume() (i = %d)", i)) {
+			if (!cte->expect_eq_int(cte, readback_value, vol, "get volume (down, vol = %d)", vol)) {
 				get_failure = true;
 				break;
 			}
@@ -882,8 +901,11 @@ int test_cw_gen_volume_functions(cw_test_executor_t * cte)
 			cw_gen_wait_for_tone(gen);
 		}
 
-		cte->expect_eq_int(cte, false, set_failure, "cw_gen_set_volume() (down)");
-		cte->expect_eq_int(cte, false, get_failure, "cw_gen_get_volume() (down)");
+		cw_gen_wait_for_queue_level(gen, 0);
+		cw_gen_stop(gen);
+
+		cte->expect_eq_int(cte, false, set_failure, "set volume (down)");
+		cte->expect_eq_int(cte, false, get_failure, "get volume (down)");
 	}
 
 
@@ -891,40 +913,54 @@ int test_cw_gen_volume_functions(cw_test_executor_t * cte)
 
 	/* Test: increase volume from zero to high. */
 	{
-		/* Fill tone queue with valid tones. */
-		while (!cw_gen_is_queue_full(gen)) {
+		/* Add a bunch of tones to tone queue. */
+		for (int i = 0; i < n_enqueued; i++) {
 			cw_tone_t tone;
-			CW_TONE_INIT(&tone, 440, 100000, CW_SLOPE_MODE_STANDARD_SLOPES);
+			CW_TONE_INIT(&tone, 440, tone_duration, slope_mode);
 			cw_tq_enqueue_internal(gen->tq, &tone);
 		}
 
 		bool set_failure = false;
 		bool get_failure = false;
 
-		/* TODO: why call the cw_gen_wait_for_tone() at the
-		   beginning and end of loop's body? */
-		for (int i = cw_min; i <= cw_max; i += 10) {
-			cw_gen_wait_for_tone(gen);
-			const int cwret = cw_gen_set_volume(gen, i);
-			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "cw_gen_set_volume(%d)", i)) {
+		cw_gen_start(gen);
+
+		for (int vol = volume_min; vol <= volume_max; vol += volume_delta) {
+			const int cwret = cw_gen_set_volume(gen, vol);
+			if (!cte->expect_eq_int(cte, CW_SUCCESS, cwret, "set volume (up, vol = %d)", vol)) {
 				set_failure = true;
 				break;
 			}
 
 			const int readback_value = cw_gen_get_volume(gen);
-			if (!cte->expect_eq_int_errors_only(cte, readback_value, i, "cw_gen_get_volume() (vol = %d)", i)) {
+			if (!cte->expect_eq_int(cte, readback_value, vol, "get volume (up, vol = %d)", vol)) {
 				get_failure = true;
 				break;
 			}
+			fprintf(stderr, "len = %zd\n", cw_gen_get_queue_length(gen));
+
 			cw_gen_wait_for_tone(gen);
 		}
 
-		cte->expect_eq_int(cte, false, set_failure, "cw_gen_set_volume() (up)");
-		cte->expect_eq_int(cte, false, get_failure, "cw_gen_get_volume() (up)");
+		cw_gen_wait_for_queue_level(gen, 0);
+		cw_gen_stop(gen);
+
+		cte->expect_eq_int(cte, false, set_failure, "set volume (up)");
+		cte->expect_eq_int(cte, false, get_failure, "get volume (up)");
 	}
 
-	cw_gen_wait_for_tone(gen);
-	cw_tq_flush_internal(gen->tq);
+#if 0
+	/*
+	  FIXME: this is a second call to the function in a row
+	  (second was after 'for' loop). This wait hangs the test
+	  program, as if the function waited for the queue to go to
+	  zero.
+
+	  Calling "cw_gen_wait_for_queue_level(gen, 0)" on an empty
+	  queue should return immediately. */
+	*/
+	cw_gen_wait_for_queue_level(gen, 0);
+#endif
 
 	cw_gen_delete(&gen);
 
@@ -942,12 +978,14 @@ int test_cw_gen_volume_functions(cw_test_executor_t * cte)
    tests::cw_gen_enqueue_mark_internal()
    tests::cw_gen_enqueue_eoc_space_internal()
    tests::cw_gen_enqueue_eow_space_internal()
+
+   @reviewed on 2019-10-10
 */
 int test_cw_gen_enqueue_primitives(cw_test_executor_t * cte)
 {
-	cte->print_test_header(cte, __func__);
+	const int max = (rand() % 40) + 10;
 
-	int N = 20;
+	cte->print_test_header(cte, "%s (%d)", __func__, max);
 
 	cw_gen_t * gen = cw_gen_new(cte->current_sound_system, NULL);
 	cw_gen_start(gen);
@@ -955,16 +993,16 @@ int test_cw_gen_enqueue_primitives(cw_test_executor_t * cte)
 	/* Test: sending dot. */
 	{
 		bool failure = false;
-		for (int i = 0; i < N; i++) {
+		for (int i = 0; i < max; i++) {
 			const int cwret = cw_gen_enqueue_mark_internal(gen, CW_DOT_REPRESENTATION, false);
-			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "cw_gen_enqueue_mark_internal(CW_DOT_REPRESENTATION) (i = %d)", i)) {
+			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "enqueue mark internal(CW_DOT_REPRESENTATION) (i = %d)", i)) {
 				failure = true;
 				break;
 			}
 		}
-		cw_gen_wait_for_tone(gen);
+		cw_gen_wait_for_queue_level(gen, 0);
 
-		cte->expect_eq_int(cte, false, failure, "cw_gen_enqueue_mark_internal(CW_DOT_REPRESENTATION)");
+		cte->expect_eq_int(cte, false, failure, "enqueue mark internal(CW_DOT_REPRESENTATION)");
 	}
 
 
@@ -972,49 +1010,48 @@ int test_cw_gen_enqueue_primitives(cw_test_executor_t * cte)
 	/* Test: sending dash. */
 	{
 		bool failure = false;
-		for (int i = 0; i < N; i++) {
+		for (int i = 0; i < max; i++) {
 			const int cwret = cw_gen_enqueue_mark_internal(gen, CW_DASH_REPRESENTATION, false);
-			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "cw_gen_enqueue_mark_internal(CW_DASH_REPRESENTATION) (i = %d)", i)) {
+			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "enqueue mark internal(CW_DASH_REPRESENTATION) (i = %d)", i)) {
 				failure = true;
 				break;
 			}
 		}
-		cw_gen_wait_for_tone(gen);
+		cw_gen_wait_for_queue_level(gen, 0);
 
-		cte->expect_eq_int(cte, false, failure, "cw_gen_enqueue_mark_internal(CW_DASH_REPRESENTATION)");
+		cte->expect_eq_int(cte, false, failure, "enqueue mark internal(CW_DASH_REPRESENTATION)");
 	}
 
 
 	/* Test: sending inter-character space. */
 	{
 		bool failure = false;
-		for (int i = 0; i < N; i++) {
+		for (int i = 0; i < max; i++) {
 			const int cwret = cw_gen_enqueue_eoc_space_internal(gen);
-			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "cw_gen_enqueue_eoc_space_internal() (i = %d)", i)) {
+			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "enqueue eoc space internal() (i = %d)", i)) {
 				failure = true;
 				break;
 			}
 		}
-		cw_gen_wait_for_tone(gen);
+		cw_gen_wait_for_queue_level(gen, 0);
 
-		cte->expect_eq_int(cte, false, failure, "cw_gen_enqueue_eoc_space_internal()");
+		cte->expect_eq_int(cte, false, failure, "enqueue eoc space internal()");
 	}
-
 
 
 	/* Test: sending inter-word space. */
 	{
 		bool failure = false;
-		for (int i = 0; i < N; i++) {
+		for (int i = 0; i < max; i++) {
 			const int cwret = cw_gen_enqueue_eow_space_internal(gen);
-			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "cw_gen_enqueue_eow_space_internal() (i = %d)", i)) {
+			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "enqueue eow space internal() (i = %d)", i)) {
 				failure = true;
 				break;
 			}
 		}
-		cw_gen_wait_for_tone(gen);
+		cw_gen_wait_for_queue_level(gen, 0);
 
-		cte->expect_eq_int(cte, false, failure, "cw_gen_enqueue_eow_space_internal()");
+		cte->expect_eq_int(cte, false, failure, "enqueue eow space internal()");
 	}
 
 	cw_gen_delete(&gen);
@@ -1031,6 +1068,8 @@ int test_cw_gen_enqueue_primitives(cw_test_executor_t * cte)
    \brief Test playing representations of characters
 
    tests::cw_gen_enqueue_representation_partial_internal()
+
+   @reviewed on 2019-10-10
 */
 int test_cw_gen_enqueue_representations(cw_test_executor_t * cte)
 {
@@ -1046,30 +1085,51 @@ int test_cw_gen_enqueue_representations(cw_test_executor_t * cte)
 
 	/* Test: sending valid representations. */
 	{
-		bool failure = (CW_SUCCESS != cw_gen_enqueue_representation_partial_internal(gen, ".-.-.-"))
-			|| (CW_SUCCESS != cw_gen_enqueue_representation_partial_internal(gen, ".-"))
-			|| (CW_SUCCESS != cw_gen_enqueue_representation_partial_internal(gen, "---"))
-			|| (CW_SUCCESS != cw_gen_enqueue_representation_partial_internal(gen, "...-"));
-
-		cte->expect_eq_int(cte, false, failure, "cw_gen_enqueue_representation_partial_internal(<valid>)");
+		const char * reps[] = { ".-.-.-",
+					".-",
+					"---",
+					"...-",
+					NULL };
+		bool failure = false;
+		int i = 0;
+		while (NULL != reps[i]) {
+			const int cwret = cw_gen_enqueue_representation_partial_internal(gen, reps[i]);
+			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "enqueue representation internal(<valid>) (%d)", i)) {
+				failure = true;
+				break;
+			}
+			i++;
+		}
+		cw_gen_wait_for_queue_level(gen, 0);
+		cte->expect_eq_int(cte, false, failure, "enqueue representation internal(<valid>)");
 	}
 
 
 	/* Test: sending invalid representations. */
 	{
-		bool failure = (CW_SUCCESS == cw_gen_enqueue_representation_partial_internal(gen, "INVALID"))
-			|| (CW_SUCCESS == cw_gen_enqueue_representation_partial_internal(gen, "_._T"))
-			|| (CW_SUCCESS == cw_gen_enqueue_representation_partial_internal(gen, "_.A_."))
-			|| (CW_SUCCESS == cw_gen_enqueue_representation_partial_internal(gen, "S-_-"));
-
-		cte->expect_eq_int(cte, false, failure, "cw_gen_enqueue_representation_partial_internal(<invalid>)");
+		const char * reps[] = { "INVALID",
+					"_._T",
+					"_.A_.",
+					"S-_-",
+					NULL };
+		bool failure = false;
+		int i = 0;
+		while (NULL != reps[i]) {
+			const int cwret = cw_gen_enqueue_representation_partial_internal(gen, reps[i]);
+			if (!cte->expect_eq_int_errors_only(cte, CW_FAILURE, cwret, "enqueue representation internal(<invalid>) (%d)", i)) {
+				failure = true;
+				break;
+			}
+			i++;
+		}
+		cw_gen_wait_for_queue_level(gen, 0);
+		cte->expect_eq_int(cte, false, failure, "enqueue representation internal(<invalid>)");
 	}
 
-	cw_gen_wait_for_tone(gen);
-
-	struct timespec req = { .tv_sec = 3, .tv_nsec = 0 };
+#if 0
+	struct timespec req = { .tv_sec = 1, .tv_nsec = 0 };
 	cw_nanosleep_internal(&req);
-
+#endif
 	cw_gen_delete(&gen);
 
 	cte->print_test_footer(cte, __func__);
