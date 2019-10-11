@@ -32,7 +32,7 @@
    everyone works in X. */
 #define default_cw_test_print_n_chars 75
 
-#define LIBCW_TEST_ALL_TOPICS           "tgkro"   /* generator, tone queue, key, receiver, other. */
+#define LIBCW_TEST_ALL_TOPICS           "tgkrdo"   /* generator, tone queue, key, receiver, data, other. */
 #define LIBCW_TEST_ALL_SOUND_SYSTEMS    "ncoap"   /* Null, console, OSS, ALSA, PulseAudio. */
 
 

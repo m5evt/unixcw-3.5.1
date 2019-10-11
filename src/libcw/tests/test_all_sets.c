@@ -54,6 +54,20 @@ cw_test_set_t cw_test_sets[] = {
 			CW_TEST_FUNCTION_INSERT(test_cw_license_internal),
 			CW_TEST_FUNCTION_INSERT(test_cw_get_x_limits_internal),
 
+			/* cw_debug topic */
+			CW_TEST_FUNCTION_INSERT(test_cw_debug_flags_internal),
+
+			CW_TEST_FUNCTION_INSERT(NULL),
+		}
+	},
+	{
+		CW_TEST_SET_VALID,
+		CW_TEST_API_MODERN,
+
+		{ LIBCW_TEST_TOPIC_DATA, LIBCW_TEST_TOPIC_MAX }, /* Topics. */
+		{ CW_AUDIO_NULL, LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. */
+
+		{
 			/* cw_data topic */
 			CW_TEST_FUNCTION_INSERT(test_cw_representation_to_hash_internal),
 			CW_TEST_FUNCTION_INSERT(test_cw_representation_to_character_internal),
@@ -65,11 +79,9 @@ cw_test_set_t cw_test_sets[] = {
 			CW_TEST_FUNCTION_INSERT(test_validate_string_internal),
 			CW_TEST_FUNCTION_INSERT(test_validate_representation_internal),
 
-			/* cw_debug topic */
-			CW_TEST_FUNCTION_INSERT(test_cw_debug_flags_internal),
-
 			CW_TEST_FUNCTION_INSERT(NULL),
 		}
+
 	},
 	{
 		CW_TEST_SET_VALID,

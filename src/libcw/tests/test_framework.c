@@ -876,12 +876,10 @@ void cw_test_print_test_stats(cw_test_executor_t * self)
 {
 	fprintf(self->stderr, "\n\n%s: Statistics of tests: (total/failures)\n\n", self->msg_prefix);
 
-        //                     123 12345678901234 12345678901234 12345678901234 12345678901234 12345678901234
-	fprintf(self->stderr,       "   | tone queue   | generator    | key          | receiver     | other        |\n");
-	fprintf(self->stderr,       " -----------------------------------------------------------------------------|\n");
-	#define LINE_FORMAT   " %c |% 10d/% 3d|% 10d/% 3d|% 10d/% 3d|% 10d/% 3d|% 10d/% 3d|\n"
-
-
+        //                           1 123456789012 123456789012 123456789012 123456789012 123456789012 123456789012
+	fprintf(self->stderr,       " | tone queue | generator  |    key     |  receiver  |    data    |    other   | \n");
+	fprintf(self->stderr,       " ------------------------------------------------------------------------------|\n");
+	#define LINE_FORMAT   "%c|% 8d/% 3d|% 8d/% 3d|% 8d/% 3d|% 8d/% 3d|% 8d/% 3d|% 8d/% 3d|\n"
 	char sound_systems[] = " NCOAP";
 
 	for (int i = CW_AUDIO_NULL; i <= CW_AUDIO_PA; i++) {
@@ -891,6 +889,7 @@ void cw_test_print_test_stats(cw_test_executor_t * self)
 			self->all_stats[i][LIBCW_TEST_TOPIC_GEN].failures   + self->all_stats[i][LIBCW_TEST_TOPIC_GEN].successes,   self->all_stats[i][LIBCW_TEST_TOPIC_GEN].failures,
 			self->all_stats[i][LIBCW_TEST_TOPIC_KEY].failures   + self->all_stats[i][LIBCW_TEST_TOPIC_KEY].successes,   self->all_stats[i][LIBCW_TEST_TOPIC_KEY].failures,
 			self->all_stats[i][LIBCW_TEST_TOPIC_REC].failures   + self->all_stats[i][LIBCW_TEST_TOPIC_REC].successes,   self->all_stats[i][LIBCW_TEST_TOPIC_REC].failures,
+			self->all_stats[i][LIBCW_TEST_TOPIC_DATA].failures  + self->all_stats[i][LIBCW_TEST_TOPIC_DATA].successes,  self->all_stats[i][LIBCW_TEST_TOPIC_DATA].failures,
 			self->all_stats[i][LIBCW_TEST_TOPIC_OTHER].failures + self->all_stats[i][LIBCW_TEST_TOPIC_OTHER].successes, self->all_stats[i][LIBCW_TEST_TOPIC_OTHER].failures);
 	}
 
@@ -1237,7 +1236,7 @@ int cw_test_main_test_loop(cw_test_executor_t * cte, cw_test_set_t * test_sets)
 
 					if (execute) {
 						cw_test_set_current_topic_and_sound_system(cte, topic, sound_system);
-						fprintf(stderr, "+++ %s +++\n", test_set->test_functions[f].name);
+						//fprintf(stderr, "+++ %s +++\n", test_set->test_functions[f].name);
 						(*test_set->test_functions[f].fn)(cte);
 					}
 
