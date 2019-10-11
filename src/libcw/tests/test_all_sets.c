@@ -61,7 +61,8 @@ cw_test_set_t cw_test_sets[] = {
 			CW_TEST_FUNCTION_INSERT(test_character_lookups_internal),
 			CW_TEST_FUNCTION_INSERT(test_prosign_lookups_internal),
 			CW_TEST_FUNCTION_INSERT(test_phonetic_lookups_internal),
-			CW_TEST_FUNCTION_INSERT(test_validate_character_and_string_internal),
+			CW_TEST_FUNCTION_INSERT(test_validate_character_internal),
+			CW_TEST_FUNCTION_INSERT(test_validate_string_internal),
 			CW_TEST_FUNCTION_INSERT(test_validate_representation_internal),
 
 			/* cw_debug topic */

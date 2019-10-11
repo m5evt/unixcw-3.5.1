@@ -41,6 +41,12 @@
 
 
 
+extern const char * test_valid_representations[];
+extern const char * test_invalid_representations[];
+
+
+
+
 /**
    tests::cw_gen_new()
    tests::cw_gen_delete()
@@ -1069,7 +1075,7 @@ int test_cw_gen_enqueue_primitives(cw_test_executor_t * cte)
 
    tests::cw_gen_enqueue_representation_partial_internal()
 
-   @reviewed on 2019-10-10
+   @reviewed on 2019-10-11
 */
 int test_cw_gen_enqueue_representations(cw_test_executor_t * cte)
 {
@@ -1085,15 +1091,10 @@ int test_cw_gen_enqueue_representations(cw_test_executor_t * cte)
 
 	/* Test: sending valid representations. */
 	{
-		const char * reps[] = { ".-.-.-",
-					".-",
-					"---",
-					"...-",
-					NULL };
 		bool failure = false;
 		int i = 0;
-		while (NULL != reps[i]) {
-			const int cwret = cw_gen_enqueue_representation_partial_internal(gen, reps[i]);
+		while (NULL != test_valid_representations[i]) {
+			const int cwret = cw_gen_enqueue_representation_partial_internal(gen, test_valid_representations[i]);
 			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "enqueue representation internal(<valid>) (%d)", i)) {
 				failure = true;
 				break;
@@ -1107,15 +1108,10 @@ int test_cw_gen_enqueue_representations(cw_test_executor_t * cte)
 
 	/* Test: sending invalid representations. */
 	{
-		const char * reps[] = { "INVALID",
-					"_._T",
-					"_.A_.",
-					"S-_-",
-					NULL };
 		bool failure = false;
 		int i = 0;
-		while (NULL != reps[i]) {
-			const int cwret = cw_gen_enqueue_representation_partial_internal(gen, reps[i]);
+		while (NULL != test_invalid_representations[i]) {
+			const int cwret = cw_gen_enqueue_representation_partial_internal(gen, test_invalid_representations[i]);
 			if (!cte->expect_eq_int_errors_only(cte, CW_FAILURE, cwret, "enqueue representation internal(<invalid>) (%d)", i)) {
 				failure = true;
 				break;

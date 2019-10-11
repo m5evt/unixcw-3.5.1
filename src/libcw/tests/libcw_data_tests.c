@@ -61,6 +61,23 @@ extern const cw_entry_t CW_TABLE[];
 
 
 
+const char * test_valid_representations[] = { ".-.-.-",
+					      ".-",
+					      "---",
+					      "...-",
+					      NULL };
+
+const char * test_invalid_representations[] = { "INVALID",
+						"_._T",
+						"_.A_.",
+						"S-_-",
+						"_._", /* This does not represent a valid letter/digit. */
+						"-_-", /* This does not represent a valid letter/digit. */
+
+						NULL };
+
+
+
 
 /**
    tests::cw_representation_to_hash_internal()
@@ -508,82 +525,63 @@ int test_phonetic_lookups_internal(cw_test_executor_t * cte)
 
 
 
-
 /**
-   Validate all supported characters, first each characters individually, then as a string.
+   Validate all supported characters individually
 
    tests::cw_character_is_valid()
-   tests::cw_string_is_valid()
+
+   @reviewed on 2019-10-11
 */
-int test_validate_character_and_string_internal(cw_test_executor_t * cte)
+int test_validate_character_internal(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
 	/* Test: validation of individual characters. */
-	{
-		bool failure_valid = false;
-		bool failure_invalid = false;
 
-		char charlist[UCHAR_MAX + 1];
-		cw_list_characters(charlist);
+	bool failure_valid = false;
+	bool failure_invalid = false;
 
-		for (int i = 0; i < UCHAR_MAX; i++) {
-			if (i == '\b') {
-				/* Here we have a valid character, that is
-				   not 'sendable' but can be handled by libcw
-				   nevertheless. cw_character_is_valid() should
-				   confirm it. */
-				const bool is_valid = cw_character_is_valid(i);
+	char charlist[UCHAR_MAX + 1];
+	cw_list_characters(charlist);
 
-				if (!cte->expect_eq_int_errors_only(cte, true, is_valid, "validate character: valid character '<backspace>' / #%d not recognized as valid\n", i)) {
-					failure_valid = true;
-					break;
-				}
-			} else if (i == ' ' || (i != 0 && strchr(charlist, toupper(i)) != NULL)) {
+	for (int i = 0; i < UCHAR_MAX; i++) {
+		if (i == '\b') {
+			/* Here we have a valid character, that is
+			   not 'sendable' but can be handled by libcw
+			   nevertheless. cw_character_is_valid() should
+			   confirm it. */
+			const bool is_valid = cw_character_is_valid(i);
 
-				/* Here we have a valid character, that is
-				   recognized/supported as 'sendable' by
-				   libcw.  cw_character_is_valid() should
-				   confirm it. */
-				const bool is_valid = cw_character_is_valid(i);
-				if (!cte->expect_eq_int_errors_only(cte, true, is_valid, "validate character: valid character '%c' / #%d not recognized as valid\n", (char ) i, i)) {
-					failure_valid = true;
-					break;
-				}
-			} else {
-				/* The 'i' character is not
-				   recognized/supported by libcw.
-				   cw_character_is_valid() should return false
-				   to signify that the char is invalid. */
-				const bool is_valid = cw_character_is_valid(i);
-				if (!cte->expect_eq_int_errors_only(cte, false, is_valid, "validate character: invalid character '%c' / #%d recognized as valid\n", (char ) i, i)) {
-					failure_invalid = true;
-					break;
-				}
+			if (!cte->expect_eq_int_errors_only(cte, true, is_valid, "validate character: valid character '<backspace>' / #%d not recognized as valid\n", i)) {
+				failure_valid = true;
+				break;
+			}
+		} else if (i == ' ' || (i != 0 && strchr(charlist, toupper(i)) != NULL)) {
+
+			/* Here we have a valid character, that is
+			   recognized/supported as 'sendable' by
+			   libcw.  cw_character_is_valid() should
+			   confirm it. */
+			const bool is_valid = cw_character_is_valid(i);
+			if (!cte->expect_eq_int_errors_only(cte, true, is_valid, "validate character: valid character '%c' / #%d not recognized as valid\n", (char ) i, i)) {
+				failure_valid = true;
+				break;
+			}
+		} else {
+			/* The 'i' character is not
+			   recognized/supported by libcw.
+			   cw_character_is_valid() should return false
+			   to signify that the char is invalid. */
+			const bool is_valid = cw_character_is_valid(i);
+			if (!cte->expect_eq_int_errors_only(cte, false, is_valid, "validate character: invalid character '%c' / #%d recognized as valid\n", (char ) i, i)) {
+				failure_invalid = true;
+				break;
 			}
 		}
-
-		cte->expect_eq_int(cte, false, failure_valid, "validate character: valid characters");
-		cte->expect_eq_int(cte, false, failure_invalid, "validate character: invalid characters:");
 	}
 
-
-
-	/* Test: validation of string as a whole. */
-	{
-		bool are_we_valid = false;
-		/* Check the whole charlist item as a single string,
-		   then check a known invalid string. */
-
-		char charlist[UCHAR_MAX + 1];
-		cw_list_characters(charlist);
-		are_we_valid = cw_string_is_valid(charlist);
-		cte->expect_eq_int(cte, true, are_we_valid, "validate string: valid string");
-
-		/* Test invalid string. */
-		are_we_valid = cw_string_is_valid("%INVALID%");
-		cte->expect_eq_int(cte, false, are_we_valid, "validate string: invalid string");
-	}
+	cte->expect_eq_int(cte, false, failure_valid, "validate character: valid characters");
+	cte->expect_eq_int(cte, false, failure_invalid, "validate character: invalid characters");
 
 	cte->print_test_footer(cte, __func__);
 
@@ -593,11 +591,49 @@ int test_validate_character_and_string_internal(cw_test_executor_t * cte)
 
 
 
+/**
+   Validate all supported characters placed in a string
+
+   tests::cw_string_is_valid()
+
+   @reviewed on 2019-10-11
+*/
+int test_validate_string_internal(cw_test_executor_t * cte)
+{
+	cte->print_test_header(cte, __func__);
+
+	/* Test: validation of string as a whole. */
+
+	bool are_we_valid = false;
+	/* Check the whole charlist item as a single string,
+	   then check a known invalid string. */
+
+
+	char charlist[UCHAR_MAX + 1];
+	cw_list_characters(charlist);
+	are_we_valid = cw_string_is_valid(charlist);
+	cte->expect_eq_int(cte, true, are_we_valid, "validate string: valid string");
+
+
+	/* Test invalid string. */
+	are_we_valid = cw_string_is_valid("%INVALID%");
+	cte->expect_eq_int(cte, false, are_we_valid, "validate string: invalid string");
+
+
+	cte->print_test_footer(cte, __func__);
+
+	return 0;
+}
+
+
+
 
 /**
    \brief Validating representations of characters
 
    tests::cw_representation_is_valid()
+
+   @reviewed on 2019-10-11
 */
 int test_validate_representation_internal(cw_test_executor_t * cte)
 {
@@ -605,24 +641,33 @@ int test_validate_representation_internal(cw_test_executor_t * cte)
 
 	/* Test: validating valid representations. */
 	{
-		int rv1 = cw_representation_is_valid(".-.-.-");
-		int rv2 = cw_representation_is_valid(".-");
-		int rv3 = cw_representation_is_valid("---");
-		int rv4 = cw_representation_is_valid("...-");
-
-		bool failure = (rv1 != CW_SUCCESS) || (rv2 != CW_SUCCESS) || (rv3 != CW_SUCCESS) || (rv4 != CW_SUCCESS);
-		cte->expect_eq_int(cte, false, failure, "validate representation: valid (%d/%d/%d/%d):", rv1, rv2, rv3, rv4);
+		int i = 0;
+		bool failure = false;
+		while (test_valid_representations[i]) {
+			const int cwret = cw_representation_is_valid(test_valid_representations[i]);
+			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "valid representations (i = %d)", i)) {
+				failure = false;
+				break;
+			}
+			i++;
+		}
+		cte->expect_eq_int(cte, false, failure, "valid representations");
 	}
 
 
 	/* Test: validating invalid representations. */
 	{
-		int rv1 = cw_representation_is_valid("INVALID");
-		int rv2 = cw_representation_is_valid("_._");
-		int rv3 = cw_representation_is_valid("-_-");
-
-		bool failure = (rv1 == CW_SUCCESS) || (rv2 == CW_SUCCESS) || (rv3 == CW_SUCCESS);
-		cte->expect_eq_int(cte, false, failure, "validate representation: invalid (%d/%d/%d):", rv1, rv2, rv3);
+		int i = 0;
+		bool failure = false;
+		while (test_invalid_representations[i]) {
+			const int cwret = cw_representation_is_valid(test_invalid_representations[i]);
+			if (!cte->expect_eq_int_errors_only(cte, CW_FAILURE, cwret, "invalid representations (i = %d)", i)) {
+				failure = false;
+				break;
+			}
+			i++;
+		}
+		cte->expect_eq_int(cte, false, failure, "invalid representations");
 	}
 
 	cte->print_test_footer(cte, __func__);
