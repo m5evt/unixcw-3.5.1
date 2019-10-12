@@ -418,6 +418,9 @@ bool cw_test_expect_op_int2(struct cw_test_executor_t * self, int expected_value
 	} else if (operator[0] == '>' && operator[1] == '=') {
 		success = expected_value >= received_value;
 
+	} else if (operator[0] == '!' && operator[1] == '=') {
+		success = expected_value != received_value;
+
 	} else if (operator[0] == '<' && operator[1] == '\0') {
 		success = expected_value < received_value;
 
@@ -903,11 +906,15 @@ void cw_test_print_test_stats(cw_test_executor_t * self)
 {
 	const char sound_systems[] = " NCOAP";
 
-	fprintf(self->stderr, "\n\nlibcw tests: Statistics of tests: (failures/total)\n\n");
+	fprintf(self->stderr, "\n\nlibcw tests: Statistics of tests (failures/total)\n\n");
 
 	//                           12345 123456789012 123456789012 123456789012 123456789012 123456789012 123456789012
 	#define SEPARATOR_LINE      "   --+------------+------------+------------+------------+------------+------------+\n"
-        #define LINE_FORMAT         "%s %c |% 11d |% 11d |% 11d |% 11d |% 11d |% 11d | %s\n"
+	#define FRONT_FORMAT        "%s %c |"
+	#define BACK_FORMAT         "%s\n"
+	#define CELL_FORMAT_D       "% 11d |"
+	#define CELL_FORMAT_S       "%11s |"
+
 	fprintf(self->stderr,       "     | tone queue | generator  |    key     |  receiver  |    data    |    other   |\n");
 	fprintf(self->stderr,       "%s", SEPARATOR_LINE);
 
@@ -937,30 +944,42 @@ void cw_test_print_test_stats(cw_test_executor_t * self)
 		}
 
 
-		/* Print line with errors. */
-		fprintf(self->stderr, LINE_FORMAT,
-			error_indicator_front,
-			sound_systems[sound],
-			self->all_stats[sound][LIBCW_TEST_TOPIC_TQ].failures,
-			self->all_stats[sound][LIBCW_TEST_TOPIC_GEN].failures,
-			self->all_stats[sound][LIBCW_TEST_TOPIC_KEY].failures,
-			self->all_stats[sound][LIBCW_TEST_TOPIC_REC].failures,
-			self->all_stats[sound][LIBCW_TEST_TOPIC_DATA].failures,
-			self->all_stats[sound][LIBCW_TEST_TOPIC_OTHER].failures,
-			error_indicator_back);
+
+		/* Print line with errors. Print numeric values only
+		   if some tests for given combination of sound
+		   system/topic were performed. */
+		fprintf(self->stderr, FRONT_FORMAT, error_indicator_front, sound_systems[sound]);
+		for (int topic = 0; topic < LIBCW_TEST_TOPIC_MAX; topic++) {
+			int total = self->all_stats[sound][topic].failures + self->all_stats[sound][topic].successes;
+			int failures = self->all_stats[sound][topic].failures;
+
+			if (0 == total && 0 == failures) {
+				fprintf(self->stderr, CELL_FORMAT_S, " ");
+			} else {
+				fprintf(self->stderr, CELL_FORMAT_D, failures);
+			}
+		}
+		fprintf(self->stderr, BACK_FORMAT, error_indicator_back);
 
 
-		/* Print line with totals. */
-		fprintf(self->stderr, LINE_FORMAT,
-			error_indicator_empty,
-			sound_systems[sound],
-			self->all_stats[sound][LIBCW_TEST_TOPIC_TQ].failures    + self->all_stats[sound][LIBCW_TEST_TOPIC_TQ].successes,
-			self->all_stats[sound][LIBCW_TEST_TOPIC_GEN].failures   + self->all_stats[sound][LIBCW_TEST_TOPIC_GEN].successes,
-			self->all_stats[sound][LIBCW_TEST_TOPIC_KEY].failures   + self->all_stats[sound][LIBCW_TEST_TOPIC_KEY].successes,
-			self->all_stats[sound][LIBCW_TEST_TOPIC_REC].failures   + self->all_stats[sound][LIBCW_TEST_TOPIC_REC].successes,
-			self->all_stats[sound][LIBCW_TEST_TOPIC_DATA].failures  + self->all_stats[sound][LIBCW_TEST_TOPIC_DATA].successes,
-			self->all_stats[sound][LIBCW_TEST_TOPIC_OTHER].failures + self->all_stats[sound][LIBCW_TEST_TOPIC_OTHER].successes,
-			error_indicator_empty);
+
+		/* Print line with totals. Print numeric values only
+		   if some tests for given combination of sound
+		   system/topic were performed. */
+		fprintf(self->stderr, FRONT_FORMAT, error_indicator_empty, sound_systems[sound]);
+		for (int topic = 0; topic < LIBCW_TEST_TOPIC_MAX; topic++) {
+			int total = self->all_stats[sound][topic].failures + self->all_stats[sound][topic].successes;
+			int failures = self->all_stats[sound][topic].failures;
+
+			if (0 == total && 0 == failures) {
+				fprintf(self->stderr, CELL_FORMAT_S, " ");
+			} else {
+				fprintf(self->stderr, CELL_FORMAT_D, total);
+			}
+		}
+		fprintf(self->stderr, BACK_FORMAT, error_indicator_empty);
+
+
 
 		fprintf(self->stderr,       "%s", SEPARATOR_LINE);
 	}
