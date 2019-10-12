@@ -368,7 +368,6 @@ int test_character_lookups_internal(cw_test_executor_t * cte)
 
 
 
-
 /**
    \brief Test functions looking up procedural characters and their representation.
 
@@ -376,6 +375,8 @@ int test_character_lookups_internal(cw_test_executor_t * cte)
    tests::cw_list_procedural_characters()
    tests::cw_get_maximum_procedural_expansion_length()
    tests::cw_lookup_procedural_character()
+
+   @revieded on 2019-10-12
 */
 int test_prosign_lookups_internal(cw_test_executor_t * cte)
 {
@@ -385,7 +386,6 @@ int test_prosign_lookups_internal(cw_test_executor_t * cte)
 	   procedural signals expansion table. */
 
 	int count = 0; /* Number of prosigns. */
-	bool failure = true;
 
 	/* Test: get number of prosigns known to libcw. */
 	{
@@ -395,25 +395,25 @@ int test_prosign_lookups_internal(cw_test_executor_t * cte)
 
 
 
-	char charlist[UCHAR_MAX + 1];
+	char procedural_characters[UCHAR_MAX + 1] = { 0 };
 	/* Test: get list of characters supported by libcw. */
 	{
-		cw_list_procedural_characters(charlist);
-		fprintf(out_file, MSG_PREFIX "list of procedural characters: %s\n", charlist);
-		const int extracted_len = (int) strlen(charlist);
+		cw_list_procedural_characters(procedural_characters); /* TODO: we need a version of the function that accepts size of buffer as argument. */
+		cte->log_info(cte, "list of procedural characters: %s\n", procedural_characters);
 
+		const int extracted_len = (int) strlen(procedural_characters);
 		const int extracted_count = cw_get_procedural_character_count();
 
-		cte->expect_eq_int(cte, extracted_count, extracted_len, "procedural character count = %d, list length = %d", extracted_count, extracted_len);
+		cte->expect_op_int(cte, extracted_count, "==", extracted_len, 0, "procedural character count = %d, list length = %d", extracted_count, extracted_len);
 	}
 
 
 
 	/* Test: expansion length. */
+	int max_expansion_length = 0;
 	{
-		int exp_len = cw_get_maximum_procedural_expansion_length();
-		failure = (exp_len <= 0);
-		cte->expect_eq_int(cte, false, failure, "maximum procedural expansion length (%d):", (int) exp_len);
+		max_expansion_length = cw_get_maximum_procedural_expansion_length();
+		cte->expect_op_int(cte, 0, "<", max_expansion_length, 0, "maximum procedural expansion length (%d)", max_expansion_length);
 	}
 
 
@@ -421,43 +421,46 @@ int test_prosign_lookups_internal(cw_test_executor_t * cte)
 	/* Test: lookup. */
 	{
 		/* For each procedural character, look up its
-		   expansion and check for two or three characters,
-		   and a true/false assignment to the display hint. */
+		   expansion, verify its length, and check a
+		   true/false assignment to the display hint. */
 
 		bool lookup_failure = false;
-		bool check_failure = false;
+		bool length_failure = false;
+		bool expansion_failure = false;
 
-		for (int i = 0; charlist[i] != '\0'; i++) {
-			char expansion[256];
-			int is_usually_expanded = -1;
+		for (int i = 0; procedural_characters[i] != '\0'; i++) {
+			char expansion[256] = { 0 };
+			int is_usually_expanded = -1; /* This value should be set by libcw to either 0 (false) or 1 (true). */
 
-			const int cwret = cw_lookup_procedural_character(charlist[i], expansion, &is_usually_expanded);
-			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "procedural character lookup: lookup of character '%c' (#%d)", charlist[i], i)) {
+			const int cwret = cw_lookup_procedural_character(procedural_characters[i], expansion, &is_usually_expanded);
+			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "procedural character lookup: lookup of character '%c' (#%d)", procedural_characters[i], i)) {
 				lookup_failure = true;
 				break;
 			}
 
+			const int length = (int) strlen(expansion);
 
-			/* TODO: comment, please. */
-			if ((strlen(expansion) != 2 && strlen(expansion) != 3)
-			    || is_usually_expanded == -1) {
+			if (!cte->expect_between_int_errors_only(cte, 2, length, max_expansion_length, "procedural character lookup: expansion length of character '%c' (#%d)", procedural_characters[i], i)) {
+				length_failure = true;
+				break;
+			}
 
-				// cte->expect_eq_int_errors_only(cte, ); // TODO: implement
-				check_failure = true;
-				fprintf(out_file, MSG_PREFIX "procedural character lookup: expansion check failed (#%d)\n", i);
+			/* Check if call to tested function has modified the flag. */
+			if (!cte->expect_op_int(cte, -1, "!=", is_usually_expanded, 1, "procedural character lookup: expansion hint of character '%c' ((#%d)\n", procedural_characters[i], i)) {
+				expansion_failure = true;
 				break;
 			}
 		}
 
-		cte->expect_eq_int(cte, false, lookup_failure, "procedural character lookup: lookup");
-		cte->expect_eq_int(cte, false, check_failure, "procedural character lookup: lookup check");
+		cte->expect_op_int(cte, false, "==", lookup_failure, 0, "procedural character lookup: lookup");
+		cte->expect_op_int(cte, false, "==", length_failure, 0, "procedural character lookup: length");
+		cte->expect_op_int(cte, false, "==", expansion_failure, 0, "procedural character lookup: expansion flag");
 	}
 
 	cte->print_test_footer(cte, __func__);
 
 	return 0;
 }
-
 
 
 
