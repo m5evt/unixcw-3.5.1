@@ -54,6 +54,8 @@ extern cw_debug_t cw_debug_object_dev;
 
    tests::cw_debug_set_flags()
    tests::cw_debug_get_flags()
+
+   @reviewed on 2019-10-12
 */
 int test_cw_debug_flags_internal(cw_test_executor_t * cte)
 {
@@ -61,27 +63,27 @@ int test_cw_debug_flags_internal(cw_test_executor_t * cte)
 
 	/* Store current flags for period of tests. */
 	uint32_t flags_backup = cw_debug_get_flags(&cw_debug_object);
-	bool set_failure = true;
-	bool get_failure = true;
+	bool set_failure = false;
+	bool get_failure = false;
 
-	for (uint32_t i = 1; i <= CW_DEBUG_MASK; i++) {
-		cw_debug_set_flags(&cw_debug_object, i);
+	cw_debug_set_flags(&cw_debug_object, 0x00);
 
-		set_failure = !((&cw_debug_object)->flags & i);
-		if (!cte->expect_eq_int_errors_only(cte, false, set_failure, "failed to set debug flag %"PRIu32"\n", i)) {
+	for (uint32_t flags = 1; flags <= CW_DEBUG_MASK; flags++) { /* All combinations of all bits that form libcw debug mask. */
+		cw_debug_set_flags(&cw_debug_object, flags);
+		if (!cte->expect_op_int(cte, flags, "==", cw_debug_object.flags, 1, "set debug flag %"PRIu32"", flags)) {
 			set_failure = true;
 			break;
 		}
 
-		get_failure = (cw_debug_get_flags(&cw_debug_object) != i);
-		if (!cte->expect_eq_int_errors_only(cte, false, get_failure, "failed to get debug flag %"PRIu32"\n", i)) {
+		uint32_t readback_flags = cw_debug_get_flags(&cw_debug_object);
+		if (!cte->expect_op_int(cte, flags, "==", readback_flags, 1, "get debug flag %"PRIu32"\n", flags)) {
 			get_failure = true;
 			break;
 		}
 	}
 
-	cte->expect_eq_int(cte, false, set_failure, "set");
-	cte->expect_eq_int(cte, false, get_failure, "get");
+	cte->expect_eq_int(cte, false, set_failure, "set debug flags");
+	cte->expect_eq_int(cte, false, get_failure, "get debug flags");
 
 	/* Restore original flags. */
 	cw_debug_set_flags(&cw_debug_object, flags_backup);
