@@ -874,23 +874,68 @@ void cw_test_set_current_topic_and_sound_system(cw_test_executor_t * self, int t
 
 void cw_test_print_test_stats(cw_test_executor_t * self)
 {
-	fprintf(self->stderr, "\n\n%s: Statistics of tests: (total/failures)\n\n", self->msg_prefix);
+	const char sound_systems[] = " NCOAP";
 
-        //                           1 123456789012 123456789012 123456789012 123456789012 123456789012 123456789012
-	fprintf(self->stderr,       " | tone queue | generator  |    key     |  receiver  |    data    |    other   | \n");
-	fprintf(self->stderr,       " ------------------------------------------------------------------------------|\n");
-	#define LINE_FORMAT   "%c|% 8d/% 3d|% 8d/% 3d|% 8d/% 3d|% 8d/% 3d|% 8d/% 3d|% 8d/% 3d|\n"
-	char sound_systems[] = " NCOAP";
+	fprintf(self->stderr, "\n\nlibcw tests: Statistics of tests: (failures/total)\n\n");
 
-	for (int i = CW_AUDIO_NULL; i <= CW_AUDIO_PA; i++) {
+	//                           12345 123456789012 123456789012 123456789012 123456789012 123456789012 123456789012
+	#define SEPARATOR_LINE      "   --+------------+------------+------------+------------+------------+------------+\n"
+        #define LINE_FORMAT         "%s %c |% 11d |% 11d |% 11d |% 11d |% 11d |% 11d | %s\n"
+	fprintf(self->stderr,       "     | tone queue | generator  |    key     |  receiver  |    data    |    other   |\n");
+	fprintf(self->stderr,       "%s", SEPARATOR_LINE);
+
+	for (int sound = CW_AUDIO_NULL; sound <= CW_AUDIO_PA; sound++) {
+
+		/* If a row with error counter has non-zero values,
+		   use arrows at the beginning and end of the row to
+		   highlight/indicate row that has non-zero error
+		   counters. We want the errors to be visible and
+		   stand out. */
+		char error_indicator_empty[3] = "  ";
+		char error_indicator_front[3] = "  ";
+		char error_indicator_back[3] = "  ";
+		{
+			bool has_errors = false;
+			for (int topic = 0; topic < LIBCW_TEST_TOPIC_MAX; topic++) {
+				if (self->all_stats[sound][topic].failures) {
+					has_errors = true;
+					break;
+				}
+			}
+
+			if (has_errors) {
+				snprintf(error_indicator_front, sizeof (error_indicator_front), "%s", "->");
+				snprintf(error_indicator_back, sizeof (error_indicator_back), "%s", "<-");
+			}
+		}
+
+
+		/* Print line with errors. */
 		fprintf(self->stderr, LINE_FORMAT,
-			sound_systems[i],
-			self->all_stats[i][LIBCW_TEST_TOPIC_TQ].failures    + self->all_stats[i][LIBCW_TEST_TOPIC_TQ].successes,    self->all_stats[i][LIBCW_TEST_TOPIC_TQ].failures,
-			self->all_stats[i][LIBCW_TEST_TOPIC_GEN].failures   + self->all_stats[i][LIBCW_TEST_TOPIC_GEN].successes,   self->all_stats[i][LIBCW_TEST_TOPIC_GEN].failures,
-			self->all_stats[i][LIBCW_TEST_TOPIC_KEY].failures   + self->all_stats[i][LIBCW_TEST_TOPIC_KEY].successes,   self->all_stats[i][LIBCW_TEST_TOPIC_KEY].failures,
-			self->all_stats[i][LIBCW_TEST_TOPIC_REC].failures   + self->all_stats[i][LIBCW_TEST_TOPIC_REC].successes,   self->all_stats[i][LIBCW_TEST_TOPIC_REC].failures,
-			self->all_stats[i][LIBCW_TEST_TOPIC_DATA].failures  + self->all_stats[i][LIBCW_TEST_TOPIC_DATA].successes,  self->all_stats[i][LIBCW_TEST_TOPIC_DATA].failures,
-			self->all_stats[i][LIBCW_TEST_TOPIC_OTHER].failures + self->all_stats[i][LIBCW_TEST_TOPIC_OTHER].successes, self->all_stats[i][LIBCW_TEST_TOPIC_OTHER].failures);
+			error_indicator_front,
+			sound_systems[sound],
+			self->all_stats[sound][LIBCW_TEST_TOPIC_TQ].failures,
+			self->all_stats[sound][LIBCW_TEST_TOPIC_GEN].failures,
+			self->all_stats[sound][LIBCW_TEST_TOPIC_KEY].failures,
+			self->all_stats[sound][LIBCW_TEST_TOPIC_REC].failures,
+			self->all_stats[sound][LIBCW_TEST_TOPIC_DATA].failures,
+			self->all_stats[sound][LIBCW_TEST_TOPIC_OTHER].failures,
+			error_indicator_back);
+
+
+		/* Print line with totals. */
+		fprintf(self->stderr, LINE_FORMAT,
+			error_indicator_empty,
+			sound_systems[sound],
+			self->all_stats[sound][LIBCW_TEST_TOPIC_TQ].failures    + self->all_stats[sound][LIBCW_TEST_TOPIC_TQ].successes,
+			self->all_stats[sound][LIBCW_TEST_TOPIC_GEN].failures   + self->all_stats[sound][LIBCW_TEST_TOPIC_GEN].successes,
+			self->all_stats[sound][LIBCW_TEST_TOPIC_KEY].failures   + self->all_stats[sound][LIBCW_TEST_TOPIC_KEY].successes,
+			self->all_stats[sound][LIBCW_TEST_TOPIC_REC].failures   + self->all_stats[sound][LIBCW_TEST_TOPIC_REC].successes,
+			self->all_stats[sound][LIBCW_TEST_TOPIC_DATA].failures  + self->all_stats[sound][LIBCW_TEST_TOPIC_DATA].successes,
+			self->all_stats[sound][LIBCW_TEST_TOPIC_OTHER].failures + self->all_stats[sound][LIBCW_TEST_TOPIC_OTHER].successes,
+			error_indicator_empty);
+
+		fprintf(self->stderr,       "%s", SEPARATOR_LINE);
 	}
 
 	return;
