@@ -45,14 +45,9 @@
 
 
 
-#define MSG_PREFIX "libcw/data: "
-
-
-
-
 /* For maximum length of 7, there should be 254 items:
    2^1 + 2^2 + 2^3 + ... + 2^7 */
-#define REPRESENTATION_TABLE_SIZE ((2 << (CW_DATA_MAX_REPRESENTATION_LENGTH + 1)) - 1)
+#define REPRESENTATION_TABLE_SIZE ((1 << (CW_DATA_MAX_REPRESENTATION_LENGTH + 1)) - 2)
 
 
 
@@ -61,11 +56,13 @@ extern const cw_entry_t CW_TABLE[];
 
 
 
+
 const char * test_valid_representations[] = { ".-.-.-",
 					      ".-",
 					      "---",
 					      "...-",
-					      NULL };
+
+					      NULL }; /* Guard. */
 
 const char * test_invalid_representations[] = { "INVALID",
 						"_._T",
@@ -74,7 +71,7 @@ const char * test_invalid_representations[] = { "INVALID",
 						"_._", /* This does not represent a valid letter/digit. */
 						"-_-", /* This does not represent a valid letter/digit. */
 
-						NULL };
+						NULL }; /* Guard. */
 
 
 
@@ -82,10 +79,10 @@ const char * test_invalid_representations[] = { "INVALID",
 /**
    tests::cw_representation_to_hash_internal()
 
-   The function builds every possible valid representation no longer
-   than 7 chars, and then calculates a hash of the
-   representation. Since a representation is valid, the tested
-   function should calculate a valid hash.
+   The function builds every possible well formed representation no
+   longer than 7 chars, and then calculates a hash of the
+   representation. Since a representation is well formed, the tested
+   function should calculate a hash.
 
    The function does not compare a representation and its hash to
    verify that patterns in representation and in hash match.
@@ -93,7 +90,9 @@ const char * test_invalid_representations[] = { "INVALID",
    TODO: add code that would compare the patterns of dots/dashes in
    representation against pattern of bits in hash.
 
-   TODO: test calling the function with invalid representation.
+   TODO: test calling the function with malformed representation.
+
+   @reviewed on 2019-10-12
 */
 int test_cw_representation_to_hash_internal(cw_test_executor_t * cte)
 {
@@ -126,44 +125,59 @@ int test_cw_representation_to_hash_internal(cw_test_executor_t * cte)
 	*/
 	char input[REPRESENTATION_TABLE_SIZE][CW_DATA_MAX_REPRESENTATION_LENGTH + 1];
 
-	/* build table of all valid representations ("valid" as in "built
-	   from dash and dot, no longer than CW_DATA_MAX_REPRESENTATION_LENGTH"). */
-	long int rep = 0;
-	for (unsigned int len = 1; len <= CW_DATA_MAX_REPRESENTATION_LENGTH; len++) {
+	/* Build table of all well formed representations ("well
+	   formed" as in "built from dash and dot, no longer than
+	   CW_DATA_MAX_REPRESENTATION_LENGTH"). */
+	long int rep_idx = 0;
+	for (unsigned int rep_length = 1; rep_length <= CW_DATA_MAX_REPRESENTATION_LENGTH; rep_length++) {
 
 		/* Build representations of all lengths, starting from
 		   shortest (single dot or dash) and ending with the
 		   longest representations. */
 
-		unsigned int bit_vector_len = 2 << (len - 1);
+		unsigned int bit_vector_length = 1 << rep_length;
 
-		/* A representation of length "len" can have 2^len
-		   distinct values. The "for" loop that we are in
-		   iterates over these 2^len forms. */
-		for (unsigned int bit_vector = 0; bit_vector < bit_vector_len; bit_vector++) {
+		/* A representation of length "rep_length" can have
+		   2^rep_length distinct variants. The "for" loop that
+		   we are in iterates over these 2^len variants.
 
-			/* Turn every '0' into dot, and every '1' into dash. */
-			for (unsigned int bit_pos = 0; bit_pos < len; bit_pos++) {
-				unsigned int bit = bit_vector & (1 << bit_pos);
-				input[rep][bit_pos] = bit ? '-' : '.';
-				// fprintf(stderr, "rep = %x, bit pos = %d, bit = %d\n", bit_vector, bit_pos, bit);
+		   E.g. bit vector (and representation) of length 2
+		   has 4 variants:
+		   ..
+		   .-
+		   -.
+		   --
+		*/
+		for (unsigned int variant = 0; variant < bit_vector_length; variant++) {
+
+			/* Turn every '0' in 'variant' into dot, and every '1' into dash. */
+			for (unsigned int bit_pos = 0; bit_pos < rep_length; bit_pos++) {
+				unsigned int bit = variant & (1 << bit_pos);
+				input[rep_idx][bit_pos] = bit ? '-' : '.';
+				// fprintf(stderr, "rep = %x, bit pos = %d, bit = %d\n", variant, bit_pos, bit);
 			}
 
-			input[rep][len] = '\0';
-			//fprintf(stderr, "\ninput[%ld] = \"%s\"", rep, input[rep]);
-			rep++;
+			input[rep_idx][rep_length] = '\0';
+			//fprintf(stderr, "input[%ld] = \"%s\"\n", rep_idx, input[rep_idx]);
+			rep_idx++;
 		}
 	}
+	const long int n_representations = rep_idx;
+	cte->expect_op_int(cte, n_representations, "==", REPRESENTATION_TABLE_SIZE, 0, "internal count of representations");
 
-	/* Compute hash for every valid representation. */
-	for (int i = 0; i < rep; i++) {
+
+	/* Compute hash for every well formed representation. */
+	bool failure = false;
+	for (int i = 0; i < n_representations; i++) {
 		const uint8_t hash = cw_representation_to_hash_internal(input[i]);
 		/* The function returns values in range CW_DATA_MIN_REPRESENTATION_HASH - CW_DATA_MAX_REPRESENTATION_HASH. */
-		const bool failure = (hash < (uint8_t) CW_DATA_MIN_REPRESENTATION_HASH) || (hash > (uint8_t) CW_DATA_MAX_REPRESENTATION_HASH);
-		if (!cte->expect_eq_int(cte, false, failure, "representation to hash: Invalid hash #%d: %u (min = %u, max = %u)\n", i, hash, CW_DATA_MIN_REPRESENTATION_HASH, CW_DATA_MAX_REPRESENTATION_HASH)) {
+		if (!cte->expect_between_int_errors_only(cte, CW_DATA_MIN_REPRESENTATION_HASH, hash, CW_DATA_MAX_REPRESENTATION_HASH, "representation to hash: hash #%d\n", i)) {
+			failure = true;
 			break;
 		}
 	}
+	cte->expect_op_int(cte, false, "==", failure, 0, "representation to hash");
+
 
 	cte->print_test_footer(cte, __func__);
 
@@ -173,9 +187,16 @@ int test_cw_representation_to_hash_internal(cw_test_executor_t * cte)
 
 
 
-
 /**
+   Verify that our fast lookup of characters works correctly.
+
+   The verification is performed by comparing results of function
+   using fast lookup table with results of function using direct
+   method.
+
    tests::cw_representation_to_character_internal()
+
+   @reviewed on 2019-10-12
 */
 int test_cw_representation_to_character_internal(cw_test_executor_t * cte)
 {
@@ -183,16 +204,12 @@ int test_cw_representation_to_character_internal(cw_test_executor_t * cte)
 
 	bool failure = false;
 
-	/* The test is performed by comparing results of function
-	   using fast lookup table, and function using direct
-	   lookup. */
+	for (const cw_entry_t * cw_entry = CW_TABLE; cw_entry->character; cw_entry++) {
 
-	for (const cw_entry_t *cw_entry = CW_TABLE; cw_entry->character; cw_entry++) {
+		const int char_fast_lookup = cw_representation_to_character_internal(cw_entry->representation);
+		const int char_direct = cw_representation_to_character_direct_internal(cw_entry->representation);
 
-		const int lookup = cw_representation_to_character_internal(cw_entry->representation);
-		const int direct = cw_representation_to_character_direct_internal(cw_entry->representation);
-
-		if (!cte->expect_eq_int_errors_only(cte, lookup, direct, "lookup vs. direct: '%s'", cw_entry->representation)) {
+		if (!cte->expect_op_int(cte, char_fast_lookup, "==", char_direct, "fast lookup vs. direct method: '%s'", cw_entry->representation)) {
 			failure = true;
 			break;
 		}
@@ -208,18 +225,19 @@ int test_cw_representation_to_character_internal(cw_test_executor_t * cte)
 
 
 
+/**
+   Testing speed gain between function using direct method, and
+   function with fast lookup table.  Test is preformed by using timer
+   to see how much time it takes to execute a function N times.
 
-
+   @reviewed on 2019-10-12
+*/
 int test_cw_representation_to_character_internal_speed(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
-	/* Testing speed gain between function with direct lookup, and
-	   function with fast lookup table.  Test is preformed by
-	   running each function N times with timer started before the
-	   N runs and stopped after N runs. */
 
-	int N = 1000;
+	const int N = 1000;
 
 	struct timeval start;
 	struct timeval stop;
@@ -227,28 +245,26 @@ int test_cw_representation_to_character_internal_speed(cw_test_executor_t * cte)
 
 	gettimeofday(&start, NULL);
 	for (int i = 0; i < N; i++) {
-		for (const cw_entry_t *cw_entry = CW_TABLE; cw_entry->character; cw_entry++) {
+		for (const cw_entry_t * cw_entry = CW_TABLE; cw_entry->character; cw_entry++) {
 			__attribute__((unused)) int rv = cw_representation_to_character_internal(cw_entry->representation);
 		}
 	}
 	gettimeofday(&stop, NULL);
-
-	int lookup = cw_timestamp_compare_internal(&start, &stop);
+	const int fast_lookup = cw_timestamp_compare_internal(&start, &stop);
 
 
 
 	gettimeofday(&start, NULL);
 	for (int i = 0; i < N; i++) {
-		for (const cw_entry_t *cw_entry = CW_TABLE; cw_entry->character; cw_entry++) {
+		for (const cw_entry_t * cw_entry = CW_TABLE; cw_entry->character; cw_entry++) {
 			__attribute__((unused)) int rv = cw_representation_to_character_direct_internal(cw_entry->representation);
 		}
 	}
 	gettimeofday(&stop, NULL);
+	const int direct = cw_timestamp_compare_internal(&start, &stop);
 
-	int direct = cw_timestamp_compare_internal(&start, &stop);
 
-
-	float gain = 1.0 * direct / lookup;
+	const float gain = 1.0 * direct / fast_lookup;
 	bool failure = gain < 1.1;
 	cte->expect_eq_int(cte, false, failure, "lookup speed gain: %.2f", gain);
 
@@ -256,7 +272,6 @@ int test_cw_representation_to_character_internal_speed(cw_test_executor_t * cte)
 
 	return 0;
 }
-
 
 
 
@@ -269,12 +284,13 @@ int test_cw_representation_to_character_internal_speed(cw_test_executor_t * cte)
    tests::cw_get_maximum_representation_length()
    tests::cw_character_to_representation()
    tests::cw_representation_to_character()
+
+   @reviewed on 2019-10-12
 */
 int test_character_lookups_internal(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
-	bool failure = true;
 
 	/* Test: get number of characters known to libcw. */
 	{
@@ -284,37 +300,37 @@ int test_character_lookups_internal(cw_test_executor_t * cte)
 		   thing is certain: the number is larger than
 		   zero. */
 		const int extracted_count = cw_get_character_count();
-		failure = (extracted_count <= 0);
-		cte->expect_eq_int(cte, false, failure, "character count (%d):", extracted_count);
+		cte->expect_op_int(cte, 0, "<", extracted_count, 0, "character count (%d)", extracted_count);
 	}
 
 
-	char charlist[UCHAR_MAX + 1];
+	char charlist[UCHAR_MAX + 1] = { 0 };
 	/* Test: get list of characters supported by libcw. */
 	{
 		/* Of course length of the list must match the
 		   character count returned by library. */
 
-		const int extracted_count = cw_get_character_count();
-
 		cw_list_characters(charlist);
-		fprintf(out_file, MSG_PREFIX "list of characters: %s\n", charlist);
+
+		const int extracted_count = cw_get_character_count();
 		const int extracted_len = (int) strlen(charlist);
 
-		cte->expect_eq_int(cte, extracted_len, extracted_count, "character count = %d, list length = %d", extracted_count, extracted_len);
+		cte->log_info(cte, "list of characters: %s\n", charlist);
+
+		cte->expect_op_int(cte, extracted_len, "==", extracted_count, 0, "character count = %d, list length = %d", extracted_count, extracted_len);
 	}
 
 
 
 	/* Test: get maximum length of a representation (a string of dots/dashes). */
+	int max_rep_length = 0;
 	{
 		/* This test is rather not related to any other, but
 		   since we are doing tests of other functions related
 		   to representations, let's do this as well. */
 
-		int rep_len = cw_get_maximum_representation_length();
-		failure = (rep_len <= 0);
-		cte->expect_eq_int(cte, false, failure, "maximum representation length (%d):", rep_len);
+		max_rep_length = cw_get_maximum_representation_length();
+		cte->expect_op_int(cte, 0, "<", max_rep_length, 0, "maximum representation length (%d)", max_rep_length);
 	}
 
 
@@ -324,6 +340,7 @@ int test_character_lookups_internal(cw_test_executor_t * cte)
 		bool c2r_failure = false;
 		bool r2c_failure = false;
 		bool two_way_failure = false;
+		bool length_failure = false;
 
 		/* For each character, look up its representation, the
 		   look up each representation in the opposite
@@ -332,22 +349,29 @@ int test_character_lookups_internal(cw_test_executor_t * cte)
 		for (int i = 0; charlist[i] != '\0'; i++) {
 
 			char * representation = cw_character_to_representation(charlist[i]);
-			if (!cte->expect_valid_pointer_errors_only(cte, representation, "character lookup: character to representation failed for #%d (char '%c')\n", i, charlist[i])) {
+			if (!cte->expect_valid_pointer_errors_only(cte, representation, "character lookup: character to representation for #%d (char '%c')\n", i, charlist[i])) {
 				c2r_failure = true;
 				break;
 			}
 
-			/* Here we convert the representation into an output char 'c'. */
-			char c = cw_representation_to_character(representation);
-			r2c_failure = (0 == c);
-			if (!cte->expect_eq_int_errors_only(cte, false, r2c_failure, "representation to character failed for #%d (representation '%s')\n", i, representation)) {
+			/* Here we convert the representation back into a character. */
+			char character = cw_representation_to_character(representation);
+			if (!cte->expect_op_int(cte, 0, "!=", character, 1, "representation to character failed for #%d (representation '%s')\n", i, representation)) {
 				r2c_failure = true;
 				break;
 			}
 
 			/* Compare output char with input char. */
-			if (!cte->expect_eq_int_errors_only(cte, c, charlist[i], "character lookup: two-way lookup for #%d ('%c' -> '%s' -> '%c')\n", i, charlist[i], representation, c)) {
+			if (!cte->expect_op_int(cte, character, "==", charlist[i], 1, "character lookup: two-way lookup for #%d ('%c' -> '%s' -> '%c')\n", i, charlist[i], representation, character)) {
 				two_way_failure = true;
+				break;
+			}
+
+			const int length = (int) strlen(representation);
+			const int rep_length_lower = 1; /* A representation will have at least one character. */
+			const int rep_length_upper = max_rep_length;
+			if (!cte->expect_between_int_errors_only(cte, rep_length_lower, length, rep_length_upper, "character lookup: representation length of character '%c' (#%d)", charlist[i], i)) {
+				length_failure = true;
 				break;
 			}
 
@@ -356,8 +380,9 @@ int test_character_lookups_internal(cw_test_executor_t * cte)
 		}
 
 		cte->expect_eq_int(cte, false, c2r_failure, "character lookup: char to representation");
-		cte->expect_eq_int(cte, false, r2c_failure, "character lookup: representation to char:");
+		cte->expect_eq_int(cte, false, r2c_failure, "character lookup: representation to char");
 		cte->expect_eq_int(cte, false, two_way_failure, "character lookup: two-way lookup");
+		cte->expect_eq_int(cte, false, length_failure, "character lookup: length");
 	}
 
 	cte->print_test_footer(cte, __func__);
