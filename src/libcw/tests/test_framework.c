@@ -69,6 +69,9 @@
 static bool cw_test_expect_eq_int(struct cw_test_executor_t * self, int expected_value, int received_value, const char * fmt, ...) __attribute__ ((format (printf, 4, 5)));
 static bool cw_test_expect_eq_int_errors_only(struct cw_test_executor_t * self, int expected_value, int received_value, const char * fmt, ...) __attribute__ ((format (printf, 4, 5)));
 
+static bool cw_test_expect_op_int(struct cw_test_executor_t * self, int expected_value, const char * operator, int received_value, bool errors_only, const char * fmt, ...) __attribute__ ((format (printf, 6, 7)));
+static bool cw_test_expect_op_int2(struct cw_test_executor_t * self, int expected_value, const char * operator, int received_value, bool errors_only, const char * va_buf);
+
 static bool cw_test_expect_between_int(struct cw_test_executor_t * self, int expected_lower, int received_value, int expected_higher, const char * fmt, ...) __attribute__ ((format (printf, 5, 6)));
 static bool cw_test_expect_between_int_errors_only(struct cw_test_executor_t * self, int expected_lower, int received_value, int expected_higher, const char * fmt, ...) __attribute__ ((format (printf, 5, 6)));
 
@@ -381,15 +384,23 @@ void cw_test_print_help(__attribute__((unused)) cw_test_executor_t * self, const
 
 
 
-bool cw_test_expect_eq_int(struct cw_test_executor_t * self, int expected_value, int received_value, const char * fmt, ...)
+bool cw_test_expect_op_int(struct cw_test_executor_t * self, int expected_value, const char * operator, int received_value, bool errors_only, const char * fmt, ...)
 {
-	bool as_expected = false;
 	char va_buf[128] = { 0 };
-
 	va_list ap;
 	va_start(ap, fmt);
 	vsnprintf(va_buf, sizeof (va_buf), fmt, ap);
 	va_end(ap);
+
+	return cw_test_expect_op_int2(self, expected_value, operator, received_value, errors_only, va_buf);
+}
+
+
+
+
+bool cw_test_expect_op_int2(struct cw_test_executor_t * self, int expected_value, const char * operator, int received_value, bool errors_only, const char * va_buf)
+{
+	bool as_expected = false;
 
 	char msg_buf[1024] = { 0 };
 	int n = snprintf(msg_buf, sizeof (msg_buf), "%s", self->msg_prefix);
@@ -397,12 +408,35 @@ bool cw_test_expect_eq_int(struct cw_test_executor_t * self, int expected_value,
 	n += snprintf(msg_buf + n, sizeof (msg_buf) - n, "%-*s", (int) (self->console_n_cols - n), va_buf);
 
 
-	if (expected_value == received_value) {
-		self->stats->successes++;
+	bool success = false;
+	if (operator[0] == '=' && operator[1] == '=') {
+		success = expected_value == received_value;
 
-		cw_test_append_status_string(self, msg_buf, message_len, "[ OK ]");
-		self->log_info(self, "%s\n", msg_buf);
+	} else if (operator[0] == '<' && operator[1] == '=') {
+		success = expected_value <= received_value;
 
+	} else if (operator[0] == '>' && operator[1] == '=') {
+		success = expected_value >= received_value;
+
+	} else if (operator[0] == '<' && operator[1] == '\0') {
+		success = expected_value < received_value;
+
+	} else if (operator[0] == '>' && operator[1] == '\0') {
+		success = expected_value > received_value;
+
+	} else {
+		self->log_error(self, "Unhandled operator '%s'\n", operator);
+		assert(0);
+	}
+
+
+	if (success) {
+		if (!errors_only) {
+			self->stats->successes++;
+
+			cw_test_append_status_string(self, msg_buf, message_len, "[ OK ]");
+			self->log_info(self, "%s\n", msg_buf);
+		}
 		as_expected = true;
 	} else {
 		self->stats->failures++;
@@ -414,8 +448,34 @@ bool cw_test_expect_eq_int(struct cw_test_executor_t * self, int expected_value,
 		as_expected = false;
 	}
 
-
 	return as_expected;
+}
+
+
+
+bool cw_test_expect_eq_int(struct cw_test_executor_t * self, int expected_value, int received_value, const char * fmt, ...)
+{
+	char va_buf[128] = { 0 };
+	va_list ap;
+	va_start(ap, fmt);
+	vsnprintf(va_buf, sizeof (va_buf), fmt, ap);
+	va_end(ap);
+
+	return cw_test_expect_op_int2(self, expected_value, "==", received_value, false, va_buf);
+}
+
+
+
+
+bool cw_test_expect_eq_int_errors_only(struct cw_test_executor_t * self, int expected_value, int received_value, const char * fmt, ...)
+{
+	char va_buf[128] = { 0 };
+	va_list ap;
+	va_start(ap, fmt);
+	vsnprintf(va_buf, sizeof (va_buf), fmt, ap);
+	va_end(ap);
+
+	return cw_test_expect_op_int2(self, expected_value, "==", received_value, true, va_buf);
 }
 
 
@@ -437,39 +497,6 @@ void cw_test_append_status_string(cw_test_executor_t * self, char * msg_buf, int
 	} else {
 		sprintf(msg_buf + self->console_n_cols - strlen("...") - strlen(separator) - strlen(status_string), "...%s%s", separator, status_string);
 	}
-}
-
-
-
-
-bool cw_test_expect_eq_int_errors_only(struct cw_test_executor_t * self, int expected_value, int received_value, const char * fmt, ...)
-{
-	bool as_expected = true;
-	char va_buf[128] = { 0 };
-
-	va_list ap;
-	va_start(ap, fmt);
-	vsnprintf(va_buf, sizeof (va_buf), fmt, ap);
-	va_end(ap);
-
-	char msg_buf[1024] = { 0 };
-	int n = snprintf(msg_buf, sizeof (msg_buf), "%s", self->msg_prefix);
-	const int message_len = n + snprintf(msg_buf + n, sizeof (msg_buf) - n, "%s", va_buf);
-	n += snprintf(msg_buf + n, sizeof (msg_buf) - n, "%-*s", (int) (self->console_n_cols - n), va_buf);
-
-	if (expected_value == received_value) {
-		as_expected = true;
-	} else {
-		self->stats->failures++;
-
-		cw_test_append_status_string(self, msg_buf, message_len, "[FAIL]");
-		self->log_error(self, "%s\n", msg_buf);
-		self->log_error(self, "   ***   expected %d, got %d   ***\n", expected_value, received_value);
-
-		as_expected = false;
-	}
-
-	return as_expected;
 }
 
 
@@ -953,6 +980,8 @@ void cw_test_init(cw_test_executor_t * self, FILE * stdout, FILE * stderr, const
 
 	self->expect_eq_int = cw_test_expect_eq_int;
 	self->expect_eq_int_errors_only = cw_test_expect_eq_int_errors_only;
+
+	self->expect_op_int = cw_test_expect_op_int;
 
 	self->expect_between_int = cw_test_expect_between_int;
 	self->expect_between_int_errors_only = cw_test_expect_between_int_errors_only;

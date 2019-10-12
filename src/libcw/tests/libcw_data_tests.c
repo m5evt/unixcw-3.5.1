@@ -390,8 +390,7 @@ int test_prosign_lookups_internal(cw_test_executor_t * cte)
 	/* Test: get number of prosigns known to libcw. */
 	{
 		count = cw_get_procedural_character_count();
-		failure = (count <= 0);
-		cte->expect_eq_int(cte, false, failure, "procedural character count (%d):", count);
+		cte->expect_op_int(cte, 0, "<", count, true, "procedural character count (%d):", count);
 	}
 
 

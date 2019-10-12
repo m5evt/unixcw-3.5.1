@@ -125,6 +125,26 @@ typedef struct cw_test_executor_t {
 	bool (* expect_eq_int_errors_only)(struct cw_test_executor_t * self, int expected_value, int received_value, const char * fmt, ...) __attribute__ ((format (printf, 4, 5)));
 
 	/**
+	   Verify that operator @param operator is satisfied for
+	   @param received_value and @param expected_value
+
+	   Use the function to verify that a successful behaviour has
+	   occurred and @param operator applied to value of
+	   calculation (@param received_value) and expected value
+	   (@param expected_value) returns true.
+
+	   Print log specified by @param fmt and following args
+	   regardless of results of the verification or (if @param
+	   errors_only is true) only if the application of operator
+	   has shown that the values DON'T satisfy the operator, which
+	   is regarded as failure of expectation, i.e. an error.
+
+	   @return true if this comparison shows that the values satisfy the operator
+	   @return false otherwise
+	*/
+	bool (* expect_op_int)(struct cw_test_executor_t * self, int expected_value, const char * operator, int received_value, bool errors_only, const char * fmt, ...) __attribute__ ((format (printf, 6, 7)));
+
+	/**
 	   Verify that @param received_value is between @param
 	   expected_lower and @param expect_higher (inclusive)
 
