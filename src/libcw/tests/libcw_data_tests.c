@@ -466,6 +466,8 @@ int test_prosign_lookups_internal(cw_test_executor_t * cte)
 /**
    tests::cw_get_maximum_phonetic_length()
    tests::cw_lookup_phonetic()
+
+   @reviewed on 2019-10-12
 */
 int test_phonetic_lookups_internal(cw_test_executor_t * cte)
 {
@@ -478,35 +480,62 @@ int test_phonetic_lookups_internal(cw_test_executor_t * cte)
 	/* Test: check that maximum phonetic length is larger than
 	   zero. */
 	{
-		int len = cw_get_maximum_phonetic_length();
-		bool failure = (len <= 0);
-		cte->expect_eq_int(cte, false, failure, "phonetic lookup: maximum phonetic length (%d):", len);
+		const int length = cw_get_maximum_phonetic_length();
+		const bool failure = (length <= 0);
+		cte->expect_eq_int(cte, false, failure, "phonetic lookup: maximum phonetic length (%d)", length);
 	}
 
 
 	/* Test: lookup of phonetic + reverse lookup. */
 	{
-		bool lookup_failure = true;
-		bool reverse_failure = true;
+		bool lookup_failure = false;
+		bool reverse_failure = false;
 
+		/* Notice that We go here through all possible values
+		   of char, not through all values returned from
+		   cw_list_characters(). */
 		for (int i = 0; i < UCHAR_MAX; i++) {
-			char phonetic[256];
+			char phonetic[sizeof ("VeryLongPhoneticString")] = { 0 };
 
-			int status = cw_lookup_phonetic((char) i, phonetic);
-			lookup_failure = (status != (bool) isalpha(i));
-			if (!cte->expect_eq_int_errors_only(cte, false, lookup_failure, "phonetic lookup: lookup of phonetic '%c' (#%d) failed\n", (char ) i, i)) {
-				lookup_failure = true;
-				break;
+			const int cwret = cw_lookup_phonetic((char) i, phonetic); /* TODO: we need a version of the function that accepts size argument. */
+			const bool is_alpha = (bool) isalpha(i);;
+			if (CW_SUCCESS == cwret) {
+				/*
+				  Library claims that 'i' is a byte
+				  that has a phonetic (e.g. 'F' ->
+				  "Foxtrot").
+
+				  Let's verify this using result of
+				  isalpha().
+				*/
+				if (!cte->expect_eq_int_errors_only(cte, true, is_alpha, "phonetic lookup (A): lookup of phonetic for '%c' (#%d)\n", (char) i, i)) {
+					lookup_failure = true;
+					break;
+				}
+			} else {
+				/*
+				  Library claims that 'i' is a byte
+				  that doesn't have a phonetic.
+
+				  Let's verify this using result of
+				  isalpha().
+				*/
+				const bool is_alpha = (bool) isalpha(i);
+				if (!cte->expect_eq_int_errors_only(cte, false, is_alpha, "phonetic lookup (B): lookup of phonetic for '%c' (#%d)\n", (char) i, i)) {
+					lookup_failure = true;
+					break;
+				}
 			}
 
-			if (status && (bool) isalpha(i)) {
+
+			if (CW_SUCCESS == cwret && is_alpha) {
 				/* We have looked up a letter, it has
 				   a phonetic.  Almost by definition,
 				   the first letter of phonetic should
 				   be the same as the looked up
 				   letter. */
 				reverse_failure = (phonetic[0] != toupper((char) i));
-				if (!cte->expect_eq_int_errors_only(cte, false, reverse_failure, "phonetic lookup: reverse lookup failed for phonetic \"%s\" ('%c' / #%d)\n", phonetic, (char) i, i)) {
+				if (!cte->expect_eq_int_errors_only(cte, false, reverse_failure, "phonetic lookup: reverse lookup for phonetic \"%s\" ('%c' / #%d)\n", phonetic, (char) i, i)) {
 					reverse_failure = true;
 					break;
 				}
