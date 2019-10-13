@@ -71,12 +71,6 @@ static void legacy_api_test_iambic_key_paddles_common(cw_test_executor_t * cte, 
 
 static void legacy_api_cw_single_test_setup(void);
 
-/* This variable will be used in "forever" test. This test function
-   needs to open generator itself, so it needs to know the current
-   audio system to be used. _NONE is just an initial value, to be
-   changed in test setup. */
-__attribute__((unused)) static int test_audio_system = CW_AUDIO_NONE;
-
 
 
 
@@ -1202,15 +1196,17 @@ int legacy_api_test_send_character_and_string(cw_test_executor_t * cte)
 
 
 
-/* Wrapper for common code used by three test functions. */
+/**
+   Wrapper for common code used by three test functions.
+
+   @reviewed on 2019-10-13
+*/
 void legacy_api_test_iambic_key_paddles_common(cw_test_executor_t * cte, const int intended_dot_paddle, const int intended_dash_paddle, char character, int n_elements)
 {
 	/* Test: keying alternate dit/dash. */
 	{
-		/* As above, it seems like this function calls means
-		   "keyer pressed until further notice". Both
-		   arguments are true, so both paddles are pressed at
-		   the same time.*/
+		/* It seems like this function calls means "keyer
+		   pressed until further notice".*/
 		const int cwret = cw_notify_keyer_paddle_event(intended_dot_paddle, intended_dash_paddle);
 		cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "cw_notify_keyer_paddle_event(%d, %d)", intended_dot_paddle, intended_dash_paddle);
 
@@ -1255,6 +1251,8 @@ void legacy_api_test_iambic_key_paddles_common(cw_test_executor_t * cte, const i
    tests::cw_notify_keyer_paddle_event()
    tests::cw_wait_for_keyer_element()
    tests::cw_get_keyer_paddles()
+
+   @reviewed on 2019-10-13
 */
 int legacy_api_test_iambic_key_dot(cw_test_executor_t * cte)
 {
@@ -1271,7 +1269,7 @@ int legacy_api_test_iambic_key_dot(cw_test_executor_t * cte)
 	*/
 	const int intended_dot_paddle = true;
 	const int intended_dash_paddle = false;
-	const char character = '.';
+	const char character = CW_DOT_REPRESENTATION;
 	const int n_elements = 30;
 	legacy_api_test_iambic_key_paddles_common(cte, intended_dot_paddle, intended_dash_paddle, character, n_elements);
 
@@ -1291,6 +1289,8 @@ int legacy_api_test_iambic_key_dot(cw_test_executor_t * cte)
    tests::cw_notify_keyer_paddle_event()
    tests::cw_wait_for_keyer_element()
    tests::cw_get_keyer_paddles()
+
+   @reviewed on 2019-10-13
 */
 int legacy_api_test_iambic_key_dash(cw_test_executor_t * cte)
 {
@@ -1307,7 +1307,7 @@ int legacy_api_test_iambic_key_dash(cw_test_executor_t * cte)
 	*/
 	const int intended_dot_paddle = false;
 	const int intended_dash_paddle = true;
-	const char character = '-';
+	const char character = CW_DASH_REPRESENTATION;
 	const int n_elements = 30;
 	legacy_api_test_iambic_key_paddles_common(cte, intended_dot_paddle, intended_dash_paddle, character, n_elements);
 
@@ -1327,6 +1327,8 @@ int legacy_api_test_iambic_key_dash(cw_test_executor_t * cte)
    tests::cw_notify_keyer_paddle_event()
    tests::cw_wait_for_keyer_element()
    tests::cw_get_keyer_paddles()
+
+   @reviewed on 2019-10-13
 */
 int legacy_api_test_iambic_key_alternating(cw_test_executor_t * cte)
 {
@@ -1363,6 +1365,8 @@ int legacy_api_test_iambic_key_alternating(cw_test_executor_t * cte)
    tests::cw_notify_keyer_paddle_event()
    tests::cw_wait_for_keyer_element()
    tests::cw_get_keyer_paddles()
+
+   @reviewed on 2019-10-13
 */
 int legacy_api_test_iambic_key_none(cw_test_executor_t * cte)
 {
@@ -1408,6 +1412,8 @@ int legacy_api_test_iambic_key_none(cw_test_executor_t * cte)
    tests::cw_notify_straight_key_event()
    tests::cw_get_straight_key_state()
    tests::cw_is_straight_key_busy()
+
+   @reviewed on 2019-10-13
 */
 int legacy_api_test_straight_key(cw_test_executor_t * cte)
 {
@@ -1447,7 +1453,8 @@ int legacy_api_test_straight_key(cw_test_executor_t * cte)
 
 			/* "busy" is misleading. This function just asks if key is down. */
 			const bool is_busy = cw_is_straight_key_busy();
-			if (!cte->expect_op_int(cte, (bool) intended_key_state, "==", is_busy, 1, "cw_is_straight_key_busy() (%d)", intended_key_state)) {
+			const bool expected_is_busy = intended_key_state == CW_KEY_STATE_CLOSED;
+			if (!cte->expect_op_int(cte, expected_is_busy, "==", is_busy, 1, "cw_is_straight_key_busy() (%d)", intended_key_state)) {
 				busy_failure = true;
 				break;
 			}
@@ -1463,7 +1470,7 @@ int legacy_api_test_straight_key(cw_test_executor_t * cte)
 #endif
 		}
 
-		/* Whatever happens during tests, keep the key open after the tests. */
+		/* Always make the key open after the tests. */
 		cw_notify_straight_key_event(CW_KEY_STATE_OPEN);
 
 		cte->log_info_cont(cte, "\n");
@@ -1480,7 +1487,6 @@ int legacy_api_test_straight_key(cw_test_executor_t * cte)
 
 	return 0;
 }
-
 
 
 
@@ -1651,46 +1657,9 @@ void cw_test_signal_handling(cw_test_executor_t * cte)
 
 
 
-
-/* "Forever" functionality is not exactly part of public
-   interface. The functionality will be tested only as part of
-   internal test. */
-
-/*
-  TODO: there is a similar function in libcw_gen_tests.c: test_cw_gen_forever_internal()
-
-  Because the function calls cw_generator_delete(), it should be
-  executed as last test in test suite (unless you want to call
-  cw_generator_new/start() again). */
-int legacy_api_test_cw_gen_forever_public(cw_test_executor_t * cte)
-{
-	cte->print_test_header(cte, __func__);
-	legacy_api_cw_single_test_setup();
-
-#if 0
-	/* Make sure that an audio sink is closed. If we try to open
-	   an OSS sink that is already open, we may end up with
-	   "resource busy" error in libcw_oss.c module (that's what
-	   happened on Alpine Linux).
-
-	   Because of this call this test should be executed as last
-	   one. */
-	cw_generator_delete();
-
-	int seconds = 5;
-	cte->log_info(cte, "%s() (%d seconds):\n", __func__, seconds);
-
-	unsigned int rv = test_cw_gen_forever_sub(seconds, test_audio_system, NULL);
-	rv == 0 ? stats->successes++ : stats->failures++;
-#endif
-	cte->print_test_footer(cte, __func__);
-
-	return 0;
-}
-
-
-
-
+/**
+   @reviewed on 2019-10-13
+*/
 int legacy_api_test_basic_gen_operations(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
