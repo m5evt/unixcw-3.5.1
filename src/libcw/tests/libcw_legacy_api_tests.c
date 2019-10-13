@@ -58,7 +58,13 @@
 
 
 
-__attribute__((unused)) static void legacy_api_cw_test_helper_tq_callback(void *data);
+extern const char * test_valid_representations[];
+extern const char * test_invalid_representations[];
+
+
+
+
+static void test_helper_tq_callback(void *data);
 
 /* Helper function for iambic key tests. */
 static void legacy_api_test_iambic_key_paddles_common(cw_test_executor_t * cte, const int intended_dot_paddle, const int intended_dash_paddle, char character, int n_elements);
@@ -298,7 +304,6 @@ int legacy_api_test_parameter_ranges(cw_test_executor_t * cte)
 
 
 
-
 /**
    Fill a queue and then wait for each tone separately - repeat until
    all tones are dequeued.
@@ -306,6 +311,8 @@ int legacy_api_test_parameter_ranges(cw_test_executor_t * cte)
    tests::cw_queue_tone()
    tests::cw_get_tone_queue_length()
    tests::cw_wait_for_tone()
+
+   @reviewed on 2019-10-13
 */
 int legacy_api_test_cw_wait_for_tone(cw_test_executor_t * cte)
 {
@@ -353,14 +360,14 @@ int legacy_api_test_cw_wait_for_tone(cw_test_executor_t * cte)
 		   due to dequeueing of first tone). */
 		for (int i = 1; i < n_tones_to_add; i++) {
 
-			int got_tq_len = 0;       /* Measured length of tone queue. */
-			int expected_tq_len = 0;  /* Expected length of tone queue. */
+			int readback_length = 0;       /* Measured length of tone queue. */
+			int expected_length = 0;  /* Expected length of tone queue. */
 
 			/* Monitor length of a queue as it is filled - before
 			   adding a new tone. */
-			got_tq_len = cw_get_tone_queue_length();
-			expected_tq_len = (i - 1);
-			cte->expect_op_int(cte, expected_tq_len, "==", got_tq_len, 0, "setup: cw_get_tone_queue_length(): before adding tone (#%02d):", i);
+			readback_length = cw_get_tone_queue_length();
+			expected_length = (i - 1);
+			cte->expect_op_int(cte, expected_length, "==", readback_length, 0, "setup: cw_get_tone_queue_length(): before adding tone (#%02d)", i);
 
 
 			/* Add a tone to queue. All frequencies should be
@@ -373,9 +380,9 @@ int legacy_api_test_cw_wait_for_tone(cw_test_executor_t * cte)
 
 			/* Monitor length of a queue as it is filled - after
 			   adding a new tone. */
-			got_tq_len = cw_get_tone_queue_length();
-			expected_tq_len = (i - 1) + 1;
-			cte->expect_op_int(cte, expected_tq_len, "==", got_tq_len, 0, "setup: cw_get_tone_queue_length(): after adding tone (#%02d):", i);
+			readback_length = cw_get_tone_queue_length();
+			expected_length = (i - 1) + 1;
+			cte->expect_op_int(cte, expected_length, "==", readback_length, 0, "setup: cw_get_tone_queue_length(): after adding tone (#%02d)", i);
 		}
 	}
 
@@ -391,24 +398,24 @@ int legacy_api_test_cw_wait_for_tone(cw_test_executor_t * cte)
 		usleep(tone_duration / 4);
 
 		/* And this is the proper test - waiting for dequeueing tones. */
-		for (int i = 1; i < n_tones_to_add; i++) {
+		for (int i = n_tones_to_add - 1; i > 0; i--) {
 
-			int got_tq_len = 0;       /* Measured length of tone queue. */
-			int expected_tq_len = 0;  /* Expected length of tone queue. */
+			int readback_length = 0;  /* Measured length of tone queue. */
+			int expected_length = 0;  /* Expected length of tone queue. */
 
 			/* Monitor length of a queue as it is emptied - before dequeueing. */
-			got_tq_len = cw_get_tone_queue_length();
-			expected_tq_len = n_tones_to_add - i;
-			cte->expect_op_int(cte, expected_tq_len, "==", got_tq_len, 0, "test: cw_get_tone_queue_length(): before dequeueing (#%02d):", i);
+			readback_length = cw_get_tone_queue_length();
+			expected_length = i;
+			cte->expect_op_int(cte, expected_length, "==", readback_length, 0, "test: cw_get_tone_queue_length(): before dequeueing (#%02d)", i);
 
 			/* Wait for each of n_tones_to_add tones to be dequeued. */
 			cwret = cw_wait_for_tone();
 			cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "test: cw_wait_for_tone():");
 
 			/* Monitor length of a queue as it is emptied - after dequeueing single tone. */
-			got_tq_len = cw_get_tone_queue_length();
-			expected_tq_len = n_tones_to_add - i - 1;
-			cte->expect_op_int(cte, expected_tq_len, "==", got_tq_len, 0, "test: cw_get_tone_queue_length(): after dequeueing (#%02d):", i);
+			readback_length = cw_get_tone_queue_length();
+			expected_length = i - 1;
+			cte->expect_op_int(cte, expected_length, "==", readback_length, 0, "test: cw_get_tone_queue_length(): after dequeueing (#%02d)", i);
 		}
 	}
 
@@ -423,6 +430,7 @@ int legacy_api_test_cw_wait_for_tone(cw_test_executor_t * cte)
 
 
 
+
 /**
    Fill a queue, don't wait for each tone separately, but wait for a
    whole queue to become empty.
@@ -430,6 +438,8 @@ int legacy_api_test_cw_wait_for_tone(cw_test_executor_t * cte)
    tests::cw_queue_tone()
    tests::cw_get_tone_queue_length()
    tests::cw_wait_for_tone_queue()
+
+   @reviewed on 2019-10-13
 */
 int legacy_api_test_cw_wait_for_tone_queue(cw_test_executor_t * cte)
 {
@@ -491,7 +501,6 @@ int legacy_api_test_cw_wait_for_tone_queue(cw_test_executor_t * cte)
 
 
 
-
 /**
    Run the complete range of tone generation, at X Hz intervals, first
    up the octaves, and then down.  If the queue fills, though it
@@ -502,6 +511,8 @@ int legacy_api_test_cw_wait_for_tone_queue(cw_test_executor_t * cte)
    that in some conditions cw_queue_tone() works correctly.
 
    tests::cw_queue_tone()
+
+   @reviewed on 2019-10-13
 */
 int legacy_api_test_cw_queue_tone(cw_test_executor_t * cte)
 {
@@ -509,11 +520,11 @@ int legacy_api_test_cw_queue_tone(cw_test_executor_t * cte)
 	legacy_api_cw_single_test_setup();
 
 	cw_set_volume(70);
-	int duration = 40000;
+	int duration = 20000;
 
 	int freq_min, freq_max;
 	cw_get_frequency_limits(&freq_min, &freq_max);
-	const int freq_delta = 100;
+	const int freq_delta = 10;
 
 	bool wait_success = true;
 	bool queue_success = true;
@@ -525,7 +536,7 @@ int legacy_api_test_cw_queue_tone(cw_test_executor_t * cte)
 			   cw_wait_for_tone() function because the
 			   queue will never be full in this test. */
 			int cwret = cw_wait_for_tone();
-			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "cw_wait_for_tone(#1, %d)", freq)) {
+			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "cw_wait_for_tone(#1, %d)", freq)) {
 				wait_success = false;
 				break;
 			}
@@ -545,7 +556,7 @@ int legacy_api_test_cw_queue_tone(cw_test_executor_t * cte)
 			   cw_wait_for_tone() function because the
 			   queue will never be full in this test. */
 			int cwret = cw_wait_for_tone();
-			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "cw_wait_for_tone(#2, %d)", freq)) {
+			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "cw_wait_for_tone(#2, %d)", freq)) {
 				wait_success = false;
 				break;
 			}
@@ -581,6 +592,8 @@ int legacy_api_test_cw_queue_tone(cw_test_executor_t * cte)
 /**
    tests::cw_get_tone_queue_capacity()
    tests::cw_get_tone_queue_length()
+
+   @reviewed on 2019-10-13
 */
 int legacy_api_test_empty_tone_queue(cw_test_executor_t * cte)
 {
@@ -624,6 +637,8 @@ int legacy_api_test_empty_tone_queue(cw_test_executor_t * cte)
    tests::cw_queue_tone()
    tests::cw_flush_tone_queue()
    tests::cw_wait_for_tone_queue()
+
+   @reviewed on 2019-10-13
 */
 int legacy_api_test_full_tone_queue(cw_test_executor_t * cte)
 {
@@ -713,23 +728,29 @@ int legacy_api_test_full_tone_queue(cw_test_executor_t * cte)
 
 
 
+typedef struct callback_data {
+	bool can_capture;
+	int captured_level;
+} callback_data;
 
-__attribute__((unused)) static int cw_test_tone_queue_callback_data = 999999;
-static int cw_test_helper_tq_callback_capture = false;
 
-
-
+/**
+   @reviewed on 2019-10-13
+*/
 int legacy_api_test_tone_queue_callback(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 	legacy_api_cw_single_test_setup();
-#if 0
+
 	for (int i = 1; i < 10; i++) {
 		/* Test the callback mechanism for very small values,
 		   but for a bit larger as well. */
 		int level = i <= 5 ? i : 10 * i;
 
-		int cwret = cw_register_tone_queue_low_callback(cw_test_helper_tq_callback, (void *) &cw_test_tone_queue_callback_data, level);
+		callback_data data = { 0 };
+		data.captured_level = 9999999;
+
+		int cwret = cw_register_tone_queue_low_callback(test_helper_tq_callback, (void *) &data, level);
 		cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "cw_register_tone_queue_low_callback(): threshold = %d:", level);
 		sleep(1);
 
@@ -738,20 +759,20 @@ int legacy_api_test_tone_queue_callback(cw_test_executor_t * cte)
 		for (int j = 0; j < 3 * level; j++) {
 			int duration = 10000;
 			int f = 440;
-			rv = cw_queue_tone(duration, f);
+			int rv = cw_queue_tone(duration, f);
 			assert (rv);
 		}
 
 		/* Allow the callback to work only after initial
 		   filling of queue. */
-		cw_test_helper_tq_callback_capture = true;
+		data.can_capture = true;
 
 		/* Wait for the queue to be drained to zero. While the
 		   tq is drained, and level of tq reaches trigger
 		   level, a callback will be called. Its only task is
 		   to copy the current level (tq level at time of
 		   calling the callback) value into
-		   cw_test_tone_queue_callback_data.
+		   callback_data::captured_level.
 
 		   Since the value of trigger level is different in
 		   consecutive iterations of loop, we can test the
@@ -760,16 +781,14 @@ int legacy_api_test_tone_queue_callback(cw_test_executor_t * cte)
 
 		/* Because of order of calling callback and decreasing
 		   length of queue, I think that it's safe to assume
-		   that there may be a difference of 1 between these
-		   two values. */
-		int diff = level - cw_test_tone_queue_callback_data;
-		const bool failure = diff > 1;
-		cte->expect_op_int(cte, false, "==", failure, 1, "tone queue callback:           level at callback = %d, diff = %d", cw_test_tone_queue_callback_data, diff);
+		   that captured level may be in a range of values. */
+		const int expected_lower = level - 1;
+		const int expected_higher = level;
+		cte->expect_between_int(cte, expected_lower, data.captured_level, expected_higher, "tone queue callback:           level at callback = %d", data.captured_level);
 
 		cw_reset_tone_queue();
 	}
 
-#endif
 	cte->print_test_footer(cte, __func__);
 
 	return 0;
@@ -778,18 +797,20 @@ int legacy_api_test_tone_queue_callback(cw_test_executor_t * cte)
 
 
 
-static void legacy_api_cw_test_helper_tq_callback(void *data)
+/**
+   @reviewed on 2019-10-13
+*/
+static void test_helper_tq_callback(void * data_)
 {
-	if (cw_test_helper_tq_callback_capture) {
-	int *d = (int *) data;
-	*d = cw_get_tone_queue_length();
+	callback_data * data = (callback_data *) data_;
 
-		cw_test_helper_tq_callback_capture = false;
+	if (data->can_capture) {
+		data->captured_level = cw_get_tone_queue_length();
+		data->can_capture = false;
 	}
 
 	return;
 }
-
 
 
 
@@ -801,6 +822,8 @@ static void legacy_api_cw_test_helper_tq_callback(void *data)
    volume through its entire range.  Flush the queue when complete.
 
    tests::cw_get_volume_limits()
+
+   @reviewed on 2019-10-13
 */
 int legacy_api_test_volume_functions(cw_test_executor_t * cte)
 {
@@ -809,13 +832,14 @@ int legacy_api_test_volume_functions(cw_test_executor_t * cte)
 
 	int vol_min = -1;
 	int vol_max = -1;
+	const int vol_delta = 5;
 
 	/* Test: get range of allowed volumes. */
 	{
 		cw_get_volume_limits(&vol_min, &vol_max);
 
-		cte->expect_op_int(cte, CW_VOLUME_MIN, "==", vol_min, 0, "cw_get_volume_limits() - min = %d%%", vol_min);
-		cte->expect_op_int(cte, CW_VOLUME_MAX, "==", vol_max, 0, "cw_get_volume_limits() - max = %d%%", vol_max);
+		cte->expect_op_int(cte, CW_VOLUME_MIN, "==", vol_min, 0, "cw_get_volume_limits(): min = %d%%", vol_min);
+		cte->expect_op_int(cte, CW_VOLUME_MAX, "==", vol_max, 0, "cw_get_volume_limits(): max = %d%%", vol_max);
 	}
 
 
@@ -834,7 +858,7 @@ int legacy_api_test_volume_functions(cw_test_executor_t * cte)
 		bool set_failure = false;
 		bool get_failure = false;
 
-		for (int volume = vol_max; volume >= vol_min; volume -= 10) {
+		for (int volume = vol_max; volume >= vol_min; volume -= vol_delta) {
 
 			/* We wait here for next tone so that changes
 			   in volume happen once per tone - not more
@@ -882,7 +906,7 @@ int legacy_api_test_volume_functions(cw_test_executor_t * cte)
 		bool set_failure = false;
 		bool get_failure = false;
 
-		for (int volume = vol_min; volume <= vol_max; volume += 10) {
+		for (int volume = vol_min; volume <= vol_max; volume += vol_delta) {
 
 			/* We wait here for next tone so that changes
 			   in volume happen once per tone - not more
@@ -926,18 +950,20 @@ int legacy_api_test_volume_functions(cw_test_executor_t * cte)
    tests::cw_send_dash()
    tests::cw_send_character_space()
    tests::cw_send_word_space()
+
+   @reviewed on 2019-10-13
 */
 int legacy_api_test_send_primitives(cw_test_executor_t * cte)
 {
-	cte->print_test_header(cte, __func__);
-	legacy_api_cw_single_test_setup();
+	const int max = rand() % 30 + 20;
 
-	int N = 20;
+	cte->print_test_header(cte, "%s (%d)", __func__, max);
+	legacy_api_cw_single_test_setup();
 
 	/* Test: sending dot. */
 	{
 		bool failure = false;
-		for (int i = 0; i < N; i++) {
+		for (int i = 0; i < max; i++) {
 			const int cwret = cw_send_dot();
 			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "cw_send_dot() #%d", i)) {
 				failure = true;
@@ -951,7 +977,7 @@ int legacy_api_test_send_primitives(cw_test_executor_t * cte)
 	/* Test: sending dash. */
 	{
 		bool failure = false;
-		for (int i = 0; i < N; i++) {
+		for (int i = 0; i < max; i++) {
 			const int cwret = cw_send_dash();
 			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "cw_send_dash() #%d", i)) {
 				failure = true;
@@ -965,7 +991,7 @@ int legacy_api_test_send_primitives(cw_test_executor_t * cte)
 	/* Test: sending character space. */
 	{
 		bool failure = false;
-		for (int i = 0; i < N; i++) {
+		for (int i = 0; i < max; i++) {
 			const int cwret = cw_send_character_space();
 			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "cw_send_character_space() #%d", i)) {
 				failure = true;
@@ -979,7 +1005,7 @@ int legacy_api_test_send_primitives(cw_test_executor_t * cte)
 	/* Test: sending word space. */
 	{
 		bool failure = false;
-		for (int i = 0; i < N; i++) {
+		for (int i = 0; i < max; i++) {
 			const int cwret = cw_send_word_space();
 			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "cw_send_word_space() #%d", i)) {
 				failure = true;
@@ -998,41 +1024,25 @@ int legacy_api_test_send_primitives(cw_test_executor_t * cte)
 
 
 
-
 /**
    \brief Enqueueing representations of characters
 
    tests::cw_send_representation()
    tests::cw_send_representation_partial()
+
+   @reviewed on 2019-10-13
 */
 int legacy_api_test_representations(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 	legacy_api_cw_single_test_setup();
 
-	const char * valid_representations[] = {
-		".-.-.-",
-		".-",
-		"---",
-		"...-",
-
-		NULL,      /* Guard. */
-	};
-
-	const char * invalid_representations[] = {
-		"INVALID", /* Not a representation at all (no dots/dashes). */
-		"_._",     /* There is no character that would be represented like this. */
-		"-_-",     /* There is no character that would be represented like this. */
-
-		NULL,      /* Guard. */
-	};
-
 	/* Test: sending valid representations. */
 	{
 		bool failure = false;
 		int i = 0;
-		while (NULL != valid_representations[i]) {
-			const int cwret = cw_send_representation(valid_representations[i]);
+		while (NULL != test_valid_representations[i]) {
+			const int cwret = cw_send_representation(test_valid_representations[i]);
 			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "cw_send_representation(valid #%d)", i)) {
 				failure = true;
 				break;
@@ -1047,8 +1057,8 @@ int legacy_api_test_representations(cw_test_executor_t * cte)
 	{
 		bool failure = false;
 		int i = 0;
-		while (NULL != invalid_representations[i]) {
-			const int cwret = cw_send_representation(invalid_representations[i]);
+		while (NULL != test_invalid_representations[i]) {
+			const int cwret = cw_send_representation(test_invalid_representations[i]);
 			if (!cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 1, "cw_send_representation(invalid #%d)", i)) {
 				failure = true;
 				break;
@@ -1063,8 +1073,8 @@ int legacy_api_test_representations(cw_test_executor_t * cte)
 	{
 		bool failure = false;
 		int i = 0;
-		while (NULL != valid_representations[i]) {
-			const int cwret = cw_send_representation_partial(valid_representations[i]);
+		while (NULL != test_valid_representations[i]) {
+			const int cwret = cw_send_representation_partial(test_valid_representations[i]);
 			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "cw_send_representation_partial(valid #%d)", i)) {
 				failure = true;
 				break;
@@ -1079,8 +1089,8 @@ int legacy_api_test_representations(cw_test_executor_t * cte)
 	{
 		bool failure = false;
 		int i = 0;
-		while (NULL != invalid_representations[i]) {
-			const int cwret = cw_send_representation_partial(invalid_representations[i]);
+		while (NULL != test_invalid_representations[i]) {
+			const int cwret = cw_send_representation_partial(test_invalid_representations[i]);
 			if (!cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 1, "cw_send_representation_partial(invalid #%d)", i)) {
 				failure = true;
 				break;
@@ -1107,6 +1117,8 @@ int legacy_api_test_representations(cw_test_executor_t * cte)
    tests::cw_list_characters()
    tests::cw_send_character()
    tests::cw_send_string()
+
+   @reviewed on 2019-10-13
 */
 int legacy_api_test_send_character_and_string(cw_test_executor_t * cte)
 {
@@ -1115,7 +1127,7 @@ int legacy_api_test_send_character_and_string(cw_test_executor_t * cte)
 
 	/* Test: sending all supported characters as individual characters. */
 	{
-		char charlist[UCHAR_MAX + 1]; /* TODO: get size of this buffer through cw_get_character_count(). */
+		char charlist[UCHAR_MAX + 1] = { 0 }; /* TODO: get size of this buffer through cw_get_character_count(). */
 		cw_list_characters(charlist);
 
 		bool failure = false;
@@ -1154,7 +1166,7 @@ int legacy_api_test_send_character_and_string(cw_test_executor_t * cte)
 
 	/* Test: sending all supported characters as single string. */
 	{
-		char charlist[UCHAR_MAX + 1]; /* TODO: get size of this buffer through cw_get_character_count(). */
+		char charlist[UCHAR_MAX + 1] = { 0 }; /* TODO: get size of this buffer through cw_get_character_count(). */
 		cw_list_characters(charlist);
 
 		/* Send the complete charlist as a single string. */

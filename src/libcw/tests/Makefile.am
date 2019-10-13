@@ -71,6 +71,7 @@ libcw_test_legacy_api_SOURCES = \
 	libcw_legacy_api_sets.c \
 	$(LIBCW_BUG_TEST_FILES) \
 	test_framework.c \
+	test_data.c \
 	test_main.c
 
 # target-specific preprocessor flags (#defs and include dirs)
@@ -89,6 +90,7 @@ libcw_test_legacy_api_LDADD = -lm -lpthread $(DL_LIB) -L../.libs -lcw
 
 libcw_test_all_SOURCES = \
 	test_main.c \
+	test_data.c \
 	test_all_sets.c \
 	test_framework.c \
 	libcw_utils_tests.c \

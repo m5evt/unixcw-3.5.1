@@ -53,25 +53,8 @@
 
 
 extern const cw_entry_t CW_TABLE[];
-
-
-
-
-const char * test_valid_representations[] = { ".-.-.-",
-					      ".-",
-					      "---",
-					      "...-",
-
-					      NULL }; /* Guard. */
-
-const char * test_invalid_representations[] = { "INVALID",
-						"_._T",
-						"_.A_.",
-						"S-_-",
-						"_._", /* This does not represent a valid letter/digit. */
-						"-_-", /* This does not represent a valid letter/digit. */
-
-						NULL }; /* Guard. */
+extern const char * test_valid_representations[];
+extern const char * test_invalid_representations[];
 
 
 
