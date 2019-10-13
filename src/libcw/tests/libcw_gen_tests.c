@@ -696,7 +696,7 @@ int test_cw_gen_get_timing_parameters_internal(cw_test_executor_t * cte)
    tests::cw_gen_get_gap()
    tests::cw_gen_get_weighting()
 
-   @reviewed on 2019-10-09
+   @reviewed on 2019-10-13
 */
 int test_cw_gen_parameter_getters_setters(cw_test_executor_t * cte)
 {
@@ -720,25 +720,23 @@ int test_cw_gen_parameter_getters_setters(cw_test_executor_t * cte)
 		int (* set_new_value)(cw_gen_t * gen, int new_value);
 		int (* get_value)(cw_gen_t const * gen);
 
-		int min; /* Minimal acceptable value of parameter. */
-		int max; /* Maximal acceptable value of parameter. */
+		const int expected_min;     /* Expected value of minimum. */
+		const int expected_max;     /* Expected value of maximum. */
+
+		int readback_min;   /* Value returned by 'get_limits()' function. */
+		int readback_max;   /* Value returned by 'get_limits()' function. */
 
 		const char * name;
 	} test_data[] = {
-		{ cw_get_speed_limits,      cw_gen_set_speed,      cw_gen_get_speed,      off_limits,  -off_limits,  "speed"      },
-		{ cw_get_frequency_limits,  cw_gen_set_frequency,  cw_gen_get_frequency,  off_limits,  -off_limits,  "frequency"  },
-		{ cw_get_volume_limits,     cw_gen_set_volume,     cw_gen_get_volume,     off_limits,  -off_limits,  "volume"     },
-		{ cw_get_gap_limits,        cw_gen_set_gap,        cw_gen_get_gap,        off_limits,  -off_limits,  "gap"        },
-		{ cw_get_weighting_limits,  cw_gen_set_weighting,  cw_gen_get_weighting,  off_limits,  -off_limits,  "weighting"  },
-		{ NULL,                     NULL,                  NULL,                  0,           0,            NULL         }
+		{ cw_get_speed_limits,      cw_gen_set_speed,      cw_gen_get_speed,      CW_SPEED_MIN,      CW_SPEED_MAX,      off_limits,  -off_limits,  "speed"      },
+		{ cw_get_frequency_limits,  cw_gen_set_frequency,  cw_gen_get_frequency,  CW_FREQUENCY_MIN,  CW_FREQUENCY_MAX,  off_limits,  -off_limits,  "frequency"  },
+		{ cw_get_volume_limits,     cw_gen_set_volume,     cw_gen_get_volume,     CW_VOLUME_MIN,     CW_VOLUME_MAX,     off_limits,  -off_limits,  "volume"     },
+		{ cw_get_gap_limits,        cw_gen_set_gap,        cw_gen_get_gap,        CW_GAP_MIN,        CW_GAP_MAX,        off_limits,  -off_limits,  "gap"        },
+		{ cw_get_weighting_limits,  cw_gen_set_weighting,  cw_gen_get_weighting,  CW_WEIGHTING_MIN,  CW_WEIGHTING_MAX,  off_limits,  -off_limits,  "weighting"  },
+		{ NULL,                     NULL,                  NULL,                  0,                 0,                 0,           0,            NULL         }
 	};
 
 
-	bool get_limits_failure = false;
-	bool set_below_min_cwret_failure = false;
-	bool set_below_min_errno_failure = false;
-	bool set_above_max_cwret_failure = false;
-	bool set_above_max_errno_failure = false;
 	bool set_within_range_cwret_failure = false;
 	bool set_within_range_errno_failure = false;
 	bool set_within_range_readback_failure = false;
@@ -746,72 +744,62 @@ int test_cw_gen_parameter_getters_setters(cw_test_executor_t * cte)
 	for (int i = 0; test_data[i].get_limits; i++) {
 
 		int value = 0;
-
 		int cwret = CW_FAILURE;
 
 		/* Test getting limits of values to be tested. */
-		test_data[i].get_limits(&test_data[i].min, &test_data[i].max);
-		get_limits_failure = (test_data[i].min <= -off_limits) || (test_data[i].max >= off_limits);
-		if (!cte->expect_eq_int_errors_only(cte, false, get_limits_failure, "get %s limits", test_data[i].name)) {
-			get_limits_failure = true;
+		test_data[i].get_limits(&test_data[i].readback_min, &test_data[i].readback_max);
+		if (!cte->expect_op_int(cte, test_data[i].expected_min, "==", test_data[i].readback_min, 0, "get %s limits: min", test_data[i].name)) {
+			break;
+		}
+		if (!cte->expect_op_int(cte, test_data[i].expected_max, "==", test_data[i].readback_max, 0, "get %s limits: max", test_data[i].name)) {
 			break;
 		}
 
 
 		/* Test setting out-of-range value lower than minimum. */
 		errno = 0;
-		value = test_data[i].min - 1;
+		value = test_data[i].readback_min - 1;
 		cwret = test_data[i].set_new_value(gen, value);
-		if (!cte->expect_eq_int_errors_only(cte, CW_FAILURE, cwret, "set %s below limit (cwret)", test_data[i].name)) {
-			set_below_min_cwret_failure = true;
+		if (!cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 0, "set %s below limit (cwret)", test_data[i].name)) {
 			break;
 		}
-		if (!cte->expect_eq_int_errors_only(cte, EINVAL, errno, "set %s below limit (errno)", test_data[i].name)) {
-			set_below_min_errno_failure = true;
+		if (!cte->expect_op_int(cte, EINVAL, "==", errno, 0, "set %s below limit (errno)", test_data[i].name)) {
 			break;
 		}
 
 
 		/* Test setting out-of-range value higher than maximum. */
 		errno = 0;
-		value = test_data[i].max + 1;
+		value = test_data[i].readback_max + 1;
 		cwret = test_data[i].set_new_value(gen, value);
-		if (!cte->expect_eq_int_errors_only(cte, CW_FAILURE, cwret, "set %s above limit (cwret)", test_data[i].name)) {
-			set_above_max_cwret_failure = true;
+		if (!cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 0, "set %s above limit (cwret)", test_data[i].name)) {
 			break;
 		}
-		if (!cte->expect_eq_int_errors_only(cte, EINVAL, errno, "set %s above limit (errno)", test_data[i].name)) {
-			set_above_max_errno_failure = true;
+		if (!cte->expect_op_int(cte, EINVAL, "==", errno, 0, "set %s above limit (errno)", test_data[i].name)) {
 			break;
 		}
 
 
 
 		/* Test setting in-range values. Set with setter and then read back with getter. */
-		for (int value_to_set = test_data[i].min; value_to_set <= test_data[i].max; value_to_set++) {
+		for (int value_to_set = test_data[i].readback_min; value_to_set <= test_data[i].readback_max; value_to_set++) {
 			errno = 0;
 			cwret = test_data[i].set_new_value(gen, value_to_set);
-			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "set %s within limits (cwret) (value to set = %d)", test_data[i].name, value_to_set)) {
+			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "set %s within limits (cwret) (value to set = %d)", test_data[i].name, value_to_set)) {
 				set_within_range_cwret_failure = true;
 				break;
 			}
-			if (!cte->expect_eq_int_errors_only(cte, 0, errno, "set %s within limits (errno) (value to set = %d)", test_data[i].name, value_to_set)) {
+			if (!cte->expect_op_int(cte, 0, "==", errno, 1, "set %s within limits (errno) (value to set = %d)", test_data[i].name, value_to_set)) {
 				set_within_range_errno_failure = true;
 				break;
 			}
 
 			const int readback_value = test_data[i].get_value(gen);
-			if (!cte->expect_eq_int_errors_only(cte, readback_value, value_to_set, "readback %s within limits (value to set = %d)", test_data[i].name, value_to_set)) {
+			if (!cte->expect_op_int(cte, readback_value, "==", value_to_set, 1, "readback %s within limits (value to set = %d)", test_data[i].name, value_to_set)) {
 				set_within_range_readback_failure = true;
 				break;
 			}
 		}
-
-		cte->expect_eq_int(cte, false, get_limits_failure, "get %s limits", test_data[i].name);
-		cte->expect_eq_int(cte, false, set_below_min_cwret_failure, "set %s below limit (cwret)", test_data[i].name);
-		cte->expect_eq_int(cte, false, set_below_min_errno_failure, "set %s below limit (errno)", test_data[i].name);
-		cte->expect_eq_int(cte, false, set_above_max_cwret_failure, "set %s above limit (cwret)", test_data[i].name);
-		cte->expect_eq_int(cte, false, set_above_max_errno_failure, "set %s above limit (errno)", test_data[i].name);
 		cte->expect_eq_int(cte, false, set_within_range_cwret_failure, "set %s within range (cwret)", test_data[i].name);
 		cte->expect_eq_int(cte, false, set_within_range_errno_failure, "set %s above limit (errno)", test_data[i].name);
 		cte->expect_eq_int(cte, false, set_within_range_readback_failure, "set %s above limit (readback)", test_data[i].name);

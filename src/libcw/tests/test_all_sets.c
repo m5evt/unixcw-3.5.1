@@ -52,7 +52,6 @@ cw_test_set_t cw_test_sets[] = {
 			CW_TEST_FUNCTION_INSERT(test_cw_usecs_to_timespec_internal),
 			CW_TEST_FUNCTION_INSERT(test_cw_version_internal),
 			CW_TEST_FUNCTION_INSERT(test_cw_license_internal),
-			CW_TEST_FUNCTION_INSERT(test_cw_get_x_limits_internal),
 
 			/* cw_debug topic */
 			CW_TEST_FUNCTION_INSERT(test_cw_debug_flags_internal),

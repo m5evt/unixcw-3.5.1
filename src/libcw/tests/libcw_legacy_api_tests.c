@@ -219,19 +219,22 @@ int legacy_api_test_parameter_ranges(cw_test_executor_t * cte)
 		int (* set_new_value)(int new_value);
 		int (* get_value)(void);
 
-		int min; /* Minimal acceptable value of parameter. */
-		int max; /* Maximal acceptable value of parameter. */
+		const int expected_min;   /* Expected value of minimum. */
+		const int expected_max;   /* Expected value of maximum. */
+
+		int readback_min;   /* Value returned by 'get_limits()' function. */
+		int readback_max;   /* Value returned by 'get_limits()' function. */
 
 		const char *name;
 	} test_data[] = {
-		{ cw_get_speed_limits,      cw_set_send_speed,     cw_get_send_speed,     off_limits,  -off_limits,  "send_speed"    },
-		{ cw_get_speed_limits,      cw_set_receive_speed,  cw_get_receive_speed,  off_limits,  -off_limits,  "receive_speed" },
-		{ cw_get_frequency_limits,  cw_set_frequency,      cw_get_frequency,      off_limits,  -off_limits,  "frequency"     },
-		{ cw_get_volume_limits,     cw_set_volume,         cw_get_volume,         off_limits,  -off_limits,  "volume"        },
-		{ cw_get_gap_limits,        cw_set_gap,            cw_get_gap,            off_limits,  -off_limits,  "gap"           },
-		{ cw_get_tolerance_limits,  cw_set_tolerance,      cw_get_tolerance,      off_limits,  -off_limits,  "tolerance"     },
-		{ cw_get_weighting_limits,  cw_set_weighting,      cw_get_weighting,      off_limits,  -off_limits,  "weighting"     },
-		{ NULL,                     NULL,                  NULL,                           0,            0,  NULL            }
+		{ cw_get_speed_limits,      cw_set_send_speed,     cw_get_send_speed,     CW_SPEED_MIN,      CW_SPEED_MAX,      off_limits,  -off_limits,  "send_speed"    },
+		{ cw_get_speed_limits,      cw_set_receive_speed,  cw_get_receive_speed,  CW_SPEED_MIN,      CW_SPEED_MAX,      off_limits,  -off_limits,  "receive_speed" },
+		{ cw_get_frequency_limits,  cw_set_frequency,      cw_get_frequency,      CW_FREQUENCY_MIN,  CW_FREQUENCY_MAX,  off_limits,  -off_limits,  "frequency"     },
+		{ cw_get_volume_limits,     cw_set_volume,         cw_get_volume,         CW_VOLUME_MIN,     CW_VOLUME_MAX,     off_limits,  -off_limits,  "volume"        },
+		{ cw_get_gap_limits,        cw_set_gap,            cw_get_gap,            CW_GAP_MIN,        CW_GAP_MAX,        off_limits,  -off_limits,  "gap"           },
+		{ cw_get_tolerance_limits,  cw_set_tolerance,      cw_get_tolerance,      CW_TOLERANCE_MIN,  CW_TOLERANCE_MAX,  off_limits,  -off_limits,  "tolerance"     },
+		{ cw_get_weighting_limits,  cw_set_weighting,      cw_get_weighting,      CW_WEIGHTING_MIN,  CW_WEIGHTING_MAX,  off_limits,  -off_limits,  "weighting"     },
+		{ NULL,                     NULL,                  NULL,                  0,                 0,                 0,            0,           NULL            }
 	};
 
 
@@ -239,21 +242,21 @@ int legacy_api_test_parameter_ranges(cw_test_executor_t * cte)
 		int cwret;
 
 		/* Get limits of values to be tested. */
-		test_data[i].get_limits(&test_data[i].min, &test_data[i].max);
-		bool get_limits_failure = (test_data[i].min <= -off_limits) || (test_data[i].max >= off_limits);
-		cte->expect_op_int(cte, false, "==", get_limits_failure, 0, "get %s limits", test_data[i].name);
+		test_data[i].get_limits(&test_data[i].readback_min, &test_data[i].readback_max);
+		cte->expect_op_int(cte, test_data[i].expected_min, "==", test_data[i].readback_min, 0, "get %s limits: min", test_data[i].name);
+		cte->expect_op_int(cte, test_data[i].expected_max, "==", test_data[i].readback_max, 0, "get %s limits: min", test_data[i].name);
 
 
 		/* Test setting out-of-range value lower than minimum. */
 		errno = 0;
-		cwret = test_data[i].set_new_value(test_data[i].min - 1);
+		cwret = test_data[i].set_new_value(test_data[i].readback_min - 1);
 		cte->expect_op_int(cte, EINVAL, "==", errno, 0, "cw_set_%s(min - 1):", test_data[i].name);
 		cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 0, "cw_set_%s(min - 1):", test_data[i].name);
 
 
 		/* Test setting out-of-range value higher than maximum. */
 		errno = 0;
-		cwret = test_data[i].set_new_value(test_data[i].max + 1);
+		cwret = test_data[i].set_new_value(test_data[i].readback_max + 1);
 		cte->expect_op_int(cte, EINVAL, "==", errno, 0, "cw_set_%s(max + 1):", test_data[i].name);
 		cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 0, "cw_set_%s(max + 1):", test_data[i].name);
 
@@ -265,7 +268,7 @@ int legacy_api_test_parameter_ranges(cw_test_executor_t * cte)
 		bool set_within_range_cwret_failure = false;
 		bool set_within_range_errno_failure = false;
 		bool set_within_range_readback_failure = false;
-		for (int value_to_set = test_data[i].min; value_to_set <= test_data[i].max; value_to_set++) {
+		for (int value_to_set = test_data[i].readback_min; value_to_set <= test_data[i].readback_max; value_to_set++) {
 
 			errno = 0;
 			cwret = test_data[i].set_new_value(value_to_set);

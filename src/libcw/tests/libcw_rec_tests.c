@@ -1362,13 +1362,20 @@ int test_cw_rec_parameter_getters_setters_2(cw_test_executor_t * cte)
 		int (* set_new_value)(cw_rec_t * rec, int new_value);
 		int (* get_value)(const cw_rec_t * rec);
 
-		int min; /* Minimal acceptable value of parameter. */
-		int max; /* Maximal acceptable value of parameter. */
+		const int expected_min;   /* Expected value of minimum. */
+		const int expected_max;   /* Expected value of maximum. */
+
+		int readback_min;   /* Value returned by 'get_limits()' function. */
+		int readback_max;   /* Value returned by 'get_limits()' function. */
 
 		const char *name;
 	} test_data[] = {
-		{ cw_get_tolerance_limits,  cw_rec_set_tolerance,  cw_rec_get_tolerance,  off_limits,  -off_limits,  "tolerance"     },
-		{ NULL,                     NULL,                  NULL,                           0,            0,  NULL            }
+		{ cw_get_tolerance_limits,  cw_rec_set_tolerance,  cw_rec_get_tolerance,  CW_TOLERANCE_MIN,  CW_TOLERANCE_MAX,  off_limits,  -off_limits,  "tolerance"     },
+#if 0
+		/* TODO: implement */
+		{ cw_get_speed_limits,      cw_set_receive_speed,  cw_get_receive_speed,  CW_SPEED_MIN,      CW_SPEED_MAX,      off_limits,  -off_limits,  "receive_speed" },
+#endif
+		{ NULL,                     NULL,                  NULL,                  0,                 0,                 0,            0,           NULL            }
 	};
 
 	bool get_failure = true;
@@ -1383,15 +1390,15 @@ int test_cw_rec_parameter_getters_setters_2(cw_test_executor_t * cte)
 		int value = 0;
 
 		/* Get limits of values to be tested. */
-		test_data[i].get_limits(&test_data[i].min, &test_data[i].max);
+		test_data[i].get_limits(&test_data[i].readback_min, &test_data[i].readback_max);
 
-		get_failure = (test_data[i].min <= -off_limits);
-		if (!cte->expect_eq_int_errors_only(cte, false, get_failure, "get/set param 2: get min %s: failed to get low limit, returned value = %d\n", test_data[i].name, test_data[i].min)) {
+		get_failure = (test_data[i].readback_min <= -off_limits);
+		if (!cte->expect_eq_int_errors_only(cte, false, get_failure, "get/set param 2: get min %s: failed to get low limit, returned value = %d\n", test_data[i].name, test_data[i].readback_min)) {
 			get_failure = true;
 			break;
 		}
-		get_failure = (test_data[i].max >= off_limits);
-		if (!cte->expect_eq_int_errors_only(cte, false, get_failure, "get/set param 2: get max %s: failed to get high limit, returned value = %d\n", test_data[i].name, test_data[i].max)) {
+		get_failure = (test_data[i].readback_max >= off_limits);
+		if (!cte->expect_eq_int_errors_only(cte, false, get_failure, "get/set param 2: get max %s: failed to get high limit, returned value = %d\n", test_data[i].name, test_data[i].readback_max)) {
 			get_failure = true;
 			break;
 		}
@@ -1399,14 +1406,14 @@ int test_cw_rec_parameter_getters_setters_2(cw_test_executor_t * cte)
 
 		/* Test out-of-range value lower than minimum. */
 		errno = 0;
-		value = test_data[i].min - 1;
+		value = test_data[i].readback_min - 1;
 		status = test_data[i].set_new_value(rec, value);
 
-		if (!cte->expect_eq_int_errors_only(cte, CW_FAILURE, status, "get/set param 2 (cwret): setting %s value below minimum succeeded, minimum is %d, attempted value is %d\n", test_data[i].name, test_data[i].min, value)) {
+		if (!cte->expect_eq_int_errors_only(cte, CW_FAILURE, status, "get/set param 2 (cwret): setting %s value below minimum succeeded, minimum is %d, attempted value is %d\n", test_data[i].name, test_data[i].readback_min, value)) {
 			set_min_failure = true;
 			break;
 		}
-		if (!cte->expect_eq_int_errors_only(cte, EINVAL, errno, "get/set param (errno): setting %s value below minimum didn't result in EINVAL, minimum is %d, attempted value is %d\n", test_data[i].name, test_data[i].min, value)) {
+		if (!cte->expect_eq_int_errors_only(cte, EINVAL, errno, "get/set param (errno): setting %s value below minimum didn't result in EINVAL, minimum is %d, attempted value is %d\n", test_data[i].name, test_data[i].readback_min, value)) {
 			set_min_failure = true;
 			break;
 		}
@@ -1415,21 +1422,21 @@ int test_cw_rec_parameter_getters_setters_2(cw_test_executor_t * cte)
 
 		/* Test out-of-range value higher than maximum. */
 		errno = 0;
-		value = test_data[i].max + 1;
+		value = test_data[i].readback_max + 1;
 		status = test_data[i].set_new_value(rec, value);
 
-		if (!cte->expect_eq_int_errors_only(cte, CW_FAILURE, status, "get/set param 2 (cwret): setting %s value above minimum succeeded, maximum is %d, attempted value is %d\n", test_data[i].name, test_data[i].min, value)) {
+		if (!cte->expect_eq_int_errors_only(cte, CW_FAILURE, status, "get/set param 2 (cwret): setting %s value above minimum succeeded, maximum is %d, attempted value is %d\n", test_data[i].name, test_data[i].readback_min, value)) {
 			set_max_failure = true;
 			break;
 		}
-		if (!cte->expect_eq_int_errors_only(cte, EINVAL, errno, "get/set param 2 (errno): setting %s value above maximum didn't result in EINVAL, maximum is %d, attempted value is %d\n", test_data[i].name, test_data[i].min, value)) {
+		if (!cte->expect_eq_int_errors_only(cte, EINVAL, errno, "get/set param 2 (errno): setting %s value above maximum didn't result in EINVAL, maximum is %d, attempted value is %d\n", test_data[i].name, test_data[i].readback_min, value)) {
 			set_max_failure = true;
 			break;
 		}
 
 
 		/* Test in-range values. Set with setter and then read back with getter. */
-		for (int j = test_data[i].min; j <= test_data[i].max; j++) {
+		for (int j = test_data[i].readback_min; j <= test_data[i].readback_max; j++) {
 			test_data[i].set_new_value(rec, j);
 
 			float diff = test_data[i].get_value(rec) - j;
