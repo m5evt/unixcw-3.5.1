@@ -58,11 +58,6 @@
 
 
 
-#define MSG_PREFIX "libcw/legacy: "
-
-
-
-
 __attribute__((unused)) static void legacy_api_cw_test_helper_tq_callback(void *data);
 __attribute__((unused)) static void legacy_api_cw_test_setup(void);
 
@@ -165,11 +160,12 @@ int legacy_api_test_parameter_ranges(cw_test_executor_t * cte)
 			       &end_of_element_usecs, &end_of_character_usecs,
 			       &end_of_word_usecs, &additional_usecs,
 			       &adjustment_usecs);
-	printf(MSG_PREFIX "cw_get_send_parameters():\n"
-	       MSG_PREFIX "    %d, %d, %d, %d, %d, %d, %d\n",
-	       txdot_usecs, txdash_usecs, end_of_element_usecs,
-	       end_of_character_usecs,end_of_word_usecs, additional_usecs,
-	       adjustment_usecs);
+	cte->log_info(cte,
+		      "cw_get_send_parameters():\n"
+		      "    %d, %d, %d, %d, %d, %d, %d\n",
+		      txdot_usecs, txdash_usecs, end_of_element_usecs,
+		      end_of_character_usecs,end_of_word_usecs, additional_usecs,
+		      adjustment_usecs);
 
 
 	/* Test setting and getting of some basic parameters. */
@@ -1064,15 +1060,15 @@ int legacy_api_test_send_character_and_string(cw_test_executor_t * cte)
 
 		/* Send all the characters from the charlist individually. */
 
-		fprintf(cte->stdout,
-			MSG_PREFIX "cw_send_character(<valid>):\n"
-			MSG_PREFIX "    ");
+		cte->log_info(cte,
+			      "cw_send_character(<valid>):\n"
+			      "    ");
 
 		for (int i = 0; charlist[i] != '\0'; i++) {
 
 			const char character = charlist[i];
-			fprintf(cte->stdout, "%c", character);
-			fflush(cte->stdout);
+			cte->log_info_cont(cte, "%c", character);
+			cte->flush_info(cte);
 
 			const int cwret = cw_send_character(character);
 			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "cw_send_character(%c)", character)) {
@@ -1082,8 +1078,8 @@ int legacy_api_test_send_character_and_string(cw_test_executor_t * cte)
 			cw_wait_for_tone_queue();
 		}
 
-		fprintf(cte->stdout, "\n");
-		fflush(cte->stdout);
+		cte->log_info_cont(cte, "\n");
+		cte->flush_info(cte);
 
 		cte->expect_op_int(cte, false, "==", failure, 0, "cw_send_character(<valid>)");
 	}
@@ -1100,19 +1096,20 @@ int legacy_api_test_send_character_and_string(cw_test_executor_t * cte)
 		cw_list_characters(charlist);
 
 		/* Send the complete charlist as a single string. */
-		fprintf(cte->stdout, MSG_PREFIX "cw_send_string(<valid>):\n"
-		       MSG_PREFIX "    %s\n", charlist);
+		cte->log_info(cte,
+			      "cw_send_string(<valid>):\n"
+			      "    %s\n", charlist);
 
 		const int cwret = cw_send_string(charlist);
 		cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "cw_send_string(<valid>)");
 
 
 		while (cw_get_tone_queue_length() > 0) {
-			fprintf(cte->stdout, MSG_PREFIX "tone queue length %-6d\r", cw_get_tone_queue_length());
-			fflush(cte->stdout);
+			cte->log_info(cte, "tone queue length %-6d\r", cw_get_tone_queue_length());
+			cte->flush_info(cte);
 			cw_wait_for_tone();
 		}
-		fprintf(cte->stdout, MSG_PREFIX "tone queue length %-6d\n", cw_get_tone_queue_length());
+		cte->log_info(cte, "tone queue length %-6d\n", cw_get_tone_queue_length());
 	}
 
 
@@ -1144,13 +1141,13 @@ void legacy_api_test_iambic_key_paddles_common(cw_test_executor_t * cte, const i
 		cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "cw_notify_keyer_paddle_event(%d, %d)", intended_dot_paddle, intended_dash_paddle);
 
 		bool success = true;
-		fflush(cte->stdout);
+		cte->flush_info(cte);
 		for (int i = 0; i < n_elements; i++) {
 			success = success && cw_wait_for_keyer_element();
-			fprintf(cte->stdout, "%c", character);
-			fflush(cte->stdout);
+			cte->log_info_cont(cte, "%c", character);
+			cte->flush_info(cte);
 		}
-		fprintf(cte->stdout, "\n");
+		cte->log_info_cont(cte, "\n");
 
 		cte->expect_op_int(cte, true, "==", success, 0, "cw_wait_for_keyer_element() (%c)", character);
 	}
@@ -1166,7 +1163,7 @@ void legacy_api_test_iambic_key_paddles_common(cw_test_executor_t * cte, const i
 		cte->expect_op_int(cte, intended_dash_paddle, "==", read_back_dash_paddle, 0, "cw_get_keyer_paddles(): dash paddle");
 	}
 
-	fflush(cte->stdout);
+	cte->flush_info(cte);
 
 	cw_wait_for_keyer();
 
@@ -1350,7 +1347,7 @@ int legacy_api_test_straight_key(cw_test_executor_t * cte)
 		const int key_states[] = { CW_KEY_STATE_OPEN, CW_KEY_STATE_CLOSED };
 		const int first = rand() % 5;
 		const int last = first + 10 + (rand() % 30);
-		fprintf(cte->stdout, "Randomized key indices range: from %d to %d\n", first, last);
+		cte->log_info(cte, "Randomized key indices range: from %d to %d\n", first, last);
 
 		/* Alternate between open and closed. */
 		for (int i = first; i <= last; i++) {
@@ -1376,8 +1373,8 @@ int legacy_api_test_straight_key(cw_test_executor_t * cte)
 				break;
 			}
 
-			fprintf(cte->stdout, "%d", intended_key_state);
-			fflush(cte->stdout);
+			cte->log_info_cont(cte, "%d", intended_key_state);
+			cte->flush_info(cte);
 #ifdef __FreeBSD__
 			/* There is a problem with nanosleep() and
 			   signals on FreeBSD. */
@@ -1390,8 +1387,8 @@ int legacy_api_test_straight_key(cw_test_executor_t * cte)
 		/* Whatever happens during tests, keep the key open after the tests. */
 		cw_notify_straight_key_event(CW_KEY_STATE_OPEN);
 
-		fprintf(cte->stdout, "\n");
-		fflush(cte->stdout);
+		cte->log_info_cont(cte, "\n");
+		cte->flush_info(cte);
 
 		cte->expect_op_int(cte, false, "==", event_failure, 0, "cw_notify_straight_key_event(<key open/closed>)");
 		cte->expect_op_int(cte, false, "==", state_failure, 0, "cw_get_straight_key_state()");
@@ -1425,51 +1422,53 @@ void cw_test_delayed_release(cw_test_executor_t * cte)
 	/* This is slightly tricky to detect, but circumstantial
 	   evidence is provided by SIGALRM disposition returning to SIG_DFL. */
 	if (!cw_send_character_space()) {
-		printf(MSG_PREFIX "ERROR: cw_send_character_space()\n");
+		cte->log_error(cte, "cw_send_character_space()\n");
 		failures++;
 	}
 
 	if (gettimeofday(&start, NULL) != 0) {
-		printf(MSG_PREFIX "WARNING: gettimeofday failed, test incomplete\n");
+		cte->log_error(cte, "gettimeofday failed, test incomplete\n");
 		return;
 	}
-	printf(MSG_PREFIX "waiting for cw_finalization delayed release");
-	fflush(stdout);
+	cte->log_info(cte, "waiting for cw_finalization delayed release");
+	cte->flush_info(cte);
 	do {
 		struct sigaction disposition;
 
 		sleep(1);
 		if (sigaction(SIGALRM, NULL, &disposition) != 0) {
-			printf(MSG_PREFIX "WARNING: sigaction failed, test incomplete\n");
+			cte->log_error(cte, "sigaction failed, test incomplete\n");
 			return;
 		}
 		is_released = disposition.sa_handler == SIG_DFL;
 
 		if (gettimeofday(&finish, NULL) != 0) {
-			printf(MSG_PREFIX "WARNING: gettimeofday failed, test incomplete\n");
+			cte->log_error(cte, "gettimeofday failed, test incomplete\n");
 			return;
 		}
 
 		delay = (finish.tv_sec - start.tv_sec) * 1000000 + finish.tv_usec
 			- start.tv_usec;
-		putchar('.');
-		fflush(stdout);
+		cte->log_info_cont(cte, ".");
+		cte->flush_info(cte);
 	}
-	while (!is_released && delay < 20000000);
-	putchar('\n');
+	while (!is_released && delay < 20000000) {
+		;
+	}
+	cte->log_info_cont(cte, "\n");
 
 	/* The release should be around 10 seconds after the end of
 	   the sent space.  A timeout or two might leak in, reducing
 	   it by a bit; we'll be ecstatic with more than five
 	   seconds. */
 	if (is_released) {
-		printf(MSG_PREFIX "cw_finalization delayed release after %d usecs\n", delay);
+		cte->log_info(cte, "cw_finalization delayed release after %d usecs\n", delay);
 		if (delay < 5000000) {
-			printf(MSG_PREFIX "ERROR: cw_finalization release too quick\n");
+			cte->log_error(cte, "cw_finalization release too quick\n");
 			failures++;
 		}
 	} else {
-		printf(MSG_PREFIX "ERROR: cw_finalization release wait timed out\n");
+		cte->log_error(cte, "cw_finalization release wait timed out\n");
 		failures++;
 	}
 
@@ -1507,13 +1506,13 @@ void cw_test_signal_handling(cw_test_executor_t * cte)
 	   SIG_IGN and handlers are tested, but not SIG_DFL, because
 	   that stops the process. */
 	if (cw_unregister_signal_handler(SIGUSR1)) {
-		printf(MSG_PREFIX "ERROR: cw_unregister_signal_handler invalid\n");
+		cte->log_error(cte, "cw_unregister_signal_handler invalid\n");
 		failures++;
 	}
 
 	if (!cw_register_signal_handler(SIGUSR1,
                                    cw_test_signal_handling_callback)) {
-		printf(MSG_PREFIX "ERROR: cw_register_signal_handler failed\n");
+		cte->log_error(cte, "cw_register_signal_handler failed\n");
 		failures++;
 	}
 
@@ -1521,12 +1520,12 @@ void cw_test_signal_handling(cw_test_executor_t * cte)
 	raise(SIGUSR1);
 	sleep(1);
 	if (!cw_test_signal_handling_callback_called) {
-		printf(MSG_PREFIX "ERROR: cw_test_signal_handling_callback missed\n");
+		cte->log_error(cte, "cw_test_signal_handling_callback missed\n");
 		failures++;
 	}
 
 	if (!cw_register_signal_handler(SIGUSR1, SIG_IGN)) {
-		printf(MSG_PREFIX "ERROR: cw_register_signal_handler (overwrite) failed\n");
+		cte->log_error(cte, "cw_register_signal_handler (overwrite) failed\n");
 		failures++;
 	}
 
@@ -1534,17 +1533,17 @@ void cw_test_signal_handling(cw_test_executor_t * cte)
 	raise(SIGUSR1);
 	sleep(1);
 	if (cw_test_signal_handling_callback_called) {
-		printf(MSG_PREFIX "ERROR: cw_test_signal_handling_callback called\n");
+		cte->log_error(cte, "cw_test_signal_handling_callback called\n");
 		failures++;
 	}
 
 	if (!cw_unregister_signal_handler(SIGUSR1)) {
-		printf(MSG_PREFIX "ERROR: cw_unregister_signal_handler failed\n");
+		cte->log_error(cte, "cw_unregister_signal_handler failed\n");
 		failures++;
 	}
 
 	if (cw_unregister_signal_handler(SIGUSR1)) {
-		printf(MSG_PREFIX "ERROR: cw_unregister_signal_handler invalid\n");
+		cte->log_error(cte, "cw_unregister_signal_handler invalid\n");
 		failures++;
 	}
 
@@ -1552,19 +1551,19 @@ void cw_test_signal_handling(cw_test_executor_t * cte)
 	action.sa_flags = SA_RESTART;
 	sigemptyset(&action.sa_mask);
 	if (sigaction(SIGUSR1, &action, &disposition) != 0) {
-		printf(MSG_PREFIX "WARNING: sigaction failed, test incomplete\n");
+		cte->log_error(cte, "sigaction failed, test incomplete\n");
 		return failures;
 	}
 	if (cw_register_signal_handler(SIGUSR1, SIG_IGN)) {
-		printf(MSG_PREFIX "ERROR: cw_register_signal_handler clobbered\n");
+		cte->log_error(cte, "cw_register_signal_handler clobbered\n");
 		failures++;
 	}
 	if (sigaction(SIGUSR1, &disposition, NULL) != 0) {
-		printf(MSG_PREFIX "WARNING: sigaction failed, test incomplete\n");
+		cte->log_error(cte, "WARNING: sigaction failed, test incomplete\n");
 		return failures;
 	}
 
-	printf(MSG_PREFIX "cw_[un]register_signal_handler tests complete\n");
+	cte->log_info(cte, "cw_[un]register_signal_handler tests complete\n");
 	return;
 }
 #endif
@@ -1597,7 +1596,7 @@ int legacy_api_test_cw_gen_forever_public(cw_test_executor_t * cte)
 	cw_generator_delete();
 
 	int seconds = 5;
-	printf(MSG_PREFIX "%s() (%d seconds):\n", __func__, seconds);
+	cte->log_info(cte, "%s() (%d seconds):\n", __func__, seconds);
 
 	unsigned int rv = test_cw_gen_forever_sub(seconds, test_audio_system, NULL);
 	rv == 0 ? stats->successes++ : stats->failures++;
