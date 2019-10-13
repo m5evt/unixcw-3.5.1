@@ -96,6 +96,7 @@
 		{
 			CW_TEST_FUNCTION_INSERT(legacy_api_test_setup),
 
+			CW_TEST_FUNCTION_INSERT(legacy_api_test_low_level_gen_parameters),
 			CW_TEST_FUNCTION_INSERT(legacy_api_test_parameter_ranges),
 			CW_TEST_FUNCTION_INSERT(legacy_api_test_cw_gen_forever_public),
 			//CW_TEST_FUNCTION_INSERT(legacy_api_cw_test_delayed_release),

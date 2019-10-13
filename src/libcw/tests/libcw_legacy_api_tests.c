@@ -59,10 +59,11 @@
 
 
 __attribute__((unused)) static void legacy_api_cw_test_helper_tq_callback(void *data);
-__attribute__((unused)) static void legacy_api_cw_test_setup(void);
 
 /* Helper function for iambic key tests. */
 static void legacy_api_test_iambic_key_paddles_common(cw_test_executor_t * cte, const int intended_dot_paddle, const int intended_dash_paddle, char character, int n_elements);
+
+static void legacy_api_cw_single_test_setup(void);
 
 /* This variable will be used in "forever" test. This test function
    needs to open generator itself, so it needs to know the current
@@ -76,11 +77,12 @@ __attribute__((unused)) static int test_audio_system = CW_AUDIO_NONE;
 /**
    \brief Set up common test conditions
 
-   TODO: this will have to be called at the beginning of every test.
+   This must be called at the beginning of every individual test
+   function to handle setup of common test conditions.
 
-   Run before each individual test, to handle setup of common test conditions.
+   @reviewed on 2019-10-13
 */
-void legacy_api_cw_test_setup(void)
+void legacy_api_cw_single_test_setup(void)
 {
 	cw_reset_send_receive_parameters();
 	cw_set_send_speed(30);
@@ -96,15 +98,18 @@ void legacy_api_cw_test_setup(void)
 
 
 
+/**
+   @reviewed on 2019-10-13
+*/
 int legacy_api_test_setup(cw_test_executor_t * cte)
 {
 	int rv = cw_generator_new(cte->current_sound_system, NULL);
-	if (rv != 1) {
+	if (rv != CW_SUCCESS) {
 		cte->log_error(cte, "Can't create generator, stopping the test\n");
 		return -1;
 	}
 	rv = cw_generator_start();
-	if (rv != 1) {
+	if (rv != CW_SUCCESS) {
 		cte->log_error(cte, "Can't start generator, stopping the test\n");
 		cw_generator_delete();
 		return -1;
@@ -116,6 +121,9 @@ int legacy_api_test_setup(cw_test_executor_t * cte)
 
 
 
+/**
+   @reviewed on 2019-10-13
+*/
 int legacy_api_test_teardown(__attribute__((unused)) cw_test_executor_t * cte)
 {
 	sleep(1);
@@ -130,8 +138,51 @@ int legacy_api_test_teardown(__attribute__((unused)) cw_test_executor_t * cte)
 
 
 /**
-   Notice that getters of parameter limits are tested in test_cw_get_x_limits()
+   @reviewed on 2019-10-13
+*/
+int legacy_api_test_low_level_gen_parameters(cw_test_executor_t * cte)
+{
+	cte->print_test_header(cte, __func__);
+	legacy_api_cw_single_test_setup();
 
+	int txdot_usecs = -1;
+	int txdash_usecs = -1;
+	int end_of_element_usecs = -1;
+	int end_of_character_usecs = -1;
+	int end_of_word_usecs = -1;
+	int additional_usecs = -1;
+	int adjustment_usecs = -1;
+
+	/* Print and verify default low level timing values. */
+	cw_reset_send_receive_parameters();
+	cw_get_send_parameters(&txdot_usecs, &txdash_usecs,
+			       &end_of_element_usecs, &end_of_character_usecs,
+			       &end_of_word_usecs, &additional_usecs,
+			       &adjustment_usecs);
+	cte->log_info(cte,
+		      "cw_get_send_parameters():\n"
+		      "    %d, %d, %d, %d, %d, %d, %d\n",
+		      txdot_usecs, txdash_usecs, end_of_element_usecs,
+		      end_of_character_usecs,end_of_word_usecs, additional_usecs,
+		      adjustment_usecs);
+
+	cte->expect_op_int(cte, txdot_usecs,            ">=", 0, 0, "send parameters: txdot_usecs");
+	cte->expect_op_int(cte, txdash_usecs,           ">=", 0, 0, "send parameters: txdash_usecs");
+	cte->expect_op_int(cte, end_of_element_usecs,   ">=", 0, 0, "send parameters: end_of_element_usecs");
+	cte->expect_op_int(cte, end_of_character_usecs, ">=", 0, 0, "send parameters: end_of_character_usecs");
+	cte->expect_op_int(cte, end_of_word_usecs,      ">=", 0, 0, "send parameters: end_of_word_usecs");
+	cte->expect_op_int(cte, additional_usecs,       ">=", 0, 0, "send parameters: additional_usecs");
+	cte->expect_op_int(cte, adjustment_usecs,       ">=", 0, 0, "send parameters: adjustment_usecs");
+
+	cte->print_test_footer(cte, __func__);
+
+	return 0;
+}
+
+
+
+
+/**
    tests::cw_set_send_speed()
    tests::cw_get_send_speed()
    tests::cw_set_receive_speed()
@@ -146,27 +197,15 @@ int legacy_api_test_teardown(__attribute__((unused)) cw_test_executor_t * cte)
    tests::cw_get_tolerance()
    tests::cw_set_weighting()
    tests::cw_get_weighting()
+
+   @reviewed on 2019-10-13
 */
 int legacy_api_test_parameter_ranges(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
+	legacy_api_cw_single_test_setup();
 
-	int txdot_usecs, txdash_usecs, end_of_element_usecs, end_of_character_usecs,
-		end_of_word_usecs, additional_usecs, adjustment_usecs;
-
-	/* Print default low level timing values. */
-	cw_reset_send_receive_parameters();
-	cw_get_send_parameters(&txdot_usecs, &txdash_usecs,
-			       &end_of_element_usecs, &end_of_character_usecs,
-			       &end_of_word_usecs, &additional_usecs,
-			       &adjustment_usecs);
-	cte->log_info(cte,
-		      "cw_get_send_parameters():\n"
-		      "    %d, %d, %d, %d, %d, %d, %d\n",
-		      txdot_usecs, txdash_usecs, end_of_element_usecs,
-		      end_of_character_usecs,end_of_word_usecs, additional_usecs,
-		      adjustment_usecs);
-
+	const int off_limits = 10000;
 
 	/* Test setting and getting of some basic parameters. */
 
@@ -185,14 +224,14 @@ int legacy_api_test_parameter_ranges(cw_test_executor_t * cte)
 
 		const char *name;
 	} test_data[] = {
-		{ cw_get_speed_limits,      cw_set_send_speed,     cw_get_send_speed,     10000,  -10000,  "send_speed"    },
-		{ cw_get_speed_limits,      cw_set_receive_speed,  cw_get_receive_speed,  10000,  -10000,  "receive_speed" },
-		{ cw_get_frequency_limits,  cw_set_frequency,      cw_get_frequency,      10000,  -10000,  "frequency"     },
-		{ cw_get_volume_limits,     cw_set_volume,         cw_get_volume,         10000,  -10000,  "volume"        },
-		{ cw_get_gap_limits,        cw_set_gap,            cw_get_gap,            10000,  -10000,  "gap"           },
-		{ cw_get_tolerance_limits,  cw_set_tolerance,      cw_get_tolerance,      10000,  -10000,  "tolerance"     },
-		{ cw_get_weighting_limits,  cw_set_weighting,      cw_get_weighting,      10000,  -10000,  "weighting"     },
-		{ NULL,                     NULL,                  NULL,                      0,       0,  NULL            }
+		{ cw_get_speed_limits,      cw_set_send_speed,     cw_get_send_speed,     off_limits,  -off_limits,  "send_speed"    },
+		{ cw_get_speed_limits,      cw_set_receive_speed,  cw_get_receive_speed,  off_limits,  -off_limits,  "receive_speed" },
+		{ cw_get_frequency_limits,  cw_set_frequency,      cw_get_frequency,      off_limits,  -off_limits,  "frequency"     },
+		{ cw_get_volume_limits,     cw_set_volume,         cw_get_volume,         off_limits,  -off_limits,  "volume"        },
+		{ cw_get_gap_limits,        cw_set_gap,            cw_get_gap,            off_limits,  -off_limits,  "gap"           },
+		{ cw_get_tolerance_limits,  cw_set_tolerance,      cw_get_tolerance,      off_limits,  -off_limits,  "tolerance"     },
+		{ cw_get_weighting_limits,  cw_set_weighting,      cw_get_weighting,      off_limits,  -off_limits,  "weighting"     },
+		{ NULL,                     NULL,                  NULL,                           0,            0,  NULL            }
 	};
 
 
@@ -200,19 +239,19 @@ int legacy_api_test_parameter_ranges(cw_test_executor_t * cte)
 		int cwret;
 
 		/* Get limits of values to be tested. */
-		/* Notice that getters of parameter limits are tested
-		   in test_cw_get_x_limits(). */
 		test_data[i].get_limits(&test_data[i].min, &test_data[i].max);
+		bool get_limits_failure = (test_data[i].min <= -off_limits) || (test_data[i].max >= off_limits);
+		cte->expect_op_int(cte, false, "==", get_limits_failure, 0, "get %s limits", test_data[i].name);
 
 
-		/* Test out-of-range value lower than minimum. */
+		/* Test setting out-of-range value lower than minimum. */
 		errno = 0;
 		cwret = test_data[i].set_new_value(test_data[i].min - 1);
 		cte->expect_op_int(cte, EINVAL, "==", errno, 0, "cw_set_%s(min - 1):", test_data[i].name);
 		cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 0, "cw_set_%s(min - 1):", test_data[i].name);
 
 
-		/* Test out-of-range value higher than maximum. */
+		/* Test setting out-of-range value higher than maximum. */
 		errno = 0;
 		cwret = test_data[i].set_new_value(test_data[i].max + 1);
 		cte->expect_op_int(cte, EINVAL, "==", errno, 0, "cw_set_%s(max + 1):", test_data[i].name);
@@ -223,18 +262,31 @@ int legacy_api_test_parameter_ranges(cw_test_executor_t * cte)
 		  Test setting and reading back of in-range values.
 		  There will be many, many iterations, so use ::expect_op_int(errors_only).
 		*/
-		bool success = false;
-		for (int j = test_data[i].min; j <= test_data[i].max; j++) {
-			const int value_set = j;
-			test_data[i].set_new_value(value_set);
-			const int value_readback = test_data[i].get_value();
+		bool set_within_range_cwret_failure = false;
+		bool set_within_range_errno_failure = false;
+		bool set_within_range_readback_failure = false;
+		for (int value_to_set = test_data[i].min; value_to_set <= test_data[i].max; value_to_set++) {
 
-			success = cte->expect_op_int(cte, value_set, "==", value_readback, 1, "cw_get/set_%s(%d):", test_data[i].name, value_set);
-			if (!success) {
+			errno = 0;
+			cwret = test_data[i].set_new_value(value_to_set);
+			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "set %s within limits (cwret) (value to set = %d)", test_data[i].name, value_to_set)) {
+				set_within_range_cwret_failure = true;
+				break;
+			}
+			if (!cte->expect_op_int(cte, 0, "==", errno, 1, "set %s within limits (errno) (value to set = %d)", test_data[i].name, value_to_set)) {
+				set_within_range_errno_failure = true;
+				break;
+			}
+
+			const int readback_value = test_data[i].get_value();
+			if (!cte->expect_op_int(cte, readback_value, "==", value_to_set, 1, "readback %s within limits (value to set = %d)", test_data[i].name, value_to_set)) {
+				set_within_range_readback_failure = true;
 				break;
 			}
 		}
-		cte->expect_op_int(cte, true, "==", success, 0, "cw_get/set_%s():", test_data[i].name);
+		cte->expect_op_int(cte, false, "==", set_within_range_cwret_failure, 0, "cw_get/set_%s() within range: cwret", test_data[i].name);
+		cte->expect_op_int(cte, false, "==", set_within_range_errno_failure, 0, "cw_get/set_%s() within range: errno", test_data[i].name);
+		cte->expect_op_int(cte, false, "==", set_within_range_readback_failure, 0, "cw_get/set_%s(): within range: readback", test_data[i].name);
 	}
 
 
@@ -258,6 +310,7 @@ int legacy_api_test_parameter_ranges(cw_test_executor_t * cte)
 int legacy_api_test_cw_wait_for_tone(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
+	legacy_api_cw_single_test_setup();
 
 	int cwret;
 
@@ -381,6 +434,7 @@ int legacy_api_test_cw_wait_for_tone(cw_test_executor_t * cte)
 int legacy_api_test_cw_wait_for_tone_queue(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
+	legacy_api_cw_single_test_setup();
 
 	const int n_tones_to_add = 6;     /* This is a simple test, so only a handful of tones. */
 
@@ -452,6 +506,7 @@ int legacy_api_test_cw_wait_for_tone_queue(cw_test_executor_t * cte)
 int legacy_api_test_cw_queue_tone(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
+	legacy_api_cw_single_test_setup();
 
 	cw_set_volume(70);
 	int duration = 40000;
@@ -530,6 +585,7 @@ int legacy_api_test_cw_queue_tone(cw_test_executor_t * cte)
 int legacy_api_test_empty_tone_queue(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
+	legacy_api_cw_single_test_setup();
 
 	/* Test setup. */
 	{
@@ -572,6 +628,7 @@ int legacy_api_test_empty_tone_queue(cw_test_executor_t * cte)
 int legacy_api_test_full_tone_queue(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
+	legacy_api_cw_single_test_setup();
 
 	/* Test setup. */
 	{
@@ -665,6 +722,7 @@ static int cw_test_helper_tq_callback_capture = false;
 int legacy_api_test_tone_queue_callback(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
+	legacy_api_cw_single_test_setup();
 #if 0
 	for (int i = 1; i < 10; i++) {
 		/* Test the callback mechanism for very small values,
@@ -747,6 +805,7 @@ static void legacy_api_cw_test_helper_tq_callback(void *data)
 int legacy_api_test_volume_functions(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
+	legacy_api_cw_single_test_setup();
 
 	int vol_min = -1;
 	int vol_max = -1;
@@ -871,6 +930,7 @@ int legacy_api_test_volume_functions(cw_test_executor_t * cte)
 int legacy_api_test_send_primitives(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
+	legacy_api_cw_single_test_setup();
 
 	int N = 20;
 
@@ -948,6 +1008,7 @@ int legacy_api_test_send_primitives(cw_test_executor_t * cte)
 int legacy_api_test_representations(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
+	legacy_api_cw_single_test_setup();
 
 	const char * valid_representations[] = {
 		".-.-.-",
@@ -1050,6 +1111,7 @@ int legacy_api_test_representations(cw_test_executor_t * cte)
 int legacy_api_test_send_character_and_string(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
+	legacy_api_cw_single_test_setup();
 
 	/* Test: sending all supported characters as individual characters. */
 	{
@@ -1185,6 +1247,7 @@ void legacy_api_test_iambic_key_paddles_common(cw_test_executor_t * cte, const i
 int legacy_api_test_iambic_key_dot(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
+	legacy_api_cw_single_test_setup();
 
 	/*
 	  Test: keying dot.
@@ -1220,6 +1283,7 @@ int legacy_api_test_iambic_key_dot(cw_test_executor_t * cte)
 int legacy_api_test_iambic_key_dash(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
+	legacy_api_cw_single_test_setup();
 
 	/*
 	  Test: keying dash.
@@ -1255,6 +1319,7 @@ int legacy_api_test_iambic_key_dash(cw_test_executor_t * cte)
 int legacy_api_test_iambic_key_alternating(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
+	legacy_api_cw_single_test_setup();
 
 	/*
 	  Test: keying alternate dit/dash.
@@ -1290,6 +1355,7 @@ int legacy_api_test_iambic_key_alternating(cw_test_executor_t * cte)
 int legacy_api_test_iambic_key_none(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
+	legacy_api_cw_single_test_setup();
 
 	/*
 	  Test: set new state of paddles: no paddle pressed.
@@ -1334,6 +1400,7 @@ int legacy_api_test_iambic_key_none(cw_test_executor_t * cte)
 int legacy_api_test_straight_key(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
+	legacy_api_cw_single_test_setup();
 
 	{
 		bool event_failure = false;
@@ -1413,6 +1480,7 @@ int legacy_api_test_straight_key(cw_test_executor_t * cte)
 void cw_test_delayed_release(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
+	legacy_api_cw_single_test_setup();
 
 
 	int failures = 0;
@@ -1585,6 +1653,8 @@ void cw_test_signal_handling(cw_test_executor_t * cte)
 int legacy_api_test_cw_gen_forever_public(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
+	legacy_api_cw_single_test_setup();
+
 #if 0
 	/* Make sure that an audio sink is closed. If we try to open
 	   an OSS sink that is already open, we may end up with
@@ -1612,6 +1682,12 @@ int legacy_api_test_cw_gen_forever_public(cw_test_executor_t * cte)
 int legacy_api_test_basic_gen_operations(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
+
+	/* We don't call it here because generator is not created
+	   yet. Setup is handled by test code below.. */
+#if 0
+	legacy_api_cw_single_test_setup();
+#endif
 
 	const char * device = NULL; /* Use default device. */
 	int cwret = CW_FAILURE;
