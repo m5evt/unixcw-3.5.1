@@ -138,12 +138,20 @@ bool cw_is_console_possible(const char *device)
 		return false;
 	}
 
+	errno = 0;
 	int rv = ioctl(fd, KIOCSOUND, 0);
 	close(fd);
 	if (rv == -1) {
 		/* Console device can be opened, even with WRONLY perms, but,
 		   if you aren't root user, you can't call ioctl()s on it,
 		   and - as a result - can't generate sound on the device. */
+		if (EPERM == errno) {
+			cw_debug_msg (&cw_debug_object, CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
+				      MSG_PREFIX "ioctl(%s): %s (you probably should be running this as root)", dev, strerror(errno));
+		} else {
+			cw_debug_msg (&cw_debug_object, CW_DEBUG_SOUND_SYSTEM, CW_DEBUG_ERROR,
+				      MSG_PREFIX "ioctl(%s): %s", dev, strerror(errno));
+		}
 		return false;
 	} else {
 		return true;
