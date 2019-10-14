@@ -99,85 +99,68 @@ int test_cw_timestamp_compare_internal(cw_test_executor_t * cte)
 
 
 
-
 /**
    tests::cw_timestamp_validate_internal()
+
+   @reviewed on 2019-10-13
 */
 int test_cw_timestamp_validate_internal(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
-	struct timeval out_timestamp;
-	struct timeval in_timestamp;
-	struct timeval ref_timestamp; /* Reference timestamp. */
-	int cwret = CW_FAILURE;
-
-
 
 	/* Test 1 - get current time. */
-	out_timestamp.tv_sec = 0;
-	out_timestamp.tv_usec = 0;
+	{
+		/* Get reference time through gettimeofday(). */
+		struct timeval ref_timestamp = { 0, 0 }; /* Reference timestamp. */
+		cte->assert2(cte, 0 == gettimeofday(&ref_timestamp, NULL), "failed to get reference time");
 
-	cte->assert2(cte, !gettimeofday(&ref_timestamp, NULL), "libcw:utils:validate timestamp 1: failed to get reference time");
+		/* Get current time through libcw function. */
+		struct timeval out_timestamp = { 0, 0 };
+		int cwret = cw_timestamp_validate_internal(&out_timestamp, NULL);
+		cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "current timestamp");
 
-	cwret = cw_timestamp_validate_internal(&out_timestamp, NULL);
-	cte->expect_eq_int(cte, CW_SUCCESS, cwret, "libcw:utils:validate timestamp:current timestamp:");
-
-#if 0
-	fprintf(stderr, "\nINFO: delay in getting timestamp is %d microseconds\n",
-		cw_timestamp_compare_internal(&ref_timestamp, &out_timestamp));
+		/* Check the diff between the two timestamps. On my desktop PC it's ~8us.  */
+		const int diff = cw_timestamp_compare_internal(&ref_timestamp, &out_timestamp);
+#if 1
+		cte->log_info(cte, "delay in getting timestamp is %d microseconds\n", diff);
 #endif
+		cte->expect_op_int(cte, 100, ">", diff, 0, "delay in getting timestamp");
+	}
 
 
 
-	/* Test 2 - validate valid input timestamp and copy it to
-	   output timestamp. */
-	out_timestamp.tv_sec = 0;
-	out_timestamp.tv_usec = 0;
-	in_timestamp.tv_sec = 1234;
-	in_timestamp.tv_usec = 987;
+	struct test_data {
+		bool valid;
+		struct timeval in;
+		int expected_cwret;
+		int expected_errno;
+		const char * name;
+	} test_data[] = {
+		{ true,  { 1234,                  987 }, CW_SUCCESS,        0,  "valid"                    }, /* Test 2 - validate valid input timestamp and copy it to output timestamp. */
+		{ true,  {   -1,                  987 }, CW_FAILURE,   EINVAL,  "invalid seconds"          }, /* Test 3 - detect invalid seconds in input timestamp. */
+		{ true,  {  123, CW_USECS_PER_SEC + 1 }, CW_FAILURE,   EINVAL,  "microseconds too large"   }, /* Test 4 - detect invalid microseconds in input timestamp (microseconds too large). */
+		{ true,  {  123,                   -1 }, CW_FAILURE,   EINVAL,  "microseconds negative"    }, /* Test 5 - detect invalid microseconds in input timestamp (microseconds negative). */
+		{ false, {    0,                    0 }, CW_SUCCESS,        0,  ""                         }, /* Guard. */
+	};
 
-	cwret = cw_timestamp_validate_internal(&out_timestamp, &in_timestamp);
-	cte->expect_eq_int(cte, CW_SUCCESS, cwret, "libcw:utils:validate timestamp:validate and copy (cwret):");
-	cte->expect_eq_int(cte, in_timestamp.tv_sec, out_timestamp.tv_sec, "libcw:utils:validate timestamp:validate and copy (copy sec):");
-	cte->expect_eq_int(cte, in_timestamp.tv_usec, out_timestamp.tv_usec, "libcw:utils:validate timestamp:validate and copy (copy usec):");
+	int i = 0;
+	while (test_data[i].valid) {
 
+		struct timeval out = { 0, 0 };
+		errno = 0;
 
+		int cwret = cw_timestamp_validate_internal(&out, &test_data[i].in);
+		cte->expect_op_int(cte, test_data[i].expected_cwret, "==", cwret, 0, "%s (cwret)", test_data[i].name);
+		cte->expect_op_int(cte, test_data[i].expected_errno, "==", errno, 0, "%s (errno)", test_data[i].name);
 
+		if (CW_SUCCESS == test_data[i].expected_cwret) {
+			cte->expect_op_int(cte, test_data[i].in.tv_sec, "==", out.tv_sec, 0, "%s (copy sec)", test_data[i].name);
+			cte->expect_op_int(cte, test_data[i].in.tv_usec, "==", out.tv_usec, 0, "%s (copy usec)", test_data[i].name);
+		}
 
-	/* Test 3 - detect invalid seconds in input timestamp. */
-	out_timestamp.tv_sec = 0;
-	out_timestamp.tv_usec = 0;
-	in_timestamp.tv_sec = -1;
-	in_timestamp.tv_usec = 987;
-
-	cwret = cw_timestamp_validate_internal(&out_timestamp, &in_timestamp);
-	cte->expect_eq_int(cte, CW_FAILURE, cwret, "libcw:utils:validate timestamp:invalid seconds (cwret)");
-	cte->expect_eq_int(cte, EINVAL, errno, "libcw:utils:validate timestamp:invalid seconds (errno)");
-
-
-
-	/* Test 4 - detect invalid microseconds in input timestamp (microseconds too large). */
-	out_timestamp.tv_sec = 0;
-	out_timestamp.tv_usec = 0;
-	in_timestamp.tv_sec = 123;
-	in_timestamp.tv_usec = CW_USECS_PER_SEC + 1;
-
-	cwret = cw_timestamp_validate_internal(&out_timestamp, &in_timestamp);
-	cte->expect_eq_int(cte, CW_FAILURE, cwret, "libcw:utils:validate timestamp:invalid milliseconds (cwret)");
-	cte->expect_eq_int(cte, EINVAL, errno, "libcw:utils:validate timestamp:invalid milliseconds (cwret)");
-
-
-
-	/* Test 5 - detect invalid microseconds in input timestamp (microseconds negative). */
-	out_timestamp.tv_sec = 0;
-	out_timestamp.tv_usec = 0;
-	in_timestamp.tv_sec = 123;
-	in_timestamp.tv_usec = -1;
-
-	cwret = cw_timestamp_validate_internal(&out_timestamp, &in_timestamp);
-	cte->expect_eq_int(cte, CW_FAILURE, cwret, "libcw:utils:validate timestamp:negative milliseconds (cwret)");
-	cte->expect_eq_int(cte, EINVAL, errno, "libcw:utils:validate timestamp:negative milliseconds (cwret)");
+		i++;
+	}
 
 	cte->print_test_footer(cte, __func__);
 
@@ -187,9 +170,10 @@ int test_cw_timestamp_validate_internal(cw_test_executor_t * cte)
 
 
 
-
 /**
    tests::cw_usecs_to_timespec_internal()
+
+   @reviewed on 2019-10-13
 */
 int test_cw_usecs_to_timespec_internal(cw_test_executor_t * cte)
 {
@@ -199,16 +183,17 @@ int test_cw_usecs_to_timespec_internal(cw_test_executor_t * cte)
 		int input;
 		struct timespec t;
 	} input_data[] = {
-		/* input in ms    /   expected output seconds : milliseconds */
+		/* input in ms    /   expected output seconds:milliseconds */
 		{           0,    {   0,             0 }},
 		{     1000000,    {   1,             0 }},
 		{     1000004,    {   1,          4000 }},
 		{    15000350,    {  15,        350000 }},
 		{          73,    {   0,         73000 }},
-		{          -1,    {   0,             0 }},
+		{          -1,    {   0,             0 }}, /* Guard. */
 	};
 
-	bool failure = false;
+	bool seconds_failure = false;
+	bool microseconds_failure = false;
 
 	int i = 0;
 	while (input_data[i].input != -1) {
@@ -218,19 +203,20 @@ int test_cw_usecs_to_timespec_internal(cw_test_executor_t * cte)
 		fprintf(stderr, "input = %d usecs, output = %ld.%ld\n",
 			input_data[i].input, (long) result.tv_sec, (long) result.tv_nsec);
 #endif
-		if (!cte->expect_eq_int_errors_only(cte, input_data[i].t.tv_sec, result.tv_sec, "libcw:utils:usecs to timespec: test %d: %ld [s] != %ld [s]\n", i, result.tv_sec, input_data[i].t.tv_sec)) {
-			failure = true;
+		if (!cte->expect_op_int(cte, input_data[i].t.tv_sec, "==", result.tv_sec, 1, "test %d: seconds", i)) {
+			seconds_failure = true;
 			break;
 		}
-		if (!cte->expect_eq_int_errors_only(cte, input_data[i].t.tv_nsec, result.tv_nsec, "libcw:utils:usecs to timespec: test %d: %ld [ns] != %ld [ns]\n", i, result.tv_nsec, input_data[i].t.tv_nsec)) {
-			failure = true;
+		if (!cte->expect_op_int(cte, input_data[i].t.tv_nsec, "==", result.tv_nsec, 1, "test %d: microseconds", i)) {
+			microseconds_failure = true;
 			break;
 		}
 
 		i++;
 	}
 
-	cte->expect_eq_int(cte, false, failure, "libcw:utils:usecs to timespec:");
+	cte->expect_op_int(cte, false, "==", 0, seconds_failure, "seconds");
+	cte->expect_op_int(cte, false, "==", 0, microseconds_failure, "microseconds");
 
 	cte->print_test_footer(cte, __func__);
 
@@ -240,17 +226,19 @@ int test_cw_usecs_to_timespec_internal(cw_test_executor_t * cte)
 
 
 
-
-
 /**
    tests::cw_version()
+
+   @reviewed on 2019-10-13
 */
 int test_cw_version_internal(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
-	int current = 77, revision = 88, age = 99; /* Dummy values. */
-	cw_get_lib_version(&current, &revision, &age);
+	int readback_current = 77;
+	int readback_revision = 88;
+	int readback_age = 99; /* Dummy initial values. */
+	cw_get_lib_version(&readback_current, &readback_revision, &readback_age);
 
 	/* Library's version is defined in LIBCW_VERSION. cw_version()
 	   uses three calls to strtol() to get three parts of the
@@ -262,13 +250,15 @@ int test_cw_version_internal(cw_test_executor_t * cte)
 #define VERSION_LEN_MAX 30
 	cte->assert2(cte, strlen(LIBCW_VERSION) <= VERSION_LEN_MAX, "LIBCW_VERSION longer than expected!\n");
 
-	char buffer[VERSION_LEN_MAX + 1];
+	char buffer[VERSION_LEN_MAX + 1] = { 0 };
 	strncpy(buffer, LIBCW_VERSION, VERSION_LEN_MAX);
 	buffer[VERSION_LEN_MAX] = '\0';
 #undef VERSION_LEN_MAX
 
 	char *str = buffer;
-	int c = 0, r = 0, a = 0;
+	int expected_current = 0;
+	int expected_revision = 0;
+	int expected_age = 0;
 
 	bool tokens_failure = false;
 
@@ -278,16 +268,16 @@ int test_cw_version_internal(cw_test_executor_t * cte)
 		char * token = strtok(str, ":");
 		if (token == NULL) {
 			/* We should end tokenizing process after 3 valid tokens, no more and no less. */
-			cte->expect_eq_int(cte, 3, i_tokens, "libcw:utils:version: stopping at token %d\n", i_tokens);
+			cte->expect_op_int(cte, 3, "==", i_tokens, 0, "stopping at token %d", i_tokens);
 			break;
 		}
 
 		if (0 == i_tokens) {
-			c = atoi(token);
+			expected_current = atoi(token);
 		} else if (1 == i_tokens) {
-			r = atoi(token);
+			expected_revision = atoi(token);
 		} else if (2 == i_tokens) {
-			a = atoi(token);
+			expected_age = atoi(token);
 		} else {
 			tokens_failure = true;
 			break;
@@ -295,10 +285,10 @@ int test_cw_version_internal(cw_test_executor_t * cte)
 		}
 	}
 
-	cte->expect_eq_int(cte, false, tokens_failure, "libcw:utils:version: correct number of tokens");
-	cte->expect_eq_int(cte, current, c, "libcw:utils:version: current: %d / %dn", current, c);
-	cte->expect_eq_int(cte, revision, r, "libcw:utils:version: revision: %d / %d", revision, r);
-	cte->expect_eq_int(cte, age, a, "libcw:utils:version: age: %d / %d", age, a);
+	cte->expect_op_int(cte, false, "==", tokens_failure, 0, "number of tokens");
+	cte->expect_op_int(cte, readback_current, "==", expected_current, 0, "current: %d / %d", readback_current, expected_current);
+	cte->expect_op_int(cte, readback_revision, "==", expected_revision, 0, "revision: %d / %d", readback_revision, expected_revision);
+	cte->expect_op_int(cte, readback_age, "==", expected_age, 0, "age: %d / %d", readback_age, expected_age);
 
 	cte->print_test_footer(cte, __func__);
 
@@ -308,9 +298,10 @@ int test_cw_version_internal(cw_test_executor_t * cte)
 
 
 
-
 /**
    tests::cw_license()
+
+   @reviewed on 2019-10-13
 */
 int test_cw_license_internal(cw_test_executor_t * cte)
 {
@@ -320,7 +311,7 @@ int test_cw_license_internal(cw_test_executor_t * cte)
 	   prints the license to stdout, and that's it. */
 
 	cw_license();
-	cte->expect_eq_int(cte, false, false, "libcw:utils:license:");
+	cte->expect_op_int(cte, false, "==", false, 0, "libcw license:");
 
 	cte->print_test_footer(cte, __func__);
 
