@@ -45,51 +45,45 @@
 
 /**
    tests::cw_timestamp_compare_internal()
+
+   @reviewed on 2019-10-15
 */
 int test_cw_timestamp_compare_internal(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
-	struct timeval earlier_timestamp;
-	struct timeval later_timestamp;
-
 	/* TODO: I think that there may be more tests to perform for
 	   the function, testing handling of overflow. */
 
-	int expected_deltas[] = { 0,
-				  1,
-				  1001,
-				  CW_USECS_PER_SEC - 1,
-				  CW_USECS_PER_SEC,
-				  CW_USECS_PER_SEC + 1,
-				  2 * CW_USECS_PER_SEC - 1,
-				  2 * CW_USECS_PER_SEC,
-				  2 * CW_USECS_PER_SEC + 1,
-				  -1 }; /* Guard. */
+	struct {
+		struct timeval earlier;
+		struct timeval later;
+		int expected_delta_usecs;
+		bool test_valid;
+	} test_data[] = {
+		{ { 17, 19 },                         { 17,                          19 },                           0, true  }, /* Two same timestamps. */
+		{ { 17, 19 },                         { 17,                          20 },                           1, true  }, /* Simple one microsecond difference. */
+		{ { 17, CW_USECS_PER_SEC - 1 },       { 18,                           0 },                           1, true  }, /* Less simple one microsecond difference. */
 
+		{ { 17, CW_USECS_PER_SEC - 1 },       { 17,        CW_USECS_PER_SEC + 1 },                           2, true  }, /* Two microseconds difference with usecs larger than limit. */
+		{ { 17, 1 * CW_USECS_PER_SEC },       { 17,        2 * CW_USECS_PER_SEC },        1 * CW_USECS_PER_SEC, true  }, /* One second difference because of count of microseconds. */
+		{ { 17, (1 * CW_USECS_PER_SEC) - 1 }, { 17,  (2 * CW_USECS_PER_SEC) + 1 },  (1 * CW_USECS_PER_SEC) + 2, true  }, /* One second and two microseconds difference because of count of microseconds. */
 
-	earlier_timestamp.tv_sec = 3;
-	earlier_timestamp.tv_usec = 567;
+		{ { 0,  0 }, { 0,  0 },  0, false } /* Guard. */
+	};
 
 	bool failure = false;
-
 	int i = 0;
-	while (expected_deltas[i] != -1) {
-
-		later_timestamp.tv_sec = earlier_timestamp.tv_sec + (expected_deltas[i] / CW_USECS_PER_SEC);
-		later_timestamp.tv_usec = earlier_timestamp.tv_usec + (expected_deltas[i] % CW_USECS_PER_SEC);
-
-		const int delta = cw_timestamp_compare_internal(&earlier_timestamp, &later_timestamp);
-		if (!cte->expect_eq_int_errors_only(cte, expected_deltas[i], delta, "libcw:utils:compare timestamp: test #%d: unexpected delta: %d != %d\n", i, delta, expected_deltas[i])) {
+	while (test_data[i].test_valid) {
+		const int calculated_delta_usecs = cw_timestamp_compare_internal(&test_data[i].earlier, &test_data[i].later);
+		if (!cte->expect_eq_int_errors_only(cte, test_data[i].expected_delta_usecs, calculated_delta_usecs, "timestamps diff: test #%d", i)) {
 			failure = true;
 			break;
 		}
-
 		i++;
 	}
 
-
-	cte->expect_eq_int(cte, false, failure, "libcw:utils:compare timestamp:");
+	cte->expect_eq_int(cte, false, failure, "timestamps diff");
 
 	cte->print_test_footer(cte, __func__);
 
