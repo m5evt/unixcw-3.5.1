@@ -79,68 +79,34 @@ static const int tq_low_watermark = 1;
 
 
 
-#if 0
-int main(int argc, char * const argv[])
-{
-	int n = 1;
-	if (argc > 1) {
-		n = atoi(argv[1]);
-		if (n < 1) {
-			return -1;
-		}
-	}
-	fprintf(stderr, "%s: %d cycle(s)\n", argv[0], n);
 
-
-	fprintf(stdout, "libcw/tq: testing tq for \"short space\" problem\n");
-	fflush(stdout);
-
-	/* Expected number of calls to the callback with correct
-	   implementation of tone queue in libcw. */
-
-	cw_test_executor_t cte;
-	cw_test_init(&cte, stdout, stderr, "tq short space");
-	cte.current_sound_system = CW_AUDIO_NULL;
-
-	int cwret = legacy_api_test_tq_short_space(&cte);
-
-	if (CW_SUCCESS == cwret) {
-		/* "make check" facility requires this message to be
-		   printed on stdout; don't localize it */
-		fprintf(stdout, "\nlibcw: test result: success\n\n");
-		return 0;
-	} else {
-		fprintf(stdout, "\nlibcw: test result: failure\n\n");
-		return -1;
-	}
-}
-#endif
-
-
-
+/**
+   @reviewed on 2019-10-16
+*/
 int legacy_api_test_tq_short_space(cw_test_executor_t * cte)
 {
-	cte->print_test_header(cte, __func__);
+	const int max = rand() % 10 + 5; /* TODO: this should be a large value that will allow making the test many times. */
 
-	const int n = 3; /* TODO: this should be a large value that will allow making the test many times. */
+	cte->print_test_header(cte, "%s (%d)", __func__, max);
 
-	struct tq_short_space_data data;
-	memset(&data, 0, sizeof (data));
+
+	struct tq_short_space_data data = { 0 };
+	//memset(&data, 0, sizeof (data));
 	data.cte = cte;
 
 	bool success = true;;
-	for (int i = 0; i < n; i++) {
-		cte->log_info(cte, "libcw/tq: iteration #%d / %d\n", i + 1, n);
+	for (int i = 0; i < max; i++) {
+		cte->log_info(cte, "Testing dequeuing short space, iteration #%d / %d\n", i + 1, max);
 
 		data.n_actual_callback_executions = 0;
 
-		success = single_test_over_speed_range(&data, i, n);
+		success = single_test_over_speed_range(&data, i, max);
 		if (!success) {
 			break;
 		}
 	}
 
-	cte->expect_eq_int(cte, true, success, "Testing dequeuing short space");
+	cte->expect_eq_int_errors_only(cte, true, success, "Testing dequeuing short space");
 
 	cte->print_test_footer(cte, __func__);
 
@@ -150,6 +116,9 @@ int legacy_api_test_tq_short_space(cw_test_executor_t * cte)
 
 
 
+/**
+   @reviewed on 2019-10-16
+*/
 bool single_test_over_speed_range(struct tq_short_space_data * data, int i, int n)
 {
 	/* Library initialization. */
@@ -161,9 +130,11 @@ bool single_test_over_speed_range(struct tq_short_space_data * data, int i, int 
 
 
 	/* Let's test this for a full range of supported speeds (from
-	   min to max). MIN and MAX are even numbers, so +=2 is ok. */
+	   min to max). MIN and MAX are even numbers, so delta == 2 is
+	   ok. */
+	const int speed_delta = 2;
 	int n_iterations = 0;
-	for (data->cw_speed = CW_SPEED_MIN; data->cw_speed <= CW_SPEED_MAX; data->cw_speed += 2) {
+	for (data->cw_speed = CW_SPEED_MIN; data->cw_speed <= CW_SPEED_MAX; data->cw_speed += speed_delta) {
 		cw_set_send_speed(data->cw_speed);
 		cw_set_volume(50);
 		cw_set_frequency(200);
@@ -192,7 +163,7 @@ bool single_test_over_speed_range(struct tq_short_space_data * data, int i, int 
 
 	/* This is how many times we did a following test: send a
 	   single space and wait for queue to drain. */
-	const int n_expected_callback_executions = ((CW_SPEED_MAX - CW_SPEED_MIN) / 2) + 1;
+	const int n_expected_callback_executions = ((CW_SPEED_MAX - CW_SPEED_MIN) / speed_delta) + 1;
 	data->cte->assert2(data->cte, n_expected_callback_executions == n_iterations, "Number of loop iterations does not meet expectations: %d vs. %d\n",
 			   n_expected_callback_executions, data->n_actual_callback_executions);
 
@@ -207,6 +178,9 @@ bool single_test_over_speed_range(struct tq_short_space_data * data, int i, int 
 
 
 
+/**
+   @reviewed on 2019-10-16
+*/
 void tone_queue_low_callback(void * arg)
 {
 	struct tq_short_space_data * data = (struct tq_short_space_data *) arg;
