@@ -105,26 +105,6 @@ typedef struct cw_test_executor_t {
 
 
 	/**
-	   Verify that @param received_value is equal to @param expected_value
-
-	   Use the function to verify that a successful behaviour has
-	   occurred and some result of calculation (@param
-	   received_value) is equal to what was expected (@param
-	   expected_value).
-
-	   Print log specified by @param fmt and following args
-	   regardless of results of the verification or (in case of
-	   _errors_only() variant) only if the comparison has shown
-	   that the values are NOT equal, which is regarded as failure
-	   of expectation, i.e. an error.
-
-	   @return true if this comparison shows that the values are equal
-	   @return false otherwise
-	*/
-	bool (* expect_eq_int)(struct cw_test_executor_t * self, int expected_value, int received_value, const char * fmt, ...) __attribute__ ((format (printf, 4, 5)));
-	bool (* expect_eq_int_errors_only)(struct cw_test_executor_t * self, int expected_value, int received_value, const char * fmt, ...) __attribute__ ((format (printf, 4, 5)));
-
-	/**
 	   Verify that operator @param operator is satisfied for
 	   @param received_value and @param expected_value
 
