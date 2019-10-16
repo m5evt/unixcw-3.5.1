@@ -198,7 +198,7 @@ int test_cw_representation_to_character_internal(cw_test_executor_t * cte)
 		}
 	}
 
-	cte->expect_eq_int(cte, false, failure, "representation to character");
+	cte->expect_op_int(cte, false, "==", failure, 0, "representation to character");
 
 	cte->print_test_footer(cte, __func__);
 
@@ -249,7 +249,7 @@ int test_cw_representation_to_character_internal_speed(cw_test_executor_t * cte)
 
 	const float gain = 1.0 * direct / fast_lookup;
 	bool failure = gain < 1.1;
-	cte->expect_eq_int(cte, false, failure, "lookup speed gain: %.2f", gain);
+	cte->expect_op_int(cte, false, "==", failure, 0, "lookup speed gain: %.2f", gain);
 
 	cte->print_test_footer(cte, __func__);
 
@@ -362,10 +362,10 @@ int test_character_lookups_internal(cw_test_executor_t * cte)
 			representation = NULL;
 		}
 
-		cte->expect_eq_int(cte, false, c2r_failure, "character lookup: char to representation");
-		cte->expect_eq_int(cte, false, r2c_failure, "character lookup: representation to char");
-		cte->expect_eq_int(cte, false, two_way_failure, "character lookup: two-way lookup");
-		cte->expect_eq_int(cte, false, length_failure, "character lookup: length");
+		cte->expect_op_int(cte, false, "==", c2r_failure, 0, "character lookup: char to representation");
+		cte->expect_op_int(cte, false, "==", r2c_failure, 0, "character lookup: representation to char");
+		cte->expect_op_int(cte, false, "==", two_way_failure, 0, "character lookup: two-way lookup");
+		cte->expect_op_int(cte, false, "==", length_failure, 0, "character lookup: length");
 	}
 
 	cte->print_test_footer(cte, __func__);
@@ -492,7 +492,7 @@ int test_phonetic_lookups_internal(cw_test_executor_t * cte)
 	{
 		const int length = cw_get_maximum_phonetic_length();
 		const bool failure = (length <= 0);
-		cte->expect_eq_int(cte, false, failure, "phonetic lookup: maximum phonetic length (%d)", length);
+		cte->expect_op_int(cte, false, "==", failure, 0, "phonetic lookup: maximum phonetic length (%d)", length);
 	}
 
 
@@ -518,7 +518,7 @@ int test_phonetic_lookups_internal(cw_test_executor_t * cte)
 				  Let's verify this using result of
 				  isalpha().
 				*/
-				if (!cte->expect_eq_int_errors_only(cte, true, is_alpha, "phonetic lookup (A): lookup of phonetic for '%c' (#%d)\n", (char) i, i)) {
+				if (!cte->expect_op_int(cte, true, "==", is_alpha, 1, "phonetic lookup (A): lookup of phonetic for '%c' (#%d)\n", (char) i, i)) {
 					lookup_failure = true;
 					break;
 				}
@@ -531,7 +531,7 @@ int test_phonetic_lookups_internal(cw_test_executor_t * cte)
 				  isalpha().
 				*/
 				const bool is_alpha = (bool) isalpha(i);
-				if (!cte->expect_eq_int_errors_only(cte, false, is_alpha, "phonetic lookup (B): lookup of phonetic for '%c' (#%d)\n", (char) i, i)) {
+				if (!cte->expect_op_int(cte, false, "==", is_alpha, 1, "phonetic lookup (B): lookup of phonetic for '%c' (#%d)\n", (char) i, i)) {
 					lookup_failure = true;
 					break;
 				}
@@ -545,15 +545,15 @@ int test_phonetic_lookups_internal(cw_test_executor_t * cte)
 				   be the same as the looked up
 				   letter. */
 				reverse_failure = (phonetic[0] != toupper((char) i));
-				if (!cte->expect_eq_int_errors_only(cte, false, reverse_failure, "phonetic lookup: reverse lookup for phonetic \"%s\" ('%c' / #%d)\n", phonetic, (char) i, i)) {
+				if (!cte->expect_op_int(cte, false, "==", reverse_failure, 1, "phonetic lookup: reverse lookup for phonetic \"%s\" ('%c' / #%d)\n", phonetic, (char) i, i)) {
 					reverse_failure = true;
 					break;
 				}
 			}
 		}
 
-		cte->expect_eq_int(cte, false, lookup_failure, "phonetic lookup: lookup");
-		cte->expect_eq_int(cte, false, reverse_failure, "phonetic lookup: reverse lookup");
+		cte->expect_op_int(cte, false, "==", lookup_failure, 0, "phonetic lookup: lookup");
+		cte->expect_op_int(cte, false, "==", reverse_failure, 0, "phonetic lookup: reverse lookup");
 	}
 
 	cte->print_test_footer(cte, __func__);
@@ -591,7 +591,7 @@ int test_validate_character_internal(cw_test_executor_t * cte)
 			   confirm it. */
 			const bool is_valid = cw_character_is_valid(i);
 
-			if (!cte->expect_eq_int_errors_only(cte, true, is_valid, "validate character: valid character '<backspace>' / #%d not recognized as valid\n", i)) {
+			if (!cte->expect_op_int(cte, true, "==", is_valid, 1, "validate character: valid character '<backspace>' / #%d not recognized as valid\n", i)) {
 				failure_valid = true;
 				break;
 			}
@@ -602,7 +602,7 @@ int test_validate_character_internal(cw_test_executor_t * cte)
 			   libcw.  cw_character_is_valid() should
 			   confirm it. */
 			const bool is_valid = cw_character_is_valid(i);
-			if (!cte->expect_eq_int_errors_only(cte, true, is_valid, "validate character: valid character '%c' / #%d not recognized as valid\n", (char ) i, i)) {
+			if (!cte->expect_op_int(cte, true, "==", is_valid, 1, "validate character: valid character '%c' / #%d not recognized as valid\n", (char ) i, i)) {
 				failure_valid = true;
 				break;
 			}
@@ -612,15 +612,15 @@ int test_validate_character_internal(cw_test_executor_t * cte)
 			   cw_character_is_valid() should return false
 			   to signify that the char is invalid. */
 			const bool is_valid = cw_character_is_valid(i);
-			if (!cte->expect_eq_int_errors_only(cte, false, is_valid, "validate character: invalid character '%c' / #%d recognized as valid\n", (char ) i, i)) {
+			if (!cte->expect_op_int(cte, false, "==", is_valid, 1, "validate character: invalid character '%c' / #%d recognized as valid\n", (char ) i, i)) {
 				failure_invalid = true;
 				break;
 			}
 		}
 	}
 
-	cte->expect_eq_int(cte, false, failure_valid, "validate character: valid characters");
-	cte->expect_eq_int(cte, false, failure_invalid, "validate character: invalid characters");
+	cte->expect_op_int(cte, false, "==", failure_valid, 0, "validate character: valid characters");
+	cte->expect_op_int(cte, false, "==", failure_invalid, 0, "validate character: invalid characters");
 
 	cte->print_test_footer(cte, __func__);
 
@@ -651,12 +651,12 @@ int test_validate_string_internal(cw_test_executor_t * cte)
 	char charlist[UCHAR_MAX + 1];
 	cw_list_characters(charlist);
 	are_we_valid = cw_string_is_valid(charlist);
-	cte->expect_eq_int(cte, true, are_we_valid, "validate string: valid string");
+	cte->expect_op_int(cte, true, "==", are_we_valid, 0, "validate string: valid string");
 
 
 	/* Test invalid string. */
 	are_we_valid = cw_string_is_valid("%INVALID%");
-	cte->expect_eq_int(cte, false, are_we_valid, "validate string: invalid string");
+	cte->expect_op_int(cte, false, "==", are_we_valid, 0, "validate string: invalid string");
 
 
 	cte->print_test_footer(cte, __func__);
@@ -684,13 +684,13 @@ int test_validate_representation_internal(cw_test_executor_t * cte)
 		bool failure = false;
 		while (test_valid_representations[i]) {
 			const int cwret = cw_representation_is_valid(test_valid_representations[i]);
-			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "valid representations (i = %d)", i)) {
+			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "valid representations (i = %d)", i)) {
 				failure = false;
 				break;
 			}
 			i++;
 		}
-		cte->expect_eq_int(cte, false, failure, "valid representations");
+		cte->expect_op_int(cte, false, "==", failure, 0, "valid representations");
 	}
 
 
@@ -700,13 +700,13 @@ int test_validate_representation_internal(cw_test_executor_t * cte)
 		bool failure = false;
 		while (test_invalid_representations[i]) {
 			const int cwret = cw_representation_is_valid(test_invalid_representations[i]);
-			if (!cte->expect_eq_int_errors_only(cte, CW_FAILURE, cwret, "invalid representations (i = %d)", i)) {
+			if (!cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 1, "invalid representations (i = %d)", i)) {
 				failure = false;
 				break;
 			}
 			i++;
 		}
-		cte->expect_eq_int(cte, false, failure, "invalid representations");
+		cte->expect_op_int(cte, false, "==", failure, 0, "invalid representations");
 	}
 
 	cte->print_test_footer(cte, __func__);

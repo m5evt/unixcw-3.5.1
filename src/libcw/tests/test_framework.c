@@ -67,7 +67,6 @@
 
 
 static bool cw_test_expect_eq_int(struct cw_test_executor_t * self, int expected_value, int received_value, const char * fmt, ...) __attribute__ ((format (printf, 4, 5)));
-static bool cw_test_expect_eq_int_errors_only(struct cw_test_executor_t * self, int expected_value, int received_value, const char * fmt, ...) __attribute__ ((format (printf, 4, 5)));
 
 static bool cw_test_expect_op_int(struct cw_test_executor_t * self, int expected_value, const char * operator, int received_value, bool errors_only, const char * fmt, ...) __attribute__ ((format (printf, 6, 7)));
 static bool cw_test_expect_op_int2(struct cw_test_executor_t * self, int expected_value, const char * operator, int received_value, bool errors_only, const char * va_buf);
@@ -465,20 +464,6 @@ bool cw_test_expect_eq_int(struct cw_test_executor_t * self, int expected_value,
 	va_end(ap);
 
 	return cw_test_expect_op_int2(self, expected_value, "==", received_value, false, va_buf);
-}
-
-
-
-
-bool cw_test_expect_eq_int_errors_only(struct cw_test_executor_t * self, int expected_value, int received_value, const char * fmt, ...)
-{
-	char va_buf[128] = { 0 };
-	va_list ap;
-	va_start(ap, fmt);
-	vsnprintf(va_buf, sizeof (va_buf), fmt, ap);
-	va_end(ap);
-
-	return cw_test_expect_op_int2(self, expected_value, "==", received_value, true, va_buf);
 }
 
 
@@ -998,7 +983,6 @@ void cw_test_init(cw_test_executor_t * self, FILE * stdout, FILE * stderr, const
 	self->stderr = stderr;
 
 	self->expect_eq_int = cw_test_expect_eq_int;
-	self->expect_eq_int_errors_only = cw_test_expect_eq_int_errors_only;
 
 	self->expect_op_int = cw_test_expect_op_int;
 

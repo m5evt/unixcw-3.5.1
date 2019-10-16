@@ -82,8 +82,8 @@ int test_cw_debug_flags_internal(cw_test_executor_t * cte)
 		}
 	}
 
-	cte->expect_eq_int(cte, false, set_failure, "set debug flags");
-	cte->expect_eq_int(cte, false, get_failure, "get debug flags");
+	cte->expect_op_int(cte, false, "==", set_failure, 0, "set debug flags");
+	cte->expect_op_int(cte, false, "==", get_failure, 0, "get debug flags");
 
 	/* Restore original flags. */
 	cw_debug_set_flags(&cw_debug_object, flags_backup);

@@ -122,55 +122,55 @@ int test_cw_rec_identify_mark_internal(cw_test_executor_t * cte)
 		int len_step = (rec->dot_len_max - rec->dot_len_min) / 10;
 		for (int len = rec->dot_len_min; len < rec->dot_len_max; len += len_step) {
 			const int cwret = cw_rec_identify_mark_internal(rec, len, &representation);
-			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "identify mark @ %02d [wpm]: failed to identify dot for len = %d [us]\n", speed, len)) {
+			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "identify mark @ %02d [wpm]: failed to identify dot for len = %d [us]\n", speed, len)) {
 				failure = true;
 				break;
 			}
-			if (!cte->expect_eq_int_errors_only(cte, CW_DOT_REPRESENTATION, representation, "identify mark @ %02d [wpm]: failed to get dot representation for len = %d [us]\n", speed, len)) {
+			if (!cte->expect_op_int(cte, CW_DOT_REPRESENTATION, "==", representation, 1, "identify mark @ %02d [wpm]: failed to get dot representation for len = %d [us]\n", speed, len)) {
 				failure = true;
 				break;
 			}
 		}
 
-		cte->expect_eq_int_errors_only(cte, false, failure, "identify mark @ %02d [wpm]: identify valid dot:", speed);
+		cte->expect_op_int(cte, false, "==", failure, 1, "identify mark @ %02d [wpm]: identify valid dot:", speed);
 
 
 #if 0
 		/* Test mark shorter than minimal length of dot. */
 		cwret = cw_rec_identify_mark_internal(rec, rec->dot_len_min - 1, &representation);
-		cte->expect_eq_int_errors_only(cte, CW_FAILURE, cwret, "identify mark @ %02d [wpm]: mark shorter than min dot:", speed);
+		cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 1, "identify mark @ %02d [wpm]: mark shorter than min dot:", speed);
 
 		/* Test mark longer than maximal length of dot (but shorter than minimal length of dash). */
 		cwret = cw_rec_identify_mark_internal(rec, rec->dot_len_max + 1, &representation);
-		cte->expect_eq_int_errors_only(cte, CW_FAILURE, cwret, "identify mark @ %02d [wpm]: mark longer than max dot:", speed);
+		cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 1, "identify mark @ %02d [wpm]: mark longer than max dot:", speed);
 
 
 		/* Test marks that have length appropriate for a dash. */
 		len_step = (rec->dash_len_max - rec->dash_len_min) / 10;
 		for (int len = rec->dash_len_min; len < rec->dash_len_max; len += len_step) {
 			cwret = cw_rec_identify_mark_internal(rec, len, &representation);
-			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "identify mark @ %02d [wpm]: failed to identify dash for len = %d [us]\n", speed, len)) {
+			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "identify mark @ %02d [wpm]: failed to identify dash for len = %d [us]\n", speed, len)) {
 				failure = true;
 				break;
 			}
 
-			if (!cte->expect_eq_int_errors_only(cte, CW_DASH_REPRESENTATION, representation, "identify mark @ %02d [wpm]: failed to get dash representation for len = %d [us]\n", speed, len)) {
+			if (!cte->expect_op_int(cte, CW_DASH_REPRESENTATION, "==", representation, 1, "identify mark @ %02d [wpm]: failed to get dash representation for len = %d [us]\n", speed, len)) {
 				failure = true;
 				break;
 			}
 		}
-		cte->expect_eq_int_errors_only(cte, false, failure, "identify mark @ %02d [wpm]: identify valid dash:", speed);
+		cte->expect_op_int(cte, false, "==", failure, 1, "identify mark @ %02d [wpm]: identify valid dash:", speed);
 
 
 		/* Test mark shorter than minimal length of dash (but longer than maximal length of dot). */
 		cwret = = cw_rec_identify_mark_internal(rec, rec->dash_len_min - 1, &representation);
-		cte->expect_eq_int_errors_only(cte, CW_FAILURE, cwret, "identify mark @ %02d [wpm]: mark shorter than min dash:", speed);
+		cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 1, "identify mark @ %02d [wpm]: mark shorter than min dash:", speed);
 
 
 
 		/* Test mark longer than maximal length of dash. */
 		cwret = cw_rec_identify_mark_internal(rec, rec->dash_len_max + 1, &representation);
-		cte->expect_eq_int_errors_only(cte, CW_FAILURE, cwret, "identify mark @ %02d [wpm]: mark longer than max dash:", speed);
+		cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 1, "identify mark @ %02d [wpm]: mark longer than max dash:", speed);
 #endif
 	}
 
@@ -215,11 +215,11 @@ int test_cw_rec_test_with_base_constant(cw_test_executor_t * cte)
 		/* Make sure that the test speed has been set correctly. */
 		float diff = cw_rec_get_speed(rec) - (float) speed;
 		cte->assert2(cte, diff < 0.1, MSG_PREFIX "begin/end: base/constant: %f != %f\n",  cw_rec_get_speed(rec), (float) speed);
-		// cte->expect_eq_int_errors_only(cte, ); // TODO: implement
+		// cte->expect_op_int(cte, ); // TODO: implement
 
 		/* Actual tests of receiver functions are here. */
 		bool failure = test_cw_rec_test_begin_end(cte, rec, data);
-		cte->expect_eq_int_errors_only(cte, false, failure, "begin/end: base/constant @ %02d [wpm]:", speed);
+		cte->expect_op_int(cte, false, "==", failure, 1, "begin/end: base/constant @ %02d [wpm]:", speed);
 
 		test_cw_rec_delete_data(&data);
 	}
@@ -304,13 +304,13 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, struct
 
 			if (tone % 2) {
 				const int cwret = cw_rec_mark_end(rec, &tv);
-				if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "begin/end: cw_rec_mark_end(): tone = %d, time = %d.%d\n", tone, (int) tv.tv_sec, (int) tv.tv_usec)) {
+				if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "begin/end: cw_rec_mark_end(): tone = %d, time = %d.%d\n", tone, (int) tv.tv_sec, (int) tv.tv_usec)) {
 					begin_end_failure = true;
 					break;
 				}
 			} else {
 				const int cwret = cw_rec_mark_begin(rec, &tv);
-				if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "begin/end: cw_rec_mark_begin(): tone = %d, time = %d.%d\n", tone, (int) tv.tv_sec, (int) tv.tv_usec)) {
+				if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "begin/end: cw_rec_mark_begin(): tone = %d, time = %d.%d\n", tone, (int) tv.tv_sec, (int) tv.tv_usec)) {
 					begin_end_failure = true;
 					break;
 				}
@@ -344,7 +344,7 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, struct
 			int n = cw_rec_get_buffer_length_internal(rec);
 			buffer_length_failure = (n != (int) strlen(data[i].representation));
 
-			if (!cte->expect_eq_int_errors_only(cte, false, buffer_length_failure, "begin/end: cw_rec_get_buffer_length_internal(<nonempty>): %d != %zd\n", n, strlen(data[i].representation))) {
+			if (!cte->expect_op_int(cte, false, "==", buffer_length_failure, 1, "begin/end: cw_rec_get_buffer_length_internal(<nonempty>): %d != %zd\n", n, strlen(data[i].representation))) {
 				buffer_length_failure = true;
 				break;
 			}
@@ -378,19 +378,19 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, struct
 			   length of "end of character" space is 5 x
 			   dot. */
 			int cwret = cw_rec_poll_representation(rec, &tv, representation, &is_word, &is_error);
-			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "begin/end: poll representation returns !CW_SUCCESS")) {
+			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "begin/end: poll representation returns !CW_SUCCESS")) {
 				poll_representation_failure = true;
 				fprintf(out_file, MSG_PREFIX );
 				break;
 			}
 
 			const int strcmp_result = strcmp(representation, data[i].representation);
-			if (!cte->expect_eq_int_errors_only(cte, 0, strcmp_result, "being/end: polled representation does not match test representation: \"%s\" != \"%s\"\n", representation, data[i].representation)) {
+			if (!cte->expect_op_int(cte, 0, "==", strcmp_result, 1, "being/end: polled representation does not match test representation: \"%s\" != \"%s\"\n", representation, data[i].representation)) {
 				match_representation_failure = true;
 				break;
 			}
 
-			if (!cte->expect_eq_int_errors_only(cte, false, is_error, "begin/end: poll representation sets is_error\n")) {
+			if (!cte->expect_op_int(cte, false, "==", is_error, 1, "begin/end: poll representation sets is_error\n")) {
 				error_representation_failure = true;
 				fprintf(out_file, MSG_PREFIX );
 				break;
@@ -404,7 +404,7 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, struct
 			   set by poll() to true. Otherwise both
 			   values should be false. */
 			word_representation_failure = (is_word != data[i].is_last_in_word);
-			// cte->expect_eq_int_errors_only(cte, ); // TODO: implement
+			// cte->expect_op_int(cte, ); // TODO: implement
 			if (word_representation_failure) {
 				fprintf(out_file, MSG_PREFIX "begin/end: poll representation: 'is_word' flag error: function returns '%d', data is tagged with '%d'\n" \
 					"'%c'  '%c'  '%c'  '%c'  '%c'",
@@ -439,11 +439,11 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, struct
 			   receiver. Ask receiver for converting the
 			   representation to character. */
 			const int cwret = cw_rec_poll_character(rec, &tv, &c, &is_word, &is_error);
-			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "begin/end: poll character false\n")) {
+			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "begin/end: poll character false\n")) {
 				poll_character_failure = true;
 				break;
 			}
-			if (!cte->expect_eq_int_errors_only(cte, data[i].c, c, "begin/end: polled character does not match test character: '%c' != '%c'\n", c, data[i].c)) {
+			if (!cte->expect_op_int(cte, data[i].c, "==", c, 1, "begin/end: polled character does not match test character: '%c' != '%c'\n", c, data[i].c)) {
 				match_character_failure = true;
 				break;
 			}
@@ -464,7 +464,7 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, struct
 			   character. */
 			cw_rec_reset_state(rec);
 			const int length = cw_rec_get_buffer_length_internal(rec);
-			if (!cte->expect_eq_int_errors_only(cte, 0, length, "begin/end: get buffer length: length of cleared buffer is non zero (is %d)", length)) {
+			if (!cte->expect_op_int(cte, 0, "==", length, 1, "begin/end: get buffer length: length of cleared buffer is non zero (is %d)", length)) {
 				empty_failure = true;
 				break;
 			}
@@ -589,11 +589,11 @@ int test_cw_rec_test_with_random_constant(cw_test_executor_t * cte)
 		/* Verify that test speed has been set correctly. */
 		float diff = cw_rec_get_speed(rec) - speed;
 		cte->assert2(cte, diff < 0.1, MSG_PREFIX "begin/end: random/constant: incorrect receive speed: %f != %f\n", cw_rec_get_speed(rec), (float) speed);
-		// cte->expect_eq_int_errors_only(cte, );  // TODO: implement
+		// cte->expect_op_int(cte, );  // TODO: implement
 
 		/* Actual tests of receiver functions are here. */
 		bool failure = test_cw_rec_test_begin_end(cte, rec, data);
-		cte->expect_eq_int_errors_only(cte, false, failure, "begin/end: random/constant @ %02d [wpm]:", speed);
+		cte->expect_op_int(cte, false, "==", failure, 1, "begin/end: random/constant @ %02d [wpm]:", speed);
 
 		test_cw_rec_delete_data(&data);
 	}
@@ -1267,12 +1267,12 @@ int test_cw_rec_parameter_getters_setters_1(cw_test_executor_t * cte)
 		test_data[i].get_limits(&test_data[i].min, &test_data[i].max);
 
 		get_failure = (test_data[i].min <= -off_limits);
-		if (!cte->expect_eq_int_errors_only(cte, false, get_failure, "get/set param 1: get min %s: failed to get low limit, returned value = %d\n", test_data[i].name, test_data[i].min)) {
+		if (!cte->expect_op_int(cte, false, "==", get_failure, 1, "get/set param 1: get min %s: failed to get low limit, returned value = %d\n", test_data[i].name, test_data[i].min)) {
 			get_failure = true;
 			break;
 		}
 		get_failure = (test_data[i].max >= off_limits);
-		if (!cte->expect_eq_int_errors_only(cte, false, get_failure, "get/set param 1: get max %s: failed to get high limit, returned value = %d\n", test_data[i].name, test_data[i].max)) {
+		if (!cte->expect_op_int(cte, false, "==", get_failure, 1, "get/set param 1: get max %s: failed to get high limit, returned value = %d\n", test_data[i].name, test_data[i].max)) {
 			get_failure = true;
 			break;
 		}
@@ -1282,11 +1282,11 @@ int test_cw_rec_parameter_getters_setters_1(cw_test_executor_t * cte)
 		errno = 0;
 		value = test_data[i].min - 1;
 		status = test_data[i].set_new_value(rec, value);
-		if (!cte->expect_eq_int_errors_only(cte, CW_FAILURE, status, "get/set param 1: setting %s value below minimum succeeded, minimum is %d, attempted value is %d\n", test_data[i].name, test_data[i].min, value)) {
+		if (!cte->expect_op_int(cte, CW_FAILURE, "==", status, 1, "get/set param 1: setting %s value below minimum succeeded, minimum is %d, attempted value is %d\n", test_data[i].name, test_data[i].min, value)) {
 			set_min_failure = true;
 			break;
 		}
-		if (!cte->expect_eq_int_errors_only(cte, EINVAL, errno, "get/set param 1: setting %s value below minimum didn't result in EINVAL, minimum is %d, attempted value is %d\n", test_data[i].name, test_data[i].min, value)) {
+		if (!cte->expect_op_int(cte, EINVAL, "==", errno, 1, "get/set param 1: setting %s value below minimum didn't result in EINVAL, minimum is %d, attempted value is %d\n", test_data[i].name, test_data[i].min, value)) {
 			set_min_failure = true;
 			break;
 		}
@@ -1297,11 +1297,11 @@ int test_cw_rec_parameter_getters_setters_1(cw_test_executor_t * cte)
 		errno = 0;
 		value = test_data[i].max + 1;
 		status = test_data[i].set_new_value(rec, value);
-		if (!cte->expect_eq_int_errors_only(cte, CW_FAILURE, status, "get/set param 1: setting %s value above minimum succeeded, maximum is %d, attempted value is %d\n", test_data[i].name, test_data[i].min, value)) {
+		if (!cte->expect_op_int(cte, CW_FAILURE, "==", status, 1, "get/set param 1: setting %s value above minimum succeeded, maximum is %d, attempted value is %d\n", test_data[i].name, test_data[i].min, value)) {
 			set_max_failure = true;
 			break;
 		}
-		if (!cte->expect_eq_int_errors_only(cte, EINVAL, errno, "get/set param 1: setting %s value above maximum didn't result in EINVAL, maximum is %d, attempted value is %d\n", test_data[i].name, test_data[i].min, value)) {
+		if (!cte->expect_op_int(cte, EINVAL, "==", errno, 1, "get/set param 1: setting %s value above maximum didn't result in EINVAL, maximum is %d, attempted value is %d\n", test_data[i].name, test_data[i].min, value)) {
 			set_max_failure = true;
 			break;
 		}
@@ -1313,7 +1313,7 @@ int test_cw_rec_parameter_getters_setters_1(cw_test_executor_t * cte)
 
 			float diff = test_data[i].get_value(rec) - j;
 			set_ok_failure = (diff >= 0.01);
-			if (!cte->expect_eq_int_errors_only(cte, false, set_ok_failure, "get/set param 1: setting value in-range failed for %s value = %d (%f - %d = %f)\n", test_data[i].name, j,	(float) test_data[i].get_value(rec), j, diff)) {
+			if (!cte->expect_op_int(cte, false, "==", set_ok_failure, 1, "get/set param 1: setting value in-range failed for %s value = %d (%f - %d = %f)\n", test_data[i].name, j,	(float) test_data[i].get_value(rec), j, diff)) {
 				set_ok_failure = true;
 				break;
 			}
@@ -1393,12 +1393,12 @@ int test_cw_rec_parameter_getters_setters_2(cw_test_executor_t * cte)
 		test_data[i].get_limits(&test_data[i].readback_min, &test_data[i].readback_max);
 
 		get_failure = (test_data[i].readback_min <= -off_limits);
-		if (!cte->expect_eq_int_errors_only(cte, false, get_failure, "get/set param 2: get min %s: failed to get low limit, returned value = %d\n", test_data[i].name, test_data[i].readback_min)) {
+		if (!cte->expect_op_int(cte, false, "==", get_failure, 1, "get/set param 2: get min %s: failed to get low limit, returned value = %d\n", test_data[i].name, test_data[i].readback_min)) {
 			get_failure = true;
 			break;
 		}
 		get_failure = (test_data[i].readback_max >= off_limits);
-		if (!cte->expect_eq_int_errors_only(cte, false, get_failure, "get/set param 2: get max %s: failed to get high limit, returned value = %d\n", test_data[i].name, test_data[i].readback_max)) {
+		if (!cte->expect_op_int(cte, false, "==", get_failure, 1, "get/set param 2: get max %s: failed to get high limit, returned value = %d\n", test_data[i].name, test_data[i].readback_max)) {
 			get_failure = true;
 			break;
 		}
@@ -1409,11 +1409,11 @@ int test_cw_rec_parameter_getters_setters_2(cw_test_executor_t * cte)
 		value = test_data[i].readback_min - 1;
 		status = test_data[i].set_new_value(rec, value);
 
-		if (!cte->expect_eq_int_errors_only(cte, CW_FAILURE, status, "get/set param 2 (cwret): setting %s value below minimum succeeded, minimum is %d, attempted value is %d\n", test_data[i].name, test_data[i].readback_min, value)) {
+		if (!cte->expect_op_int(cte, CW_FAILURE, "==", status, 1, "get/set param 2 (cwret): setting %s value below minimum succeeded, minimum is %d, attempted value is %d\n", test_data[i].name, test_data[i].readback_min, value)) {
 			set_min_failure = true;
 			break;
 		}
-		if (!cte->expect_eq_int_errors_only(cte, EINVAL, errno, "get/set param (errno): setting %s value below minimum didn't result in EINVAL, minimum is %d, attempted value is %d\n", test_data[i].name, test_data[i].readback_min, value)) {
+		if (!cte->expect_op_int(cte, EINVAL, "==", errno, 1, "get/set param (errno): setting %s value below minimum didn't result in EINVAL, minimum is %d, attempted value is %d\n", test_data[i].name, test_data[i].readback_min, value)) {
 			set_min_failure = true;
 			break;
 		}
@@ -1425,11 +1425,11 @@ int test_cw_rec_parameter_getters_setters_2(cw_test_executor_t * cte)
 		value = test_data[i].readback_max + 1;
 		status = test_data[i].set_new_value(rec, value);
 
-		if (!cte->expect_eq_int_errors_only(cte, CW_FAILURE, status, "get/set param 2 (cwret): setting %s value above minimum succeeded, maximum is %d, attempted value is %d\n", test_data[i].name, test_data[i].readback_min, value)) {
+		if (!cte->expect_op_int(cte, CW_FAILURE, "==", status, 1, "get/set param 2 (cwret): setting %s value above minimum succeeded, maximum is %d, attempted value is %d\n", test_data[i].name, test_data[i].readback_min, value)) {
 			set_max_failure = true;
 			break;
 		}
-		if (!cte->expect_eq_int_errors_only(cte, EINVAL, errno, "get/set param 2 (errno): setting %s value above maximum didn't result in EINVAL, maximum is %d, attempted value is %d\n", test_data[i].name, test_data[i].readback_min, value)) {
+		if (!cte->expect_op_int(cte, EINVAL, "==", errno, 1, "get/set param 2 (errno): setting %s value above maximum didn't result in EINVAL, maximum is %d, attempted value is %d\n", test_data[i].name, test_data[i].readback_min, value)) {
 			set_max_failure = true;
 			break;
 		}
@@ -1441,7 +1441,7 @@ int test_cw_rec_parameter_getters_setters_2(cw_test_executor_t * cte)
 
 			float diff = test_data[i].get_value(rec) - j;
 			set_ok_failure = (diff >= 0.01);
-			if (!cte->expect_eq_int_errors_only(cte, false, set_ok_failure, "get/set param 2: setting value in-range failed for %s value = %d (%f - %d = %f)\n", test_data[i].name, j,(float) test_data[i].get_value(rec), j, diff)) {
+			if (!cte->expect_op_int(cte, false, "==", set_ok_failure, 1, "get/set param 2: setting value in-range failed for %s value = %d (%f - %d = %f)\n", test_data[i].name, j,(float) test_data[i].get_value(rec), j, diff)) {
 				set_ok_failure = true;
 				break;
 			}

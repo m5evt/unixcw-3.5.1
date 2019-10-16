@@ -76,14 +76,14 @@ int test_cw_timestamp_compare_internal(cw_test_executor_t * cte)
 	int i = 0;
 	while (test_data[i].test_valid) {
 		const int calculated_delta_usecs = cw_timestamp_compare_internal(&test_data[i].earlier, &test_data[i].later);
-		if (!cte->expect_eq_int_errors_only(cte, test_data[i].expected_delta_usecs, calculated_delta_usecs, "timestamps diff: test #%d", i)) {
+		if (!cte->expect_op_int(cte, test_data[i].expected_delta_usecs, "==", calculated_delta_usecs, 1, "timestamps diff: test #%d", i)) {
 			failure = true;
 			break;
 		}
 		i++;
 	}
 
-	cte->expect_eq_int(cte, false, failure, "timestamps diff");
+	cte->expect_op_int(cte, false, "==", failure, 0, "timestamps diff");
 
 	cte->print_test_footer(cte, __func__);
 

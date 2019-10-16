@@ -71,13 +71,13 @@ int test_cw_gen_new_delete(cw_test_executor_t * cte)
 		}
 
 		/* Try to access some fields in cw_gen_t just to be sure that the gen has been allocated properly. */
-		if (!cte->expect_eq_int_errors_only(cte, 0, gen->buffer_sub_start, "new/delete: buffer_sub_start in new generator is not at zero")) {
+		if (!cte->expect_op_int(cte, 0, "==", gen->buffer_sub_start, 1, "new/delete: buffer_sub_start in new generator is not at zero")) {
 			failure = true;
 			break;
 		}
 
 		gen->buffer_sub_stop = gen->buffer_sub_start + 10;
-		if (!cte->expect_eq_int_errors_only(cte, 10, gen->buffer_sub_stop, "new/delete: buffer_sub_stop didn't store correct new value")) {
+		if (!cte->expect_op_int(cte, 10, "==", gen->buffer_sub_stop, 1, "new/delete: buffer_sub_stop didn't store correct new value")) {
 			failure = true;
 			break;
 		}
@@ -138,7 +138,7 @@ int test_cw_gen_new_start_delete(cw_test_executor_t * cte)
 		}
 
 		const int cwret = cw_gen_start(gen);
-		if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "new/start/delete: start (loop #%d)", i)) {
+		if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "new/start/delete: start (loop #%d)", i)) {
 			failure = true;
 			break;
 		}
@@ -191,7 +191,7 @@ int test_cw_gen_new_stop_delete(cw_test_executor_t * cte)
 		}
 
 		const int cwret = cw_gen_stop(gen);
-		if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "new/stop/delete: stop (loop #%d)", i)) {
+		if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "new/stop/delete: stop (loop #%d)", i)) {
 			stop_failure = true;
 			break;
 		}
@@ -253,13 +253,13 @@ int test_cw_gen_new_start_stop_delete(cw_test_executor_t * cte)
 			int cwret = CW_FAILURE;
 
 			cwret = cw_gen_start(gen);
-			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "new/start/stop/delete: start (loop #%d-%d)", i, j)) {
+			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "new/start/stop/delete: start (loop #%d-%d)", i, j)) {
 				start_failure = true;
 				break;
 			}
 
 			cwret = cw_gen_stop(gen);
-			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "new/start/stop/delete: stop (loop #%d-%d)", i, j)) {
+			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "new/start/stop/delete: stop (loop #%d-%d)", i, j)) {
 				stop_failure = true;
 				break;
 			}
@@ -586,7 +586,7 @@ int test_cw_gen_forever_sub(cw_test_executor_t * cte, int seconds, int audio_sys
 
 	CW_TONE_INIT(&tone, freq, len, CW_SLOPE_MODE_RISING_SLOPE);
 	const int cwret1 = cw_tq_enqueue_internal(gen->tq, &tone);
-	cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret1, "forever tone: enqueue first tone"); /* Use "_errors_only() here because this is not a core part of test. */
+	cte->expect_op_int(cte, CW_SUCCESS, "==", cwret1, 1, "forever tone: enqueue first tone"); /* Use "_errors_only() here because this is not a core part of test. */
 
 	CW_TONE_INIT(&tone, freq, gen->quantum_len, CW_SLOPE_MODE_NO_SLOPES);
 	tone.is_forever = true;
@@ -989,7 +989,7 @@ int test_cw_gen_enqueue_primitives(cw_test_executor_t * cte)
 		bool failure = false;
 		for (int i = 0; i < max; i++) {
 			const int cwret = cw_gen_enqueue_mark_internal(gen, CW_DOT_REPRESENTATION, false);
-			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "enqueue mark internal(CW_DOT_REPRESENTATION) (i = %d)", i)) {
+			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "enqueue mark internal(CW_DOT_REPRESENTATION) (i = %d)", i)) {
 				failure = true;
 				break;
 			}
@@ -1006,7 +1006,7 @@ int test_cw_gen_enqueue_primitives(cw_test_executor_t * cte)
 		bool failure = false;
 		for (int i = 0; i < max; i++) {
 			const int cwret = cw_gen_enqueue_mark_internal(gen, CW_DASH_REPRESENTATION, false);
-			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "enqueue mark internal(CW_DASH_REPRESENTATION) (i = %d)", i)) {
+			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "enqueue mark internal(CW_DASH_REPRESENTATION) (i = %d)", i)) {
 				failure = true;
 				break;
 			}
@@ -1022,7 +1022,7 @@ int test_cw_gen_enqueue_primitives(cw_test_executor_t * cte)
 		bool failure = false;
 		for (int i = 0; i < max; i++) {
 			const int cwret = cw_gen_enqueue_eoc_space_internal(gen);
-			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "enqueue eoc space internal() (i = %d)", i)) {
+			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "enqueue eoc space internal() (i = %d)", i)) {
 				failure = true;
 				break;
 			}
@@ -1038,7 +1038,7 @@ int test_cw_gen_enqueue_primitives(cw_test_executor_t * cte)
 		bool failure = false;
 		for (int i = 0; i < max; i++) {
 			const int cwret = cw_gen_enqueue_eow_space_internal(gen);
-			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "enqueue eow space internal() (i = %d)", i)) {
+			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "enqueue eow space internal() (i = %d)", i)) {
 				failure = true;
 				break;
 			}
@@ -1083,7 +1083,7 @@ int test_cw_gen_enqueue_representations(cw_test_executor_t * cte)
 		int i = 0;
 		while (NULL != test_valid_representations[i]) {
 			const int cwret = cw_gen_enqueue_representation_partial_internal(gen, test_valid_representations[i]);
-			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "enqueue representation internal(<valid>) (%d)", i)) {
+			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "enqueue representation internal(<valid>) (%d)", i)) {
 				failure = true;
 				break;
 			}
@@ -1100,7 +1100,7 @@ int test_cw_gen_enqueue_representations(cw_test_executor_t * cte)
 		int i = 0;
 		while (NULL != test_invalid_representations[i]) {
 			const int cwret = cw_gen_enqueue_representation_partial_internal(gen, test_invalid_representations[i]);
-			if (!cte->expect_eq_int_errors_only(cte, CW_FAILURE, cwret, "enqueue representation internal(<invalid>) (%d)", i)) {
+			if (!cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 1, "enqueue representation internal(<invalid>) (%d)", i)) {
 				failure = true;
 				break;
 			}
@@ -1152,7 +1152,7 @@ int test_cw_gen_enqueue_character(cw_test_executor_t * cte)
 			cte->log_info_cont(cte, "%c", charlist[i]);
 			cte->flush_info(cte);
 			const int cwret = cw_gen_enqueue_character(gen, charlist[i]);
-			if (!cte->expect_eq_int_errors_only(cte, CW_SUCCESS, cwret, "enqueue character(<valid>) (i = %d)", i)) {
+			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "enqueue character(<valid>) (i = %d)", i)) {
 				failure = true;
 				break;
 			}
@@ -1173,7 +1173,7 @@ int test_cw_gen_enqueue_character(cw_test_executor_t * cte)
 
 		for (int i = 0; i < n; i++) {
 			const int cwret = cw_gen_enqueue_character(gen, invalid_characters[i]);
-			if (!cte->expect_eq_int_errors_only(cte, CW_FAILURE, cwret, "enqueue character(<invalid>) (i = %d)", i)) {
+			if (!cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 1, "enqueue character(<invalid>) (i = %d)", i)) {
 				failure = false;
 			}
 		}
@@ -1237,7 +1237,7 @@ int test_cw_gen_enqueue_string(cw_test_executor_t * cte)
 
 		for (int i = 0; i < n; i++) {
 			const int cwret = cw_gen_enqueue_string(gen, invalid_strings[i]);
-			if (!cte->expect_eq_int_errors_only(cte, CW_FAILURE, cwret, "enqueue string(<invalid>) (i = %d)", i)) {
+			if (!cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 1, "enqueue string(<invalid>) (i = %d)", i)) {
 				failure = false;
 			}
 		}

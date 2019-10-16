@@ -197,7 +197,7 @@ int test_keyer(cw_test_executor_t * cte)
 	/* Test: set new state of paddles: no paddle pressed. */
 	{
 		bool failure = !cw_key_ik_notify_paddle_event(key, CW_KEY_STATE_OPEN, CW_KEY_STATE_OPEN);
-		cte->expect_eq_int(cte, false, failure, "cw_key_ik_notify_paddle_event(%d, %d)", CW_KEY_STATE_OPEN, CW_KEY_STATE_OPEN);
+		cte->expect_op_int(cte, false, "==", failure, 0, "cw_key_ik_notify_paddle_event(%d, %d)", CW_KEY_STATE_OPEN, CW_KEY_STATE_OPEN);
 	}
 
 	cw_key_ik_wait_for_keyer(key);
@@ -244,9 +244,9 @@ int test_straight_key_helper(cw_test_executor_t * cte, cw_key_t * key, int inten
 		}
 	}
 
-	cte->expect_eq_int(cte, false, event_failure, "cw_key_sk_notify_event(<key %s>)", state_name);
-	cte->expect_eq_int(cte, false, state_failure, "cw_key_sk_get_value(<key %s)", state_name);
-	cte->expect_eq_int(cte, false, busy_failure, "cw_straight_key_busy(<key %s>)", state_name);
+	cte->expect_op_int(cte, false, "==", event_failure, 0, "cw_key_sk_notify_event(<key %s>)", state_name);
+	cte->expect_op_int(cte, false, "==", state_failure, 0, "cw_key_sk_get_value(<key %s)", state_name);
+	cte->expect_op_int(cte, false, "==", busy_failure, 0, "cw_straight_key_busy(<key %s>)", state_name);
 
 	return 0;
 }
@@ -330,9 +330,9 @@ int test_straight_key(cw_test_executor_t * cte)
 		/* Never leave the key closed. */
 		cw_key_sk_notify_event(key, CW_KEY_STATE_OPEN);
 
-		cte->expect_eq_int(cte, false, event_failure, "cw_key_sk_notify_event(<key open/closed>)");
-		cte->expect_eq_int(cte, false, state_failure, "cw_key_sk_get_value(<key open/closed>)");
-		cte->expect_eq_int(cte, false, busy_failure, "cw_straight_key_busy(<key open/closed>)");
+		cte->expect_op_int(cte, false, "==", event_failure, 0, "cw_key_sk_notify_event(<key open/closed>)");
+		cte->expect_op_int(cte, false, "==", state_failure, 0, "cw_key_sk_get_value(<key open/closed>)");
+		cte->expect_op_int(cte, false, "==", busy_failure, 0, "cw_straight_key_busy(<key open/closed>)");
 	}
 
 	key_destroy(&key, &gen);
