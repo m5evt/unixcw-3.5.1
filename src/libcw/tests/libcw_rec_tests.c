@@ -46,32 +46,13 @@
 
 
 
-#define MSG_PREFIX "libcw/rec: "
-
-
-
-
-#define TEST_CW_REC_DATA_LEN_MAX 30 /* There is no character that would have that many time points corresponding to a representation. */
-typedef struct cw_rec_test_point {
-	char character;                         /* Character that is being sent to receiver. */
-	char * representation;                  /* Character's representation (dots and dashes). */
-	int timings[TEST_CW_REC_DATA_LEN_MAX];  /* Character's representation's times - time information for marks and spaces. */
-	int n_timings;                          /* Number of data points encoding given representation of given character. */
-	float send_speed;                       /* Send speed (speed at which the character is incoming). */
-
-	bool is_last_in_word;                   /* Is this character a last character in a word? (is it followed by end-of-word space?) */
-} cw_rec_test_point;
-
-
-
-
 /* Data type describing sending speeds, at which test characters will
    be sent to receiver. */
 typedef struct cw_send_speeds {
 	float * values;
 	size_t n_speeds;
 } cw_send_speeds;
-static cw_send_speeds * cw_send_speeds_new1(cw_test_executor_t * cte, size_t n, int speed);
+static cw_send_speeds * cw_send_speeds_new1(cw_test_executor_t * cte, size_t n, int speed_min, int speed_max);
 static cw_send_speeds * cw_send_speeds_new2(cw_test_executor_t * cte, size_t n, int speed_min, int speed_max);
 static void cw_send_speeds_delete(cw_send_speeds ** speeds);
 
@@ -89,15 +70,29 @@ static void cw_characters_pool_delete(cw_characters_pool ** characters_pool);
 
 
 
+#define TEST_CW_REC_DATA_LEN_MAX 30 /* There is no character that would have that many time points corresponding to a representation. */
+typedef struct cw_rec_test_char {
+	char character;                         /* Character that is being sent to receiver. */
+	char * representation;                  /* Character's representation (dots and dashes). */
+	int tone_durations[TEST_CW_REC_DATA_LEN_MAX];  /* Character's representation's times - time information for marks and spaces. */
+	int n_tone_durations;                          /* Number of data points encoding given representation of given character. */
+	float send_speed;                       /* Send speed (speed at which the character is incoming). */
 
-static cw_rec_test_point * test_cw_rec_generate_data(cw_test_executor_t * cte, const cw_characters_pool * characters_pool, cw_send_speeds * send_speeds, int fuzz_percent);
-static cw_rec_test_point * test_cw_rec_generate_base_data_constant(cw_test_executor_t * cte, int speed, int fuzz_percent);
-static cw_rec_test_point * test_cw_rec_generate_data_random_constant(cw_test_executor_t * cte, int speed, int fuzz_percent);
-static cw_rec_test_point * test_cw_rec_generate_data_random_varying(cw_test_executor_t * cte, int speed_min, int speed_max, int fuzz_percent);
+	bool is_last_in_word;                   /* Is this character a last character in a word? (is it followed by end-of-word space?) */
+} cw_rec_test_char;
 
-static void test_cw_rec_delete_data(cw_rec_test_point ** data);
-__attribute__((unused)) static void test_cw_rec_print_data(cw_rec_test_point * data);
-static bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec_test_point * data);
+typedef struct cw_rec_test_vector {
+	cw_rec_test_char ** values;
+	size_t n_characters;
+} cw_rec_test_vector;
+static cw_rec_test_vector * cw_rec_test_vector_new(cw_test_executor_t * cte, size_t n);
+static void cw_rec_test_vector_delete(cw_rec_test_vector ** vec);
+static cw_rec_test_vector * cw_rec_test_vector_factory(cw_test_executor_t * cte, const cw_characters_pool * characters_pool, cw_send_speeds * send_speeds, int fuzz_percent);
+static cw_rec_test_vector * cw_rec_generate_vector_basic_constant(cw_test_executor_t * cte, int speed, int fuzz_percent);
+static cw_rec_test_vector * cw_rec_generate_vector_random_constant(cw_test_executor_t * cte, int speed_min, int speed_max, int fuzz_percent);
+static cw_rec_test_vector * cw_rec_generate_vector_random_varying(cw_test_executor_t * cte, int speed_min, int speed_max, int fuzz_percent);
+__attribute__((unused)) static void cw_rec_test_vector_print(cw_rec_test_vector * vec);
+static bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec_test_vector * vec);
 
 
 
@@ -119,14 +114,14 @@ int test_cw_rec_identify_mark_internal(cw_test_executor_t * cte)
 
 #if 0
 	cw_rec_t * rec = cw_rec_new();
-	cte->assert2(cte, rec, MSG_PREFIX "identify mark: failed to create new receiver\n");
+	cte->assert2(cte, rec, "identify mark: failed to create new receiver\n");
 	cw_rec_disable_adaptive_mode(rec);
 
 	int speed_step = (CW_SPEED_MAX - CW_SPEED_MIN) / 10;
 
 	for (int speed = CW_SPEED_MIN; speed < CW_SPEED_MAX; speed += speed_step) {
 		int rv = cw_rec_set_speed(rec, speed);
-		cte->assert2(cte, rv, MSG_PREFIX "identify mark @ %02d [wpm]: failed to set receive speed\n", speed);
+		cte->assert2(cte, rv, "identify mark @ %02d [wpm]: failed to set receive speed\n", speed);
 
 
 		bool failure = true;
@@ -216,12 +211,12 @@ int test_cw_rec_test_with_base_constant(cw_test_executor_t * cte)
 	cte->print_test_header(cte, __func__);
 
 	cw_rec_t * rec = cw_rec_new();
-	cte->assert2(cte, rec, MSG_PREFIX "begin/end: base/constant: failed to create new receiver\n");
+	cte->assert2(cte, rec, "begin/end: base/constant: failed to create new receiver\n");
 
 
 	for (int speed = CW_SPEED_MIN; speed <= CW_SPEED_MAX; speed++) {
-		cw_rec_test_point * data = test_cw_rec_generate_base_data_constant(cte, speed, 0);
-		//test_cw_rec_print_data(data);
+		cw_rec_test_vector * vec = cw_rec_generate_vector_basic_constant(cte, speed, 0);
+		// cw_rec_test_vector_print(vec);
 
 		/* Reset. */
 		cw_rec_reset_statistics(rec);
@@ -232,14 +227,14 @@ int test_cw_rec_test_with_base_constant(cw_test_executor_t * cte)
 
 		/* Make sure that the test speed has been set correctly. */
 		float diff = cw_rec_get_speed(rec) - (float) speed;
-		cte->assert2(cte, diff < 0.1, MSG_PREFIX "begin/end: base/constant: %f != %f\n",  cw_rec_get_speed(rec), (float) speed);
+		cte->assert2(cte, diff < 0.1, "begin/end: base/constant: %f != %f\n",  cw_rec_get_speed(rec), (float) speed);
 		// cte->expect_op_int(cte, ); // TODO: implement
 
 		/* Actual tests of receiver functions are here. */
-		bool failure = test_cw_rec_test_begin_end(cte, rec, data);
+		bool failure = test_cw_rec_test_begin_end(cte, rec, vec);
 		cte->expect_op_int(cte, false, "==", failure, 1, "begin/end: base/constant @ %02d [wpm]:", speed);
 
-		test_cw_rec_delete_data(&data);
+		cw_rec_test_vector_delete(&vec);
 	}
 
 	cw_rec_delete(&rec);
@@ -266,9 +261,9 @@ int test_cw_rec_test_with_base_constant(cw_test_executor_t * cte)
    too.
 
    \param rec - receiver variable used during tests
-   \param data - table with timings, used to test the receiver
+   \param data - table with tone_durations, used to test the receiver
 */
-bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec_test_point * data)
+bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec_test_vector * vec)
 {
 	struct timeval tv = { 0, 0 };
 
@@ -285,11 +280,11 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec
 	bool match_character_failure = false;
 	bool empty_failure = false;
 
-	for (int i = 0; data[i].representation; i++) {
+	for (size_t i = 0; i < vec->n_characters; i++) {
 
 #ifdef LIBCW_UNIT_TESTS_VERBOSE
-		printf("\n" MSG_PREFIX "begin/end: input test data #%d: <%c> / <%s> @ %.2f [wpm] (%d time values)\n",
-		       i, data[i].character, data[i].r, data[i].s, data[i].n_timings);
+		printf("\n" "begin/end: input test data #%d: <%c> / <%s> @ %.2f [wpm] (%d time values)\n",
+		       i, vec->values[i].character, vec->values[i].r, vec->values[i].s, vec->values[i].n_tone_durations);
 #endif
 
 #if 0 /* Should we remove it? */
@@ -317,7 +312,7 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec
 		   every following event is calculated by iterating
 		   over tone lengths specified in data table. */
 		int tone;
-		for (tone = 0; data[i].timings[tone] > 0; tone++) {
+		for (tone = 0; vec->values[i]->tone_durations[tone] > 0; tone++) {
 			begin_end_failure = false;
 
 			if (tone % 2) {
@@ -334,7 +329,7 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec
 				}
 			}
 
-			tv.tv_usec += data[i].timings[tone];
+			tv.tv_usec += vec->values[i]->tone_durations[tone];
 			if (tv.tv_usec >= CW_USECS_PER_SEC) {
 				/* Moving event to next second. */
 				tv.tv_sec += tv.tv_usec / CW_USECS_PER_SEC;
@@ -347,7 +342,7 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec
 			   cw_rec_poll_representation(). */
 		}
 
-		cte->assert2(cte, tone, MSG_PREFIX "begin/end executed zero times\n");
+		cte->assert2(cte, tone, "begin/end executed zero times\n");
 		if (begin_end_failure) {
 			break;
 		}
@@ -360,9 +355,9 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec
 		   to receiver's buffer. */
 		{
 			int n = cw_rec_get_buffer_length_internal(rec);
-			buffer_length_failure = (n != (int) strlen(data[i].representation));
+			buffer_length_failure = (n != (int) strlen(vec->values[i]->representation));
 
-			if (!cte->expect_op_int(cte, false, "==", buffer_length_failure, 1, "begin/end: cw_rec_get_buffer_length_internal(<nonempty>): %d != %zd\n", n, strlen(data[i].representation))) {
+			if (!cte->expect_op_int(cte, false, "==", buffer_length_failure, 1, "begin/end: cw_rec_get_buffer_length_internal(<nonempty>): %d != %zd\n", n, strlen(vec->values[i]->representation))) {
 				buffer_length_failure = true;
 				break;
 			}
@@ -398,19 +393,17 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec
 			int cwret = cw_rec_poll_representation(rec, &tv, representation, &is_word, &is_error);
 			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "begin/end: poll representation returns !CW_SUCCESS")) {
 				poll_representation_failure = true;
-				fprintf(out_file, MSG_PREFIX );
 				break;
 			}
 
-			const int strcmp_result = strcmp(representation, data[i].representation);
-			if (!cte->expect_op_int(cte, 0, "==", strcmp_result, 1, "being/end: polled representation does not match test representation: \"%s\" != \"%s\"\n", representation, data[i].representation)) {
+			const int strcmp_result = strcmp(representation, vec->values[i]->representation);
+			if (!cte->expect_op_int(cte, 0, "==", strcmp_result, 1, "being/end: polled representation does not match test representation: \"%s\" != \"%s\"\n", representation, vec->values[i]->representation)) {
 				match_representation_failure = true;
 				break;
 			}
 
 			if (!cte->expect_op_int(cte, false, "==", is_error, 1, "begin/end: poll representation sets is_error\n")) {
 				error_representation_failure = true;
-				fprintf(out_file, MSG_PREFIX );
 				break;
 			}
 
@@ -421,13 +414,13 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec
 			   is_last_in_word), then is_word should be
 			   set by poll() to true. Otherwise both
 			   values should be false. */
-			word_representation_failure = (is_word != data[i].is_last_in_word);
+			word_representation_failure = (is_word != vec->values[i]->is_last_in_word);
 			// cte->expect_op_int(cte, ); // TODO: implement
 			if (word_representation_failure) {
-				fprintf(out_file, MSG_PREFIX "begin/end: poll representation: 'is_word' flag error: function returns '%d', data is tagged with '%d'\n" \
+				fprintf(out_file, "begin/end: poll representation: 'is_word' flag error: function returns '%d', data is tagged with '%d'\n" \
 					"'%c'  '%c'  '%c'  '%c'  '%c'",
-					is_word, data[i].is_last_in_word,
-					data[i - 2].character, data[i - 1].character, data[i].character, data[i + 1].character, data[i + 2].character);
+					is_word, vec->values[i]->is_last_in_word,
+					vec->values[i - 2]->character, vec->values[i - 1]->character, vec->values[i]->character, vec->values[i + 1]->character, vec->values[i + 2]->character);
 				break;
 			}
 
@@ -435,10 +428,10 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec
 			/* Debug code. Print times of character with
 			   end-of-word space to verify length of the
 			   space. */
-			if (data[i].is_last_in_word) {
-				fprintf(stderr, "------- character '%c' is last in word\n", data[i].character);
-				for (int m = 0; m < data[i].n_timings; m++) {
-					fprintf(stderr, "#%d: %d\n", m, data[i].d[m]);
+			if (vec->values[i]->is_last_in_word) {
+				fprintf(stderr, "------- character '%c' is last in word\n", vec->values[i]->character);
+				for (int m = 0; m < vec->values[i]->n_tone_durations; m++) {
+					fprintf(stderr, "#%d: %d\n", m, vec->values[i]->d[m]);
 				}
 			}
 #endif
@@ -461,7 +454,7 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec
 				poll_character_failure = true;
 				break;
 			}
-			if (!cte->expect_op_int(cte, data[i].character, "==", c, 1, "begin/end: polled character does not match test character: '%c' != '%c'\n", c, data[i].character)) {
+			if (!cte->expect_op_int(cte, vec->values[i]->character, "==", c, 1, "begin/end: polled character does not match test character: '%c' != '%c'\n", c, vec->values[i]->character)) {
 				match_character_failure = true;
 				break;
 			}
@@ -537,32 +530,32 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec
 
   This function is used to generate a data set guaranteed to contain all characters supported by libcw.
 */
-cw_rec_test_point * test_cw_rec_generate_base_data_constant(cw_test_executor_t * cte, int speed, int fuzz_percent)
+cw_rec_test_vector * cw_rec_generate_vector_basic_constant(cw_test_executor_t * cte, int speed, int fuzz_percent)
 {
 	/* All characters supported by libcw.  Don't use
 	   get_characters_random(): for this test get a small table of
 	   all characters supported by libcw. This should be a quick
 	   test, and it should cover all characters. */
 	cw_characters_pool * characters_pool = cw_characters_pool_new_basic(cte);
-	cte->assert2(cte, characters_pool, MSG_PREFIX "new base data fixed: cw_characters_pool_new_basic() failed\n");
+	cte->assert2(cte, characters_pool, "new base data fixed: cw_characters_pool_new_basic() failed\n");
 
 
 	/* Fixed speed receive mode - speed is constant for all
 	   characters. */
-	cw_send_speeds * send_speeds = cw_send_speeds_new1(cte, characters_pool->n_characters, speed);
-	cte->assert2(cte, send_speeds, MSG_PREFIX "new base data fixed: cw_send_speeds_new1() failed\n");
+	cw_send_speeds * send_speeds = cw_send_speeds_new1(cte, characters_pool->n_characters, speed, speed);
+	cte->assert2(cte, send_speeds, "new base data fixed: cw_send_speeds_new1() failed\n");
 
 
 	/* Generate timing data for given set of characters, each
 	   character is sent with speed dictated by speeds[]. */
-	cw_rec_test_point * data = test_cw_rec_generate_data(cte, characters_pool, send_speeds, fuzz_percent);
-	cte->assert2(cte, data, MSG_PREFIX "failed to generate base/fixed test data\n");
+	cw_rec_test_vector * vec = cw_rec_test_vector_factory(cte, characters_pool, send_speeds, fuzz_percent);
+	cte->assert2(cte, vec, "failed to generate base/fixed test data\n");
 
 
 	cw_characters_pool_delete(&characters_pool);
 	cw_send_speeds_delete(&send_speeds);
 
-	return data;
+	return vec;
 }
 
 
@@ -582,12 +575,12 @@ int test_cw_rec_test_with_random_constant(cw_test_executor_t * cte)
 	cte->print_test_header(cte, __func__);
 
 	cw_rec_t * rec = cw_rec_new();
-	cte->assert2(cte, rec, MSG_PREFIX "begin/end: random/constant: failed to create new receiver\n");
+	cte->assert2(cte, rec, "begin/end: random/constant: failed to create new receiver\n");
 
 
 	for (int speed = CW_SPEED_MIN; speed <= CW_SPEED_MAX; speed++) {
-		cw_rec_test_point * data = test_cw_rec_generate_data_random_constant(cte, speed, 0);
-		//test_cw_rec_print_data(data);
+		cw_rec_test_vector * vec = cw_rec_generate_vector_random_constant(cte, speed, speed, 0);
+		// cw_rec_test_vector_print(vec);
 
 		/* Reset. */
 		cw_rec_reset_statistics(rec);
@@ -598,14 +591,14 @@ int test_cw_rec_test_with_random_constant(cw_test_executor_t * cte)
 
 		/* Verify that test speed has been set correctly. */
 		float diff = cw_rec_get_speed(rec) - speed;
-		cte->assert2(cte, diff < 0.1, MSG_PREFIX "begin/end: random/constant: incorrect receive speed: %f != %f\n", cw_rec_get_speed(rec), (float) speed);
+		cte->assert2(cte, diff < 0.1, "begin/end: random/constant: incorrect receive speed: %f != %f\n", cw_rec_get_speed(rec), (float) speed);
 		// cte->expect_op_int(cte, );  // TODO: implement
 
 		/* Actual tests of receiver functions are here. */
-		bool failure = test_cw_rec_test_begin_end(cte, rec, data);
+		bool failure = test_cw_rec_test_begin_end(cte, rec, vec);
 		cte->expect_op_int(cte, false, "==", failure, 1, "begin/end: random/constant @ %02d [wpm]:", speed);
 
-		test_cw_rec_delete_data(&data);
+		cw_rec_test_vector_delete(&vec);
 	}
 
 	cw_rec_delete(&rec);
@@ -631,11 +624,11 @@ int test_cw_rec_test_with_random_varying(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
-	cw_rec_test_point * data = test_cw_rec_generate_data_random_varying(cte, CW_SPEED_MIN, CW_SPEED_MAX, 0);
-	//test_cw_rec_print_data(data);
+	cw_rec_test_vector * vec = cw_rec_generate_vector_random_varying(cte, CW_SPEED_MIN, CW_SPEED_MAX, 0);
+	// cw_rec_test_vector_print(vec);
 
 	cw_rec_t * rec = cw_rec_new();
-	cte->assert2(cte, rec, MSG_PREFIX "begin/end: random/varying: failed to create new receiver\n");
+	cte->assert2(cte, rec, "begin/end: random/varying: failed to create new receiver\n");
 
 	/* Reset. */
 	cw_rec_reset_statistics(rec);
@@ -646,14 +639,14 @@ int test_cw_rec_test_with_random_varying(cw_test_executor_t * cte)
 
 	/* Verify that initial test speed has been set correctly. */
 	float diff = cw_rec_get_speed(rec) - CW_SPEED_MAX;
-	cte->assert2(cte, diff < 0.1, MSG_PREFIX "begin/end: random/varying: incorrect receive speed: %f != %f\n", cw_rec_get_speed(rec), (float) CW_SPEED_MAX);
+	cte->assert2(cte, diff < 0.1, "begin/end: random/varying: incorrect receive speed: %f != %f\n", cw_rec_get_speed(rec), (float) CW_SPEED_MAX);
 	// cte->expect_op_int(cte, ); // TODO: implement
 
 	/* Actual tests of receiver functions are here. */
-	bool failure = test_cw_rec_test_begin_end(cte, rec, data);
+	bool failure = test_cw_rec_test_begin_end(cte, rec, vec);
 	cte->expect_op_int(cte, false, "==", failure, 0, "begin/end: random/varying:");
 
-	test_cw_rec_delete_data(&data);
+	cw_rec_test_vector_delete(&vec);
 
 	cw_rec_delete(&rec);
 
@@ -674,24 +667,24 @@ int test_cw_rec_test_with_random_varying(cw_test_executor_t * cte)
 
   This function is used to generate a large test data set.
 */
-cw_rec_test_point * test_cw_rec_generate_data_random_constant(cw_test_executor_t * cte, int speed, int fuzz_percent)
+cw_rec_test_vector * cw_rec_generate_vector_random_constant(cw_test_executor_t * cte, int speed_min, int speed_max, int fuzz_percent)
 {
 	cw_characters_pool * characters_pool = cw_characters_pool_new_random(cte);
 	cte->assert2(cte, characters_pool, "cw_characters_pool_new_random() failed\n");
 
 	/* Fixed speed receive mode - speed is constant for all characters. */
-	cw_send_speeds * send_speeds = cw_send_speeds_new1(cte, characters_pool->n_characters, speed);
+	cw_send_speeds * send_speeds = cw_send_speeds_new1(cte, characters_pool->n_characters, speed_min, speed_max);
 	cte->assert2(cte, send_speeds, "cw_send_speeds_new1() failed\n");
 
 	/* Generate timing data for given set of characters, each
 	   character is sent with speed dictated by speeds[]. */
-	cw_rec_test_point * data = test_cw_rec_generate_data(cte, characters_pool, send_speeds, fuzz_percent);
-	cte->assert2(cte, data, MSG_PREFIX "random/constant: failed to generate test data\n");
+	cw_rec_test_vector * vec = cw_rec_test_vector_factory(cte, characters_pool, send_speeds, fuzz_percent);
+	cte->assert2(cte, vec, "random/constant: failed to generate test vector\n");
 
 	cw_characters_pool_delete(&characters_pool);
 	cw_send_speeds_delete(&send_speeds);
 
-	return data;
+	return vec;
 }
 
 
@@ -706,29 +699,27 @@ cw_rec_test_point * test_cw_rec_generate_data_random_constant(cw_test_executor_t
 
   This function is used to generate a large test data set.
 */
-cw_rec_test_point * test_cw_rec_generate_data_random_varying(cw_test_executor_t * cte, int speed_min, int speed_max, int fuzz_percent)
+cw_rec_test_vector * cw_rec_generate_vector_random_varying(cw_test_executor_t * cte, int speed_min, int speed_max, int fuzz_percent)
 {
 	cw_characters_pool * characters_pool = cw_characters_pool_new_random(cte);
-	cte->assert2(cte, characters_pool, MSG_PREFIX "begin/end: cw_characters_pool_new_random() failed\n");
+	cte->assert2(cte, characters_pool, "begin/end: cw_characters_pool_new_random() failed\n");
 
 	/* Adaptive speed receive mode - speed varies for all
 	   characters. */
 	cw_send_speeds * send_speeds = cw_send_speeds_new2(cte, characters_pool->n_characters, speed_min, speed_max);
-	cte->assert2(cte, send_speeds, MSG_PREFIX "cw_send_speeds_new2() failed\n");
+	cte->assert2(cte, send_speeds, "cw_send_speeds_new2() failed\n");
 
 
 	/* Generate timing data for given set of characters, each
 	   character is sent with speed dictated by speeds[]. */
-	cw_rec_test_point *data = test_cw_rec_generate_data(cte, characters_pool, send_speeds, fuzz_percent);
-	cte->assert2(cte, data, MSG_PREFIX "failed to generate random/varying test data\n");
+	cw_rec_test_vector * vec = cw_rec_test_vector_factory(cte, characters_pool, send_speeds, fuzz_percent);
+	cte->assert2(cte, vec, "failed to generate random/varying test data\n");
 
 
-	free(characters_pool);
-	characters_pool = NULL;
-
+	cw_characters_pool_delete(&characters_pool);
 	cw_send_speeds_delete(&send_speeds);
 
-	return data;
+	return vec;
 }
 
 
@@ -864,22 +855,22 @@ void cw_characters_pool_delete(cw_characters_pool ** characters_pool)
 
    \return wrapper object for table of speeds of constant value
 */
-cw_send_speeds * cw_send_speeds_new1(cw_test_executor_t * cte, size_t n, int speed)
+cw_send_speeds * cw_send_speeds_new1(cw_test_executor_t * cte, size_t n, int speed_min, __attribute__((unused)) int speed_max)
 {
-	cte->assert2(cte, speed > 0, MSG_PREFIX "generate speeds constant: speed must be larger than zero\n");
+	cte->assert2(cte, speed_min > 0, "generate speeds constant: speed must be larger than zero\n");
 
 	cw_send_speeds * speeds = (cw_send_speeds *) malloc(sizeof (cw_send_speeds));
-	cte->assert2(cte, speeds, MSG_PREFIX "creating send speeds: first malloc() failed\n");
+	cte->assert2(cte, speeds, "creating send speeds: first malloc() failed\n");
 
 	speeds->values = (float *) malloc(n * sizeof (float));
-	cte->assert2(cte, speeds, MSG_PREFIX "creating send speeds: second malloc() failed\n");
+	cte->assert2(cte, speeds, "creating send speeds: second malloc() failed\n");
 
 	speeds->n_speeds = n;
 
 	for (size_t i = 0; i < speeds->n_speeds; i++) {
 		/* Fixed speed receive mode - speed values are constant for
 		   all characters. */
-		speeds->values[i] = (float) speed;
+		speeds->values[i] = (float) speed_min;
 	}
 
 	return speeds;
@@ -903,15 +894,15 @@ cw_send_speeds * cw_send_speeds_new1(cw_test_executor_t * cte, size_t n, int spe
 */
 cw_send_speeds * cw_send_speeds_new2(cw_test_executor_t * cte, size_t n, int speed_min, int speed_max)
 {
-	cte->assert2(cte, speed_min > 0, MSG_PREFIX "generate speeds varying: speed_min must be larger than zero\n");
-	cte->assert2(cte, speed_max > 0, MSG_PREFIX "generate speeds varying: speed_max must be larger than zero\n");
-	cte->assert2(cte, speed_min <= speed_max, MSG_PREFIX "generate speeds varying: speed_min can't be larger than speed_max\n");
+	cte->assert2(cte, speed_min > 0, "generate speeds varying: speed_min must be larger than zero\n");
+	cte->assert2(cte, speed_max > 0, "generate speeds varying: speed_max must be larger than zero\n");
+	cte->assert2(cte, speed_min <= speed_max, "generate speeds varying: speed_min can't be larger than speed_max\n");
 
 	cw_send_speeds * speeds = (cw_send_speeds *) malloc(sizeof (cw_send_speeds));
-	cte->assert2(cte, speeds, MSG_PREFIX "generate speeds varying: first malloc() failed\n");
+	cte->assert2(cte, speeds, "generate speeds varying: first malloc() failed\n");
 
 	speeds->values = (float *) malloc(n * sizeof (float));
-	cte->assert2(cte, speeds, MSG_PREFIX "generate speeds varying: second malloc() failed\n");
+	cte->assert2(cte, speeds, "generate speeds varying: second malloc() failed\n");
 
 	for (size_t i = 0; i < n; i++) {
 
@@ -986,25 +977,19 @@ void cw_send_speeds_delete(cw_send_speeds ** speeds)
    Last element in the created table (a guard "pseudo-character") has
    'representation' field set to NULL.
 
-   Use test_cw_rec_delete_data() to deallocate the timing data table.
+   Use cw_rec_test_vector_delete() to deallocate the timing data table.
 
    \brief characters - list of characters for which to generate table with timing data
    \brief speeds - list of speeds (per-character)
 
    \return table of timing data sets
 */
-cw_rec_test_point * test_cw_rec_generate_data(cw_test_executor_t * cte, const cw_characters_pool * characters_pool, cw_send_speeds * send_speeds, __attribute__((unused)) int fuzz_percent)
+cw_rec_test_vector * cw_rec_test_vector_factory(cw_test_executor_t * cte, const cw_characters_pool * characters_pool, cw_send_speeds * send_speeds, __attribute__((unused)) int fuzz_percent)
 {
-	size_t n = characters_pool->n_characters;
-	/* +1 for guard. */
-	cw_rec_test_point * test_data = (cw_rec_test_point *) malloc((n + 1) * sizeof(cw_rec_test_point));
-	cte->assert2(cte, test_data, MSG_PREFIX "generate data: malloc() failed\n");
-	//// cte->expect_op_int(cte, ); // TODO: implement
+	const size_t n = characters_pool->n_characters;
 
-	/* Initialization. */
-	for (size_t i = 0; i < n + 1; i++) {
-		test_data[i].representation = (char *) NULL;
-	}
+	cw_rec_test_vector * vec = cw_rec_test_vector_new(cte, n);
+
 
 	size_t out = 0; /* For indexing output data table. */
 	for (size_t in = 0; in < n; in++) {
@@ -1022,10 +1007,10 @@ cw_rec_test_point * test_cw_rec_generate_data(cw_test_executor_t * cte, const cw
 			   character, we want to turn end-of-char
 			   space of previous character into
 			   end-of-word space, hence 'out - 1'. */
-			int space_i = test_data[out - 1].n_timings - 1;    /* Index of last space (end-of-char, to become end-of-word). */
-			test_data[out - 1].timings[space_i] = unit_len * 6; /* unit_len * 5 is the minimal end-of-word space. */
+			int space_i = vec->values[out - 1]->n_tone_durations - 1;    /* Index of last space (end-of-char, to become end-of-word). */
+			vec->values[out - 1]->tone_durations[space_i] = unit_len * 6; /* unit_len * 5 is the minimal end-of-word space. */
 
-			test_data[out - 1].is_last_in_word = true;
+			vec->values[out - 1]->is_last_in_word = true;
 
 			continue;
 		} else {
@@ -1033,76 +1018,93 @@ cw_rec_test_point * test_cw_rec_generate_data(cw_test_executor_t * cte, const cw
 		}
 
 
-		test_data[out].character = characters_pool->values[in];
-		test_data[out].representation = cw_character_to_representation(test_data[out].character);
-		cte->assert2(cte, test_data[out].representation,
-			   MSG_PREFIX "generate data: cw_character_to_representation() failed for input char #%zu: '%c'\n",
+		vec->values[out]->character = characters_pool->values[in];
+		vec->values[out]->representation = cw_character_to_representation(vec->values[out]->character);
+		cte->assert2(cte, vec->values[out]->representation,
+			   "generate data: cw_character_to_representation() failed for input char #%zu: '%c'\n",
 			   in, characters_pool->values[in]);
-		//// cte->expect_op_int(cte, ); // TODO: implement
-		test_data[out].send_speed = send_speeds->values[in];
+		vec->values[out]->send_speed = send_speeds->values[in];
 
 
 		/* Build table of times (data points) 'd[]' for given
 		   representation 'r'. */
 
 
-		size_t n_timings = 0; /* Number of data points in data table. */
+		size_t n_tone_durations = 0; /* Number of data points in data table. */
 
-		size_t rep_length = strlen(test_data[out].representation);
+		size_t rep_length = strlen(vec->values[out]->representation);
 		for (size_t k = 0; k < rep_length; k++) {
 
 			/* Length of mark. */
-			if (test_data[out].representation[k] == CW_DOT_REPRESENTATION) {
-				test_data[out].timings[n_timings] = unit_len;
+			if (vec->values[out]->representation[k] == CW_DOT_REPRESENTATION) {
+				vec->values[out]->tone_durations[n_tone_durations] = unit_len;
 
-			} else if (test_data[out].representation[k] == CW_DASH_REPRESENTATION) {
-				test_data[out].timings[n_timings] = unit_len * 3;
+			} else if (vec->values[out]->representation[k] == CW_DASH_REPRESENTATION) {
+				vec->values[out]->tone_durations[n_tone_durations] = unit_len * 3;
 
 			} else {
-				cte->assert2(cte, 0, MSG_PREFIX "generate data: unknown char in representation: '%c'\n", test_data[out].representation[k]);
+				cte->assert2(cte, 0, "generate data: unknown char in representation: '%c'\n", vec->values[out]->representation[k]);
 			}
-			n_timings++;
+			n_tone_durations++;
 
 
 			/* Length of space (inter-mark space). Mark
 			   and space always go in pair. */
-			test_data[out].timings[n_timings] = unit_len;
-			n_timings++;
+			vec->values[out]->tone_durations[n_tone_durations] = unit_len;
+			n_tone_durations++;
 		}
 
 		/* Every character has non-zero marks and spaces. */
-		cte->assert2(cte, n_timings > 0, MSG_PREFIX "generate data: number of data points is %zu for representation '%s'\n", n_timings, test_data[out].representation);
+		cte->assert2(cte, n_tone_durations > 0, "generate data: number of data points is %zu for representation '%s'\n", n_tone_durations, vec->values[out]->representation);
 
 		/* Mark and space always go in pair, so nd should be even. */
-		cte->assert2(cte, ! (n_timings % 2), MSG_PREFIX "generate data: number of times is not even\n");
+		cte->assert2(cte, ! (n_tone_durations % 2), "generate data: number of times is not even\n");
 
 		/* Mark/space pair per each dot or dash. */
-		cte->assert2(cte, n_timings == 2 * rep_length, MSG_PREFIX "generate data: number of times incorrect: %zu != 2 * %zu\n", n_timings, rep_length);
+		cte->assert2(cte, n_tone_durations == 2 * rep_length, "generate data: number of times incorrect: %zu != 2 * %zu\n", n_tone_durations, rep_length);
 
 
 		/* Graduate that last space (inter-mark space) into
 		   end-of-character space. */
-		test_data[out].timings[n_timings - 1] = (unit_len * 3) + (unit_len / 2);
+		vec->values[out]->tone_durations[n_tone_durations - 1] = (unit_len * 3) + (unit_len / 2);
 
 		/* Guard. */
-		test_data[out].timings[n_timings] = 0;
+		vec->values[out]->tone_durations[n_tone_durations] = 0;
 
-		test_data[out].n_timings = n_timings;
+		vec->values[out]->n_tone_durations = n_tone_durations;
 
 		/* This may be overwritten by this function when a
 		   space character (' ') is encountered in input
 		   string. */
-		test_data[out].is_last_in_word = false;
+		vec->values[out]->is_last_in_word = false;
 
 		out++;
 	}
 
 
-	/* Guard. */
-	test_data[n].representation = (char *) NULL;
+	return vec;
+}
 
 
-	return test_data;
+
+
+cw_rec_test_vector * cw_rec_test_vector_new(cw_test_executor_t * cte, size_t n)
+{
+	cw_rec_test_vector * vec = (cw_rec_test_vector *) malloc(sizeof (cw_rec_test_vector));
+	cte->assert2(cte, vec, "generate data: malloc() failed\n");
+	memset(vec, 0, sizeof (cw_rec_test_vector));
+
+	const size_t values_size = n * sizeof (cw_rec_test_char *);
+	vec->values = (cw_rec_test_char **) malloc(values_size);
+	cte->assert2(cte, vec->values, "generate data: malloc() failed\n");
+	memset(vec->values, 0, values_size);
+
+	for (size_t i = 0; i < n; i++) {
+		vec->values[i] = (cw_rec_test_char *) malloc(sizeof (cw_rec_test_char));
+		memset(vec->values[i], 0, sizeof (cw_rec_test_char));
+	}
+
+	return vec;
 }
 
 
@@ -1114,18 +1116,28 @@ cw_rec_test_point * test_cw_rec_generate_data(cw_test_executor_t * cte, const cw
 
    \param data - pointer to data to be deallocated
 */
-void test_cw_rec_delete_data(cw_rec_test_point ** data)
+void cw_rec_test_vector_delete(cw_rec_test_vector ** vec)
 {
-	int i = 0;
-	while ((*data)[i].representation) {
-		free((*data)[i].representation);
-		(*data)[i].representation = (char *) NULL;
-
-		i++;
+	if (NULL == vec) {
+		return;
+	}
+	if (NULL == *vec) {
+		return;
 	}
 
-	free(*data);
-	*data = NULL;
+	for (size_t i = 0; i < (*vec)->n_characters; i++) {
+		free((*vec)->values[i]->representation);
+		(*vec)->values[i]->representation = (char *) NULL;
+
+		free((*vec)->values[i]);
+		(*vec)->values[i] = NULL;
+	}
+
+	free((*vec)->values);
+	(*vec)->values = NULL;
+
+	free(*vec);
+	*vec = NULL;
 
 	return;
 }
@@ -1139,20 +1151,20 @@ void test_cw_rec_delete_data(cw_rec_test_point ** data)
 
    \param data timing data to be printed
 */
-void test_cw_rec_print_data(cw_rec_test_point * data)
+void cw_rec_test_vector_print(cw_rec_test_vector * vec)
 {
 	int i = 0;
 
 	fprintf(stderr, "---------------------------------------------------------------------------------------------------------------------------------------------------------\n");
-	while (data[i].representation) {
+	while (vec->values[i]->representation) {
 		/* Debug output. */
 		if (!(i % 10)) {
 			/* Print header. */
 			fprintf(stderr, "char  repr      [wpm]    mark     space      mark     space      mark     space      mark     space      mark     space      mark     space      mark     space\n");
 		}
-		fprintf(stderr, "%c     %-7s  %02.2f", data[i].character, data[i].representation, data[i].send_speed);
-		for (int j = 0; j < data[i].n_timings; j++) {
-			fprintf(stderr, "%9d ", data[i].timings[j]);
+		fprintf(stderr, "%c     %-7s  %02.2f", vec->values[i]->character, vec->values[i]->representation, vec->values[i]->send_speed);
+		for (int j = 0; j < vec->values[i]->n_tone_durations; j++) {
+			fprintf(stderr, "%9d ", vec->values[i]->tone_durations[j]);
 		}
 		fprintf(stderr, "\n");
 
@@ -1172,7 +1184,7 @@ int test_cw_rec_get_parameters(cw_test_executor_t * cte)
 	bool failure = true;
 
 	cw_rec_t * rec = cw_rec_new();
-	cte->assert2(cte, rec, MSG_PREFIX "get: failed to create new receiver\n");
+	cte->assert2(cte, rec, "get: failed to create new receiver\n");
 
 	cw_rec_reset_parameters_internal(rec);
 	cw_rec_sync_parameters_internal(rec);
@@ -1205,10 +1217,10 @@ int test_cw_rec_get_parameters(cw_test_executor_t * cte)
 	cw_rec_delete(&rec);
 
 	fprintf(out_file,
-		MSG_PREFIX "get: dot/dash:  %d, %d, %d, %d, %d, %d\n" \
-		MSG_PREFIX "get: eom:       %d, %d, %d\n" \
-		MSG_PREFIX "get: eoc:       %d, %d, %d\n" \
-		MSG_PREFIX "get: threshold: %d\n",
+		"get: dot/dash:  %d, %d, %d, %d, %d, %d\n" \
+		"get: eom:       %d, %d, %d\n" \
+		"get: eoc:       %d, %d, %d\n" \
+		"get: threshold: %d\n",
 
 		dot_len_ideal, dash_len_ideal, dot_len_min, dot_len_max, dash_len_min, dash_len_max,
 		eom_len_min, eom_len_max, eom_len_ideal,
@@ -1270,7 +1282,7 @@ int test_cw_rec_parameter_getters_setters_1(cw_test_executor_t * cte)
 	cte->print_test_header(cte, __func__);
 
 	cw_rec_t * rec = cw_rec_new();
-	cte->assert2(cte, rec, MSG_PREFIX "get/set param 1: failed to create new receiver\n");
+	cte->assert2(cte, rec, "get/set param 1: failed to create new receiver\n");
 
 	/* Test setting and getting of some basic parameters. */
 
@@ -1389,7 +1401,7 @@ int test_cw_rec_parameter_getters_setters_2(cw_test_executor_t * cte)
 	cte->print_test_header(cte, __func__);
 
 	cw_rec_t * rec = cw_rec_new();
-	cte->assert2(cte, rec, MSG_PREFIX "get/set param 2: failed to create new receiver\n");
+	cte->assert2(cte, rec, "get/set param 2: failed to create new receiver\n");
 
 	/* Test setting and getting of some basic parameters. */
 
