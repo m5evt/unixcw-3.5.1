@@ -648,20 +648,14 @@ cw_characters_pool * cw_characters_pool_new_basic(cw_test_executor_t * cte)
 {
 	const int n = cw_get_character_count();
 
-	cw_characters_pool * characters_pool = (cw_characters_pool *) malloc(sizeof (cw_characters_pool));
-	cte->assert2(cte, characters_pool, "%s: first malloc() failed\n", __func__);
-	memset(characters_pool, 0, sizeof (cw_characters_pool));
+	cw_characters_pool * characters_pool = (cw_characters_pool *) calloc(sizeof (cw_characters_pool), 1);
+	cte->assert2(cte, characters_pool, "%s: first calloc() failed\n", __func__);
 
-
-	const size_t values_size = (n + 1) * sizeof (char); /* This will be a C string, so +1 for terminating NUL. */
-	characters_pool->values = (char *) malloc(values_size);
-	cte->assert2(cte, characters_pool, "%s: second malloc() failed\n", __func__);
-	memset(characters_pool->values, 0, values_size);
-
+	characters_pool->values = (char *) calloc(sizeof (char), n + 1); /* This will be a C string, so +1 for terminating NUL. */
+	cte->assert2(cte, characters_pool, "%s: second calloc() failed\n", __func__);
 
 	characters_pool->n_characters = n;
 	cw_list_characters(characters_pool->values);
-
 
 	return characters_pool;
 }
@@ -694,14 +688,11 @@ cw_characters_pool * cw_characters_pool_new_random(cw_test_executor_t * cte)
 	const size_t n_basic_characters = basic_characters_pool->n_characters;
 
 
-	cw_characters_pool * random_characters_pool = (cw_characters_pool *) malloc(sizeof (cw_characters_pool));
-	cte->assert2(cte, random_characters_pool, "first malloc() failed\n");
-	memset(random_characters_pool, 0, sizeof (cw_characters_pool));
+	cw_characters_pool * random_characters_pool = (cw_characters_pool *) calloc(sizeof (cw_characters_pool), 1);
+	cte->assert2(cte, random_characters_pool, "first calloc() failed\n");
 
-	const size_t values_size = (n_random_characters + 1) * sizeof (char); /* This will be a C string, so +1 for terminating NUL. */
-	random_characters_pool->values = (char *) malloc(values_size);
-	cte->assert2(cte, random_characters_pool->values, "malloc() failed\n");
-	memset(random_characters_pool->values, 0, values_size);
+	random_characters_pool->values = (char *) calloc(sizeof (char), n_random_characters + 1); /* This will be a C string, so +1 for terminating NUL. */
+	cte->assert2(cte, random_characters_pool->values, "second calloc() failed\n");
 
 
 	for (size_t i = 0; i < n_random_characters; i++) {
@@ -770,11 +761,11 @@ cw_send_speeds * cw_send_speeds_new_constant(cw_test_executor_t * cte, size_t n,
 {
 	cte->assert2(cte, variation_params->speed > 0, "generate speeds constant: speed must be larger than zero\n");
 
-	cw_send_speeds * speeds = (cw_send_speeds *) malloc(sizeof (cw_send_speeds));
-	cte->assert2(cte, speeds, "%s: first malloc() failed\n", __func__);
+	cw_send_speeds * speeds = (cw_send_speeds *) calloc(sizeof (cw_send_speeds), 1);
+	cte->assert2(cte, speeds, "%s: first calloc() failed\n", __func__);
 
-	speeds->values = (float *) malloc(n * sizeof (float));
-	cte->assert2(cte, speeds, "%s: second malloc() failed\n", __func__);
+	speeds->values = (float *) calloc(sizeof (float), n);
+	cte->assert2(cte, speeds, "%s: second calloc() failed\n", __func__);
 
 	speeds->n_speeds = n;
 
@@ -809,11 +800,11 @@ cw_send_speeds * cw_send_speeds_new_varying_sine(cw_test_executor_t * cte, size_
 	cte->assert2(cte, variation_params->speed_max > 0, "generate speeds varying: speed_max must be larger than zero\n");
 	cte->assert2(cte, variation_params->speed_min <= variation_params->speed_max, "generate speeds varying: speed_min can't be larger than speed_max\n");
 
-	cw_send_speeds * speeds = (cw_send_speeds *) malloc(sizeof (cw_send_speeds));
-	cte->assert2(cte, speeds, "%s: first malloc() failed\n", __func__);
+	cw_send_speeds * speeds = (cw_send_speeds *) calloc(sizeof (cw_send_speeds), 1);
+	cte->assert2(cte, speeds, "%s: first calloc() failed\n", __func__);
 
-	speeds->values = (float *) malloc(n * sizeof (float));
-	cte->assert2(cte, speeds, "%s: second malloc() failed\n", __func__);
+	speeds->values = (float *) calloc(sizeof (float), n);
+	cte->assert2(cte, speeds, "%s: second calloc() failed\n", __func__);
 
 	for (size_t i = 0; i < n; i++) {
 
@@ -1010,10 +1001,7 @@ cw_rec_test_vector * cw_rec_test_vector_factory(cw_test_executor_t * cte, charac
 
 cw_rec_test_point * cw_rec_test_point_new(__attribute__((unused)) cw_test_executor_t * cte)
 {
-	cw_rec_test_point * point = (cw_rec_test_point *) malloc(sizeof (cw_rec_test_point));
-	memset(point, 0, sizeof (*point));
-
-	return point;
+	return (cw_rec_test_point *) calloc(sizeof (cw_rec_test_point), 1);
 }
 
 
@@ -1042,13 +1030,11 @@ void cw_rec_test_point_delete(cw_rec_test_point ** point)
 
 cw_rec_test_vector * cw_rec_test_vector_new(cw_test_executor_t * cte, size_t n)
 {
-	cw_rec_test_vector * vec = (cw_rec_test_vector *) malloc(sizeof (cw_rec_test_vector));
-	cte->assert2(cte, vec, "generate data: malloc() failed\n");
-	memset(vec, 0, sizeof (cw_rec_test_vector));
+	cw_rec_test_vector * vec = (cw_rec_test_vector *) calloc(sizeof (cw_rec_test_vector), 1);
+	cte->assert2(cte, vec, "%s: first calloc() failed\n", __func__);
 
-	vec->points = (cw_rec_test_point **) malloc(n * sizeof (cw_rec_test_point *));
-	cte->assert2(cte, vec->points, "generate data: malloc() failed\n");
-	memset(vec->points, 0, sizeof (*(vec->points)));
+	vec->points = (cw_rec_test_point **) calloc(sizeof (cw_rec_test_point *), n);
+	cte->assert2(cte, vec->points, "%s: second calloc() failed\n", __func__);
 
 	for (size_t i = 0; i < n; i++) {
 		vec->points[i] = cw_rec_test_point_new(cte);
