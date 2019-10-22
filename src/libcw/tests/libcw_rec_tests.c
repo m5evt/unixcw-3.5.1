@@ -45,6 +45,20 @@
 
 
 
+typedef struct cw_variation_params {
+	/* For functions generating constant send speeds. */
+	int speed;
+
+	/* For functions generating varying send speeds. */
+	int speed_min;
+	int speed_max;
+
+	/* For... something. */
+	int fuzz_percent;
+} cw_variation_params;
+
+
+
 
 /* Data type describing sending speeds, at which test characters will
    be sent to receiver. */
@@ -52,10 +66,10 @@ typedef struct cw_send_speeds {
 	float * values;
 	size_t n_speeds;
 } cw_send_speeds;
-static cw_send_speeds * cw_send_speeds_new1(cw_test_executor_t * cte, size_t n, int speed_min, int speed_max);
-static cw_send_speeds * cw_send_speeds_new2(cw_test_executor_t * cte, size_t n, int speed_min, int speed_max);
+static cw_send_speeds * cw_send_speeds_new_constant(cw_test_executor_t * cte, size_t n, const cw_variation_params * variation_params);
+static cw_send_speeds * cw_send_speeds_new_varying_sine(cw_test_executor_t * cte, size_t n, const cw_variation_params * variation_params);
 static void cw_send_speeds_delete(cw_send_speeds ** speeds);
-
+typedef cw_send_speeds * (* send_speeds_maker_t)(cw_test_executor_t *, size_t n, const cw_variation_params * variation_params);
 
 
 
@@ -67,6 +81,8 @@ typedef struct cw_characters_pool {
 static cw_characters_pool * cw_characters_pool_new_basic(cw_test_executor_t * cte);
 static cw_characters_pool * cw_characters_pool_new_random(cw_test_executor_t * cte);
 static void cw_characters_pool_delete(cw_characters_pool ** characters_pool);
+typedef cw_characters_pool * (* characters_pool_maker_t)(cw_test_executor_t *);
+
 
 
 
@@ -92,10 +108,7 @@ typedef struct cw_rec_test_vector {
 } cw_rec_test_vector;
 static cw_rec_test_vector * cw_rec_test_vector_new(cw_test_executor_t * cte, size_t n);
 static void cw_rec_test_vector_delete(cw_rec_test_vector ** vec);
-static cw_rec_test_vector * cw_rec_test_vector_factory(cw_test_executor_t * cte, const cw_characters_pool * characters_pool, cw_send_speeds * send_speeds, int fuzz_percent);
-static cw_rec_test_vector * cw_rec_generate_vector_basic_constant(cw_test_executor_t * cte, int speed, int fuzz_percent);
-static cw_rec_test_vector * cw_rec_generate_vector_random_constant(cw_test_executor_t * cte, int speed_min, int speed_max, int fuzz_percent);
-static cw_rec_test_vector * cw_rec_generate_vector_random_varying(cw_test_executor_t * cte, int speed_min, int speed_max, int fuzz_percent);
+static cw_rec_test_vector * cw_rec_test_vector_factory(cw_test_executor_t * cte, characters_pool_maker_t characters_pool_maker, send_speeds_maker_t send_speeds_maker, const cw_variation_params * variation_params);
 __attribute__((unused)) static void cw_rec_test_vector_print(cw_test_executor_t * cte, cw_rec_test_vector * vec);
 static bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec_test_vector * vec);
 
@@ -211,35 +224,75 @@ int test_cw_rec_identify_mark_internal(cw_test_executor_t * cte)
 
   This function is used to test receiver with test data set guaranteed to contain all characters supported by libcw.
 */
-int test_cw_rec_test_with_base_constant(cw_test_executor_t * cte)
+int test_cw_rec_test_with_constant_speeds(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
+	struct {
+		const char * name;
+		characters_pool_maker_t char_pool_maker;
+		send_speeds_maker_t send_speeds_maker;
+	} test_input[] = {
+		{
+			/* All characters supported by libcw.  Don't
+			   use get_characters_random(): for this test
+			   get a small table of all characters
+			   supported by libcw. This should be a quick
+			   test, and it should cover all
+			   characters.
+
+			   Fixed speed receive mode - speed is
+			   constant for all characters.
+			*/
+			"basic/constant", cw_characters_pool_new_basic, cw_send_speeds_new_constant
+		},
+		{
+			/* Fixed speed receive mode - speed is
+			   constant for all characters. */
+			"random/constant", cw_characters_pool_new_random, cw_send_speeds_new_constant
+		},
+		{
+			NULL, NULL, NULL
+		}
+	};
+
 	cw_rec_t * rec = cw_rec_new();
-	cte->assert2(cte, rec, "begin/end: base/constant: failed to create new receiver\n");
+	cte->assert2(cte, rec, "begin/end: failed to create new receiver\n");
 
+	int m = 0;
+	while (test_input[m].name) {
+		for (int speed = CW_SPEED_MIN; speed <= CW_SPEED_MAX; speed++) {
 
-	for (int speed = CW_SPEED_MIN; speed <= CW_SPEED_MAX; speed++) {
-		cw_rec_test_vector * vec = cw_rec_generate_vector_basic_constant(cte, speed, 0);
-		// cw_rec_test_vector_print(cte, vec);
+			const cw_variation_params variation_params = { .speed = speed, .speed_min = 0, .speed_max = 0, .fuzz_percent = 0 };
 
-		/* Reset. */
-		cw_rec_reset_statistics(rec);
-		cw_rec_reset_state(rec);
+			/* Generate timing data for given set of characters, each
+			   character is sent with speed dictated by speeds[]. */
+			cw_rec_test_vector * vec = cw_rec_test_vector_factory(cte,
+									      test_input[m].char_pool_maker,
+									      test_input[m].send_speeds_maker,
+									      &variation_params);
+			cte->assert2(cte, vec, "failed to generate test vector for test %s\n", test_input[m].name);
+			cw_rec_test_vector_print(cte, vec);
 
-		cw_rec_set_speed(rec, speed);
-		cw_rec_disable_adaptive_mode(rec);
+			/* Reset. */
+			cw_rec_reset_statistics(rec);
+			cw_rec_reset_state(rec);
 
-		/* Make sure that the test speed has been set correctly. */
-		float diff = cw_rec_get_speed(rec) - (float) speed;
-		cte->assert2(cte, diff < 0.1, "begin/end: base/constant: %f != %f\n",  cw_rec_get_speed(rec), (float) speed);
-		// cte->expect_op_int(cte, ); // TODO: implement
+			cw_rec_set_speed(rec, speed);
+			cw_rec_disable_adaptive_mode(rec);
 
-		/* Actual tests of receiver functions are here. */
-		bool failure = test_cw_rec_test_begin_end(cte, rec, vec);
-		cte->expect_op_int(cte, false, "==", failure, 1, "begin/end: base/constant @ %02d [wpm]:", speed);
+			/* Verify that the test speed has been set correctly. */
+			float diff = cw_rec_get_speed(rec) - (float) speed;
+			cte->assert2(cte, diff < 0.1, "begin/end: %s: %f != %f\n", test_input[m].name, cw_rec_get_speed(rec), (float) speed);
+			// cte->expect_op_int(cte, ); // TODO: implement
 
-		cw_rec_test_vector_delete(&vec);
+			/* Actual tests of receiver functions are here. */
+			bool failure = test_cw_rec_test_begin_end(cte, rec, vec);
+			cte->expect_op_int(cte, false, "==", failure, 1, "begin/end: %s @ %02d [wpm]:", test_input[m].name, speed);
+
+			cw_rec_test_vector_delete(&vec);
+		}
+		m++;
 	}
 
 	cw_rec_delete(&rec);
@@ -530,96 +583,6 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec
 
 
 /*
-  Generate small test data set.
-
-  Characters: base (all characters supported by libcw, occurring only once in the data set, in ordered fashion).
-  Send speeds: constant (each character will be sent to receiver at the same, constant speed).
-
-  This function is used to generate a data set guaranteed to contain all characters supported by libcw.
-*/
-cw_rec_test_vector * cw_rec_generate_vector_basic_constant(cw_test_executor_t * cte, int speed, int fuzz_percent)
-{
-	/* All characters supported by libcw.  Don't use
-	   get_characters_random(): for this test get a small table of
-	   all characters supported by libcw. This should be a quick
-	   test, and it should cover all characters. */
-	cw_characters_pool * characters_pool = cw_characters_pool_new_basic(cte);
-	cte->assert2(cte, characters_pool, "new base data fixed: cw_characters_pool_new_basic() failed\n");
-
-
-	/* Fixed speed receive mode - speed is constant for all
-	   characters. */
-	cw_send_speeds * send_speeds = cw_send_speeds_new1(cte, characters_pool->n_characters, speed, speed);
-	cte->assert2(cte, send_speeds, "new base data fixed: cw_send_speeds_new1() failed\n");
-
-
-	/* Generate timing data for given set of characters, each
-	   character is sent with speed dictated by speeds[]. */
-	cw_rec_test_vector * vec = cw_rec_test_vector_factory(cte, characters_pool, send_speeds, fuzz_percent);
-	cte->assert2(cte, vec, "failed to generate base/fixed test data\n");
-
-
-	cw_characters_pool_delete(&characters_pool);
-	cw_send_speeds_delete(&send_speeds);
-
-	return vec;
-}
-
-
-
-
-
-/*
-  Test a receiver with data set that has following characteristics:
-
-  Characters: random (all characters supported by libcw + inter-word space, occurring once or more in the data set, in random fashion).
-  Send speeds: constant (each character will be sent to receiver at the same, constant speed).
-
-  This function is used to test receiver with very large test data set.
-*/
-int test_cw_rec_test_with_random_constant(cw_test_executor_t * cte)
-{
-	cte->print_test_header(cte, __func__);
-
-	cw_rec_t * rec = cw_rec_new();
-	cte->assert2(cte, rec, "begin/end: random/constant: failed to create new receiver\n");
-
-
-	for (int speed = CW_SPEED_MIN; speed <= CW_SPEED_MAX; speed++) {
-		cw_rec_test_vector * vec = cw_rec_generate_vector_random_constant(cte, speed, speed, 0);
-		// cw_rec_test_vector_print(cte, vec);
-
-		/* Reset. */
-		cw_rec_reset_statistics(rec);
-		cw_rec_reset_state(rec);
-
-		cw_rec_set_speed(rec, speed);
-		cw_rec_disable_adaptive_mode(rec);
-
-		/* Verify that test speed has been set correctly. */
-		float diff = cw_rec_get_speed(rec) - speed;
-		cte->assert2(cte, diff < 0.1, "begin/end: random/constant: incorrect receive speed: %f != %f\n", cw_rec_get_speed(rec), (float) speed);
-		// cte->expect_op_int(cte, );  // TODO: implement
-
-		/* Actual tests of receiver functions are here. */
-		bool failure = test_cw_rec_test_begin_end(cte, rec, vec);
-		cte->expect_op_int(cte, false, "==", failure, 1, "begin/end: random/constant @ %02d [wpm]:", speed);
-
-		cw_rec_test_vector_delete(&vec);
-	}
-
-	cw_rec_delete(&rec);
-
-	cte->print_test_footer(cte, __func__);
-
-	return 0;
-}
-
-
-
-
-
-/*
   Test a receiver with data set that has following characteristics:
 
   Characters: random (all characters supported by libcw + inter-word space, occurring once or more in the data set, in random fashion).
@@ -627,11 +590,20 @@ int test_cw_rec_test_with_random_constant(cw_test_executor_t * cte)
 
   This function is used to test receiver with very large test data set.
 */
-int test_cw_rec_test_with_random_varying(cw_test_executor_t * cte)
+int test_cw_rec_test_with_varying_speeds(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
-	cw_rec_test_vector * vec = cw_rec_generate_vector_random_varying(cte, CW_SPEED_MIN, CW_SPEED_MAX, 0);
+	cw_variation_params variation_params = { .speed = 0, .speed_min = CW_SPEED_MIN, .speed_max = CW_SPEED_MAX, .fuzz_percent = 0 };
+
+	/* Generate timing data for given set of characters, each
+	   character is sent with varying speed from range
+	   speed_min-speed_max. */
+	cw_rec_test_vector * vec = cw_rec_test_vector_factory(cte,
+							      cw_characters_pool_new_random,
+							      cw_send_speeds_new_varying_sine, /* Adaptive speed receive mode - speed varies for all characters. */
+							      &variation_params);
+	cte->assert2(cte, vec, "failed to generate random/varying test data\n");
 	// cw_rec_test_vector_print(cte, vec);
 
 	cw_rec_t * rec = cw_rec_new();
@@ -665,73 +637,6 @@ int test_cw_rec_test_with_random_varying(cw_test_executor_t * cte)
 
 
 
-
-/*
-  Generate large test data set.
-
-  Characters: random (all characters supported by libcw + inter-word space, occurring once or more in the data set, in random fashion).
-  Send speeds: constant (each character will be sent to receiver at the same, constant speed).
-
-  This function is used to generate a large test data set.
-*/
-cw_rec_test_vector * cw_rec_generate_vector_random_constant(cw_test_executor_t * cte, int speed_min, int speed_max, int fuzz_percent)
-{
-	cw_characters_pool * characters_pool = cw_characters_pool_new_random(cte);
-	cte->assert2(cte, characters_pool, "cw_characters_pool_new_random() failed\n");
-
-	/* Fixed speed receive mode - speed is constant for all characters. */
-	cw_send_speeds * send_speeds = cw_send_speeds_new1(cte, characters_pool->n_characters, speed_min, speed_max);
-	cte->assert2(cte, send_speeds, "cw_send_speeds_new1() failed\n");
-
-	/* Generate timing data for given set of characters, each
-	   character is sent with speed dictated by speeds[]. */
-	cw_rec_test_vector * vec = cw_rec_test_vector_factory(cte, characters_pool, send_speeds, fuzz_percent);
-	cte->assert2(cte, vec, "random/constant: failed to generate test vector\n");
-
-	cw_characters_pool_delete(&characters_pool);
-	cw_send_speeds_delete(&send_speeds);
-
-	return vec;
-}
-
-
-
-
-
-/*
-  Generate large test data set.
-
-  Characters: random (all characters supported by libcw + inter-word space, occurring once or more in the data set, in random fashion).
-  Send speeds: constant (each character will be sent to receiver at the same, constant speed).
-
-  This function is used to generate a large test data set.
-*/
-cw_rec_test_vector * cw_rec_generate_vector_random_varying(cw_test_executor_t * cte, int speed_min, int speed_max, int fuzz_percent)
-{
-	cw_characters_pool * characters_pool = cw_characters_pool_new_random(cte);
-	cte->assert2(cte, characters_pool, "begin/end: cw_characters_pool_new_random() failed\n");
-
-	/* Adaptive speed receive mode - speed varies for all
-	   characters. */
-	cw_send_speeds * send_speeds = cw_send_speeds_new2(cte, characters_pool->n_characters, speed_min, speed_max);
-	cte->assert2(cte, send_speeds, "cw_send_speeds_new2() failed\n");
-
-
-	/* Generate timing data for given set of characters, each
-	   character is sent with speed dictated by speeds[]. */
-	cw_rec_test_vector * vec = cw_rec_test_vector_factory(cte, characters_pool, send_speeds, fuzz_percent);
-	cte->assert2(cte, vec, "failed to generate random/varying test data\n");
-
-
-	cw_characters_pool_delete(&characters_pool);
-	cw_send_speeds_delete(&send_speeds);
-
-	return vec;
-}
-
-
-
-
 /**
    \brief Get a string with all characters supported by libcw
 
@@ -744,13 +649,13 @@ cw_characters_pool * cw_characters_pool_new_basic(cw_test_executor_t * cte)
 	const int n = cw_get_character_count();
 
 	cw_characters_pool * characters_pool = (cw_characters_pool *) malloc(sizeof (cw_characters_pool));
-	cte->assert2(cte, characters_pool, "first malloc() failed\n");
+	cte->assert2(cte, characters_pool, "%s: first malloc() failed\n", __func__);
 	memset(characters_pool, 0, sizeof (cw_characters_pool));
 
 
 	const size_t values_size = (n + 1) * sizeof (char); /* This will be a C string, so +1 for terminating NUL. */
 	characters_pool->values = (char *) malloc(values_size);
-	cte->assert2(cte, characters_pool, "second malloc() failed\n");
+	cte->assert2(cte, characters_pool, "%s: second malloc() failed\n", __func__);
 	memset(characters_pool->values, 0, values_size);
 
 
@@ -786,7 +691,6 @@ cw_characters_pool * cw_characters_pool_new_random(cw_test_executor_t * cte)
 	   by libcw) as an input for generating random characters
 	   pool. */
 	cw_characters_pool * basic_characters_pool = cw_characters_pool_new_basic(cte);
-	cte->assert2(cte, basic_characters_pool, "cw_characters_pool_new_basic() failed\n");
 	const size_t n_basic_characters = basic_characters_pool->n_characters;
 
 
@@ -862,22 +766,22 @@ void cw_characters_pool_delete(cw_characters_pool ** characters_pool)
 
    \return wrapper object for table of speeds of constant value
 */
-cw_send_speeds * cw_send_speeds_new1(cw_test_executor_t * cte, size_t n, int speed_min, __attribute__((unused)) int speed_max)
+cw_send_speeds * cw_send_speeds_new_constant(cw_test_executor_t * cte, size_t n, const cw_variation_params * variation_params)
 {
-	cte->assert2(cte, speed_min > 0, "generate speeds constant: speed must be larger than zero\n");
+	cte->assert2(cte, variation_params->speed > 0, "generate speeds constant: speed must be larger than zero\n");
 
 	cw_send_speeds * speeds = (cw_send_speeds *) malloc(sizeof (cw_send_speeds));
-	cte->assert2(cte, speeds, "creating send speeds: first malloc() failed\n");
+	cte->assert2(cte, speeds, "%s: first malloc() failed\n", __func__);
 
 	speeds->values = (float *) malloc(n * sizeof (float));
-	cte->assert2(cte, speeds, "creating send speeds: second malloc() failed\n");
+	cte->assert2(cte, speeds, "%s: second malloc() failed\n", __func__);
 
 	speeds->n_speeds = n;
 
 	for (size_t i = 0; i < speeds->n_speeds; i++) {
 		/* Fixed speed receive mode - speed values are constant for
 		   all characters. */
-		speeds->values[i] = (float) speed_min;
+		speeds->values[i] = (float) variation_params->speed;
 	}
 
 	return speeds;
@@ -899,28 +803,28 @@ cw_send_speeds * cw_send_speeds_new1(cw_test_executor_t * cte, size_t n, int spe
 
    \return wrapper object for table of speeds
 */
-cw_send_speeds * cw_send_speeds_new2(cw_test_executor_t * cte, size_t n, int speed_min, int speed_max)
+cw_send_speeds * cw_send_speeds_new_varying_sine(cw_test_executor_t * cte, size_t n, const cw_variation_params * variation_params)
 {
-	cte->assert2(cte, speed_min > 0, "generate speeds varying: speed_min must be larger than zero\n");
-	cte->assert2(cte, speed_max > 0, "generate speeds varying: speed_max must be larger than zero\n");
-	cte->assert2(cte, speed_min <= speed_max, "generate speeds varying: speed_min can't be larger than speed_max\n");
+	cte->assert2(cte, variation_params->speed_min > 0, "generate speeds varying: speed_min must be larger than zero\n");
+	cte->assert2(cte, variation_params->speed_max > 0, "generate speeds varying: speed_max must be larger than zero\n");
+	cte->assert2(cte, variation_params->speed_min <= variation_params->speed_max, "generate speeds varying: speed_min can't be larger than speed_max\n");
 
 	cw_send_speeds * speeds = (cw_send_speeds *) malloc(sizeof (cw_send_speeds));
-	cte->assert2(cte, speeds, "generate speeds varying: first malloc() failed\n");
+	cte->assert2(cte, speeds, "%s: first malloc() failed\n", __func__);
 
 	speeds->values = (float *) malloc(n * sizeof (float));
-	cte->assert2(cte, speeds, "generate speeds varying: second malloc() failed\n");
+	cte->assert2(cte, speeds, "%s: second malloc() failed\n", __func__);
 
 	for (size_t i = 0; i < n; i++) {
 
 		/* Adaptive speed receive mode - speed varies for all
 		   characters. */
 
-		float t = (1.0 * i) / n;
+		const float t = (1.0 * i) / n;
 
-		speeds->values[i] = (1 + cosf(2 * 3.1415 * t)) / 2.0; /* 0.0 -  1.0 */
-		speeds->values[i] *= (speed_max - speed_min);         /* 0.0 - 56.0 */
-		speeds->values[i] += speed_min;                       /* 4.0 - 60.0 */
+		speeds->values[i] = (1 + cosf(2 * 3.1415 * t)) / 2.0;                             /* 0.0 -  1.0 */
+		speeds->values[i] *= (variation_params->speed_max - variation_params->speed_min); /* 0.0 - 56.0 */
+		speeds->values[i] += variation_params->speed_min;                                 /* 4.0 - 60.0 */
 
 		// fprintf(stderr, "%f\n", speeds->values[i]);
 	}
@@ -991,10 +895,13 @@ void cw_send_speeds_delete(cw_send_speeds ** speeds)
 
    \return table of timing data sets
 */
-cw_rec_test_vector * cw_rec_test_vector_factory(cw_test_executor_t * cte, const cw_characters_pool * characters_pool, cw_send_speeds * send_speeds, __attribute__((unused)) int fuzz_percent)
+cw_rec_test_vector * cw_rec_test_vector_factory(cw_test_executor_t * cte, characters_pool_maker_t characters_pool_maker, send_speeds_maker_t send_speeds_maker, const cw_variation_params * variation_params)
 {
-	const size_t n = characters_pool->n_characters;
+	cw_characters_pool * characters_pool = characters_pool_maker(cte);
+	cw_send_speeds * send_speeds = send_speeds_maker(cte, characters_pool->n_characters, variation_params);
 
+
+	const size_t n = characters_pool->n_characters;
 	cw_rec_test_vector * vec = cw_rec_test_vector_new(cte, n);
 
 
@@ -1030,8 +937,8 @@ cw_rec_test_vector * cw_rec_test_vector_factory(cw_test_executor_t * cte, const 
 		point->character = characters_pool->values[in];
 		point->representation = cw_character_to_representation(point->character);
 		cte->assert2(cte, point->representation,
-			   "generate data: cw_character_to_representation() failed for input char #%zu: '%c'\n",
-			   in, characters_pool->values[in]);
+			     "generate data: cw_character_to_representation() failed for input char #%zu: '%c'\n",
+			     in, characters_pool->values[in]);
 		point->send_speed = send_speeds->values[in];
 
 
@@ -1089,6 +996,10 @@ cw_rec_test_vector * cw_rec_test_vector_factory(cw_test_executor_t * cte, const 
 
 		out++;
 	}
+
+
+	cw_characters_pool_delete(&characters_pool);
+	cw_send_speeds_delete(&send_speeds);
 
 
 	return vec;
