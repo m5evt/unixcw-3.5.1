@@ -1362,9 +1362,9 @@ int test_cw_rec_parameter_getters_setters_2(cw_test_executor_t * cte)
 		{ NULL,                     NULL,                  NULL,                  0,                 0,                 0,            0,           NULL            }
 	};
 
-	bool get_failure = true;
-	bool set_min_failure = true;
-	bool set_max_failure = true;
+	bool get_failure = false;
+	bool set_min_failure = false;
+	bool set_max_failure = false;
 	bool set_ok_failure = false;
 
 
