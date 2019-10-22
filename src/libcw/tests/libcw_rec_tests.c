@@ -71,19 +71,24 @@ static void cw_characters_pool_delete(cw_characters_pool ** characters_pool);
 
 
 #define TEST_CW_REC_DATA_LEN_MAX 30 /* There is no character that would have that many time points corresponding to a representation. */
-typedef struct cw_rec_test_char {
+typedef struct cw_rec_test_point {
 	char character;                         /* Character that is being sent to receiver. */
 	char * representation;                  /* Character's representation (dots and dashes). */
 	int tone_durations[TEST_CW_REC_DATA_LEN_MAX];  /* Character's representation's times - time information for marks and spaces. */
-	int n_tone_durations;                          /* Number of data points encoding given representation of given character. */
+	size_t n_tone_durations;                /* Number of duration values encoding given representation of given character. */
 	float send_speed;                       /* Send speed (speed at which the character is incoming). */
 
 	bool is_last_in_word;                   /* Is this character a last character in a word? (is it followed by end-of-word space?) */
-} cw_rec_test_char;
+} cw_rec_test_point;
+static cw_rec_test_point * cw_rec_test_point_new(cw_test_executor_t * cte);
+static void cw_rec_test_point_delete(cw_rec_test_point ** point);
+
+
+
 
 typedef struct cw_rec_test_vector {
-	cw_rec_test_char ** values;
-	size_t n_characters;
+	cw_rec_test_point ** points;
+	size_t n_points;
 } cw_rec_test_vector;
 static cw_rec_test_vector * cw_rec_test_vector_new(cw_test_executor_t * cte, size_t n);
 static void cw_rec_test_vector_delete(cw_rec_test_vector ** vec);
@@ -91,7 +96,7 @@ static cw_rec_test_vector * cw_rec_test_vector_factory(cw_test_executor_t * cte,
 static cw_rec_test_vector * cw_rec_generate_vector_basic_constant(cw_test_executor_t * cte, int speed, int fuzz_percent);
 static cw_rec_test_vector * cw_rec_generate_vector_random_constant(cw_test_executor_t * cte, int speed_min, int speed_max, int fuzz_percent);
 static cw_rec_test_vector * cw_rec_generate_vector_random_varying(cw_test_executor_t * cte, int speed_min, int speed_max, int fuzz_percent);
-__attribute__((unused)) static void cw_rec_test_vector_print(cw_rec_test_vector * vec);
+__attribute__((unused)) static void cw_rec_test_vector_print(cw_test_executor_t * cte, cw_rec_test_vector * vec);
 static bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec_test_vector * vec);
 
 
@@ -216,7 +221,7 @@ int test_cw_rec_test_with_base_constant(cw_test_executor_t * cte)
 
 	for (int speed = CW_SPEED_MIN; speed <= CW_SPEED_MAX; speed++) {
 		cw_rec_test_vector * vec = cw_rec_generate_vector_basic_constant(cte, speed, 0);
-		// cw_rec_test_vector_print(vec);
+		// cw_rec_test_vector_print(cte, vec);
 
 		/* Reset. */
 		cw_rec_reset_statistics(rec);
@@ -280,11 +285,13 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec
 	bool match_character_failure = false;
 	bool empty_failure = false;
 
-	for (size_t i = 0; i < vec->n_characters; i++) {
+	for (size_t i = 0; i < vec->n_points; i++) {
+
+		cw_rec_test_point * point = vec->points[i];
 
 #ifdef LIBCW_UNIT_TESTS_VERBOSE
 		printf("\n" "begin/end: input test data #%d: <%c> / <%s> @ %.2f [wpm] (%d time values)\n",
-		       i, vec->values[i].character, vec->values[i].r, vec->values[i].s, vec->values[i].n_tone_durations);
+		       i, point->character, point->r, point->s, point->n_tone_durations);
 #endif
 
 #if 0 /* Should we remove it? */
@@ -312,7 +319,7 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec
 		   every following event is calculated by iterating
 		   over tone lengths specified in data table. */
 		int tone;
-		for (tone = 0; vec->values[i]->tone_durations[tone] > 0; tone++) {
+		for (tone = 0; point->tone_durations[tone] > 0; tone++) {
 			begin_end_failure = false;
 
 			if (tone % 2) {
@@ -329,7 +336,7 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec
 				}
 			}
 
-			tv.tv_usec += vec->values[i]->tone_durations[tone];
+			tv.tv_usec += point->tone_durations[tone];
 			if (tv.tv_usec >= CW_USECS_PER_SEC) {
 				/* Moving event to next second. */
 				tv.tv_sec += tv.tv_usec / CW_USECS_PER_SEC;
@@ -355,9 +362,9 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec
 		   to receiver's buffer. */
 		{
 			int n = cw_rec_get_buffer_length_internal(rec);
-			buffer_length_failure = (n != (int) strlen(vec->values[i]->representation));
+			buffer_length_failure = (n != (int) strlen(point->representation));
 
-			if (!cte->expect_op_int(cte, false, "==", buffer_length_failure, 1, "begin/end: cw_rec_get_buffer_length_internal(<nonempty>): %d != %zd\n", n, strlen(vec->values[i]->representation))) {
+			if (!cte->expect_op_int(cte, false, "==", buffer_length_failure, 1, "begin/end: cw_rec_get_buffer_length_internal(<nonempty>): %d != %zd\n", n, strlen(point->representation))) {
 				buffer_length_failure = true;
 				break;
 			}
@@ -396,8 +403,8 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec
 				break;
 			}
 
-			const int strcmp_result = strcmp(representation, vec->values[i]->representation);
-			if (!cte->expect_op_int(cte, 0, "==", strcmp_result, 1, "being/end: polled representation does not match test representation: \"%s\" != \"%s\"\n", representation, vec->values[i]->representation)) {
+			const int strcmp_result = strcmp(representation, point->representation);
+			if (!cte->expect_op_int(cte, 0, "==", strcmp_result, 1, "being/end: polled representation does not match test representation: \"%s\" != \"%s\"\n", representation, point->representation)) {
 				match_representation_failure = true;
 				break;
 			}
@@ -414,13 +421,13 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec
 			   is_last_in_word), then is_word should be
 			   set by poll() to true. Otherwise both
 			   values should be false. */
-			word_representation_failure = (is_word != vec->values[i]->is_last_in_word);
+			word_representation_failure = (is_word != point->is_last_in_word);
 			// cte->expect_op_int(cte, ); // TODO: implement
 			if (word_representation_failure) {
 				fprintf(out_file, "begin/end: poll representation: 'is_word' flag error: function returns '%d', data is tagged with '%d'\n" \
 					"'%c'  '%c'  '%c'  '%c'  '%c'",
-					is_word, vec->values[i]->is_last_in_word,
-					vec->values[i - 2]->character, vec->values[i - 1]->character, vec->values[i]->character, vec->values[i + 1]->character, vec->values[i + 2]->character);
+					is_word, point->is_last_in_word,
+					vec->points[i - 2]->character, vec->points[i - 1]->character, vec->points[i]->character, vec->points[i + 1]->character, vec->points[i + 2]->character);
 				break;
 			}
 
@@ -428,10 +435,10 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec
 			/* Debug code. Print times of character with
 			   end-of-word space to verify length of the
 			   space. */
-			if (vec->values[i]->is_last_in_word) {
-				fprintf(stderr, "------- character '%c' is last in word\n", vec->values[i]->character);
-				for (int m = 0; m < vec->values[i]->n_tone_durations; m++) {
-					fprintf(stderr, "#%d: %d\n", m, vec->values[i]->d[m]);
+			if (point->is_last_in_word) {
+				fprintf(stderr, "------- character '%c' is last in word\n", point->character);
+				for (int m = 0; m < point->n_tone_durations; m++) {
+					fprintf(stderr, "#%d: %d\n", m, point->d[m]);
 				}
 			}
 #endif
@@ -454,7 +461,7 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec
 				poll_character_failure = true;
 				break;
 			}
-			if (!cte->expect_op_int(cte, vec->values[i]->character, "==", c, 1, "begin/end: polled character does not match test character: '%c' != '%c'\n", c, vec->values[i]->character)) {
+			if (!cte->expect_op_int(cte, point->character, "==", c, 1, "begin/end: polled character does not match test character: '%c' != '%c'\n", c, point->character)) {
 				match_character_failure = true;
 				break;
 			}
@@ -580,7 +587,7 @@ int test_cw_rec_test_with_random_constant(cw_test_executor_t * cte)
 
 	for (int speed = CW_SPEED_MIN; speed <= CW_SPEED_MAX; speed++) {
 		cw_rec_test_vector * vec = cw_rec_generate_vector_random_constant(cte, speed, speed, 0);
-		// cw_rec_test_vector_print(vec);
+		// cw_rec_test_vector_print(cte, vec);
 
 		/* Reset. */
 		cw_rec_reset_statistics(rec);
@@ -625,7 +632,7 @@ int test_cw_rec_test_with_random_varying(cw_test_executor_t * cte)
 	cte->print_test_header(cte, __func__);
 
 	cw_rec_test_vector * vec = cw_rec_generate_vector_random_varying(cte, CW_SPEED_MIN, CW_SPEED_MAX, 0);
-	// cw_rec_test_vector_print(vec);
+	// cw_rec_test_vector_print(cte, vec);
 
 	cw_rec_t * rec = cw_rec_new();
 	cte->assert2(cte, rec, "begin/end: random/varying: failed to create new receiver\n");
@@ -1007,23 +1014,25 @@ cw_rec_test_vector * cw_rec_test_vector_factory(cw_test_executor_t * cte, const 
 			   character, we want to turn end-of-char
 			   space of previous character into
 			   end-of-word space, hence 'out - 1'. */
-			int space_i = vec->values[out - 1]->n_tone_durations - 1;    /* Index of last space (end-of-char, to become end-of-word). */
-			vec->values[out - 1]->tone_durations[space_i] = unit_len * 6; /* unit_len * 5 is the minimal end-of-word space. */
+			int space_i = vec->points[out - 1]->n_tone_durations - 1;    /* Index of last space (end-of-char, to become end-of-word). */
+			vec->points[out - 1]->tone_durations[space_i] = unit_len * 6; /* unit_len * 5 is the minimal end-of-word space. */
 
-			vec->values[out - 1]->is_last_in_word = true;
+			vec->points[out - 1]->is_last_in_word = true;
 
 			continue;
 		} else {
 			/* A regular character, handled below. */
 		}
 
+		cw_rec_test_point * point = vec->points[out];
 
-		vec->values[out]->character = characters_pool->values[in];
-		vec->values[out]->representation = cw_character_to_representation(vec->values[out]->character);
-		cte->assert2(cte, vec->values[out]->representation,
+
+		point->character = characters_pool->values[in];
+		point->representation = cw_character_to_representation(point->character);
+		cte->assert2(cte, point->representation,
 			   "generate data: cw_character_to_representation() failed for input char #%zu: '%c'\n",
 			   in, characters_pool->values[in]);
-		vec->values[out]->send_speed = send_speeds->values[in];
+		point->send_speed = send_speeds->values[in];
 
 
 		/* Build table of times (data points) 'd[]' for given
@@ -1032,30 +1041,30 @@ cw_rec_test_vector * cw_rec_test_vector_factory(cw_test_executor_t * cte, const 
 
 		size_t n_tone_durations = 0; /* Number of data points in data table. */
 
-		size_t rep_length = strlen(vec->values[out]->representation);
+		size_t rep_length = strlen(point->representation);
 		for (size_t k = 0; k < rep_length; k++) {
 
 			/* Length of mark. */
-			if (vec->values[out]->representation[k] == CW_DOT_REPRESENTATION) {
-				vec->values[out]->tone_durations[n_tone_durations] = unit_len;
+			if (point->representation[k] == CW_DOT_REPRESENTATION) {
+				point->tone_durations[n_tone_durations] = unit_len;
 
-			} else if (vec->values[out]->representation[k] == CW_DASH_REPRESENTATION) {
-				vec->values[out]->tone_durations[n_tone_durations] = unit_len * 3;
+			} else if (point->representation[k] == CW_DASH_REPRESENTATION) {
+				point->tone_durations[n_tone_durations] = unit_len * 3;
 
 			} else {
-				cte->assert2(cte, 0, "generate data: unknown char in representation: '%c'\n", vec->values[out]->representation[k]);
+				cte->assert2(cte, 0, "generate data: unknown char in representation: '%c'\n", point->representation[k]);
 			}
 			n_tone_durations++;
 
 
 			/* Length of space (inter-mark space). Mark
 			   and space always go in pair. */
-			vec->values[out]->tone_durations[n_tone_durations] = unit_len;
+			point->tone_durations[n_tone_durations] = unit_len;
 			n_tone_durations++;
 		}
 
 		/* Every character has non-zero marks and spaces. */
-		cte->assert2(cte, n_tone_durations > 0, "generate data: number of data points is %zu for representation '%s'\n", n_tone_durations, vec->values[out]->representation);
+		cte->assert2(cte, n_tone_durations > 0, "generate data: number of data points is %zu for representation '%s'\n", n_tone_durations, point->representation);
 
 		/* Mark and space always go in pair, so nd should be even. */
 		cte->assert2(cte, ! (n_tone_durations % 2), "generate data: number of times is not even\n");
@@ -1066,17 +1075,17 @@ cw_rec_test_vector * cw_rec_test_vector_factory(cw_test_executor_t * cte, const 
 
 		/* Graduate that last space (inter-mark space) into
 		   end-of-character space. */
-		vec->values[out]->tone_durations[n_tone_durations - 1] = (unit_len * 3) + (unit_len / 2);
+		point->tone_durations[n_tone_durations - 1] = (unit_len * 3) + (unit_len / 2);
 
 		/* Guard. */
-		vec->values[out]->tone_durations[n_tone_durations] = 0;
+		point->tone_durations[n_tone_durations] = 0;
 
-		vec->values[out]->n_tone_durations = n_tone_durations;
+		point->n_tone_durations = n_tone_durations;
 
 		/* This may be overwritten by this function when a
 		   space character (' ') is encountered in input
 		   string. */
-		vec->values[out]->is_last_in_word = false;
+		point->is_last_in_word = false;
 
 		out++;
 	}
@@ -1088,25 +1097,54 @@ cw_rec_test_vector * cw_rec_test_vector_factory(cw_test_executor_t * cte, const 
 
 
 
+cw_rec_test_point * cw_rec_test_point_new(__attribute__((unused)) cw_test_executor_t * cte)
+{
+	cw_rec_test_point * point = (cw_rec_test_point *) malloc(sizeof (cw_rec_test_point));
+	memset(point, 0, sizeof (*point));
+
+	return point;
+}
+
+
+
+
+void cw_rec_test_point_delete(cw_rec_test_point ** point)
+{
+	if (NULL == point) {
+		return;
+	}
+	if (NULL == *point) {
+		return;
+	}
+	if ((*point)->representation) {
+		free((*point)->representation);
+		(*point)->representation = NULL;
+	}
+	free(*point);
+	*point = NULL;
+
+	return;
+}
+
+
+
+
 cw_rec_test_vector * cw_rec_test_vector_new(cw_test_executor_t * cte, size_t n)
 {
 	cw_rec_test_vector * vec = (cw_rec_test_vector *) malloc(sizeof (cw_rec_test_vector));
 	cte->assert2(cte, vec, "generate data: malloc() failed\n");
 	memset(vec, 0, sizeof (cw_rec_test_vector));
 
-	const size_t values_size = n * sizeof (cw_rec_test_char *);
-	vec->values = (cw_rec_test_char **) malloc(values_size);
-	cte->assert2(cte, vec->values, "generate data: malloc() failed\n");
-	memset(vec->values, 0, values_size);
+	vec->points = (cw_rec_test_point **) malloc(n * sizeof (cw_rec_test_point *));
+	cte->assert2(cte, vec->points, "generate data: malloc() failed\n");
+	memset(vec->points, 0, sizeof (*(vec->points)));
 
 	for (size_t i = 0; i < n; i++) {
-		vec->values[i] = (cw_rec_test_char *) malloc(sizeof (cw_rec_test_char));
-		memset(vec->values[i], 0, sizeof (cw_rec_test_char));
+		vec->points[i] = cw_rec_test_point_new(cte);
 	}
 
 	return vec;
 }
-
 
 
 
@@ -1125,16 +1163,12 @@ void cw_rec_test_vector_delete(cw_rec_test_vector ** vec)
 		return;
 	}
 
-	for (size_t i = 0; i < (*vec)->n_characters; i++) {
-		free((*vec)->values[i]->representation);
-		(*vec)->values[i]->representation = (char *) NULL;
-
-		free((*vec)->values[i]);
-		(*vec)->values[i] = NULL;
+	for (size_t i = 0; i < (*vec)->n_points; i++) {
+		cw_rec_test_point_delete(&(*vec)->points[i]);
 	}
 
-	free((*vec)->values);
-	(*vec)->values = NULL;
+	free((*vec)->points);
+	(*vec)->points = NULL;
 
 	free(*vec);
 	*vec = NULL;
@@ -1151,24 +1185,22 @@ void cw_rec_test_vector_delete(cw_rec_test_vector ** vec)
 
    \param data timing data to be printed
 */
-void cw_rec_test_vector_print(cw_rec_test_vector * vec)
+void cw_rec_test_vector_print(cw_test_executor_t * cte, cw_rec_test_vector * vec)
 {
-	int i = 0;
+	cte->log_info_cont(cte, "---------------------------------------------------------------------------------------------------------------------------------------------------------\n");
+	for (size_t i = 0; i < vec->n_points; i++) {
 
-	fprintf(stderr, "---------------------------------------------------------------------------------------------------------------------------------------------------------\n");
-	while (vec->values[i]->representation) {
+		cw_rec_test_point * point = vec->points[i];
 		/* Debug output. */
 		if (!(i % 10)) {
 			/* Print header. */
-			fprintf(stderr, "char  repr      [wpm]    mark     space      mark     space      mark     space      mark     space      mark     space      mark     space      mark     space\n");
+			cte->log_info_cont(cte, "char  repr      [wpm]    mark     space      mark     space      mark     space      mark     space      mark     space      mark     space      mark     space\n");
 		}
-		fprintf(stderr, "%c     %-7s  %02.2f", vec->values[i]->character, vec->values[i]->representation, vec->values[i]->send_speed);
-		for (int j = 0; j < vec->values[i]->n_tone_durations; j++) {
-			fprintf(stderr, "%9d ", vec->values[i]->tone_durations[j]);
+		cte->log_info_cont(cte, "%c     %-7s  %02.2f", point->character, point->representation, point->send_speed);
+		for (size_t t = 0; t < point->n_tone_durations; t++) {
+			cte->log_info_cont(cte, "%9d ", point->tone_durations[t]);
 		}
-		fprintf(stderr, "\n");
-
-		i++;
+		cte->log_info_cont(cte, "\n");
 	}
 
 	return;
