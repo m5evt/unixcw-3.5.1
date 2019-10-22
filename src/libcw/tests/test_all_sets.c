@@ -166,9 +166,8 @@ cw_test_set_t cw_test_sets[] = {
 			CW_TEST_FUNCTION_INSERT(test_cw_rec_parameter_getters_setters_1),
 			CW_TEST_FUNCTION_INSERT(test_cw_rec_parameter_getters_setters_2),
 			CW_TEST_FUNCTION_INSERT(test_cw_rec_identify_mark_internal),
-			CW_TEST_FUNCTION_INSERT(test_cw_rec_test_with_base_constant),
-			CW_TEST_FUNCTION_INSERT(test_cw_rec_test_with_random_constant),
-			CW_TEST_FUNCTION_INSERT(test_cw_rec_test_with_random_varying),
+			CW_TEST_FUNCTION_INSERT(test_cw_rec_test_with_constant_speeds),
+			CW_TEST_FUNCTION_INSERT(test_cw_rec_test_with_varying_speeds),
 
 #if 0
 			CW_TEST_FUNCTION_INSERT(test_cw_get_receive_parameters),
