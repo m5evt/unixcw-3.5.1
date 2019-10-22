@@ -272,7 +272,7 @@ int test_cw_rec_test_with_constant_speeds(cw_test_executor_t * cte)
 									      test_input[m].send_speeds_maker,
 									      &variation_params);
 			cte->assert2(cte, vec, "failed to generate test vector for test %s\n", test_input[m].name);
-			cw_rec_test_vector_print(cte, vec);
+			// cw_rec_test_vector_print(cte, vec);
 
 			/* Reset. */
 			cw_rec_reset_statistics(rec);
@@ -715,6 +715,7 @@ cw_characters_pool * cw_characters_pool_new_random(cw_test_executor_t * cte)
 	   for "previous char". We couldn't do this for -1st char. */
 	random_characters_pool->values[0] = 'K'; /* Use capital letter. libcw uses capital letters internally. */
 	random_characters_pool->values[n_random_characters] = '\0';
+	random_characters_pool->n_characters = n_random_characters;
 
 	//fprintf(stderr, "%s\n", random_characters_pool->values);
 
@@ -806,6 +807,8 @@ cw_send_speeds * cw_send_speeds_new_varying_sine(cw_test_executor_t * cte, size_
 	speeds->values = (float *) calloc(sizeof (float), n);
 	cte->assert2(cte, speeds, "%s: second calloc() failed\n", __func__);
 
+	speeds->n_speeds = n;
+
 	for (size_t i = 0; i < n; i++) {
 
 		/* Adaptive speed receive mode - speed varies for all
@@ -892,12 +895,12 @@ cw_rec_test_vector * cw_rec_test_vector_factory(cw_test_executor_t * cte, charac
 	cw_send_speeds * send_speeds = send_speeds_maker(cte, characters_pool->n_characters, variation_params);
 
 
-	const size_t n = characters_pool->n_characters;
-	cw_rec_test_vector * vec = cw_rec_test_vector_new(cte, n);
+	const size_t n_characters = characters_pool->n_characters;
+	cw_rec_test_vector * vec = cw_rec_test_vector_new(cte, n_characters);
 
 
 	size_t out = 0; /* For indexing output data table. */
-	for (size_t in = 0; in < n; in++) {
+	for (size_t in = 0; in < n_characters; in++) {
 
 		int unit_len = CW_DOT_CALIBRATION / send_speeds->values[in]; /* Dot length, [us]. Used as basis for other elements. */
 		// fprintf(stderr, "unit_len = %d [us] for speed = %d [wpm]\n", unit_len, speed);
@@ -906,7 +909,8 @@ cw_rec_test_vector * cw_rec_test_vector_factory(cw_test_executor_t * cte, charac
 		/* First handle a special case: end-of-word
 		   space. This long space will be put at the end of
 		   table of time values for previous
-		   representation. */
+		   representation. The space in character pool is
+		   never transformed into separate point in vector. */
 		if (characters_pool->values[in] == ' ') {
 			/* We don't want to affect current output
 			   character, we want to turn end-of-char
@@ -988,6 +992,10 @@ cw_rec_test_vector * cw_rec_test_vector_factory(cw_test_executor_t * cte, charac
 		out++;
 	}
 
+	/* The *real* amount of points in vector (smaller than
+	   n_characters because we have skipped some space
+	   characters). */
+	vec->n_points = out;
 
 	cw_characters_pool_delete(&characters_pool);
 	cw_send_speeds_delete(&send_speeds);
@@ -1035,6 +1043,8 @@ cw_rec_test_vector * cw_rec_test_vector_new(cw_test_executor_t * cte, size_t n)
 
 	vec->points = (cw_rec_test_point **) calloc(sizeof (cw_rec_test_point *), n);
 	cte->assert2(cte, vec->points, "%s: second calloc() failed\n", __func__);
+
+	vec->n_points = n;
 
 	for (size_t i = 0; i < n; i++) {
 		vec->points[i] = cw_rec_test_point_new(cte);
@@ -1091,9 +1101,9 @@ void cw_rec_test_vector_print(cw_test_executor_t * cte, cw_rec_test_vector * vec
 		/* Debug output. */
 		if (!(i % 10)) {
 			/* Print header. */
-			cte->log_info_cont(cte, "char  repr      [wpm]    mark     space      mark     space      mark     space      mark     space      mark     space      mark     space      mark     space\n");
+			cte->log_info_cont(cte, "ch repr     [wpm]     mark     space      mark     space      mark     space      mark     space      mark     space      mark     space      mark     space\n");
 		}
-		cte->log_info_cont(cte, "%c     %-7s  %02.2f", point->character, point->representation, point->send_speed);
+		cte->log_info_cont(cte, "%c  %-7s %6.2f", point->character, point->representation, point->send_speed);
 		for (size_t t = 0; t < point->n_tone_durations; t++) {
 			cte->log_info_cont(cte, "%9d ", point->tone_durations[t]);
 		}
