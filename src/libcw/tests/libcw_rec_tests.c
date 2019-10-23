@@ -216,40 +216,39 @@ int test_cw_rec_identify_mark_internal(cw_test_executor_t * cte)
 
 
 
-/*
-  Test a receiver with data set that has following characteristics:
+/**
+   @brief Test a receiver with characters sent at constant speed
 
-  Characters: base (all characters supported by libcw, occurring only once in the data set, in ordered fashion).
-  Send speeds: constant (each character will be sent to receiver at the same, constant speed).
-
-  This function is used to test receiver with test data set guaranteed to contain all characters supported by libcw.
+   @reviewed on 2019-10-23
 */
 int test_cw_rec_test_with_constant_speeds(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
+	const char * this_test_name = "constant speeds";
+
 	struct {
 		const char * name;
 		characters_list_maker_t char_list_maker;
 		send_speeds_maker_t send_speeds_maker;
-	} test_input[] = {
+	} test_data[] = {
 		{
 			/* All characters supported by libcw.  Don't
 			   use get_characters_random(): for this test
 			   get a small table of all characters
 			   supported by libcw. This should be a quick
-			   test, and it should cover all
-			   characters.
+			   test, and it should give 100% guarantee
+			   that it covers all characters.
 
-			   Fixed speed receive mode - speed is
-			   constant for all characters.
+			   Fixed speed receive mode: speed is constant
+			   for all characters.
 			*/
-			"basic/constant", cw_characters_list_new_basic, cw_send_speeds_new_constant
+			"basic chars/const speed", cw_characters_list_new_basic, cw_send_speeds_new_constant
 		},
 		{
-			/* Fixed speed receive mode - speed is
-			   constant for all characters. */
-			"random/constant", cw_characters_list_new_random, cw_send_speeds_new_constant
+			/* Fixed speed receive mode: speed is constant
+			   for all characters. */
+			"random chars/const speed", cw_characters_list_new_random, cw_send_speeds_new_constant
 		},
 		{
 			NULL, NULL, NULL
@@ -257,42 +256,41 @@ int test_cw_rec_test_with_constant_speeds(cw_test_executor_t * cte)
 	};
 
 	cw_rec_t * rec = cw_rec_new();
-	cte->assert2(cte, rec, "begin/end: failed to create new receiver\n");
+	cte->assert2(cte, rec, "%s: failed to create new receiver\n", this_test_name);
 
-	int m = 0;
-	while (test_input[m].name) {
+	int i = 0;
+	while (test_data[i].name) {
 		for (int speed = CW_SPEED_MIN; speed <= CW_SPEED_MAX; speed++) {
 
 			const cw_variation_params variation_params = { .speed = speed, .speed_min = 0, .speed_max = 0, .fuzz_percent = 0 };
 
-			/* Generate timing data for given set of characters, each
-			   character is sent with speed dictated by speeds[]. */
+			/* Generate timing data for given list of
+			   characters, each character is sent with
+			   speed calculated by "speeds maker". */
 			cw_rec_test_vector * vec = cw_rec_test_vector_factory(cte,
-									      test_input[m].char_list_maker,
-									      test_input[m].send_speeds_maker,
+									      test_data[i].char_list_maker,
+									      test_data[i].send_speeds_maker,
 									      &variation_params);
-			cte->assert2(cte, vec, "failed to generate test vector for test %s\n", test_input[m].name);
+			cte->assert2(cte, vec, "%s: failed to generate test vector for test %s\n", this_test_name, test_data[i].name);
 			// cw_rec_test_vector_print(cte, vec);
 
-			/* Reset. */
+			/* Prepare receiver (by resetting it to fresh state). */
 			cw_rec_reset_statistics(rec);
 			cw_rec_reset_state(rec);
-
 			cw_rec_set_speed(rec, speed);
 			cw_rec_disable_adaptive_mode(rec);
 
 			/* Verify that the test speed has been set correctly. */
-			float diff = cw_rec_get_speed(rec) - (float) speed;
-			cte->assert2(cte, diff < 0.1, "begin/end: %s: %f != %f\n", test_input[m].name, cw_rec_get_speed(rec), (float) speed);
-			// cte->expect_op_int(cte, ); // TODO: implement
+			const float diff = cw_rec_get_speed(rec) - (float) speed;
+			cte->assert2(cte, diff < 0.1, "%s: setting speed for test %s failed: %f != %f\n", this_test_name, test_data[i].name, cw_rec_get_speed(rec), (float) speed);
 
 			/* Actual tests of receiver functions are here. */
 			bool failure = test_cw_rec_test_begin_end(cte, rec, vec);
-			cte->expect_op_int(cte, false, "==", failure, 1, "begin/end: %s @ %02d [wpm]:", test_input[m].name, speed);
+			cte->expect_op_int(cte, false, "==", failure, 0, "%s: %s @ %02d wpm", this_test_name, test_data[i].name, speed);
 
 			cw_rec_test_vector_delete(&vec);
 		}
-		m++;
+		i++;
 	}
 
 	cw_rec_delete(&rec);
@@ -301,7 +299,6 @@ int test_cw_rec_test_with_constant_speeds(cw_test_executor_t * cte)
 
 	return 0;
 }
-
 
 
 
@@ -563,15 +560,15 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec
 	  success counter hits. Maybe we should somehow move the calls
 	  up the call chain.
 	*/
-	cte->expect_op_int(cte, false, "==", begin_end_failure, 0, "Signalling begin and end of mark");
-	cte->expect_op_int(cte, false, "==", buffer_length_failure, 0, "Getting length of representation buffer");
-	cte->expect_op_int(cte, false, "==", poll_representation_failure, 0, "Polling representation");
-	cte->expect_op_int(cte, false, "==", match_representation_failure, 0, "Representation match");
-	cte->expect_op_int(cte, false, "==", error_representation_failure, 0, "Representation 'is error'");
-	cte->expect_op_int(cte, false, "==", word_representation_failure, 0, "Representation 'is word'");
-	cte->expect_op_int(cte, false, "==", poll_character_failure, 0, "Polling character");
-	cte->expect_op_int(cte, false, "==", match_character_failure, 0, "Character match");
-	cte->expect_op_int(cte, false, "==", empty_failure, 0, "Empty representation buffer");
+	cte->expect_op_int(cte, false, "==", begin_end_failure, 1, "Signalling begin and end of mark");
+	cte->expect_op_int(cte, false, "==", buffer_length_failure, 1, "Getting length of representation buffer");
+	cte->expect_op_int(cte, false, "==", poll_representation_failure, 1, "Polling representation");
+	cte->expect_op_int(cte, false, "==", match_representation_failure, 1, "Representation match");
+	cte->expect_op_int(cte, false, "==", error_representation_failure, 1, "Representation 'is error'");
+	cte->expect_op_int(cte, false, "==", word_representation_failure, 1, "Representation 'is word'");
+	cte->expect_op_int(cte, false, "==", poll_character_failure, 1, "Polling character");
+	cte->expect_op_int(cte, false, "==", match_character_failure, 1, "Character match");
+	cte->expect_op_int(cte, false, "==", empty_failure, 1, "Empty representation buffer");
 
 	return begin_end_failure
 		|| buffer_length_failure
