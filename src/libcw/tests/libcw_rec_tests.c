@@ -303,6 +303,61 @@ int test_cw_rec_test_with_constant_speeds(cw_test_executor_t * cte)
 
 
 
+/*
+  Test a receiver with data set that has following characteristics:
+
+  Characters: random (all characters supported by libcw + inter-word space, occurring once or more in the data set, in random fashion).
+  Send speeds: varying (each character will be sent to receiver at different speed).
+
+  This function is used to test receiver with very large test data set.
+*/
+int test_cw_rec_test_with_varying_speeds(cw_test_executor_t * cte)
+{
+	cte->print_test_header(cte, __func__);
+
+	cw_variation_params variation_params = { .speed = 0, .speed_min = CW_SPEED_MIN, .speed_max = CW_SPEED_MAX, .fuzz_percent = 0 };
+
+	/* Generate timing data for given set of characters, each
+	   character is sent with varying speed from range
+	   speed_min-speed_max. */
+	cw_rec_test_vector * vec = cw_rec_test_vector_factory(cte,
+							      cw_characters_list_new_random,
+							      cw_send_speeds_new_varying_sine, /* Adaptive speed receive mode - speed varies for all characters. */
+							      &variation_params);
+	cte->assert2(cte, vec, "failed to generate random/varying test data\n");
+	// cw_rec_test_vector_print(cte, vec);
+
+	cw_rec_t * rec = cw_rec_new();
+	cte->assert2(cte, rec, "begin/end: random/varying: failed to create new receiver\n");
+
+	/* Reset. */
+	cw_rec_reset_statistics(rec);
+	cw_rec_reset_state(rec);
+
+	cw_rec_set_speed(rec, CW_SPEED_MAX);
+	cw_rec_enable_adaptive_mode(rec);
+
+	/* Verify that initial test speed has been set correctly. */
+	float diff = cw_rec_get_speed(rec) - CW_SPEED_MAX;
+	cte->assert2(cte, diff < 0.1, "begin/end: random/varying: incorrect receive speed: %f != %f\n", cw_rec_get_speed(rec), (float) CW_SPEED_MAX);
+	// cte->expect_op_int(cte, ); // TODO: implement
+
+	/* Actual tests of receiver functions are here. */
+	bool failure = test_cw_rec_test_begin_end(cte, rec, vec);
+	cte->expect_op_int(cte, false, "==", failure, 0, "begin/end: random/varying:");
+
+	cw_rec_test_vector_delete(&vec);
+
+	cw_rec_delete(&rec);
+
+	cte->print_test_footer(cte, __func__);
+
+	return 0;
+}
+
+
+
+
 /**
    \brief The core test function, testing receiver's "begin" and "end" functions
 
@@ -574,61 +629,6 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec
 		|| buffer_length_failure
 		|| poll_representation_failure || match_representation_failure || error_representation_failure || word_representation_failure
 		|| poll_character_failure || match_character_failure || empty_failure;
-}
-
-
-
-
-/*
-  Test a receiver with data set that has following characteristics:
-
-  Characters: random (all characters supported by libcw + inter-word space, occurring once or more in the data set, in random fashion).
-  Send speeds: varying (each character will be sent to receiver at different speed).
-
-  This function is used to test receiver with very large test data set.
-*/
-int test_cw_rec_test_with_varying_speeds(cw_test_executor_t * cte)
-{
-	cte->print_test_header(cte, __func__);
-
-	cw_variation_params variation_params = { .speed = 0, .speed_min = CW_SPEED_MIN, .speed_max = CW_SPEED_MAX, .fuzz_percent = 0 };
-
-	/* Generate timing data for given set of characters, each
-	   character is sent with varying speed from range
-	   speed_min-speed_max. */
-	cw_rec_test_vector * vec = cw_rec_test_vector_factory(cte,
-							      cw_characters_list_new_random,
-							      cw_send_speeds_new_varying_sine, /* Adaptive speed receive mode - speed varies for all characters. */
-							      &variation_params);
-	cte->assert2(cte, vec, "failed to generate random/varying test data\n");
-	// cw_rec_test_vector_print(cte, vec);
-
-	cw_rec_t * rec = cw_rec_new();
-	cte->assert2(cte, rec, "begin/end: random/varying: failed to create new receiver\n");
-
-	/* Reset. */
-	cw_rec_reset_statistics(rec);
-	cw_rec_reset_state(rec);
-
-	cw_rec_set_speed(rec, CW_SPEED_MAX);
-	cw_rec_enable_adaptive_mode(rec);
-
-	/* Verify that initial test speed has been set correctly. */
-	float diff = cw_rec_get_speed(rec) - CW_SPEED_MAX;
-	cte->assert2(cte, diff < 0.1, "begin/end: random/varying: incorrect receive speed: %f != %f\n", cw_rec_get_speed(rec), (float) CW_SPEED_MAX);
-	// cte->expect_op_int(cte, ); // TODO: implement
-
-	/* Actual tests of receiver functions are here. */
-	bool failure = test_cw_rec_test_begin_end(cte, rec, vec);
-	cte->expect_op_int(cte, false, "==", failure, 0, "begin/end: random/varying:");
-
-	cw_rec_test_vector_delete(&vec);
-
-	cw_rec_delete(&rec);
-
-	cte->print_test_footer(cte, __func__);
-
-	return 0;
 }
 
 
