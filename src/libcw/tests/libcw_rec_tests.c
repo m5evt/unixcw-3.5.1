@@ -74,14 +74,14 @@ typedef cw_send_speeds * (* send_speeds_maker_t)(cw_test_executor_t *, size_t n,
 
 
 /* Set of characters that will be sent to receiver. */
-typedef struct cw_characters_pool {
+typedef struct cw_characters_list {
 	char * values;
 	size_t n_characters; /* Does not include terminating NUL. */
-} cw_characters_pool;
-static cw_characters_pool * cw_characters_pool_new_basic(cw_test_executor_t * cte);
-static cw_characters_pool * cw_characters_pool_new_random(cw_test_executor_t * cte);
-static void cw_characters_pool_delete(cw_characters_pool ** characters_pool);
-typedef cw_characters_pool * (* characters_pool_maker_t)(cw_test_executor_t *);
+} cw_characters_list;
+static cw_characters_list * cw_characters_list_new_basic(cw_test_executor_t * cte);
+static cw_characters_list * cw_characters_list_new_random(cw_test_executor_t * cte);
+static void cw_characters_list_delete(cw_characters_list ** characters_list);
+typedef cw_characters_list * (* characters_list_maker_t)(cw_test_executor_t *);
 
 
 
@@ -108,7 +108,7 @@ typedef struct cw_rec_test_vector {
 } cw_rec_test_vector;
 static cw_rec_test_vector * cw_rec_test_vector_new(cw_test_executor_t * cte, size_t n);
 static void cw_rec_test_vector_delete(cw_rec_test_vector ** vec);
-static cw_rec_test_vector * cw_rec_test_vector_factory(cw_test_executor_t * cte, characters_pool_maker_t characters_pool_maker, send_speeds_maker_t send_speeds_maker, const cw_variation_params * variation_params);
+static cw_rec_test_vector * cw_rec_test_vector_factory(cw_test_executor_t * cte, characters_list_maker_t characters_list_maker, send_speeds_maker_t send_speeds_maker, const cw_variation_params * variation_params);
 __attribute__((unused)) static void cw_rec_test_vector_print(cw_test_executor_t * cte, cw_rec_test_vector * vec);
 static bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec_test_vector * vec);
 
@@ -230,7 +230,7 @@ int test_cw_rec_test_with_constant_speeds(cw_test_executor_t * cte)
 
 	struct {
 		const char * name;
-		characters_pool_maker_t char_pool_maker;
+		characters_list_maker_t char_list_maker;
 		send_speeds_maker_t send_speeds_maker;
 	} test_input[] = {
 		{
@@ -244,12 +244,12 @@ int test_cw_rec_test_with_constant_speeds(cw_test_executor_t * cte)
 			   Fixed speed receive mode - speed is
 			   constant for all characters.
 			*/
-			"basic/constant", cw_characters_pool_new_basic, cw_send_speeds_new_constant
+			"basic/constant", cw_characters_list_new_basic, cw_send_speeds_new_constant
 		},
 		{
 			/* Fixed speed receive mode - speed is
 			   constant for all characters. */
-			"random/constant", cw_characters_pool_new_random, cw_send_speeds_new_constant
+			"random/constant", cw_characters_list_new_random, cw_send_speeds_new_constant
 		},
 		{
 			NULL, NULL, NULL
@@ -268,7 +268,7 @@ int test_cw_rec_test_with_constant_speeds(cw_test_executor_t * cte)
 			/* Generate timing data for given set of characters, each
 			   character is sent with speed dictated by speeds[]. */
 			cw_rec_test_vector * vec = cw_rec_test_vector_factory(cte,
-									      test_input[m].char_pool_maker,
+									      test_input[m].char_list_maker,
 									      test_input[m].send_speeds_maker,
 									      &variation_params);
 			cte->assert2(cte, vec, "failed to generate test vector for test %s\n", test_input[m].name);
@@ -600,7 +600,7 @@ int test_cw_rec_test_with_varying_speeds(cw_test_executor_t * cte)
 	   character is sent with varying speed from range
 	   speed_min-speed_max. */
 	cw_rec_test_vector * vec = cw_rec_test_vector_factory(cte,
-							      cw_characters_pool_new_random,
+							      cw_characters_list_new_random,
 							      cw_send_speeds_new_varying_sine, /* Adaptive speed receive mode - speed varies for all characters. */
 							      &variation_params);
 	cte->assert2(cte, vec, "failed to generate random/varying test data\n");
@@ -644,20 +644,20 @@ int test_cw_rec_test_with_varying_speeds(cw_test_executor_t * cte)
 
    \return wrapper object for allocated string
 */
-cw_characters_pool * cw_characters_pool_new_basic(cw_test_executor_t * cte)
+cw_characters_list * cw_characters_list_new_basic(cw_test_executor_t * cte)
 {
 	const int n = cw_get_character_count();
 
-	cw_characters_pool * characters_pool = (cw_characters_pool *) calloc(sizeof (cw_characters_pool), 1);
-	cte->assert2(cte, characters_pool, "%s: first calloc() failed\n", __func__);
+	cw_characters_list * characters_list = (cw_characters_list *) calloc(sizeof (cw_characters_list), 1);
+	cte->assert2(cte, characters_list, "%s: first calloc() failed\n", __func__);
 
-	characters_pool->values = (char *) calloc(sizeof (char), n + 1); /* This will be a C string, so +1 for terminating NUL. */
-	cte->assert2(cte, characters_pool, "%s: second calloc() failed\n", __func__);
+	characters_list->values = (char *) calloc(sizeof (char), n + 1); /* This will be a C string, so +1 for terminating NUL. */
+	cte->assert2(cte, characters_list, "%s: second calloc() failed\n", __func__);
 
-	characters_pool->n_characters = n;
-	cw_list_characters(characters_pool->values);
+	characters_list->n_characters = n;
+	cw_list_characters(characters_list->values);
 
-	return characters_pool;
+	return characters_list;
 }
 
 
@@ -677,34 +677,34 @@ cw_characters_pool * cw_characters_pool_new_basic(cw_test_executor_t * cte)
 
    \return string of random characters (including spaces)
 */
-cw_characters_pool * cw_characters_pool_new_random(cw_test_executor_t * cte)
+cw_characters_list * cw_characters_list_new_random(cw_test_executor_t * cte)
 {
 	const size_t n_random_characters = cw_get_character_count() * 30;
 
-	/* We will use basic characters pool (all characters supported
+	/* We will use basic characters list (all characters supported
 	   by libcw) as an input for generating random characters
-	   pool. */
-	cw_characters_pool * basic_characters_pool = cw_characters_pool_new_basic(cte);
-	const size_t n_basic_characters = basic_characters_pool->n_characters;
+	   list. */
+	cw_characters_list * basic_characters_list = cw_characters_list_new_basic(cte);
+	const size_t n_basic_characters = basic_characters_list->n_characters;
 
 
-	cw_characters_pool * random_characters_pool = (cw_characters_pool *) calloc(sizeof (cw_characters_pool), 1);
-	cte->assert2(cte, random_characters_pool, "first calloc() failed\n");
+	cw_characters_list * random_characters_list = (cw_characters_list *) calloc(sizeof (cw_characters_list), 1);
+	cte->assert2(cte, random_characters_list, "first calloc() failed\n");
 
-	random_characters_pool->values = (char *) calloc(sizeof (char), n_random_characters + 1); /* This will be a C string, so +1 for terminating NUL. */
-	cte->assert2(cte, random_characters_pool->values, "second calloc() failed\n");
+	random_characters_list->values = (char *) calloc(sizeof (char), n_random_characters + 1); /* This will be a C string, so +1 for terminating NUL. */
+	cte->assert2(cte, random_characters_list->values, "second calloc() failed\n");
 
 
 	for (size_t i = 0; i < n_random_characters; i++) {
 		int r = rand() % n_basic_characters;
 		if (0 == (r % 3)) {
-			random_characters_pool->values[i] = ' ';
+			random_characters_list->values[i] = ' ';
 
 			/* To prevent two consecutive spaces. */
 			i++;
-			random_characters_pool->values[i] = basic_characters_pool->values[r];
+			random_characters_list->values[i] = basic_characters_list->values[r];
 		} else {
-			random_characters_pool->values[i] = basic_characters_pool->values[r];
+			random_characters_list->values[i] = basic_characters_list->values[r];
 		}
 	}
 
@@ -713,34 +713,34 @@ cw_characters_pool * cw_characters_pool_new_random(cw_test_executor_t * cte)
 	   end-of-word space appears in input character set, it is
 	   added as last time value at the end of time values table
 	   for "previous char". We couldn't do this for -1st char. */
-	random_characters_pool->values[0] = 'K'; /* Use capital letter. libcw uses capital letters internally. */
-	random_characters_pool->values[n_random_characters] = '\0';
-	random_characters_pool->n_characters = n_random_characters;
+	random_characters_list->values[0] = 'K'; /* Use capital letter. libcw uses capital letters internally. */
+	random_characters_list->values[n_random_characters] = '\0';
+	random_characters_list->n_characters = n_random_characters;
 
-	//fprintf(stderr, "%s\n", random_characters_pool->values);
+	//fprintf(stderr, "%s\n", random_characters_list->values);
 
-	cw_characters_pool_delete(&basic_characters_pool);
+	cw_characters_list_delete(&basic_characters_list);
 
-	return random_characters_pool;
+	return random_characters_list;
 }
 
 
 
 
-void cw_characters_pool_delete(cw_characters_pool ** characters_pool)
+void cw_characters_list_delete(cw_characters_list ** characters_list)
 {
-	if (NULL == characters_pool) {
+	if (NULL == characters_list) {
 		return;
 	}
-	if (NULL == *characters_pool) {
+	if (NULL == *characters_list) {
 		return;
 	}
-	if (NULL != (*characters_pool)->values) {
-		free((*characters_pool)->values);
-		(*characters_pool)->values = NULL;
+	if (NULL != (*characters_list)->values) {
+		free((*characters_list)->values);
+		(*characters_list)->values = NULL;
 	}
-	free(*characters_pool);
-	*characters_pool = NULL;
+	free(*characters_list);
+	*characters_list = NULL;
 }
 
 
@@ -889,13 +889,13 @@ void cw_send_speeds_delete(cw_send_speeds ** speeds)
 
    \return table of timing data sets
 */
-cw_rec_test_vector * cw_rec_test_vector_factory(cw_test_executor_t * cte, characters_pool_maker_t characters_pool_maker, send_speeds_maker_t send_speeds_maker, const cw_variation_params * variation_params)
+cw_rec_test_vector * cw_rec_test_vector_factory(cw_test_executor_t * cte, characters_list_maker_t characters_list_maker, send_speeds_maker_t send_speeds_maker, const cw_variation_params * variation_params)
 {
-	cw_characters_pool * characters_pool = characters_pool_maker(cte);
-	cw_send_speeds * send_speeds = send_speeds_maker(cte, characters_pool->n_characters, variation_params);
+	cw_characters_list * characters_list = characters_list_maker(cte);
+	cw_send_speeds * send_speeds = send_speeds_maker(cte, characters_list->n_characters, variation_params);
 
 
-	const size_t n_characters = characters_pool->n_characters;
+	const size_t n_characters = characters_list->n_characters;
 	cw_rec_test_vector * vec = cw_rec_test_vector_new(cte, n_characters);
 
 
@@ -909,9 +909,9 @@ cw_rec_test_vector * cw_rec_test_vector_factory(cw_test_executor_t * cte, charac
 		/* First handle a special case: end-of-word
 		   space. This long space will be put at the end of
 		   table of time values for previous
-		   representation. The space in character pool is
+		   representation. The space in character list is
 		   never transformed into separate point in vector. */
-		if (characters_pool->values[in] == ' ') {
+		if (characters_list->values[in] == ' ') {
 			/* We don't want to affect current output
 			   character, we want to turn end-of-char
 			   space of previous character into
@@ -929,11 +929,11 @@ cw_rec_test_vector * cw_rec_test_vector_factory(cw_test_executor_t * cte, charac
 		cw_rec_test_point * point = vec->points[out];
 
 
-		point->character = characters_pool->values[in];
+		point->character = characters_list->values[in];
 		point->representation = cw_character_to_representation(point->character);
 		cte->assert2(cte, point->representation,
 			     "generate data: cw_character_to_representation() failed for input char #%zu: '%c'\n",
-			     in, characters_pool->values[in]);
+			     in, characters_list->values[in]);
 		point->send_speed = send_speeds->values[in];
 
 
@@ -997,7 +997,7 @@ cw_rec_test_vector * cw_rec_test_vector_factory(cw_test_executor_t * cte, charac
 	   characters). */
 	vec->n_points = out;
 
-	cw_characters_pool_delete(&characters_pool);
+	cw_characters_list_delete(&characters_list);
 	cw_send_speeds_delete(&send_speeds);
 
 
