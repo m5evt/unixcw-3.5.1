@@ -1307,9 +1307,8 @@ int test_cw_rec_parameter_getters_setters_1(cw_test_executor_t * cte)
 		for (int new_val = test_data[i].expected_min; new_val <= test_data[i].expected_max; new_val++) {
 			test_data[i].set_new_value(rec, new_val);
 
-			float diff = test_data[i].get_value(rec) - new_val;
-			set_ok_failure = (diff >= 0.01);
-			if (!cte->expect_op_int(cte, false, "==", set_ok_failure, 1, "%s: setting %s value in-range: %d\n", this_test_name, test_data[i].name, new_val)) {
+			const double diff = test_data[i].get_value(rec) - new_val;
+			if (!cte->expect_op_double(cte, diff, "<", 0.01, 1, "%s: setting %s value in-range: %d\n", this_test_name, test_data[i].name, new_val)) {
 				set_ok_failure = true;
 				break;
 			}
@@ -1434,9 +1433,8 @@ int test_cw_rec_parameter_getters_setters_2(cw_test_executor_t * cte)
 		for (int new_val = test_data[i].readback_min; new_val <= test_data[i].readback_max; new_val++) {
 			test_data[i].set_new_value(rec, new_val);
 
-			float diff = test_data[i].get_value(rec) - new_val;
-			set_ok_failure = (diff >= 0.01);
-			if (!cte->expect_op_int(cte, false, "==", set_ok_failure, 1, "%s: setting %s value in-range: %d", this_test_name, test_data[i].name, new_val)) {
+			const double diff = test_data[i].get_value(rec) - new_val;
+			if (!cte->expect_op_double(cte, diff, "<", 0.01, 1, "%s: setting %s value in-range: %d", this_test_name, test_data[i].name, new_val)) {
 				set_ok_failure = true;
 				break;
 			}

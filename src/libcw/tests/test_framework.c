@@ -68,6 +68,7 @@
 
 static bool cw_test_expect_op_int(struct cw_test_executor_t * self, int expected_value, const char * operator, int received_value, bool errors_only, const char * fmt, ...) __attribute__ ((format (printf, 6, 7)));
 static bool cw_test_expect_op_int2(struct cw_test_executor_t * self, int expected_value, const char * operator, int received_value, bool errors_only, const char * va_buf);
+static bool cw_test_expect_op_double(struct cw_test_executor_t * self, double expected_value, const char * operator, double received_value, bool errors_only, const char * fmt, ...) __attribute__ ((format (printf, 6, 7)));
 
 static bool cw_test_expect_between_int(struct cw_test_executor_t * self, int expected_lower, int received_value, int expected_higher, const char * fmt, ...) __attribute__ ((format (printf, 5, 6)));
 static bool cw_test_expect_between_int_errors_only(struct cw_test_executor_t * self, int expected_lower, int received_value, int expected_higher, const char * fmt, ...) __attribute__ ((format (printf, 5, 6)));
@@ -448,6 +449,57 @@ bool cw_test_expect_op_int2(struct cw_test_executor_t * self, int expected_value
 		as_expected = false;
 	}
 
+	return as_expected;
+}
+
+
+
+
+bool cw_test_expect_op_double(struct cw_test_executor_t * self, double expected_value, const char * operator, double received_value, bool errors_only, const char * fmt, ...)
+{
+	char va_buf[128] = { 0 };
+	va_list ap;
+	va_start(ap, fmt);
+	vsnprintf(va_buf, sizeof (va_buf), fmt, ap);
+	va_end(ap);
+
+	char msg_buf[1024] = { 0 };
+	int n = snprintf(msg_buf, sizeof (msg_buf), "%s", self->msg_prefix);
+	const int message_len = n + snprintf(msg_buf + n, sizeof (msg_buf) - n, "%s", va_buf);
+	n += snprintf(msg_buf + n, sizeof (msg_buf) - n, "%-*s", (int) (self->console_n_cols - n), va_buf);
+
+
+	bool success = false;
+	if (operator[0] == '<' && operator[1] == '\0') {
+		success = expected_value < received_value;
+
+	} else if (operator[0] == '>' && operator[1] == '\0') {
+		success = expected_value > received_value;
+
+	} else {
+		self->log_error(self, "Unhandled operator '%s'\n", operator);
+		assert(0);
+	}
+
+
+	bool as_expected = false;
+	if (success) {
+		if (!errors_only) {
+			self->stats->successes++;
+
+			cw_test_append_status_string(self, msg_buf, message_len, "[ OK ]");
+			self->log_info(self, "%s\n", msg_buf);
+		}
+		as_expected = true;
+	} else {
+		self->stats->failures++;
+
+		cw_test_append_status_string(self, msg_buf, message_len, "[FAIL]");
+		self->log_error(self, "%s\n", msg_buf);
+		self->log_error(self, "   ***   expected %f, got %f   ***\n", expected_value, received_value);
+
+		as_expected = false;
+	}
 	return as_expected;
 }
 
@@ -967,6 +1019,7 @@ void cw_test_init(cw_test_executor_t * self, FILE * stdout, FILE * stderr, const
 	self->stderr = stderr;
 
 	self->expect_op_int = cw_test_expect_op_int;
+	self->expect_op_double = cw_test_expect_op_double;
 
 	self->expect_between_int = cw_test_expect_between_int;
 	self->expect_between_int_errors_only = cw_test_expect_between_int_errors_only;

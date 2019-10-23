@@ -123,6 +123,7 @@ typedef struct cw_test_executor_t {
 	   @return false otherwise
 	*/
 	bool (* expect_op_int)(struct cw_test_executor_t * self, int expected_value, const char * operator, int received_value, bool errors_only, const char * fmt, ...) __attribute__ ((format (printf, 6, 7)));
+	bool (* expect_op_double)(struct cw_test_executor_t * self, double expected_value, const char * operator, double received_value, bool errors_only, const char * fmt, ...) __attribute__ ((format (printf, 6, 7)));
 
 	/**
 	   Verify that @param received_value is between @param
