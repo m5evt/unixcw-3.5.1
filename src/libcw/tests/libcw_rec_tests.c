@@ -264,7 +264,7 @@ int test_cw_rec_test_with_constant_speeds(cw_test_executor_t * cte)
 
 			const cw_variation_params variation_params = { .speed = speed, .speed_min = 0, .speed_max = 0, .fuzz_percent = 0 };
 
-			/* Generate timing data for given list of
+			/* Generate duration data for given list of
 			   characters, each character is sent with
 			   speed calculated by "speeds maker". */
 			cw_rec_test_vector * vec = cw_rec_test_vector_factory(cte,
@@ -345,7 +345,7 @@ int test_cw_rec_test_with_varying_speeds(cw_test_executor_t * cte)
 
 		cw_variation_params variation_params = { .speed = 0, .speed_min = CW_SPEED_MIN, .speed_max = CW_SPEED_MAX, .fuzz_percent = 0 };
 
-		/* Generate timing data for given set of characters, each
+		/* Generate duration data for given set of characters, each
 		   character is sent with varying speed from range
 		   speed_min-speed_max. */
 		cw_rec_test_vector * vec = cw_rec_test_vector_factory(cte,
@@ -665,7 +665,10 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec
 /**
    \brief Get a string with all characters supported by libcw
 
-   Function allocates and returns a string with all characters that are supported/recognized by libcw.
+   Function allocates and returns a string with all characters that
+   are supported/recognized by libcw.
+
+   @reviewed on 2019-10-24
 
    \return wrapper object for allocated string
 */
@@ -688,7 +691,6 @@ cw_characters_list * cw_characters_list_new_basic(cw_test_executor_t * cte)
 
 
 
-
 /**
    \brief Generate a set of characters of size \p n.
 
@@ -700,11 +702,13 @@ cw_characters_list * cw_characters_list_new_basic(cw_test_executor_t * cte)
    text. Function makes sure that there are no consecutive spaces (two
    or more) in the string.
 
-   \return string of random characters (including spaces)
+   @reviewed on 2019-10-24
+
+   \return wrapper object for string of random characters (including spaces)
 */
 cw_characters_list * cw_characters_list_new_random(cw_test_executor_t * cte)
 {
-	const size_t n_random_characters = cw_get_character_count() * 30;
+	const size_t n_random_characters = cw_get_character_count() * ((rand() % 50) + 30);
 
 	/* We will use basic characters list (all characters supported
 	   by libcw) as an input for generating random characters
@@ -720,29 +724,45 @@ cw_characters_list * cw_characters_list_new_random(cw_test_executor_t * cte)
 	cte->assert2(cte, random_characters_list->values, "second calloc() failed\n");
 
 
+	size_t space_randomizer = 3;
 	for (size_t i = 0; i < n_random_characters; i++) {
-		int r = rand() % n_basic_characters;
-		if (0 == (r % 3)) {
+		int basic_idx = rand() % n_basic_characters;
+
+		if (0 == (basic_idx % space_randomizer)) { /* Insert space at random places. */
+			space_randomizer = (rand() % (n_basic_characters / 2)) + 3; /* Pick new value for next round. */
 			random_characters_list->values[i] = ' ';
 
-			/* To prevent two consecutive spaces. */
-			i++;
-			random_characters_list->values[i] = basic_characters_list->values[r];
+			/*
+			  Also fill next cell, but with non-space
+			  char, to prevent two consecutive spaces in
+			  result string.
+
+			  TODO: why we want to avoid two consecutive
+			  spaces? Does it break test algorithm?
+			*/
+			if ((i + 1) < n_random_characters) {
+				i++;
+				random_characters_list->values[i] = basic_characters_list->values[basic_idx];
+			}
 		} else {
-			random_characters_list->values[i] = basic_characters_list->values[r];
+			random_characters_list->values[i] = basic_characters_list->values[basic_idx];
 		}
 	}
 
-	/* First character in input data can't be a space - we can't
-	   start a receiver's state machine with space. Also when a
-	   end-of-word space appears in input character set, it is
-	   added as last time value at the end of time values table
-	   for "previous char". We couldn't do this for -1st char. */
+	/*
+	  First character in input data can't be a space. Two reasons:
+	  1. we can't start a receiver's state machine with space.
+	  2. when a end-of-word space appears in test string, it is
+	  added as last duration value at the end of duration values
+	  table for "previous char". We couldn't do this (i.e. modify
+	  table of duration of "previous char") for 1st char in test
+	  string.
+	*/
 	random_characters_list->values[0] = 'K'; /* Use capital letter. libcw uses capital letters internally. */
 	random_characters_list->values[n_random_characters] = '\0';
 	random_characters_list->n_characters = n_random_characters;
 
-	//fprintf(stderr, "%s\n", random_characters_list->values);
+	// fprintf(stderr, "\n%s\n\n", random_characters_list->values);
 
 	cw_characters_list_delete(&basic_characters_list);
 
@@ -874,14 +894,14 @@ void cw_send_speeds_delete(cw_send_speeds ** speeds)
 
 
 /**
-   \brief Create timing data used for testing a receiver
+   \brief Create durations data used for testing a receiver
 
    This is a generic function that can generate different sets of data
    depending on input parameters. It is to be used by wrapper
    functions that first specify parameters of test data, and then pass
    the parameters to this function.
 
-   The function allocates a table with timing data (and some other
+   The function allocates a table with durations data (and some other
    data as well) that can be used to test receiver's functions that
    accept timestamp argument.
 
@@ -897,22 +917,22 @@ void cw_send_speeds_delete(cw_send_speeds ** speeds)
    you want to generate invalid data or to generate data based on
    invalid representations, you have to use some other function.
 
-   For each character the last timing parameter represents
-   end-of-character space or end-of-word space. The next timing
+   For each character the last duration parameter represents
+   end-of-character space or end-of-word space. The next duration
    parameter after the space is zero. For character 'A' that would
    look like this:
 
-   .-    ==   40000 (dot mark); 40000 (inter-mark space); 120000 (dash mark); 240000 (end-of-word space); 0 (guard, zero timing)
+   .-    ==   40000 (dot mark); 40000 (inter-mark space); 120000 (dash mark); 240000 (end-of-word space); 0 (guard, zero duration)
 
    Last element in the created table (a guard "pseudo-character") has
    'representation' field set to NULL.
 
-   Use cw_rec_test_vector_delete() to deallocate the timing data table.
+   Use cw_rec_test_vector_delete() to deallocate the duration data table.
 
-   \brief characters - list of characters for which to generate table with timing data
+   \brief characters - list of characters for which to generate table with duration data
    \brief speeds - list of speeds (per-character)
 
-   \return table of timing data sets
+   \return table of duration data sets
 */
 cw_rec_test_vector * cw_rec_test_vector_factory(cw_test_executor_t * cte, characters_list_maker_t characters_list_maker, send_speeds_maker_t send_speeds_maker, const cw_variation_params * variation_params)
 {
@@ -1082,7 +1102,7 @@ cw_rec_test_vector * cw_rec_test_vector_new(cw_test_executor_t * cte, size_t n)
 
 
 /**
-   \brief Deallocate timing data used for testing a receiver
+   \brief Deallocate duration data used for testing a receiver
 
    \param data - pointer to data to be deallocated
 */
@@ -1113,9 +1133,9 @@ void cw_rec_test_vector_delete(cw_rec_test_vector ** vec)
 
 
 /**
-   \brief Pretty-print timing data used for testing a receiver
+   \brief Pretty-print duration data used for testing a receiver
 
-   \param data timing data to be printed
+   \param data duration data to be printed
 */
 void cw_rec_test_vector_print(cw_test_executor_t * cte, cw_rec_test_vector * vec)
 {
