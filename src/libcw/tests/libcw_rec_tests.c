@@ -303,50 +303,78 @@ int test_cw_rec_test_with_constant_speeds(cw_test_executor_t * cte)
 
 
 
-/*
-  Test a receiver with data set that has following characteristics:
+/**
+   @brief Test a receiver with characters sent at varying speeds
 
-  Characters: random (all characters supported by libcw + inter-word space, occurring once or more in the data set, in random fashion).
-  Send speeds: varying (each character will be sent to receiver at different speed).
-
-  This function is used to test receiver with very large test data set.
+   @reviewed on 2019-10-24
 */
 int test_cw_rec_test_with_varying_speeds(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
-	cw_variation_params variation_params = { .speed = 0, .speed_min = CW_SPEED_MIN, .speed_max = CW_SPEED_MAX, .fuzz_percent = 0 };
+	const char * this_test_name = "varying speeds";
 
-	/* Generate timing data for given set of characters, each
-	   character is sent with varying speed from range
-	   speed_min-speed_max. */
-	cw_rec_test_vector * vec = cw_rec_test_vector_factory(cte,
-							      cw_characters_list_new_random,
-							      cw_send_speeds_new_varying_sine, /* Adaptive speed receive mode - speed varies for all characters. */
-							      &variation_params);
-	cte->assert2(cte, vec, "failed to generate random/varying test data\n");
-	// cw_rec_test_vector_print(cte, vec);
+	struct {
+		const char * name;
+		characters_list_maker_t char_list_maker;
+		send_speeds_maker_t send_speeds_maker;
+	} test_data[] = {
+		{
+			/* All characters supported by libcw.  Don't
+			   use get_characters_random(): for this test
+			   get a small table of all characters
+			   supported by libcw. This should be a quick
+			   test, and it should give 100% guarantee
+			   that it covers all characters.
+			*/
+			"basic chars/var speed", cw_characters_list_new_basic, cw_send_speeds_new_varying_sine
+		},
+		{
+			"random chars/var speed", cw_characters_list_new_random, cw_send_speeds_new_varying_sine
+		},
+		{
+			NULL, NULL, NULL
+		}
+	};
 
 	cw_rec_t * rec = cw_rec_new();
-	cte->assert2(cte, rec, "begin/end: random/varying: failed to create new receiver\n");
+	cte->assert2(cte, rec, "%s: failed to create new receiver\n", this_test_name);
 
-	/* Reset. */
-	cw_rec_reset_statistics(rec);
-	cw_rec_reset_state(rec);
+	int i = 0;
+	while (test_data[i].name) {
 
-	cw_rec_set_speed(rec, CW_SPEED_MAX);
-	cw_rec_enable_adaptive_mode(rec);
+		cw_variation_params variation_params = { .speed = 0, .speed_min = CW_SPEED_MIN, .speed_max = CW_SPEED_MAX, .fuzz_percent = 0 };
 
-	/* Verify that initial test speed has been set correctly. */
-	float diff = cw_rec_get_speed(rec) - CW_SPEED_MAX;
-	cte->assert2(cte, diff < 0.1, "begin/end: random/varying: incorrect receive speed: %f != %f\n", cw_rec_get_speed(rec), (float) CW_SPEED_MAX);
-	// cte->expect_op_int(cte, ); // TODO: implement
+		/* Generate timing data for given set of characters, each
+		   character is sent with varying speed from range
+		   speed_min-speed_max. */
+		cw_rec_test_vector * vec = cw_rec_test_vector_factory(cte,
+								      test_data[i].char_list_maker,
+								      test_data[i].send_speeds_maker,
+								      &variation_params);
+		cte->assert2(cte, vec, "%s: failed to generate random/varying test data\n", this_test_name);
+		// cw_rec_test_vector_print(cte, vec);
 
-	/* Actual tests of receiver functions are here. */
-	bool failure = test_cw_rec_test_begin_end(cte, rec, vec);
-	cte->expect_op_int(cte, false, "==", failure, 0, "begin/end: random/varying:");
 
-	cw_rec_test_vector_delete(&vec);
+		/* Prepare receiver (by resetting it to fresh state). */
+		cw_rec_reset_statistics(rec);
+		cw_rec_reset_state(rec);
+
+		cw_rec_set_speed(rec, CW_SPEED_MAX);
+		cw_rec_enable_adaptive_mode(rec);
+
+		/* Verify that initial test speed has been set correctly. */
+		const float diff = cw_rec_get_speed(rec) - CW_SPEED_MAX;
+		cte->assert2(cte, diff < 0.1, "%s: incorrect receive speed: %f != %f\n", this_test_name, cw_rec_get_speed(rec), (float) CW_SPEED_MAX);
+
+		/* Actual tests of receiver functions are here. */
+		const bool failure = test_cw_rec_test_begin_end(cte, rec, vec);
+		cte->expect_op_int(cte, false, "==", failure, 0, "%s", this_test_name);
+
+		cw_rec_test_vector_delete(&vec);
+
+		i++;
+	}
 
 	cw_rec_delete(&rec);
 
@@ -1205,7 +1233,6 @@ int test_cw_rec_get_parameters(cw_test_executor_t * cte)
 
 	return 0;
 }
-
 
 
 
