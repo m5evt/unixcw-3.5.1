@@ -104,7 +104,19 @@ static void cw_rec_test_point_delete(cw_rec_test_point ** point);
 
 typedef struct cw_rec_test_vector {
 	cw_rec_test_point ** points;
-	size_t n_points;
+
+	/*
+	  Because of how we treat space characters from list of test
+	  characters (we don't put them in cw_rec_test_vector vector),
+	  not all points allocated in this object will be valid (will
+	  represent valid characters). In order to be able to
+	  deallocate both valid and invalid points, we have to have
+	  two separate variables: one for total count of allocated
+	  points, and the other for count of valid points.
+	*/
+	size_t n_points_allocated; /* This is how many point objects were allocated and are in cw_rec_test_vector::points. */
+	size_t n_points_valid;     /* This is how many valid points (with valid character and durations) are in cw_rec_test_vector::points. */
+
 } cw_rec_test_vector;
 static cw_rec_test_vector * cw_rec_test_vector_new(cw_test_executor_t * cte, size_t n);
 static void cw_rec_test_vector_delete(cw_rec_test_vector ** vec);
@@ -418,7 +430,7 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec
 	bool match_character_failure = false;
 	bool empty_failure = false;
 
-	for (size_t i = 0; i < vec->n_points; i++) {
+	for (size_t i = 0; i < vec->n_points_valid; i++) {
 
 		cw_rec_test_point * point = vec->points[i];
 
@@ -772,6 +784,9 @@ cw_characters_list * cw_characters_list_new_random(cw_test_executor_t * cte)
 
 
 
+/**
+   @reviewed on 2019-10-25
+*/
 void cw_characters_list_delete(cw_characters_list ** characters_list)
 {
 	if (NULL == characters_list) {
@@ -795,17 +810,20 @@ void cw_characters_list_delete(cw_characters_list ** characters_list)
    \brief Generate a table of constant speeds
 
    Function allocates and returns a table of speeds of constant value
-   specified by \p speed. There are \p n valid (non-negative) values
-   in the table.
+   specified by cw_variation_params::speed. There will be \p n valid
+   (non-negative and within valid range) values in the table.
 
-   \param speed - a constant value to be used as initializer of the table
+   @reviewed on 2019-10-25
+
    \param n - size of speeds table
+   \param cw_variation_params::speed - a constant value to be used as initializer of the table
 
    \return wrapper object for table of speeds of constant value
 */
 cw_send_speeds * cw_send_speeds_new_constant(cw_test_executor_t * cte, size_t n, const cw_variation_params * variation_params)
 {
-	cte->assert2(cte, variation_params->speed > 0, "generate speeds constant: speed must be larger than zero\n");
+	cte->assert2(cte, variation_params->speed >= CW_SPEED_MIN, "%s: speed must be at least %d\n", __func__, CW_SPEED_MIN);
+	cte->assert2(cte, variation_params->speed <= CW_SPEED_MAX, "%s: speed must be no larger than %d\n", __func__, CW_SPEED_MAX);
 
 	cw_send_speeds * speeds = (cw_send_speeds *) calloc(sizeof (cw_send_speeds), 1);
 	cte->assert2(cte, speeds, "%s: first calloc() failed\n", __func__);
@@ -816,8 +834,7 @@ cw_send_speeds * cw_send_speeds_new_constant(cw_test_executor_t * cte, size_t n,
 	speeds->n_speeds = n;
 
 	for (size_t i = 0; i < speeds->n_speeds; i++) {
-		/* Fixed speed receive mode - speed values are constant for
-		   all characters. */
+		/* Constant speeds. */
 		speeds->values[i] = (float) variation_params->speed;
 	}
 
@@ -831,20 +848,25 @@ cw_send_speeds * cw_send_speeds_new_constant(cw_test_executor_t * cte, size_t n,
    \brief Generate a table of varying speeds
 
    Function allocates and returns a table of speeds of varying values,
-   changing between \p speed_min and \p speed_max. There are \p n
-   valid (non-negative) values in the table.
+   changing between \p variation_params::speed_min and \p
+   variation_params::speed_max. There will be \p n valid (non-negative
+   and within the specified range) values in the table.
 
-   \param speed_min - minimal speed
-   \param speed_max - maximal speed
+   @reviewed on 2019-10-25
+
    \param n - size of speeds table
+   \param variation_params::speed_min - minimal speed
+   \param variation_params::speed_max - maximal speed
 
    \return wrapper object for table of speeds
 */
 cw_send_speeds * cw_send_speeds_new_varying_sine(cw_test_executor_t * cte, size_t n, const cw_variation_params * variation_params)
 {
-	cte->assert2(cte, variation_params->speed_min > 0, "generate speeds varying: speed_min must be larger than zero\n");
-	cte->assert2(cte, variation_params->speed_max > 0, "generate speeds varying: speed_max must be larger than zero\n");
-	cte->assert2(cte, variation_params->speed_min <= variation_params->speed_max, "generate speeds varying: speed_min can't be larger than speed_max\n");
+	cte->assert2(cte, variation_params->speed_min >= CW_SPEED_MIN, "%s: speed_min must be at least %d\n", __func__, CW_SPEED_MIN);
+	cte->assert2(cte, variation_params->speed_max >= CW_SPEED_MIN, "%s: speed_max must be at least %d\n", __func__, CW_SPEED_MIN);
+	cte->assert2(cte, variation_params->speed_min <= CW_SPEED_MAX, "%s: speed_min must be no larger than %d\n", __func__, CW_SPEED_MAX);
+	cte->assert2(cte, variation_params->speed_max <= CW_SPEED_MAX, "%s: speed_max must be no larger than %d\n", __func__, CW_SPEED_MAX);
+	cte->assert2(cte, variation_params->speed_min <= variation_params->speed_max, "%s: speed_min can't be larger than speed_max\n", __func__);
 
 	cw_send_speeds * speeds = (cw_send_speeds *) calloc(sizeof (cw_send_speeds), 1);
 	cte->assert2(cte, speeds, "%s: first calloc() failed\n", __func__);
@@ -855,16 +877,11 @@ cw_send_speeds * cw_send_speeds_new_varying_sine(cw_test_executor_t * cte, size_
 	speeds->n_speeds = n;
 
 	for (size_t i = 0; i < n; i++) {
-
-		/* Adaptive speed receive mode - speed varies for all
-		   characters. */
-
+		/* Varying speeds. */
 		const float t = (1.0 * i) / n;
-
 		speeds->values[i] = (1 + cosf(2 * 3.1415 * t)) / 2.0;                             /* 0.0 -  1.0 */
 		speeds->values[i] *= (variation_params->speed_max - variation_params->speed_min); /* 0.0 - 56.0 */
 		speeds->values[i] += variation_params->speed_min;                                 /* 4.0 - 60.0 */
-
 		// fprintf(stderr, "%f\n", speeds->values[i]);
 	}
 
@@ -874,6 +891,9 @@ cw_send_speeds * cw_send_speeds_new_varying_sine(cw_test_executor_t * cte, size_
 
 
 
+/**
+   @reviewed on 2019-10-25
+*/
 void cw_send_speeds_delete(cw_send_speeds ** speeds)
 {
 	if (NULL == speeds) {
@@ -905,21 +925,21 @@ void cw_send_speeds_delete(cw_send_speeds ** speeds)
    data as well) that can be used to test receiver's functions that
    accept timestamp argument.
 
-   All characters in \p characters must be valid (i.e. they must be
-   accepted by cw_character_is_valid()).
+   @param character_list_maker generates list of (valid) characters
+   that will be represented by durations.
 
-   All values in \p speeds must be valid (i.e. must be between
-   CW_SPEED_MIN and CW_SPEED_MAX, inclusive).
+   @param send_speeds_maker generates list of speeds (wpm) at which
+   the characters will be sent to receiver.
 
-   Size of \p characters and \p speeds must be equal.
-
-   The data is valid and represents valid Morse representations.  If
-   you want to generate invalid data or to generate data based on
-   invalid representations, you have to use some other function.
+   The data returned by the function is valid and represents valid
+   Morse representations (durations describe a series of dots and
+   dashes that in turn correspond to list of characters).  If you want
+   to generate invalid data or to generate data based on invalid
+   representations, you have to use some other function.
 
    For each character the last duration parameter represents
    end-of-character space or end-of-word space. The next duration
-   parameter after the space is zero. For character 'A' that would
+   parameter after that space is zero. For character 'A' that would
    look like this:
 
    .-    ==   40000 (dot mark); 40000 (inter-mark space); 120000 (dash mark); 240000 (end-of-word space); 0 (guard, zero duration)
@@ -929,10 +949,9 @@ void cw_send_speeds_delete(cw_send_speeds ** speeds)
 
    Use cw_rec_test_vector_delete() to deallocate the duration data table.
 
-   \brief characters - list of characters for which to generate table with duration data
-   \brief speeds - list of speeds (per-character)
+   @reviewed on 2019-10-25
 
-   \return table of duration data sets
+   \return wrapper object around table of duration data sets
 */
 cw_rec_test_vector * cw_rec_test_vector_factory(cw_test_executor_t * cte, characters_list_maker_t characters_list_maker, send_speeds_maker_t send_speeds_maker, const cw_variation_params * variation_params)
 {
@@ -944,85 +963,96 @@ cw_rec_test_vector * cw_rec_test_vector_factory(cw_test_executor_t * cte, charac
 	cw_rec_test_vector * vec = cw_rec_test_vector_new(cte, n_characters);
 
 
-	size_t out = 0; /* For indexing output data table. */
-	for (size_t in = 0; in < n_characters; in++) {
+	size_t out_idx = 0;
+	for (size_t in_idx = 0; in_idx < n_characters; in_idx++) {
 
-		int unit_len = CW_DOT_CALIBRATION / send_speeds->values[in]; /* Dot length, [us]. Used as basis for other elements. */
-		// fprintf(stderr, "unit_len = %d [us] for speed = %d [wpm]\n", unit_len, speed);
+		/* TODO: in this loop we are using some formulas from
+		   somewhere to calculate durations. Where do these
+		   formulas come from? How do we know that they are
+		   valid? */
+
+		const int dot_duration = CW_DOT_CALIBRATION / send_speeds->values[in_idx]; /* [us]; used as basis for other elements. */
+		//fprintf(stderr, "dot_duration = %d [us] for speed = %05.2f [wpm]\n", dot_duration, send_speeds->values[in_idx]);
 
 
-		/* First handle a special case: end-of-word
-		   space. This long space will be put at the end of
-		   table of time values for previous
-		   representation. The space in character list is
-		   never transformed into separate point in vector. */
-		if (characters_list->values[in] == ' ') {
-			/* We don't want to affect current output
-			   character, we want to turn end-of-char
-			   space of previous character into
-			   end-of-word space, hence 'out - 1'. */
-			int space_i = vec->points[out - 1]->n_tone_durations - 1;    /* Index of last space (end-of-char, to become end-of-word). */
-			vec->points[out - 1]->tone_durations[space_i] = unit_len * 6; /* unit_len * 5 is the minimal end-of-word space. */
+		/*
+		  First handle a special case: end-of-word space. This
+		  long space will be put at the end of table of time
+		  values for previous representation. The space in
+		  character list is never transformed into separate
+		  point in vector.
 
-			vec->points[out - 1]->is_last_in_word = true;
+		  When generating list of characters, we make sure to
+		  put non-space character at index 0, so when we index
+		  points[] with 'out_idx-1' we are safe.
+		*/
+		if (characters_list->values[in_idx] == ' ') {
+			/* We don't want to affect *current* output
+			   point (we don't create a vector point for
+			   space). We want to turn end-of-char space
+			   of previous point into end-of-word space,
+			   hence 'out_idx - 1'. */
+			cw_rec_test_point * prev_point = vec->points[out_idx - 1];
+			const int space_idx = prev_point->n_tone_durations - 1;   /* Index of last space (end-of-char, to become end-of-word). */
+			prev_point->tone_durations[space_idx] = dot_duration * 6; /* dot_duration * 5 is the minimal end-of-word space. */
+			prev_point->is_last_in_word = true;
 
 			continue;
 		} else {
 			/* A regular character, handled below. */
 		}
 
-		cw_rec_test_point * point = vec->points[out];
+		cw_rec_test_point * point = vec->points[out_idx];
 
-
-		point->character = characters_list->values[in];
+		point->character = characters_list->values[in_idx];
 		point->representation = cw_character_to_representation(point->character);
 		cte->assert2(cte, point->representation,
-			     "generate data: cw_character_to_representation() failed for input char #%zu: '%c'\n",
-			     in, characters_list->values[in]);
-		point->send_speed = send_speeds->values[in];
+			     "%s: cw_character_to_representation() failed for input char #%zu: '%c'\n",
+			     __func__,
+			     in_idx, characters_list->values[in_idx]);
+		point->send_speed = send_speeds->values[in_idx];
 
 
-		/* Build table of times (data points) 'd[]' for given
-		   representation 'r'. */
+		/* Build table of durations 'tone_durations[]' for
+		   given representation 'point->representation'. */
 
-
-		size_t n_tone_durations = 0; /* Number of data points in data table. */
+		size_t n_tone_durations = 0; /* Number of durations in durations table. */
 
 		size_t rep_length = strlen(point->representation);
 		for (size_t k = 0; k < rep_length; k++) {
 
 			/* Length of mark. */
 			if (point->representation[k] == CW_DOT_REPRESENTATION) {
-				point->tone_durations[n_tone_durations] = unit_len;
+				point->tone_durations[n_tone_durations] = dot_duration;
 
 			} else if (point->representation[k] == CW_DASH_REPRESENTATION) {
-				point->tone_durations[n_tone_durations] = unit_len * 3;
+				point->tone_durations[n_tone_durations] = dot_duration * 3;
 
 			} else {
-				cte->assert2(cte, 0, "generate data: unknown char in representation: '%c'\n", point->representation[k]);
+				cte->assert2(cte, 0, "%s: unknown char in representation: '%c'\n", __func__, point->representation[k]);
 			}
 			n_tone_durations++;
 
 
 			/* Length of space (inter-mark space). Mark
 			   and space always go in pair. */
-			point->tone_durations[n_tone_durations] = unit_len;
+			point->tone_durations[n_tone_durations] = dot_duration;
 			n_tone_durations++;
 		}
 
 		/* Every character has non-zero marks and spaces. */
-		cte->assert2(cte, n_tone_durations > 0, "generate data: number of data points is %zu for representation '%s'\n", n_tone_durations, point->representation);
+		cte->assert2(cte, n_tone_durations > 0, "%s: number of data points is %zu for representation '%s'\n", __func__, n_tone_durations, point->representation);
 
 		/* Mark and space always go in pair, so nd should be even. */
-		cte->assert2(cte, ! (n_tone_durations % 2), "generate data: number of times is not even\n");
+		cte->assert2(cte, ! (n_tone_durations % 2), "%s: number of times is not even\n", __func__);
 
 		/* Mark/space pair per each dot or dash. */
-		cte->assert2(cte, n_tone_durations == 2 * rep_length, "generate data: number of times incorrect: %zu != 2 * %zu\n", n_tone_durations, rep_length);
+		cte->assert2(cte, n_tone_durations == 2 * rep_length, "%s: number of times incorrect: %zu != 2 * %zu\n", __func__, n_tone_durations, rep_length);
 
 
 		/* Graduate that last space (inter-mark space) into
 		   end-of-character space. */
-		point->tone_durations[n_tone_durations - 1] = (unit_len * 3) + (unit_len / 2);
+		point->tone_durations[n_tone_durations - 1] = (dot_duration * 3) + (dot_duration / 2);
 
 		/* Guard. */
 		point->tone_durations[n_tone_durations] = 0;
@@ -1030,17 +1060,17 @@ cw_rec_test_vector * cw_rec_test_vector_factory(cw_test_executor_t * cte, charac
 		point->n_tone_durations = n_tone_durations;
 
 		/* This may be overwritten by this function when a
-		   space character (' ') is encountered in input
-		   string. */
+		   space character (' ') is encountered in next cell
+		   of input string. */
 		point->is_last_in_word = false;
 
-		out++;
+		out_idx++;
 	}
 
-	/* The *real* amount of points in vector (smaller than
-	   n_characters because we have skipped some space
+	/* The count of valid points in vector (smaller than
+	   n_characters because we have skipped all space (' ')
 	   characters). */
-	vec->n_points = out;
+	vec->n_points_valid = out_idx;
 
 	cw_characters_list_delete(&characters_list);
 	cw_send_speeds_delete(&send_speeds);
@@ -1089,7 +1119,8 @@ cw_rec_test_vector * cw_rec_test_vector_new(cw_test_executor_t * cte, size_t n)
 	vec->points = (cw_rec_test_point **) calloc(sizeof (cw_rec_test_point *), n);
 	cte->assert2(cte, vec->points, "%s: second calloc() failed\n", __func__);
 
-	vec->n_points = n;
+	vec->n_points_allocated = n;
+	vec->n_points_valid = n; /* This will be overwritten later, once we know the real number of valid points generated from non-space characters. */
 
 	for (size_t i = 0; i < n; i++) {
 		vec->points[i] = cw_rec_test_point_new(cte);
@@ -1115,7 +1146,7 @@ void cw_rec_test_vector_delete(cw_rec_test_vector ** vec)
 		return;
 	}
 
-	for (size_t i = 0; i < (*vec)->n_points; i++) {
+	for (size_t i = 0; i < (*vec)->n_points_allocated; i++) {
 		cw_rec_test_point_delete(&(*vec)->points[i]);
 	}
 
@@ -1140,7 +1171,7 @@ void cw_rec_test_vector_delete(cw_rec_test_vector ** vec)
 void cw_rec_test_vector_print(cw_test_executor_t * cte, cw_rec_test_vector * vec)
 {
 	cte->log_info_cont(cte, "---------------------------------------------------------------------------------------------------------------------------------------------------------\n");
-	for (size_t i = 0; i < vec->n_points; i++) {
+	for (size_t i = 0; i < vec->n_points_valid; i++) {
 
 		cw_rec_test_point * point = vec->points[i];
 		/* Debug output. */
