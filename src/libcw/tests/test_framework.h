@@ -399,6 +399,10 @@ typedef struct cw_test_set_t {
 #define TOSTRING(x) STRINGIFY(x)
 #define CW_TEST_FUNCTION_INSERT(function_pointer) { .fn = function_pointer, .name = TOSTRING(function_pointer) }
 
+/* FUT = "Function under test". A function from libcw library that is
+   the subject of a test. */
+#define CW_TEST_FUT(x) x
+
 
 
 
