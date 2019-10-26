@@ -34,14 +34,14 @@ cw_test_set_t cw_test_sets[] = {
 
 	/* Guard. */
 	{
-		CW_TEST_SET_INVALID,
-		CW_TEST_API_LEGACY,
+		LIBCW_TEST_SET_INVALID,
+		LIBCW_TEST_API_LEGACY,
 
 		{ LIBCW_TEST_TOPIC_MAX }, /* Topics. */
 		{ LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. */
 
 		{
-			CW_TEST_FUNCTION_INSERT(NULL),
+			LIBCW_TEST_FUNCTION_INSERT(NULL),
 		}
 	}
 };

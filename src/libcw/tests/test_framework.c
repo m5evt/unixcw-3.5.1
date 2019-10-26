@@ -1313,7 +1313,7 @@ bool cw_test_sound_system_is_member(__attribute__((unused)) cw_test_executor_t *
 int cw_test_main_test_loop(cw_test_executor_t * cte, cw_test_set_t * test_sets)
 {
 	int set = 0;
-	while (CW_TEST_SET_VALID == test_sets[set].set_valid) {
+	while (LIBCW_TEST_SET_VALID == test_sets[set].set_valid) {
 
 		cw_test_set_t * test_set = &test_sets[set];
 

@@ -25,8 +25,6 @@
 
 
 
-#define out_file stdout
-
 /* Total width of test name + test status printed in console (without
    ending '\n'). Remember that some consoles have width = 80. Not
    everyone works in X. */
@@ -363,13 +361,13 @@ void cw_test_init(cw_test_executor_t * cte, FILE * stdout, FILE * stderr, const 
 typedef int (* cw_test_function_t)(cw_test_executor_t * cte);
 
 typedef enum cw_test_set_valid {
-	CW_TEST_SET_INVALID,
-	CW_TEST_SET_VALID,
+	LIBCW_TEST_SET_INVALID,
+	LIBCW_TEST_SET_VALID,
 } cw_test_set_valid;
 
 typedef enum cw_test_api_tested {
-	CW_TEST_API_LEGACY, /* Tests of functions from libcw.h. Legacy API that does not allow using multiple gen/key/rec objects. */
-	CW_TEST_API_MODERN, /* Tests of internal functions that operate on explicit gen/key/rec objects (functions that accept such objects as arguments). */
+	LIBCW_TEST_API_LEGACY, /* Tests of functions from libcw.h. Legacy API that does not allow using multiple gen/key/rec objects. */
+	LIBCW_TEST_API_MODERN, /* Tests of internal functions that operate on explicit gen/key/rec objects (functions that accept such objects as arguments). */
 } cw_test_api_tested;
 
 
@@ -395,13 +393,13 @@ typedef struct cw_test_set_t {
 
 
 
-#define STRINGIFY(x) #x
-#define TOSTRING(x) STRINGIFY(x)
-#define CW_TEST_FUNCTION_INSERT(function_pointer) { .fn = function_pointer, .name = TOSTRING(function_pointer) }
+#define LIBCW_TEST_STRINGIFY(x) #x
+#define LIBCW_TEST_TOSTRING(x) LIBCW_TEST_STRINGIFY(x)
+#define LIBCW_TEST_FUNCTION_INSERT(function_pointer) { .fn = function_pointer, .name = LIBCW_TEST_TOSTRING(function_pointer) }
 
 /* FUT = "Function under test". A function from libcw library that is
    the subject of a test. */
-#define CW_TEST_FUT(x) x
+#define LIBCW_TEST_FUT(x) x
 
 
 

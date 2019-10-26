@@ -160,7 +160,7 @@ int test_cw_rec_identify_mark_internal(cw_test_executor_t * cte)
 		/* Test marks that have duration appropriate for a dot. */
 		int duration_step = (rec->dot_len_max - rec->dot_len_min) / 10;
 		for (int duration = rec->dot_len_min; duration <= rec->dot_len_max; duration += duration_step) {
-			cwret = CW_TEST_FUT(cw_rec_identify_mark_internal)(rec, duration, &representation);
+			cwret = LIBCW_TEST_FUT(cw_rec_identify_mark_internal)(rec, duration, &representation);
 			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "identify valid dot @ %02d [wpm], duration %d [us]", speed, duration)) {
 				failure = true;
 				break;
@@ -173,18 +173,18 @@ int test_cw_rec_identify_mark_internal(cw_test_executor_t * cte)
 		cte->expect_op_int(cte, false, "==", failure, 0, "identify dot @ %02d [wpm]: mark valid", speed);
 
 		/* Test mark shorter than minimal duration of dot. */
-		cwret = CW_TEST_FUT(cw_rec_identify_mark_internal)(rec, rec->dot_len_min - 1, &representation);
+		cwret = LIBCW_TEST_FUT(cw_rec_identify_mark_internal)(rec, rec->dot_len_min - 1, &representation);
 		cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 0, "identify dot @ %02d [wpm]: mark shorter than min dot", speed);
 
 		/* Test mark longer than maximal duration of dot (but shorter than minimal duration of dash). */
-		cwret = CW_TEST_FUT(cw_rec_identify_mark_internal)(rec, rec->dot_len_max + 1, &representation);
+		cwret = LIBCW_TEST_FUT(cw_rec_identify_mark_internal)(rec, rec->dot_len_max + 1, &representation);
 		cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 0, "identify dot @ %02d [wpm]: mark longer than max dot", speed);
 
 
 		/* Test marks that have duration appropriate for a dash. */
 		duration_step = (rec->dash_len_max - rec->dash_len_min) / 10;
 		for (int duration = rec->dash_len_min; duration <= rec->dash_len_max; duration += duration_step) {
-			cwret = CW_TEST_FUT(cw_rec_identify_mark_internal)(rec, duration, &representation);
+			cwret = LIBCW_TEST_FUT(cw_rec_identify_mark_internal)(rec, duration, &representation);
 			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "identify valid dash @ %02d [wpm], duration %d [us]", speed, duration)) {
 				failure = true;
 				break;
@@ -198,11 +198,11 @@ int test_cw_rec_identify_mark_internal(cw_test_executor_t * cte)
 		cte->expect_op_int(cte, false, "==", failure, 0, "identify dash @ %02d [wpm]: mark valid", speed);
 
 		/* Test mark shorter than minimal duration of dash (but longer than maximal duration of dot). */
-		cwret = CW_TEST_FUT(cw_rec_identify_mark_internal)(rec, rec->dash_len_min - 1, &representation);
+		cwret = LIBCW_TEST_FUT(cw_rec_identify_mark_internal)(rec, rec->dash_len_min - 1, &representation);
 		cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 0, "identify dash @ %02d [wpm]: mark shorter than min dash", speed);
 
 		/* Test mark longer than maximal duration of dash. */
-		cwret = CW_TEST_FUT(cw_rec_identify_mark_internal)(rec, rec->dash_len_max + 1, &representation);
+		cwret = LIBCW_TEST_FUT(cw_rec_identify_mark_internal)(rec, rec->dash_len_max + 1, &representation);
 		cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 0, "identify dash @ %02d [wpm]: mark longer than max dash", speed);
 	}
 
@@ -450,13 +450,13 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec
 			begin_end_failure = false;
 
 			if (tone % 2) {
-				const int cwret = CW_TEST_FUT(cw_rec_mark_end)(rec, &tv);
+				const int cwret = LIBCW_TEST_FUT(cw_rec_mark_end)(rec, &tv);
 				if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "%s: cw_rec_mark_end(): tone = %d, time = %d.%d", this_test_name, tone, (int) tv.tv_sec, (int) tv.tv_usec)) {
 					begin_end_failure = true;
 					break;
 				}
 			} else {
-				const int cwret = CW_TEST_FUT(cw_rec_mark_begin)(rec, &tv);
+				const int cwret = LIBCW_TEST_FUT(cw_rec_mark_begin)(rec, &tv);
 				if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "%s: cw_rec_mark_begin(): tone = %d, time = %d.%d", this_test_name, tone, (int) tv.tv_sec, (int) tv.tv_usec)) {
 					begin_end_failure = true;
 					break;
@@ -487,7 +487,7 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec
 		   after adding a representation of a single character
 		   to receiver's buffer. */
 		{
-			const int readback_len = CW_TEST_FUT(cw_rec_get_buffer_length_internal)(rec);
+			const int readback_len = LIBCW_TEST_FUT(cw_rec_get_buffer_length_internal)(rec);
 			const int expected_len = (int) strlen(point->representation);
 			if (!cte->expect_op_int(cte, expected_len, "==", readback_len, 1, "%s: cw_rec_get_buffer_length_internal(<nonempty>)", this_test_name)) {
 				buffer_length_failure = true;
@@ -522,7 +522,7 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec
 			   dot + jitter). In libcw maximum
 			   recognizable duration of "end of character"
 			   space is 5 x dot. */
-			int cwret = CW_TEST_FUT(cw_rec_poll_representation)(rec, &tv, polled_representation, &is_word, &is_error);
+			int cwret = LIBCW_TEST_FUT(cw_rec_poll_representation)(rec, &tv, polled_representation, &is_word, &is_error);
 			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "%s: poll representation (cwret)", this_test_name)) {
 				poll_representation_failure = true;
 				break;
@@ -587,7 +587,7 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec
 			/* The representation is still held in
 			   receiver. Ask receiver for converting the
 			   representation to character. */
-			const int cwret = CW_TEST_FUT(cw_rec_poll_character)(rec, &tv, &polled_character, &is_word, &is_error);
+			const int cwret = LIBCW_TEST_FUT(cw_rec_poll_character)(rec, &tv, &polled_character, &is_word, &is_error);
 			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "%s: poll character (cwret)", this_test_name)) {
 				poll_character_failure = true;
 				break;
@@ -612,7 +612,7 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec
 			   to prepare the receiver for receiving next
 			   character. */
 			cw_rec_reset_state(rec);
-			const int length = CW_TEST_FUT(cw_rec_get_buffer_length_internal)(rec);
+			const int length = LIBCW_TEST_FUT(cw_rec_get_buffer_length_internal)(rec);
 			if (!cte->expect_op_int(cte, 0, "==", length, 1, "%s: get buffer length: length of cleared buffer", this_test_name)) {
 				empty_failure = true;
 				break;
@@ -1220,11 +1220,11 @@ int test_cw_rec_get_receive_parameters(cw_test_executor_t * cte)
 	cte->assert2(cte, rec, "%s: failed to create new receiver\n", this_test_name);
 	cw_rec_reset_parameters_internal(rec);
 	cw_rec_sync_parameters_internal(rec);
-	CW_TEST_FUT(cw_rec_get_parameters_internal)(rec,
-						    &dot_len_ideal, &dash_len_ideal, &dot_len_min, &dot_len_max, &dash_len_min, &dash_len_max,
-						    &eom_len_min, &eom_len_max, &eom_len_ideal,
-						    &eoc_len_min, &eoc_len_max, &eoc_len_ideal,
-						    &adaptive_speed_threshold);
+	LIBCW_TEST_FUT(cw_rec_get_parameters_internal)(rec,
+						       &dot_len_ideal, &dash_len_ideal, &dot_len_min, &dot_len_max, &dash_len_min, &dash_len_max,
+						       &eom_len_min, &eom_len_max, &eom_len_ideal,
+						       &eoc_len_min, &eoc_len_max, &eoc_len_ideal,
+						       &adaptive_speed_threshold);
 	cw_rec_delete(&rec);
 
 	cte->log_info(cte, "%s: dot/dash:  %d, %d, %d, %d, %d, %d\n", this_test_name, dot_len_ideal, dash_len_ideal, dot_len_min, dot_len_max, dash_len_min, dash_len_max);
@@ -1322,9 +1322,9 @@ int test_cw_rec_parameter_getters_setters_1(cw_test_executor_t * cte)
 
 		const char *name;
 	} test_data[] = {
-		{ CW_TEST_FUT(cw_get_speed_limits),
-		  CW_TEST_FUT(cw_rec_set_speed),
-		  CW_TEST_FUT(cw_rec_get_speed),                           CW_SPEED_MIN, CW_SPEED_MAX, off_limits, -off_limits, "rec speed" },
+		{ LIBCW_TEST_FUT(cw_get_speed_limits),
+		  LIBCW_TEST_FUT(cw_rec_set_speed),
+		  LIBCW_TEST_FUT(cw_rec_get_speed),                        CW_SPEED_MIN, CW_SPEED_MAX, off_limits, -off_limits, "rec speed" },
 		{ NULL,                NULL,             NULL,             0,            0,            0,          0,           NULL        }
 	};
 
@@ -1456,9 +1456,9 @@ int test_cw_rec_parameter_getters_setters_2(cw_test_executor_t * cte)
 
 		const char *name;
 	} test_data[] = {
-		{ CW_TEST_FUT(cw_get_tolerance_limits),
-		  CW_TEST_FUT(cw_rec_set_tolerance),
-		  CW_TEST_FUT(cw_rec_get_tolerance),                                      CW_TOLERANCE_MIN,  CW_TOLERANCE_MAX,  off_limits,  -off_limits,  "tolerance"     },
+		{ LIBCW_TEST_FUT(cw_get_tolerance_limits),
+		  LIBCW_TEST_FUT(cw_rec_set_tolerance),
+		  LIBCW_TEST_FUT(cw_rec_get_tolerance),                                   CW_TOLERANCE_MIN,  CW_TOLERANCE_MAX,  off_limits,  -off_limits,  "tolerance"     },
 		{ NULL,                     NULL,                  NULL,                  0,                 0,                 0,            0,           NULL            }
 	};
 

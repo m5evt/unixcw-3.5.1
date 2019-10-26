@@ -19,104 +19,104 @@
 
 
 	{
-		CW_TEST_SET_VALID,
-		CW_TEST_API_LEGACY,
+		LIBCW_TEST_SET_VALID,
+		LIBCW_TEST_API_LEGACY,
 
 		{ LIBCW_TEST_TOPIC_TQ, LIBCW_TEST_TOPIC_MAX }, /* Topics. */
 		{ CW_AUDIO_NULL, CW_AUDIO_CONSOLE, CW_AUDIO_OSS, CW_AUDIO_ALSA, CW_AUDIO_PA, LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. */
 
 		{
-			CW_TEST_FUNCTION_INSERT(legacy_api_test_setup),
+			LIBCW_TEST_FUNCTION_INSERT(legacy_api_test_setup),
 
-			CW_TEST_FUNCTION_INSERT(legacy_api_test_cw_wait_for_tone),
-			CW_TEST_FUNCTION_INSERT(legacy_api_test_cw_wait_for_tone_queue),
-			CW_TEST_FUNCTION_INSERT(legacy_api_test_cw_queue_tone),
-			CW_TEST_FUNCTION_INSERT(legacy_api_test_empty_tone_queue),
-			CW_TEST_FUNCTION_INSERT(legacy_api_test_full_tone_queue),
-			CW_TEST_FUNCTION_INSERT(legacy_api_test_tone_queue_callback),
+			LIBCW_TEST_FUNCTION_INSERT(legacy_api_test_cw_wait_for_tone),
+			LIBCW_TEST_FUNCTION_INSERT(legacy_api_test_cw_wait_for_tone_queue),
+			LIBCW_TEST_FUNCTION_INSERT(legacy_api_test_cw_queue_tone),
+			LIBCW_TEST_FUNCTION_INSERT(legacy_api_test_empty_tone_queue),
+			LIBCW_TEST_FUNCTION_INSERT(legacy_api_test_full_tone_queue),
+			LIBCW_TEST_FUNCTION_INSERT(legacy_api_test_tone_queue_callback),
 
-			CW_TEST_FUNCTION_INSERT(legacy_api_test_teardown),
+			LIBCW_TEST_FUNCTION_INSERT(legacy_api_test_teardown),
 
-			CW_TEST_FUNCTION_INSERT(NULL),
+			LIBCW_TEST_FUNCTION_INSERT(NULL),
 		}
 	},
 	{
-		CW_TEST_SET_VALID,
-		CW_TEST_API_LEGACY,
+		LIBCW_TEST_SET_VALID,
+		LIBCW_TEST_API_LEGACY,
 
 		{ LIBCW_TEST_TOPIC_GEN, LIBCW_TEST_TOPIC_MAX }, /* Topics. */
 		{ CW_AUDIO_NULL, CW_AUDIO_CONSOLE, CW_AUDIO_OSS, CW_AUDIO_ALSA, CW_AUDIO_PA, LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. */
 
 		{
-			CW_TEST_FUNCTION_INSERT(legacy_api_test_setup),
+			LIBCW_TEST_FUNCTION_INSERT(legacy_api_test_setup),
 
-			CW_TEST_FUNCTION_INSERT(legacy_api_test_volume_functions),
-			CW_TEST_FUNCTION_INSERT(legacy_api_test_send_primitives),
-			CW_TEST_FUNCTION_INSERT(legacy_api_test_send_character_and_string),
-			CW_TEST_FUNCTION_INSERT(legacy_api_test_representations),
-			CW_TEST_FUNCTION_INSERT(legacy_api_test_teardown),
+			LIBCW_TEST_FUNCTION_INSERT(legacy_api_test_volume_functions),
+			LIBCW_TEST_FUNCTION_INSERT(legacy_api_test_send_primitives),
+			LIBCW_TEST_FUNCTION_INSERT(legacy_api_test_send_character_and_string),
+			LIBCW_TEST_FUNCTION_INSERT(legacy_api_test_representations),
+			LIBCW_TEST_FUNCTION_INSERT(legacy_api_test_teardown),
 
 			/* This function creates and deletes a
 			   generator on its own, so it has to be put
 			   after legacy_api_test_teardown() that
 			   deletes a generator. */
-			CW_TEST_FUNCTION_INSERT(legacy_api_test_basic_gen_operations),
+			LIBCW_TEST_FUNCTION_INSERT(legacy_api_test_basic_gen_operations),
 
-			CW_TEST_FUNCTION_INSERT(NULL),
+			LIBCW_TEST_FUNCTION_INSERT(NULL),
 		}
 	},
 	{
-		CW_TEST_SET_VALID,
-		CW_TEST_API_LEGACY,
+		LIBCW_TEST_SET_VALID,
+		LIBCW_TEST_API_LEGACY,
 
 		{ LIBCW_TEST_TOPIC_KEY, LIBCW_TEST_TOPIC_MAX }, /* Topics. */
 		{ CW_AUDIO_NULL, CW_AUDIO_CONSOLE, CW_AUDIO_OSS, CW_AUDIO_ALSA, CW_AUDIO_PA, LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. */
 
 		{
-			CW_TEST_FUNCTION_INSERT(legacy_api_test_setup),
+			LIBCW_TEST_FUNCTION_INSERT(legacy_api_test_setup),
 
-			CW_TEST_FUNCTION_INSERT(legacy_api_test_iambic_key_dot),
-			CW_TEST_FUNCTION_INSERT(legacy_api_test_iambic_key_dash),
-			CW_TEST_FUNCTION_INSERT(legacy_api_test_iambic_key_alternating),
-			CW_TEST_FUNCTION_INSERT(legacy_api_test_iambic_key_none),
-			CW_TEST_FUNCTION_INSERT(legacy_api_test_straight_key),
+			LIBCW_TEST_FUNCTION_INSERT(legacy_api_test_iambic_key_dot),
+			LIBCW_TEST_FUNCTION_INSERT(legacy_api_test_iambic_key_dash),
+			LIBCW_TEST_FUNCTION_INSERT(legacy_api_test_iambic_key_alternating),
+			LIBCW_TEST_FUNCTION_INSERT(legacy_api_test_iambic_key_none),
+			LIBCW_TEST_FUNCTION_INSERT(legacy_api_test_straight_key),
 
-			CW_TEST_FUNCTION_INSERT(legacy_api_test_teardown),
+			LIBCW_TEST_FUNCTION_INSERT(legacy_api_test_teardown),
 
-			CW_TEST_FUNCTION_INSERT(NULL),
+			LIBCW_TEST_FUNCTION_INSERT(NULL),
 		}
 	},
 	{
-		CW_TEST_SET_VALID,
-		CW_TEST_API_LEGACY,
+		LIBCW_TEST_SET_VALID,
+		LIBCW_TEST_API_LEGACY,
 
 		{ LIBCW_TEST_TOPIC_OTHER, LIBCW_TEST_TOPIC_MAX }, /* Topics. */
 		{ CW_AUDIO_NULL, CW_AUDIO_CONSOLE, CW_AUDIO_OSS, CW_AUDIO_ALSA, CW_AUDIO_PA, LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. */
 
 		{
-			CW_TEST_FUNCTION_INSERT(legacy_api_test_setup),
+			LIBCW_TEST_FUNCTION_INSERT(legacy_api_test_setup),
 
-			CW_TEST_FUNCTION_INSERT(legacy_api_test_low_level_gen_parameters),
-			CW_TEST_FUNCTION_INSERT(legacy_api_test_parameter_ranges),
-			//CW_TEST_FUNCTION_INSERT(legacy_api_cw_test_delayed_release),
-			//CW_TEST_FUNCTION_INSERT(legacy_api_cw_test_signal_handling), /* FIXME - not sure why this test fails :( */
+			LIBCW_TEST_FUNCTION_INSERT(legacy_api_test_low_level_gen_parameters),
+			LIBCW_TEST_FUNCTION_INSERT(legacy_api_test_parameter_ranges),
+			//LIBCW_TEST_FUNCTION_INSERT(legacy_api_cw_test_delayed_release),
+			//LIBCW_TEST_FUNCTION_INSERT(legacy_api_cw_test_signal_handling), /* FIXME - not sure why this test fails :( */
 
-			CW_TEST_FUNCTION_INSERT(legacy_api_test_teardown),
+			LIBCW_TEST_FUNCTION_INSERT(legacy_api_test_teardown),
 
-			CW_TEST_FUNCTION_INSERT(NULL),
+			LIBCW_TEST_FUNCTION_INSERT(NULL),
 		}
 	},
 	{
-		CW_TEST_SET_VALID,
-		CW_TEST_API_LEGACY,
+		LIBCW_TEST_SET_VALID,
+		LIBCW_TEST_API_LEGACY,
 
 		{ LIBCW_TEST_TOPIC_OTHER, LIBCW_TEST_TOPIC_MAX }, /* Topics. */
 		{ CW_AUDIO_NULL, CW_AUDIO_CONSOLE, CW_AUDIO_OSS, CW_AUDIO_ALSA, CW_AUDIO_PA, LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. */
 
 		{
 			/* This test does its own generator setup and deconfig. */
-			CW_TEST_FUNCTION_INSERT(legacy_api_test_tq_short_space),
+			LIBCW_TEST_FUNCTION_INSERT(legacy_api_test_tq_short_space),
 
-			CW_TEST_FUNCTION_INSERT(NULL),
+			LIBCW_TEST_FUNCTION_INSERT(NULL),
 		}
 	},

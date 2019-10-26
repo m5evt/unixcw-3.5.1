@@ -39,137 +39,137 @@
 
 cw_test_set_t cw_test_sets[] = {
 	{
-		CW_TEST_SET_VALID,
-		CW_TEST_API_MODERN,
+		LIBCW_TEST_SET_VALID,
+		LIBCW_TEST_API_MODERN,
 
 		{ LIBCW_TEST_TOPIC_OTHER, LIBCW_TEST_TOPIC_MAX }, /* Topics. */
 		{ CW_AUDIO_NULL, LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. */
 
 		{
 			/* cw_utils topic */
-			CW_TEST_FUNCTION_INSERT(test_cw_timestamp_compare_internal),
-			CW_TEST_FUNCTION_INSERT(test_cw_timestamp_validate_internal),
-			CW_TEST_FUNCTION_INSERT(test_cw_usecs_to_timespec_internal),
-			CW_TEST_FUNCTION_INSERT(test_cw_version_internal),
-			CW_TEST_FUNCTION_INSERT(test_cw_license_internal),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_timestamp_compare_internal),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_timestamp_validate_internal),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_usecs_to_timespec_internal),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_version_internal),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_license_internal),
 
 			/* cw_debug topic */
-			CW_TEST_FUNCTION_INSERT(test_cw_debug_flags_internal),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_debug_flags_internal),
 
-			CW_TEST_FUNCTION_INSERT(NULL),
+			LIBCW_TEST_FUNCTION_INSERT(NULL),
 		}
 	},
 	{
-		CW_TEST_SET_VALID,
-		CW_TEST_API_MODERN,
+		LIBCW_TEST_SET_VALID,
+		LIBCW_TEST_API_MODERN,
 
 		{ LIBCW_TEST_TOPIC_DATA, LIBCW_TEST_TOPIC_MAX }, /* Topics. */
 		{ CW_AUDIO_NULL, LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. */
 
 		{
 			/* cw_data topic */
-			CW_TEST_FUNCTION_INSERT(test_cw_representation_to_hash_internal),
-			CW_TEST_FUNCTION_INSERT(test_cw_representation_to_character_internal),
-			CW_TEST_FUNCTION_INSERT(test_cw_representation_to_character_internal_speed),
-			CW_TEST_FUNCTION_INSERT(test_character_lookups_internal),
-			CW_TEST_FUNCTION_INSERT(test_prosign_lookups_internal),
-			CW_TEST_FUNCTION_INSERT(test_phonetic_lookups_internal),
-			CW_TEST_FUNCTION_INSERT(test_validate_character_internal),
-			CW_TEST_FUNCTION_INSERT(test_validate_string_internal),
-			CW_TEST_FUNCTION_INSERT(test_validate_representation_internal),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_representation_to_hash_internal),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_representation_to_character_internal),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_representation_to_character_internal_speed),
+			LIBCW_TEST_FUNCTION_INSERT(test_character_lookups_internal),
+			LIBCW_TEST_FUNCTION_INSERT(test_prosign_lookups_internal),
+			LIBCW_TEST_FUNCTION_INSERT(test_phonetic_lookups_internal),
+			LIBCW_TEST_FUNCTION_INSERT(test_validate_character_internal),
+			LIBCW_TEST_FUNCTION_INSERT(test_validate_string_internal),
+			LIBCW_TEST_FUNCTION_INSERT(test_validate_representation_internal),
 
-			CW_TEST_FUNCTION_INSERT(NULL),
+			LIBCW_TEST_FUNCTION_INSERT(NULL),
 		}
 
 	},
 	{
-		CW_TEST_SET_VALID,
-		CW_TEST_API_MODERN,
+		LIBCW_TEST_SET_VALID,
+		LIBCW_TEST_API_MODERN,
 
 		{ LIBCW_TEST_TOPIC_TQ, LIBCW_TEST_TOPIC_MAX }, /* Topics. */
 		{ CW_AUDIO_NULL, CW_AUDIO_CONSOLE, CW_AUDIO_OSS, CW_AUDIO_ALSA, CW_AUDIO_PA, LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. All sound systems are included in tests of tq, because sometimes a running gen is necessary. */
 
 		{
-			CW_TEST_FUNCTION_INSERT(test_cw_tq_test_capacity_A),
-			CW_TEST_FUNCTION_INSERT(test_cw_tq_test_capacity_B),
-			CW_TEST_FUNCTION_INSERT(test_cw_tq_wait_for_level_internal),
-			CW_TEST_FUNCTION_INSERT(test_cw_tq_is_full_internal),
-			CW_TEST_FUNCTION_INSERT(test_cw_tq_enqueue_dequeue_internal),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_tq_test_capacity_A),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_tq_test_capacity_B),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_tq_wait_for_level_internal),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_tq_is_full_internal),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_tq_enqueue_dequeue_internal),
 #if 0
-			CW_TEST_FUNCTION_INSERT(test_cw_tq_enqueue_args_internal),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_tq_enqueue_args_internal),
 #endif
-			CW_TEST_FUNCTION_INSERT(test_cw_tq_enqueue_internal_B),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_tq_enqueue_internal_B),
 
-			CW_TEST_FUNCTION_INSERT(test_cw_tq_new_delete_internal),
-			CW_TEST_FUNCTION_INSERT(test_cw_tq_get_capacity_internal),
-			CW_TEST_FUNCTION_INSERT(test_cw_tq_length_internal_1),
-			CW_TEST_FUNCTION_INSERT(test_cw_tq_prev_index_internal),
-			CW_TEST_FUNCTION_INSERT(test_cw_tq_next_index_internal),
-			CW_TEST_FUNCTION_INSERT(test_cw_tq_callback),
-			CW_TEST_FUNCTION_INSERT(test_cw_tq_gen_operations_A),
-			CW_TEST_FUNCTION_INSERT(test_cw_tq_gen_operations_B),
-			CW_TEST_FUNCTION_INSERT(test_cw_tq_operations_C),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_tq_new_delete_internal),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_tq_get_capacity_internal),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_tq_length_internal_1),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_tq_prev_index_internal),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_tq_next_index_internal),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_tq_callback),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_tq_gen_operations_A),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_tq_gen_operations_B),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_tq_operations_C),
 
-			CW_TEST_FUNCTION_INSERT(NULL),
+			LIBCW_TEST_FUNCTION_INSERT(NULL),
 		}
 	},
 	{
-		CW_TEST_SET_VALID,
-		CW_TEST_API_MODERN,
+		LIBCW_TEST_SET_VALID,
+		LIBCW_TEST_API_MODERN,
 
 		{ LIBCW_TEST_TOPIC_GEN, LIBCW_TEST_TOPIC_MAX }, /* Topics. */
 		{ CW_AUDIO_NULL, CW_AUDIO_CONSOLE, CW_AUDIO_OSS, CW_AUDIO_ALSA, CW_AUDIO_PA, LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. */
 
 		{
-			CW_TEST_FUNCTION_INSERT(test_cw_gen_new_delete),
-			CW_TEST_FUNCTION_INSERT(test_cw_gen_new_start_delete),
-			CW_TEST_FUNCTION_INSERT(test_cw_gen_new_stop_delete),
-			CW_TEST_FUNCTION_INSERT(test_cw_gen_new_start_stop_delete),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_gen_new_delete),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_gen_new_start_delete),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_gen_new_stop_delete),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_gen_new_start_stop_delete),
 
-			CW_TEST_FUNCTION_INSERT(test_cw_gen_set_tone_slope),
-			CW_TEST_FUNCTION_INSERT(test_cw_gen_tone_slope_shape_enums),
-			CW_TEST_FUNCTION_INSERT(test_cw_gen_get_timing_parameters_internal),
-			CW_TEST_FUNCTION_INSERT(test_cw_gen_parameter_getters_setters),
-			CW_TEST_FUNCTION_INSERT(test_cw_gen_volume_functions),
-			CW_TEST_FUNCTION_INSERT(test_cw_gen_enqueue_primitives),
-			CW_TEST_FUNCTION_INSERT(test_cw_gen_enqueue_representations),
-			CW_TEST_FUNCTION_INSERT(test_cw_gen_enqueue_character),
-			CW_TEST_FUNCTION_INSERT(test_cw_gen_enqueue_string),
-			CW_TEST_FUNCTION_INSERT(test_cw_gen_forever_internal),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_gen_set_tone_slope),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_gen_tone_slope_shape_enums),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_gen_get_timing_parameters_internal),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_gen_parameter_getters_setters),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_gen_volume_functions),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_gen_enqueue_primitives),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_gen_enqueue_representations),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_gen_enqueue_character),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_gen_enqueue_string),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_gen_forever_internal),
 
-			CW_TEST_FUNCTION_INSERT(NULL),
+			LIBCW_TEST_FUNCTION_INSERT(NULL),
 		}
 	},
 	{
-		CW_TEST_SET_VALID,
-		CW_TEST_API_MODERN,
+		LIBCW_TEST_SET_VALID,
+		LIBCW_TEST_API_MODERN,
 
 		{ LIBCW_TEST_TOPIC_KEY, LIBCW_TEST_TOPIC_MAX }, /* Topics. */
 		{ CW_AUDIO_NULL, CW_AUDIO_CONSOLE, CW_AUDIO_OSS, CW_AUDIO_ALSA, CW_AUDIO_PA, LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. */
 
 		{
-			CW_TEST_FUNCTION_INSERT(test_keyer),
-			CW_TEST_FUNCTION_INSERT(test_straight_key),
+			LIBCW_TEST_FUNCTION_INSERT(test_keyer),
+			LIBCW_TEST_FUNCTION_INSERT(test_straight_key),
 
-			CW_TEST_FUNCTION_INSERT(NULL),
+			LIBCW_TEST_FUNCTION_INSERT(NULL),
 		}
 	},
 	{
-		CW_TEST_SET_VALID,
-		CW_TEST_API_MODERN,
+		LIBCW_TEST_SET_VALID,
+		LIBCW_TEST_API_MODERN,
 
 		{ LIBCW_TEST_TOPIC_REC, LIBCW_TEST_TOPIC_MAX }, /* Topics. */
 		{ CW_AUDIO_NULL, LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. */
 
 		{
-			CW_TEST_FUNCTION_INSERT(test_cw_rec_get_receive_parameters),
-			CW_TEST_FUNCTION_INSERT(test_cw_rec_parameter_getters_setters_1),
-			CW_TEST_FUNCTION_INSERT(test_cw_rec_parameter_getters_setters_2),
-			CW_TEST_FUNCTION_INSERT(test_cw_rec_identify_mark_internal),
-			CW_TEST_FUNCTION_INSERT(test_cw_rec_test_with_constant_speeds),
-			CW_TEST_FUNCTION_INSERT(test_cw_rec_test_with_varying_speeds),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_rec_get_receive_parameters),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_rec_parameter_getters_setters_1),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_rec_parameter_getters_setters_2),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_rec_identify_mark_internal),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_rec_test_with_constant_speeds),
+			LIBCW_TEST_FUNCTION_INSERT(test_cw_rec_test_with_varying_speeds),
 
-			CW_TEST_FUNCTION_INSERT(NULL)
+			LIBCW_TEST_FUNCTION_INSERT(NULL)
 		}
 	},
 
@@ -181,13 +181,13 @@ cw_test_set_t cw_test_sets[] = {
 
 	/* Guard. */
 	{
-		CW_TEST_SET_INVALID,
-		CW_TEST_API_MODERN, /* This field doesn't matter here, test set is invalid. */
+		LIBCW_TEST_SET_INVALID,
+		LIBCW_TEST_API_MODERN, /* This field doesn't matter here, test set is invalid. */
 
 		{ LIBCW_TEST_TOPIC_MAX },
 		{ LIBCW_TEST_SOUND_SYSTEM_MAX },
 		{
-			CW_TEST_FUNCTION_INSERT(NULL)
+			LIBCW_TEST_FUNCTION_INSERT(NULL)
 		}
 	}
 };
