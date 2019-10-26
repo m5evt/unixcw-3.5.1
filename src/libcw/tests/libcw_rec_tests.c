@@ -132,93 +132,81 @@ static bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec,
 
    Test if function correctly recognizes dots and dashes for a range
    of receive speeds.  This test function also checks if marks of
-   lengths longer or shorter than certain limits (dictated by
+   durations longer or shorter than certain limits (dictated by
    receiver) are handled properly (i.e. if they are recognized as
    invalid marks).
 
    Currently the function only works for non-adaptive receiving.
+
+   @reviewed on 2019-10-26
 */
 int test_cw_rec_identify_mark_internal(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
-#if 0
 	cw_rec_t * rec = cw_rec_new();
 	cte->assert2(cte, rec, "identify mark: failed to create new receiver\n");
 	cw_rec_disable_adaptive_mode(rec);
 
-	int speed_step = (CW_SPEED_MAX - CW_SPEED_MIN) / 10;
-
-	for (int speed = CW_SPEED_MIN; speed < CW_SPEED_MAX; speed += speed_step) {
+	for (int speed = CW_SPEED_MIN; speed <= CW_SPEED_MAX; speed++) {
 		int rv = cw_rec_set_speed(rec, speed);
 		cte->assert2(cte, rv, "identify mark @ %02d [wpm]: failed to set receive speed\n", speed);
 
-
-		bool failure = true;
-		int n = 0;
+		bool failure = false;
+		int cwret = CW_FAILURE;
 		char representation;
 
 
-
-
-		/* Test marks that have length appropriate for a dot. */
-		int len_step = (rec->dot_len_max - rec->dot_len_min) / 10;
-		for (int len = rec->dot_len_min; len < rec->dot_len_max; len += len_step) {
-			const int cwret = cw_rec_identify_mark_internal(rec, len, &representation);
-			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "identify mark @ %02d [wpm]: failed to identify dot for len = %d [us]\n", speed, len)) {
+		/* Test marks that have duration appropriate for a dot. */
+		int duration_step = (rec->dot_len_max - rec->dot_len_min) / 10;
+		for (int duration = rec->dot_len_min; duration <= rec->dot_len_max; duration += duration_step) {
+			cwret = cw_rec_identify_mark_internal(rec, duration, &representation);
+			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "identify valid dot @ %02d [wpm], duration %d [us]", speed, duration)) {
 				failure = true;
 				break;
 			}
-			if (!cte->expect_op_int(cte, CW_DOT_REPRESENTATION, "==", representation, 1, "identify mark @ %02d [wpm]: failed to get dot representation for len = %d [us]\n", speed, len)) {
+			if (!cte->expect_op_int(cte, CW_DOT_REPRESENTATION, "==", representation, 1, "identify valid dot @ %02d [wpm]: getting dot representation for duration %d [us]", speed, duration)) {
 				failure = true;
 				break;
 			}
 		}
+		cte->expect_op_int(cte, false, "==", failure, 0, "identify dot @ %02d [wpm]: mark valid", speed);
 
-		cte->expect_op_int(cte, false, "==", failure, 1, "identify mark @ %02d [wpm]: identify valid dot:", speed);
-
-
-#if 0
-		/* Test mark shorter than minimal length of dot. */
+		/* Test mark shorter than minimal duration of dot. */
 		cwret = cw_rec_identify_mark_internal(rec, rec->dot_len_min - 1, &representation);
-		cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 1, "identify mark @ %02d [wpm]: mark shorter than min dot:", speed);
+		cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 0, "identify dot @ %02d [wpm]: mark shorter than min dot", speed);
 
-		/* Test mark longer than maximal length of dot (but shorter than minimal length of dash). */
+		/* Test mark longer than maximal duration of dot (but shorter than minimal duration of dash). */
 		cwret = cw_rec_identify_mark_internal(rec, rec->dot_len_max + 1, &representation);
-		cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 1, "identify mark @ %02d [wpm]: mark longer than max dot:", speed);
+		cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 0, "identify dot @ %02d [wpm]: mark longer than max dot", speed);
 
 
-		/* Test marks that have length appropriate for a dash. */
-		len_step = (rec->dash_len_max - rec->dash_len_min) / 10;
-		for (int len = rec->dash_len_min; len < rec->dash_len_max; len += len_step) {
-			cwret = cw_rec_identify_mark_internal(rec, len, &representation);
-			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "identify mark @ %02d [wpm]: failed to identify dash for len = %d [us]\n", speed, len)) {
+		/* Test marks that have duration appropriate for a dash. */
+		duration_step = (rec->dash_len_max - rec->dash_len_min) / 10;
+		for (int duration = rec->dash_len_min; duration <= rec->dash_len_max; duration += duration_step) {
+			cwret = cw_rec_identify_mark_internal(rec, duration, &representation);
+			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "identify valid dash @ %02d [wpm], duration %d [us]", speed, duration)) {
 				failure = true;
 				break;
 			}
 
-			if (!cte->expect_op_int(cte, CW_DASH_REPRESENTATION, "==", representation, 1, "identify mark @ %02d [wpm]: failed to get dash representation for len = %d [us]\n", speed, len)) {
+			if (!cte->expect_op_int(cte, CW_DASH_REPRESENTATION, "==", representation, 1, "identify valid dash @ %02d [wpm]: getting dash representation for duration = %d [us]", speed, duration)) {
 				failure = true;
 				break;
 			}
 		}
-		cte->expect_op_int(cte, false, "==", failure, 1, "identify mark @ %02d [wpm]: identify valid dash:", speed);
+		cte->expect_op_int(cte, false, "==", failure, 0, "identify dash @ %02d [wpm]: mark valid", speed);
 
+		/* Test mark shorter than minimal duration of dash (but longer than maximal duration of dot). */
+		cwret = cw_rec_identify_mark_internal(rec, rec->dash_len_min - 1, &representation);
+		cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 0, "identify dash @ %02d [wpm]: mark shorter than min dash", speed);
 
-		/* Test mark shorter than minimal length of dash (but longer than maximal length of dot). */
-		cwret = = cw_rec_identify_mark_internal(rec, rec->dash_len_min - 1, &representation);
-		cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 1, "identify mark @ %02d [wpm]: mark shorter than min dash:", speed);
-
-
-
-		/* Test mark longer than maximal length of dash. */
+		/* Test mark longer than maximal duration of dash. */
 		cwret = cw_rec_identify_mark_internal(rec, rec->dash_len_max + 1, &representation);
-		cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 1, "identify mark @ %02d [wpm]: mark longer than max dash:", speed);
-#endif
+		cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 0, "identify dash @ %02d [wpm]: mark longer than max dash", speed);
 	}
 
 	cw_rec_delete(&rec);
-#endif
 
 	cte->print_test_footer(cte, __func__);
 
@@ -410,11 +398,15 @@ int test_cw_rec_test_with_varying_speeds(cw_test_executor_t * cte)
    receive Morse code. You have to interpret the marks and spaces,
    too.
 
+   @reviewed on 2019-10-26
+
    \param rec - receiver variable used during tests
    \param data - table with tone_durations, used to test the receiver
 */
 bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec_test_vector * vec)
 {
+	const char * this_test_name = "begin/end";
+
 	struct timeval tv = { 0, 0 };
 
 	bool begin_end_failure = false;
@@ -435,26 +427,16 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec
 		cw_rec_test_point * point = vec->points[i];
 
 #ifdef LIBCW_UNIT_TESTS_VERBOSE
-		printf("\n" "begin/end: input test data #%d: <%c> / <%s> @ %.2f [wpm] (%d time values)\n",
-		       i, point->character, point->r, point->s, point->n_tone_durations);
-#endif
-
-#if 0 /* Should we remove it? */
-		/* Start sending every character at the beginning of a
-		   new second.
-
-		   TODO: here we make an assumption that every
-		   character is sent in less than a second. Which is a
-		   good assumption when we have a speed of tens of
-		   WPM. If the speed will be lower, the assumption
-		   will be false. */
-		tv.tv_sec = 0;
-		tv.tv_usec = 0;
+		cte->log_info(cte,
+			      "%s: input test data #%zd%zd: '%c' / '%s' @ %.2f [wpm]\n",
+			      this_test_name,
+			      i, point->n_tone_durations,
+			      point->character, point->representation, point->send_speed);
 #endif
 
 		/* This loop simulates "key down" and "key up" events
-		   in specific moments, and in specific time
-		   intervals.
+		   in specific moments, in specific time
+		   intervals, and for specific durations.
 
 		   key down -> call to cw_rec_mark_begin()
 		   key up -> call to cw_rec_mark_end().
@@ -462,25 +444,26 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec
 		   First "key down" event is at X seconds Y
 		   microseconds (see initialization of 'tv'). Time of
 		   every following event is calculated by iterating
-		   over tone lengths specified in data table. */
+		   over tone durations specified in data table. */
 		int tone;
 		for (tone = 0; point->tone_durations[tone] > 0; tone++) {
 			begin_end_failure = false;
 
 			if (tone % 2) {
 				const int cwret = cw_rec_mark_end(rec, &tv);
-				if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "begin/end: cw_rec_mark_end(): tone = %d, time = %d.%d\n", tone, (int) tv.tv_sec, (int) tv.tv_usec)) {
+				if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "%s: cw_rec_mark_end(): tone = %d, time = %d.%d", this_test_name, tone, (int) tv.tv_sec, (int) tv.tv_usec)) {
 					begin_end_failure = true;
 					break;
 				}
 			} else {
 				const int cwret = cw_rec_mark_begin(rec, &tv);
-				if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "begin/end: cw_rec_mark_begin(): tone = %d, time = %d.%d\n", tone, (int) tv.tv_sec, (int) tv.tv_usec)) {
+				if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "%s: cw_rec_mark_begin(): tone = %d, time = %d.%d", this_test_name, tone, (int) tv.tv_sec, (int) tv.tv_usec)) {
 					begin_end_failure = true;
 					break;
 				}
 			}
 
+			/* TODO: add wrapper for adding milliseconds to timeval. */
 			tv.tv_usec += point->tone_durations[tone];
 			if (tv.tv_usec >= CW_USECS_PER_SEC) {
 				/* Moving event to next second. */
@@ -489,16 +472,14 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec
 
 			}
 			/* If we exit the loop at this point, the last
-			   'tv' with length of end-of-character space
-			   will be used below in
+			   'tv' with duration of end-of-character
+			   space will be used below in
 			   cw_rec_poll_representation(). */
 		}
-
-		cte->assert2(cte, tone, "begin/end executed zero times\n");
 		if (begin_end_failure) {
 			break;
 		}
-
+		cte->assert2(cte, tone, "%s: test executed zero times\n", this_test_name);
 
 
 
@@ -506,10 +487,9 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec
 		   after adding a representation of a single character
 		   to receiver's buffer. */
 		{
-			int n = cw_rec_get_buffer_length_internal(rec);
-			buffer_length_failure = (n != (int) strlen(point->representation));
-
-			if (!cte->expect_op_int(cte, false, "==", buffer_length_failure, 1, "begin/end: cw_rec_get_buffer_length_internal(<nonempty>): %d != %zd\n", n, strlen(point->representation))) {
+			const int readback_len = cw_rec_get_buffer_length_internal(rec);
+			const int expected_len = (int) strlen(point->representation);
+			if (!cte->expect_op_int(cte, expected_len, "==", readback_len, 1, "%s: cw_rec_get_buffer_length_internal(<nonempty>)", this_test_name)) {
 				buffer_length_failure = true;
 				break;
 			}
@@ -517,15 +497,15 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec
 
 
 
-
 		/* Test: getting representation from receiver's buffer. */
-		char representation[CW_REC_REPRESENTATION_CAPACITY + 1];
+		char polled_representation[CW_REC_REPRESENTATION_CAPACITY + 1] = { 0 };
 		{
 			/* Get representation (dots and dashes)
 			   accumulated by receiver. Check for
 			   errors. */
 
-			bool is_word, is_error;
+			bool is_word = false;
+			bool is_error = false;
 
 			/* Notice that we call the function with last
 			   timestamp (tv) from input data. The last
@@ -534,27 +514,27 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec
 
 			   With this final passing of "end of space"
 			   timestamp to libcw the test code informs
-			   receiver, that end-of-character space has
+			   receiver that end-of-character space has
 			   occurred, i.e. a full character has been
 			   passed to receiver.
 
-			   The space length in input data is (3 x dot
-			   + jitter). In libcw maximum recognizable
-			   length of "end of character" space is 5 x
-			   dot. */
-			int cwret = cw_rec_poll_representation(rec, &tv, representation, &is_word, &is_error);
-			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "begin/end: poll representation returns !CW_SUCCESS")) {
+			   The space duration in input data is (3 x
+			   dot + jitter). In libcw maximum
+			   recognizable duration of "end of character"
+			   space is 5 x dot. */
+			int cwret = cw_rec_poll_representation(rec, &tv, polled_representation, &is_word, &is_error);
+			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "%s: poll representation (cwret)", this_test_name)) {
 				poll_representation_failure = true;
 				break;
 			}
 
-			const int strcmp_result = strcmp(representation, point->representation);
-			if (!cte->expect_op_int(cte, 0, "==", strcmp_result, 1, "being/end: polled representation does not match test representation: \"%s\" != \"%s\"\n", representation, point->representation)) {
+			const int strcmp_result = strcmp(polled_representation, point->representation);
+			if (!cte->expect_op_int(cte, 0, "==", strcmp_result, 1, "%s: polled representation vs. test representation: \"%s\" vs. \"%s\"", this_test_name, polled_representation, point->representation)) {
 				match_representation_failure = true;
 				break;
 			}
 
-			if (!cte->expect_op_int(cte, false, "==", is_error, 1, "begin/end: poll representation sets is_error\n")) {
+			if (!cte->expect_op_int(cte, false, "==", is_error, 1, "%s: poll representation is_error flag", this_test_name)) {
 				error_representation_failure = true;
 				break;
 			}
@@ -563,27 +543,33 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec
 
 			/* If the last space in character's data is
 			   end-of-word space (which is indicated by
-			   is_last_in_word), then is_word should be
-			   set by poll() to true. Otherwise both
-			   values should be false. */
-			word_representation_failure = (is_word != point->is_last_in_word);
-			// cte->expect_op_int(cte, ); // TODO: implement
-			if (word_representation_failure) {
-				fprintf(out_file, "begin/end: poll representation: 'is_word' flag error: function returns '%d', data is tagged with '%d'\n" \
-					"'%c'  '%c'  '%c'  '%c'  '%c'",
-					is_word, point->is_last_in_word,
-					vec->points[i - 2]->character, vec->points[i - 1]->character, vec->points[i]->character, vec->points[i + 1]->character, vec->points[i + 2]->character);
+			   is_last_in_word flag in test point), then
+			   is_word should be set by poll() to
+			   true. Otherwise both values should be
+			   false. */
+			if (!cte->expect_op_int(cte, point->is_last_in_word, "==", is_word, "%s: poll representation: is word", this_test_name)) {
+				word_representation_failure = true;
+				cte->log_info(cte,
+					      "%s: poll representation: 'is_word' flag error: function returns '%d', data is tagged with '%d'\n"
+					      "'%c'  '%c'  '%c'  '%c'  '%c'",
+					      this_test_name,
+					      is_word, point->is_last_in_word,
+					      vec->points[i - 2]->character,
+					      vec->points[i - 1]->character,
+					      vec->points[i]->character,
+					      vec->points[i + 1]->character,
+					      vec->points[i + 2]->character);
 				break;
 			}
 
 #if 0
 			/* Debug code. Print times of character with
-			   end-of-word space to verify length of the
+			   end-of-word space to verify duration of the
 			   space. */
 			if (point->is_last_in_word) {
-				fprintf(stderr, "------- character '%c' is last in word\n", point->character);
-				for (int m = 0; m < point->n_tone_durations; m++) {
-					fprintf(stderr, "#%d: %d\n", m, point->d[m]);
+				cte->log_info(cte, "Character '%c' is last in word:\n", point->character);
+				for (size_t m = 0; m < point->n_tone_durations; m++) {
+					cte->log_info(cte, "    tone #%zd: duration = %d [us]\n", m, point->tone_durations[m]);
 				}
 			}
 #endif
@@ -592,21 +578,21 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec
 
 
 
-
-		char c;
+		char polled_character = '@';
 		/* Test: getting character from receiver's buffer. */
 		{
-			bool is_word, is_error;
+			bool is_word = false;
+			bool is_error = false;
 
 			/* The representation is still held in
 			   receiver. Ask receiver for converting the
 			   representation to character. */
-			const int cwret = cw_rec_poll_character(rec, &tv, &c, &is_word, &is_error);
-			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "begin/end: poll character false\n")) {
+			const int cwret = cw_rec_poll_character(rec, &tv, &polled_character, &is_word, &is_error);
+			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "%s: poll character (cwret)", this_test_name)) {
 				poll_character_failure = true;
 				break;
 			}
-			if (!cte->expect_op_int(cte, point->character, "==", c, 1, "begin/end: polled character does not match test character: '%c' != '%c'\n", c, point->character)) {
+			if (!cte->expect_op_int(cte, point->character, "==", polled_character, 1, "%s: polled character vs. test character: '%c' vs. '%c'", this_test_name, polled_character, point->character)) {
 				match_character_failure = true;
 				break;
 			}
@@ -627,7 +613,7 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec
 			   character. */
 			cw_rec_reset_state(rec);
 			const int length = cw_rec_get_buffer_length_internal(rec);
-			if (!cte->expect_op_int(cte, 0, "==", length, 1, "begin/end: get buffer length: length of cleared buffer is non zero (is %d)", length)) {
+			if (!cte->expect_op_int(cte, 0, "==", length, 1, "%s: get buffer length: length of cleared buffer", this_test_name)) {
 				empty_failure = true;
 				break;
 			}
@@ -636,25 +622,14 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec
 
 #ifdef LIBCW_UNIT_TESTS_VERBOSE
 		float speed = cw_rec_get_speed(rec);
-		printf("libcw: received data #%d:   <%c> / <%s> @ %.2f [wpm]\n",
-		       i, c, representation, speed);
+		cte->log_info(cte,
+			      "%s: received data #%d:   <%c> / <%s> @ %.2f [wpm]\n",
+			      this_test_name,
+			      i, polled_character, polled_representation, speed);
 #endif
-
-#if 0
-		if (adaptive) {
-			printf("libcw: adaptive speed tracking reports %f [wpm]\n",  );
-		}
-#endif
-
 	}
 
-	/*
-	  This test function will be called many times so success
-	  counters may go over a thousand, but without these expects
-	  here the whole test of receiver would end with only of few
-	  success counter hits. Maybe we should somehow move the calls
-	  up the call chain.
-	*/
+
 	cte->expect_op_int(cte, false, "==", begin_end_failure, 1, "Signalling begin and end of mark");
 	cte->expect_op_int(cte, false, "==", buffer_length_failure, 1, "Getting length of representation buffer");
 	cte->expect_op_int(cte, false, "==", poll_representation_failure, 1, "Polling representation");
@@ -1021,7 +996,7 @@ cw_rec_test_vector * cw_rec_test_vector_factory(cw_test_executor_t * cte, charac
 		size_t rep_length = strlen(point->representation);
 		for (size_t k = 0; k < rep_length; k++) {
 
-			/* Length of mark. */
+			/* Duration of mark. */
 			if (point->representation[k] == CW_DOT_REPRESENTATION) {
 				point->tone_durations[n_tone_durations] = dot_duration;
 
@@ -1034,7 +1009,7 @@ cw_rec_test_vector * cw_rec_test_vector_factory(cw_test_executor_t * cte, charac
 			n_tone_durations++;
 
 
-			/* Length of space (inter-mark space). Mark
+			/* Duration of space (inter-mark space). Mark
 			   and space always go in pair. */
 			point->tone_durations[n_tone_durations] = dot_duration;
 			n_tone_durations++;
@@ -1216,7 +1191,7 @@ void cw_rec_test_vector_print(cw_test_executor_t * cte, cw_rec_test_vector * vec
 
    @reviewed on 2019-10-26
 */
-int test_cw_rec_get_parameters(cw_test_executor_t * cte)
+int test_cw_rec_get_receive_parameters(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 

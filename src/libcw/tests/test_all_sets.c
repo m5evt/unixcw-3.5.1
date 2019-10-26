@@ -162,16 +162,13 @@ cw_test_set_t cw_test_sets[] = {
 		{ CW_AUDIO_NULL, LIBCW_TEST_SOUND_SYSTEM_MAX }, /* Sound systems. */
 
 		{
-			CW_TEST_FUNCTION_INSERT(test_cw_rec_get_parameters),
+			CW_TEST_FUNCTION_INSERT(test_cw_rec_get_receive_parameters),
 			CW_TEST_FUNCTION_INSERT(test_cw_rec_parameter_getters_setters_1),
 			CW_TEST_FUNCTION_INSERT(test_cw_rec_parameter_getters_setters_2),
 			CW_TEST_FUNCTION_INSERT(test_cw_rec_identify_mark_internal),
 			CW_TEST_FUNCTION_INSERT(test_cw_rec_test_with_constant_speeds),
 			CW_TEST_FUNCTION_INSERT(test_cw_rec_test_with_varying_speeds),
 
-#if 0
-			CW_TEST_FUNCTION_INSERT(test_cw_get_receive_parameters),
-#endif
 			CW_TEST_FUNCTION_INSERT(NULL)
 		}
 	},
