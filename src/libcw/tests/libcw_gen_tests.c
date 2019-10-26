@@ -548,16 +548,18 @@ int test_cw_gen_tone_slope_shape_enums(cw_test_executor_t * cte)
 
 
 
-/*
+/**
    It's not a test of a "forever" function, but of "forever"
    functionality.
+
+   @reviewed on 2019-10-26
 */
 int test_cw_gen_forever_internal(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
-	const int seconds = 2;
-	cte->log_info(cte, "forever tone (%d seconds):", seconds);
+	const int seconds = 3;
+	cte->log_info(cte, "forever tone (%d seconds):\n", seconds);
 
 	const int rv = test_cw_gen_forever_sub(cte, 2, cte->current_sound_system, (const char *) NULL);
 	cte->expect_op_int(cte, 0, "==", rv, 0, "'forever' test");
@@ -570,7 +572,9 @@ int test_cw_gen_forever_internal(cw_test_executor_t * cte)
 
 
 
-
+/**
+   @reviewed on 2019-10-26
+*/
 int test_cw_gen_forever_sub(cw_test_executor_t * cte, int seconds, int audio_system, const char *audio_device)
 {
 	cw_gen_t * gen = cw_gen_new(audio_system, audio_device);
@@ -586,7 +590,7 @@ int test_cw_gen_forever_sub(cw_test_executor_t * cte, int seconds, int audio_sys
 
 	CW_TONE_INIT(&tone, freq, len, CW_SLOPE_MODE_RISING_SLOPE);
 	const int cwret1 = cw_tq_enqueue_internal(gen->tq, &tone);
-	cte->expect_op_int(cte, CW_SUCCESS, "==", cwret1, 1, "forever tone: enqueue first tone"); /* Use "_errors_only() here because this is not a core part of test. */
+	cte->expect_op_int(cte, CW_SUCCESS, "==", cwret1, 1, "forever tone: enqueue first tone"); /* Use "errors only" here because this is not a core part of test. */
 
 	CW_TONE_INIT(&tone, freq, gen->quantum_len, CW_SLOPE_MODE_NO_SLOPES);
 	tone.is_forever = true;
