@@ -1082,6 +1082,9 @@ cw_rec_test_vector * cw_rec_test_vector_factory(cw_test_executor_t * cte, charac
 
 
 
+/**
+   @reviewed on 2019-10-26
+*/
 cw_rec_test_point * cw_rec_test_point_new(__attribute__((unused)) cw_test_executor_t * cte)
 {
 	return (cw_rec_test_point *) calloc(sizeof (cw_rec_test_point), 1);
@@ -1090,6 +1093,9 @@ cw_rec_test_point * cw_rec_test_point_new(__attribute__((unused)) cw_test_execut
 
 
 
+/**
+   @reviewed on 2019-10-26
+*/
 void cw_rec_test_point_delete(cw_rec_test_point ** point)
 {
 	if (NULL == point) {
@@ -1111,6 +1117,9 @@ void cw_rec_test_point_delete(cw_rec_test_point ** point)
 
 
 
+/**
+   @reviewed on 2019-10-26
+*/
 cw_rec_test_vector * cw_rec_test_vector_new(cw_test_executor_t * cte, size_t n)
 {
 	cw_rec_test_vector * vec = (cw_rec_test_vector *) calloc(sizeof (cw_rec_test_vector), 1);
@@ -1120,9 +1129,12 @@ cw_rec_test_vector * cw_rec_test_vector_new(cw_test_executor_t * cte, size_t n)
 	cte->assert2(cte, vec->points, "%s: second calloc() failed\n", __func__);
 
 	vec->n_points_allocated = n;
-	vec->n_points_valid = n; /* This will be overwritten later, once we know the real number of valid points generated from non-space characters. */
+	/* This will be overwritten later, once we know the real
+	   number of valid points generated from non-space
+	   characters. */
+	vec->n_points_valid = n;
 
-	for (size_t i = 0; i < n; i++) {
+	for (size_t i = 0; i < vec->n_points_allocated; i++) {
 		vec->points[i] = cw_rec_test_point_new(cte);
 	}
 
@@ -1133,9 +1145,11 @@ cw_rec_test_vector * cw_rec_test_vector_new(cw_test_executor_t * cte, size_t n)
 
 
 /**
-   \brief Deallocate duration data used for testing a receiver
+   \brief Deallocate vector of duration data used for testing a receiver
 
-   \param data - pointer to data to be deallocated
+   @reviewed on 2019-10-26
+
+   \param vec - pointer to vector to be deallocated
 */
 void cw_rec_test_vector_delete(cw_rec_test_vector ** vec)
 {
@@ -1162,11 +1176,12 @@ void cw_rec_test_vector_delete(cw_rec_test_vector ** vec)
 
 
 
-
 /**
    \brief Pretty-print duration data used for testing a receiver
 
-   \param data duration data to be printed
+   @reviewed on 2019-10-26
+
+   \param vec - vector with duration data to be printed
 */
 void cw_rec_test_vector_print(cw_test_executor_t * cte, cw_rec_test_vector * vec)
 {
@@ -1174,15 +1189,18 @@ void cw_rec_test_vector_print(cw_test_executor_t * cte, cw_rec_test_vector * vec
 	for (size_t i = 0; i < vec->n_points_valid; i++) {
 
 		cw_rec_test_point * point = vec->points[i];
-		/* Debug output. */
+
+		/* Print header. */
 		if (!(i % 10)) {
-			/* Print header. */
 			cte->log_info_cont(cte, "ch repr     [wpm]     mark     space      mark     space      mark     space      mark     space      mark     space      mark     space      mark     space\n");
 		}
+
+		/* Print data. */
 		cte->log_info_cont(cte, "%c  %-7s %6.2f", point->character, point->representation, point->send_speed);
 		for (size_t t = 0; t < point->n_tone_durations; t++) {
 			cte->log_info_cont(cte, "%9d ", point->tone_durations[t]);
 		}
+
 		cte->log_info_cont(cte, "\n");
 	}
 
@@ -1192,17 +1210,17 @@ void cw_rec_test_vector_print(cw_test_executor_t * cte, cw_rec_test_vector * vec
 
 
 
+/**
+   Parameter getters are independent of audio system, so they can be
+   tested just with CW_AUDIO_NULL.
+
+   @reviewed on 2019-10-26
+*/
 int test_cw_rec_get_parameters(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
 
-	bool failure = true;
-
-	cw_rec_t * rec = cw_rec_new();
-	cte->assert2(cte, rec, "get: failed to create new receiver\n");
-
-	cw_rec_reset_parameters_internal(rec);
-	cw_rec_sync_parameters_internal(rec);
+	const char * this_test_name = "get params";
 
 	int dot_len_ideal = 0;
 	int dash_len_ideal = 0;
@@ -1223,61 +1241,61 @@ int test_cw_rec_get_parameters(cw_test_executor_t * cte)
 
 	int adaptive_speed_threshold = 0;
 
+	cw_rec_t * rec = cw_rec_new();
+	cte->assert2(cte, rec, "%s: failed to create new receiver\n", this_test_name);
+	cw_rec_reset_parameters_internal(rec);
+	cw_rec_sync_parameters_internal(rec);
 	cw_rec_get_parameters_internal(rec,
 				       &dot_len_ideal, &dash_len_ideal, &dot_len_min, &dot_len_max, &dash_len_min, &dash_len_max,
 				       &eom_len_min, &eom_len_max, &eom_len_ideal,
 				       &eoc_len_min, &eoc_len_max, &eoc_len_ideal,
 				       &adaptive_speed_threshold);
-
 	cw_rec_delete(&rec);
 
-	fprintf(out_file,
-		"get: dot/dash:  %d, %d, %d, %d, %d, %d\n" \
-		"get: eom:       %d, %d, %d\n" \
-		"get: eoc:       %d, %d, %d\n" \
-		"get: threshold: %d\n",
+	cte->log_info(cte, "%s: dot/dash:  %d, %d, %d, %d, %d, %d\n", this_test_name, dot_len_ideal, dash_len_ideal, dot_len_min, dot_len_max, dash_len_min, dash_len_max);
+	cte->log_info(cte, "%s: eom:       %d, %d, %d\n", this_test_name, eom_len_min, eom_len_max, eom_len_ideal);
+	cte->log_info(cte, "%s: eoc:       %d, %d, %d\n", this_test_name, eoc_len_min, eoc_len_max, eoc_len_ideal);
+	cte->log_info(cte, "%s: adaptive threshold: %d\n", this_test_name, adaptive_speed_threshold);
 
-		dot_len_ideal, dash_len_ideal, dot_len_min, dot_len_max, dash_len_min, dash_len_max,
-		eom_len_min, eom_len_max, eom_len_ideal,
-		eoc_len_min, eoc_len_max, eoc_len_ideal,
-		adaptive_speed_threshold);
+	bool failure = (dot_len_ideal <= 0
+			|| dash_len_ideal <= 0
+			|| dot_len_min <= 0
+			|| dot_len_max <= 0
+			|| dash_len_min <= 0
+			|| dash_len_max <= 0
 
+			|| eom_len_min <= 0
+			|| eom_len_max <= 0
+			|| eom_len_ideal <= 0
 
-	failure = (dot_len_ideal <= 0
-		   || dash_len_ideal <= 0
-		   || dot_len_min <= 0
-		   || dot_len_max <= 0
-		   || dash_len_min <= 0
-		   || dash_len_max <= 0
+			|| eoc_len_min <= 0
+			|| eoc_len_max <= 0
+			|| eoc_len_ideal <= 0
 
-		   || eom_len_min <= 0
-		   || eom_len_max <= 0
-		   || eom_len_ideal <= 0
-
-		   || eoc_len_min <= 0
-		   || eoc_len_max <= 0
-		   || eoc_len_ideal <= 0
-
-		   || adaptive_speed_threshold <= 0);
+			|| adaptive_speed_threshold <= 0);
 	cte->expect_op_int(cte, false, "==", failure, 0, "cw_rec_get_parameters_internal()");
 
-	failure = dot_len_max >= dash_len_min;
-	cte->expect_op_int(cte, false, "==", failure, 0, "get: max dot len < min dash len (%d/%d):", dot_len_max, dash_len_min);
 
-	failure = (dot_len_min >= dot_len_ideal) || (dot_len_ideal >= dot_len_max);
-	cte->expect_op_int(cte, false, "==", failure, 0, "get: dot len consistency (%d/%d/%d):", dot_len_min, dot_len_ideal, dot_len_max);
+	cte->expect_op_int(cte, dot_len_max, "<", dash_len_min, 0, "%s: max dot len < min dash len (%d/%d)", this_test_name, dot_len_max, dash_len_min);
 
-	failure = (dash_len_min >= dash_len_ideal) || (dash_len_ideal >= dash_len_max);
-	cte->expect_op_int(cte, false, "==", failure, 0, "get: dash len consistency (%d/%d/%d):", dash_len_min, dash_len_ideal, dash_len_max);
+	cte->expect_op_int(cte, dot_len_min, "<", dot_len_max, 0, "%s: dot len consistency A (%d/%d)", this_test_name, dot_len_min, dot_len_max);
+	cte->expect_op_int(cte, dot_len_min, "<", dot_len_ideal, 0, "%s: dot len consistency B (%d/%d/%d)", this_test_name, dot_len_min, dot_len_ideal, dot_len_max);
+	cte->expect_op_int(cte, dot_len_max, ">", dot_len_ideal, 0, "%s: dot len consistency C (%d/%d/%d)", this_test_name, dot_len_min, dot_len_ideal, dot_len_max);
 
-	failure = (eom_len_max >= eoc_len_min);
-	cte->expect_op_int(cte, false, "==", failure, 0, "get: max eom len < min eoc len (%d/%d):", eom_len_max, eoc_len_min);
+	cte->expect_op_int(cte, dash_len_min, "<", dash_len_max, 0, "%s: dash len consistency A (%d/%d)", this_test_name, dash_len_min, dash_len_max);
+	cte->expect_op_int(cte, dash_len_min, "<", dash_len_ideal, 0, "%s: dash len consistency B (%d/%d/%d)", this_test_name, dash_len_min, dash_len_ideal, dash_len_max);
+	cte->expect_op_int(cte, dash_len_max, ">", dash_len_ideal, 0, "%s: dash len consistency c (%d/%d/%d)", this_test_name, dash_len_min, dash_len_ideal, dash_len_max);
 
-	failure = (eom_len_min >= eom_len_ideal) || (eom_len_ideal >= eom_len_max);
-	cte->expect_op_int(cte, false, "==", failure, 0, "get: eom len consistency (%d/%d/%d)", eom_len_min, eom_len_ideal, eom_len_max);
 
-	failure = (eoc_len_min >= eoc_len_ideal) || (eoc_len_ideal >= eoc_len_max);
-	cte->expect_op_int(cte, false, "==", failure, 0, "get: eoc len consistency (%d/%d/%d)", eoc_len_min, eoc_len_ideal, eoc_len_max);
+	cte->expect_op_int(cte, eom_len_max, "<", eoc_len_min, 0, "%s: max eom len < min eoc len (%d/%d)", this_test_name, eom_len_max, eoc_len_min);
+
+	cte->expect_op_int(cte, eom_len_min, "<", eom_len_max, 0, "%s: eom len consistency A (%d/%d)", this_test_name, eom_len_min, eom_len_max);
+	cte->expect_op_int(cte, eom_len_min, "<", eom_len_ideal, 0, "%s: eom len consistency B (%d/%d/%d)", this_test_name, eom_len_min, eom_len_ideal, eom_len_max);
+	cte->expect_op_int(cte, eom_len_max, ">", eom_len_ideal, 0, "%s: eom len consistency C (%d/%d/%d)", this_test_name, eom_len_min, eom_len_ideal, eom_len_max);
+
+	cte->expect_op_int(cte, eoc_len_min, "<", eoc_len_max, 0, "%s: eoc len consistency A (%d/%d)", this_test_name, eoc_len_min, eoc_len_max);
+	cte->expect_op_int(cte, eoc_len_min, "<", eoc_len_ideal, 0, "%s: eoc len consistency B (%d/%d/%d)", this_test_name, eoc_len_min, eoc_len_ideal, eoc_len_max);
+	cte->expect_op_int(cte, eoc_len_max, ">", eoc_len_ideal, 0, "%s: eoc len consistency C (%d/%d/%d)", this_test_name, eoc_len_min, eoc_len_ideal, eoc_len_max);
 
 
 	cte->print_test_footer(cte, __func__);
@@ -1288,9 +1306,16 @@ int test_cw_rec_get_parameters(cw_test_executor_t * cte)
 
 
 
-/* Parameter getters and setters are independent of audio system, so
-   they can be tested just with CW_AUDIO_NULL.  This is even more true
-   for limit getters, which don't require a receiver at all. */
+/**
+   Parameter getters and setters are independent of audio system, so
+   they can be tested just with CW_AUDIO_NULL.
+
+   This function tests a single set of functions. This set is
+   "special" because "get_value()" function returns float. Most of
+   other "get_value()" functions in libcw return int.
+
+   @reviewed on 2019-10-26
+*/
 int test_cw_rec_parameter_getters_setters_1(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
@@ -1322,8 +1347,8 @@ int test_cw_rec_parameter_getters_setters_1(cw_test_executor_t * cte)
 
 		const char *name;
 	} test_data[] = {
-		{ cw_get_speed_limits, cw_rec_set_speed, cw_rec_get_speed, CW_SPEED_MIN, CW_SPEED_MAX, off_limits, -off_limits, "receive speed" },
-		{ NULL,                NULL,             NULL,             0,            0,            0,          0,           NULL            }
+		{ cw_get_speed_limits, cw_rec_set_speed, cw_rec_get_speed, CW_SPEED_MIN, CW_SPEED_MAX, off_limits, -off_limits, "rec speed" },
+		{ NULL,                NULL,             NULL,             0,            0,            0,          0,           NULL        }
 	};
 
 	bool get_failure = false;
@@ -1334,7 +1359,7 @@ int test_cw_rec_parameter_getters_setters_1(cw_test_executor_t * cte)
 
 	for (int i = 0; test_data[i].get_limits; i++) {
 
-		int status;
+		int cwret = CW_FAILURE;
 		int value = 0;
 
 		/* Get limits of values to be tested. */
@@ -1352,8 +1377,8 @@ int test_cw_rec_parameter_getters_setters_1(cw_test_executor_t * cte)
 		/* Test out-of-range value lower than minimum. */
 		errno = 0;
 		value = test_data[i].readback_min - 1;
-		status = test_data[i].set_new_value(rec, value);
-		if (!cte->expect_op_int(cte, CW_FAILURE, "==", status, 1, "%s: setting %s value below minimum (cwret)", this_test_name, test_data[i].name)) {
+		cwret = test_data[i].set_new_value(rec, value);
+		if (!cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 1, "%s: setting %s value below minimum (cwret)", this_test_name, test_data[i].name)) {
 			set_min_failure = true;
 			break;
 		}
@@ -1363,12 +1388,11 @@ int test_cw_rec_parameter_getters_setters_1(cw_test_executor_t * cte)
 		}
 
 
-
 		/* Test out-of-range value higher than maximum. */
 		errno = 0;
 		value = test_data[i].readback_max + 1;
-		status = test_data[i].set_new_value(rec, value);
-		if (!cte->expect_op_int(cte, CW_FAILURE, "==", status, 1, "%s: setting %s value above maximum (cwret)", this_test_name, test_data[i].name)) {
+		cwret = test_data[i].set_new_value(rec, value);
+		if (!cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 1, "%s: setting %s value above maximum (cwret)", this_test_name, test_data[i].name)) {
 			set_max_failure = true;
 			break;
 		}
@@ -1379,11 +1403,17 @@ int test_cw_rec_parameter_getters_setters_1(cw_test_executor_t * cte)
 
 
 		/* Test in-range values. Set with setter and then read back with getter. */
+		errno = 0;
 		for (int new_val = test_data[i].expected_min; new_val <= test_data[i].expected_max; new_val++) {
 			test_data[i].set_new_value(rec, new_val);
 
-			const double diff = test_data[i].get_value(rec) - new_val;
-			if (!cte->expect_op_double(cte, diff, "<", 0.01, 1, "%s: setting %s value in-range: %d\n", this_test_name, test_data[i].name, new_val)) {
+			const float readback_value = test_data[i].get_value(rec);
+			const float diff = readback_value - new_val;
+			if (!cte->expect_op_double(cte, 0.01, ">", diff, 1, "%s: setting %s value in-range: %d (val)", this_test_name, test_data[i].name, new_val)) {
+				set_ok_failure = true;
+				break;
+			}
+			if (!cte->expect_op_int(cte, 0, "==", errno, 1, "%s: setting %s value in-range: %d (errno)", this_test_name, test_data[i].name, new_val)) {
 				set_ok_failure = true;
 				break;
 			}
@@ -1408,9 +1438,16 @@ int test_cw_rec_parameter_getters_setters_1(cw_test_executor_t * cte)
 
 
 
-/* Parameter getters and setters are independent of audio system, so
-   they can be tested just with CW_AUDIO_NULL.  This is even more true
-   for limit getters, which don't require a receiver at all. */
+/**
+   Parameter getters and setters are independent of audio system, so
+   they can be tested just with CW_AUDIO_NULL.
+
+   This function tests a single set of functions. This set is
+   "special" because "get_value()" function returns float. Most of
+   other "get_value()" functions in libcw return int.
+
+   @reviewed on 2019-10-26
+*/
 int test_cw_rec_parameter_getters_setters_2(cw_test_executor_t * cte)
 {
 	cte->print_test_header(cte, __func__);
@@ -1443,10 +1480,6 @@ int test_cw_rec_parameter_getters_setters_2(cw_test_executor_t * cte)
 		const char *name;
 	} test_data[] = {
 		{ cw_get_tolerance_limits,  cw_rec_set_tolerance,  cw_rec_get_tolerance,  CW_TOLERANCE_MIN,  CW_TOLERANCE_MAX,  off_limits,  -off_limits,  "tolerance"     },
-#if 0
-		/* TODO: implement */
-		{ cw_get_speed_limits,      cw_set_receive_speed,  cw_get_receive_speed,  CW_SPEED_MIN,      CW_SPEED_MAX,      off_limits,  -off_limits,  "receive_speed" },
-#endif
 		{ NULL,                     NULL,                  NULL,                  0,                 0,                 0,            0,           NULL            }
 	};
 
@@ -1458,7 +1491,7 @@ int test_cw_rec_parameter_getters_setters_2(cw_test_executor_t * cte)
 
 	for (int i = 0; test_data[i].get_limits; i++) {
 
-		int status;
+		int cwret = CW_FAILURE;
 		int value = 0;
 
 		/* Get limits of values to be tested. */
@@ -1476,9 +1509,8 @@ int test_cw_rec_parameter_getters_setters_2(cw_test_executor_t * cte)
 		/* Test out-of-range value lower than minimum. */
 		errno = 0;
 		value = test_data[i].readback_min - 1;
-		status = test_data[i].set_new_value(rec, value);
-
-		if (!cte->expect_op_int(cte, CW_FAILURE, "==", status, 1, "%s: setting %s value below minimum (cwret)", this_test_name, test_data[i].name)) {
+		cwret = test_data[i].set_new_value(rec, value);
+		if (!cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 1, "%s: setting %s value below minimum (cwret)", this_test_name, test_data[i].name)) {
 			set_min_failure = true;
 			break;
 		}
@@ -1492,9 +1524,8 @@ int test_cw_rec_parameter_getters_setters_2(cw_test_executor_t * cte)
 		/* Test out-of-range value higher than maximum. */
 		errno = 0;
 		value = test_data[i].readback_max + 1;
-		status = test_data[i].set_new_value(rec, value);
-
-		if (!cte->expect_op_int(cte, CW_FAILURE, "==", status, 1, "%s: setting %s value above maximum (cwret)", this_test_name, test_data[i].name)) {
+		cwret = test_data[i].set_new_value(rec, value);
+		if (!cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 1, "%s: setting %s value above maximum (cwret)", this_test_name, test_data[i].name)) {
 			set_max_failure = true;
 			break;
 		}
@@ -1505,11 +1536,17 @@ int test_cw_rec_parameter_getters_setters_2(cw_test_executor_t * cte)
 
 
 		/* Test in-range values. Set with setter and then read back with getter. */
+		errno = 0;
 		for (int new_val = test_data[i].readback_min; new_val <= test_data[i].readback_max; new_val++) {
 			test_data[i].set_new_value(rec, new_val);
 
-			const double diff = test_data[i].get_value(rec) - new_val;
-			if (!cte->expect_op_double(cte, diff, "<", 0.01, 1, "%s: setting %s value in-range: %d", this_test_name, test_data[i].name, new_val)) {
+			const int readback_value = test_data[i].get_value(rec);
+			const int diff = readback_value - new_val;
+			if (!cte->expect_op_int(cte, 1, ">", diff, 1, "%s: setting %s value in-range: %d (val)", this_test_name, test_data[i].name, new_val)) {
+				set_ok_failure = true;
+				break;
+			}
+			if (!cte->expect_op_int(cte, 0, "==", errno, 1, "%s: setting %s value in-range: %d (errno)", this_test_name, test_data[i].name, new_val)) {
 				set_ok_failure = true;
 				break;
 			}
