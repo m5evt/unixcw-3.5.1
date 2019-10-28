@@ -90,9 +90,6 @@ static void gen_destroy(cw_gen_t ** gen)
 
 
 /**
-   tests::cw_tq_new_internal()
-   tests::cw_tq_delete_internal()
-
    @reviewed on 2019-10-03
 */
 int test_cw_tq_new_delete_internal(cw_test_executor_t * cte)
@@ -105,7 +102,7 @@ int test_cw_tq_new_delete_internal(cw_test_executor_t * cte)
 	cw_tone_queue_t * tq = NULL;
 
 	for (int i = 0; i < loop_max; i++) {
-		tq = cw_tq_new_internal();
+		tq = LIBCW_TEST_FUT(cw_tq_new_internal)();
 		if (!cte->expect_valid_pointer_errors_only(cte, tq, "creating new tone queue")) {
 			failure = true;
 			break;
@@ -134,7 +131,7 @@ int test_cw_tq_new_delete_internal(cw_test_executor_t * cte)
 		}
 
 
-		cw_tq_delete_internal(&tq);
+		LIBCW_TEST_FUT(cw_tq_delete_internal)(&tq);
 		if (!cte->expect_null_pointer_errors_only(cte, tq, "deleting tone queue")) {
 			failure = true;
 			break;
@@ -157,8 +154,6 @@ int test_cw_tq_new_delete_internal(cw_test_executor_t * cte)
 
 
 /**
-   tests::cw_tq_get_capacity_internal()
-
    @reviewed on 2019-10-03
 */
 int test_cw_tq_get_capacity_internal(cw_test_executor_t * cte)
@@ -173,12 +168,12 @@ int test_cw_tq_get_capacity_internal(cw_test_executor_t * cte)
 
 	for (int i = 0; i < loop_max; i++) {
 		/* This is a silly test, but let's have any test of
-		   the getter. */
+		   the getter. TODO: come up with better test. */
 
 		const size_t intended_capacity = (rand() % 4000) + 10;
 		tq->capacity = intended_capacity;
 
-		const size_t readback_capacity = cw_tq_get_capacity_internal(tq);
+		const size_t readback_capacity = LIBCW_TEST_FUT(cw_tq_get_capacity_internal)(tq);
 		if (!cte->expect_op_int(cte, intended_capacity, "==", readback_capacity, 1, "getting tone queue capacity")) {
 			failure = true;
 			break;
@@ -198,8 +193,6 @@ int test_cw_tq_get_capacity_internal(cw_test_executor_t * cte)
 
 
 /**
-   tests::cw_tq_prev_index_internal()
-
    @reviewed on 2019-10-03
 */
 int test_cw_tq_prev_index_internal(cw_test_executor_t * cte)
@@ -237,7 +230,7 @@ int test_cw_tq_prev_index_internal(cw_test_executor_t * cte)
 	int i = 0;
 	bool failure = false;
 	while (!input[i].guard) {
-		const size_t readback_prev_index = cw_tq_prev_index_internal(tq, input[i].current_index);
+		const size_t readback_prev_index = LIBCW_TEST_FUT(cw_tq_prev_index_internal)(tq, input[i].current_index);
 		if (!cte->expect_op_int(cte, input[i].expected_prev_index, "==", readback_prev_index, 1, "calculating 'prev' index, test %d", i)) {
 			failure = true;
 			break;
@@ -258,8 +251,6 @@ int test_cw_tq_prev_index_internal(cw_test_executor_t * cte)
 
 
 /**
-   tests::cw_tq_next_index_internal()
-
    @reviewed on 2019-10-03
 */
 int test_cw_tq_next_index_internal(cw_test_executor_t * cte)
@@ -290,7 +281,7 @@ int test_cw_tq_next_index_internal(cw_test_executor_t * cte)
 	int i = 0;
 	bool failure = false;
 	while (!input[i].guard) {
-		const size_t readback_next_index = cw_tq_next_index_internal(tq, input[i].current_index);
+		const size_t readback_next_index = LIBCW_TEST_FUT(cw_tq_next_index_internal)(tq, input[i].current_index);
 		if (!cte->expect_op_int(cte, input[i].expected_next_index, "==", readback_next_index, 1, "calculating 'next' index, test %d", i)) {
 			failure = true;
 			break;
@@ -351,9 +342,6 @@ void enqueue_tone_low_level(cw_test_executor_t * cte, cw_tone_queue_t * tq, cons
    The second function is just a wrapper for the first one, so this
    test case tests both functions at once.
 
-   tests::cw_tq_length_internal()
-   tests::cw_get_tone_queue_length()
-
    @reviewed on 2019-10-04
 */
 int test_cw_tq_length_internal_1(cw_test_executor_t * cte)
@@ -374,7 +362,7 @@ int test_cw_tq_length_internal_1(cw_test_executor_t * cte)
 
 		/* OK, added a tone, ready to measure length of the queue. */
 		const size_t expected_len = i + 1;
-		const size_t readback_len = cw_tq_length_internal(tq);
+		const size_t readback_len = LIBCW_TEST_FUT(cw_tq_length_internal)(tq);
 		if (!cte->expect_op_int(cte, expected_len, "==", readback_len, 1, "tone queue length A, readback #1\n")) {
 			failure = true;
 			break;
@@ -454,7 +442,7 @@ int test_cw_tq_enqueue_internal_A(cw_test_executor_t * cte, cw_tone_queue_t * tq
 	for (size_t i = 0; i < tq->capacity; i++) {
 
 		/* This tests for potential problems with function call. */
-		const int cwret = cw_tq_enqueue_internal(tq, &tone);
+		const int cwret = LIBCW_TEST_FUT(cw_tq_enqueue_internal)(tq, &tone);
 		if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "enqueueing tone")) {
 			enqueue_failure = true;
 			break;
@@ -484,7 +472,7 @@ int test_cw_tq_enqueue_internal_A(cw_test_executor_t * cte, cw_tone_queue_t * tq
 	/* This tests for potential problems with function call.
 	   Enqueueing should fail when the queue is full. */
 	cte->log_info(cte, "*** you may now see \"EE: can't enqueue tone, tq is full\" message ***\n");
-	const int cwret = cw_tq_enqueue_internal(tq, &tone);
+	const int cwret = LIBCW_TEST_FUT(cw_tq_enqueue_internal)(tq, &tone);
 	cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 0, "enqueue A: attempting to enqueue tone to full queue");
 
 	/* This tests for correctness of working of the 'enqueue'
@@ -533,7 +521,7 @@ int test_cw_tq_dequeue_internal(cw_test_executor_t * cte, cw_tone_queue_t * tq)
 		}
 
 		/* This tests for potential problems with function call. */
-		const int cwret = cw_tq_dequeue_internal(tq, &tone);
+		const int cwret = LIBCW_TEST_FUT(cw_tq_dequeue_internal)(tq, &tone);
 		if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "dequeue: dequeueing tone #%zu", i)) {
 			dequeue_failure = true;
 			break;
@@ -555,7 +543,7 @@ int test_cw_tq_dequeue_internal(cw_test_executor_t * cte, cw_tone_queue_t * tq)
 
 	/* Try removing a tone from empty queue. */
 	/* This tests for potential problems with function call. */
-	const int cwret = cw_tq_dequeue_internal(tq, &tone);
+	const int cwret = LIBCW_TEST_FUT(cw_tq_dequeue_internal)(tq, &tone);
 	cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 0, "dequeue: attempting to dequeue tone from empty queue");
 
 
@@ -605,7 +593,7 @@ int test_cw_tq_is_full_internal(cw_test_executor_t * cte)
 	   place in tq free so that is_full() called in the loop
 	   always returns false. */
 	for (size_t i = 0; i < tq->capacity - 1; i++) {
-		const int cwret = cw_tq_enqueue_internal(tq, &tone);
+		const int cwret = LIBCW_TEST_FUT(cw_tq_enqueue_internal)(tq, &tone);
 		/* The 'enqueue' function has been already tested, but
 		   it won't hurt to check this simple condition here
 		   as well. */
@@ -616,7 +604,7 @@ int test_cw_tq_is_full_internal(cw_test_executor_t * cte)
 
 		/* The queue shouldn't become full in this loop
 		   because we enqueue only 'capacity - 1' tones. */
-		is_full = cw_tq_is_full_internal(tq);
+		is_full = LIBCW_TEST_FUT(cw_tq_is_full_internal)(tq);
 		if (!cte->expect_op_int(cte, false, "==", is_full, 1, "is_full: is tone queue full after enqueueing tone #%zu", i)) {
 			failure = true;
 			break;
@@ -631,7 +619,7 @@ int test_cw_tq_is_full_internal(cw_test_executor_t * cte)
 	int cwret = cw_tq_enqueue_internal(tq, &tone);
 	cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "is_full: adding last element");
 
-	is_full = cw_tq_is_full_internal(tq);
+	is_full = LIBCW_TEST_FUT(cw_tq_is_full_internal)(tq);
 	cte->expect_op_int(cte, true, "==", is_full, 0, "is_full: queue is full after adding last element");
 
 
@@ -650,7 +638,7 @@ int test_cw_tq_is_full_internal(cw_test_executor_t * cte)
 		/* Here is the proper test of tested function. Since
 		   we have called "dequeue" above, the queue becomes
 		   non-full during first iteration. */
-		is_full = cw_tq_is_full_internal(tq);
+		is_full = LIBCW_TEST_FUT(cw_tq_is_full_internal)(tq);
 		if (!cte->expect_op_int(cte, false, "==", is_full, 1, "is_full: queue should not be full after dequeueing tone %zd\n", i)) {
 			failure = true;
 			break;
@@ -732,7 +720,7 @@ int test_cw_tq_test_capacity_A(cw_test_executor_t * cte)
 			cw_tone_t tone;
 			CW_TONE_INIT(&tone, (int) i, 1000, CW_SLOPE_MODE_NO_SLOPES);
 
-			const int cwret = cw_tq_enqueue_internal(tq, &tone);
+			const int cwret = LIBCW_TEST_FUT(cw_tq_enqueue_internal)(tq, &tone);
 			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "capacity A: enqueueing ton #%zu, queue size %zu, head shift %d", i, capacity, current_head_shift)) {
 				enqueue_failure = true;
 				break;
@@ -785,7 +773,6 @@ int test_cw_tq_test_capacity_A(cw_test_executor_t * cte)
 
 	return 0;
 }
-
 
 
 
@@ -853,7 +840,7 @@ int test_cw_tq_test_capacity_B(cw_test_executor_t * cte)
 			cw_tone_t tone;
 			CW_TONE_INIT(&tone, (int) i, 1000, CW_SLOPE_MODE_NO_SLOPES);
 
-			const int cwret = cw_tq_enqueue_internal(tq, &tone);
+			const int cwret = LIBCW_TEST_FUT(cw_tq_enqueue_internal)(tq, &tone);
 			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "capacity B: enqueueing ton #%zu, queue size %zu, head shift %d", i, capacity, current_head_shift)) {
 				enqueue_failure = true;
 				break;
@@ -878,7 +865,7 @@ int test_cw_tq_test_capacity_B(cw_test_executor_t * cte)
 
 		size_t i = 0;
 		cw_tone_t deq_tone; /* For output only, so no need to initialize. */
-		while (CW_SUCCESS == cw_tq_dequeue_internal(tq, &deq_tone)) {
+		while (CW_SUCCESS == LIBCW_TEST_FUT(cw_tq_dequeue_internal)(tq, &deq_tone)) {
 
 			/* When shift of head == 0, tone with
 			   frequency 'i' is at index 'i'. But with
@@ -965,7 +952,14 @@ cw_tone_queue_t * test_cw_tq_capacity_test_init(cw_test_executor_t * cte, size_t
 	cte->assert2(cte, tq, "failed to create new tone queue");
 	// tq->state = CW_TQ_BUSY; TODO: what does it do here?
 
-	int cwret = cw_tq_set_capacity_internal(tq, capacity, high_water_mark);
+	/*
+	  TODO: we can come up with better test for "set_capacity_internal":
+	  1. have empty queue,
+	  2. set capacity of queue to N,
+	  3. try to add N tones - should succeed,
+	  4. try to add N+1 tones - should fail.
+	*/
+	int cwret = LIBCW_TEST_FUT(cw_tq_set_capacity_internal)(tq, capacity, high_water_mark);
 	cte->assert2(cte, cwret == CW_SUCCESS, "failed to set capacity/high water mark");
 	cte->assert2(cte, tq->capacity == capacity, "incorrect capacity: %zu != %zu", tq->capacity, capacity);
 	cte->assert2(cte, tq->high_water_mark == high_water_mark, "incorrect high water mark: %zu != %zu", tq->high_water_mark, high_water_mark);
@@ -1019,7 +1013,7 @@ int test_cw_tq_enqueue_internal_B(cw_test_executor_t * cte)
 	errno = 0;
 	tone.len = -1;               /* Invalid length. */
 	tone.frequency = freq_min;   /* Valid frequency. */
-	cwret = cw_tq_enqueue_internal(tq, &tone);
+	cwret = LIBCW_TEST_FUT(cw_tq_enqueue_internal)(tq, &tone);
 	cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 0, "enqueued tone with invalid length (cwret)");
 	cte->expect_op_int(cte, EINVAL, "==", errno, 0, "enqueued tone with invalid length (cwret)");
 
@@ -1028,7 +1022,7 @@ int test_cw_tq_enqueue_internal_B(cw_test_executor_t * cte)
 	errno = 0;
 	tone.len = 100;                   /* Valid length. */
 	tone.frequency = freq_min - 1;    /* Invalid frequency. */
-	cwret = cw_tq_enqueue_internal(tq, &tone);
+	cwret = LIBCW_TEST_FUT(cw_tq_enqueue_internal)(tq, &tone);
 	cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 0, "enqueued tone with too low frequency (cwret)");
 	cte->expect_op_int(cte, EINVAL, "==", errno, 0, "enqueued tone with too low frequency (errno)");
 
@@ -1037,7 +1031,7 @@ int test_cw_tq_enqueue_internal_B(cw_test_executor_t * cte)
 	errno = 0;
 	tone.len = 100;                   /* Valid length. */
 	tone.frequency = freq_max + 1;    /* Invalid frequency. */
-	cwret = cw_tq_enqueue_internal(tq, &tone);
+	cwret = LIBCW_TEST_FUT(cw_tq_enqueue_internal)(tq, &tone);
 	cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 0, "enqueued tone with too high frequency (cwret)");
 	cte->expect_op_int(cte, EINVAL, "==", errno, 0, "enqueued tone with too high frequency (errno)");
 
@@ -1089,7 +1083,7 @@ int test_cw_tq_wait_for_level_internal(cw_test_executor_t * cte)
 		/* Notice that level is always smaller than number of
 		   items added to queue. */
 		const int level = rand() % (int) (floor((0.7 * max)));
-		const int cwret = cw_tq_wait_for_level_internal(gen->tq, level);
+		const int cwret = LIBCW_TEST_FUT(cw_tq_wait_for_level_internal)(gen->tq, level);
 		if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "wait for level = %d, tone queue items count = %d", level, max)) {
 			wait_failure = true;
 			break;
@@ -1192,7 +1186,7 @@ int test_cw_tq_gen_operations_A(cw_test_executor_t * cte)
 			/* Monitor length of a queue as it is filled - before
 			   adding a new tone. */
 			expected_length = i;
-			readback_length = cw_tq_length_internal(gen->tq);
+			readback_length = LIBCW_TEST_FUT(cw_tq_length_internal)(gen->tq);
 			if (!cte->expect_op_int(cte, expected_length, "==", readback_length, 1, "tq gen operations A: length pre-enqueue (#%02d):", i)) {
 				length_failure = true;
 				break;
@@ -1204,7 +1198,7 @@ int test_cw_tq_gen_operations_A(cw_test_executor_t * cte)
 			   error. */
 			freq = freq_min + i * delta_freq;
 			CW_TONE_INIT(&tone, freq, duration, CW_SLOPE_MODE_NO_SLOPES);
-			const int cwret = cw_tq_enqueue_internal(gen->tq, &tone);
+			const int cwret = LIBCW_TEST_FUT(cw_tq_enqueue_internal)(gen->tq, &tone);
 			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "tq gen operations A: enqueue (#%02d)", i)) {
 				enqueue_failure = true;
 				break;
@@ -1213,7 +1207,7 @@ int test_cw_tq_gen_operations_A(cw_test_executor_t * cte)
 
 			/* Monitor length of a queue as it is filled - after
 			   adding a new tone. */
-			readback_length = cw_tq_length_internal(gen->tq);
+			readback_length = LIBCW_TEST_FUT(cw_tq_length_internal)(gen->tq);
 			expected_length = i + 1;
 			if (!cte->expect_op_int(cte, expected_length, "==", readback_length, 1, "tq gen operations A: length: post-enqueue (#%02d):", i)) {
 				length_failure = true;
@@ -1249,7 +1243,7 @@ int test_cw_tq_gen_operations_A(cw_test_executor_t * cte)
 		int expected_length_max = 0;
 
 		/* Monitor length of a queue as it is emptied - before dequeueing. */
-		readback_length = cw_tq_length_internal(gen->tq);
+		readback_length = LIBCW_TEST_FUT(cw_tq_length_internal)(gen->tq);
 		expected_length_min = i - 1;
 		expected_length_max = i;
 		if (!cte->expect_between_int_errors_only(cte, expected_length_min, readback_length, expected_length_max, "tq gen operations A: length pre-dequeue (#%02d)", i)) {
@@ -1258,14 +1252,14 @@ int test_cw_tq_gen_operations_A(cw_test_executor_t * cte)
 		}
 
 		/* Wait for each of N tones to be dequeued. */
-		const int cwret = cw_tq_wait_for_tone_internal(gen->tq);
+		const int cwret = LIBCW_TEST_FUT(cw_tq_wait_for_tone_internal)(gen->tq);
 		if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "tq gen operations A: wait for tone (#%02d)", i)) {
 			wait_failure = true;
 			break;
 		}
 
 		/* Monitor length of a queue as it is emptied - after dequeueing. */
-		readback_length = cw_tq_length_internal(gen->tq);
+		readback_length = LIBCW_TEST_FUT(cw_tq_length_internal)(gen->tq);
 		expected_length_min = i - 1 - 1;
 		expected_length_max = i - 1;
 		if (!cte->expect_between_int_errors_only(cte, expected_length_min, readback_length, expected_length_max, "tq gen operations A: length post-dequeue (#%02d)", i)) {
@@ -1287,7 +1281,7 @@ int test_cw_tq_gen_operations_A(cw_test_executor_t * cte)
 		freq = freq_min + i * delta_freq;
 		cw_tone_t tone;
 		CW_TONE_INIT(&tone, freq, duration, CW_SLOPE_MODE_NO_SLOPES);
-		const int cwret = cw_tq_enqueue_internal(gen->tq, &tone);
+		const int cwret = LIBCW_TEST_FUT(cw_tq_enqueue_internal)(gen->tq, &tone);
 		if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "tq gen operations A: enqueue all, tone %04d)", i)) {
 			failure = true;
 			break;
@@ -1296,7 +1290,7 @@ int test_cw_tq_gen_operations_A(cw_test_executor_t * cte)
 	cte->expect_op_int(cte, false, "==", failure, 0, "tq gen operations A: enqueue all");
 
 
-	const int cwret = cw_tq_wait_for_level_internal(gen->tq, 0);
+	const int cwret = LIBCW_TEST_FUT(cw_tq_wait_for_level_internal)(gen->tq, 0);
 	cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "tq gen operations A: final wait for level 0");
 
 
@@ -1357,7 +1351,13 @@ int test_cw_tq_gen_operations_B(cw_test_executor_t * cte)
 
 	for (int freq = freq_min; freq < freq_max; freq += freq_delta) {
 		while (cw_tq_is_full_internal(gen->tq)) {
-			const int cwret = cw_tq_wait_for_level_internal(gen->tq, level);
+			/* TODO: currently there is no guarantee that
+			   the tone queue will become full and the
+			   tested function will be called. It would be
+			   better to make capacity rather small
+			   (e.g. 200) compared to range of
+			   frequencies. */
+			const int cwret = LIBCW_TEST_FUT(cw_tq_wait_for_level_internal)(gen->tq, level);
 			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "wait for level %d (up)", level)) {
 				wait_failure = true;
 				break;
@@ -1366,7 +1366,7 @@ int test_cw_tq_gen_operations_B(cw_test_executor_t * cte)
 
 		cw_tone_t tone;
 		CW_TONE_INIT(&tone, freq, duration, CW_SLOPE_MODE_NO_SLOPES);
-		const int cwret = cw_tq_enqueue_internal(gen->tq, &tone);
+		const int cwret = LIBCW_TEST_FUT(cw_tq_enqueue_internal)(gen->tq, &tone);
 		if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "enqueue tone %d (up)", freq)) {
 			queue_failure = true;
 			break;
@@ -1380,7 +1380,7 @@ int test_cw_tq_gen_operations_B(cw_test_executor_t * cte)
 	queue_failure = false;
 	for (int freq = freq_max; freq > freq_min; freq -= 1) {
 		while (cw_tq_is_full_internal(gen->tq)) {
-			const int cwret = cw_tq_wait_for_level_internal(gen->tq, level);
+			const int cwret = LIBCW_TEST_FUT(cw_tq_wait_for_level_internal)(gen->tq, level);
 			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "wait for level %d (down)", level)) {
 				wait_failure = true;
 				break;
@@ -1389,7 +1389,7 @@ int test_cw_tq_gen_operations_B(cw_test_executor_t * cte)
 
 		cw_tone_t tone;
 		CW_TONE_INIT(&tone, freq, duration, CW_SLOPE_MODE_NO_SLOPES);
-		const int cwret = cw_tq_enqueue_internal(gen->tq, &tone);
+		const int cwret = LIBCW_TEST_FUT(cw_tq_enqueue_internal)(gen->tq, &tone);
 		if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "enqueue tone %d (down)", freq)) {
 			queue_failure = true;
 			break;
@@ -1400,7 +1400,7 @@ int test_cw_tq_gen_operations_B(cw_test_executor_t * cte)
 
 
 
-	const int cwret = cw_tq_wait_for_level_internal(gen->tq, 0);
+	const int cwret = LIBCW_TEST_FUT(cw_tq_wait_for_level_internal)(gen->tq, 0);
 	cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "waiting for level 0 (final)");
 
 
@@ -1447,10 +1447,10 @@ int test_cw_tq_operations_C(cw_test_executor_t * cte)
 		cw_tq_flush_internal(tq);
 		cw_tq_wait_for_level_internal(tq, 0);
 
-		const int capacity = cw_tq_get_capacity_internal(tq);
+		const int capacity = LIBCW_TEST_FUT(cw_tq_get_capacity_internal)(tq);
 		cte->expect_op_int(cte, CW_TONE_QUEUE_CAPACITY_MAX, "==", capacity, 0, "empty queue's capacity");
 
-		const int len_empty = cw_tq_length_internal(tq);
+		const int len_empty = LIBCW_TEST_FUT(cw_tq_length_internal)(tq);
 		cte->expect_op_int(cte, 0, "==", len_empty, 0, "empty queue's length");
 	}
 
@@ -1476,11 +1476,11 @@ int test_cw_tq_operations_C(cw_test_executor_t * cte)
 		}
 
 
-		const int capacity = cw_tq_get_capacity_internal(tq);
+		const int capacity = LIBCW_TEST_FUT(cw_tq_get_capacity_internal)(tq);
 		cte->expect_op_int(cte, CW_TONE_QUEUE_CAPACITY_MAX, "==", capacity, 0, "full queue's capacity");
 
 
-		const int len_full = cw_tq_length_internal(tq);
+		const int len_full = LIBCW_TEST_FUT(cw_tq_length_internal)(tq);
 		cte->expect_op_int(cte, CW_TONE_QUEUE_CAPACITY_MAX, "==", len_full, 0, "full queue's length");
 	}
 
@@ -1493,7 +1493,7 @@ int test_cw_tq_operations_C(cw_test_executor_t * cte)
 		cw_tone_t tone;
 		CW_TONE_INIT(&tone, 100, 1000000, CW_SLOPE_MODE_NO_SLOPES);
 		errno = 0;
-		const int cwret = cw_tq_enqueue_internal(tq, &tone);
+		const int cwret = LIBCW_TEST_FUT(cw_tq_enqueue_internal)(tq, &tone);
 		cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 0, "trying to enqueue tone to full queue (cwret)");
 		cte->expect_op_int(cte, EAGAIN, "==", errno, 0, "trying to enqueue tone to full queue (errno)");
 	}
@@ -1510,13 +1510,13 @@ int test_cw_tq_operations_C(cw_test_executor_t * cte)
 		cw_tq_flush_internal(tq);
 		cw_tq_wait_for_level_internal(tq, 0);
 
-		const int capacity = cw_tq_get_capacity_internal(tq);
+		const int capacity = LIBCW_TEST_FUT(cw_tq_get_capacity_internal)(tq);
 		cte->expect_op_int(cte, CW_TONE_QUEUE_CAPACITY_MAX, "==", capacity, 0, "empty queue's capacity");
 
 
 		/* Test that the tq is really empty after
 		   cw_tq_wait_for_level_internal() has returned. */
-		const int len_empty = cw_tq_length_internal(tq);
+		const int len_empty = LIBCW_TEST_FUT(cw_tq_length_internal)(tq);
 		cte->expect_op_int(cte, 0, "==", len_empty, 0, "empty queue's length");
 	}
 
@@ -1570,7 +1570,7 @@ int test_cw_tq_callback(cw_test_executor_t * cte)
 		   but for a bit larger as well. */
 		int level = i <= 5 ? i : 3 * i;
 
-		int cwret = cw_tq_register_low_level_callback_internal(gen->tq, test_helper_tq_callback, (void *) &test_data, level);
+		int cwret = LIBCW_TEST_FUT(cw_tq_register_low_level_callback_internal)(gen->tq, test_helper_tq_callback, (void *) &test_data, level);
 		if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "registering low level callback with level %d", level)) {
 			register_failure = true;
 			break;
