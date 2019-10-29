@@ -69,13 +69,13 @@ int test_cw_debug_flags_internal(cw_test_executor_t * cte)
 	cw_debug_set_flags(&cw_debug_object, 0x00);
 
 	for (uint32_t flags = 1; flags <= CW_DEBUG_MASK; flags++) { /* All combinations of all bits that form libcw debug mask. */
-		cw_debug_set_flags(&cw_debug_object, flags);
+		LIBCW_TEST_FUT(cw_debug_set_flags)(&cw_debug_object, flags);
 		if (!cte->expect_op_int(cte, flags, "==", cw_debug_object.flags, 1, "set debug flag %"PRIu32"", flags)) {
 			set_failure = true;
 			break;
 		}
 
-		uint32_t readback_flags = cw_debug_get_flags(&cw_debug_object);
+		uint32_t readback_flags = LIBCW_TEST_FUT(cw_debug_get_flags)(&cw_debug_object);
 		if (!cte->expect_op_int(cte, flags, "==", readback_flags, 1, "get debug flag %"PRIu32"\n", flags)) {
 			get_failure = true;
 			break;

@@ -75,7 +75,7 @@ int test_cw_timestamp_compare_internal(cw_test_executor_t * cte)
 	bool failure = false;
 	int i = 0;
 	while (test_data[i].test_valid) {
-		const int calculated_delta_usecs = cw_timestamp_compare_internal(&test_data[i].earlier, &test_data[i].later);
+		const int calculated_delta_usecs = LIBCW_TEST_FUT(cw_timestamp_compare_internal)(&test_data[i].earlier, &test_data[i].later);
 		if (!cte->expect_op_int(cte, test_data[i].expected_delta_usecs, "==", calculated_delta_usecs, 1, "timestamps diff: test #%d", i)) {
 			failure = true;
 			break;
@@ -111,7 +111,7 @@ int test_cw_timestamp_validate_internal(cw_test_executor_t * cte)
 
 		/* Get current time through libcw function. */
 		struct timeval out_timestamp = { 0, 0 };
-		int cwret = cw_timestamp_validate_internal(&out_timestamp, NULL);
+		int cwret = LIBCW_TEST_FUT(cw_timestamp_validate_internal)(&out_timestamp, NULL);
 		cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "current timestamp");
 
 		/* Check the diff between the two timestamps. On my desktop PC it's ~8us.  */
@@ -144,7 +144,7 @@ int test_cw_timestamp_validate_internal(cw_test_executor_t * cte)
 		struct timeval out = { 0, 0 };
 		errno = 0;
 
-		int cwret = cw_timestamp_validate_internal(&out, &test_data[i].in);
+		int cwret = LIBCW_TEST_FUT(cw_timestamp_validate_internal)(&out, &test_data[i].in);
 		cte->expect_op_int(cte, test_data[i].expected_cwret, "==", cwret, 0, "%s (cwret)", test_data[i].name);
 		cte->expect_op_int(cte, test_data[i].expected_errno, "==", errno, 0, "%s (errno)", test_data[i].name);
 
@@ -192,7 +192,7 @@ int test_cw_usecs_to_timespec_internal(cw_test_executor_t * cte)
 	int i = 0;
 	while (input_data[i].input != -1) {
 		struct timespec result = { .tv_sec = 0, .tv_nsec = 0 };
-		cw_usecs_to_timespec_internal(&result, input_data[i].input);
+		LIBCW_TEST_FUT(cw_usecs_to_timespec_internal)(&result, input_data[i].input);
 #if 0
 		fprintf(stderr, "input = %d usecs, output = %ld.%ld\n",
 			input_data[i].input, (long) result.tv_sec, (long) result.tv_nsec);
@@ -232,7 +232,7 @@ int test_cw_version_internal(cw_test_executor_t * cte)
 	int readback_current = 77;
 	int readback_revision = 88;
 	int readback_age = 99; /* Dummy initial values. */
-	cw_get_lib_version(&readback_current, &readback_revision, &readback_age);
+	LIBCW_TEST_FUT(cw_get_lib_version)(&readback_current, &readback_revision, &readback_age);
 
 	/* Library's version is defined in LIBCW_VERSION. cw_version()
 	   uses three calls to strtol() to get three parts of the
@@ -304,7 +304,7 @@ int test_cw_license_internal(cw_test_executor_t * cte)
 	/* Well, there isn't much to test here. The function just
 	   prints the license to stdout, and that's it. */
 
-	cw_license();
+	LIBCW_TEST_FUT(cw_license)();
 	cte->expect_op_int(cte, false, "==", false, 0, "libcw license:");
 
 	cte->print_test_footer(cte, __func__);
