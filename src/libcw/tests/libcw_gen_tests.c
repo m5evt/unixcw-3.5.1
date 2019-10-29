@@ -64,7 +64,7 @@ int test_cw_gen_new_delete(cw_test_executor_t * cte)
 
 	/* new() + delete() */
 	for (int i = 0; i < max; i++) {
-		gen = cw_gen_new(cte->current_sound_system, NULL);
+		gen = LIBCW_TEST_FUT(cw_gen_new)(cte->current_sound_system, NULL);
 		if (!cte->expect_valid_pointer_errors_only(cte, gen, "new/delete: failed to initialize generator (loop #%d)", i)) {
 			failure = true;
 			break;
@@ -92,7 +92,7 @@ int test_cw_gen_new_delete(cw_test_executor_t * cte)
 			break;
 		}
 
-		cw_gen_delete(&gen);
+		LIBCW_TEST_FUT(cw_gen_delete)(&gen);
 		if (!cte->expect_null_pointer_errors_only(cte, gen, "new/delete: delete() didn't set the pointer to NULL (loop #%d)", i)) {
 			failure = true;
 			break;
@@ -131,19 +131,19 @@ int test_cw_gen_new_start_delete(cw_test_executor_t * cte)
 
 	/* new() + start() + delete() (skipping stop() on purpose). */
 	for (int i = 0; i < max; i++) {
-		gen = cw_gen_new(cte->current_sound_system, NULL);
+		gen = LIBCW_TEST_FUT(cw_gen_new)(cte->current_sound_system, NULL);
 		if (!cte->expect_valid_pointer_errors_only(cte, gen, "new/start/delete: new (loop #%d)", i)) {
 			failure = true;
 			break;
 		}
 
-		const int cwret = cw_gen_start(gen);
+		const int cwret = LIBCW_TEST_FUT(cw_gen_start)(gen);
 		if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "new/start/delete: start (loop #%d)", i)) {
 			failure = true;
 			break;
 		}
 
-		cw_gen_delete(&gen);
+		LIBCW_TEST_FUT(cw_gen_delete)(&gen);
 		if (!cte->expect_null_pointer_errors_only(cte, gen, "new/start/delete: delete (loop #%d)", i)) {
 			failure = true;
 			break;
@@ -184,19 +184,19 @@ int test_cw_gen_new_stop_delete(cw_test_executor_t * cte)
 
 	/* new() + stop() + delete() (skipping start() on purpose). */
 	for (int i = 0; i < max; i++) {
-		gen = cw_gen_new(cte->current_sound_system, NULL);
+		gen = LIBCW_TEST_FUT(cw_gen_new)(cte->current_sound_system, NULL);
 		if (!cte->expect_valid_pointer_errors_only(cte, gen, "new/stop/delete: new (loop #%d)", i)) {
 			new_failure = true;
 			break;
 		}
 
-		const int cwret = cw_gen_stop(gen);
+		const int cwret = LIBCW_TEST_FUT(cw_gen_stop)(gen);
 		if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "new/stop/delete: stop (loop #%d)", i)) {
 			stop_failure = true;
 			break;
 		}
 
-		cw_gen_delete(&gen);
+		LIBCW_TEST_FUT(cw_gen_delete)(&gen);
 		if (!cte->expect_null_pointer_errors_only(cte, gen, "new/stop/delete: delete (loop #%d)", i)) {
 			delete_failure = true;
 			break;
@@ -241,7 +241,7 @@ int test_cw_gen_new_start_stop_delete(cw_test_executor_t * cte)
 
 	/* new() + start() + stop() + delete() */
 	for (int i = 0; i < max; i++) {
-		gen = cw_gen_new(cte->current_sound_system, NULL);
+		gen = LIBCW_TEST_FUT(cw_gen_new)(cte->current_sound_system, NULL);
 		if (!cte->expect_valid_pointer_errors_only(cte, gen, "new/start/stop/delete: new (loop #%d)", i)) {
 			new_failure = true;
 			break;
@@ -252,13 +252,13 @@ int test_cw_gen_new_start_stop_delete(cw_test_executor_t * cte)
 		for (int j = 0; j < sub_max; j++) {
 			int cwret = CW_FAILURE;
 
-			cwret = cw_gen_start(gen);
+			cwret = LIBCW_TEST_FUT(cw_gen_start)(gen);
 			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "new/start/stop/delete: start (loop #%d-%d)", i, j)) {
 				start_failure = true;
 				break;
 			}
 
-			cwret = cw_gen_stop(gen);
+			cwret = LIBCW_TEST_FUT(cw_gen_stop)(gen);
 			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "new/start/stop/delete: stop (loop #%d-%d)", i, j)) {
 				stop_failure = true;
 				break;
@@ -268,7 +268,7 @@ int test_cw_gen_new_start_stop_delete(cw_test_executor_t * cte)
 			break;
 		}
 
-		cw_gen_delete(&gen);
+		LIBCW_TEST_FUT(cw_gen_delete)(&gen);
 		if (!cte->expect_null_pointer_errors_only(cte, gen, "new/start/stop/delete: delete (loop #%d)", i)) {
 			delete_failure = true;
 			break;
@@ -327,7 +327,7 @@ int test_cw_gen_set_tone_slope(cw_test_executor_t * cte)
 		cw_gen_t * gen = cw_gen_new(audio_system, NULL);
 		cte->assert2(cte, gen, "set slope: A: failed to initialize generator");
 
-		const int cwret = cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_RECTANGULAR, 10);
+		const int cwret = LIBCW_TEST_FUT(cw_gen_set_tone_slope)(gen, CW_TONE_SLOPE_SHAPE_RECTANGULAR, 10);
 		cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 0, "set slope: A: conflicting arguments");
 
 		cw_gen_delete(&gen);
@@ -352,7 +352,7 @@ int test_cw_gen_set_tone_slope(cw_test_executor_t * cte)
 		const int shape_before = gen->tone_slope.shape;
 		const int len_before = gen->tone_slope.len;
 
-		const int cwret = cw_gen_set_tone_slope(gen, -1, -1);
+		const int cwret = LIBCW_TEST_FUT(cw_gen_set_tone_slope)(gen, -1, -1);
 
 		cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "set slope: B: set tone slope <-1 -1> (cwret) ");
 		cte->expect_op_int(cte, shape_before, "==", gen->tone_slope.shape, 0, "set slope: B: <-1 -1> (shape)");
@@ -392,7 +392,7 @@ int test_cw_gen_set_tone_slope(cw_test_executor_t * cte)
 
 		/* Set only new slope shape. */
 		expected_shape = CW_TONE_SLOPE_SHAPE_LINEAR;
-		cwret = cw_gen_set_tone_slope(gen, expected_shape, -1);
+		cwret = LIBCW_TEST_FUT(cw_gen_set_tone_slope)(gen, expected_shape, -1);
 		cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "set slope: C1: <x -1>: set");
 
 		/* At this point only slope shape should be updated. */
@@ -403,7 +403,7 @@ int test_cw_gen_set_tone_slope(cw_test_executor_t * cte)
 
 		/* Set only new slope length. */
 		expected_len = 30;
-		cwret = cw_gen_set_tone_slope(gen, -1, expected_len);
+		cwret = LIBCW_TEST_FUT(cw_gen_set_tone_slope)(gen, -1, expected_len);
 		cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "set slope: C1: <-1 x>: set");
 
 		/* At this point only slope length should be updated
@@ -447,7 +447,7 @@ int test_cw_gen_set_tone_slope(cw_test_executor_t * cte)
 		/* Set only new slope shape. */
 		expected_shape = CW_TONE_SLOPE_SHAPE_RECTANGULAR;
 		expected_len = 0; /* Even though we won't pass this to function, this is what we expect to get after this call: we request rectangular slope, which by its nature has zero length. */
-		cwret = cw_gen_set_tone_slope(gen, expected_shape, -1);
+		cwret = LIBCW_TEST_FUT(cw_gen_set_tone_slope)(gen, expected_shape, -1);
 		cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "set slope: C2: set rectangular");
 
 
@@ -477,31 +477,31 @@ int test_cw_gen_set_tone_slope(cw_test_executor_t * cte)
 		const int expected_len = 0;
 
 
-		cwret = cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_LINEAR, expected_len);
+		cwret = LIBCW_TEST_FUT(cw_gen_set_tone_slope)(gen, CW_TONE_SLOPE_SHAPE_LINEAR, expected_len);
 		cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "set slope: D: <LINEAR/0>: set");
 		cte->expect_op_int(cte, CW_TONE_SLOPE_SHAPE_LINEAR, "==", gen->tone_slope.shape, 0, "set slope: D: <LINEAR/0>: get");
 		cte->expect_op_int(cte, expected_len, "==", gen->tone_slope.len, 0, "set slope: D: <LINEAR/0>");
 
 
-		cwret = cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_RAISED_COSINE, 0);
+		cwret = LIBCW_TEST_FUT(cw_gen_set_tone_slope)(gen, CW_TONE_SLOPE_SHAPE_RAISED_COSINE, 0);
 		cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "set slope: D: <RAISED_COSINE/0>: set");
 		cte->expect_op_int(cte, CW_TONE_SLOPE_SHAPE_RAISED_COSINE, "==", gen->tone_slope.shape, 0, "set slope: D: <RAISED_COSINE/0>: get");
 		cte->expect_op_int(cte, expected_len, "==", gen->tone_slope.len, 0, "set slope: D: <RAISED_COSINE/0>");
 
 
-		cwret = cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_SINE, 0);
+		cwret = LIBCW_TEST_FUT(cw_gen_set_tone_slope)(gen, CW_TONE_SLOPE_SHAPE_SINE, 0);
 		cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "set slope: D: <SINE/0>: set");
 		cte->expect_op_int(cte, CW_TONE_SLOPE_SHAPE_SINE, "==", gen->tone_slope.shape, 0, "set slope: D: <SINE/0>: get");
 		cte->expect_op_int(cte, expected_len, "==", gen->tone_slope.len, 0, "set slope: D: <SINE/0>");
 
 
-		cwret = cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_RECTANGULAR, 0);
+		cwret = LIBCW_TEST_FUT(cw_gen_set_tone_slope)(gen, CW_TONE_SLOPE_SHAPE_RECTANGULAR, 0);
 		cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "set slope: D: <RECTANGULAR/0>: set");
 		cte->expect_op_int(cte, CW_TONE_SLOPE_SHAPE_RECTANGULAR, "==", gen->tone_slope.shape, 0, "set slope: D: <RECTANGULAR/0>: get");
 		cte->expect_op_int(cte, expected_len, "==", gen->tone_slope.len, 0, "set slope: D: <RECTANGULAR/0>");
 
 
-		cwret = cw_gen_set_tone_slope(gen, CW_TONE_SLOPE_SHAPE_LINEAR, 0);
+		cwret = LIBCW_TEST_FUT(cw_gen_set_tone_slope)(gen, CW_TONE_SLOPE_SHAPE_LINEAR, 0);
 		cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "set slope: D: <LINEAR/0>: set");
 		cte->expect_op_int(cte, CW_TONE_SLOPE_SHAPE_LINEAR, "==", gen->tone_slope.shape, 0, "set slope: D: <LINEAR/0>: get");
 		cte->expect_op_int(cte, expected_len, "==", gen->tone_slope.len, 0, "set slope: D: <LINEAR/0>");
@@ -651,14 +651,14 @@ int test_cw_gen_get_timing_parameters_internal(cw_test_executor_t * cte)
 	cw_gen_sync_parameters_internal(gen);
 
 
-	cw_gen_get_timing_parameters_internal(gen,
-					      &dot_len,
-					      &dash_len,
-					      &eom_space_len,
-					      &eoc_space_len,
-					      &eow_space_len,
-					      &additional_space_len,
-					      &adjustment_space_len);
+	LIBCW_TEST_FUT(cw_gen_get_timing_parameters_internal)(gen,
+							      &dot_len,
+							      &dash_len,
+							      &eom_space_len,
+							      &eoc_space_len,
+							      &eow_space_len,
+							      &additional_space_len,
+							      &adjustment_space_len);
 
 	bool failure = (dot_len == initial)
 		|| (dash_len == initial)
@@ -732,12 +732,29 @@ int test_cw_gen_parameter_getters_setters(cw_test_executor_t * cte)
 
 		const char * name;
 	} test_data[] = {
-		{ cw_get_speed_limits,      cw_gen_set_speed,      cw_gen_get_speed,      CW_SPEED_MIN,      CW_SPEED_MAX,      off_limits,  -off_limits,  "speed"      },
-		{ cw_get_frequency_limits,  cw_gen_set_frequency,  cw_gen_get_frequency,  CW_FREQUENCY_MIN,  CW_FREQUENCY_MAX,  off_limits,  -off_limits,  "frequency"  },
-		{ cw_get_volume_limits,     cw_gen_set_volume,     cw_gen_get_volume,     CW_VOLUME_MIN,     CW_VOLUME_MAX,     off_limits,  -off_limits,  "volume"     },
-		{ cw_get_gap_limits,        cw_gen_set_gap,        cw_gen_get_gap,        CW_GAP_MIN,        CW_GAP_MAX,        off_limits,  -off_limits,  "gap"        },
-		{ cw_get_weighting_limits,  cw_gen_set_weighting,  cw_gen_get_weighting,  CW_WEIGHTING_MIN,  CW_WEIGHTING_MAX,  off_limits,  -off_limits,  "weighting"  },
-		{ NULL,                     NULL,                  NULL,                  0,                 0,                 0,           0,            NULL         }
+		{ LIBCW_TEST_FUT(cw_get_speed_limits),
+		  LIBCW_TEST_FUT(cw_gen_set_speed),
+		  LIBCW_TEST_FUT(cw_gen_get_speed),         CW_SPEED_MIN,      CW_SPEED_MAX,      off_limits,  -off_limits,  "speed"      },
+
+		{ LIBCW_TEST_FUT(cw_get_frequency_limits),
+		  LIBCW_TEST_FUT(cw_gen_set_frequency),
+		  LIBCW_TEST_FUT(cw_gen_get_frequency),     CW_FREQUENCY_MIN,  CW_FREQUENCY_MAX,  off_limits,  -off_limits,  "frequency"  },
+
+		{ LIBCW_TEST_FUT(cw_get_volume_limits),
+		  LIBCW_TEST_FUT(cw_gen_set_volume),
+		  LIBCW_TEST_FUT(cw_gen_get_volume),        CW_VOLUME_MIN,     CW_VOLUME_MAX,     off_limits,  -off_limits,  "volume"     },
+
+		{ LIBCW_TEST_FUT(cw_get_gap_limits),
+		  LIBCW_TEST_FUT(cw_gen_set_gap),
+		  LIBCW_TEST_FUT(cw_gen_get_gap),           CW_GAP_MIN,        CW_GAP_MAX,        off_limits,  -off_limits,  "gap"        },
+
+		{ LIBCW_TEST_FUT(cw_get_weighting_limits),
+		  LIBCW_TEST_FUT(cw_gen_set_weighting),
+		  LIBCW_TEST_FUT(cw_gen_get_weighting),     CW_WEIGHTING_MIN,  CW_WEIGHTING_MAX,  off_limits,  -off_limits,  "weighting"  },
+
+		{ NULL,
+		  NULL,
+		  NULL,                                     0,                 0,                 0,           0,            NULL         }
 	};
 
 
@@ -846,7 +863,7 @@ int test_cw_gen_volume_functions(cw_test_executor_t * cte)
 
 	/* Test: get range of allowed volumes. */
 	{
-		cw_get_volume_limits(&volume_min, &volume_max);
+		LIBCW_TEST_FUT(cw_get_volume_limits)(&volume_min, &volume_max);
 
 		const bool failure = volume_min != CW_VOLUME_MIN
 			|| volume_max != CW_VOLUME_MAX;
@@ -884,13 +901,13 @@ int test_cw_gen_volume_functions(cw_test_executor_t * cte)
 		cw_gen_start(gen);
 
 		for (int vol = volume_max; vol >= volume_min; vol -= volume_delta) {
-			const int cwret = cw_gen_set_volume(gen, vol);
+			const int cwret = LIBCW_TEST_FUT(cw_gen_set_volume)(gen, vol);
 			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "set volume (down, vol = %d)", vol)) {
 				set_failure = true;
 				break;
 			}
 
-			const int readback_value = cw_gen_get_volume(gen);
+			const int readback_value = LIBCW_TEST_FUT(cw_gen_get_volume)(gen);
 			if (!cte->expect_op_int(cte, readback_value, "==", vol, 0, "get volume (down, vol = %d)", vol)) {
 				get_failure = true;
 				break;
@@ -924,13 +941,13 @@ int test_cw_gen_volume_functions(cw_test_executor_t * cte)
 		cw_gen_start(gen);
 
 		for (int vol = volume_min; vol <= volume_max; vol += volume_delta) {
-			const int cwret = cw_gen_set_volume(gen, vol);
+			const int cwret = LIBCW_TEST_FUT(cw_gen_set_volume)(gen, vol);
 			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "set volume (up, vol = %d)", vol)) {
 				set_failure = true;
 				break;
 			}
 
-			const int readback_value = cw_gen_get_volume(gen);
+			const int readback_value = LIBCW_TEST_FUT(cw_gen_get_volume)(gen);
 			if (!cte->expect_op_int(cte, readback_value, "==", vol, 0, "get volume (up, vol = %d)", vol)) {
 				get_failure = true;
 				break;
@@ -992,7 +1009,7 @@ int test_cw_gen_enqueue_primitives(cw_test_executor_t * cte)
 	{
 		bool failure = false;
 		for (int i = 0; i < max; i++) {
-			const int cwret = cw_gen_enqueue_mark_internal(gen, CW_DOT_REPRESENTATION, false);
+			const int cwret = LIBCW_TEST_FUT(cw_gen_enqueue_mark_internal)(gen, CW_DOT_REPRESENTATION, false);
 			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "enqueue mark internal(CW_DOT_REPRESENTATION) (i = %d)", i)) {
 				failure = true;
 				break;
@@ -1009,7 +1026,7 @@ int test_cw_gen_enqueue_primitives(cw_test_executor_t * cte)
 	{
 		bool failure = false;
 		for (int i = 0; i < max; i++) {
-			const int cwret = cw_gen_enqueue_mark_internal(gen, CW_DASH_REPRESENTATION, false);
+			const int cwret = LIBCW_TEST_FUT(cw_gen_enqueue_mark_internal)(gen, CW_DASH_REPRESENTATION, false);
 			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "enqueue mark internal(CW_DASH_REPRESENTATION) (i = %d)", i)) {
 				failure = true;
 				break;
@@ -1025,7 +1042,7 @@ int test_cw_gen_enqueue_primitives(cw_test_executor_t * cte)
 	{
 		bool failure = false;
 		for (int i = 0; i < max; i++) {
-			const int cwret = cw_gen_enqueue_eoc_space_internal(gen);
+			const int cwret = LIBCW_TEST_FUT(cw_gen_enqueue_eoc_space_internal)(gen);
 			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "enqueue eoc space internal() (i = %d)", i)) {
 				failure = true;
 				break;
@@ -1041,7 +1058,7 @@ int test_cw_gen_enqueue_primitives(cw_test_executor_t * cte)
 	{
 		bool failure = false;
 		for (int i = 0; i < max; i++) {
-			const int cwret = cw_gen_enqueue_eow_space_internal(gen);
+			const int cwret = LIBCW_TEST_FUT(cw_gen_enqueue_eow_space_internal)(gen);
 			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "enqueue eow space internal() (i = %d)", i)) {
 				failure = true;
 				break;
@@ -1086,7 +1103,7 @@ int test_cw_gen_enqueue_representations(cw_test_executor_t * cte)
 		bool failure = false;
 		int i = 0;
 		while (NULL != test_valid_representations[i]) {
-			const int cwret = cw_gen_enqueue_representation_partial_internal(gen, test_valid_representations[i]);
+			const int cwret = LIBCW_TEST_FUT(cw_gen_enqueue_representation_partial_internal)(gen, test_valid_representations[i]);
 			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "enqueue representation internal(<valid>) (%d)", i)) {
 				failure = true;
 				break;
@@ -1103,7 +1120,7 @@ int test_cw_gen_enqueue_representations(cw_test_executor_t * cte)
 		bool failure = false;
 		int i = 0;
 		while (NULL != test_invalid_representations[i]) {
-			const int cwret = cw_gen_enqueue_representation_partial_internal(gen, test_invalid_representations[i]);
+			const int cwret = LIBCW_TEST_FUT(cw_gen_enqueue_representation_partial_internal)(gen, test_invalid_representations[i]);
 			if (!cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 1, "enqueue representation internal(<invalid>) (%d)", i)) {
 				failure = true;
 				break;
@@ -1155,7 +1172,7 @@ int test_cw_gen_enqueue_character(cw_test_executor_t * cte)
 		for (int i = 0; charlist[i] != '\0'; i++) {
 			cte->log_info_cont(cte, "%c", charlist[i]);
 			cte->flush_info(cte);
-			const int cwret = cw_gen_enqueue_character(gen, charlist[i]);
+			const int cwret = LIBCW_TEST_FUT(cw_gen_enqueue_character)(gen, charlist[i]);
 			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "enqueue character(<valid>) (i = %d)", i)) {
 				failure = true;
 				break;
@@ -1176,7 +1193,7 @@ int test_cw_gen_enqueue_character(cw_test_executor_t * cte)
 		bool failure = false;
 
 		for (int i = 0; i < n; i++) {
-			const int cwret = cw_gen_enqueue_character(gen, invalid_characters[i]);
+			const int cwret = LIBCW_TEST_FUT(cw_gen_enqueue_character)(gen, invalid_characters[i]);
 			if (!cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 1, "enqueue character(<invalid>) (i = %d)", i)) {
 				failure = false;
 			}
@@ -1218,7 +1235,7 @@ int test_cw_gen_enqueue_string(cw_test_executor_t * cte)
 		cte->log_info(cte,
 			      "enqueue string(<valid>):\n"
 			      "       %s\n", charlist);
-		const int enqueue_cwret = cw_gen_enqueue_string(gen, charlist);
+		const int enqueue_cwret = LIBCW_TEST_FUT(cw_gen_enqueue_string)(gen, charlist);
 		cte->expect_op_int(cte, CW_SUCCESS, "==", enqueue_cwret, 0, "enqueue string(<valid>)");
 
 
@@ -1240,7 +1257,7 @@ int test_cw_gen_enqueue_string(cw_test_executor_t * cte)
 		bool failure = false;
 
 		for (int i = 0; i < n; i++) {
-			const int cwret = cw_gen_enqueue_string(gen, invalid_strings[i]);
+			const int cwret = LIBCW_TEST_FUT(cw_gen_enqueue_string)(gen, invalid_strings[i]);
 			if (!cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 1, "enqueue string(<invalid>) (i = %d)", i)) {
 				failure = false;
 			}

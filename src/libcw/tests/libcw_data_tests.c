@@ -152,7 +152,7 @@ int test_cw_representation_to_hash_internal(cw_test_executor_t * cte)
 	/* Compute hash for every well formed representation. */
 	bool failure = false;
 	for (int i = 0; i < n_representations; i++) {
-		const uint8_t hash = cw_representation_to_hash_internal(input[i]);
+		const uint8_t hash = LIBCW_TEST_FUT(cw_representation_to_hash_internal)(input[i]);
 		/* The function returns values in range CW_DATA_MIN_REPRESENTATION_HASH - CW_DATA_MAX_REPRESENTATION_HASH. */
 		if (!cte->expect_between_int_errors_only(cte, CW_DATA_MIN_REPRESENTATION_HASH, hash, CW_DATA_MAX_REPRESENTATION_HASH, "representation to hash: hash #%d\n", i)) {
 			failure = true;
@@ -189,8 +189,8 @@ int test_cw_representation_to_character_internal(cw_test_executor_t * cte)
 
 	for (const cw_entry_t * cw_entry = CW_TABLE; cw_entry->character; cw_entry++) {
 
-		const int char_fast_lookup = cw_representation_to_character_internal(cw_entry->representation);
-		const int char_direct = cw_representation_to_character_direct_internal(cw_entry->representation);
+		const int char_fast_lookup = LIBCW_TEST_FUT(cw_representation_to_character_internal)(cw_entry->representation);
+		const int char_direct = LIBCW_TEST_FUT(cw_representation_to_character_direct_internal)(cw_entry->representation);
 
 		if (!cte->expect_op_int(cte, char_fast_lookup, "==", char_direct, "fast lookup vs. direct method: '%s'", cw_entry->representation)) {
 			failure = true;
@@ -282,7 +282,7 @@ int test_character_lookups_internal(cw_test_executor_t * cte)
 		   but there is a function calculating the number. One
 		   thing is certain: the number is larger than
 		   zero. */
-		const int extracted_count = cw_get_character_count();
+		const int extracted_count = LIBCW_TEST_FUT(cw_get_character_count)();
 		cte->expect_op_int(cte, 0, "<", extracted_count, 0, "character count (%d)", extracted_count);
 	}
 
@@ -293,7 +293,7 @@ int test_character_lookups_internal(cw_test_executor_t * cte)
 		/* Of course length of the list must match the
 		   character count returned by library. */
 
-		cw_list_characters(charlist);
+		LIBCW_TEST_FUT(cw_list_characters)(charlist);
 
 		const int extracted_count = cw_get_character_count();
 		const int extracted_len = (int) strlen(charlist);
@@ -312,7 +312,7 @@ int test_character_lookups_internal(cw_test_executor_t * cte)
 		   since we are doing tests of other functions related
 		   to representations, let's do this as well. */
 
-		max_rep_length = cw_get_maximum_representation_length();
+		max_rep_length = LIBCW_TEST_FUT(cw_get_maximum_representation_length)();
 		cte->expect_op_int(cte, 0, "<", max_rep_length, 0, "maximum representation length (%d)", max_rep_length);
 	}
 
@@ -331,14 +331,14 @@ int test_character_lookups_internal(cw_test_executor_t * cte)
 
 		for (int i = 0; charlist[i] != '\0'; i++) {
 
-			char * representation = cw_character_to_representation(charlist[i]);
+			char * representation = LIBCW_TEST_FUT(cw_character_to_representation)(charlist[i]);
 			if (!cte->expect_valid_pointer_errors_only(cte, representation, "character lookup: character to representation for #%d (char '%c')\n", i, charlist[i])) {
 				c2r_failure = true;
 				break;
 			}
 
 			/* Here we convert the representation back into a character. */
-			char character = cw_representation_to_character(representation);
+			char character = LIBCW_TEST_FUT(cw_representation_to_character)(representation);
 			if (!cte->expect_op_int(cte, 0, "!=", character, 1, "representation to character failed for #%d (representation '%s')\n", i, representation)) {
 				r2c_failure = true;
 				break;
@@ -397,7 +397,7 @@ int test_prosign_lookups_internal(cw_test_executor_t * cte)
 
 	/* Test: get number of prosigns known to libcw. */
 	{
-		count = cw_get_procedural_character_count();
+		count = LIBCW_TEST_FUT(cw_get_procedural_character_count)();
 		cte->expect_op_int(cte, 0, "<", count, true, "procedural character count (%d):", count);
 	}
 
@@ -406,7 +406,7 @@ int test_prosign_lookups_internal(cw_test_executor_t * cte)
 	char procedural_characters[UCHAR_MAX + 1] = { 0 };
 	/* Test: get list of characters supported by libcw. */
 	{
-		cw_list_procedural_characters(procedural_characters); /* TODO: we need a version of the function that accepts size of buffer as argument. */
+		LIBCW_TEST_FUT(cw_list_procedural_characters)(procedural_characters); /* TODO: we need a version of the function that accepts size of buffer as argument. */
 		cte->log_info(cte, "list of procedural characters: %s\n", procedural_characters);
 
 		const int extracted_len = (int) strlen(procedural_characters);
@@ -420,7 +420,7 @@ int test_prosign_lookups_internal(cw_test_executor_t * cte)
 	/* Test: expansion length. */
 	int max_expansion_length = 0;
 	{
-		max_expansion_length = cw_get_maximum_procedural_expansion_length();
+		max_expansion_length = LIBCW_TEST_FUT(cw_get_maximum_procedural_expansion_length)();
 		cte->expect_op_int(cte, 0, "<", max_expansion_length, 0, "maximum procedural expansion length (%d)", max_expansion_length);
 	}
 
@@ -440,7 +440,7 @@ int test_prosign_lookups_internal(cw_test_executor_t * cte)
 			char expansion[256] = { 0 };
 			int is_usually_expanded = -1; /* This value should be set by libcw to either 0 (false) or 1 (true). */
 
-			const int cwret = cw_lookup_procedural_character(procedural_characters[i], expansion, &is_usually_expanded);
+			const int cwret = LIBCW_TEST_FUT(cw_lookup_procedural_character)(procedural_characters[i], expansion, &is_usually_expanded);
 			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "procedural character lookup: lookup of character '%c' (#%d)", procedural_characters[i], i)) {
 				lookup_failure = true;
 				break;
@@ -490,7 +490,7 @@ int test_phonetic_lookups_internal(cw_test_executor_t * cte)
 	/* Test: check that maximum phonetic length is larger than
 	   zero. */
 	{
-		const int length = cw_get_maximum_phonetic_length();
+		const int length = LIBCW_TEST_FUT(cw_get_maximum_phonetic_length)();
 		const bool failure = (length <= 0);
 		cte->expect_op_int(cte, false, "==", failure, 0, "phonetic lookup: maximum phonetic length (%d)", length);
 	}
@@ -507,7 +507,7 @@ int test_phonetic_lookups_internal(cw_test_executor_t * cte)
 		for (int i = 0; i < UCHAR_MAX; i++) {
 			char phonetic[sizeof ("VeryLongPhoneticString")] = { 0 };
 
-			const int cwret = cw_lookup_phonetic((char) i, phonetic); /* TODO: we need a version of the function that accepts size argument. */
+			const int cwret = LIBCW_TEST_FUT(cw_lookup_phonetic)((char) i, phonetic); /* TODO: we need a version of the function that accepts size argument. */
 			const bool is_alpha = (bool) isalpha(i);;
 			if (CW_SUCCESS == cwret) {
 				/*
@@ -589,7 +589,7 @@ int test_validate_character_internal(cw_test_executor_t * cte)
 			   not 'sendable' but can be handled by libcw
 			   nevertheless. cw_character_is_valid() should
 			   confirm it. */
-			const bool is_valid = cw_character_is_valid(i);
+			const bool is_valid = LIBCW_TEST_FUT(cw_character_is_valid)(i);
 
 			if (!cte->expect_op_int(cte, true, "==", is_valid, 1, "validate character: valid character '<backspace>' / #%d not recognized as valid\n", i)) {
 				failure_valid = true;
@@ -601,7 +601,7 @@ int test_validate_character_internal(cw_test_executor_t * cte)
 			   recognized/supported as 'sendable' by
 			   libcw.  cw_character_is_valid() should
 			   confirm it. */
-			const bool is_valid = cw_character_is_valid(i);
+			const bool is_valid = LIBCW_TEST_FUT(cw_character_is_valid)(i);
 			if (!cte->expect_op_int(cte, true, "==", is_valid, 1, "validate character: valid character '%c' / #%d not recognized as valid\n", (char ) i, i)) {
 				failure_valid = true;
 				break;
@@ -611,7 +611,7 @@ int test_validate_character_internal(cw_test_executor_t * cte)
 			   recognized/supported by libcw.
 			   cw_character_is_valid() should return false
 			   to signify that the char is invalid. */
-			const bool is_valid = cw_character_is_valid(i);
+			const bool is_valid = LIBCW_TEST_FUT(cw_character_is_valid)(i);
 			if (!cte->expect_op_int(cte, false, "==", is_valid, 1, "validate character: invalid character '%c' / #%d recognized as valid\n", (char ) i, i)) {
 				failure_invalid = true;
 				break;
@@ -650,12 +650,12 @@ int test_validate_string_internal(cw_test_executor_t * cte)
 
 	char charlist[UCHAR_MAX + 1];
 	cw_list_characters(charlist);
-	are_we_valid = cw_string_is_valid(charlist);
+	are_we_valid = LIBCW_TEST_FUT(cw_string_is_valid)(charlist);
 	cte->expect_op_int(cte, true, "==", are_we_valid, 0, "validate string: valid string");
 
 
 	/* Test invalid string. */
-	are_we_valid = cw_string_is_valid("%INVALID%");
+	are_we_valid = LIBCW_TEST_FUT(cw_string_is_valid)("%INVALID%");
 	cte->expect_op_int(cte, false, "==", are_we_valid, 0, "validate string: invalid string");
 
 
@@ -683,7 +683,7 @@ int test_validate_representation_internal(cw_test_executor_t * cte)
 		int i = 0;
 		bool failure = false;
 		while (test_valid_representations[i]) {
-			const int cwret = cw_representation_is_valid(test_valid_representations[i]);
+			const int cwret = LIBCW_TEST_FUT(cw_representation_is_valid)(test_valid_representations[i]);
 			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "valid representations (i = %d)", i)) {
 				failure = false;
 				break;
@@ -699,7 +699,7 @@ int test_validate_representation_internal(cw_test_executor_t * cte)
 		int i = 0;
 		bool failure = false;
 		while (test_invalid_representations[i]) {
-			const int cwret = cw_representation_is_valid(test_invalid_representations[i]);
+			const int cwret = LIBCW_TEST_FUT(cw_representation_is_valid)(test_invalid_representations[i]);
 			if (!cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 1, "invalid representations (i = %d)", i)) {
 				failure = false;
 				break;
