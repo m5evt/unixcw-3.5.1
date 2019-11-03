@@ -182,8 +182,6 @@ int cw_get_character_count(void)
    of characters represented in the character lookup table, returned
    by cw_get_character_count().
 
-   testedin::test_send_character_and_string()
-
    \reviewed on 2017-02-01
 
    \param list - pointer to space to be filled by function

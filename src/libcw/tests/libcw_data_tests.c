@@ -60,8 +60,6 @@ extern const char * test_invalid_representations[];
 
 
 /**
-   tests::cw_representation_to_hash_internal()
-
    The function builds every possible well formed representation no
    longer than 7 chars, and then calculates a hash of the
    representation. Since a representation is well formed, the tested
@@ -177,8 +175,6 @@ int test_cw_representation_to_hash_internal(cw_test_executor_t * cte)
    using fast lookup table with results of function using direct
    method.
 
-   tests::cw_representation_to_character_internal()
-
    @reviewed on 2019-10-12
 */
 int test_cw_representation_to_character_internal(cw_test_executor_t * cte)
@@ -261,12 +257,6 @@ int test_cw_representation_to_character_internal_speed(cw_test_executor_t * cte)
 
 /**
    \brief Test functions looking up characters and their representation.
-
-   tests::cw_get_character_count()
-   tests::cw_list_characters()
-   tests::cw_get_maximum_representation_length()
-   tests::cw_character_to_representation()
-   tests::cw_representation_to_character()
 
    @reviewed on 2019-10-12
 */
@@ -379,11 +369,6 @@ int test_character_lookups_internal(cw_test_executor_t * cte)
 /**
    \brief Test functions looking up procedural characters and their representation.
 
-   tests::cw_get_procedural_character_count()
-   tests::cw_list_procedural_characters()
-   tests::cw_get_maximum_procedural_expansion_length()
-   tests::cw_lookup_procedural_character()
-
    @revieded on 2019-10-12
 */
 int test_prosign_lookups_internal(cw_test_executor_t * cte)
@@ -474,9 +459,6 @@ int test_prosign_lookups_internal(cw_test_executor_t * cte)
 
 
 /**
-   tests::cw_get_maximum_phonetic_length()
-   tests::cw_lookup_phonetic()
-
    @reviewed on 2019-10-12
 */
 int test_phonetic_lookups_internal(cw_test_executor_t * cte)
@@ -567,8 +549,6 @@ int test_phonetic_lookups_internal(cw_test_executor_t * cte)
 /**
    Validate all supported characters individually
 
-   tests::cw_character_is_valid()
-
    @reviewed on 2019-10-11
 */
 int test_validate_character_internal(cw_test_executor_t * cte)
@@ -633,8 +613,6 @@ int test_validate_character_internal(cw_test_executor_t * cte)
 /**
    Validate all supported characters placed in a string
 
-   tests::cw_string_is_valid()
-
    @reviewed on 2019-10-11
 */
 int test_validate_string_internal(cw_test_executor_t * cte)
@@ -669,8 +647,6 @@ int test_validate_string_internal(cw_test_executor_t * cte)
 
 /**
    \brief Validating representations of characters
-
-   tests::cw_representation_is_valid()
 
    @reviewed on 2019-10-11
 */

@@ -52,9 +52,6 @@ extern cw_debug_t cw_debug_object_dev;
 /**
    \brief Test getting and setting of debug flags.
 
-   tests::cw_debug_set_flags()
-   tests::cw_debug_get_flags()
-
    @reviewed on 2019-10-12
 */
 int test_cw_debug_flags_internal(cw_test_executor_t * cte)

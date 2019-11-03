@@ -194,11 +194,6 @@ function handle_function_documentation()
 		sub(/^ *\\param /, "Parameter: ")
 		sub(/^ *\\return /, " Returns: ")
 
-		# Handle my "testedin::" tag
-		if ($0 ~ /^ *testedin::/) {
-			getline
-			continue
-		}
 
 		# Handle Doxygen tag:
 		# \p in the body of top-level function comment

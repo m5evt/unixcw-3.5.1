@@ -183,21 +183,6 @@ int legacy_api_test_low_level_gen_parameters(cw_test_executor_t * cte)
 
 
 /**
-   tests::cw_set_send_speed()
-   tests::cw_get_send_speed()
-   tests::cw_set_receive_speed()
-   tests::cw_get_receive_speed()
-   tests::cw_set_frequency()
-   tests::cw_get_frequency()
-   tests::cw_set_volume()
-   tests::cw_get_volume()
-   tests::cw_set_gap()
-   tests::cw_get_gap()
-   tests::cw_set_tolerance()
-   tests::cw_get_tolerance()
-   tests::cw_set_weighting()
-   tests::cw_get_weighting()
-
    @reviewed on 2019-10-13
 */
 int legacy_api_test_parameter_ranges(cw_test_executor_t * cte)
@@ -336,10 +321,6 @@ int legacy_api_test_parameter_ranges(cw_test_executor_t * cte)
    Fill a queue and then wait for each tone separately - repeat until
    all tones are dequeued.
 
-   tests::cw_queue_tone()
-   tests::cw_get_tone_queue_length()
-   tests::cw_wait_for_tone()
-
    @reviewed on 2019-10-13
 */
 int legacy_api_test_cw_wait_for_tone(cw_test_executor_t * cte)
@@ -463,10 +444,6 @@ int legacy_api_test_cw_wait_for_tone(cw_test_executor_t * cte)
    Fill a queue, don't wait for each tone separately, but wait for a
    whole queue to become empty.
 
-   tests::cw_queue_tone()
-   tests::cw_get_tone_queue_length()
-   tests::cw_wait_for_tone_queue()
-
    @reviewed on 2019-10-13
 */
 int legacy_api_test_cw_wait_for_tone_queue(cw_test_executor_t * cte)
@@ -537,8 +514,6 @@ int legacy_api_test_cw_wait_for_tone_queue(cw_test_executor_t * cte)
 
    TODO: this test doesn't really test anything well. It just ensures
    that in some conditions cw_queue_tone() works correctly.
-
-   tests::cw_queue_tone()
 
    @reviewed on 2019-10-13
 */
@@ -618,9 +593,6 @@ int legacy_api_test_cw_queue_tone(cw_test_executor_t * cte)
 
 
 /**
-   tests::cw_get_tone_queue_capacity()
-   tests::cw_get_tone_queue_length()
-
    @reviewed on 2019-10-13
 */
 int legacy_api_test_empty_tone_queue(cw_test_executor_t * cte)
@@ -660,12 +632,6 @@ int legacy_api_test_empty_tone_queue(cw_test_executor_t * cte)
 
 
 /**
-   tests::cw_get_tone_queue_capacity()
-   tests::cw_get_tone_queue_length()
-   tests::cw_queue_tone()
-   tests::cw_flush_tone_queue()
-   tests::cw_wait_for_tone_queue()
-
    @reviewed on 2019-10-13
 */
 int legacy_api_test_full_tone_queue(cw_test_executor_t * cte)
@@ -849,8 +815,6 @@ static void test_helper_tq_callback(void * data_)
    Fill tone queue with short tones, then check that we can move the
    volume through its entire range.  Flush the queue when complete.
 
-   tests::cw_get_volume_limits()
-
    @reviewed on 2019-10-13
 */
 int legacy_api_test_volume_functions(cw_test_executor_t * cte)
@@ -974,11 +938,6 @@ int legacy_api_test_volume_functions(cw_test_executor_t * cte)
 /**
    \brief Test enqueueing most basic elements of Morse code
 
-   tests::cw_send_dot()
-   tests::cw_send_dash()
-   tests::cw_send_character_space()
-   tests::cw_send_word_space()
-
    @reviewed on 2019-10-13
 */
 int legacy_api_test_send_primitives(cw_test_executor_t * cte)
@@ -1054,9 +1013,6 @@ int legacy_api_test_send_primitives(cw_test_executor_t * cte)
 
 /**
    \brief Enqueueing representations of characters
-
-   tests::cw_send_representation()
-   tests::cw_send_representation_partial()
 
    @reviewed on 2019-10-13
 */
@@ -1141,10 +1097,6 @@ int legacy_api_test_representations(cw_test_executor_t * cte)
 
 /**
    Send all supported characters: first as individual characters, and then as a string.
-
-   tests::cw_list_characters()
-   tests::cw_send_character()
-   tests::cw_send_string()
 
    @reviewed on 2019-10-13
 */
@@ -1282,10 +1234,6 @@ void legacy_api_test_iambic_key_paddles_common(cw_test_executor_t * cte, const i
    points are not tested here, just the basics - dots, dashes, and
    alternating dots and dashes.
 
-   tests::cw_notify_keyer_paddle_event()
-   tests::cw_wait_for_keyer_element()
-   tests::cw_get_keyer_paddles()
-
    @reviewed on 2019-10-13
 */
 int legacy_api_test_iambic_key_dot(cw_test_executor_t * cte)
@@ -1319,10 +1267,6 @@ int legacy_api_test_iambic_key_dot(cw_test_executor_t * cte)
    Perform some tests on the iambic keyer.  The latch finer timing
    points are not tested here, just the basics - dots, dashes, and
    alternating dots and dashes.
-
-   tests::cw_notify_keyer_paddle_event()
-   tests::cw_wait_for_keyer_element()
-   tests::cw_get_keyer_paddles()
 
    @reviewed on 2019-10-13
 */
@@ -1358,10 +1302,6 @@ int legacy_api_test_iambic_key_dash(cw_test_executor_t * cte)
    points are not tested here, just the basics - dots, dashes, and
    alternating dots and dashes.
 
-   tests::cw_notify_keyer_paddle_event()
-   tests::cw_wait_for_keyer_element()
-   tests::cw_get_keyer_paddles()
-
    @reviewed on 2019-10-13
 */
 int legacy_api_test_iambic_key_alternating(cw_test_executor_t * cte)
@@ -1395,10 +1335,6 @@ int legacy_api_test_iambic_key_alternating(cw_test_executor_t * cte)
    Perform some tests on the iambic keyer.  The latch finer timing
    points are not tested here, just the basics - dots, dashes, and
    alternating dots and dashes.
-
-   tests::cw_notify_keyer_paddle_event()
-   tests::cw_wait_for_keyer_element()
-   tests::cw_get_keyer_paddles()
 
    @reviewed on 2019-10-13
 */
@@ -1443,10 +1379,6 @@ int legacy_api_test_iambic_key_none(cw_test_executor_t * cte)
 
 
 /**
-   tests::cw_notify_straight_key_event()
-   tests::cw_get_straight_key_state()
-   tests::cw_is_straight_key_busy()
-
    @reviewed on 2019-10-13
 */
 int legacy_api_test_straight_key(cw_test_executor_t * cte)

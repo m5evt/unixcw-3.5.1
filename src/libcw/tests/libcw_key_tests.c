@@ -250,10 +250,6 @@ int test_straight_key_helper(cw_test_executor_t * cte, cw_key_t * key, int inten
 
 
 /**
-   tests::cw_key_sk_notify_event()
-   tests::cw_key_sk_get_value()
-   tests::cw_key_sk_is_busy()
-
    @reviewed on 2019-10-12
 */
 int test_straight_key(cw_test_executor_t * cte)

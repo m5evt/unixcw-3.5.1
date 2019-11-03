@@ -424,8 +424,6 @@ int test_cw_tq_enqueue_dequeue_internal(cw_test_executor_t * cte)
 
 
 /**
-   tests::cw_tq_enqueue_internal()
-
    @reviewed on 2019-10-04
 */
 int test_cw_tq_enqueue_internal_A(cw_test_executor_t * cte, cw_tone_queue_t * tq)
@@ -488,8 +486,6 @@ int test_cw_tq_enqueue_internal_A(cw_test_executor_t * cte, cw_tone_queue_t * tq
 
 
 /**
-   tests::cw_tq_dequeue_internal()
-
    @reviewed on 2019-10-04
 */
 int test_cw_tq_dequeue_internal(cw_test_executor_t * cte, cw_tone_queue_t * tq)
@@ -570,9 +566,6 @@ int test_cw_tq_dequeue_internal(cw_test_executor_t * cte, cw_tone_queue_t * tq)
 
    Remember that the function checks whether tq is full, not whether
    it is non-empty.
-
-   tests::cw_tq_is_full_internal()
-   tests::cw_is_tone_queue_full()
 
    @reviewed on 2019-10-04
 */
@@ -672,8 +665,6 @@ int test_cw_tq_is_full_internal(cw_test_executor_t * cte)
 
    After every dequeue we check that dequeued tone is the one that we
    were expecting to get.
-
-   tests::cw_tq_enqueue_internal()
 
    @reviewed on 2019-10-04
 */
@@ -791,9 +782,6 @@ int test_cw_tq_test_capacity_A(cw_test_executor_t * cte)
 
    After every dequeue we check that dequeued tone is the one that we
    were expecting to get.
-
-   tests::cw_tq_enqueue_internal()
-   tests::cw_tq_dequeue_internal()
 
    @reviewed on 2019-10-04
 */
@@ -936,8 +924,6 @@ int test_cw_tq_test_capacity_B(cw_test_executor_t * cte)
 
    Returned pointer is owned by caller.
 
-   tests::cw_tq_set_capacity_internal()
-
    @reviewed on 2019-10-04
 
    \param capacity - intended capacity of tone queue
@@ -990,8 +976,6 @@ cw_tone_queue_t * test_cw_tq_capacity_test_init(cw_test_executor_t * cte, size_t
 
 /**
    \brief Test the limits of the parameters to the tone queue routine
-
-   tests::cw_tq_enqueue_internal()
 
    @reviewed on 2019-10-04
 */
@@ -1054,8 +1038,6 @@ int test_cw_tq_enqueue_internal_B(cw_test_executor_t * cte)
    expected level.
 
    @reviewed on 2019-10-08
-
-   tests::cw_tq_wait_for_level_internal()
 */
 int test_cw_tq_wait_for_level_internal(cw_test_executor_t * cte)
 {
@@ -1132,11 +1114,6 @@ int test_cw_tq_wait_for_level_internal(cw_test_executor_t * cte)
    This is not an entirely stand-alone queue, but a queue that is a part of generator.
 
    Ensure we can generate a few simple tones, and wait for them to end.
-
-   tests::cw_tq_enqueue_internal()
-   tests::cw_tq_length_internal()
-   tests::cw_tq_wait_for_tone_internal()
-   tests::cw_tq_wait_for_level_internal()
 
    @reviewed on 2019-10-05
 */
@@ -1310,9 +1287,6 @@ int test_cw_tq_gen_operations_A(cw_test_executor_t * cte)
    expected with frequency step so small) then pause until it isn't so
    full.
 
-   tests::cw_tq_enqueue_internal()
-   tests::cw_tq_wait_for_level_internal()
-
    @reviewed on 2019-10-06
 */
 int test_cw_tq_gen_operations_B(cw_test_executor_t * cte)
@@ -1428,11 +1402,6 @@ int test_cw_tq_gen_operations_B(cw_test_executor_t * cte)
       tone queue's properties.
 
    @reviewed on 2019-10-07
-
-   tests::cw_tq_get_capacity_internal()
-   tests::cw_tq_length_internal()
-   tests::cw_tq_enqueue_internal()
-   tests::cw_tq_wait_for_level_internal()
 */
 int test_cw_tq_operations_C(cw_test_executor_t * cte)
 {
@@ -1540,8 +1509,6 @@ struct cw_callback_struct {
 
 
 /**
-   tests::cw_register_tone_queue_low_callback()
-
    @reviewed on 2019-10-07
 */
 int test_cw_tq_callback(cw_test_executor_t * cte)

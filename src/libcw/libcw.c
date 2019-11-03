@@ -310,8 +310,6 @@ void cw_generator_delete_internal(void)
 
    errno is set to EINVAL if \p new_value is out of range.
 
-   testedin::test_parameter_ranges()
-
    \param new_value - new value of send speed to be assigned to generator
 
    \return CW_SUCCESS on success
@@ -338,8 +336,6 @@ int cw_set_send_speed(int new_value)
    value of frequency.
 
    errno is set to EINVAL if \p new_value is out of range.
-
-   testedin::test_parameter_ranges()
 
    \param new_value - new value of frequency to be assigned to generator
 
@@ -371,8 +367,6 @@ int cw_set_frequency(int new_value)
    value of volume.
    errno is set to EINVAL if \p new_value is out of range.
 
-   testedin::test_parameter_ranges()
-
    \param new_value - new value of volume to be assigned to generator
 
    \return CW_SUCCESS on success
@@ -397,8 +391,6 @@ int cw_set_volume(int new_value)
 
    Notice that this function also sets the same gap value for
    library's receiver.
-
-   testedin::test_parameter_ranges()
 
    \param new_value - new value of gap to be assigned to generator
 
@@ -431,8 +423,6 @@ int cw_set_gap(int new_value)
    value of weighting.
    errno is set to EINVAL if \p new_value is out of range.
 
-   testedin::test_parameter_ranges()
-
    \param new_value - new value of weighting to be assigned for generator
 
    \return CW_SUCCESS on success
@@ -451,8 +441,6 @@ int cw_set_weighting(int new_value)
 /**
    \brief Get sending speed from generator
 
-   testedin::test_parameter_ranges()
-
    \return current value of the generator's send speed
 */
 int cw_get_send_speed(void)
@@ -469,8 +457,6 @@ int cw_get_send_speed(void)
 
    Function returns "frequency" parameter of generator,
    even if the generator is stopped, or volume of generated sound is zero.
-
-   testedin::test_parameter_ranges()
 
    \return current value of generator's frequency
 */
@@ -489,8 +475,6 @@ int cw_get_frequency(void)
    Function returns "volume" parameter of generator,
    even if the generator is stopped.
 
-   testedin::test_parameter_ranges()
-
    \return current value of generator's sound volume
 */
 int cw_get_volume(void)
@@ -505,8 +489,6 @@ int cw_get_volume(void)
 /**
    \brief Get sending gap from generator
 
-   testedin::test_parameter_ranges()
-
    \return current value of generator's sending gap
 */
 int cw_get_gap(void)
@@ -520,8 +502,6 @@ int cw_get_gap(void)
 
 /**
    \brief Get sending weighting from generator
-
-   testedin::test_parameter_ranges()
 
    \return current value of generator's sending weighting
 */
@@ -576,8 +556,6 @@ void cw_get_send_parameters(int *dot_usecs, int *dash_usecs,
    function appends to a tone queue a normal inter-mark gap after the
    dot mark.
 
-   testedin::test_send_primitives()
-
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
@@ -597,8 +575,6 @@ int cw_send_dot(void)
    The function appends to a tone queue a normal inter-mark gap after
    the dash mark.
 
-   testedin::test_send_primitives()
-
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
@@ -616,8 +592,6 @@ int cw_send_dash(void)
    dot/dash inter-mark gap.
    FIXME: fix this description.
 
-   testedin::test_send_primitives()
-
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
@@ -634,8 +608,6 @@ int cw_send_character_space(void)
    The function sends space timed to exclude both the expected prior
    dot/dash inter-mark gap and the prior end of character space.
    FIXME: fix this description.
-
-   testedin::test_send_primitives()
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
@@ -662,8 +634,6 @@ int cw_send_word_space(void)
    console speaker, or keying system is busy, or EAGAIN if the tone
    queue is full, or if there is insufficient space to queue the tones
    or the representation.
-
-   testedin::test_representations()
 
    \param representation - representation to send
 
@@ -692,8 +662,6 @@ int cw_send_representation(const char *representation)
    console speaker, or keying system is busy, or EAGAIN if the tone queue
    is full, or if there is insufficient space to queue the tones for
    the representation.
-
-   testedin::test_representations()
 */
 int cw_send_representation_partial(const char *representation)
 {
@@ -723,8 +691,6 @@ int cw_send_representation_partial(const char *representation)
    queued for sending; that is, almost immediately.  The actual sending
    happens in background processing.  See cw_wait_for_tone() and
    cw_wait_for_tone_queue() for ways to check the progress of sending.
-
-   testedin::test_send_character_and_string()
 
    \param c - character to send
 
@@ -795,8 +761,6 @@ int cw_send_character_partial(char c)
    actual sending happens in background processing. See
    cw_wait_for_tone() and cw_wait_for_tone_queue() for ways to check
    the progress of sending.
-
-   testedin::test_send_character_and_string()
 
    \param string - string to send
 
@@ -953,8 +917,6 @@ bool cw_is_tone_busy(void)
    blocked, the routine returns CW_FAILURE, with errno set to EDEADLK,
    to avoid indefinite waits.
 
-   testedin::test_cw_wait_for_tone()
-
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
@@ -978,9 +940,6 @@ int cw_wait_for_tone(void)
    cw_generator_start()) when this function is called, otherwise it
    will be waiting forever for a change of tone queue's level that
    will never happen.
-
-   testedin::test_cw_wait_for_tone_queue()
-   testedin::test_full_tone_queue()
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
@@ -1042,9 +1001,6 @@ bool cw_is_tone_queue_full(void)
 
 /**
    \brief Return the number of entries the tone queue can accommodate
-
-   testedin::test_empty_tone_queue()
-   testedin::test_full_tone_queue()
 */
 int cw_get_tone_queue_capacity(void)
 {
@@ -1057,11 +1013,6 @@ int cw_get_tone_queue_capacity(void)
 
 /**
    \brief Return the number of entries currently pending in the tone queue
-
-   testedin::test_cw_wait_for_tone_queue()
-   testedin::test_cw_wait_for_tone()
-   testedin::test_empty_tone_queue()
-   testedin::test_full_tone_queue()
 */
 int cw_get_tone_queue_length(void)
 {
@@ -1082,8 +1033,6 @@ int cw_get_tone_queue_length(void)
    will empty the queue as best it can, then return without waiting for
    the final tone to complete.  In this case, it may not be possible to
    guarantee silence after the call.
-
-   testedin::test_full_tone_queue()
 */
 void cw_flush_tone_queue(void)
 {
@@ -1135,11 +1084,6 @@ void cw_reset_tone_queue(void)
    it returns CW_FAILURE  with errno set to EBUSY.  If the tone queue
    is full, it returns false with errno set to EAGAIN.
 
-   testedin::test_cw_wait_for_tone_queue()
-   testedin::test_cw_wait_for_tone()
-   testedin::test_cw_queue_tone()
-   testedin::test_full_tone_queue()
-
    \param usecs - duration of queued tone, in microseconds
    \param frequency - frequency of queued tone
 
@@ -1187,8 +1131,6 @@ int cw_queue_tone(int usecs, int frequency)
    errno is set to EINVAL if \p new_value is out of range.
    errno is set to EPERM if adaptive receive speed tracking is enabled.
 
-   testedin::test_parameter_ranges()
-
    \param new_value - new value of receive speed to be assigned to receiver
 
    \return CW_SUCCESS on success
@@ -1205,8 +1147,6 @@ int cw_set_receive_speed(int new_value)
 
 /**
    \brief Get receiving speed from receiver
-
-   testedin::test_parameter_ranges()
 
    \return current value of the receiver's receive speed
 */
@@ -1226,8 +1166,6 @@ int cw_get_receive_speed(void)
    value of tolerance.
    errno is set to EINVAL if \p new_value is out of range.
 
-   testedin::test_parameter_ranges()
-
    \param new_value - new value of tolerance to be assigned to receiver
 
    \return CW_SUCCESS on success
@@ -1244,8 +1182,6 @@ int cw_set_tolerance(int new_value)
 
 /**
    \brief Get tolerance from receiver
-
-   testedin::test_parameter_ranges()
 
    \return current value of receiver's tolerance
 */
@@ -1864,11 +1800,6 @@ int cw_get_iambic_curtis_mode_b_state(void)
    and cw_keyer_wait() for details about how to check the current status of
    iambic keyer background processing.
 
-   testedin::test_iambic_key_dot()
-   testedin::test_iambic_key_dash()
-   testedin::test_iambic_key_alternating()
-   testedin::test_iambic_key_none()
-
    \param dot_paddle_state
    \param dash_paddle_state
 
@@ -1918,11 +1849,6 @@ int cw_notify_keyer_dash_paddle_event(int dash_paddle_state)
 
 /**
    \brief Get the current saved states of the two paddles
-
-   testedin::test_iambic_key_dot()
-   testedin::test_iambic_key_dash()
-   testedin::test_iambic_key_alternating()
-   testedin::test_iambic_key_none()
 
    \param dot_paddle_state
    \param dash_paddle_state
@@ -1980,10 +1906,6 @@ bool cw_is_keyer_busy(void)
 
    On error the function returns CW_FAILURE, with errno set to
    EDEADLK if SIGALRM is blocked.
-
-   testedin::test_iambic_key_dot()
-   testedin::test_iambic_key_dash()
-   testedin::test_iambic_key_alternating()
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
@@ -2077,8 +1999,6 @@ void cw_straight_key_clock_internal(void)
    the sound card, console speaker, or keying control system.  If
    \p key_state indicates no change of state, the call is ignored.
 
-   testedin::test_straight_key()
-
    \p key_state may be either CW_KEY_STATE_OPEN (false) or CW_KEY_STATE_CLOSED (true).
 
    \param key_state - state of straight key
@@ -2097,8 +2017,6 @@ int cw_notify_straight_key_event(int key_state)
 
    Returns the current saved state of the straight key.
 
-   testedin::test_straight_key()
-
    \return CW_KEY_STATE_CLOSED (true) if the key is down
    \return CW_KEY_STATE_OPEN (false) if the key up
 */
@@ -2116,8 +2034,6 @@ int cw_get_straight_key_state(void)
 
    This routine is just a pseudonym for cw_get_straight_key_state(),
    and exists to fill a hole in the API naming conventions.
-
-   testedin::test_straight_key()
 
    \return true if the straight key is busy
    \return false if the straight key is not busy

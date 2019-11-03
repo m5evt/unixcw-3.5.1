@@ -44,8 +44,6 @@
 
 
 /**
-   tests::cw_timestamp_compare_internal()
-
    @reviewed on 2019-10-15
 */
 int test_cw_timestamp_compare_internal(cw_test_executor_t * cte)
@@ -94,8 +92,6 @@ int test_cw_timestamp_compare_internal(cw_test_executor_t * cte)
 
 
 /**
-   tests::cw_timestamp_validate_internal()
-
    @reviewed on 2019-10-13
 */
 int test_cw_timestamp_validate_internal(cw_test_executor_t * cte)
@@ -165,8 +161,6 @@ int test_cw_timestamp_validate_internal(cw_test_executor_t * cte)
 
 
 /**
-   tests::cw_usecs_to_timespec_internal()
-
    @reviewed on 2019-10-13
 */
 int test_cw_usecs_to_timespec_internal(cw_test_executor_t * cte)
@@ -221,8 +215,6 @@ int test_cw_usecs_to_timespec_internal(cw_test_executor_t * cte)
 
 
 /**
-   tests::cw_version()
-
    @reviewed on 2019-10-13
 */
 int test_cw_version_internal(cw_test_executor_t * cte)
@@ -293,8 +285,6 @@ int test_cw_version_internal(cw_test_executor_t * cte)
 
 
 /**
-   tests::cw_license()
-
    @reviewed on 2019-10-13
 */
 int test_cw_license_internal(cw_test_executor_t * cte)

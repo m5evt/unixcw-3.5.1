@@ -128,8 +128,6 @@ static bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec,
 
 
 /**
-   tests::cw_rec_identify_mark_internal()
-
    Test if function correctly recognizes dots and dashes for a range
    of receive speeds.  This test function also checks if marks of
    durations longer or shorter than certain limits (dictated by

@@ -48,9 +48,6 @@ extern const char * test_invalid_representations[];
 
 
 /**
-   tests::cw_gen_new()
-   tests::cw_gen_delete()
-
    @reviewed on 2019-10-08
 */
 int test_cw_gen_new_delete(cw_test_executor_t * cte)
@@ -114,10 +111,6 @@ int test_cw_gen_new_delete(cw_test_executor_t * cte)
 
 
 /**
-   tests::cw_gen_new()
-   tests::cw_gen_start()
-   tests::cw_gen_delete()
-
    @reviewed on 2019-10-08
 */
 int test_cw_gen_new_start_delete(cw_test_executor_t * cte)
@@ -165,10 +158,6 @@ int test_cw_gen_new_start_delete(cw_test_executor_t * cte)
 
 
 /**
-   tests::cw_gen_new()
-   tests::cw_gen_stop()
-   tests::cw_gen_delete()
-
    @reviewed on 2019-10-08
 */
 int test_cw_gen_new_stop_delete(cw_test_executor_t * cte)
@@ -220,11 +209,6 @@ int test_cw_gen_new_stop_delete(cw_test_executor_t * cte)
 
 
 /**
-   tests::cw_gen_new()
-   tests::cw_gen_start()
-   tests::cw_gen_stop()
-   tests::cw_gen_delete()
-
    @reviewed on 2019-10-08
 */
 int test_cw_gen_new_start_stop_delete(cw_test_executor_t * cte)
@@ -624,8 +608,6 @@ int test_cw_gen_forever_sub(cw_test_executor_t * cte, int seconds, int audio_sys
 
 
 /**
-   tests::cw_gen_get_timing_parameters_internal()
-
    @reviewed on 2019-10-09
 */
 int test_cw_gen_get_timing_parameters_internal(cw_test_executor_t * cte)
@@ -681,24 +663,6 @@ int test_cw_gen_get_timing_parameters_internal(cw_test_executor_t * cte)
 
 /**
    \brief Test setting and getting of some basic parameters
-
-   tests::cw_get_speed_limits()
-   tests::cw_get_frequency_limits()
-   tests::cw_get_volume_limits()
-   tests::cw_get_gap_limits()
-   tests::cw_get_weighting_limits()
-
-   tests::cw_gen_set_speed()
-   tests::cw_gen_set_frequency()
-   tests::cw_gen_set_volume()
-   tests::cw_gen_set_gap()
-   tests::cw_gen_set_weighting()
-
-   tests::cw_gen_get_speed()
-   tests::cw_gen_get_frequency()
-   tests::cw_gen_get_volume()
-   tests::cw_gen_get_gap()
-   tests::cw_gen_get_weighting()
 
    @reviewed on 2019-10-13
 */
@@ -841,10 +805,6 @@ int test_cw_gen_parameter_getters_setters(cw_test_executor_t * cte)
 
    Fill tone queue with short tones, then check that we can move the
    volume through its entire range.  Flush the queue when complete.
-
-   tests::cw_get_volume_limits()
-   tests::cw_gen_set_volume()
-   tests::cw_gen_get_volume()
 
    @reviewed on 2019-10-10
 */
@@ -990,10 +950,6 @@ int test_cw_gen_volume_functions(cw_test_executor_t * cte)
 /**
    \brief Test enqueueing and playing most basic elements of Morse code
 
-   tests::cw_gen_enqueue_mark_internal()
-   tests::cw_gen_enqueue_eoc_space_internal()
-   tests::cw_gen_enqueue_eow_space_internal()
-
    @reviewed on 2019-10-10
 */
 int test_cw_gen_enqueue_primitives(cw_test_executor_t * cte)
@@ -1082,8 +1038,6 @@ int test_cw_gen_enqueue_primitives(cw_test_executor_t * cte)
 /**
    \brief Test playing representations of characters
 
-   tests::cw_gen_enqueue_representation_partial_internal()
-
    @reviewed on 2019-10-11
 */
 int test_cw_gen_enqueue_representations(cw_test_executor_t * cte)
@@ -1147,8 +1101,6 @@ int test_cw_gen_enqueue_representations(cw_test_executor_t * cte)
 
 /**
    Send all supported characters as individual characters
-
-   tests::cw_gen_enqueue_character()
 
    @reviewed on 2019-10-08
 */
@@ -1214,8 +1166,6 @@ int test_cw_gen_enqueue_character(cw_test_executor_t * cte)
 
 /**
    Send all supported characters as a string.
-
-   tests::cw_gen_enqueue_string()
 
    @reviewed on 2019-10-08
 */

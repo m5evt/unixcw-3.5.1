@@ -532,8 +532,6 @@ void cw_get_frequency_limits(int *min_frequency, int *max_frequency)
    Any of functions two arguments can be NULL - function won't update
    value of that argument.
 
-   testedin::test_volume_functions()
-
    \reviewed on 2017-02-04
 
    \param min_volume - minimal allowed volume
