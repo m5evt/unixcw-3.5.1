@@ -155,10 +155,10 @@ int legacy_api_test_low_level_gen_parameters(cw_test_executor_t * cte)
 
 	/* Print and verify default low level timing values. */
 	cw_reset_send_receive_parameters();
-	cw_get_send_parameters(&txdot_usecs, &txdash_usecs,
-			       &end_of_element_usecs, &end_of_character_usecs,
-			       &end_of_word_usecs, &additional_usecs,
-			       &adjustment_usecs);
+	LIBCW_TEST_FUT(cw_get_send_parameters)(&txdot_usecs, &txdash_usecs,
+					       &end_of_element_usecs, &end_of_character_usecs,
+					       &end_of_word_usecs, &additional_usecs,
+					       &adjustment_usecs);
 	cte->log_info(cte,
 		      "cw_get_send_parameters():\n"
 		      "    %d, %d, %d, %d, %d, %d, %d\n",
@@ -227,14 +227,45 @@ int legacy_api_test_parameter_ranges(cw_test_executor_t * cte)
 
 		const char *name;
 	} test_data[] = {
-		{ cw_get_speed_limits,      cw_set_send_speed,     cw_get_send_speed,     CW_SPEED_MIN,      CW_SPEED_MAX,      off_limits,  -off_limits,  "send_speed"    },
-		{ cw_get_speed_limits,      cw_set_receive_speed,  cw_get_receive_speed,  CW_SPEED_MIN,      CW_SPEED_MAX,      off_limits,  -off_limits,  "receive_speed" },
-		{ cw_get_frequency_limits,  cw_set_frequency,      cw_get_frequency,      CW_FREQUENCY_MIN,  CW_FREQUENCY_MAX,  off_limits,  -off_limits,  "frequency"     },
-		{ cw_get_volume_limits,     cw_set_volume,         cw_get_volume,         CW_VOLUME_MIN,     CW_VOLUME_MAX,     off_limits,  -off_limits,  "volume"        },
-		{ cw_get_gap_limits,        cw_set_gap,            cw_get_gap,            CW_GAP_MIN,        CW_GAP_MAX,        off_limits,  -off_limits,  "gap"           },
-		{ cw_get_tolerance_limits,  cw_set_tolerance,      cw_get_tolerance,      CW_TOLERANCE_MIN,  CW_TOLERANCE_MAX,  off_limits,  -off_limits,  "tolerance"     },
-		{ cw_get_weighting_limits,  cw_set_weighting,      cw_get_weighting,      CW_WEIGHTING_MIN,  CW_WEIGHTING_MAX,  off_limits,  -off_limits,  "weighting"     },
-		{ NULL,                     NULL,                  NULL,                  0,                 0,                 0,            0,           NULL            }
+		{ LIBCW_TEST_FUT(cw_get_speed_limits),
+		  LIBCW_TEST_FUT(cw_set_send_speed),
+		  LIBCW_TEST_FUT(cw_get_send_speed),
+		  CW_SPEED_MIN,      CW_SPEED_MAX,      off_limits,  -off_limits,  "send_speed"    },
+
+		{ LIBCW_TEST_FUT(cw_get_speed_limits),
+		  LIBCW_TEST_FUT(cw_set_receive_speed),
+		  LIBCW_TEST_FUT(cw_get_receive_speed),
+		  CW_SPEED_MIN,      CW_SPEED_MAX,      off_limits,  -off_limits,  "receive_speed" },
+
+		{ LIBCW_TEST_FUT(cw_get_frequency_limits),
+		  LIBCW_TEST_FUT(cw_set_frequency),
+		  LIBCW_TEST_FUT(cw_get_frequency),
+		  CW_FREQUENCY_MIN,  CW_FREQUENCY_MAX,  off_limits,  -off_limits,  "frequency"     },
+
+		{ LIBCW_TEST_FUT(cw_get_volume_limits),
+		  LIBCW_TEST_FUT(cw_set_volume),
+		  LIBCW_TEST_FUT(cw_get_volume),
+		  CW_VOLUME_MIN,     CW_VOLUME_MAX,     off_limits,  -off_limits,  "volume"        },
+
+		{ LIBCW_TEST_FUT(cw_get_gap_limits),
+		  LIBCW_TEST_FUT(cw_set_gap),
+		  LIBCW_TEST_FUT(cw_get_gap),
+		  CW_GAP_MIN,        CW_GAP_MAX,        off_limits,  -off_limits,  "gap"           },
+
+		{ LIBCW_TEST_FUT(cw_get_tolerance_limits),
+		  LIBCW_TEST_FUT(cw_set_tolerance),
+		  LIBCW_TEST_FUT(cw_get_tolerance),
+		  CW_TOLERANCE_MIN,  CW_TOLERANCE_MAX,  off_limits,  -off_limits,  "tolerance"     },
+
+		{ LIBCW_TEST_FUT(cw_get_weighting_limits),
+		  LIBCW_TEST_FUT(cw_set_weighting),
+		  LIBCW_TEST_FUT(cw_get_weighting),
+		  CW_WEIGHTING_MIN,  CW_WEIGHTING_MAX,  off_limits,  -off_limits,  "weighting"     },
+
+		{ NULL,
+		  NULL,
+		  NULL,
+		  0,                 0,                 0,            0,           NULL            }
 	};
 
 
@@ -342,7 +373,7 @@ int legacy_api_test_cw_wait_for_tone(cw_test_executor_t * cte)
 		   together with checking length of the tone queue. */
 		int freq = freq_min;
 
-		cwret = cw_queue_tone(tone_duration, freq);
+		cwret = LIBCW_TEST_FUT(cw_queue_tone)(tone_duration, freq);
 		cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "setup: cw_queue_tone()");
 
 
@@ -362,7 +393,7 @@ int legacy_api_test_cw_wait_for_tone(cw_test_executor_t * cte)
 
 			/* Monitor length of a queue as it is filled - before
 			   adding a new tone. */
-			readback_length = cw_get_tone_queue_length();
+			readback_length = LIBCW_TEST_FUT(cw_get_tone_queue_length)();
 			expected_length = (i - 1);
 			cte->expect_op_int(cte, expected_length, "==", readback_length, 0, "setup: cw_get_tone_queue_length(): before adding tone (#%02d)", i);
 
@@ -371,13 +402,13 @@ int legacy_api_test_cw_wait_for_tone(cw_test_executor_t * cte)
 			   within allowed range, so there should be no
 			   error. */
 			freq = freq_min + i * delta_freq;
-			cwret = cw_queue_tone(tone_duration, freq);
+			cwret = LIBCW_TEST_FUT(cw_queue_tone)(tone_duration, freq);
 			cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "setup: cw_queue_tone() #%02d", i);
 
 
 			/* Monitor length of a queue as it is filled - after
 			   adding a new tone. */
-			readback_length = cw_get_tone_queue_length();
+			readback_length = LIBCW_TEST_FUT(cw_get_tone_queue_length)();
 			expected_length = (i - 1) + 1;
 			cte->expect_op_int(cte, expected_length, "==", readback_length, 0, "setup: cw_get_tone_queue_length(): after adding tone (#%02d)", i);
 		}
@@ -401,16 +432,16 @@ int legacy_api_test_cw_wait_for_tone(cw_test_executor_t * cte)
 			int expected_length = 0;  /* Expected length of tone queue. */
 
 			/* Monitor length of a queue as it is emptied - before dequeueing. */
-			readback_length = cw_get_tone_queue_length();
+			readback_length = LIBCW_TEST_FUT(cw_get_tone_queue_length)();
 			expected_length = i;
 			cte->expect_op_int(cte, expected_length, "==", readback_length, 0, "test: cw_get_tone_queue_length(): before dequeueing (#%02d)", i);
 
 			/* Wait for each of n_tones_to_add tones to be dequeued. */
-			cwret = cw_wait_for_tone();
+			cwret = LIBCW_TEST_FUT(cw_wait_for_tone)();
 			cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "test: cw_wait_for_tone():");
 
 			/* Monitor length of a queue as it is emptied - after dequeueing single tone. */
-			readback_length = cw_get_tone_queue_length();
+			readback_length = LIBCW_TEST_FUT(cw_get_tone_queue_length)();
 			expected_length = i - 1;
 			cte->expect_op_int(cte, expected_length, "==", readback_length, 0, "test: cw_get_tone_queue_length(): after dequeueing (#%02d)", i);
 		}
@@ -460,7 +491,7 @@ int legacy_api_test_cw_wait_for_tone_queue(cw_test_executor_t * cte)
 
 		for (int i = 0; i < n_tones_to_add; i++) {
 			const int freq = freq_min + i * delta_freq;
-			int cwret = cw_queue_tone(tone_duration, freq);
+			int cwret = LIBCW_TEST_FUT(cw_queue_tone)(tone_duration, freq);
 			const bool success = cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "setup: cw_queue_tone(%d, %d):", tone_duration, freq);
 			if (!success) {
 				break;
@@ -473,7 +504,7 @@ int legacy_api_test_cw_wait_for_tone_queue(cw_test_executor_t * cte)
 	  Queue with enqueued tones should have some specific length.
 	*/
 	{
-		const int len = cw_get_tone_queue_length();
+		const int len = LIBCW_TEST_FUT(cw_get_tone_queue_length)();
 		cte->expect_op_int(cte, n_tones_to_add, "==", len, 0, "test: cw_get_tone_queue_length()");
 	}
 
@@ -482,7 +513,7 @@ int legacy_api_test_cw_wait_for_tone_queue(cw_test_executor_t * cte)
 	  We should be able to wait for emptying of non-empty queue.
 	*/
 	{
-		int cwret = cw_wait_for_tone_queue();
+		int cwret = LIBCW_TEST_FUT(cw_wait_for_tone_queue)();
 		cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "test: cw_wait_for_tone_queue()");
 	}
 
@@ -539,7 +570,7 @@ int legacy_api_test_cw_queue_tone(cw_test_executor_t * cte)
 			}
 		}
 
-		int cwret = cw_queue_tone(duration, freq);
+		int cwret = LIBCW_TEST_FUT(cw_queue_tone)(duration, freq);
 		if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "cw_queue_tone(#1, %d)", freq)) {
 			queue_success = false;
 			break;
@@ -559,7 +590,7 @@ int legacy_api_test_cw_queue_tone(cw_test_executor_t * cte)
 			}
 		}
 
-		int cwret = cw_queue_tone(duration, freq);
+		int cwret = LIBCW_TEST_FUT(cw_queue_tone)(duration, freq);
 		if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "cw_queue_tone(#2, %d)", freq)) {
 			queue_success = false;
 			break;
@@ -609,10 +640,10 @@ int legacy_api_test_empty_tone_queue(cw_test_executor_t * cte)
 
 	/* Test. */
 	{
-		const int capacity = cw_get_tone_queue_capacity();
+		const int capacity = LIBCW_TEST_FUT(cw_get_tone_queue_capacity)();
 		cte->expect_op_int(cte, CW_TONE_QUEUE_CAPACITY_MAX, "==", capacity, 0, "cw_get_tone_queue_capacity()");
 
-		const int len_empty = cw_get_tone_queue_length();
+		const int len_empty = LIBCW_TEST_FUT(cw_get_tone_queue_length)();
 		cte->expect_op_int(cte, 0, "==", len_empty, 0, "cw_get_tone_queue_length() when tq is empty");
 	}
 
@@ -661,7 +692,7 @@ int legacy_api_test_full_tone_queue(cw_test_executor_t * cte)
 		/* FIXME: cw_is_tone_queue_full() is not tested */
 		while (!cw_is_tone_queue_full()) {
 			const int freq = 100 + (i++ & 1) * 100;
-			cw_queue_tone(duration, freq);
+			LIBCW_TEST_FUT(cw_queue_tone)(duration, freq);
 		}
 	}
 
@@ -670,10 +701,10 @@ int legacy_api_test_full_tone_queue(cw_test_executor_t * cte)
 	  Test properties (capacity and length) of full tq.
 	*/
 	{
-		const int capacity = cw_get_tone_queue_capacity();
+		const int capacity = LIBCW_TEST_FUT(cw_get_tone_queue_capacity)();
 		cte->expect_op_int(cte, CW_TONE_QUEUE_CAPACITY_MAX, "==", capacity, 0, "cw_get_tone_queue_capacity()");
 
-		const int len_full = cw_get_tone_queue_length();
+		const int len_full = LIBCW_TEST_FUT(cw_get_tone_queue_length)();
 		cte->expect_op_int(cte, CW_TONE_QUEUE_CAPACITY_MAX, "==", len_full, 0, "cw_get_tone_queue_length() when tq is full");
 	}
 
@@ -683,7 +714,7 @@ int legacy_api_test_full_tone_queue(cw_test_executor_t * cte)
 	*/
 	{
 		errno = 0;
-		int cwret = cw_queue_tone(1000000, 100);
+		int cwret = LIBCW_TEST_FUT(cw_queue_tone)(1000000, 100);
 		cte->expect_op_int(cte, EAGAIN, "==", errno, 0, "cw_queue_tone() for full tq (errno)");
 		cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 0, "cw_queue_tone() for full tq (cwret)");
 	}
@@ -699,17 +730,17 @@ int legacy_api_test_full_tone_queue(cw_test_executor_t * cte)
 
 		/* Empty tone queue and make sure that it is really
 		   empty (wait for info from libcw). */
-		cw_flush_tone_queue();
+		LIBCW_TEST_FUT(cw_flush_tone_queue)();
 
-		cwret = cw_wait_for_tone_queue();
+		cwret = LIBCW_TEST_FUT(cw_wait_for_tone_queue)();
 		cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "cw_wait_for_tone_queue() after flushing");
 
-		const int capacity = cw_get_tone_queue_capacity();
+		const int capacity = LIBCW_TEST_FUT(cw_get_tone_queue_capacity)();
 		cte->expect_op_int(cte, CW_TONE_QUEUE_CAPACITY_MAX, "==", capacity, 0, "cw_get_tone_queue_capacity() after flushing");
 
 		/* Test that the tq is really empty after
 		   cw_wait_for_tone_queue() has returned. */
-		const int len_empty = cw_get_tone_queue_length();
+		const int len_empty = LIBCW_TEST_FUT(cw_get_tone_queue_length)();
 		cte->expect_op_int(cte, 0, "==", len_empty, 0, "cw_get_tone_queue_length() after flushing");
 	}
 
@@ -747,7 +778,7 @@ int legacy_api_test_tone_queue_callback(cw_test_executor_t * cte)
 		callback_data data = { 0 };
 		data.captured_level = 9999999;
 
-		int cwret = cw_register_tone_queue_low_callback(test_helper_tq_callback, (void *) &data, level);
+		int cwret = LIBCW_TEST_FUT(cw_register_tone_queue_low_callback)(test_helper_tq_callback, (void *) &data, level);
 		cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "cw_register_tone_queue_low_callback(): threshold = %d:", level);
 		sleep(1);
 
@@ -833,7 +864,7 @@ int legacy_api_test_volume_functions(cw_test_executor_t * cte)
 
 	/* Test: get range of allowed volumes. */
 	{
-		cw_get_volume_limits(&vol_min, &vol_max);
+		LIBCW_TEST_FUT(cw_get_volume_limits)(&vol_min, &vol_max);
 
 		cte->expect_op_int(cte, CW_VOLUME_MIN, "==", vol_min, 0, "cw_get_volume_limits(): min = %d%%", vol_min);
 		cte->expect_op_int(cte, CW_VOLUME_MAX, "==", vol_max, 0, "cw_get_volume_limits(): max = %d%%", vol_max);
@@ -862,13 +893,13 @@ int legacy_api_test_volume_functions(cw_test_executor_t * cte)
 			   often and not less. */
 			cw_wait_for_tone();
 
-			const int cwret = cw_set_volume(volume);
+			const int cwret = LIBCW_TEST_FUT(cw_set_volume)(volume);
 			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "cw_set_volume(%d) (down)", volume)) {
 				set_failure = true;
 				break;
 			}
 
-			const int readback = cw_get_volume();
+			const int readback = LIBCW_TEST_FUT(cw_get_volume)();
 			if (!cte->expect_op_int(cte, volume, "==", readback, 1, "cw_get_volume() (down) -> %d", readback)) {
 				get_failure = true;
 				break;
@@ -910,13 +941,13 @@ int legacy_api_test_volume_functions(cw_test_executor_t * cte)
 			   often and not less. */
 			cw_wait_for_tone();
 
-			const int cwret = cw_set_volume(volume);
+			const int cwret = LIBCW_TEST_FUT(cw_set_volume)(volume);
 			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "cw_set_volume(%d) (up)", volume)) {
 				set_failure = true;
 				break;
 			}
 
-			const int readback = cw_get_volume();
+			const int readback = LIBCW_TEST_FUT(cw_get_volume)();
 			if (!cte->expect_op_int(cte, volume, "==", readback, 1, "cw_get_volume() (up) -> %d", readback)) {
 				get_failure = true;
 				break;
@@ -961,7 +992,7 @@ int legacy_api_test_send_primitives(cw_test_executor_t * cte)
 	{
 		bool failure = false;
 		for (int i = 0; i < max; i++) {
-			const int cwret = cw_send_dot();
+			const int cwret = LIBCW_TEST_FUT(cw_send_dot)();
 			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "cw_send_dot() #%d", i)) {
 				failure = true;
 				break;
@@ -975,7 +1006,7 @@ int legacy_api_test_send_primitives(cw_test_executor_t * cte)
 	{
 		bool failure = false;
 		for (int i = 0; i < max; i++) {
-			const int cwret = cw_send_dash();
+			const int cwret = LIBCW_TEST_FUT(cw_send_dash)();
 			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "cw_send_dash() #%d", i)) {
 				failure = true;
 				break;
@@ -989,7 +1020,7 @@ int legacy_api_test_send_primitives(cw_test_executor_t * cte)
 	{
 		bool failure = false;
 		for (int i = 0; i < max; i++) {
-			const int cwret = cw_send_character_space();
+			const int cwret = LIBCW_TEST_FUT(cw_send_character_space)();
 			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "cw_send_character_space() #%d", i)) {
 				failure = true;
 				break;
@@ -1003,7 +1034,7 @@ int legacy_api_test_send_primitives(cw_test_executor_t * cte)
 	{
 		bool failure = false;
 		for (int i = 0; i < max; i++) {
-			const int cwret = cw_send_word_space();
+			const int cwret = LIBCW_TEST_FUT(cw_send_word_space)();
 			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "cw_send_word_space() #%d", i)) {
 				failure = true;
 				break;
@@ -1039,7 +1070,7 @@ int legacy_api_test_representations(cw_test_executor_t * cte)
 		bool failure = false;
 		int i = 0;
 		while (NULL != test_valid_representations[i]) {
-			const int cwret = cw_send_representation(test_valid_representations[i]);
+			const int cwret = LIBCW_TEST_FUT(cw_send_representation)(test_valid_representations[i]);
 			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "cw_send_representation(valid #%d)", i)) {
 				failure = true;
 				break;
@@ -1055,7 +1086,7 @@ int legacy_api_test_representations(cw_test_executor_t * cte)
 		bool failure = false;
 		int i = 0;
 		while (NULL != test_invalid_representations[i]) {
-			const int cwret = cw_send_representation(test_invalid_representations[i]);
+			const int cwret = LIBCW_TEST_FUT(cw_send_representation)(test_invalid_representations[i]);
 			if (!cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 1, "cw_send_representation(invalid #%d)", i)) {
 				failure = true;
 				break;
@@ -1071,7 +1102,7 @@ int legacy_api_test_representations(cw_test_executor_t * cte)
 		bool failure = false;
 		int i = 0;
 		while (NULL != test_valid_representations[i]) {
-			const int cwret = cw_send_representation_partial(test_valid_representations[i]);
+			const int cwret = LIBCW_TEST_FUT(cw_send_representation_partial)(test_valid_representations[i]);
 			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "cw_send_representation_partial(valid #%d)", i)) {
 				failure = true;
 				break;
@@ -1087,7 +1118,7 @@ int legacy_api_test_representations(cw_test_executor_t * cte)
 		bool failure = false;
 		int i = 0;
 		while (NULL != test_invalid_representations[i]) {
-			const int cwret = cw_send_representation_partial(test_invalid_representations[i]);
+			const int cwret = LIBCW_TEST_FUT(cw_send_representation_partial)(test_invalid_representations[i]);
 			if (!cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 1, "cw_send_representation_partial(invalid #%d)", i)) {
 				failure = true;
 				break;
@@ -1125,7 +1156,7 @@ int legacy_api_test_send_character_and_string(cw_test_executor_t * cte)
 	/* Test: sending all supported characters as individual characters. */
 	{
 		char charlist[UCHAR_MAX + 1] = { 0 }; /* TODO: get size of this buffer through cw_get_character_count(). */
-		cw_list_characters(charlist);
+		LIBCW_TEST_FUT(cw_list_characters)(charlist);
 
 		bool failure = false;
 
@@ -1141,7 +1172,7 @@ int legacy_api_test_send_character_and_string(cw_test_executor_t * cte)
 			cte->log_info_cont(cte, "%c", character);
 			cte->flush_info(cte);
 
-			const int cwret = cw_send_character(character);
+			const int cwret = LIBCW_TEST_FUT(cw_send_character)(character);
 			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "cw_send_character(%c)", character)) {
 				failure = true;
 				break;
@@ -1157,21 +1188,21 @@ int legacy_api_test_send_character_and_string(cw_test_executor_t * cte)
 
 	/* Test: sending invalid character. */
 	{
-		const int cwret = cw_send_character(0);
+		const int cwret = LIBCW_TEST_FUT(cw_send_character)(0);
 		cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 0, "cw_send_character(<invalid>)");
 	}
 
 	/* Test: sending all supported characters as single string. */
 	{
 		char charlist[UCHAR_MAX + 1] = { 0 }; /* TODO: get size of this buffer through cw_get_character_count(). */
-		cw_list_characters(charlist);
+		LIBCW_TEST_FUT(cw_list_characters)(charlist);
 
 		/* Send the complete charlist as a single string. */
 		cte->log_info(cte,
 			      "cw_send_string(<valid>):\n"
 			      "    %s\n", charlist);
 
-		const int cwret = cw_send_string(charlist);
+		const int cwret = LIBCW_TEST_FUT(cw_send_string)(charlist);
 		cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "cw_send_string(<valid>)");
 
 
@@ -1186,7 +1217,7 @@ int legacy_api_test_send_character_and_string(cw_test_executor_t * cte)
 
 	/* Test: sending invalid string. */
 	{
-		const int cwret = cw_send_string("%INVALID%");
+		const int cwret = LIBCW_TEST_FUT(cw_send_string)("%INVALID%");
 		cte->expect_op_int(cte, CW_FAILURE, "==", cwret, 0, "cw_send_string(<invalid>)");
 	}
 
@@ -1210,13 +1241,13 @@ void legacy_api_test_iambic_key_paddles_common(cw_test_executor_t * cte, const i
 	{
 		/* It seems like this function calls means "keyer
 		   pressed until further notice".*/
-		const int cwret = cw_notify_keyer_paddle_event(intended_dot_paddle, intended_dash_paddle);
+		const int cwret = LIBCW_TEST_FUT(cw_notify_keyer_paddle_event)(intended_dot_paddle, intended_dash_paddle);
 		cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "cw_notify_keyer_paddle_event(%d, %d)", intended_dot_paddle, intended_dash_paddle);
 
 		bool success = true;
 		cte->flush_info(cte);
 		for (int i = 0; i < n_elements; i++) {
-			success = success && cw_wait_for_keyer_element();
+			success = success && LIBCW_TEST_FUT(cw_wait_for_keyer_element)();
 			cte->log_info_cont(cte, "%c", character);
 			cte->flush_info(cte);
 		}
@@ -1231,7 +1262,7 @@ void legacy_api_test_iambic_key_paddles_common(cw_test_executor_t * cte, const i
 		   to cw_notify_keyer_paddle_event() above. */
 		int read_back_dot_paddle;
 		int read_back_dash_paddle;
-		cw_get_keyer_paddles(&read_back_dot_paddle, &read_back_dash_paddle);
+		LIBCW_TEST_FUT(cw_get_keyer_paddles)(&read_back_dot_paddle, &read_back_dash_paddle);
 		cte->expect_op_int(cte, intended_dot_paddle, "==", read_back_dot_paddle, 0, "cw_get_keyer_paddles(): dot paddle");
 		cte->expect_op_int(cte, intended_dash_paddle, "==", read_back_dash_paddle, 0, "cw_get_keyer_paddles(): dash paddle");
 	}
@@ -1387,7 +1418,7 @@ int legacy_api_test_iambic_key_none(cw_test_executor_t * cte)
 
 	/* Test: depress paddles. */
 	{
-		const int cwret = cw_notify_keyer_paddle_event(intended_dot_paddle, intended_dot_paddle);
+		const int cwret = LIBCW_TEST_FUT(cw_notify_keyer_paddle_event)(intended_dot_paddle, intended_dot_paddle);
 		cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "cw_notify_keyer_paddle_event(%d, %d)", intended_dot_paddle, intended_dash_paddle);
 	}
 
@@ -1397,7 +1428,7 @@ int legacy_api_test_iambic_key_none(cw_test_executor_t * cte)
 		   to cw_notify_keyer_paddle_event() above. */
 		int read_back_dot_paddle;
 		int read_back_dash_paddle;
-		cw_get_keyer_paddles(&read_back_dot_paddle, &read_back_dash_paddle);
+		LIBCW_TEST_FUT(cw_get_keyer_paddles)(&read_back_dot_paddle, &read_back_dash_paddle);
 		cte->expect_op_int(cte, intended_dot_paddle, "==", read_back_dot_paddle, 0, "cw_get_keyer_paddles(): dot paddle");
 		cte->expect_op_int(cte, intended_dash_paddle, "==", read_back_dash_paddle, 0, "cw_get_keyer_paddles(): dash paddle");
 	}
@@ -1442,20 +1473,20 @@ int legacy_api_test_straight_key(cw_test_executor_t * cte)
 
 			const int intended_key_state = key_states[i % 2]; /* Notice that depending on rand(), we may start with key open or key closed. */
 
-			const int cwret = cw_notify_straight_key_event(intended_key_state);
+			const int cwret = LIBCW_TEST_FUT(cw_notify_straight_key_event)(intended_key_state);
 			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "cw_notify_straight_key_event(%d)", intended_key_state)) {
 				event_failure = true;
 				break;
 			}
 
-			const int readback_key_state = cw_get_straight_key_state();
+			const int readback_key_state = LIBCW_TEST_FUT(cw_get_straight_key_state)();
 			if (!cte->expect_op_int(cte, intended_key_state, "==", readback_key_state, 1, "cw_get_straight_key_state() (%d)", intended_key_state)) {
 				state_failure = true;
 				break;
 			}
 
 			/* "busy" is misleading. This function just asks if key is down. */
-			const bool is_busy = cw_is_straight_key_busy();
+			const bool is_busy = LIBCW_TEST_FUT(cw_is_straight_key_busy)();
 			const bool expected_is_busy = intended_key_state == CW_KEY_STATE_CLOSED;
 			if (!cte->expect_op_int(cte, expected_is_busy, "==", is_busy, 1, "cw_is_straight_key_busy() (%d)", intended_key_state)) {
 				busy_failure = true;
@@ -1678,7 +1709,7 @@ int legacy_api_test_basic_gen_operations(cw_test_executor_t * cte)
 
 	/* Test setting up generator. */
 	{
-		cwret = cw_generator_new(cte->current_sound_system, device);
+		cwret = LIBCW_TEST_FUT(cw_generator_new)(cte->current_sound_system, device);
 		cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "cw_generator_new()");
 		if (cwret != CW_SUCCESS) {
 			return -1;
@@ -1686,39 +1717,39 @@ int legacy_api_test_basic_gen_operations(cw_test_executor_t * cte)
 
 		cw_reset_send_receive_parameters();
 
-		cwret = cw_set_send_speed(12);
+		cwret = LIBCW_TEST_FUT(cw_set_send_speed)(12);
 		cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "cw_set_send_speed()");
 
-		cwret = cw_generator_start();
+		cwret = LIBCW_TEST_FUT(cw_generator_start)();
 		cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "cw_generator_start()");
 	}
 
 	/* Test using generator. */
 	{
-		cwret = cw_send_string("one ");
+		cwret = LIBCW_TEST_FUT(cw_send_string)("one ");
 		cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "cw_send_string()");
 
-		cwret = cw_wait_for_tone_queue();
+		cwret = LIBCW_TEST_FUT(cw_wait_for_tone_queue)();
 		cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "cw_wait_for_tone_queue()");
 
-		cwret = cw_send_string("two");
+		cwret = LIBCW_TEST_FUT(cw_send_string)("two");
 		cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "cw_send_string()");
 
-		cwret = cw_wait_for_tone_queue();
+		cwret = LIBCW_TEST_FUT(cw_wait_for_tone_queue)();
 		cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "cw_wait_for_tone_queue()");
 
-		cwret = cw_send_string("three");
+		cwret = LIBCW_TEST_FUT(cw_send_string)("three");
 		cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "cw_send_string()");
 
-		cwret = cw_wait_for_tone_queue();
+		cwret = LIBCW_TEST_FUT(cw_wait_for_tone_queue)();
 		cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "cw_wait_for_tone_queue()");
 	}
 
 	/* Deconfigure generator. These functions don't return a
 	   value, so we can't verify anything. */
 	{
-		cw_generator_stop();
-		cw_generator_delete();
+		LIBCW_TEST_FUT(cw_generator_stop)();
+		LIBCW_TEST_FUT(cw_generator_delete)();
 	}
 
 
