@@ -27,10 +27,11 @@
 
 
 
-#include <stdbool.h>
+
 #include <inttypes.h> /* uint32_t */
 #include <errno.h>
 #include <unistd.h>   /* usleep() */
+#include <stdbool.h>
 #include <sys/time.h>
 #include <stdlib.h>
 
@@ -144,9 +145,9 @@ static const char *cw_iambic_keyer_states[] = {
 
 
 
-static int cw_key_ik_update_state_initial_internal(volatile cw_key_t *key);
-static int cw_key_ik_set_value_internal(volatile cw_key_t *key, int key_value, char symbol);
-static int cw_key_sk_set_value_internal(volatile cw_key_t *key, int key_value);
+static int cw_key_ik_update_state_initial_internal(volatile cw_key_t * key);
+static int cw_key_ik_set_value_internal(volatile cw_key_t * key, int key_state, char symbol);
+static int cw_key_sk_set_value_internal(volatile cw_key_t * key, int key_state);
 
 
 
@@ -198,7 +199,7 @@ void cw_key_register_keying_callback(volatile cw_key_t * key, cw_key_callback_t 
 
    Set new value of a key. Filter successive key-down or key-up
    actions into a single action (successive calls with the same value
-   of \p key_value don't change internally registered value of key).
+   of \p key_state don't change internally registered value of key).
 
    If and only if the function registers change of key value, an
    external callback function for keying (if configured) is called.
@@ -209,13 +210,13 @@ void cw_key_register_keying_callback(volatile cw_key_t * key, cw_key_callback_t 
    values. Dequeueing tones is treated as manipulating a key.
 
    \param key - key to use
-   \param key_value - key value to be set
+   \param key_state - key state to be set
 */
-void cw_key_tk_set_value_internal(volatile cw_key_t *key, int key_value)
+void cw_key_tk_set_value_internal(volatile cw_key_t *key, int key_state)
 {
 	cw_assert (key, MSG_PREFIX "tk set value: key is NULL");
 
-	if (key->tk.key_value == key_value) {
+	if (key->tk.key_value == key_state) {
 		/* This is not an error. This may happen when
 		   dequeueing 'forever' tone multiple times in a
 		   row. */
@@ -223,10 +224,10 @@ void cw_key_tk_set_value_internal(volatile cw_key_t *key, int key_value)
 	}
 
 	cw_debug_msg (&cw_debug_object, CW_DEBUG_KEYING, CW_DEBUG_INFO,
-		      MSG_PREFIX "tk set value: %d->%d", key->tk.key_value, key_value);
+		      MSG_PREFIX "tk set value: %d->%d", key->tk.key_value, key_state);
 
 	/* Remember the new key value. */
-	key->tk.key_value = key_value;
+	key->tk.key_value = key_state;
 
 	/* In theory client code should register either a receiver (so
 	   events from key are passed to receiver directly), or a
@@ -325,7 +326,7 @@ void cw_key_register_receiver(volatile cw_key_t * key, cw_rec_t * rec)
 
    Set new value of a key. Filter successive key-down or key-up
    actions into a single action (successive calls with the same value
-   of \p key_value don't change internally registered value of key).
+   of \p key_state don't change internally registered value of key).
 
    If and only if the function registers change of key value, an
    external callback function for keying (if configured) is called.
@@ -335,12 +336,12 @@ void cw_key_register_receiver(volatile cw_key_t * key, cw_rec_t * rec)
    started or stopped).
 
    \param key - key in use
-   \param key_value - key value to be set
+   \param key_state - key value to be set
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_key_sk_set_value_internal(volatile cw_key_t *key, int key_value)
+int cw_key_sk_set_value_internal(volatile cw_key_t *key, int key_state)
 {
 	cw_assert (key, MSG_PREFIX "sk set value: key is NULL");
 	cw_assert (key->gen, MSG_PREFIX "sk set value: generator is NULL");
@@ -350,17 +351,17 @@ int cw_key_sk_set_value_internal(volatile cw_key_t *key, int key_value)
 	key->timer.tv_sec = t.tv_sec;
 	key->timer.tv_usec = t.tv_usec;
 
-	if (key->sk.key_value == key_value) {
+	if (key->sk.key_value == key_state) {
 		/* This may happen when dequeueing 'forever' tone
 		   multiple times in a row. */
 		return CW_SUCCESS;
 	}
 
 	cw_debug_msg (&cw_debug_object, CW_DEBUG_KEYING, CW_DEBUG_INFO,
-		      MSG_PREFIX "sk set value %d->%d", key->sk.key_value, key_value);
+		      MSG_PREFIX "sk set value %d->%d", key->sk.key_value, key_state);
 
 	/* Remember the new key value. */
-	key->sk.key_value = key_value;
+	key->sk.key_value = key_state;
 
 	/* Call a registered callback. */
 	if (key->key_callback_func) {
@@ -428,18 +429,18 @@ int cw_key_sk_set_value_internal(volatile cw_key_t *key, int key_value)
    keyer's graph state.
 
    \param key - current key
-   \param key_value - key value to be set (CW_KEY_STATE_OPEN/CW_KEY_STATE_CLOSED)
+   \param key_state - key value to be set (CW_KEY_STATE_OPEN/CW_KEY_STATE_CLOSED)
    \param symbol - symbol to enqueue (Space, Dot, Dash)
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_key_ik_set_value_internal(volatile cw_key_t *key, int key_value, char symbol)
+int cw_key_ik_set_value_internal(volatile cw_key_t *key, int key_state, char symbol)
 {
 	cw_assert (key, MSG_PREFIX "ik set value: keyer is NULL");
 	cw_assert (key->gen, MSG_PREFIX "ik set value: generator is NULL");
 
-	if (key->ik.key_value == key_value) {
+	if (key->ik.key_value == key_state) {
 		/* This is not an error. This may happen when
 		   dequeueing 'forever' tone multiple times in a
 		   row. */
@@ -447,10 +448,10 @@ int cw_key_ik_set_value_internal(volatile cw_key_t *key, int key_value, char sym
 	}
 
 	cw_debug_msg (&cw_debug_object, CW_DEBUG_KEYING, CW_DEBUG_INFO,
-		      MSG_PREFIX "ik set value %d->%d", key->ik.key_value, key_value);
+		      MSG_PREFIX "ik set value %d->%d", key->ik.key_value, key_state);
 
 	/* Remember the new key value. */
-	key->ik.key_value = key_value;
+	key->ik.key_value = key_state;
 
 	/* Call a registered callback. */
 	if (key->key_callback_func) {
@@ -1210,16 +1211,16 @@ void cw_key_ik_increment_timer_internal(volatile cw_key_t *key, int usecs)
 /**
    \brief Set new value of straight key
 
-   If \p key_value indicates no change of state, the call is ignored.
+   If \p key_state indicates no change of state, the call is ignored.
 
 
    \param key - straight key to update
-   \param key_value - new value of straight key (CW_KEY_STATE_OPEN / CW_KEY_STATE_CLOSED)
+   \param key_state - new state of straight key (CW_KEY_STATE_OPEN / CW_KEY_STATE_CLOSED)
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_key_sk_notify_event(volatile cw_key_t * key, int key_value)
+int cw_key_sk_notify_event(volatile cw_key_t * key, int key_state)
 {
 #if 0 /* This is disabled, but I'm not sure why. */  /* This code has been disabled some time before 2017-01-31. */
 	/* If the tone queue or the keyer are busy, we can't use the
@@ -1232,7 +1233,7 @@ int cw_key_sk_notify_event(volatile cw_key_t * key, int key_value)
 
 	/* Do tones and keying, and set up timeouts and soundcard
 	   activities to match the new key state. */
-	return cw_key_sk_set_value_internal(key, key_value);
+	return cw_key_sk_set_value_internal(key, key_state);
 }
 
 

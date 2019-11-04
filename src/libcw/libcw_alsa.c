@@ -78,7 +78,7 @@ extern const unsigned int cw_supported_sample_rates[];
 static const snd_pcm_format_t CW_ALSA_SAMPLE_FORMAT = SND_PCM_FORMAT_S16; /* "Signed 16 bit CPU endian"; I'm guessing that "CPU endian" == "native endianess" */
 
 
-static int  cw_alsa_set_hw_params_internal(cw_gen_t *gen, snd_pcm_hw_params_t *params);
+static int  cw_alsa_set_hw_params_internal(cw_gen_t *gen, snd_pcm_hw_params_t * hw_params);
 static int  cw_alsa_dlsym_internal(void *handle);
 static int  cw_alsa_write_internal(cw_gen_t *gen);
 static int  cw_alsa_debug_evaluate_write_internal(cw_gen_t *gen, int rv);
@@ -722,41 +722,55 @@ int cw_alsa_print_params_internal(snd_pcm_hw_params_t *hw_params)
 static int cw_alsa_dlsym_internal(void *handle)
 {
 	*(void **) &(cw_alsa.snd_pcm_open)    = dlsym(handle, "snd_pcm_open");
-	if (!cw_alsa.snd_pcm_open)    return -1;
+	if (!cw_alsa.snd_pcm_open)    { return -1; }
+
 	*(void **) &(cw_alsa.snd_pcm_close)   = dlsym(handle, "snd_pcm_close");
-	if (!cw_alsa.snd_pcm_close)   return -2;
+	if (!cw_alsa.snd_pcm_close)   { return -2; }
+
 	*(void **) &(cw_alsa.snd_pcm_prepare) = dlsym(handle, "snd_pcm_prepare");
-	if (!cw_alsa.snd_pcm_prepare) return -3;
+	if (!cw_alsa.snd_pcm_prepare) { return -3; }
+
 	*(void **) &(cw_alsa.snd_pcm_drop)    = dlsym(handle, "snd_pcm_drop");
-	if (!cw_alsa.snd_pcm_drop)    return -4;
+	if (!cw_alsa.snd_pcm_drop)    { return -4; }
+
 	*(void **) &(cw_alsa.snd_pcm_writei)  = dlsym(handle, "snd_pcm_writei");
-	if (!cw_alsa.snd_pcm_writei)  return -5;
+	if (!cw_alsa.snd_pcm_writei)  { return -5; }
 
 	*(void **) &(cw_alsa.snd_strerror) = dlsym(handle, "snd_strerror");
-	if (!cw_alsa.snd_strerror) return -10;
+	if (!cw_alsa.snd_strerror) { return -10; }
 
 	*(void **) &(cw_alsa.snd_pcm_hw_params_malloc)               = dlsym(handle, "snd_pcm_hw_params_malloc");
-	if (!cw_alsa.snd_pcm_hw_params_malloc)              return -20;
+	if (!cw_alsa.snd_pcm_hw_params_malloc)              { return -20; }
+
 	*(void **) &(cw_alsa.snd_pcm_hw_params_any)                  = dlsym(handle, "snd_pcm_hw_params_any");
-	if (!cw_alsa.snd_pcm_hw_params_any)                 return -21;
+	if (!cw_alsa.snd_pcm_hw_params_any)                 { return -21; }
+
 	*(void **) &(cw_alsa.snd_pcm_hw_params_set_format)           = dlsym(handle, "snd_pcm_hw_params_set_format");
-	if (!cw_alsa.snd_pcm_hw_params_set_format)          return -22;
+	if (!cw_alsa.snd_pcm_hw_params_set_format)          { return -22; }
+
 	*(void **) &(cw_alsa.snd_pcm_hw_params_set_rate_near)        = dlsym(handle, "snd_pcm_hw_params_set_rate_near");
-	if (!cw_alsa.snd_pcm_hw_params_set_rate_near)       return -23;
+	if (!cw_alsa.snd_pcm_hw_params_set_rate_near)       { return -23; }
+
 	*(void **) &(cw_alsa.snd_pcm_hw_params_set_access)           = dlsym(handle, "snd_pcm_hw_params_set_access");
-	if (!cw_alsa.snd_pcm_hw_params_set_access)          return -24;
+	if (!cw_alsa.snd_pcm_hw_params_set_access)          { return -24; }
+
 	*(void **) &(cw_alsa.snd_pcm_hw_params_set_channels)         = dlsym(handle, "snd_pcm_hw_params_set_channels");
-	if (!cw_alsa.snd_pcm_hw_params_set_channels)        return -25;
+	if (!cw_alsa.snd_pcm_hw_params_set_channels)        { return -25; }
+
 	*(void **) &(cw_alsa.snd_pcm_hw_params)                      = dlsym(handle, "snd_pcm_hw_params");
-	if (!cw_alsa.snd_pcm_hw_params)                     return -26;
+	if (!cw_alsa.snd_pcm_hw_params)                     { return -26; }
+
 	*(void **) &(cw_alsa.snd_pcm_hw_params_get_periods)          = dlsym(handle, "snd_pcm_hw_params_get_periods");
-	if (!cw_alsa.snd_pcm_hw_params_get_periods)         return -27;
+	if (!cw_alsa.snd_pcm_hw_params_get_periods)         { return -27; }
+
 	*(void **) &(cw_alsa.snd_pcm_hw_params_get_period_size)      = dlsym(handle, "snd_pcm_hw_params_get_period_size");
-	if (!cw_alsa.snd_pcm_hw_params_get_period_size)     return -28;
+	if (!cw_alsa.snd_pcm_hw_params_get_period_size)     { return -28; }
+
 	*(void **) &(cw_alsa.snd_pcm_hw_params_get_period_size_min)  = dlsym(handle, "snd_pcm_hw_params_get_period_size_min");
-	if (!cw_alsa.snd_pcm_hw_params_get_period_size_min) return -29;
+	if (!cw_alsa.snd_pcm_hw_params_get_period_size_min) { return -29; }
+
 	*(void **) &(cw_alsa.snd_pcm_hw_params_get_buffer_size)      = dlsym(handle, "snd_pcm_hw_params_get_buffer_size");
-	if (!cw_alsa.snd_pcm_hw_params_get_buffer_size)     return -30;
+	if (!cw_alsa.snd_pcm_hw_params_get_buffer_size)     { return -30; }
 
 	return 0;
 }

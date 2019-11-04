@@ -434,6 +434,10 @@ void cw_pa_close_device_internal(cw_gen_t *gen)
 
 
 #include <stdbool.h>
+
+
+
+
 #include "libcw_pa.h"
 
 

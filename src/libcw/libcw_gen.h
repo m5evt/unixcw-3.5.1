@@ -11,10 +11,10 @@
 
 
 #include "libcw.h"
-#include "libcw_pa.h"
 #include "libcw_alsa.h"
-#include "libcw_tq.h"
 #include "libcw_key.h"
+#include "libcw_pa.h"
+#include "libcw_tq.h"
 
 
 

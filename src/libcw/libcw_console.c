@@ -50,10 +50,10 @@ extern cw_debug_t cw_debug_object_dev;
 
 
 
+#include <stdbool.h>
+#include <stdio.h>
 #include <sys/time.h>
 #include <sys/ioctl.h>
-#include <stdio.h>
-#include <stdbool.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>

@@ -126,22 +126,22 @@ static void cw_debug_flush(cw_debug_t *debug_object);
    List of events is preceded with "FLUSH START\n" line, and
    followed by "FLUSH END\n" line.
 
-   \param debug - debug object
+   \param debug_object - debug object
 */
-void cw_debug_flush(cw_debug_t *debug)
+void cw_debug_flush(cw_debug_t * debug_object)
 {
-	if (debug->n <= 0) {
+	if (debug_object->n <= 0) {
 		return;
 	}
 
-	long long int diff = debug->events[debug->n - 1].sec - debug->events[0].sec;
-	diff = debug->events[debug->n - 1].sec - diff - 1;
+	long long int diff = debug_object->events[debug_object->n - 1].sec - debug_object->events[0].sec;
+	diff = debug_object->events[debug_object->n - 1].sec - diff - 1;
 
 	fprintf(stderr, "FLUSH START\n");
-	for (int i = 0; i < debug->n; i++) {
+	for (int i = 0; i < debug_object->n; i++) {
 		fprintf(stderr, "libcwevent:\t%06lld%06lld\t%s\n",
-			debug->events[i].sec - diff, debug->events[i].usec,
-			cw_debug_event_strings[debug->events[i].event].message);
+			debug_object->events[i].sec - diff, debug_object->events[i].usec,
+			cw_debug_event_strings[debug_object->events[i].event].message);
 	}
 	fprintf(stderr, "FLUSH END\n");
 

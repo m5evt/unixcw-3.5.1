@@ -38,10 +38,10 @@
 
 
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <limits.h> /* UCHAR_MAX */
 #include <string.h>
-#include <stdbool.h>
 #include <errno.h>
 #include <ctype.h>
 

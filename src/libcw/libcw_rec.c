@@ -59,10 +59,10 @@
 #include "config.h"
 
 
+#include <stdbool.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <errno.h>
-#include <stdbool.h>
 #include <math.h>  /* sqrt(), cosf() */
 #include <limits.h> /* INT_MAX, for clang. */
 
@@ -84,12 +84,12 @@
 
 
 
+#include "libcw_utils.h"
 #include "libcw.h"
 #include "libcw_rec.h"
 #include "libcw_rec_internal.h"
 #include "libcw_key.h"
 #include "libcw_data.h"
-#include "libcw_utils.h"
 #include "libcw_debug.h"
 #include "libcw2.h"
 
@@ -287,7 +287,7 @@ int cw_rec_set_speed(cw_rec_t * rec, int new_value)
 	}
 
 	/* TODO: verify this comparison. */
-	float diff = abs((1.0 * new_value) - rec->speed);
+	float diff = fabs((1.0 * new_value) - rec->speed);
 	if (diff >= 0.5) {
 		rec->speed = new_value;
 
@@ -413,26 +413,26 @@ void cw_rec_get_parameters_internal(cw_rec_t *rec,
 	cw_rec_sync_parameters_internal(rec);
 
 	/* Dot mark. */
-	if (dot_len_min)   *dot_len_min   = rec->dot_len_min;
-	if (dot_len_max)   *dot_len_max   = rec->dot_len_max;
-	if (dot_len_ideal) *dot_len_ideal = rec->dot_len_ideal;
+	if (dot_len_min)   { *dot_len_min   = rec->dot_len_min; }
+	if (dot_len_max)   { *dot_len_max   = rec->dot_len_max; }
+	if (dot_len_ideal) { *dot_len_ideal = rec->dot_len_ideal; }
 
 	/* Dash mark. */
-	if (dash_len_min)   *dash_len_min   = rec->dash_len_min;
-	if (dash_len_max)   *dash_len_max   = rec->dash_len_max;
-	if (dash_len_ideal) *dash_len_ideal = rec->dash_len_ideal;
+	if (dash_len_min)   { *dash_len_min   = rec->dash_len_min; }
+	if (dash_len_max)   { *dash_len_max   = rec->dash_len_max; }
+	if (dash_len_ideal) { *dash_len_ideal = rec->dash_len_ideal; }
 
 	/* End-of-mark. */
-	if (eom_len_min)   *eom_len_min   = rec->eom_len_min;
-	if (eom_len_max)   *eom_len_max   = rec->eom_len_max;
-	if (eom_len_ideal) *eom_len_ideal = rec->eom_len_ideal;
+	if (eom_len_min)   { *eom_len_min   = rec->eom_len_min; }
+	if (eom_len_max)   { *eom_len_max   = rec->eom_len_max; }
+	if (eom_len_ideal) { *eom_len_ideal = rec->eom_len_ideal; }
 
 	/* End-of-character. */
-	if (eoc_len_min)   *eoc_len_min   = rec->eoc_len_min;
-	if (eoc_len_max)   *eoc_len_max   = rec->eoc_len_max;
-	if (eoc_len_ideal) *eoc_len_ideal = rec->eoc_len_ideal;
+	if (eoc_len_min)   { *eoc_len_min   = rec->eoc_len_min; }
+	if (eoc_len_max)   { *eoc_len_max   = rec->eoc_len_max; }
+	if (eoc_len_ideal) { *eoc_len_ideal = rec->eoc_len_ideal; }
 
-	if (adaptive_threshold) *adaptive_threshold = rec->adaptive_speed_threshold;
+	if (adaptive_threshold) { *adaptive_threshold = rec->adaptive_speed_threshold; }
 
 	return;
 }
@@ -814,8 +814,8 @@ void cw_rec_reset_statistics(cw_rec_t * rec)
 		cw_debug_msg ((m_debug_object),				\
 			      CW_DEBUG_RECEIVE_STATES, CW_DEBUG_INFO,	\
 			      MSG_PREFIX "state: %s -> %s @ %s:%d",	\
-			      cw_receiver_states[m_rec->state], cw_receiver_states[m_new_state], __func__, __LINE__); \
-		m_rec->state = m_new_state;				\
+			      cw_receiver_states[(m_rec)->state], cw_receiver_states[(m_new_state)], __func__, __LINE__); \
+		(m_rec)->state = (m_new_state);				\
 	}
 
 
@@ -1170,7 +1170,7 @@ int cw_rec_mark_end(cw_rec_t * rec, const volatile struct timeval * timestamp)
    \return CW_SUCCESS if a mark has been identified as either Dot or Dash
    \return CW_FAILURE otherwise
 */
-int cw_rec_identify_mark_internal(cw_rec_t *rec, int mark_len, /* out */ char *mark)
+int cw_rec_identify_mark_internal(cw_rec_t *rec, int mark_len, /* out */ char * mark)
 {
 	cw_assert (mark, MSG_PREFIX "output argument is NULL");
 

@@ -15,10 +15,11 @@
 
 
 
-
-#include <stdint.h>     /* uint32_t */
 #include <pthread.h>    /* pthread_mutex_t */
 #include <stdbool.h>    /* bool */
+#include <stdint.h>     /* uint32_t */
+
+
 
 
 

@@ -9,9 +9,9 @@
 
 
 
-#include <stdio.h>
 #include <assert.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 
 
@@ -62,11 +62,11 @@ uint32_t cw_get_debug_flags(void)              __attribute__ ((deprecated));
 
 
 
-#define cw_debug_msg(debug_object, flag, debug_level, ...) {		\
-	if (debug_level >= (debug_object)->level) {			\
-		if ((debug_object)->flags & flag) {			\
-			fprintf(stderr, "%s:", (debug_object)->level_labels[debug_level]); \
-			if (debug_level == CW_DEBUG_DEBUG) {		\
+#define cw_debug_msg(debug_object, flag, debug_level, ...) {	\
+	if ((debug_level) >= (debug_object)->level) {		\
+		if ((debug_object)->flags & (flag)) {		\
+			fprintf(stderr, "%s:", (debug_object)->level_labels[(debug_level)]); \
+			if ((debug_level) == CW_DEBUG_DEBUG) {		\
 				fprintf(stderr, "%s: %d: ", __func__, __LINE__); \
 			}						\
 			fprintf(stderr, __VA_ARGS__);			\

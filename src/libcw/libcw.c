@@ -32,10 +32,10 @@
 
 
 #include "libcw.h"
-#include "libcw_gen.h"
-#include "libcw_rec.h"
-#include "libcw_key.h"
 #include "libcw_debug.h"
+#include "libcw_gen.h"
+#include "libcw_key.h"
+#include "libcw_rec.h"
 #include "libcw2.h"
 
 

@@ -228,8 +228,8 @@ extern int cw_get_procedural_character_count(void);
 extern void cw_list_procedural_characters(char *list);
 extern int cw_get_maximum_procedural_expansion_length(void);
 
-extern int cw_lookup_procedural_character (char c, char *representation,
-                                           int *is_usually_expanded);
+extern int cw_lookup_procedural_character(char c, char * expansion,
+					  int *is_usually_expanded);
 
 
 /* Phonetic alphabet */

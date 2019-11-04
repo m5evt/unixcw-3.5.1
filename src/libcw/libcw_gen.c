@@ -56,9 +56,9 @@
 
 #include "config.h"
 
+#include <stdbool.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <stdbool.h>
 #include <math.h>
 #include <signal.h>
 #include <errno.h>
@@ -1347,14 +1347,14 @@ int cw_gen_calculate_amplitude_internal(cw_gen_t *gen, const cw_tone_t *tone)
 
    \param gen - generator for which to set tone slope parameters
    \param slope_shape - shape of slope: linear, raised cosine, sine, rectangular
-   \param slope_len - length of slope [microseconds]
+   \param slope_usecs - duration of slope [microseconds]
 
    \return CW_SUCCESS on success
    \return CW_FAILURE on failure
 */
-int cw_generator_set_tone_slope(cw_gen_t * gen, int slope_shape, int slope_len)
+int cw_generator_set_tone_slope(cw_gen_t * gen, int slope_shape, int slope_usecs)
 {
-	return cw_gen_set_tone_slope(gen, slope_shape, slope_len);
+	return cw_gen_set_tone_slope(gen, slope_shape, slope_usecs);
 }
 
 
@@ -2036,15 +2036,15 @@ void cw_gen_get_timing_parameters_internal(cw_gen_t *gen,
 {
 	cw_gen_sync_parameters_internal(gen);
 
-	if (dot_len)   *dot_len = gen->dot_len;
-	if (dash_len)  *dash_len = gen->dash_len;
+	if (dot_len)   { *dot_len = gen->dot_len; }
+	if (dash_len)  { *dash_len = gen->dash_len; }
 
-	if (eom_space_len)   *eom_space_len = gen->eom_space_len;
-	if (eoc_space_len)   *eoc_space_len = gen->eoc_space_len;
-	if (eow_space_len)   *eow_space_len = gen->eow_space_len;
+	if (eom_space_len)   { *eom_space_len = gen->eom_space_len; }
+	if (eoc_space_len)   { *eoc_space_len = gen->eoc_space_len; }
+	if (eow_space_len)   { *eow_space_len = gen->eow_space_len; }
 
-	if (additional_space_len)    *additional_space_len = gen->additional_space_len;
-	if (adjustment_space_len)    *adjustment_space_len = gen->adjustment_space_len;
+	if (additional_space_len)    { *additional_space_len = gen->additional_space_len; }
+	if (adjustment_space_len)    { *adjustment_space_len = gen->adjustment_space_len; }
 
 	return;
 }

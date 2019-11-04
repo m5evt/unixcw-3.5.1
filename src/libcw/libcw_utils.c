@@ -38,9 +38,9 @@
 
 #include <sys/time.h>
 #include <sys/types.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <errno.h>
-#include <stdbool.h>
 #include <dlfcn.h> /* dlopen() and related symbols */
 #include <stdlib.h> /* strtol() */
 #include <limits.h> /* INT_MAX, for clang. */

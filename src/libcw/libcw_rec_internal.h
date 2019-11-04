@@ -20,7 +20,7 @@
 
 
 /* Receive and identify a mark. */
-CW_STATIC_FUNC int cw_rec_identify_mark_internal(cw_rec_t * rec, int mark_len, char *representation);
+CW_STATIC_FUNC int cw_rec_identify_mark_internal(cw_rec_t * rec, int mark_len, char * mark);
 
 /* Functions handling receiver statistics. */
 CW_STATIC_FUNC void   cw_rec_update_stats_internal(cw_rec_t * rec, stat_type_t type, int len);

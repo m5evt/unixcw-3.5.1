@@ -50,6 +50,7 @@ extern cw_debug_t cw_debug_object_dev;
 
 
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <dlfcn.h> /* dlopen() and related symbols */
@@ -59,15 +60,13 @@ extern cw_debug_t cw_debug_object_dev;
 #include <sys/stat.h>
 #include <sys/param.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <unistd.h>
 #include <stdlib.h>
 // #include <signal.h>
 #include <ctype.h>
-#include <limits.h>
-#include <stdio.h>
 #include <errno.h>
 #include <assert.h>
-#include <stdbool.h>
 #include <math.h>
 
 
