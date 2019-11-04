@@ -20,8 +20,8 @@
 
 
 
-#include <stdio.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <errno.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -33,9 +33,9 @@
 #include "test_framework.h"
 
 #include "libcw_utils.h"
+#include "libcw_utils.h"
 #include "libcw_utils_tests.h"
 #include "libcw_debug.h"
-#include "libcw_utils.h"
 #include "libcw_key.h"
 #include "libcw.h"
 #include "libcw2.h"

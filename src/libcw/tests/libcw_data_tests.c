@@ -20,8 +20,8 @@
 
 
 
-#include <stdio.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <errno.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -188,7 +188,7 @@ int test_cw_representation_to_character_internal(cw_test_executor_t * cte)
 		const int char_fast_lookup = LIBCW_TEST_FUT(cw_representation_to_character_internal)(cw_entry->representation);
 		const int char_direct = LIBCW_TEST_FUT(cw_representation_to_character_direct_internal)(cw_entry->representation);
 
-		if (!cte->expect_op_int(cte, char_fast_lookup, "==", char_direct, "fast lookup vs. direct method: '%s'", cw_entry->representation)) {
+		if (!cte->expect_op_int(cte, char_fast_lookup, "==", char_direct, 1, "fast lookup vs. direct method: '%s'", cw_entry->representation)) {
 			failure = true;
 			break;
 		}
@@ -378,11 +378,10 @@ int test_prosign_lookups_internal(cw_test_executor_t * cte)
 	/* Collect and print out a list of characters in the
 	   procedural signals expansion table. */
 
-	int count = 0; /* Number of prosigns. */
 
 	/* Test: get number of prosigns known to libcw. */
 	{
-		count = LIBCW_TEST_FUT(cw_get_procedural_character_count)();
+		const int count = LIBCW_TEST_FUT(cw_get_procedural_character_count)();
 		cte->expect_op_int(cte, 0, "<", count, true, "procedural character count (%d):", count);
 	}
 
@@ -621,7 +620,7 @@ int test_validate_string_internal(cw_test_executor_t * cte)
 
 	/* Test: validation of string as a whole. */
 
-	bool are_we_valid = false;
+	bool are_we_valid;
 	/* Check the whole charlist item as a single string,
 	   then check a known invalid string. */
 

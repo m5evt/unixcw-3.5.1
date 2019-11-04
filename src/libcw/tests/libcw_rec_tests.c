@@ -20,8 +20,8 @@
 
 
 
-#include <stdio.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <errno.h>
 #include <unistd.h>
 #include <string.h>
@@ -33,15 +33,22 @@
 
 #include "test_framework.h"
 
+#include "libcw_utils.h"
 #include "libcw_rec.h"
 #include "libcw_rec_tests.h"
 #include "libcw_rec_internal.h"
 #include "libcw_debug.h"
-#include "libcw_utils.h"
 #include "libcw_tq.h"
 #include "libcw_key.h"
 #include "libcw.h"
 #include "libcw2.h"
+
+
+
+
+#define cw_min(a, b) ((a) < (b) ? (a) : (b))
+#define cw_max(a, b) ((a) > (b) ? (a) : (b))
+
 
 
 
@@ -496,12 +503,12 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec
 
 
 		/* Test: getting representation from receiver's buffer. */
-		char polled_representation[CW_REC_REPRESENTATION_CAPACITY + 1] = { 0 };
 		{
 			/* Get representation (dots and dashes)
 			   accumulated by receiver. Check for
 			   errors. */
 
+			char polled_representation[CW_REC_REPRESENTATION_CAPACITY + 1] = { 0 };
 			bool is_word = false;
 			bool is_error = false;
 
@@ -545,18 +552,18 @@ bool test_cw_rec_test_begin_end(cw_test_executor_t * cte, cw_rec_t * rec, cw_rec
 			   is_word should be set by poll() to
 			   true. Otherwise both values should be
 			   false. */
-			if (!cte->expect_op_int(cte, point->is_last_in_word, "==", is_word, "%s: poll representation: is word", this_test_name)) {
+			if (!cte->expect_op_int(cte, point->is_last_in_word, "==", is_word, 1, "%s: poll representation: is word", this_test_name)) {
 				word_representation_failure = true;
 				cte->log_info(cte,
-					      "%s: poll representation: 'is_word' flag error: function returns '%d', data is tagged with '%d'\n"
-					      "'%c'  '%c'  '%c'  '%c'  '%c'",
+					      "%s: poll representation: 'is_word' flag error: function returns '%d', data is tagged with '%d'\n",
 					      this_test_name,
-					      is_word, point->is_last_in_word,
-					      vec->points[i - 2]->character,
-					      vec->points[i - 1]->character,
-					      vec->points[i]->character,
-					      vec->points[i + 1]->character,
-					      vec->points[i + 2]->character);
+					      is_word, point->is_last_in_word);
+
+				for (size_t p = 0; p < vec->n_points_valid; p++) {
+					if (cw_max(p, i) - cw_min(p, i) < 4) {
+						cte->log_info_cont(cte, "character #%zd = '%c'\n", p, vec->points[p]->character);
+					}
+				}
 				break;
 			}
 

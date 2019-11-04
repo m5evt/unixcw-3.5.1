@@ -20,9 +20,9 @@
 
 
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <limits.h> /* UCHAR_MAX */
-#include <stdbool.h>
 #include <errno.h>
 #include <unistd.h>
 
@@ -234,7 +234,7 @@ int test_cw_gen_new_start_stop_delete(cw_test_executor_t * cte)
 		/* Starting/stopping a generator may be a common pattern. */
 		const int sub_max = max;
 		for (int j = 0; j < sub_max; j++) {
-			int cwret = CW_FAILURE;
+			int cwret;
 
 			cwret = LIBCW_TEST_FUT(cw_gen_start)(gen);
 			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "new/start/stop/delete: start (loop #%d-%d)", i, j)) {
@@ -354,7 +354,7 @@ int test_cw_gen_set_tone_slope(cw_test_executor_t * cte)
 	   set only this generator's parameter that is different than
 	   '-1'." */
 	{
-		int cwret = CW_FAILURE;
+		int cwret;
 		cw_gen_t * gen = cw_gen_new(audio_system, NULL);
 		cte->assert2(cte, gen, "set slope: C1: failed to initialize generator");
 
@@ -411,7 +411,7 @@ int test_cw_gen_set_tone_slope(cw_test_executor_t * cte)
 		cw_gen_t * gen = cw_gen_new(audio_system, NULL);
 		cte->assert2(cte, gen, "set slope: C2: failed to initialize generator");
 
-		int cwret = CW_FAILURE;
+		int cwret;
 
 		/* At the beginning of test these values are
 		   generator's initial values.  As test progresses,
@@ -454,7 +454,7 @@ int test_cw_gen_set_tone_slope(cw_test_executor_t * cte)
 	   shape with zero length of the slopes. The slopes will be
 	   non-rectangular, but just unusually short." */
 	{
-		int cwret = CW_FAILURE;
+		int cwret;
 		cw_gen_t * gen = cw_gen_new(audio_system, NULL);
 		cte->assert2(cte, gen, "set slope: D: failed to initialize generator");
 

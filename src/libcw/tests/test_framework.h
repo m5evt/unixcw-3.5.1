@@ -353,7 +353,7 @@ typedef struct cw_test_executor_t {
    No resources are allocated in @param cte during the call, so there
    is no "deinit" function.
 */
-void cw_test_init(cw_test_executor_t * cte, FILE * stdout, FILE * stderr, const char * msg_prefix);
+void cw_test_init(cw_test_executor_t * self, FILE * stdout, FILE * stderr, const char * msg_prefix);
 
 
 
@@ -395,7 +395,7 @@ typedef struct cw_test_set_t {
 
 #define LIBCW_TEST_STRINGIFY(x) #x
 #define LIBCW_TEST_TOSTRING(x) LIBCW_TEST_STRINGIFY(x)
-#define LIBCW_TEST_FUNCTION_INSERT(function_pointer) { .fn = function_pointer, .name = LIBCW_TEST_TOSTRING(function_pointer) }
+#define LIBCW_TEST_FUNCTION_INSERT(function_pointer) { .fn = (function_pointer), .name = LIBCW_TEST_TOSTRING(function_pointer) }
 
 /* FUT = "Function under test". A function from libcw library that is
    the subject of a test. */

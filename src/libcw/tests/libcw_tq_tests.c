@@ -20,8 +20,8 @@
 
 
 
-#include <stdio.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <errno.h>
 #include <unistd.h>
 #include <string.h>
@@ -33,11 +33,11 @@
 
 #include "test_framework.h"
 
+#include "libcw_utils.h"
 #include "libcw_tq.h"
 #include "libcw_tq_internal.h"
 #include "libcw_tq_tests.h"
 #include "libcw_debug.h"
-#include "libcw_utils.h"
 #include "libcw.h"
 #include "libcw2.h"
 
@@ -986,7 +986,7 @@ int test_cw_tq_enqueue_internal_B(cw_test_executor_t * cte)
 	cw_tone_queue_t * tq = cw_tq_new_internal();
 	cte->assert2(cte, tq, "failed to create a tone queue\n");
 	cw_tone_t tone;
-	int cwret = CW_FAILURE;
+	int cwret;
 
 
 	int freq_min, freq_max;
@@ -1139,8 +1139,6 @@ int test_cw_tq_gen_operations_A(cw_test_executor_t * cte)
 		bool length_failure = false;
 		bool enqueue_failure = false;
 
-		int readback_length = 0;  /* Measured length of tone queue. */
-		int expected_length = 0;  /* Expected length of tone queue. */
 
 		/* Enqueue first tone. Don't check queue length yet.
 
@@ -1159,11 +1157,12 @@ int test_cw_tq_gen_operations_A(cw_test_executor_t * cte)
 		   enqueued, so we always have certainty how many
 		   tones must there be in queue. */
 		for (int i = 0; i < max; i++) {
-
 			/* Monitor length of a queue as it is filled - before
 			   adding a new tone. */
-			expected_length = i;
-			readback_length = LIBCW_TEST_FUT(cw_tq_length_internal)(gen->tq);
+			int expected_length = i; /* Expected length of tone queue. */
+
+			/* Measured length of tone queue. */
+			int readback_length = LIBCW_TEST_FUT(cw_tq_length_internal)(gen->tq);
 			if (!cte->expect_op_int(cte, expected_length, "==", readback_length, 1, "tq gen operations A: length pre-enqueue (#%02d):", i)) {
 				length_failure = true;
 				break;
@@ -1253,9 +1252,8 @@ int test_cw_tq_gen_operations_A(cw_test_executor_t * cte)
 	   empty. */
 
 	bool failure = false;
-	int freq = 0;
 	for (int i = 0; i < max; i++) {
-		freq = freq_min + i * delta_freq;
+		int freq = freq_min + i * delta_freq;
 		cw_tone_t tone;
 		CW_TONE_INIT(&tone, freq, duration, CW_SLOPE_MODE_NO_SLOPES);
 		const int cwret = LIBCW_TEST_FUT(cw_tq_enqueue_internal)(gen->tq, &tone);

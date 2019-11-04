@@ -26,15 +26,15 @@
 #define _XOPEN_SOURCE 600 /* signaction() + SA_RESTART */
 
 
+#include <stdlib.h>
 #include <sys/time.h>
 #include <signal.h>
 #include <stdio.h>
 #include <ctype.h>
 #include <limits.h>
 #include <unistd.h>
-#include <stdlib.h>
 #include <errno.h>
-#include <stdlib.h>
+
 #include <assert.h>
 
 #if defined(HAVE_STRING_H)
@@ -64,7 +64,7 @@ extern const char * test_invalid_representations[];
 
 
 
-static void test_helper_tq_callback(void *data);
+static void test_helper_tq_callback(void * ptr);
 
 /* Helper function for iambic key tests. */
 static void legacy_api_test_iambic_key_paddles_common(cw_test_executor_t * cte, const int intended_dot_paddle, const int intended_dash_paddle, char character, int n_elements);
@@ -794,9 +794,9 @@ int legacy_api_test_tone_queue_callback(cw_test_executor_t * cte)
 /**
    @reviewed on 2019-10-13
 */
-static void test_helper_tq_callback(void * data_)
+static void test_helper_tq_callback(void * ptr)
 {
-	callback_data * data = (callback_data *) data_;
+	callback_data * data = (callback_data *) ptr;
 
 	if (data->can_capture) {
 		data->captured_level = cw_get_tone_queue_length();
@@ -1636,11 +1636,12 @@ int legacy_api_test_basic_gen_operations(cw_test_executor_t * cte)
 	legacy_api_cw_single_test_setup();
 #endif
 
-	const char * device = NULL; /* Use default device. */
+
 	int cwret = CW_FAILURE;
 
 	/* Test setting up generator. */
 	{
+		const char * device = NULL; /* Use default device. */
 		cwret = LIBCW_TEST_FUT(cw_generator_new)(cte->current_sound_system, device);
 		cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 0, "cw_generator_new()");
 		if (cwret != CW_SUCCESS) {

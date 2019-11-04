@@ -35,15 +35,14 @@
 #define _XOPEN_SOURCE 600 /* signaction() + SA_RESTART */
 
 
+#include <getopt.h>
+#include <stdlib.h>
 #include <signal.h>
 #include <stdio.h>
 #include <ctype.h>
 #include <limits.h>
 #include <unistd.h>
-#include <stdlib.h>
 #include <errno.h>
-#include <stdlib.h>
-#include <getopt.h>
 #include <assert.h>
 #include <stdarg.h>
 
@@ -83,7 +82,7 @@ static void cw_assert2(struct cw_test_executor_t * self, bool condition, const c
 
 
 static void cw_test_print_test_header(cw_test_executor_t * self, const char * fmt, ...);
-static void cw_test_print_test_footer(cw_test_executor_t * self, const char * function_name);
+static void cw_test_print_test_footer(cw_test_executor_t * self, const char * test_name);
 static void cw_test_append_status_string(cw_test_executor_t * self, char * msg_buf, int n, const char * status_string);
 
 static int cw_test_process_args(cw_test_executor_t * self, int argc, char * const argv[]);
@@ -403,7 +402,7 @@ bool cw_test_expect_op_int2(struct cw_test_executor_t * self, int expected_value
 	char msg_buf[1024] = { 0 };
 	int n = snprintf(msg_buf, sizeof (msg_buf), "%s", self->msg_prefix);
 	const int message_len = n + snprintf(msg_buf + n, sizeof (msg_buf) - n, "%s", va_buf);
-	n += snprintf(msg_buf + n, sizeof (msg_buf) - n, "%-*s", (int) (self->console_n_cols - n), va_buf);
+	n += snprintf(msg_buf + n, sizeof (msg_buf) - n, "%-*s", (self->console_n_cols - n), va_buf);
 
 
 	bool success = false;
@@ -466,7 +465,7 @@ bool cw_test_expect_op_double(struct cw_test_executor_t * self, double expected_
 	char msg_buf[1024] = { 0 };
 	int n = snprintf(msg_buf, sizeof (msg_buf), "%s", self->msg_prefix);
 	const int message_len = n + snprintf(msg_buf + n, sizeof (msg_buf) - n, "%s", va_buf);
-	n += snprintf(msg_buf + n, sizeof (msg_buf) - n, "%-*s", (int) (self->console_n_cols - n), va_buf);
+	n += snprintf(msg_buf + n, sizeof (msg_buf) - n, "%-*s", (self->console_n_cols - n), va_buf);
 
 
 	bool success = false;
@@ -539,7 +538,7 @@ bool cw_test_expect_between_int(struct cw_test_executor_t * self, int expected_l
 	char msg_buf[1024] = { 0 };
 	int n = snprintf(msg_buf, sizeof (msg_buf), "%s", self->msg_prefix);
 	const int message_len = n + snprintf(msg_buf + n, sizeof (msg_buf) - n, "%s", va_buf);
-	n += snprintf(msg_buf + n, sizeof (msg_buf) - n, "%-*s", (int) (self->console_n_cols - n), va_buf);
+	n += snprintf(msg_buf + n, sizeof (msg_buf) - n, "%-*s", (self->console_n_cols - n), va_buf);
 
 	if (expected_lower <= received_value && received_value <= expected_higher) {
 		self->stats->successes++;
@@ -604,7 +603,7 @@ bool cw_test_expect_null_pointer(struct cw_test_executor_t * self, const void * 
 	char msg_buf[1024] = { 0 };
 	int n = snprintf(msg_buf, sizeof (msg_buf), "%s", self->msg_prefix);
 	const int message_len = n + snprintf(msg_buf + n, sizeof (msg_buf) - n, "%s", va_buf);
-	n += snprintf(msg_buf + n, sizeof (msg_buf) - n, "%-*s", (int) (self->console_n_cols - n), va_buf);
+	n += snprintf(msg_buf + n, sizeof (msg_buf) - n, "%-*s", (self->console_n_cols - n), va_buf);
 
 
 	if (NULL == pointer) {
@@ -644,7 +643,7 @@ bool cw_test_expect_null_pointer_errors_only(struct cw_test_executor_t * self, c
 	char msg_buf[1024] = { 0 };
 	int n = snprintf(msg_buf, sizeof (msg_buf), "%s", self->msg_prefix);
 	const int message_len = n + snprintf(msg_buf + n, sizeof (msg_buf) - n, "%s", va_buf);
-	n += snprintf(msg_buf + n, sizeof (msg_buf) - n, "%-*s", (int) (self->console_n_cols - n), va_buf);
+	n += snprintf(msg_buf + n, sizeof (msg_buf) - n, "%-*s", (self->console_n_cols - n), va_buf);
 
 
 	if (NULL == pointer) {
@@ -679,7 +678,7 @@ bool cw_test_expect_valid_pointer(struct cw_test_executor_t * self, const void *
 	char msg_buf[1024] = { 0 };
 	int n = snprintf(msg_buf, sizeof (msg_buf), "%s", self->msg_prefix);
 	const int message_len = n + snprintf(msg_buf + n, sizeof (msg_buf) - n, "%s", va_buf);
-	n += snprintf(msg_buf + n, sizeof (msg_buf) - n, "%-*s", (int) (self->console_n_cols - n), va_buf);
+	n += snprintf(msg_buf + n, sizeof (msg_buf) - n, "%-*s", (self->console_n_cols - n), va_buf);
 
 
 	if (NULL != pointer) {
@@ -719,7 +718,7 @@ bool cw_test_expect_valid_pointer_errors_only(struct cw_test_executor_t * self, 
 	char msg_buf[1024] = { 0 };
 	int n = snprintf(msg_buf, sizeof (msg_buf), "%s", self->msg_prefix);
 	const int message_len = n + snprintf(msg_buf + n, sizeof (msg_buf) - n, "%s", va_buf);
-	n += snprintf(msg_buf + n, sizeof (msg_buf) - n, "%-*s", (int) (self->console_n_cols - n), va_buf);
+	n += snprintf(msg_buf + n, sizeof (msg_buf) - n, "%-*s", (self->console_n_cols - n), va_buf);
 
 
 	if (NULL != pointer) {
@@ -864,9 +863,9 @@ void cw_test_print_test_header(cw_test_executor_t * self, const char * fmt, ...)
 
 
 
-void cw_test_print_test_footer(cw_test_executor_t * self, const char * text)
+void cw_test_print_test_footer(cw_test_executor_t * self, const char * test_name)
 {
-	self->log_info(self, "End of test: %s\n", text);
+	self->log_info(self, "End of test: %s\n", test_name);
 }
 
 
