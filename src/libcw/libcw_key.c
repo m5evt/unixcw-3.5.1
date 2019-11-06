@@ -727,6 +727,11 @@ int cw_key_ik_update_graph_state_internal(volatile cw_key_t *key)
 		}
 
 		break;
+	default:
+		cw_debug_msg (&cw_debug_object, CW_DEBUG_KEYER_STATES, CW_DEBUG_ERROR,
+			      MSG_PREFIX "ik update: invalid keyer state %d",
+			      key->ik.graph_state);
+		return CW_FAILURE;
 	}
 
 	cw_debug_msg (&cw_debug_object, CW_DEBUG_KEYER_STATES, CW_DEBUG_INFO,

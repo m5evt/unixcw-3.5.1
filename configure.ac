@@ -478,7 +478,7 @@ AC_SUBST(SRC_SUBDIRS)
 # to with a few suppressions to icc command flags, then similarly, though less
 # so, for g++ and icpc.
 if test "`basename $CC`" = "gcc" ; then
-  CFLAGS="$CFLAGS -Wall -W -pedantic -Wfloat-equal -Wpointer-arith -std=gnu99"
+  CFLAGS="$CFLAGS -Wall -Wswitch-default -W -pedantic -Wfloat-equal -Wpointer-arith -std=gnu99"
   CFLAGS="$CFLAGS -Wcast-qual -Wwrite-strings -Wmissing-prototypes"
   CFLAGS="$CFLAGS -Wstrict-prototypes -Wmissing-declarations -Wredundant-decls"
 else
@@ -489,7 +489,7 @@ fi
 if test "`basename $CXX`" = "g++" ; then
   # -Wno-variadic-macros is to silence g++'s warnings about C99
   # variadic macros from libcw_debug.h
-  CXXFLAGS="$CXXFLAGS -Wall -W -pedantic -Wno-long-long -Wno-variadic-macros"
+  CXXFLAGS="$CXXFLAGS -Wall -Wswitch-default -W -pedantic -Wno-long-long -Wno-variadic-macros"
 else
   if test "`basename $CXX`" = "icpc" ; then
     CXXFLAGS="$CXXFLAGS -Wall -wd181,188,279,383,593,810,981,1469"
