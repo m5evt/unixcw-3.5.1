@@ -474,11 +474,24 @@ AC_SUBST(SRC_SUBDIRS)
 
 
 
-# Add -Wall, -W, -pedantic, and other paranoia to gcc command flags, and -Wall
-# to with a few suppressions to icc command flags, then similarly, though less
-# so, for g++ and icpc.
+GCC_WARNINGS="-Wall -Wextra -Wswitch-default"
+GCC_C_WARNINGS="-Wimplicit-function-declaration"
+# For silencing warnings about format with localization macro: printf(_("")).
+GCC_WARNINGS="$GCC_WARNINGS -Wno-format-nonliteral"
+
+# Inspired by Krister Walfridsson's blog post
+GCC_WARNINGS="$GCC_WARNINGS -Wduplicated-cond -Wlogical-op"
+GCC_WARNINGS="$GCC_WARNINGS -Wnull-dereference"
+GCC_WARNINGS="$GCC_WARNINGS -Wdouble-promotion -Wshadow -Wformat=2"
+# GCC_WARNINGS="$GCC_WARNINGS -Wrestrict -Wduplicated-branches " # Not supported yet on my PC
+GCC_C_WARNINGS="$GCC_C_WARNINGS -Wjump-misses-init"
+
+# Add -Wall, -Wextra, -pedantic, and other paranoia to gcc command
+# flags, and -Wall to with a few suppressions to icc command flags,
+# then similarly, though less so, for g++ and icpc.
 if test "`basename $CC`" = "gcc" ; then
-  CFLAGS="$CFLAGS -Wall -Wswitch-default -W -pedantic -Wfloat-equal -Wpointer-arith -std=gnu99"
+  CFLAGS="$CFLAGS -std=gnu99"
+  CFLAGS="$CFLAGS $GCC_WARNINGS $GCC_C_WARNINGS -pedantic -Wfloat-equal -Wpointer-arith"
   CFLAGS="$CFLAGS -Wcast-qual -Wwrite-strings -Wmissing-prototypes"
   CFLAGS="$CFLAGS -Wstrict-prototypes -Wmissing-declarations -Wredundant-decls"
 else
@@ -489,7 +502,7 @@ fi
 if test "`basename $CXX`" = "g++" ; then
   # -Wno-variadic-macros is to silence g++'s warnings about C99
   # variadic macros from libcw_debug.h
-  CXXFLAGS="$CXXFLAGS -Wall -Wswitch-default -W -pedantic -Wno-long-long -Wno-variadic-macros"
+  CXXFLAGS="$CXXFLAGS $GCC_WARNINGS -pedantic -Wno-long-long -Wno-variadic-macros"
 else
   if test "`basename $CXX`" = "icpc" ; then
     CXXFLAGS="$CXXFLAGS -Wall -wd181,188,279,383,593,810,981,1469"
