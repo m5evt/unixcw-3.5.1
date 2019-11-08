@@ -287,8 +287,8 @@ int cw_rec_set_speed(cw_rec_t * rec, int new_value)
 	}
 
 	/* TODO: verify this comparison. */
-	float diff = fabs((1.0 * new_value) - rec->speed);
-	if (diff >= 0.5) {
+	const float diff = fabsf((1.0f * new_value) - rec->speed);
+	if (diff >= 0.5f) {
 		rec->speed = new_value;
 
 		/* Changes of receive speed require resynchronization. */
@@ -1928,7 +1928,7 @@ void cw_rec_sync_parameters_internal(cw_rec_t *rec)
 
 	cw_debug_msg (&cw_debug_object, CW_DEBUG_PARAMETERS, CW_DEBUG_INFO,
 		      MSG_PREFIX "sync parameters: receive usec timings <%.2f [wpm]>: dot: %d-%d [ms], dash: %d-%d [ms], %d-%d[%d], %d-%d[%d], thres: %d [us]",
-		      rec->speed,
+		      (double) rec->speed, /* Casting to double to avoid compiler warning about implicit conversion from float to double. */
 		      rec->dot_len_min, rec->dot_len_max,
 		      rec->dash_len_min, rec->dash_len_max,
 		      rec->eom_len_min, rec->eom_len_max, rec->eom_len_ideal,

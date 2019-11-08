@@ -138,8 +138,8 @@ typedef struct mode_s *moderef_t;
 /* Modes table, current program mode, and count of modes in the table.
    The program is always in one of these modes, indicated by
    current_mode. */
-static moderef_t modes = NULL,
-                 current_mode = NULL;
+static moderef_t modes = NULL;
+static moderef_t g_current_mode = NULL;
 static int modes_count = 0;
 
 static int queue_get_length(void);
@@ -536,22 +536,22 @@ void queue_transfer_character_to_libcw(void)
 	   empty.  If in keyboard mode, just dequeue anything
 	   currently on the character queue. */
 
-	if (current_mode->type == M_DICTIONARY) {
+	if (g_current_mode->type == M_DICTIONARY) {
 		if (timer_is_expired()) {
 			state_change_to_idle();
 			return;
 		}
 
 		if (queue_get_length() == 0) {
-			queue_enqueue_random_dictionary_text(current_mode, beginning_of_buffer);
+			queue_enqueue_random_dictionary_text(g_current_mode, beginning_of_buffer);
 			if (beginning_of_buffer) {
 				beginning_of_buffer = false;
 			}
 		}
 	}
 
-	if (current_mode->type == M_DICTIONARY
-	    || current_mode->type == M_KEYBOARD) {
+	if (g_current_mode->type == M_DICTIONARY
+	    || g_current_mode->type == M_KEYBOARD) {
 
 		queue_dequeue_character();
 	}
@@ -722,7 +722,7 @@ void mode_initialize(void)
 	memset(modes + count, 0, sizeof (*modes));
 
 	/* Initialize the current mode to be the first listed, and set count. */
-	current_mode = modes;
+	g_current_mode = modes;
 	modes_count = count;
 
 	return;
@@ -766,7 +766,7 @@ int mode_get_count(void)
 */
 int mode_get_current(void)
 {
-	return current_mode - modes;
+	return g_current_mode - modes;
 }
 
 
@@ -790,7 +790,7 @@ const char *mode_get_description(int index)
 */
 bool mode_current_is_type(mode_type_t type)
 {
-	return current_mode->type == type;
+	return g_current_mode->type == type;
 }
 
 
@@ -807,9 +807,9 @@ bool mode_current_is_type(mode_type_t type)
 */
 bool mode_change_to_next(void)
 {
-	current_mode++;
-	if (!current_mode->description) {
-		current_mode--;
+	g_current_mode++;
+	if (!g_current_mode->description) {
+		g_current_mode--;
 		return false;
 	} else {
 		return true;
@@ -830,8 +830,8 @@ bool mode_change_to_next(void)
 */
 bool mode_change_to_previous(void)
 {
-	if (current_mode > modes) {
-		current_mode--;
+	if (g_current_mode > modes) {
+		g_current_mode--;
 		return true;
 	} else {
 		return false;
@@ -859,14 +859,14 @@ void state_change_to_active(void)
 
 	ui_display_state(_("Sending(F9 or Esc to exit)"));
 
-	if (current_mode != last_mode) {
+	if (g_current_mode != last_mode) {
 		ui_clear_main_window();
 		timer_start();
 
 		/* Don't allow a space at the beginning of buffer. */
 		beginning_of_buffer = true;
 
-		last_mode = current_mode;
+		last_mode = g_current_mode;
         }
 
 	ui_refresh_main_window();

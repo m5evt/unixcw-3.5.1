@@ -67,7 +67,7 @@ struct cwgen_config {
 	uint64_t n_chars_max;  /* Maximal number of characters (excluding spaces) to generate in whole set of groups; may be zero - no limit. */
 
 	char *charset;         /* Set of chars to be used to generate groups. */
-} config = {
+} g_config = {
 	.program_name   = (char *) NULL,
 
 	.n_groups       = INITIAL_GROUPS,
@@ -364,21 +364,21 @@ int main(int argc, char **argv)
 	/* Parse combined environment and command line arguments. */
 	combine_arguments(_("CWGEN_OPTIONS"),
 			  argc, argv, &combined_argc, &combined_argv);
-	cwgen_parse_command_line(combined_argc, combined_argv, &config);
+	cwgen_parse_command_line(combined_argc, combined_argv, &g_config);
 
-	if (!config.charset) {
-		config.charset = strdup(DEFAULT_CHARSET);
-		if (!config.charset) {
+	if (!g_config.charset) {
+		g_config.charset = strdup(DEFAULT_CHARSET);
+		if (!g_config.charset) {
 			fprintf(stderr, _("%s: failed to allocate memory\n"), argv[0]);
 			return EXIT_FAILURE;
 		}
 	}
 
 	/* Generate the character groups as requested. */
-	cwgen_generate_characters(&config);
+	cwgen_generate_characters(&g_config);
 	putchar('\n');
 
-	cwgen_free_config(&config);
+	cwgen_free_config(&g_config);
 
 	return EXIT_SUCCESS;
 }
