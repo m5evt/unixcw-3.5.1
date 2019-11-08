@@ -1545,7 +1545,7 @@ int test_cw_tq_callback(cw_test_executor_t * cte)
 		/* Add a lot of tones to tone queue. "a lot" means two
 		   times more than a value of trigger level. */
 		for (int j = 0; j < 2 * level; j++) {
-			const int cwret = cw_gen_enqueue_character_partial(gen, 'e');
+			cwret = cw_gen_enqueue_character_partial(gen, 'e');
 			if (!cte->expect_op_int(cte, CW_SUCCESS, "==", cwret, 1, "enqueueing tones, tone #%d", j)) {
 				enqueue_failure = true;
 				break;

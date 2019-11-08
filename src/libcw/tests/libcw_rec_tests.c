@@ -287,7 +287,7 @@ int test_cw_rec_test_with_constant_speeds(cw_test_executor_t * cte)
 
 			/* Verify that the test speed has been set correctly. */
 			const float diff = cw_rec_get_speed(rec) - (float) speed;
-			cte->assert2(cte, diff < 0.1, "%s: setting speed for test %s failed: %f != %f\n", this_test_name, test_data[i].name, cw_rec_get_speed(rec), (float) speed);
+			cte->assert2(cte, diff < 0.1f, "%s: setting speed for test %s failed: %f != %f\n", this_test_name, test_data[i].name, (double) cw_rec_get_speed(rec), (double) speed);  /* Casting to double to avoid compiler warning about implicit conversion from float to double. */
 
 			/* Actual tests of receiver functions are here. */
 			bool failure = test_cw_rec_test_begin_end(cte, rec, vec);
@@ -370,7 +370,7 @@ int test_cw_rec_test_with_varying_speeds(cw_test_executor_t * cte)
 
 		/* Verify that initial test speed has been set correctly. */
 		const float diff = cw_rec_get_speed(rec) - CW_SPEED_MAX;
-		cte->assert2(cte, diff < 0.1, "%s: incorrect receive speed: %f != %f\n", this_test_name, cw_rec_get_speed(rec), (float) CW_SPEED_MAX);
+		cte->assert2(cte, diff < 0.1f, "%s: incorrect receive speed: %f != %f\n", this_test_name, (double) cw_rec_get_speed(rec), (double) CW_SPEED_MAX);
 
 		/* Actual tests of receiver functions are here. */
 		const bool failure = test_cw_rec_test_begin_end(cte, rec, vec);
@@ -859,7 +859,7 @@ cw_send_speeds * cw_send_speeds_new_varying_sine(cw_test_executor_t * cte, size_
 	for (size_t i = 0; i < n; i++) {
 		/* Varying speeds. */
 		const float t = (1.0 * i) / n;
-		speeds->values[i] = (1 + cosf(2 * 3.1415 * t)) / 2.0;                             /* 0.0 -  1.0 */
+		speeds->values[i] = (1 + cosf(2 * 3.1415f * t)) / 2.0f;                           /* 0.0 -  1.0 */
 		speeds->values[i] *= (variation_params->speed_max - variation_params->speed_min); /* 0.0 - 56.0 */
 		speeds->values[i] += variation_params->speed_min;                                 /* 4.0 - 60.0 */
 		// fprintf(stderr, "%f\n", speeds->values[i]);
@@ -1176,7 +1176,7 @@ void cw_rec_test_vector_print(cw_test_executor_t * cte, cw_rec_test_vector * vec
 		}
 
 		/* Print data. */
-		cte->log_info_cont(cte, "%c  %-7s %6.2f", point->character, point->representation, point->send_speed);
+		cte->log_info_cont(cte, "%c  %-7s %6.2f", point->character, point->representation, (double) point->send_speed); /* Casting to double to avoid compiler warning about implicit conversion from float to double. */
 		for (size_t t = 0; t < point->n_tone_durations; t++) {
 			cte->log_info_cont(cte, "%9d ", point->tone_durations[t]);
 		}
