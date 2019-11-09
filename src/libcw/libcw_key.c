@@ -195,6 +195,40 @@ void cw_key_register_keying_callback(volatile cw_key_t * key, cw_key_callback_t 
 
 
 /**
+   \brief Register external callback function for keying
+
+   Function to be used in implementation of legacy API.
+
+   Register a \p callback_func function that should be called when a
+   state of a \p key changes from "key open" to "key closed", or
+   vice-versa.
+
+   The first argument passed to the registered callback function is
+   the supplied \p callback_arg, if any.
+
+   The second argument passed to registered callback function is the
+   key state: CW_KEY_STATE_CLOSED (one/true) for "key closed", and
+   CW_KEY_STATE_OPEN (zero/false) for "key open".
+
+   Calling this routine with a NULL function address disables keying
+   callbacks.
+
+   \param key
+   \param callback_func - callback function to be called on key state changes
+   \param callback_arg - first argument to callback_func
+*/
+void cw_key_register_legacy_keying_callback_internal(volatile cw_key_t * key, cw_key_legacy_callback_t callback_func, void * callback_arg)
+{
+	key->key_legacy_callback_func = callback_func;
+	key->key_legacy_callback_arg = callback_arg;
+
+	return;
+}
+
+
+
+
+/**
    \brief Set new value of key
 
    Set new value of a key. Filter successive key-down or key-up
@@ -249,10 +283,17 @@ void cw_key_tk_set_value_internal(volatile cw_key_t *key, int key_state)
 
 	if (key->key_callback_func) {
 		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_KEYING, CW_DEBUG_INFO,
-			      MSG_PREFIX "tk set value: about to call callback, key value = %d\n", key->tk.key_value);
+			      MSG_PREFIX "tk set value: about to call callback, key state = %d\n", key->tk.key_value);
 
 		(*key->key_callback_func)(&key->timer, key->tk.key_value, key->key_callback_arg);
 	}
+	if (key->key_legacy_callback_func) {
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_KEYING, CW_DEBUG_INFO,
+			      MSG_PREFIX "tk set value: about to call legacy callback, key state = %d\n", key->tk.key_value);
+
+		(*key->key_legacy_callback_func)(key->key_legacy_callback_arg, key->tk.key_value);
+	}
+
 	return;
 }
 
@@ -366,9 +407,15 @@ int cw_key_sk_set_value_internal(volatile cw_key_t *key, int key_state)
 	/* Call a registered callback. */
 	if (key->key_callback_func) {
 		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_KEYING, CW_DEBUG_INFO,
-			      MSG_PREFIX "sk set value: about to call callback, key value = %d\n", key->sk.key_value);
+			      MSG_PREFIX "sk set value: about to call callback, key state = %d\n", key->sk.key_value);
 
 		(*key->key_callback_func)(&key->timer, key->sk.key_value, key->key_callback_arg);
+	}
+	if (key->key_legacy_callback_func) {
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_KEYING, CW_DEBUG_INFO,
+			      MSG_PREFIX "sk set value: about to call legacy callback, key state = %d\n", key->sk.key_value);
+
+		(*key->key_legacy_callback_func)(key->key_legacy_callback_arg, key->sk.key_value);
 	}
 
 	int rv;
@@ -456,9 +503,15 @@ int cw_key_ik_set_value_internal(volatile cw_key_t *key, int key_state, char sym
 	/* Call a registered callback. */
 	if (key->key_callback_func) {
 		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_KEYING, CW_DEBUG_INFO,
-			      MSG_PREFIX "ik set value: about to call callback, key value = %d\n", key->ik.key_value);
+			      MSG_PREFIX "ik set value: about to call callback, key state = %d\n", key->ik.key_value);
 
 		(*key->key_callback_func)(&key->timer, key->ik.key_value, key->key_callback_arg);
+	}
+	if (key->key_legacy_callback_func) {
+		cw_debug_msg (&cw_debug_object_dev, CW_DEBUG_KEYING, CW_DEBUG_INFO,
+			      MSG_PREFIX "ik set value: about to call legacy callback, key state = %d\n", key->ik.key_value);
+
+		(*key->key_legacy_callback_func)(key->key_legacy_callback_arg, key->ik.key_value);
 	}
 
 	/* 'Partial' means without any end-of-mark spaces. */
@@ -1336,6 +1389,8 @@ cw_key_t * cw_key_new(void)
 
 	key->key_callback_func = NULL;
 	key->key_callback_arg = NULL;
+	key->key_legacy_callback_func = NULL;
+	key->key_legacy_callback_arg = NULL;
 
 	key->sk.key_value = CW_KEY_STATE_OPEN;
 

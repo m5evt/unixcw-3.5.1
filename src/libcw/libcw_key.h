@@ -37,7 +37,11 @@ enum {
 
 
 
-typedef void (* cw_key_callback_t)(volatile struct timeval * timestamp, int key_state, void * arg);
+/* For modern API. */
+typedef void (* cw_key_callback_t)(volatile struct timeval * timestamp, int key_state, void * callback_arg);
+/* For legacy API. */
+typedef void (* cw_key_legacy_callback_t)(void * callback_arg, int key_state);
+
 
 struct cw_key_struct {
 	/* Straight key and iambic keyer needs a generator to produce
@@ -85,7 +89,10 @@ struct cw_key_struct {
 	   function that is passed to us for this purpose, and a void*
 	   argument for it. */
 	cw_key_callback_t key_callback_func;
-	void *key_callback_arg;
+	void * key_callback_arg;
+
+	cw_key_legacy_callback_t key_legacy_callback_func;
+	void * key_legacy_callback_arg;
 
 
 	/* Straight key. */
@@ -138,6 +145,7 @@ typedef struct cw_key_struct cw_key_t;
 
 
 
+void cw_key_register_legacy_keying_callback_internal(volatile cw_key_t * key, cw_key_legacy_callback_t callback_func, void * callback_arg);
 
 void cw_key_tk_set_value_internal(volatile cw_key_t * key, int key_state);
 

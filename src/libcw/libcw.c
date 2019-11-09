@@ -140,6 +140,8 @@ static volatile cw_key_t cw_key = {
 
 	.key_callback_func = NULL,
 	.key_callback_arg = NULL,
+	.key_legacy_callback_func = NULL,
+	.key_legacy_callback_arg = NULL,
 
 
 	.sk = {
@@ -1727,7 +1729,7 @@ void cw_reset_receive(void)
 */
 void cw_register_keying_callback(void (*callback_func)(void*, int), void *callback_arg)
 {
-	cw_key_register_keying_callback(&cw_key, callback_func, callback_arg);
+	cw_key_register_legacy_keying_callback_internal(&cw_key, callback_func, callback_arg);
 	return;
 }
 
