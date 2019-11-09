@@ -71,7 +71,9 @@ def section_info_highlevel(stream):
             continue
         symbol_name = section.get_symbol(i).name
         if symbol_name[0:3] != "cw_":
-            continue;
+            continue
+        if "localalias" in symbol_name: # e.g. cw_send_representation_partial.localalias.2; TODO: why do we have symbols like this one?
+            continue
         result.add(symbol_name)
 
     return result
@@ -89,7 +91,10 @@ def find_tested_functions_in_file(file_handle, fut_tag):
             continue
         idx_start += len(fut_tag + "(") # tag + opening paren: "LIBCW_TEST_FUT("
 
-        idx_end = line.find("(", idx_start) # opening paren of tested function's call
+        # Find closing paren of FUT macro; should cover both usages of
+        # FUT macro: on a name of called function, and on a name of
+        # function pointer variable.
+        idx_end = line.find(")", idx_start) 
         if -1 == idx_end:
             continue
 
@@ -113,6 +118,28 @@ def find_tested_functions_in_dir(directory, fut_tag):
     return result
 
 
+
+
+# Print a set with function names: global functions first, internal
+# functions second.
+def print_functions_set(header, functions):
+    print("\n" + header)
+
+    for fun in sorted(functions):
+        if not fun.endswith("_internal"):
+            print("    " + fun)
+
+    print("")
+
+    for fun in sorted(functions):
+        if fun.endswith("_internal"):
+            print("    " + fun)
+
+    print("")
+
+
+
+
 if __name__ == '__main__':
     so_symbols = set()
     tested_functions = set()
@@ -122,10 +149,9 @@ if __name__ == '__main__':
     if sys.argv[3] == '--code':
         tested_functions = find_tested_functions_in_dir(sys.argv[4], "LIBCW_TEST_FUT")
 
-    print("\nAll libcw function symbols:")
-    print(so_symbols)
-    print("\nlibcw functions under test:")
-    print(tested_functions)
+    print_functions_set("All libcw function symbols:", so_symbols)
+    print_functions_set("\nlibcw functions under test:", tested_functions)
+    print_functions_set("libcw functions not tested yet:", so_symbols - tested_functions)
     print("\n")
 
     n_tested = len(tested_functions)
@@ -136,4 +162,4 @@ if __name__ == '__main__':
     if not tested_functions.issubset(so_symbols):
         print("Error: set of tested functions is not a subset of all so symbols")
 
-    print("Functions under test: {} out of {} ({:.2}%)".format(n_tested, n_all, 100.0 *  n_tested/n_all))
+    print("Functions under test: {} out of {} ({:.2f}%)".format(n_tested, n_all, 100.0 *  n_tested/n_all))
