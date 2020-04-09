@@ -275,9 +275,9 @@ pa_simple *cw_pa_simple_new_internal(pa_sample_spec *ss, pa_buffer_attr *ba, con
 	}
 
 	// http://www.mail-archive.com/pulseaudio-tickets@mail.0pointer.de/msg03295.html
-	ba->tlength = cw_pa.pa_usec_to_bytes(5000, ss);
+	ba->tlength = cw_pa.pa_usec_to_bytes(10000, ss);
 	ba->minreq = cw_pa.pa_usec_to_bytes(0, ss);
-	ba->maxlength = cw_pa.pa_usec_to_bytes(5000, ss);
+	ba->maxlength = cw_pa.pa_usec_to_bytes(10000, ss);
 	/* ba->prebuf = ; */ /* ? */
 	/* ba->fragsize = sizeof(uint32_t) -1; */ /* Not relevant to playback. */
 
